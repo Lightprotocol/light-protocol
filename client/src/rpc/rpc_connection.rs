@@ -91,4 +91,5 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn get_slot(&mut self) -> Result<u64, RpcError>;
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError>;
 }

@@ -34,6 +34,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
+    batched_ops::process_batched_operations,
     errors::ForesterError,
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
@@ -853,58 +854,87 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         })?
                 };
 
-                // TODO: measure accuracy
-                // Optional replace with shutdown signal for all child processes
-                let batched_tx_config = SendBatchedTransactionsConfig {
-                    num_batches: 10,
-                    build_transaction_batch_config: BuildTransactionBatchConfig {
-                        batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
-                        compute_unit_price: None, // Make dynamic based on queue usage
-                        compute_unit_limit: Some(1_000_000),
-                    },
-                    queue_config: self.config.queue_config,
-                    retry_config: RetryConfig {
-                        timeout: light_slot_timeout,
-                        ..self.config.retry_config
-                    },
+                if tree.tree_accounts.tree_type == TreeType::BatchedState {
+                    let start_time = Instant::now();
+                    info!("Processing batched state operations");
 
-                    light_slot_length: epoch_pda.protocol_config.slot_length,
-                };
+                    let rpc_pool = self.rpc_pool.clone();
+                    let indexer = self.indexer.clone();
+                    let payer = self.config.payer_keypair.insecure_clone();
+                    let derivation = self.config.derivation_pubkey;
+                    let merkle_tree = tree.tree_accounts.merkle_tree;
+                    let queue = tree.tree_accounts.queue;
 
-                let transaction_builder = EpochManagerTransactions {
-                    indexer: self.indexer.clone(), // TODO: remove clone
-                    epoch: epoch_info.epoch,
-                    phantom: std::marker::PhantomData::<R>,
-                };
+                    // TODO: measure & spawn child task for processing batched state operations
+                    let processed_count = process_batched_operations(
+                        rpc_pool,
+                        indexer,
+                        payer,
+                        derivation,
+                        epoch_info.epoch,
+                        merkle_tree,
+                        queue,
+                    )
+                    .await?;
+                    info!("Processed {} batched state operations", processed_count);
+                    queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
+                    self.increment_processed_items_count(epoch_info.epoch, processed_count)
+                        .await;
+                } else {
+                    // TODO: measure accuracy
+                    // Optional replace with shutdown signal for all child processes
+                    let batched_tx_config = SendBatchedTransactionsConfig {
+                        num_batches: 10,
+                        build_transaction_batch_config: BuildTransactionBatchConfig {
+                            batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
+                            compute_unit_price: None, // Make dynamic based on queue usage
+                            compute_unit_limit: Some(1_000_000),
+                        },
+                        queue_config: self.config.queue_config,
+                        retry_config: RetryConfig {
+                            timeout: light_slot_timeout,
+                            ..self.config.retry_config
+                        },
 
-                debug!("Sending transactions...");
-                let start_time = Instant::now();
-                let batch_tx_future = send_batched_transactions(
-                    &self.config.payer_keypair,
-                    &self.config.derivation_pubkey,
-                    self.rpc_pool.clone(),
-                    &batched_tx_config, // TODO: define config in epoch manager
-                    tree.tree_accounts,
-                    &transaction_builder,
-                );
+                        light_slot_length: epoch_pda.protocol_config.slot_length,
+                    };
 
-                // Check whether the tree is ready for rollover once per slot.
-                let future = self.rollover_if_needed(&tree.tree_accounts);
+                    let transaction_builder = EpochManagerTransactions {
+                        indexer: self.indexer.clone(), // TODO: remove clone
+                        epoch: epoch_info.epoch,
+                        phantom: std::marker::PhantomData::<R>,
+                    };
 
-                // Wait for both operations to complete
-                let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
-                rollover_result?;
+                    debug!("Sending transactions...");
+                    let start_time = Instant::now();
+                    let batch_tx_future = send_batched_transactions(
+                        &self.config.payer_keypair,
+                        &self.config.derivation_pubkey,
+                        self.rpc_pool.clone(),
+                        &batched_tx_config, // TODO: define config in epoch manager
+                        tree.tree_accounts,
+                        &transaction_builder,
+                    );
 
-                match num_tx_sent {
-                    Ok(num_tx_sent) => {
-                        debug!("Transactions sent successfully");
-                        let chunk_duration = start_time.elapsed();
-                        queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration).await;
-                        self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
-                            .await;
-                    }
-                    Err(e) => {
-                        error!("Failed to send transactions: {:?}", e);
+                    // Check whether the tree is ready for rollover once per slot.
+                    let future = self.rollover_if_needed(&tree.tree_accounts);
+
+                    // Wait for both operations to complete
+                    let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
+                    rollover_result?;
+
+                    match num_tx_sent {
+                        Ok(num_tx_sent) => {
+                            debug!("Transactions sent successfully");
+                            let chunk_duration = start_time.elapsed();
+                            queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration)
+                                .await;
+                            self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
+                                .await;
+                        }
+                        Err(e) => {
+                            error!("Failed to send transactions: {:?}", e);
+                        }
                     }
                 }
             } else {
