@@ -14,10 +14,10 @@ solana-program = { workspace = true }
 account-compression = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-prover-client = { workspace = true }
-light-system-program = { path = "../programs/system", features = ["cpi"] }
+light-system-program = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
-light-hasher = { path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { path = "../merkle-tree/reference" }
+light-hasher = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
 light-registry = { workspace = true}
 light-utils = { workspace = true }
 light-verifier = { workspace = true }
@@ -47,8 +47,8 @@ light-merkle-tree-metadata = { workspace = true }
 
 [dev-dependencies]
 serial_test = "3.2.0"
-light-prover-client = {path = "../circuit-lib/light-prover-client" }
-light-merkle-tree-reference = {path = "../merkle-tree/reference"}
-light-hasher = {path = "../merkle-tree/hasher"}
-light-test-utils = {path = "../test-utils" }
+light-prover-client = { workspace = true }
+light-merkle-tree-reference = { workspace = true}
+light-hasher = { workspace = true}
+light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }

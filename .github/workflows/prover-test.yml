@@ -3,16 +3,16 @@ on:
   push:
     branches:
       - main
-      - 'release/**'
+      - "release/**"
     paths:
-      - "light-prover/**"
+      - "prover/server/**"
       - ".github/workflows/prover-test.yml"
       - ".github/workflows/prover-release.yml"
   pull_request:
     branches:
       - "*"
     paths:
-      - "light-prover/**"
+      - "prover/server/**"
       - ".github/workflows/prover-test.yml"
       - ".github/workflows/prover-release.yml"
     types:
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: "./light-prover/go.mod"
+          go-version-file: "./prover/server/go.mod"
 
       - name: Install Elan
         run: |
@@ -43,50 +43,50 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v4
         with:
-          path: light-prover/formal-verification/lake-packages
+          path: prover/server/formal-verification/lake-packages
           key: "${{ env.LAKE_VERSION }}"
 
       - name: Download keys for lightweight tests
         if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
-          cd light-prover
+          cd prover/server
           ./scripts/download_keys.sh light
 
       - name: Download keys for full tests
         if: ${{ github.event.pull_request.base.ref == 'release' }}
         run: |
-          cd light-prover
+          cd prover/server
           ./scripts/download_keys.sh full
 
       - name: Build
         run: |
-          cd light-prover
+          cd prover/server
           go build
 
       - name: Unit tests
         run: |
-          cd light-prover
+          cd prover/server
           go test ./prover -timeout 60m
 
       - name: Lightweight integration tests
         if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
-          cd light-prover
+          cd prover/server
           go test -run TestLightweight -timeout 15m
-  
+
       - name: Full integration tests
         if: ${{ github.event.pull_request.base.ref == 'release' }}
         run: |
-          cd light-prover
+          cd prover/server
           go test -run TestFull -timeout 120m
 
       # - name: Extract circuit to Lean
       #   run: |
-      #     cd light-prover
+      #     cd prover/server
       #     ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --tree-height=26 --compressed-accounts=8
 
       # - name: Build lean project
       #   run: |
-      #     cd light-prover/formal-verification
+      #     cd prover/server/formal-verification
       #     ~/.elan/bin/lake exe cache get
       #     ~/.elan/bin/lake build

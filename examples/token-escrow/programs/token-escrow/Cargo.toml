@@ -24,18 +24,18 @@ anchor-lang = { workspace = true, features = ["init-if-needed"] }
 light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 account-compression = { workspace = true }
-light-hasher = { path = "../../../../merkle-tree/hasher", version = "1.1.0" }
-light-verifier = { path = "../../../../circuit-lib/verifier", version = "1.1.0" }
+light-hasher = { workspace = true }
+light-verifier = { workspace = true }
 light-sdk = { workspace = true, features = ["legacy"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-light-test-utils = { version = "1.2.0", path = "../../../../test-utils", features = ["devenv"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
-light-prover-client = { path = "../../../../circuit-lib/light-prover-client", version = "1.2.0" }
+light-prover-client = { workspace = true, version = "1.2.0" }
 anchor-spl = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

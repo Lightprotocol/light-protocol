@@ -1,7 +1,7 @@
 packages:
   - "tsconfig/**"
   - "programs/**"
-  - "circuit-lib/**"
+  - "program-libs/**"
   - "cli/**"
   - "account-compression/programs/**"
   - "sdk/**"
@@ -9,4 +9,4 @@ packages:
   - "js/compressed-token/**"
   - "examples/**"
   - "forester/**"
-  - "test-programs/**"
+  - "program-tests/**"

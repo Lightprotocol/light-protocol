@@ -76,7 +76,7 @@ node_modules
 
 /cli/.crates2.json
 /cli/.crates.toml
-test-programs/e2e-test/**/*.txt
+program-tests/e2e-test/**/*.txt
 output.txt
 .nx/cache
 .nx/workspace-data

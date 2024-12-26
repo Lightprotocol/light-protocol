@@ -1,17 +1,12 @@
 assets/ @SwenSchaeferjohann
-circuit-lib/ @ananas-block @sergeytimoshin
+program-libs/ @ananas-block @sergeytimoshin
 cli/ @ananas-block @sergeytimoshin
-macro-circom/ @ananas-block
-macros/ @vadorovsky
-merkle-tree/ @ananas-block @vadorovsky
-programs/ @ananas-block @vadorovsky
+programs/ @ananas-block
 prover.js/ @sergeytimoshin
 examples/ @ananas-block @SwenSchaeferjohann
 rpc/ @sergeytimoshin @SwenSchaeferjohann
-scripts/ @vadorovsky
-third-party/ @vadorovsky
+scripts/ @ananas-block @sergeytimoshin
+third-party/ @ananas-block
 tsconfig/ @SwenSchaeferjohann
-utils/ @vadorovsky
-verifier-sdk/ @ananas-block @vadorovsky
 web/ @SwenSchaeferjohann
-xtask/ @vadorovsky
+xtask/ @ananans-block

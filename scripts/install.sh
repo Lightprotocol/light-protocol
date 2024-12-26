@@ -172,7 +172,7 @@ download_gnark_keys() {
     if ! is_installed "gnark_keys"; then
         echo "Downloading gnark keys..."
         ROOT_DIR="$(git rev-parse --show-toplevel)"
-        "${ROOT_DIR}/light-prover/scripts/download_keys.sh" "$key_type"
+        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$key_type"
         log "gnark_keys"
     fi
 }

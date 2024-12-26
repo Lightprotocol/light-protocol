@@ -561,9 +561,9 @@ importers:
 
   programs: {}
 
-  test-programs: {}
+  program-tests: {}
 
-  test-programs/sdk-test-program:
+  program-tests/sdk-test-program:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0

@@ -1,0 +1,56 @@
+[package]
+name = "account-compression-test"
+version = "1.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "account_compression_test"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+test-sbf = []
+custom-heap = []
+default = ["custom-heap"]
+
+[dependencies]
+
+[dev-dependencies]
+ark-bn254 = "0.4.0"
+ark-ff = "0.4.0"
+solana-program-test =  { workspace = true}
+light-test-utils = { workspace = true, features=["devenv"] }
+light-program-test = { workspace = true, features = ["devenv"] }
+reqwest = "0.11.26"
+tokio = { workspace = true }
+light-prover-client = {workspace = true }
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+spl-token = { workspace = true }
+anchor-spl = { workspace = true }
+anchor-lang = { workspace = true }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
+account-compression = { workspace = true }
+light-hasher = {workspace = true}
+light-hash-set = { workspace = true}
+light-concurrent-merkle-tree = {workspace = true}
+light-indexed-merkle-tree = {workspace = true}
+light-merkle-tree-reference = {workspace = true}
+light-bounded-vec = {workspace = true}
+light-utils = {workspace = true}
+light-verifier = {workspace = true}
+rand = "0.8"
+solana-cli-output = { workspace = true }
+serde_json = "1.0.114"
+solana-sdk = { workspace = true }
+thiserror = "1.0"
+memoffset = "0.9.1"
+serial_test = "3.1.1"
+light-bloom-filter = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }

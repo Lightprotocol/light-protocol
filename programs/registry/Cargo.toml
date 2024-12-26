@@ -23,11 +23,11 @@ bench-sbf = []
 sdk = []
 
 [dependencies]
-aligned-sized = { version = "1.1.0", path = "../../macros/aligned-sized" }
+aligned-sized = { workspace = true }
 anchor-lang = { workspace = true , features = ["init-if-needed"]}
-light-heap = { version = "1.1.0", path = "../../heap", optional = true }
+light-heap = { workspace = true, optional = true }
 account-compression = { workspace =  true  }
-light-system-program = { version = "1.2.0", path = "../system", features = ["cpi"]  }
+light-system-program = { workspace = true , features = ["cpi"]  }
 solana-security-txt = "1.1.0"
 light-merkle-tree-metadata = { workspace = true }
 light-batched-merkle-tree = { workspace = true }

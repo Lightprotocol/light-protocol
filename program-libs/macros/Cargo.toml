@@ -1,0 +1,21 @@
+[package]
+name = "light-macros"
+version = "1.1.0"
+description = "Macros used in Light Protocol on-chain programs"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
+bs58 = "0.5"
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+
+light-hasher = { workspace = true }
+
+[dev-dependencies]
+light-utils = { workspace = true }
+
+[lib]
+proc-macro = true

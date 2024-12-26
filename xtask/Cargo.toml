@@ -10,11 +10,11 @@ ark-bn254 = "0.4"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "1.1.0" }
+light-concurrent-merkle-tree = { workspace = true }
 light-hash-set = { workspace = true }
-light-hasher = { path = "../merkle-tree/hasher", version = "1.1.0" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "1.1.0" }
-light-utils = { path = "../utils", version = "1.1.0" }
+light-hasher = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-utils = { workspace = true }
 num-bigint = "0.4"
 rand = "0.8"
 quote = "1.0"
