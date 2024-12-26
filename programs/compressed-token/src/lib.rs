@@ -33,7 +33,7 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
-    use spl_compression::spl_token_pool_derivation;
+    use spl_compression::check_spl_token_pool_derivation_with_bump;
 
     use super::*;
 
@@ -59,7 +59,7 @@ pub mod light_compressed_token {
             return err!(ErrorCode::InvalidTokenPoolBump);
         }
         // Check that token pool account with previous bump already exists.
-        spl_token_pool_derivation(
+        check_spl_token_pool_derivation_with_bump(
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
             &[token_pool_bump.saturating_sub(1)],

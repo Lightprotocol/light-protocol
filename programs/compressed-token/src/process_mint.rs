@@ -10,7 +10,7 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
-use crate::{is_valid_token_pool_pda, program::LightCompressedToken};
+use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -274,7 +274,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
 
 #[inline(never)]
 pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -> Result<()> {
-    is_valid_token_pool_pda(&ctx.accounts.token_pool_pda.key(), &ctx.accounts.mint.key())?;
+    check_spl_token_pool_derivation(&ctx.accounts.token_pool_pda.key(), &ctx.accounts.mint.key())?;
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
         mint_amount = mint_amount
@@ -325,7 +325,7 @@ pub struct MintToInstruction<'info> {
             @ crate::ErrorCode::InvalidAuthorityMint
     )]
     pub mint: InterfaceAccount<'info, Mint>,
-    /// CHECK: with is_valid_token_pool_pda().
+    /// CHECK: with check_spl_token_pool_derivation().
     #[account(mut)]
     pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
     pub token_program: Interface<'info, TokenInterface>,
