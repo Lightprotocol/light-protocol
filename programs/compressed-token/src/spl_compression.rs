@@ -4,6 +4,7 @@ use anchor_spl::{token::TokenAccount, token_interface};
 
 use crate::{
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
+    is_valid_token_pool_pda,
     process_transfer::get_cpi_signer_seeds,
     CompressedTokenInstructionDataTransfer, ErrorCode, TransferInstruction,
 };
@@ -81,19 +82,19 @@ pub fn decompress_spl_tokens<'info>(
 /// Executes a token program instruction with multiple token pool accounts.
 /// Supported instructions are burn and transfer to decompress spl tokens.
 /// Logic:
-/// 1. iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
-/// 2. start with passed in token pool account.
-/// 3. determine whether complete amount can be transferred or burned.
+/// 1. Iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
+/// 2. Start with passed in token pool account.
+/// 3. Determine whether complete amount can be transferred or burned.
 /// 4. Skip if action amount is zero.
-/// 5. check if the token pool account is derived from the mint.
-/// 6. return error if the token pool account is not derived
+/// 5. Check if the token pool account is derived from the mint.
+/// 6. Return error if the token pool account is not derived
 ///     from any combination of mint and bump.
-/// 7. burn or transfer the amount from the token pool account.
-/// 8. remove bump from the list of bumps.
-/// 9. reduce the amount by the transferred or burned amount.
-/// 10. continue until the amount is zero.
+/// 7. Burn or transfer the amount from the token pool account.
+/// 8. Remove bump from the list of bumps.
+/// 9. Reduce the amount by the transferred or burned amount.
+/// 10. Continue until the amount is zero.
 /// 11. Return if complete amount has been transferred or burned.
-/// 12. return error if the amount is not zero and the number of accounts has been exhausted.
+/// 12. Return error if the amount is not zero and the number of accounts has been exhausted.
 #[allow(clippy::too_many_arguments)]
 pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BURN: bool>(
     remaining_accounts: &[AccountInfo<'info>],
@@ -108,7 +109,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
     let mut token_pool_bumps: Vec<u8> = (0..NUM_MAX_POOL_ACCOUNTS).collect();
     // 1. iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
-        // 2. start with passed in token pool account.token_pool_bumps
+        // 2. Start with passed in token pool account.token_pool_bumps
         if i != 0 {
             token_pool_pda = remaining_accounts[i as usize - 1].to_account_info();
         }
@@ -116,16 +117,17 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
             TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])
                 .map_err(|_| ErrorCode::InvalidTokenPoolPda)?
                 .amount;
-        // 3. determine whether complete amount can be transferred or burned.
+        // 3. Determine whether complete amount can be transferred or burned.
         let action_amount = std::cmp::min(amount, token_pool_amount);
         // 4. Skip if action amount is zero.
         if action_amount == 0 {
             continue;
         }
-        // 5. check if the token pool account is derived from the mint for any bump.
+        // 5. Check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_bumps.iter().enumerate() {
             if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
             {
+                // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
                     crate::burn::spl_burn_cpi(
                         mint.clone().unwrap(),
@@ -144,16 +146,19 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
                         action_amount,
                     )?;
                 }
+                // 8. Remove bump from the list of bumps.
                 token_pool_bumps.remove(index);
+                // 9. Reduce the amount by the transferred or burned amount.
                 amount = amount.saturating_sub(action_amount);
                 break;
             } else if index == token_pool_bumps.len() - 1 {
-                // 6. return error if the token pool account is not derived
+                // 6. Return error if the token pool account is not derived
                 //      from any combination of mint and bump.
                 return err!(crate::ErrorCode::NoMatchingBumpFound);
             }
         }
 
+        // 10. Continue until the amount is zero.
         // 11. Return if complete amount has been transferred or burned.
         if amount == 0 {
             return Ok(());
@@ -184,30 +189,22 @@ pub fn compress_spl_tokens<'info>(
         None => return err!(ErrorCode::DeCompressAmountUndefinedForCompress),
     };
 
-    let mint_bytes = inputs.mint.to_bytes();
-
-    for i in 0..NUM_MAX_POOL_ACCOUNTS {
-        if check_spl_token_pool_derivation(mint_bytes.as_slice(), &recipient_token_pool.key(), &[i])
-        {
-            spl_token_transfer(
-                ctx.accounts
-                    .compress_or_decompress_token_account
-                    .as_ref()
-                    .unwrap()
-                    .to_account_info(),
-                recipient_token_pool.to_account_info(),
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts
-                    .token_program
-                    .as_ref()
-                    .unwrap()
-                    .to_account_info(),
-                amount,
-            )?;
-            return Ok(());
-        }
-    }
-    err!(ErrorCode::InvalidTokenPoolPda)
+    is_valid_token_pool_pda(&recipient_token_pool.key(), &inputs.mint)?;
+    spl_token_transfer(
+        ctx.accounts
+            .compress_or_decompress_token_account
+            .as_ref()
+            .unwrap()
+            .to_account_info(),
+        recipient_token_pool.to_account_info(),
+        ctx.accounts.authority.to_account_info(),
+        ctx.accounts
+            .token_program
+            .as_ref()
+            .unwrap()
+            .to_account_info(),
+        amount,
+    )
 }
 
 /// Invoke the spl token burn instruction with cpi authority pda as signer.
