@@ -3,8 +3,8 @@ use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_spl::{token::TokenAccount, token_interface};
 
 use crate::{
+    check_spl_token_pool_derivation,
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
-    is_valid_token_pool_pda,
     process_transfer::get_cpi_signer_seeds,
     CompressedTokenInstructionDataTransfer, ErrorCode, TransferInstruction,
 };
@@ -20,23 +20,19 @@ pub fn process_compression_or_decompression<'info>(
     }
 }
 
-pub fn spl_token_pool_derivation(
+pub fn check_spl_token_pool_derivation_with_bump(
     mint_bytes: &[u8],
     token_pool_pubkey: &Pubkey,
     bump: &[u8],
 ) -> Result<()> {
-    if check_spl_token_pool_derivation(mint_bytes, token_pool_pubkey, bump) {
+    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, bump) {
         Ok(())
     } else {
         err!(ErrorCode::InvalidTokenPoolPda)
     }
 }
 
-pub fn check_spl_token_pool_derivation(
-    mint_bytes: &[u8],
-    token_pool_pubkey: &Pubkey,
-    bump: &[u8],
-) -> bool {
+pub fn is_valid_token_pool_pda(mint_bytes: &[u8], token_pool_pubkey: &Pubkey, bump: &[u8]) -> bool {
     let seeds = [POOL_SEED, mint_bytes, bump];
     let seeds = if bump[0] == 0 {
         &seeds[..2]
@@ -125,8 +121,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
         }
         // 5. Check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_bumps.iter().enumerate() {
-            if check_spl_token_pool_derivation(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i])
-            {
+            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i]) {
                 // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
                     crate::burn::spl_burn_cpi(
@@ -189,7 +184,7 @@ pub fn compress_spl_tokens<'info>(
         None => return err!(ErrorCode::DeCompressAmountUndefinedForCompress),
     };
 
-    is_valid_token_pool_pda(&recipient_token_pool.key(), &inputs.mint)?;
+    check_spl_token_pool_derivation(&recipient_token_pool.key(), &inputs.mint)?;
     spl_token_transfer(
         ctx.accounts
             .compress_or_decompress_token_account

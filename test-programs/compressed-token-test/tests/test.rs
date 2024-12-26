@@ -21,7 +21,7 @@ use light_compressed_token::{
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },
-    spl_compression::spl_token_pool_derivation,
+    spl_compression::check_spl_token_pool_derivation_with_bump,
     token_data::{AccountState, TokenData},
     ErrorCode,
 };
@@ -321,7 +321,12 @@ async fn test_failing_create_token_pool() {
 
         let token_pool_pubkey = get_token_pool_pda(&mint.pubkey());
         let token_pool_account = rpc.get_account(token_pool_pubkey).await.unwrap().unwrap();
-        spl_token_pool_derivation(&mint.pubkey().to_bytes(), &token_pool_pubkey, &[0]).unwrap();
+        check_spl_token_pool_derivation_with_bump(
+            &mint.pubkey().to_bytes(),
+            &token_pool_pubkey,
+            &[0],
+        )
+        .unwrap();
         assert_eq!(token_pool_account.data.len(), TokenAccount::LEN);
     }
 }

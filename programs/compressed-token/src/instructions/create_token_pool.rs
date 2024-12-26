@@ -8,7 +8,7 @@ use spl_token_2022::{
 
 use crate::{
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
-    spl_compression::check_spl_token_pool_derivation,
+    spl_compression::is_valid_token_pool_pda,
 };
 
 /// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
@@ -107,11 +107,11 @@ pub struct AddTokenPoolInstruction<'info> {
 /// Checks if the token pool PDA is valid.
 /// Iterates over all possible bump seeds to check if the token pool PDA is valid.
 #[inline(always)]
-pub fn is_valid_token_pool_pda(token_pool_pda: &Pubkey, mint: &Pubkey) -> Result<()> {
+pub fn check_spl_token_pool_derivation(token_pool_pda: &Pubkey, mint: &Pubkey) -> Result<()> {
     let mint_bytes = mint.to_bytes();
-    let is_valid_token_pool_pda = (0..NUM_MAX_POOL_ACCOUNTS)
-        .any(|i| check_spl_token_pool_derivation(mint_bytes.as_slice(), token_pool_pda, &[i]));
-    if !is_valid_token_pool_pda {
+    let is_valid = (0..NUM_MAX_POOL_ACCOUNTS)
+        .any(|i| is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[i]));
+    if !is_valid {
         err!(crate::ErrorCode::InvalidTokenPoolPda)
     } else {
         Ok(())
@@ -123,32 +123,32 @@ mod test {
     use super::*;
 
     /// Test:
-    /// 1. Functional: test_is_valid_token_pool_pda_valid
-    /// 2. Failing: test_is_valid_token_pool_pda_invalid_derivation
-    /// 3. Failing: test_is_valid_token_pool_pda_bump_seed_equal_to_num_max_accounts
-    /// 4. Failing: test_is_valid_token_pool_pda_bump_seed_larger_than_num_max_accounts
+    /// 1. Functional: test_check_spl_token_pool_derivation
+    /// 2. Failing: test_check_spl_token_pool_derivation_invalid_derivation
+    /// 3. Failing: test_check_spl_token_pool_derivation_bump_seed_equal_to_num_max_accounts
+    /// 4. Failing: test_check_spl_token_pool_derivation_bump_seed_larger_than_num_max_accounts
     #[test]
-    fn test_is_valid_token_pool_pda() {
-        // 1. Functional: test_is_valid_token_pool_pda_valid
+    fn test_check_spl_token_pool_derivation() {
+        // 1. Functional: test_check_spl_token_pool_derivation_valid
         let mint = Pubkey::new_unique();
         for i in 0..NUM_MAX_POOL_ACCOUNTS {
             let valid_pda = get_token_pool_pda_with_bump(&mint, i);
-            assert!(is_valid_token_pool_pda(&valid_pda, &mint).is_ok());
+            assert!(check_spl_token_pool_derivation(&valid_pda, &mint).is_ok());
         }
 
-        // 2. Failing: test_is_valid_token_pool_pda_invalid_derivation
+        // 2. Failing: test_check_spl_token_pool_derivation_invalid_derivation
         let mint = Pubkey::new_unique();
         let invalid_pda = Pubkey::new_unique();
-        assert!(is_valid_token_pool_pda(&invalid_pda, &mint).is_err());
+        assert!(check_spl_token_pool_derivation(&invalid_pda, &mint).is_err());
 
-        // 3. Failing: test_is_valid_token_pool_pda_bump_seed_equal_to_num_max_accounts
+        // 3. Failing: test_check_spl_token_pool_derivation_bump_seed_equal_to_num_max_accounts
         let mint = Pubkey::new_unique();
         let invalid_pda = get_token_pool_pda_with_bump(&mint, NUM_MAX_POOL_ACCOUNTS);
-        assert!(is_valid_token_pool_pda(&invalid_pda, &mint).is_err());
+        assert!(check_spl_token_pool_derivation(&invalid_pda, &mint).is_err());
 
-        // 4. Failing: test_is_valid_token_pool_pda_bump_seed_larger_than_num_max_accounts
+        // 4. Failing: test_check_spl_token_pool_derivation_bump_seed_larger_than_num_max_accounts
         let mint = Pubkey::new_unique();
         let invalid_pda = get_token_pool_pda_with_bump(&mint, NUM_MAX_POOL_ACCOUNTS + 1);
-        assert!(is_valid_token_pool_pda(&invalid_pda, &mint).is_err());
+        assert!(check_spl_token_pool_derivation(&invalid_pda, &mint).is_err());
     }
 }
