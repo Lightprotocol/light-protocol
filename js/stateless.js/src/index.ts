@@ -9,3 +9,4 @@ export * from './errors';
 export * from './rpc-interface';
 export * from './rpc';
 export * from './test-helpers';
+export * from './wallet';

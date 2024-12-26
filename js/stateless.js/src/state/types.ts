@@ -83,32 +83,6 @@ export interface CompressedProof {
     c: number[]; // [u8; 32]
 }
 
-/**
- * Compressed-token types
- *
- * TODO: Token-related code should ideally not have to go into stateless.js.
- * Find a better altnerative way to extend the RPC.
- *
- */
-export type TokenTransferOutputData = {
-    owner: PublicKey;
-    amount: BN;
-    lamports: BN | null;
-    tlv: Buffer | null;
-};
-
-export type CompressedTokenInstructionDataTransfer = {
-    proof: CompressedProof | null;
-    mint: PublicKey;
-    delegatedTransfer: null;
-    inputTokenDataWithContext: InputTokenDataWithContext[];
-    outputCompressedAccounts: TokenTransferOutputData[];
-    isCompress: boolean;
-    compressOrDecompressAmount: BN | null;
-    cpiContext: null;
-    lamportsChangeAccountMerkleTreeIndex: number | null;
-};
-
 export interface InputTokenDataWithContext {
     amount: BN;
     delegateIndex: number | null; // Option<u8>
