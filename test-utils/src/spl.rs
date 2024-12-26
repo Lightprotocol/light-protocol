@@ -899,6 +899,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         token_pool_pre_balances[0].saturating_sub(amount)
     );
     let mut amount = amount - token_pool_pre_balances[0];
+
     for (i, additional_account) in additional_pool_accounts
         .unwrap_or_default()
         .iter()

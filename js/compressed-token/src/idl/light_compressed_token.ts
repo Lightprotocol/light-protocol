@@ -3477,5 +3477,9 @@ export const IDL: LightCompressedToken = {
             code: 6032,
             name: 'NoMatchingBumpFound',
         },
+        {
+            code: 6032,
+            name: 'NoMatchingBumpFound',
+        },
     ],
 };
