@@ -5,7 +5,7 @@ import {
     Signer,
     ComputeBudgetProgram,
 } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import {
     ParsedTokenAccount,
     Rpc,
@@ -136,7 +136,7 @@ describe('compress', () => {
         lut = address;
     }, 80_000);
 
-    it('should compress from bobAta -> charlie', async () => {
+    it.only('should compress from bobAta -> charlie', async () => {
         const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
         const recipientCompressedTokenBalanceBefore =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {

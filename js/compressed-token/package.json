@@ -28,6 +28,7 @@
         "test-all:verbose": "vitest run --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:create-mint": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts",
+        "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
         "test:e2e:create-token-pool": "pnpm test-validator && vitest run tests/e2e/create-token-pool.test.ts",
         "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts --reporter=verbose",
         "test:e2e:approve-and-mint-to": "pnpm test-validator && vitest run tests/e2e/approve-and-mint-to.test.ts --reporter=verbose",
@@ -65,12 +66,13 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
+        "@coral-xyz/borsh": "^0.29.0",
         "@solana/spl-token": "0.4.8",
+        "bn.js": "^5.2.1",
         "buffer": "6.0.3",
         "tweetnacl": "1.0.3"
     },
     "devDependencies": {
-        "@solana/web3.js": "1.95.5",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/hasher.rs": "0.2.1",
         "@lightprotocol/programs": "workspace:*",
@@ -82,6 +84,8 @@
         "@rollup/plugin-replace": "^5.0.7",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.6",
+        "@solana/web3.js": "1.95.5",
+        "@types/bn.js": "^5.1.5",
         "@types/node": "^22.5.5",
         "@typescript-eslint/eslint-plugin": "^7.13.1",
         "@typescript-eslint/parser": "^7.13.1",

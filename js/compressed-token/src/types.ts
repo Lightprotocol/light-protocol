@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { CompressedProof } from '@lightprotocol/stateless.js';
 
 /// TODO: remove index_mt_account on-chain. passed as part of
@@ -55,18 +55,18 @@ export type InputTokenDataWithContext = {
      * Optional: The index of the delegate in remaining accounts
      */
     delegateIndex: number | null;
-    /**
-     * The index of the merkle tree address in remaining accounts
-     */
-    merkleTreePubkeyIndex: number;
-    /**
-     * The index of the nullifier queue address in remaining accounts
-     */
-    nullifierQueuePubkeyIndex: number;
+    // /**
+    //  * The index of the merkle tree address in remaining accounts
+    //  */
+    // merkleTreePubkeyIndex: number;
+    // /**
+    //  * The index of the nullifier queue address in remaining accounts
+    //  */
+    // nullifierQueuePubkeyIndex: number;
     /**
      * The index of the leaf in the merkle tree
      */
-    leafIndex: number;
+    // leafIndex: number;
     /**
      * Lamports in the input token account.
      */
@@ -77,7 +77,7 @@ export type InputTokenDataWithContext = {
     tlv: Buffer | null;
 };
 
-export type CompressedTokenInstructionDataInvoke = {
+export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
      */
@@ -102,7 +102,7 @@ export type CompressedTokenInstructionDataInvoke = {
     /**
      * Data of the output token accounts
      */
-    outputCompressedAccounts: TokenTransferOutputData[];
+    outputCompressedAccounts: PackedTokenTransferOutputData[];
     /**
      * The indices of the output state merkle tree accounts in 'remaining
      * accounts'
