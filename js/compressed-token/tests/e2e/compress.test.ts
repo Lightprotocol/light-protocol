@@ -136,7 +136,7 @@ describe('compress', () => {
         lut = address;
     }, 80_000);
 
-    it.only('should compress from bobAta -> charlie', async () => {
+    it('should compress from bobAta -> charlie', async () => {
         const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
         const recipientCompressedTokenBalanceBefore =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {

@@ -65,7 +65,6 @@
         "@solana/web3.js": ">=1.95.5"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "0.29.0",
         "@coral-xyz/borsh": "^0.29.0",
         "@solana/spl-token": "0.4.8",
         "bn.js": "^5.2.1",

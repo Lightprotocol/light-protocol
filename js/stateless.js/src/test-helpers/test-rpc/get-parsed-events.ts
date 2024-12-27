@@ -2,7 +2,7 @@ import {
     ParsedMessageAccount,
     ParsedTransactionWithMeta,
 } from '@solana/web3.js';
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import bs58 from 'bs58';
 import { defaultStaticAccountsStruct } from '../../constants';
 import { LightSystemProgram } from '../../programs';
 import { Rpc } from '../../rpc';

@@ -1,7 +1,15 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { CompressedProof } from '@lightprotocol/stateless.js';
+import {
+    CompressedProof,
+    PackedMerkleContext,
+} from '@lightprotocol/stateless.js';
 
+export type CompressedCpiContext = {
+    setContext: boolean;
+    firstSetContext: boolean;
+    cpiContextAccountIndex: number; // u8
+};
 /// TODO: remove index_mt_account on-chain. passed as part of
 /// CompressedTokenInstructionDataInvoke
 export type TokenTransferOutputData = {
@@ -47,34 +55,17 @@ export type PackedTokenTransferOutputData = {
 };
 
 export type InputTokenDataWithContext = {
-    /**
-     * The amount of tokens to transfer
-     */
     amount: BN;
-    /**
-     * Optional: The index of the delegate in remaining accounts
-     */
     delegateIndex: number | null;
-    // /**
-    //  * The index of the merkle tree address in remaining accounts
-    //  */
-    // merkleTreePubkeyIndex: number;
-    // /**
-    //  * The index of the nullifier queue address in remaining accounts
-    //  */
-    // nullifierQueuePubkeyIndex: number;
-    /**
-     * The index of the leaf in the merkle tree
-     */
-    // leafIndex: number;
-    /**
-     * Lamports in the input token account.
-     */
+    merkleContext: PackedMerkleContext;
+    rootIndex: number;
     lamports: BN | null;
-    /**
-     * TokenExtension tlv
-     */
     tlv: Buffer | null;
+};
+
+export type DelegatedTransfer = {
+    owner: PublicKey;
+    delegateChangeAccountIndex: number | null;
 };
 
 export type CompressedTokenInstructionDataTransfer = {
@@ -83,10 +74,6 @@ export type CompressedTokenInstructionDataTransfer = {
      */
     proof: CompressedProof | null;
     /**
-     * The root indices of the transfer
-     */
-    rootIndices: number[];
-    /**
      * The mint of the transfer
      */
     mint: PublicKey;
@@ -94,7 +81,7 @@ export type CompressedTokenInstructionDataTransfer = {
      * Whether the signer is a delegate
      * TODO: implement delegated transfer struct
      */
-    delegatedTransfer: null;
+    delegatedTransfer: DelegatedTransfer | null;
     /**
      * Input token data with packed merkle context
      */
@@ -104,10 +91,18 @@ export type CompressedTokenInstructionDataTransfer = {
      */
     outputCompressedAccounts: PackedTokenTransferOutputData[];
     /**
-     * The indices of the output state merkle tree accounts in 'remaining
-     * accounts'
+     * Whether it's a compress or decompress action if compressOrDecompressAmount is non-null
      */
-    outputStateMerkleTreeAccountIndices: Buffer;
+    isCompress: boolean;
+    /**
+     * If null, it's a transfer.
+     * If some, the amount that is being deposited into (compress) or withdrawn from (decompress) the token escrow
+     */
+    compressOrDecompressAmount: BN | null;
+    /**
+     * CPI context if
+     */
+    cpiContext: CompressedCpiContext | null;
     /**
      * The index of the Merkle tree for a lamport change account.
      */

@@ -22,9 +22,7 @@ describe('custom programId', () => {
         expect(CompressedTokenProgram.deriveTokenPoolPda(solMint)).toEqual(
             expectedPoolPda,
         );
-        expect(CompressedTokenProgram.program.programId).toEqual(
-            defaultProgramId,
-        );
+        expect(CompressedTokenProgram.programId).toEqual(defaultProgramId);
 
         // Set new program ID
         CompressedTokenProgram.setProgramId(newProgramId);
@@ -34,7 +32,7 @@ describe('custom programId', () => {
         expect(CompressedTokenProgram.deriveTokenPoolPda(solMint)).not.toEqual(
             expectedPoolPda,
         );
-        expect(CompressedTokenProgram.program.programId).toEqual(newProgramId);
+        expect(CompressedTokenProgram.programId).toEqual(newProgramId);
 
         // Reset program ID
         CompressedTokenProgram.setProgramId(defaultProgramId);
