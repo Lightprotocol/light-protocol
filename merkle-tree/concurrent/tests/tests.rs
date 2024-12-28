@@ -1379,7 +1379,7 @@ async fn test_spl_compat() {
         // This is done in indexed Merkle trees[0] and it's a great test case
         // for rightmost proof updates.
         //
-        // [0] https://docs.aztec.network/concepts/advanced/data_structures/indexed_merkle_tree
+        // [0] https://docs.aztec.network/aztec/concepts/storage/trees/indexed_merkle_tree
         if i > 0 {
             let new_leaf: [u8; 32] = Fr::rand(&mut rng)
                 .into_bigint()
