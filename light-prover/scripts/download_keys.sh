@@ -47,7 +47,6 @@ verify_checksum() {
     local expected
     local actual
     
-    # Determine which checksum command to use
     if command -v sha256sum >/dev/null 2>&1; then
         CHECKSUM_CMD="sha256sum"
     else
