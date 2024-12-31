@@ -27,6 +27,7 @@ fn process_account(pubkey: Pubkey, mut account: Account) -> Option<TreeAccounts>
     process_state_account(&account, pubkey)
         .or_else(|_| process_batch_state_account(&mut account, pubkey))
         .or_else(|_| process_address_account(&account, pubkey))
+        .or_else(|_| process_batch_address_account(&mut account, pubkey))
         .ok()
 }
 
@@ -37,6 +38,16 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
         pubkey,
         &tree_account.metadata,
         TreeType::State,
+    ))
+}
+
+fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+    check_discriminator::<AddressMerkleTreeAccount>(&account.data)?;
+    let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
+    Ok(create_tree_accounts(
+        pubkey,
+        &tree_account.metadata,
+        TreeType::Address,
     ))
 }
 
@@ -52,13 +63,15 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
     ))
 }
 
-fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccounts> {
-    check_discriminator::<AddressMerkleTreeAccount>(&account.data)?;
-    let tree_account = AddressMerkleTreeAccount::deserialize(&mut &account.data[8..])?;
+fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+    let tree_account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account.data)
+        .map_err(|e| {
+            ForesterError::Custom(format!("Failed to deserialize address tree account: {:?}", e))
+        })?;
     Ok(create_tree_accounts(
         pubkey,
-        &tree_account.metadata,
-        TreeType::Address,
+        &tree_account.get_metadata().metadata,
+        TreeType::BatchedAddress,
     ))
 }
 

@@ -31,7 +31,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
-async fn test_batched() {
+async fn test_state_batched() {
     let devnet = false;
     let tree_params = if devnet {
         InitStateTreeAccountsInstructionData::default()
@@ -43,6 +43,7 @@ async fn test_batched() {
         enable_indexer: false,
         wait_time: 15,
         prover_config: None,
+        sbf_programs: vec![],
     }))
     .await;
 

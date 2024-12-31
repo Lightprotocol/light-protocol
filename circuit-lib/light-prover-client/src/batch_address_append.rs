@@ -60,6 +60,20 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     // patch subsequent element proofs. The indexer won't be caught up yet.)
     let inserted_elements = next_index - batch_start_index;
     let end_index = inserted_elements + zkp_batch_size;
+    /*
+        // Ensure we don't exceed the available elements
+    let available_elements = new_element_values.len();
+    let end_index = std::cmp::min(
+        inserted_elements + zkp_batch_size,
+        available_elements
+    );
+
+    println!("inserted_elements: {}, available_elements: {}, end_index: {}", inserted_elements, available_elements, end_index);
+    
+    // Verify we have enough elements for at least one operation
+    if end_index <= inserted_elements {
+        return Err(ProverClientError::GenericError("Not enough elements for processing".into()));
+    }*/
     let new_element_values = new_element_values[0..end_index].to_vec();
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = vec![];

@@ -164,6 +164,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
                 TreeType::State => "State",
                 TreeType::Address => "Address",
                 TreeType::BatchedState => "BatchedState",
+                TreeType::BatchedAddress => "BatchedAddress",
             }
         );
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)

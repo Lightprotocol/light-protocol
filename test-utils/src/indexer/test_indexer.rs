@@ -90,7 +90,8 @@ use solana_sdk::{
     signer::Signer,
 };
 use spl_token::instruction::initialize_mint;
-
+use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
+use light_program_test::test_batch_forester::{assert_registry_created_batched_address_merkle_tree, create_batch_address_merkle_tree};
 use crate::{
     create_address_merkle_tree_and_queue_account_with_assert, e2e_test_env::KeypairActionConfig,
     spl::create_initialize_mint_instructions,
@@ -1051,7 +1052,7 @@ impl<R: RpcConnection> TestIndexer<R> {
         }
     }
 
-    pub async fn add_address_merkle_tree(
+    async fn add_address_merkle_tree_v1(
         &mut self,
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
@@ -1070,9 +1071,62 @@ impl<R: RpcConnection> TestIndexer<R> {
             &AddressQueueConfig::default(),
             0,
         )
-        .await
-        .unwrap();
+            .await
+            .unwrap();
         self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
+    }
+
+    async fn add_address_merkle_tree_v2(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
+        info!("Adding address merkle tree accounts v2 {:?}", merkle_tree_keypair.pubkey());
+
+        let params = InitAddressTreeAccountsInstructionData::test_default();
+
+        info!("Creating batched address merkle tree {:?}", merkle_tree_keypair.pubkey());
+        create_batch_address_merkle_tree(
+            rpc,
+            &self.payer,
+            merkle_tree_keypair,
+            params,
+        )
+            .await
+            .unwrap();
+        info!("Batched address merkle tree created {:?}", merkle_tree_keypair.pubkey());
+
+        // info!("Asserting registry created batched address merkle tree...");
+        // assert_registry_created_batched_address_merkle_tree(
+        //     rpc,
+        //     self.payer.pubkey(),
+        //     merkle_tree_keypair.pubkey(),
+        //     params,
+        // )
+        //     .await
+        //     .unwrap();
+        // info!("Registry created batched address merkle tree asserted");
+
+        self.add_address_merkle_tree_accounts(merkle_tree_keypair, queue_keypair, owning_program_id)
+    }
+
+    pub async fn add_address_merkle_tree(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+        version: u64,
+    ) -> AddressMerkleTreeAccounts {
+        if version == 1 {
+            self.add_address_merkle_tree_v1(rpc, merkle_tree_keypair, queue_keypair, owning_program_id).await
+        } else if version == 2 {
+            self.add_address_merkle_tree_v2(rpc, merkle_tree_keypair, queue_keypair, owning_program_id).await
+        } else {
+            panic!("add_address_merkle_tree: Version not supported, {}. Versions: 1, 2", version)
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1698,5 +1752,9 @@ impl<R: RpcConnection> TestIndexer<R> {
         let new_root = address_tree.merkle_tree.root();
         assert_eq!(*onchain_root, new_root);
         println!("finalized batched address tree update");
+    }
+
+    pub(crate) fn get_address_merkle_tree(&self, merkle_tree_pubkey: Pubkey) -> Option<&AddressMerkleTreeBundle> {
+        self.address_merkle_trees.iter().find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
     }
 }

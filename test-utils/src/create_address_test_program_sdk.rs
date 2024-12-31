@@ -94,8 +94,8 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         );
         println!("address: {:?}", address);
         println!(
-            "address_merkle_tree_pubkey: {:?}",
-            env.address_merkle_tree_pubkey
+            "batch_address_merkle_tree: {:?}",
+            env.batch_address_merkle_tree
         );
         println!("program_id: {:?}", create_address_test_program::ID);
         println!("seed: {:?}", seed);
@@ -132,7 +132,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         registered_program_pda: &env.registered_program_pda,
     };
     let instruction = create_pda_instruction(create_ix_inputs);
-    let pre_test_indexer_queue_len = test_indexer.address_merkle_trees[1].queue_elements.len();
+    let pre_test_indexer_queue_len = test_indexer.get_address_merkle_tree(env.batch_address_merkle_tree).unwrap().queue_elements.len();
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
         .await?
@@ -140,7 +140,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     let slot: u64 = rpc.get_slot().await.unwrap();
     test_indexer.add_compressed_accounts_with_token_data(slot, &event.0);
     assert_eq!(
-        test_indexer.address_merkle_trees[1].queue_elements.len(),
+        test_indexer.get_address_merkle_tree(env.batch_address_merkle_tree).unwrap().queue_elements.len(),
         pre_test_indexer_queue_len + 1
     );
     Ok(())

@@ -1730,6 +1730,10 @@ export type LightCompressedToken = {
             code: 6031;
             name: 'FailedToBurnSplTokensFromTokenPool';
         },
+        {
+            code: 6032;
+            name: 'NoMatchingBumpFound';
+        },
     ];
 };
 export const IDL: LightCompressedToken = {
@@ -3468,6 +3472,10 @@ export const IDL: LightCompressedToken = {
         {
             code: 6031,
             name: 'FailedToBurnSplTokensFromTokenPool',
+        },
+        {
+            code: 6032,
+            name: 'NoMatchingBumpFound',
         },
     ],
 };

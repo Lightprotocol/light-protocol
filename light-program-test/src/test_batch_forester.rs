@@ -727,6 +727,7 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
     };
     assert_state_mt_roll_over(params);
 }
+
 pub async fn create_batch_address_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,

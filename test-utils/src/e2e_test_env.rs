@@ -1540,7 +1540,7 @@ where
                         self.indexer
                             .get_address_merkle_trees()
                             .iter()
-                            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                            // .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
                             .collect::<Vec<_>>()[address_tree_index]
                             .accounts
                             .merkle_tree;
@@ -1550,7 +1550,7 @@ where
                         self.indexer
                             .get_address_merkle_trees()
                             .iter()
-                            .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                            // .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
                             .collect::<Vec<_>>()[address_tree_index]
                             .accounts
                             .queue;

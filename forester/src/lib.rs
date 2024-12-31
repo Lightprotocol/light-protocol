@@ -18,6 +18,7 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
+pub mod batched_address_ops;
 
 use std::{sync::Arc, time::Duration};
 
