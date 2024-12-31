@@ -47,8 +47,14 @@ verify_checksum() {
     local expected
     local actual
     
+    if command -v sha256sum >/dev/null 2>&1; then
+        CHECKSUM_CMD="sha256sum"
+    else
+        CHECKSUM_CMD="shasum -a 256"
+    fi
+    
     expected=$(grep "${file##*/}" "$checksum_file" | cut -d' ' -f1)
-    actual=$(sha256sum "$file" | cut -d' ' -f1)
+    actual=$($CHECKSUM_CMD "$file" | cut -d' ' -f1)
     
     echo "Expected checksum: $expected"
     echo "Actual checksum:   $actual"
