@@ -6,7 +6,7 @@
     "prettier": "^3.4.2",
     "snarkjs": "^0.7.5",
     "syncpack": "^13.0.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.7.2"
   },
   "packageManager": "pnpm@9.2.0"
 }
