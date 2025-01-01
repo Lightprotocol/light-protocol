@@ -18,6 +18,7 @@ use light_prover_client::{
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::CompressedProof;
 use reqwest::Client;
+use solana_program::loader_instruction::finalize;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
@@ -81,6 +82,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedAddressOperations<R, I> {
         match result {
             Ok(sig) => {
                 info!("Batch address update sent with signature: {:?}", sig);
+                self.finalize_batch_address_merkle_tree_update().await?;
                 Ok(batch_size)
             }
             Err(e) => {
@@ -90,6 +92,16 @@ impl<R: RpcConnection, I: Indexer<R>> BatchedAddressOperations<R, I> {
         }
     }
 
+    async fn finalize_batch_address_merkle_tree_update(&self) -> Result<()> {
+        info!("Finalizing batch address merkle tree update");
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        self.indexer.lock().await.finalize_batched_address_tree_update(
+            &mut *rpc,
+            self.merkle_tree,
+        ).await;
+
+        Ok(())
+    }
 
     async fn create_batch_update_address_tree_instruction_data_with_proof(&self) -> Result<(InstructionDataBatchNullifyInputs, usize)> {
         let mut rpc = self.rpc_pool.get_connection().await?;

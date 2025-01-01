@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-
+use std::{assert_eq, println};
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
@@ -21,6 +21,7 @@ use num_bigint::BigUint;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use solana_sdk::signature::Keypair;
 use thiserror::Error;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
@@ -255,6 +256,14 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         _rpc: &mut R,
         _merkle_tree_pubkey: Pubkey,
         _batch_index: usize,
+    ) {
+        unimplemented!()
+    }
+
+    async fn finalize_batched_address_tree_update(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
     ) {
         unimplemented!()
     }
