@@ -1873,6 +1873,7 @@ async fn test_batch_address_tree() {
         assert_rpc_error(result, 1, RegistryError::InvalidNetworkFee.into()).unwrap();
     }
 
+    println!("Queue batch size: {}", tree_params.input_queue_batch_size);
     for i in 0..tree_params.input_queue_batch_size * 2 {
         println!("tx {}", i);
         perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)

@@ -86,6 +86,7 @@ pub enum TreeType {
     Address,
     State,
     BatchedState,
+    BatchedAddress,
 }
 
 impl Display for TreeType {
@@ -94,6 +95,7 @@ impl Display for TreeType {
             TreeType::Address => write!(f, "address"),
             TreeType::State => write!(f, "state"),
             TreeType::BatchedState => write!(f, "batched state"),
+            TreeType::BatchedAddress => write!(f, "batched address"),
         }
     }
 }

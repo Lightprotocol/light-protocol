@@ -167,6 +167,68 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
+
+        TreeType::BatchedAddress => {
+            let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data).unwrap();
+            println!(
+                "merkle_tree.get_account().queue.batch_size: {:?}",
+                merkle_tree.get_metadata().queue_metadata.batch_size
+            );
+
+            println!(
+                "queue currently_processing_batch_index: {:?}",
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .currently_processing_batch_index as usize
+            );
+
+            println!(
+                "queue batch_size: {:?}",
+                merkle_tree.get_metadata().queue_metadata.batch_size
+            );
+            println!(
+                "queue zkp_batch_size: {:?}",
+                merkle_tree.get_metadata().queue_metadata.zkp_batch_size
+            );
+            println!(
+                "queue next_full_batch_index: {:?}",
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .next_full_batch_index
+            );
+            println!(
+                "queue bloom_filter_capacity: {:?}",
+                merkle_tree
+                    .get_metadata()
+                    .queue_metadata
+                    .bloom_filter_capacity
+            );
+            println!(
+                "queue num_batches: {:?}",
+                merkle_tree.get_metadata().queue_metadata.num_batches
+            );
+
+            println!(
+                "tree next_index: {:?}",
+                merkle_tree.get_metadata().next_index
+            );
+            println!("tree height: {:?}", merkle_tree.get_metadata().height);
+
+            // TODO: implement
+            let threshold = 0;
+            let next_index = 0;
+            let fullness = 0.0;
+
+            Ok(TreeInfo {
+                fullness,
+                next_index,
+                threshold,
+            })
+        }
     }
 }
 

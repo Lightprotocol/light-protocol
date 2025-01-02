@@ -51,6 +51,7 @@ use crate::{
     tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
+use crate::batched_address_ops::process_batched_address_operations;
 
 #[derive(Clone, Debug)]
 pub struct WorkReport {
@@ -717,6 +718,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let slot = rpc.get_slot().await?;
         let trees = self.trees.lock().await;
+        info!("Adding schedule for trees: {:?}", *trees);
         epoch_info.add_trees_with_schedule(&trees, slot);
         info!("Finished waiting for active phase");
         Ok(epoch_info)
@@ -747,12 +749,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
-        debug!(
+        info!(
             "Creating threads for tree processing. Trees: {:?}",
             epoch_info.trees
         );
         for tree in epoch_info.trees.iter() {
-            info!("Creating thread for queue {}", tree.tree_accounts.queue);
+            info!("Creating thread for tree {}", tree.tree_accounts.merkle_tree);
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
             let tree = tree.clone();
@@ -811,8 +813,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         epoch_pda: &ForesterEpochPda,
         mut tree: TreeForesterSchedule,
     ) -> Result<()> {
-        debug!("enter process_queue");
-        debug!("Tree schedule slots: {:?}", tree.slots);
+        info!("enter process_queue");
+        info!("Tree schedule slots: {:?}", tree.slots);
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
@@ -830,7 +832,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .find(|(_, slot)| slot.is_some());
 
             if let Some((index, forester_slot)) = index_and_forester_slot {
-                debug!("Found eligible slot");
+                info!("Found eligible slot, index: {}, tree: {}", index, tree.tree_accounts.merkle_tree.to_string());
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
 
@@ -880,7 +882,35 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
                     self.increment_processed_items_count(epoch_info.epoch, processed_count)
                         .await;
-                } else {
+                } else if tree.tree_accounts.tree_type == TreeType::BatchedAddress {
+                    let start_time = Instant::now();
+                    println!("Processing batched address operations");
+
+                    let rpc_pool = self.rpc_pool.clone();
+                    let indexer = self.indexer.clone();
+                    let payer = self.config.payer_keypair.insecure_clone();
+                    let derivation = self.config.derivation_pubkey;
+                    let merkle_tree = tree.tree_accounts.merkle_tree;
+                    let queue = tree.tree_accounts.queue;
+
+                    // TODO: measure & spawn child task for processing batched state operations
+                    let processed_count = process_batched_address_operations(
+                        rpc_pool,
+                        indexer,
+                        payer,
+                        derivation,
+                        epoch_info.epoch,
+                        merkle_tree,
+                        queue,
+                    )
+                        .await?;
+
+                    info!("Processed {} batched address operations", processed_count);
+                    queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
+                    self.increment_processed_items_count(epoch_info.epoch, processed_count)
+                        .await;
+                }
+                else {
                     // TODO: measure accuracy
                     // Optional replace with shutdown signal for all child processes
                     let batched_tx_config = SendBatchedTransactionsConfig {

@@ -276,6 +276,7 @@ pub struct LightValidatorConfig {
     pub enable_indexer: bool,
     pub prover_config: Option<ProverConfig>,
     pub wait_time: u64,
+    pub sbf_programs: Vec<(String, String)>,
 }
 
 impl Default for LightValidatorConfig {
@@ -284,6 +285,7 @@ impl Default for LightValidatorConfig {
             enable_indexer: false,
             prover_config: None,
             wait_time: 35,
+            sbf_programs: vec![],
         }
     }
 }
@@ -295,6 +297,11 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         if !config.enable_indexer {
             path.push_str(" --skip-indexer");
         }
+
+        for sbf_program in config.sbf_programs.iter() {
+            path.push_str(&format!(" --sbf-program {} {}", sbf_program.0, sbf_program.1));
+        }
+
         if let Some(prover_config) = config.prover_config {
             prover_config.circuits.iter().for_each(|circuit| {
                 path.push_str(&format!(" --circuit {}", circuit));
