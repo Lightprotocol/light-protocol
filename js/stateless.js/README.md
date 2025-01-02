@@ -45,6 +45,14 @@ Feel free to ask in the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](http
 -   A code example that we can use to test and debug (if possible). Use [CodeSandbox](https://codesandbox.io/p/sandbox/vanilla-ts) or any other live environment provider.
 -   A description or context of any errors you are encountering with stacktraces if available.
 
+### Source Maps
+
+We provide `index.js.map` for debugging. Exclude in production:
+
+**Webpack:** Set `devtool` to `false`.
+**Rollup:** Set `sourcemap` to `false`.
+**TypeScript:** Set `sourceMap` to `false`.
+
 ## Contributing
 
 Light and ZK Compression are open source protocols and very much welcome contributions. If you have a contribution, do not hesitate to send a PR to the respective repository or discuss in the linked developer Discord servers.
