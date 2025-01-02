@@ -4,8 +4,8 @@ on:
       - main
     paths:
       - "programs/**"
-      - "test-programs/**"
-      - "circuit-lib/verifier/**"
+      - "program-tests/**"
+      - "program-libs/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
       - "test-utils/**"
@@ -14,8 +14,8 @@ on:
       - "*"
     paths:
       - "programs/**"
-      - "test-programs/**"
-      - "circuit-lib/verifier/**"
+      - "program-tests/**"
+      - "program-libs/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
       - "test-utils/**"
@@ -70,12 +70,12 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           anchor build
-          npx nx build @lightprotocol/test-programs
+          npx nx build @lightprotocol/program-tests
 
       - name: ${{ matrix.program }}
         run: |
           source ./scripts/devenv.sh
-          
+
           IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do

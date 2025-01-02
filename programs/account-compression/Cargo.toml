@@ -24,21 +24,21 @@ test = []
 
 
 [dependencies]
-aligned-sized = { version = "1.1.0", path = "../../macros/aligned-sized" }
+aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
 bytemuck = { version = "1.17", features = ["min_const_generics"] }
-light-bounded-vec = { version = "1.1.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
+light-bounded-vec = { workspace = true, features = ["solana"] }
 light-hash-set = { workspace = true, features = ["solana"] }
-light-hasher = { version = "1.1.0", path = "../../merkle-tree/hasher", features = ["solana"] }
-light-heap = { version = "1.1.0", path = "../../heap", optional = true }
-light-concurrent-merkle-tree = { version = "1.1.0", path = "../../merkle-tree/concurrent", features = ["solana"] }
-light-indexed-merkle-tree = { version = "1.1.0", path = "../../merkle-tree/indexed", features = ["solana"] }
-light-utils = { version = "1.0.0", path = "../../utils" }
-light-bloom-filter = { version = "0.1.0", path = "../../merkle-tree/bloom-filter", features = ["solana"] }
+light-hasher = { workspace = true, features = ["solana"] }
+light-heap = { workspace = true, optional = true }
+light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
+light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
+light-utils = { workspace = true }
+light-bloom-filter = { workspace = true, features = ["solana"] }
 num-bigint = "0.4"
 num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
-light-verifier = { version = "1.0.0", path = "../../circuit-lib/verifier", features = ["solana"] }
+light-verifier = { workspace = true, features = ["solana"] }
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
 light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
 
@@ -47,7 +47,7 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"
-light-prover-client = { version = "1.2.0", path = "../../circuit-lib/light-prover-client", features = ["gnark"] }
-light-merkle-tree-reference = { version = "1.1.0", path = "../../merkle-tree/reference" }
+light-prover-client = { workspace = true, features = ["gnark"] }
+light-merkle-tree-reference = { workspace = true }
 tokio = { version = "1.16.1" }
 serial_test = "3.1.1"

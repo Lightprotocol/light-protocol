@@ -39,7 +39,7 @@ generate_r1cs() {
     local height=$4
     local output_file=$5
 
-    ./light-prover/light-prover r1cs \
+    ./prover/server/light-prover r1cs \
         --circuit "$circuit" \
         --inclusion-compressed-accounts "$inclusion_accounts" \
         --non-inclusion-compressed-accounts "$non_inclusion_accounts" \
@@ -56,7 +56,7 @@ for accounts in 1 2 3 4 8; do
     generate_r1cs "inclusion" "$accounts" "0" "26" "inclusion_26_${accounts}_contribution_0.r1cs"
     ./../semaphore-mtb-setup/semaphore-mtb-setup p2n "$REPO_ROOT/ceremony/17.ph1" "$OUTPUT_DIR/inclusion_26_${accounts}_contribution_0.r1cs" "$OUTPUT_DIR/inclusion_26_${accounts}_dummy.ph1"
     ./../semaphore-mtb-setup/semaphore-mtb-setup key "${PH2_DIR}inclusion_26_${accounts}_badcryptobitch_contribution_16.ph2"
-    ./light-prover/light-prover import-setup --circuit "inclusion" --inclusion-compressed-accounts "$accounts" --inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./light-prover/proving-keys/inclusion_26_${accounts}.key
+    ./prover/server/light-prover import-setup --circuit "inclusion" --inclusion-compressed-accounts "$accounts" --inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./prover/server/proving-keys/inclusion_26_${accounts}.key
 done
 
 # Generate R1CS for non-inclusion circuits
@@ -64,7 +64,7 @@ for accounts in 1 2; do
     generate_r1cs "non-inclusion" "0" "$accounts" "26" "non-inclusion_26_${accounts}_contribution_0.r1cs"
     ./../semaphore-mtb-setup/semaphore-mtb-setup p2n "$REPO_ROOT/ceremony/17.ph1" "$OUTPUT_DIR/non-inclusion_26_${accounts}_contribution_0.r1cs" "$OUTPUT_DIR/non_inclusion_26_${accounts}_dummy.ph1"
     ./../semaphore-mtb-setup/semaphore-mtb-setup key "${PH2_DIR}non-inclusion_26_${accounts}_badcryptobitch_contribution_16.ph2"
-    ./light-prover/light-prover import-setup --circuit "non-inclusion" --non-inclusion-compressed-accounts "$accounts" --non-inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./light-prover/proving-keys/non-inclusion_26_${accounts}.key
+    ./prover/server/light-prover import-setup --circuit "non-inclusion" --non-inclusion-compressed-accounts "$accounts" --non-inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./prover/server/proving-keys/non-inclusion_26_${accounts}.key
 done
 
 # Generate R1CS for combined circuits
@@ -73,6 +73,6 @@ for inclusion_accounts in  2 3 4; do
         generate_r1cs "combined" "$inclusion_accounts" "$non_inclusion_accounts" "26" "combined_26_${inclusion_accounts}_${non_inclusion_accounts}_contribution_0.r1cs"
         ./../semaphore-mtb-setup/semaphore-mtb-setup p2n "$REPO_ROOT/ceremony/17.ph1" "$OUTPUT_DIR/combined_26_${inclusion_accounts}_${non_inclusion_accounts}_contribution_0.r1cs" "$OUTPUT_DIR/combined_26_${inclusion_accounts}_${non_inclusion_accounts}_dummy.ph1"
         ./../semaphore-mtb-setup/semaphore-mtb-setup key "${PH2_DIR}combined_26_${inclusion_accounts}_${non_inclusion_accounts}_badcryptobitch_contribution_16.ph2"
-        ./light-prover/light-prover import-setup --circuit "combined" --inclusion-compressed-accounts "$inclusion_accounts" --inclusion-tree-height 26 --non-inclusion-compressed-accounts "$non_inclusion_accounts" --non-inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./light-prover/proving-keys/combined_26_${inclusion_accounts}_${non_inclusion_accounts}.key
+        ./prover/server/light-prover import-setup --circuit "combined" --inclusion-compressed-accounts "$inclusion_accounts" --inclusion-tree-height 26 --non-inclusion-compressed-accounts "$non_inclusion_accounts" --non-inclusion-tree-height 26 --pk ./../pk --vk ./../vk --output ./prover/server/proving-keys/combined_26_${inclusion_accounts}_${non_inclusion_accounts}.key
     done
 done

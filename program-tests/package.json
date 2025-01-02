@@ -1,0 +1,18 @@
+{
+  "name": "@lightprotocol/program-tests",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "description": "Test programs for Light Protocol uses test-sbf to build because build-sbf -- -p creates an infinite loop.",
+  "scripts": {
+    "build": "cargo test-sbf -p create-address-test-program"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{workspaceRoot}/target/deploy"
+        ]
+      }
+    }
+  }
+}

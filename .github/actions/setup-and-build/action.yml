@@ -21,8 +21,8 @@ runs:
       with:
         path: |
           .local
-          light-prover/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'light-prover/scripts/download_keys.sh') }}
+          prover/server/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
 
     - name: Install dependencies
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
@@ -62,7 +62,7 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        
+
     - name: Copy spl_noop.so to target/deploy
       shell: bash
       run: |
@@ -75,8 +75,8 @@ runs:
       with:
         path: |
           .local
-          light-prover/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'light-prover/scripts/download_keys.sh') }}
+          prover/server/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
 
     - name: Check for git changes
       shell: bash

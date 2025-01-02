@@ -6,7 +6,7 @@ on:
       - ".cargo/**"
       - "**/*.rs"
       - "**/Cargo.*"
-      - "light-prover/**"
+      - "prover/server/**"
       - ".github/workflows/rust.yml"
   pull_request:
     branches:
@@ -14,7 +14,7 @@ on:
     paths:
       - "**/*.rs"
       - "**/Cargo.*"
-      - "light-prover/**"
+      - "prover/server/**"
       - ".github/workflows/rust.yml"
 
     types:

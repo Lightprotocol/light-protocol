@@ -19,7 +19,7 @@ runs:
       with:
         path: |
           .local
-          light-prover/proving-keys
+          prover/server/proving-keys
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
 
     - name: Install dependencies
@@ -72,5 +72,5 @@ runs:
       with:
         path: |
           .local
-          light-prover/proving-keys
+          prover/server/proving-keys
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}

@@ -22,10 +22,11 @@ The documentation is available here: https://github.com/Lightprotocol/developer-
 ## Verifiable Build
 
 Prerequisites:
+
 - solana-verify
 - docker
-Install `solana-verify` with `cargo-install solana-verify` or see [github](https://github.com/Ellipsis-Labs/solana-verifiable-build) for alternative install instructions.
-See https://docs.docker.com/engine/install/ for `docker` install instructions.
+  Install `solana-verify` with `cargo-install solana-verify` or see [github](https://github.com/Ellipsis-Labs/solana-verifiable-build) for alternative install instructions.
+  See https://docs.docker.com/engine/install/ for `docker` install instructions.
 
 ```
 ./scripts/build-verifiable.sh
@@ -75,6 +76,7 @@ There are three ways of setting up the development environment:
 - Windows is not supported.
 
 ### Prerequisites:
+
 - Ubuntu, `sudo apt-get install lld clang`
 - Fedora, `sudo dnf install clang lld`
 - Arch, `sudo pacman -S lld clang`
@@ -93,6 +95,7 @@ directory inside your repository clone).
 ```
 
 By default, this will install a subset of gnark keys with Merkle tree heights sufficient for running tests. If you need the full set of production keys, you can use the --full-keys flag:
+
 ```
 ./scripts/install.sh --full-keys
 ```
@@ -168,7 +171,7 @@ solana-keygen new -o ~/.config/solana/id.json
 
 ### Program tests
 
-Program tests are located in test-programs.
+Program tests are located in program-tests.
 Many tests start a local prover server.
 To avoid conflicts between local prover servers run program tests with `--test-threads=1` so that tests are executed in sequence.
 

@@ -2,7 +2,7 @@ name: Release prover binaries
 on:
   push:
     tags:
-      - 'light-prover*'
+      - "light-prover*"
 
 jobs:
   create_release:
@@ -18,7 +18,7 @@ jobs:
 
       - name: Build artifacts
         run: |
-          cd light-prover
+          cd prover/server
           for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
             IFS=' ' read -r -a cfg <<< "$cfgstr"
             export GOOS="${cfg[0]}"
@@ -31,7 +31,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            light-prover/prover-darwin-amd64
-            light-prover/prover-darwin-arm64
-            light-prover/prover-linux-amd64
-            light-prover/prover-windows-amd64
+            prover/server/prover-darwin-amd64
+            prover/server/prover-darwin-arm64
+            prover/server/prover-linux-amd64
+            prover/server/prover-windows-amd64
