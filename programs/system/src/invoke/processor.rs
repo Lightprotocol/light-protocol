@@ -164,6 +164,12 @@ pub fn process<
         None
     };
 
+    // Verify read only account inclusion ---------------------------------------------------
+    // Verify before proving inclusion by index in output queues so that
+    // reading an account is successful even when it is modified in the same transaction.
+    let num_prove_read_only_accounts_prove_by_index =
+        verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
+
     // Allocate space for sequence numbers with remaining account length as a
     // proxy. We cannot allocate heap memory in
     // insert_output_compressed_accounts_into_state_merkle_tree because it is
@@ -248,14 +254,19 @@ pub fn process<
         )?;
     }
 
+    msg!("num_read_only_accounts {}", num_read_only_accounts);
+    msg!(
+        "num_prove_read_only_accounts_prove_by_index {}",
+        num_prove_read_only_accounts_prove_by_index
+    );
     // Proof inputs order:
     // 1. input compressed accounts
     // 2. read only compressed accounts
     // 3. new addresses
     // 4. read only addresses
     if num_prove_by_index_input_accounts < num_input_compressed_accounts
+        || num_prove_read_only_accounts_prove_by_index < num_read_only_accounts
         || !new_addresses.is_empty()
-        || !read_only_accounts.is_empty()
         || !read_only_addresses.is_empty()
     {
         bench_sbf_start!("cpda_verify_state_proof");
@@ -269,14 +280,13 @@ pub fn process<
             let mut input_compressed_account_hashes = input_compressed_account_hashes.clone();
 
             let state_tree_height = {
-                verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
-
                 for read_only_account in read_only_accounts.iter() {
                     // only push read only account hashes which are not marked as proof by index
                     if read_only_account.merkle_context.queue_index.is_none() {
                         input_compressed_account_hashes.push(read_only_account.account_hash);
                     }
                 }
+
                 fetch_input_roots(
                     ctx.remaining_accounts,
                     &inputs.input_compressed_accounts_with_merkle_context,

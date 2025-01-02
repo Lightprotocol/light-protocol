@@ -49,6 +49,7 @@ pub enum CreatePdaMode {
     ProofIsNoneReadOnlyAccount,
     AccountNotInValueVecMarkedProofByIndex,
     InvalidLeafIndex,
+    ReadOnlyZkpOfInsertedAccount,
 }
 
 pub fn process_create_pda<'info>(
@@ -103,7 +104,8 @@ pub fn process_create_pda<'info>(
         | CreatePdaMode::InvalidReadOnlyAccountOutputQueue
         | CreatePdaMode::ProofIsNoneReadOnlyAccount
         | CreatePdaMode::AccountNotInValueVecMarkedProofByIndex
-        | CreatePdaMode::InvalidLeafIndex => {
+        | CreatePdaMode::InvalidLeafIndex
+        | CreatePdaMode::ReadOnlyZkpOfInsertedAccount => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
                 proof,
@@ -358,6 +360,12 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                 }
                 CreatePdaMode::InvalidLeafIndex => {
                     read_only_account[0].merkle_context.leaf_index += 1;
+                }
+                CreatePdaMode::ReadOnlyProofOfInsertedAccount
+                | CreatePdaMode::ReadOnlyZkpOfInsertedAccount => {
+                    inputs_struct.new_address_params = vec![];
+                    inputs_struct.output_compressed_accounts = vec![];
+                    inputs_struct.proof = None;
                 }
                 _ => {}
             }
