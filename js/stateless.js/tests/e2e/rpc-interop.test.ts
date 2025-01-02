@@ -22,7 +22,7 @@ describe('rpc-interop', () => {
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;
-    let testRpc: TestRpc;
+    let testRpc: TestRpc | Rpc;
     let executedTxs = 0;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
