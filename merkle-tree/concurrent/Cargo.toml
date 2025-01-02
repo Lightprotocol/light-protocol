@@ -32,7 +32,7 @@ light-hash-set = { workspace = true, features = ["solana"] }
 rand = "0.8"
 solana-program = {  workspace = true }
 spl-account-compression = { version = "0.3.0", default-features = false}
-spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false}
+spl-concurrent-merkle-tree = { version = "0.3.0", default-features = false}
 tokio = { workspace = true }
 num-bigint = "0.4"
 num-traits = "0.2"
