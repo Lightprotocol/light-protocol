@@ -1,6 +1,6 @@
 use light_bloom_filter::BloomFilter;
-use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Poseidon};
+use light_zero_copy::vec::ZeroCopyVecUsize;
 use solana_program::msg;
 
 use crate::errors::BatchedMerkleTreeError;
@@ -17,7 +17,7 @@ pub enum BatchState {
 }
 
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Batch {
     /// Number of inserted elements in the zkp batch.
     num_inserted: u64,
@@ -140,7 +140,7 @@ impl Batch {
     pub fn store_value(
         &mut self,
         value: &[u8; 32],
-        value_store: &mut BoundedVec<[u8; 32]>,
+        value_store: &mut ZeroCopyVecUsize<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         if self.state != BatchState::CanBeFilled {
             return Err(BatchedMerkleTreeError::BatchNotReady);
@@ -152,8 +152,8 @@ impl Batch {
     pub fn store_and_hash_value(
         &mut self,
         value: &[u8; 32],
-        value_store: &mut BoundedVec<[u8; 32]>,
-        hashchain_store: &mut BoundedVec<[u8; 32]>,
+        value_store: &mut ZeroCopyVecUsize<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.store_value(value, value_store)?;
         self.add_to_hash_chain(value, hashchain_store)
@@ -166,7 +166,7 @@ impl Batch {
         bloom_filter_value: &[u8; 32],
         hashchain_value: &[u8; 32],
         store: &mut [u8],
-        hashchain_store: &mut BoundedVec<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)?;
@@ -177,7 +177,7 @@ impl Batch {
     pub fn add_to_hash_chain(
         &mut self,
         value: &[u8; 32],
-        hashchain_store: &mut BoundedVec<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
             hashchain_store.push(*value)?;
@@ -319,8 +319,24 @@ mod tests {
     fn test_store_value() {
         let mut batch = get_test_batch();
 
-        let mut value_store = BoundedVec::with_capacity(batch.batch_size as usize);
-        let mut hashchain_store = BoundedVec::with_capacity(batch.get_hashchain_store_len());
+        let mut value_store_bytes =
+            vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
+            ];
+        let mut value_store =
+            ZeroCopyVecUsize::new(batch.batch_size as usize, &mut value_store_bytes).unwrap();
+        let mut hashchain_store_bytes = vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                    batch.get_hashchain_store_len()
+                )
+            ];
+        let mut hashchain_store = ZeroCopyVecUsize::new(
+            batch.get_hashchain_store_len(),
+            hashchain_store_bytes.as_mut_slice(),
+        )
+        .unwrap();
 
         let mut ref_batch = get_test_batch();
         for i in 0..batch.batch_size {
@@ -361,9 +377,18 @@ mod tests {
         // Behavior Input queue
         let mut batch = get_test_batch();
         let mut store = vec![0u8; 20_000];
-        let hashchain_store_len = batch.get_hashchain_store_len();
-        let mut hashchain_store: BoundedVec<[u8; 32]> =
-            BoundedVec::with_capacity(hashchain_store_len);
+
+        let mut hashchain_store_bytes = vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                    batch.get_hashchain_store_len()
+                )
+            ];
+        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
+            batch.get_hashchain_store_len(),
+            hashchain_store_bytes.as_mut_slice(),
+        )
+        .unwrap();
 
         let mut ref_batch = get_test_batch();
         for i in 0..batch.batch_size {
@@ -403,9 +428,17 @@ mod tests {
     #[test]
     fn test_add_to_hash_chain() {
         let mut batch = get_test_batch();
-        let hashchain_store_len = batch.get_hashchain_store_len();
-        let mut hashchain_store: BoundedVec<[u8; 32]> =
-            BoundedVec::with_capacity(hashchain_store_len);
+        let mut hashchain_store_bytes = vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                    batch.get_hashchain_store_len()
+                )
+            ];
+        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
+            batch.get_hashchain_store_len(),
+            hashchain_store_bytes.as_mut_slice(),
+        )
+        .unwrap();
         let value = [1u8; 32];
 
         assert!(batch
@@ -433,9 +466,17 @@ mod tests {
 
         let value = [1u8; 32];
         let mut store = vec![0u8; 20_000];
-        let hashchain_store_len = batch.get_hashchain_store_len();
-        let mut hashchain_store: BoundedVec<[u8; 32]> =
-            BoundedVec::with_capacity(hashchain_store_len);
+        let mut hashchain_store_bytes = vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                    batch.get_hashchain_store_len()
+                )
+            ];
+        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
+            batch.get_hashchain_store_len(),
+            hashchain_store_bytes.as_mut_slice(),
+        )
+        .unwrap();
 
         assert!(batch.check_non_inclusion(&value, &mut store).is_ok());
         let ref_batch = get_test_batch();
@@ -515,15 +556,32 @@ mod tests {
             batch.get_first_ready_zkp_batch(),
             Err(BatchedMerkleTreeError::BatchNotReady.into())
         );
-        let mut bounded_vec = BoundedVec::with_capacity(batch.batch_size as usize);
-        let mut value_store = BoundedVec::with_capacity(batch.batch_size as usize);
+        let mut value_store_bytes =
+            vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
+            ];
+        let mut value_store =
+            ZeroCopyVecUsize::<[u8; 32]>::new(batch.batch_size as usize, &mut value_store_bytes)
+                .unwrap();
+        let mut hashchain_store_bytes = vec![
+                0u8;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                    batch.get_hashchain_store_len()
+                )
+            ];
+        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
+            batch.get_hashchain_store_len(),
+            hashchain_store_bytes.as_mut_slice(),
+        )
+        .unwrap();
 
         for i in 0..batch.batch_size + 10 {
             let mut value = [0u8; 32];
             value[24..].copy_from_slice(&i.to_be_bytes());
             if i < batch.batch_size {
                 batch
-                    .store_and_hash_value(&value, &mut value_store, &mut bounded_vec)
+                    .store_and_hash_value(&value, &mut value_store, &mut hashchain_store)
                     .unwrap();
             }
             if (i + 1) % batch.zkp_batch_size == 0 && i != 0 {

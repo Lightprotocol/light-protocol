@@ -11,10 +11,10 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{get_merkle_tree_account_size_default, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size_default, BatchedQueueAccount},
-    zero_copy::bytes_to_struct_unchecked,
 };
 use light_hasher::Discriminator;
 use light_utils::account::set_discriminator;
+use light_zero_copy::raw_pointer_mut::RawPointerMut;
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Tests:
@@ -36,18 +36,20 @@ fn test_bytes_to_struct() {
 
     // Test 1 functional init.
     set_discriminator::<MyStruct>(&mut bytes).unwrap();
-    let inited_struct = bytes_to_struct_unchecked::<MyStruct>(&mut bytes).unwrap();
-    unsafe {
-        (*inited_struct).data = 1;
-    }
+    let inited_struct =
+        &mut RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
+
+    (*inited_struct).data = 1;
+
     assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
     assert_eq!(bytes[8..].to_vec(), vec![1, 0, 0, 0, 0, 0, 0, 0]);
     // Test 2 functional deserialize.
-    let inited_struct = unsafe { *bytes_to_struct_unchecked::<MyStruct>(&mut bytes).unwrap() };
+    let inited_struct =
+        *RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
     assert_eq!(inited_struct, MyStruct { data: 1 });
     // Test 3 failing deserialize invalid data.
     let inited_struct =
-        unsafe { *bytes_to_struct_unchecked::<MyStruct>(&mut empty_bytes).unwrap() };
+        *RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut empty_bytes).unwrap();
     assert_ne!(inited_struct, MyStruct { data: 1 });
 }
 
