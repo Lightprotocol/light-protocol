@@ -15,8 +15,8 @@ const rolls = (fmt, env) => ({
     },
     external: [
         '@solana/web3.js',
-        '@coral-xyz/borsh',
-        '@noble/hashes',
+        // '@coral-xyz/borsh',
+        // '@noble/hashes',
         'buffer',
         'superstruct',
         'buffer-layout',
