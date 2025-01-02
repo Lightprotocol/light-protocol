@@ -1,5 +1,5 @@
 #![allow(unused_assignments)]
-use std::{cmp::min, mem::ManuallyDrop, ops::Deref};
+use std::cmp::min;
 
 use light_batched_merkle_tree::{
     batch::{Batch, BatchState},
@@ -28,7 +28,6 @@ use light_batched_merkle_tree::{
     },
 };
 use light_bloom_filter::BloomFilter;
-use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
@@ -37,16 +36,17 @@ use light_prover_client::{
 };
 use light_utils::hashchain::create_hash_chain_from_slice;
 use light_verifier::CompressedProof;
+use light_zero_copy::{slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize};
 use rand::{rngs::StdRng, Rng};
 use serial_test::serial;
 use solana_program::pubkey::Pubkey;
 
 pub fn assert_nullifier_queue_insert(
     pre_account: BatchedMerkleTreeMetadata,
-    pre_batches: ManuallyDrop<BoundedVec<Batch>>,
-    pre_value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    pre_batches: ZeroCopySliceMutUsize<Batch>,
+    pre_value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     pre_roots: Vec<[u8; 32]>,
-    pre_hashchains: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_indices: Vec<u64>,
@@ -80,10 +80,10 @@ pub fn assert_nullifier_queue_insert(
 /// 3.
 pub fn assert_input_queue_insert(
     mut pre_account: BatchedMerkleTreeMetadata,
-    mut pre_batches: ManuallyDrop<BoundedVec<Batch>>,
-    pre_value_vecs: &mut Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    mut pre_batches: ZeroCopySliceMutUsize<Batch>,
+    mut pre_value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     pre_roots: Vec<[u8; 32]>,
-    mut pre_hashchains: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    mut pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     mut merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_hashchain_insert_values: Vec<[u8; 32]>,
@@ -120,6 +120,8 @@ pub fn assert_input_queue_insert(
                 .iter()
                 .zip(pre_roots.iter())
                 .all(|(post, pre)| *post == *pre || *post == [0u8; 32]);
+            println!("pre_roots: {:?}", pre_roots);
+            println!("post_roots: {:?}", post_roots);
             if !only_zero_overwrites {
                 panic!("Root buffer changed.")
             }
@@ -248,9 +250,9 @@ pub fn assert_input_queue_insert(
 /// - if batch is full after insertion advance state to ReadyToUpdateTree
 pub fn assert_output_queue_insert(
     mut pre_account: BatchedQueueMetadata,
-    mut pre_batches: ManuallyDrop<BoundedVec<Batch>>,
-    mut pre_value_store: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    mut pre_hashchains: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    mut pre_batches: Vec<Batch>,
+    mut pre_value_store: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    mut pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     mut output_account: BatchedQueueAccount,
     insert_values: Vec<[u8; 32]>,
 ) -> Result<(), BatchedMerkleTreeError> {
@@ -263,7 +265,7 @@ pub fn assert_output_queue_insert(
     for insert_value in insert_values.iter() {
         // There are no bloom_filters
         for store in output_account.bloom_filter_stores.iter() {
-            assert_eq!(store.capacity(), 0);
+            assert_eq!(store.len(), 0);
         }
         // if the currently processing batch changed it should
         // increment by one and the old batch should be ready to
@@ -321,7 +323,7 @@ pub fn assert_output_queue_insert(
     );
     assert_eq!(pre_hashchains, output_account.hashchain_store);
     assert_eq!(pre_value_store, output_account.value_vecs);
-    assert_eq!(pre_batches, output_account.batches);
+    assert_eq!(pre_batches, output_account.batches.to_vec());
     Ok(())
 }
 
@@ -540,15 +542,30 @@ async fn test_simulate_transactions() {
                 BatchedQueueAccount::output_queue_from_bytes_mut(&mut output_queue_account_data)
                     .unwrap();
             let mut pre_mt_data = mt_account_data.clone();
-            let pre_output_account = output_account.get_metadata().clone();
-            let pre_output_batches = output_account.batches.clone();
-            let mut pre_output_value_stores = output_account.value_vecs.clone();
-            let pre_hashchains = output_account.hashchain_store.clone();
-
-            let pre_mt_account = merkle_tree_account.get_metadata().clone();
-            let pre_batches = merkle_tree_account.batches.clone();
-            let pre_roots = merkle_tree_account.root_history.iter().cloned().collect();
-            let pre_mt_hashchains = merkle_tree_account.hashchain_store.clone();
+            let mut pre_account_bytes = output_queue_account_data.clone();
+            let pre_output_account =
+                BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes).unwrap();
+            let pre_output_metadata = pre_output_account.get_metadata().clone();
+            let pre_output_batches = pre_output_account.batches;
+            let pre_output_value_stores = pre_output_account.value_vecs;
+            let pre_output_hashchains = pre_output_account.hashchain_store;
+            let pre_output_value_stores_2 =
+                BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes)
+                    .unwrap()
+                    .value_vecs;
+            let mut pre_mt_account_bytes = mt_account_data.clone();
+            let pre_merkle_tree_account =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut pre_mt_account_bytes)
+                    .unwrap();
+            let pre_mt_account = pre_merkle_tree_account.get_metadata().clone();
+            let pre_batches = pre_merkle_tree_account.batches;
+            // let pre_value_store = pre_merkle_tree_account.value_vecs;
+            let pre_roots = pre_merkle_tree_account
+                .root_history
+                .iter()
+                .cloned()
+                .collect();
+            let pre_mt_hashchains = pre_merkle_tree_account.hashchain_store;
 
             if !outputs.is_empty() || !inputs.is_empty() {
                 println!("Simulating tx with inputs: {:?}", instruction_data);
@@ -569,7 +586,7 @@ async fn test_simulate_transactions() {
                     assert_nullifier_queue_insert(
                         pre_mt_account,
                         pre_batches,
-                        &mut pre_output_value_stores,
+                        pre_output_value_stores,
                         pre_roots,
                         pre_mt_hashchains,
                         merkle_tree_account,
@@ -584,11 +601,14 @@ async fn test_simulate_transactions() {
 
                 if !outputs.is_empty() {
                     assert_output_queue_insert(
-                        pre_output_account,
-                        pre_output_batches,
-                        pre_output_value_stores,
-                        pre_hashchains,
-                        output_account.clone(),
+                        pre_output_metadata,
+                        pre_output_batches.to_vec(),
+                        pre_output_value_stores_2,
+                        pre_output_hashchains,
+                        BatchedQueueAccount::output_queue_from_bytes_mut(
+                            &mut output_queue_account_data.clone(), // clone so that data cannot be modified
+                        )
+                        .unwrap(),
                         outputs.clone(),
                     )
                     .unwrap();
@@ -897,21 +917,27 @@ async fn test_e2e() {
                 println!("Output insert -----------------------------");
                 println!("num_output_values: {}", num_output_values);
                 let rnd_bytes = get_rnd_bytes(&mut rng);
-
-                let pre_account = output_account.get_metadata().clone();
-                let pre_batches = output_account.batches.clone();
-                let pre_value_store = output_account.value_vecs.clone();
-                let pre_hashchains = output_account.hashchain_store.clone();
+                let mut pre_account_bytes = output_queue_account_data.clone();
+                let pre_output_account =
+                    BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes)
+                        .unwrap();
+                let pre_account = pre_output_account.get_metadata().clone();
+                let pre_batches = pre_output_account.batches;
+                let pre_value_store = pre_output_account.value_vecs;
+                let pre_hashchains = pre_output_account.hashchain_store;
 
                 output_account
                     .insert_into_current_batch(&rnd_bytes)
                     .unwrap();
                 assert_output_queue_insert(
                     pre_account,
-                    pre_batches,
+                    pre_batches.to_vec(),
                     pre_value_store,
                     pre_hashchains,
-                    output_account.clone(),
+                    BatchedQueueAccount::output_queue_from_bytes_mut(
+                        &mut output_queue_account_data.clone(), // clone so that data cannot be modified
+                    )
+                    .unwrap(),
                     vec![rnd_bytes],
                 )
                 .unwrap();
@@ -933,11 +959,14 @@ async fn test_e2e() {
                 println!("Input insert -----------------------------");
                 let (_, leaf) = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
 
-                let pre_batches: ManuallyDrop<BoundedVec<Batch>> =
-                    merkle_tree_account.batches.clone();
-                let pre_account = merkle_tree_account.get_metadata().clone();
-                let pre_roots = merkle_tree_account.root_history.iter().cloned().collect();
-                let pre_hashchains = merkle_tree_account.hashchain_store.clone();
+                let mut pre_account_bytes = mt_account_data.clone();
+                let pre_mt_account =
+                    BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut pre_account_bytes)
+                        .unwrap();
+                let pre_account = pre_mt_account.get_metadata().clone();
+                let pre_batches = pre_mt_account.batches;
+                let pre_hashchains = pre_mt_account.hashchain_store;
+                let pre_roots = pre_mt_account.root_history.iter().cloned().collect();
                 let tx_hash = create_hash_chain_from_slice(vec![leaf].as_slice()).unwrap();
                 let leaf_index = mock_indexer.merkle_tree.get_leaf_index(&leaf).unwrap();
                 mock_indexer.input_queue_leaves.push((leaf, leaf_index));
@@ -962,7 +991,7 @@ async fn test_e2e() {
                     assert_nullifier_queue_insert(
                         pre_account,
                         pre_batches,
-                        &mut vec![],
+                        vec![],
                         pre_roots,
                         pre_hashchains,
                         merkle_tree_account,
@@ -1025,8 +1054,6 @@ async fn test_e2e() {
                 .value_vecs
                 .get(next_full_batch as usize)
                 .unwrap()
-                .deref()
-                .clone()
                 .to_vec();
             println!("leaves {:?}", leaves.len());
             let leaves_hashchain = output_account
@@ -1305,8 +1332,8 @@ fn assert_merkle_tree_update(
         expected_account.next_index += queue_account.batches.get(0).unwrap().zkp_batch_size;
         let next_full_batch_index = expected_queue_account.batch_metadata.next_full_batch_index;
         (
-            queue_account.batches.clone(),
-            old_queue_account.as_ref().unwrap().batches.clone(),
+            queue_account.batches.to_vec(),
+            old_queue_account.as_ref().unwrap().batches.to_vec(),
             previous_processing,
             Some(expected_queue_account),
             next_full_batch_index,
@@ -1323,8 +1350,8 @@ fn assert_merkle_tree_update(
             0
         };
         (
-            account.batches.clone(),
-            old_account.batches.clone(),
+            account.batches.to_vec(),
+            old_account.batches.to_vec(),
             previous_processing,
             None,
             0,
@@ -1470,11 +1497,15 @@ async fn test_fill_queues_completely() {
                     .unwrap();
 
             let rnd_bytes = get_rnd_bytes(&mut rng);
-
-            let pre_account = output_account.get_metadata().clone();
-            let pre_batches = output_account.batches.clone();
-            let pre_value_store = output_account.value_vecs.clone();
-            let pre_hashchains = output_account.hashchain_store.clone();
+            let mut pre_output_queue_account_data = output_queue_account_data.clone();
+            let pre_output_account = BatchedQueueAccount::output_queue_from_bytes_mut(
+                &mut pre_output_queue_account_data,
+            )
+            .unwrap();
+            let pre_account = pre_output_account.get_metadata().clone();
+            let pre_batches = pre_output_account.batches.to_vec();
+            let pre_value_store = pre_output_account.value_vecs;
+            let pre_hashchains = pre_output_account.hashchain_store;
 
             output_account
                 .insert_into_current_batch(&rnd_bytes)
@@ -1484,7 +1515,10 @@ async fn test_fill_queues_completely() {
                 pre_batches,
                 pre_value_store,
                 pre_hashchains,
-                output_account.clone(),
+                BatchedQueueAccount::output_queue_from_bytes_mut(
+                    &mut output_queue_account_data.clone(), // clone so that data cannot be modified
+                )
+                .unwrap(),
                 vec![rnd_bytes],
             )
             .unwrap();
@@ -1589,10 +1623,18 @@ async fn test_fill_queues_completely() {
             let (_, leaf) = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
             let leaf_index = mock_indexer.merkle_tree.get_leaf_index(&leaf).unwrap();
 
-            let pre_batches: ManuallyDrop<BoundedVec<Batch>> = merkle_tree_account.batches.clone();
-            let pre_account = merkle_tree_account.get_metadata().clone();
-            let pre_roots = merkle_tree_account.root_history.iter().cloned().collect();
-            let pre_hashchains = merkle_tree_account.hashchain_store.clone();
+            let mut pre_mt_account_data = mt_account_data.clone();
+            let pre_merkle_tree_account =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut pre_mt_account_data)
+                    .unwrap();
+            let pre_account = pre_merkle_tree_account.get_metadata().clone();
+            let pre_batches = pre_merkle_tree_account.batches;
+            let pre_roots = pre_merkle_tree_account
+                .root_history
+                .iter()
+                .cloned()
+                .collect();
+            let pre_hashchains = pre_merkle_tree_account.hashchain_store;
             let tx_hash = create_hash_chain_from_slice(&[leaf]).unwrap();
             // Index input queue insert event
             mock_indexer.input_queue_leaves.push((leaf, leaf_index));
@@ -1613,7 +1655,7 @@ async fn test_fill_queues_completely() {
             assert_nullifier_queue_insert(
                 pre_account,
                 pre_batches,
-                &mut vec![],
+                vec![],
                 pre_roots,
                 pre_hashchains,
                 merkle_tree_account,
@@ -1837,10 +1879,18 @@ async fn test_fill_address_tree_completely() {
             let mut rnd_address = get_rnd_bytes(&mut rng);
             rnd_address[0] = 0;
 
-            let pre_batches: ManuallyDrop<BoundedVec<Batch>> = merkle_tree_account.batches.clone();
-            let pre_account = merkle_tree_account.get_metadata().clone();
-            let pre_roots = merkle_tree_account.root_history.iter().cloned().collect();
-            let pre_hashchains = merkle_tree_account.hashchain_store.clone();
+            let mut pre_account_data = mt_account_data.clone();
+            let pre_merkle_tree_account =
+                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut pre_account_data)
+                    .unwrap();
+            let pre_account = pre_merkle_tree_account.get_metadata().clone();
+            let pre_batches = pre_merkle_tree_account.batches;
+            let pre_roots = pre_merkle_tree_account
+                .root_history
+                .iter()
+                .cloned()
+                .collect();
+            let pre_hashchains = pre_merkle_tree_account.hashchain_store;
 
             merkle_tree_account
                 .insert_address_into_current_batch(&rnd_address)
@@ -1848,7 +1898,7 @@ async fn test_fill_address_tree_completely() {
             assert_input_queue_insert(
                 pre_account,
                 pre_batches,
-                &mut vec![],
+                vec![],
                 pre_roots,
                 pre_hashchains,
                 merkle_tree_account,

@@ -149,7 +149,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     &mut merkle_tree_account_data,
                 )
                 .unwrap();
-                let mut batches = merkle_tree.batches.clone();
+                let mut batches = merkle_tree.batches;
                 batches.iter_mut().enumerate().any(|(i, batch)| {
                     batch
                         .check_non_inclusion(
@@ -186,7 +186,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account_data)
                         .unwrap();
-                let mut batches = merkle_tree.batches.clone();
+                let mut batches = merkle_tree.batches;
                 // Must be included in one batch
                 batches.iter_mut().enumerate().any(|(i, batch)| {
                     batch

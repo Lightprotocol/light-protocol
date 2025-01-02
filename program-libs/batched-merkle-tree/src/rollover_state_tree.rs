@@ -131,6 +131,9 @@ pub fn batched_tree_is_ready_for_rollover(
     metadata: &BatchedMerkleTreeMetadata,
     network_fee: &Option<u64>,
 ) -> Result<(), BatchedMerkleTreeError> {
+    if metadata.metadata.rollover_metadata.rollover_threshold == u64::MAX {
+        return Err(MerkleTreeMetadataError::RolloverNotConfigured.into());
+    }
     if metadata.next_index
         < ((1 << metadata.height) * metadata.metadata.rollover_metadata.rollover_threshold / 100)
     {

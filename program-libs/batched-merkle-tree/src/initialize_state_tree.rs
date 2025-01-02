@@ -103,7 +103,7 @@ impl Default for InitStateTreeAccountsInstructionData {
             output_queue_num_batches: 2,
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
-            bloom_filter_capacity: (DEFAULT_BATCH_SIZE + 1) * 8,
+            bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
             network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
@@ -268,7 +268,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     );
 
     assert!(params.bloom_filter_num_iters > 0);
-    assert!(params.bloom_filter_capacity > params.input_queue_batch_size * 8);
+    assert!(params.bloom_filter_capacity >= params.input_queue_batch_size * 8);
     assert_eq!(
         params.bloom_filter_capacity % 8,
         0,
@@ -362,7 +362,7 @@ fn _assert_mt_zero_copy_inited(
         );
     }
     assert_eq!(
-        account.hashchain_store[0].metadata().capacity(),
+        account.hashchain_store[0].capacity(),
         ref_account.queue_metadata.get_num_zkp_batches() as usize,
         "hashchain_store mismatch"
     );

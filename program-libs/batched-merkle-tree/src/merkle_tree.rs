@@ -1,8 +1,7 @@
-use std::mem::{size_of, ManuallyDrop};
+use std::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_hasher::{Discriminator, Hasher, Poseidon};
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
@@ -19,6 +18,10 @@ use light_utils::{
 use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
     CompressedProof,
+};
+use light_zero_copy::{
+    cyclic_vec::ZeroCopyCyclicVecUsize, errors::ZeroCopyError, raw_pointer_mut::RawPointerMut,
+    slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize,
 };
 use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
@@ -38,7 +41,6 @@ use crate::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     queue::BatchedQueueAccount,
-    zero_copy::{bytes_to_struct_unchecked, ZeroCopyError},
     BorshDeserialize, BorshSerialize,
 };
 
@@ -102,7 +104,7 @@ pub struct CreateTreeParams {
 impl CreateTreeParams {
     pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
         CreateTreeParams {
-            owner, // Assuming default owner, modify as needed
+            owner,
             program_owner: data.program_owner,
             forester: data.forester,
             rollover_threshold: data.rollover_threshold,
@@ -122,7 +124,7 @@ impl CreateTreeParams {
         owner: Pubkey,
     ) -> Self {
         CreateTreeParams {
-            owner, // Assuming default owner, modify as needed
+            owner,
             program_owner: data.program_owner,
             forester: data.forester,
             rollover_threshold: data.rollover_threshold,
@@ -141,8 +143,9 @@ impl CreateTreeParams {
 impl BatchedMerkleTreeMetadata {
     pub fn get_account_size(&self) -> Result<usize, BatchedMerkleTreeError> {
         let account_size = Self::LEN;
-        let root_history_size = size_of::<CyclicBoundedVecMetadata>()
-            + (size_of::<[u8; 32]>() * self.root_history_capacity as usize);
+        let root_history_size = ZeroCopyCyclicVecUsize::<[u8; 32]>::required_size_for_capacity(
+            self.root_history_capacity as usize,
+        );
         let size = account_size
             + root_history_size
             + queue_account_size(&self.queue_metadata, QueueType::Input as u64)?;
@@ -223,12 +226,26 @@ impl BatchedMerkleTreeMetadata {
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub struct BatchedMerkleTreeAccount {
-    metadata: *mut BatchedMerkleTreeMetadata,
-    pub root_history: ManuallyDrop<CyclicBoundedVec<[u8; 32]>>,
-    pub batches: ManuallyDrop<BoundedVec<Batch>>,
-    pub value_vecs: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
-    pub bloom_filter_stores: Vec<ManuallyDrop<BoundedVec<u8>>>,
-    pub hashchain_store: Vec<ManuallyDrop<BoundedVec<[u8; 32]>>>,
+    metadata: RawPointerMut<BatchedMerkleTreeMetadata>,
+    pub root_history: ZeroCopyCyclicVecUsize<[u8; 32]>,
+    pub batches: ZeroCopySliceMutUsize<Batch>,
+    pub value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    pub bloom_filter_stores: Vec<ZeroCopySliceMutUsize<u8>>,
+    pub hashchain_store: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+}
+
+impl Deref for BatchedMerkleTreeAccount {
+    type Target = BatchedMerkleTreeMetadata;
+
+    fn deref(&self) -> &Self::Target {
+        self.metadata.get()
+    }
+}
+
+impl DerefMut for BatchedMerkleTreeAccount {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.metadata.get_mut()
+    }
 }
 
 /// Get batch from account.
@@ -266,11 +283,13 @@ pub struct AppendBatchProofInputsIx {
 }
 
 impl BatchedMerkleTreeAccount {
+    // TODO: remove
     pub fn get_metadata(&self) -> &BatchedMerkleTreeMetadata {
-        unsafe { self.metadata.as_ref() }.unwrap()
+        self.metadata.get()
     }
+    // TODO: remove
     pub fn get_metadata_mut(&mut self) -> &mut BatchedMerkleTreeMetadata {
-        unsafe { self.metadata.as_mut() }.unwrap()
+        self.metadata.get_mut()
     }
 
     // TODO: add unit test
@@ -292,7 +311,7 @@ impl BatchedMerkleTreeAccount {
     }
 
     pub fn address_tree_from_account_info_mut(
-        account_info: &AccountInfo<'_>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
         Self::from_account_info_mut::<BATCHED_ADDRESS_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -302,7 +321,7 @@ impl BatchedMerkleTreeAccount {
 
     pub fn from_account_info_mut<const TREE_TYPE: u64>(
         program_id: &Pubkey,
-        account_info: &AccountInfo<'_>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
         check_account_info_mut::<Self>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
@@ -320,32 +339,32 @@ impl BatchedMerkleTreeAccount {
     fn from_bytes_mut<const TREE_TYPE: u64>(
         account_data: &mut [u8],
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
-        unsafe {
-            let metadata = bytes_to_struct_unchecked::<BatchedMerkleTreeMetadata>(account_data)?;
-            if (*metadata).tree_type != TREE_TYPE {
-                return Err(MerkleTreeMetadataError::InvalidTreeType.into());
-            }
-            if account_data.len() != (*metadata).get_account_size()? {
-                return Err(ZeroCopyError::InvalidAccountSize.into());
-            }
-            let mut start_offset = BatchedMerkleTreeMetadata::LEN;
-            let root_history = CyclicBoundedVec::deserialize(account_data, &mut start_offset)?;
-            let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
-                &(*metadata).queue_metadata,
-                account_data,
-                QueueType::Input as u64,
-                &mut start_offset,
-            )?;
-
-            Ok(BatchedMerkleTreeAccount {
-                metadata,
-                root_history,
-                batches,
-                value_vecs,
-                bloom_filter_stores,
-                hashchain_store,
-            })
+        let metadata = RawPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
+            account_data,
+        )?;
+        if metadata.tree_type != TREE_TYPE {
+            return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
+        if account_data.len() != metadata.get_account_size()? {
+            return Err(ZeroCopyError::InvalidAccountSize.into());
+        }
+        let mut start_offset = BatchedMerkleTreeMetadata::LEN;
+        let root_history = ZeroCopyCyclicVecUsize::from_bytes_at(account_data, &mut start_offset)?;
+        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
+            &metadata.queue_metadata,
+            account_data,
+            QueueType::Input as u64,
+            &mut start_offset,
+        )?;
+
+        Ok(BatchedMerkleTreeAccount {
+            metadata,
+            root_history,
+            batches,
+            value_vecs,
+            bloom_filter_stores,
+            hashchain_store,
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -362,61 +381,61 @@ impl BatchedMerkleTreeAccount {
         tree_type: TreeType,
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
         set_discriminator::<Self>(&mut account_data[0..DISCRIMINATOR_LEN])?;
-        unsafe {
-            let account_metadata =
-                bytes_to_struct_unchecked::<BatchedMerkleTreeMetadata>(account_data)?;
-            (*account_metadata).metadata = metadata;
-            (*account_metadata).root_history_capacity = root_history_capacity;
-            (*account_metadata).height = height;
-            (*account_metadata).tree_type = tree_type as u64;
-            (*account_metadata).queue_metadata.init(
-                num_batches_input_queue,
-                input_queue_batch_size,
-                input_queue_zkp_batch_size,
-            )?;
-            (*account_metadata).queue_metadata.bloom_filter_capacity = bloom_filter_capacity;
-            if account_data.len() != (*account_metadata).get_account_size()? {
-                msg!("merkle_tree_metadata: {:?}", (*account_metadata));
-                msg!("account_data.len(): {}", account_data.len());
-                msg!(
-                    "account.get_account_size(): {}",
-                    (*account_metadata).get_account_size()?
-                );
-                return Err(ZeroCopyError::InvalidAccountSize.into());
-            }
-            let mut start_offset = BatchedMerkleTreeMetadata::LEN;
 
-            let mut root_history = CyclicBoundedVec::init(
-                (*account_metadata).root_history_capacity as usize,
+        let mut account_metadata =
+            RawPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
                 account_data,
-                &mut start_offset,
-                false,
             )?;
-            if tree_type == TreeType::BatchedState {
-                root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
-            } else if tree_type == TreeType::BatchedAddress {
-                // Initialized indexed Merkle tree root
-                root_history.push(ADDRESS_TREE_INIT_ROOT_40);
-                (*account_metadata).next_index = 2;
-            }
-            let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
-                &(*account_metadata).queue_metadata,
-                QueueType::Input as u64,
-                account_data,
-                num_iters,
-                bloom_filter_capacity,
-                &mut start_offset,
-                (*account_metadata).next_index,
-            )?;
-            Ok(BatchedMerkleTreeAccount {
-                metadata: account_metadata,
-                root_history,
-                batches,
-                value_vecs,
-                bloom_filter_stores,
-                hashchain_store,
-            })
+        account_metadata.metadata = metadata;
+        account_metadata.root_history_capacity = root_history_capacity;
+        account_metadata.height = height;
+        account_metadata.tree_type = tree_type as u64;
+        account_metadata.queue_metadata.init(
+            num_batches_input_queue,
+            input_queue_batch_size,
+            input_queue_zkp_batch_size,
+        )?;
+        account_metadata.queue_metadata.bloom_filter_capacity = bloom_filter_capacity;
+        if account_data.len() != account_metadata.get_account_size()? {
+            msg!("merkle_tree_metadata: {:?}", account_metadata);
+            msg!("account_data.len(): {}", account_data.len());
+            msg!(
+                "account.get_account_size(): {}",
+                account_metadata.get_account_size()?
+            );
+            return Err(ZeroCopyError::InvalidAccountSize.into());
         }
+        let mut start_offset = BatchedMerkleTreeMetadata::LEN;
+
+        let mut root_history = ZeroCopyCyclicVecUsize::new_at(
+            account_metadata.root_history_capacity as usize,
+            account_data,
+            &mut start_offset,
+        )?;
+        if tree_type == TreeType::BatchedState {
+            root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
+        } else if tree_type == TreeType::BatchedAddress {
+            // Initialized indexed Merkle tree root
+            root_history.push(ADDRESS_TREE_INIT_ROOT_40);
+            account_metadata.next_index = 2;
+        }
+        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
+            &account_metadata.queue_metadata,
+            QueueType::Input as u64,
+            account_data,
+            num_iters,
+            bloom_filter_capacity,
+            &mut start_offset,
+            account_metadata.next_index,
+        )?;
+        Ok(BatchedMerkleTreeAccount {
+            metadata: account_metadata,
+            root_history,
+            batches,
+            value_vecs,
+            bloom_filter_stores,
+            hashchain_store,
+        })
     }
 
     pub fn update_output_queue_account_info(
@@ -438,10 +457,7 @@ impl BatchedMerkleTreeAccount {
         instruction_data: InstructionDataBatchAppendInputs,
         id: [u8; 32],
     ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
-        let batch_index = queue_account
-            .get_metadata()
-            .batch_metadata
-            .next_full_batch_index;
+        let batch_index = queue_account.batch_metadata.next_full_batch_index;
         let circuit_batch_size = queue_account.get_metadata().batch_metadata.zkp_batch_size;
         let batches = &mut queue_account.batches;
         let full_batch = batches.get_mut(batch_index as usize).unwrap();
@@ -613,7 +629,7 @@ impl BatchedMerkleTreeAccount {
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
-        self.get_metadata_mut().sequence_number += 1;
+        self.metadata.sequence_number += 1;
         Ok(())
     }
 
@@ -651,64 +667,63 @@ impl BatchedMerkleTreeAccount {
         bloom_filter_value: &[u8; 32],
         leaves_hash_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        unsafe {
-            let (root_index, sequence_number) = insert_into_current_batch(
-                QueueType::Input as u64,
-                &mut (*self.metadata).queue_metadata,
-                &mut self.batches,
-                &mut self.value_vecs,
-                &mut self.bloom_filter_stores,
-                &mut self.hashchain_store,
-                bloom_filter_value,
-                Some(leaves_hash_value),
-                None,
-            )?;
+        let (root_index, sequence_number) = insert_into_current_batch(
+            QueueType::Input as u64,
+            &mut self.metadata.queue_metadata,
+            &mut self.batches,
+            &mut self.value_vecs,
+            &mut self.bloom_filter_stores,
+            &mut self.hashchain_store,
+            bloom_filter_value,
+            Some(leaves_hash_value),
+            None,
+        )?;
 
-            /*
-             * Note on security for root buffer:
-             * Account {
-             *   bloom_filter: [B0, B1],
-             *     roots: [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9],
-             * }
-             *
-             * Timeslot 0:
-             * - insert into B0 until full
-             *
-             * Timeslot 1:
-             * - insert into B1 until full
-             * - update tree with B0 in 4 partial updates, don't clear B0 yet
-             * -> R0 -> B0.1
-             * -> R1 -> B0.2
-             * -> R2 -> B0.3
-             * -> R3 -> B0.4 - final B0 root
-             * B0.sequence_number = 13 (3 + account.root.length)
-             * B0.root_index = 3
-             * - execute some B1 root updates
-             * -> R4 -> B1.1
-             * -> R5 -> B1.2
-             * -> R6 -> B1.3
-             * -> R7 -> B1.4 - final B1 (update batch 0) root
-             * B0.sequence_number = 17 (7 + account.root.length)
-             * B0.root_index = 7
-             * current_sequence_number = 8
-             * Timeslot 2:
-             * - clear B0
-             *   - current_sequence_number < 14 -> zero out all roots until root index is 3
-             * - R8 -> 0
-             * - R9 -> 0
-             * - R0 -> 0
-             * - R1 -> 0
-             * - R2 -> 0
-             * - now all roots containing values nullified in the final B0 root update are zeroed
-             * .-> B0 is safe to clear
-             */
-            if let Some(sequence_number) = sequence_number {
-                // If the sequence number is greater than current sequence number
-                // there is still at least one root which can be used to prove
-                // inclusion of a value which was in the batch that was just wiped.
-                self.zero_out_roots(sequence_number, root_index);
-            }
+        /*
+         * Note on security for root buffer:
+         * Account {
+         *   bloom_filter: [B0, B1],
+         *     roots: [R0, R1, R2, R3, R4, R5, R6, R7, R8, R9],
+         * }
+         *
+         * Timeslot 0:
+         * - insert into B0 until full
+         *
+         * Timeslot 1:
+         * - insert into B1 until full
+         * - update tree with B0 in 4 partial updates, don't clear B0 yet
+         * -> R0 -> B0.1
+         * -> R1 -> B0.2
+         * -> R2 -> B0.3
+         * -> R3 -> B0.4 - final B0 root
+         * B0.sequence_number = 13 (3 + account.root.length)
+         * B0.root_index = 3
+         * - execute some B1 root updates
+         * -> R4 -> B1.1
+         * -> R5 -> B1.2
+         * -> R6 -> B1.3
+         * -> R7 -> B1.4 - final B1 (update batch 0) root
+         * B0.sequence_number = 17 (7 + account.root.length)
+         * B0.root_index = 7
+         * current_sequence_number = 8
+         * Timeslot 2:
+         * - clear B0
+         *   - current_sequence_number < 14 -> zero out all roots until root index is 3
+         * - R8 -> 0
+         * - R9 -> 0
+         * - R0 -> 0
+         * - R1 -> 0
+         * - R2 -> 0
+         * - now all roots containing values nullified in the final B0 root update are zeroed
+         * .-> B0 is safe to clear
+         */
+        if let Some(sequence_number) = sequence_number {
+            // If the sequence number is greater than current sequence number
+            // there is still at least one root which can be used to prove
+            // inclusion of a value which was in the batch that was just wiped.
+            self.zero_out_roots(sequence_number, root_index);
         }
+
         Ok(())
     }
 
