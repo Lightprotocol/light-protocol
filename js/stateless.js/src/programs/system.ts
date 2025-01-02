@@ -1,18 +1,10 @@
-import { Program, AnchorProvider, setProvider, BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import {
     PublicKey,
-    Keypair,
-    Connection,
     TransactionInstruction,
     SystemProgram,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-
-import {
-    IDL,
-    LightSystemProgram as LightSystemProgramIDL,
-} from '../idls/light_system_program';
-import { useWallet } from '../wallet';
 import {
     CompressedAccount,
     CompressedAccountWithMerkleContext,
@@ -22,15 +14,13 @@ import {
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import {
-    defaultStaticAccountsStruct,
-    defaultTestStateTreeAccounts,
-} from '../constants';
+import { defaultStaticAccountsStruct } from '../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
 import { packNewAddressParams, NewAddressParams } from '../utils';
+import { encodeInstructionDataInvoke, invokeAccountsLayout } from './layout';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -201,18 +191,8 @@ export class LightSystemProgram {
      * Public key that identifies the CompressedPda program
      */
     static programId: PublicKey = new PublicKey(
-        // TODO: can add check to ensure its consistent with the idl
         'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
     );
-
-    private static _program: Program<LightSystemProgramIDL> | null = null;
-
-    static get program(): Program<LightSystemProgramIDL> {
-        if (!this._program) {
-            this.initializeProgram();
-        }
-        return this._program!;
-    }
 
     /**
      * @internal
@@ -226,29 +206,6 @@ export class LightSystemProgram {
             this.programId,
         );
         return address;
-    }
-
-    /**
-     * Initializes the program statically if not already initialized.
-     */
-    private static initializeProgram() {
-        if (!this._program) {
-            const mockKeypair = Keypair.generate();
-            const mockConnection = new Connection(
-                'http://127.0.0.1:8899',
-                'confirmed',
-            );
-            const mockProvider = new AnchorProvider(
-                mockConnection,
-                useWallet(mockKeypair),
-                {
-                    commitment: 'confirmed',
-                    preflightCommitment: 'confirmed',
-                },
-            );
-            setProvider(mockProvider);
-            this._program = new Program(IDL, this.programId, mockProvider);
-        }
     }
 
     static createTransferOutputState(
@@ -384,28 +341,23 @@ export class LightSystemProgram {
             compressOrDecompressLamports: null,
             isCompress: false,
         };
+        const data = encodeInstructionDataInvoke(rawData);
 
-        /// Encode instruction data
-        const ixData = this.program.coder.types.encode(
-            'InstructionDataInvoke',
-            rawData,
-        );
+        const accounts = invokeAccountsLayout({
+            ...defaultStaticAccountsStruct(),
+            feePayer: payer,
+            authority: payer,
+            solPoolPda: null,
+            decompressionRecipient: null,
+            systemProgram: SystemProgram.programId,
+        });
+        const keys = [...accounts, ...toAccountMetas(remainingAccounts)];
 
-        /// Build anchor instruction
-        const instruction = await this.program.methods
-            .invoke(ixData)
-            .accounts({
-                ...defaultStaticAccountsStruct(),
-                feePayer: payer,
-                authority: payer,
-                solPoolPda: null,
-                decompressionRecipient: null,
-                systemProgram: SystemProgram.programId,
-            })
-            .remainingAccounts(toAccountMetas(remainingAccounts))
-            .instruction();
-
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -439,33 +391,33 @@ export class LightSystemProgram {
             outputStateTrees,
         );
         /// Encode instruction data
-        const data = this.program.coder.types.encode('InstructionDataInvoke', {
+        const rawInputs: InstructionDataInvoke = {
             proof: recentValidityProof,
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
             outputCompressedAccounts: packedOutputCompressedAccounts,
             relayFee: null,
-            /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             compressOrDecompressLamports: null,
             isCompress: false,
+        };
+        const data = encodeInstructionDataInvoke(rawInputs);
+
+        const accounts = invokeAccountsLayout({
+            ...defaultStaticAccountsStruct(),
+            feePayer: payer,
+            authority: payer,
+            solPoolPda: null,
+            decompressionRecipient: null,
+            systemProgram: SystemProgram.programId,
         });
+        const keys = [...accounts, ...toAccountMetas(remainingAccounts)];
 
-        /// Build anchor instruction
-        const instruction = await this.program.methods
-            .invoke(data)
-            .accounts({
-                ...defaultStaticAccountsStruct(),
-                feePayer: payer,
-                authority: payer,
-                solPoolPda: null,
-                decompressionRecipient: null,
-                systemProgram: SystemProgram.programId,
-            })
-            .remainingAccounts(toAccountMetas(remainingAccounts))
-            .instruction();
-
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -512,26 +464,23 @@ export class LightSystemProgram {
             isCompress: true,
         };
 
-        const data = this.program.coder.types.encode(
-            'InstructionDataInvoke',
-            rawInputs,
-        );
+        const data = encodeInstructionDataInvoke(rawInputs);
 
-        /// Build anchor instruction
-        const instruction = await this.program.methods
-            .invoke(data)
-            .accounts({
-                ...defaultStaticAccountsStruct(),
-                feePayer: payer,
-                authority: payer,
-                solPoolPda: this.deriveCompressedSolPda(),
-                decompressionRecipient: null,
-                systemProgram: SystemProgram.programId,
-            })
-            .remainingAccounts(toAccountMetas(remainingAccounts))
-            .instruction();
+        const accounts = invokeAccountsLayout({
+            ...defaultStaticAccountsStruct(),
+            feePayer: payer,
+            authority: payer,
+            solPoolPda: this.deriveCompressedSolPda(),
+            decompressionRecipient: null,
+            systemProgram: SystemProgram.programId,
+        });
+        const keys = [...accounts, ...toAccountMetas(remainingAccounts)];
 
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -567,33 +516,33 @@ export class LightSystemProgram {
             outputStateTree,
         );
         /// Encode instruction data
-        const data = this.program.coder.types.encode('InstructionDataInvoke', {
+        const rawInputs: InstructionDataInvoke = {
             proof: recentValidityProof,
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
             outputCompressedAccounts: packedOutputCompressedAccounts,
             relayFee: null,
-            /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             compressOrDecompressLamports: lamports,
             isCompress: false,
+        };
+        const data = encodeInstructionDataInvoke(rawInputs);
+
+        const accounts = invokeAccountsLayout({
+            ...defaultStaticAccountsStruct(),
+            feePayer: payer,
+            authority: payer,
+            solPoolPda: this.deriveCompressedSolPda(),
+            decompressionRecipient: toAddress,
+            systemProgram: SystemProgram.programId,
         });
+        const keys = [...accounts, ...toAccountMetas(remainingAccounts)];
 
-        /// Build anchor instruction
-        const instruction = await this.program.methods
-            .invoke(data)
-            .accounts({
-                ...defaultStaticAccountsStruct(),
-                feePayer: payer,
-                authority: payer,
-                solPoolPda: this.deriveCompressedSolPda(),
-                decompressionRecipient: toAddress,
-                systemProgram: SystemProgram.programId,
-            })
-            .remainingAccounts(toAccountMetas(remainingAccounts))
-            .instruction();
-
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 }
 

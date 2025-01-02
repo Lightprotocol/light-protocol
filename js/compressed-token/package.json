@@ -28,6 +28,7 @@
         "test-all:verbose": "vitest run --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:create-mint": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts",
+        "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
         "test:e2e:create-token-pool": "pnpm test-validator && vitest run tests/e2e/create-token-pool.test.ts",
         "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts --reporter=verbose",
         "test:e2e:approve-and-mint-to": "pnpm test-validator && vitest run tests/e2e/approve-and-mint-to.test.ts --reporter=verbose",
@@ -37,8 +38,7 @@
         "test:e2e:compress-spl-token-account": "pnpm test-validator && vitest run tests/e2e/compress-spl-token-account.test.ts --reporter=verbose",
         "test:e2e:decompress": "pnpm test-validator && vitest run tests/e2e/decompress.test.ts --reporter=verbose",
         "test:e2e:rpc-token-interop": "pnpm test-validator && vitest run tests/e2e/rpc-token-interop.test.ts --reporter=verbose",
-        "test:e2e:custom-program-id": "vitest run tests/e2e/custom-program-id.test.ts --reporter=verbose",
-        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts && vitest run tests/e2e/mint-to.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/compress-spl-token-account.test.ts && vitest run tests/e2e/decompress.test.ts && vitest run tests/e2e/create-token-pool.test.ts && vitest run tests/e2e/approve-and-mint-to.test.ts && vitest run tests/e2e/rpc-token-interop.test.ts && vitest run tests/e2e/custom-program-id.test.ts",
+        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts && vitest run tests/e2e/mint-to.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/compress-spl-token-account.test.ts && vitest run tests/e2e/decompress.test.ts && vitest run tests/e2e/create-token-pool.test.ts && vitest run tests/e2e/approve-and-mint-to.test.ts && vitest run tests/e2e/rpc-token-interop.test.ts",
         "pull-idl": "../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm pull-idl && pnpm build:bundle",
         "build:bundle": "rollup -c",
@@ -60,12 +60,13 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
-        "@lightprotocol/stateless.js": "workspace:*"
+        "@lightprotocol/stateless.js": "workspace:*",
+        "@solana/web3.js": ">=1.95.5"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "0.29.0",
-        "@solana/web3.js": "1.95.3",
+        "@coral-xyz/borsh": "^0.29.0",
         "@solana/spl-token": "0.4.8",
+        "bn.js": "^5.2.1",
         "buffer": "6.0.3",
         "tweetnacl": "1.0.3"
     },
@@ -81,6 +82,8 @@
         "@rollup/plugin-replace": "^5.0.7",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.6",
+        "@solana/web3.js": "1.95.5",
+        "@types/bn.js": "^5.1.5",
         "@types/node": "^22.5.5",
         "@typescript-eslint/eslint-plugin": "^7.13.1",
         "@typescript-eslint/parser": "^7.13.1",

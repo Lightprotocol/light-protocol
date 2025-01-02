@@ -1,4 +1,3 @@
-/// TODO: extract wallet into its own npm package
 import {
     Commitment,
     Connection,

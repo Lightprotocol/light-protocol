@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach, assert } from 'vitest';
 import { PublicKey, Keypair, Signer } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import {
     ParsedTokenAccount,
     Rpc,

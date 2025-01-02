@@ -4,10 +4,12 @@ import {
     getIndexOrAdd,
     bn,
     padOutputStateMerkleTrees,
-    TokenTransferOutputData,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
-import { PackedTokenTransferOutputData } from '../types';
+import {
+    PackedTokenTransferOutputData,
+    TokenTransferOutputData,
+} from '../types';
 
 export type PackCompressedTokenAccountsParams = {
     /** Input state to be consumed */
