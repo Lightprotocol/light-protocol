@@ -797,6 +797,24 @@ impl BatchedMerkleTreeAccount {
     pub fn get_root(&self) -> Option<[u8; 32]> {
         self.root_history.last().copied()
     }
+
+    // TODO: add unit test
+    /// Checks non-inclusion in all bloom filters
+    /// which are not wiped.
+    pub fn check_input_queue_non_inclusion(
+        &mut self,
+        value: &[u8; 32],
+    ) -> Result<(), BatchedMerkleTreeError> {
+        let num_bloom_filters = self.bloom_filter_stores.len();
+        for i in 0..num_bloom_filters {
+            let bloom_filter_store = self.bloom_filter_stores[i].as_mut_slice();
+            let batch = &self.batches[i];
+            if !batch.bloom_filter_is_wiped {
+                batch.check_non_inclusion(&value, bloom_filter_store)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn get_merkle_tree_account_size_default() -> usize {
