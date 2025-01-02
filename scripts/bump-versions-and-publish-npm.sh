@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Examples: 
+#    ./scripts/bump-versions-and-publish-npm.sh minor
+#    ./scripts/bump-versions-and-publish-npm.sh patch @lightprotocol/stateless.js @lightprotocol/compressed-token
+#    ./scripts/bump-versions-and-publish-npm.sh alpha @lightprotocol/stateless.js 
 
 cd "$(git rev-parse --show-toplevel)"
 
@@ -54,7 +58,7 @@ error_occurred=0
 if [ "$#" -eq 0 ]; then
     echo "Bumping ${version_type} version for all packages..."
     if [ "$version_type" == "alpha" ]; then
-        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access public; then
+        if ! pnpm -r exec -- pnpm version prerelease --preid alpha || ! pnpm -r exec -- pnpm publish --tag alpha --access private; then
             echo "Error occurred during bulk version bump and publish."
             error_occurred=1
         fi
