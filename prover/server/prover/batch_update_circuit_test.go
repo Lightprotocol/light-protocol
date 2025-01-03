@@ -136,6 +136,21 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		assert.Error(err)
 	})
 
+	t.Run("Invalid old leaf", func(t *testing.T) {
+		treeDepth := 10
+		batchSize := 5
+		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
+
+		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
+		witness := createBatchUpdateWitness(params, 0, batchSize)
+
+		// Modify one old leaf to make it invalid
+		witness.OldLeaves[0] = frontend.Variable(new(big.Int).Add(params.OldLeaves[0], big.NewInt(1)))
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
 	t.Run("Invalid PublicInputHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5

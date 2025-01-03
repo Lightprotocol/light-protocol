@@ -172,6 +172,89 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 					p.NewElementValues[0] = *maxBigInt
 				},
 			},
+			{
+				name:       "Inconsistent start index with proofs",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.StartIndex = 5
+				},
+			},
+			{
+				name:       "Low element below expected range",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementValues[0].Sub(&p.LowElementValues[0], big.NewInt(1))
+				},
+			},
+			{
+				name:       "Low element above expected range",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					// Set low element value above valid range
+					maxVal := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
+					p.LowElementValues[0].Add(&p.LowElementValues[0], maxVal)
+				},
+			},
+			{
+				name:       "Invalid low element next indices",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementNextIndices[0].Add(&p.LowElementNextIndices[0], big.NewInt(5))
+				},
+			},
+			{
+				name:       "Invalid low element next values",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementNextValues[0].Add(&p.LowElementNextValues[0], big.NewInt(1))
+				},
+			},
+			{
+				name:       "Invalid low element indices",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementIndices[0].Add(&p.LowElementIndices[0], big.NewInt(3))
+				},
+			},
+			{
+				name:       "Invalid low element proofs",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementProofs[0][0].Add(&p.LowElementProofs[0][0], big.NewInt(1))
+				},
+			},
+			{
+				name:       "Invalid new element proofs",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.NewElementProofs[0][0].Add(&p.NewElementProofs[0][0], big.NewInt(1))
+				},
+			},
+			{
+				name:       "Invalid new element values",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 2,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.NewElementValues[0].Add(&p.NewElementValues[0], big.NewInt(1))
+				},
+			},
 		}
 
 		for _, tc := range testCases {

@@ -190,6 +190,36 @@ func TestBatchAppendWithProofsCircuit(t *testing.T) {
 		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.Error(err)
 	})
+
+	t.Run("Invalid old leaves", func(t *testing.T) {
+		assert := test.NewAssert(t)
+		treeDepth := 10
+		batchSize := 2
+		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+
+		params.OldLeaves[0] = big.NewInt(999)
+
+		witness := createTestWitness(params)
+		circuit := createTestCircuit(treeDepth, batchSize)
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
+	t.Run("Invalid leaves", func(t *testing.T) {
+		assert := test.NewAssert(t)
+		treeDepth := 10
+		batchSize := 2
+		params := BuildTestBatchAppendWithProofsTree(treeDepth, batchSize, nil, 0, false)
+
+		params.Leaves[0] = big.NewInt(999)
+
+		witness := createTestWitness(params)
+		circuit := createTestCircuit(treeDepth, batchSize)
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
 }
 
 func createTestCircuit(treeDepth, batchSize int) BatchAppendWithProofsCircuit {
