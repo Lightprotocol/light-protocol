@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 account-compression = { workspace = true }
 anyhow = "1.0"
-ark-bn254 = "0.4"
+ark-bn254 = "0.5"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
