@@ -362,7 +362,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 		Height:              uint32(treeDepth),
 		BatchSize:           uint32(batchSize),
 		Tree:                &tree,
-		StartIndex:          uint32(startIndex),
+		StartIndex:          uint64(startIndex),
 	}
 }
 
