@@ -34,6 +34,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
+    batched_address_ops::process_batched_address_operations,
     batched_ops::process_batched_operations,
     errors::ForesterError,
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
@@ -51,7 +52,6 @@ use crate::{
     tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
-use crate::batched_address_ops::process_batched_address_operations;
 
 #[derive(Clone, Debug)]
 pub struct WorkReport {
@@ -754,7 +754,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             epoch_info.trees
         );
         for tree in epoch_info.trees.iter() {
-            info!("Creating thread for tree {}", tree.tree_accounts.merkle_tree);
+            info!(
+                "Creating thread for tree {}",
+                tree.tree_accounts.merkle_tree
+            );
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
             let tree = tree.clone();
@@ -832,7 +835,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .find(|(_, slot)| slot.is_some());
 
             if let Some((index, forester_slot)) = index_and_forester_slot {
-                info!("Found eligible slot, index: {}, tree: {}", index, tree.tree_accounts.merkle_tree.to_string());
+                info!(
+                    "Found eligible slot, index: {}, tree: {}",
+                    index,
+                    tree.tree_accounts.merkle_tree.to_string()
+                );
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
 
@@ -903,14 +910,13 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         merkle_tree,
                         queue,
                     )
-                        .await?;
+                    .await?;
 
                     info!("Processed {} batched address operations", processed_count);
                     queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
                     self.increment_processed_items_count(epoch_info.epoch, processed_count)
                         .await;
-                }
-                else {
+                } else {
                     // TODO: measure accuracy
                     // Optional replace with shutdown signal for all child processes
                     let batched_tx_config = SendBatchedTransactionsConfig {

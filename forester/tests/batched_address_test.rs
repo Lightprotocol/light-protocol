@@ -1,9 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester_utils::{
+    indexer::AddressMerkleTreeAccounts,
+    registry::{register_test_forester, update_test_forester},
+};
 use light_batched_merkle_tree::{
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
@@ -11,27 +14,19 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::{spawn_prover, LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::{
-    e2e_test_env::{init_program_test_env, E2ETestEnv},
+    create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
     indexer::TestIndexer,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::{
-    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
-};
+use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
-    time::timeout,
+    time::{sleep, timeout},
 };
-use tokio::time::sleep;
 use tracing::log::info;
-use forester_utils::indexer::AddressMerkleTreeAccounts;
-use light_batched_merkle_tree::initialize_address_tree::InitAddressTreeAccountsInstructionData;
-use light_client::rpc::assert_rpc_error;
-use light_program_test::test_batch_forester::create_batch_address_merkle_tree;
-use light_registry::errors::RegistryError;
-use light_test_utils::create_address_test_program_sdk::perform_create_pda_with_event_rnd;
+
 use crate::test_utils::{forester_config, general_action_config, init, keypair_action_config};
 
 mod test_utils;
@@ -45,7 +40,10 @@ async fn test_address_batched() {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
         }),
-        sbf_programs: vec![("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(), "../target/deploy/create_address_test_program.so".to_string())],
+        sbf_programs: vec![(
+            "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
+            "../target/deploy/create_address_test_program.so".to_string(),
+        )],
     }))
     .await;
 
@@ -122,7 +120,7 @@ async fn test_address_batched() {
         0,
         Some(0),
     )
-        .await;
+    .await;
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
         .indexer
@@ -148,7 +146,9 @@ async fn test_address_batched() {
         // let result =
         //     create_batch_address_merkle_tree(&mut env.rpc, &env.payer, &new_merkle_tree, test_tree_params)
         //         .await;
-        env.indexer.add_address_merkle_tree(&mut env.rpc, &new_merkle_tree, &new_merkle_tree, None, 2).await;
+        env.indexer
+            .add_address_merkle_tree(&mut env.rpc, &new_merkle_tree, &new_merkle_tree, None, 2)
+            .await;
         env_accounts.batch_address_merkle_tree = new_merkle_tree.pubkey();
     }
 
@@ -165,18 +165,20 @@ async fn test_address_batched() {
         println!("Tree {:?} is_v2: {}", tree, is_v2);
     }
 
-
-
     for i in 0..50 {
         println!("===================== tx {} =====================", i);
         // env.create_address(None, Some(0)).await;
 
-        perform_create_pda_with_event_rnd(&mut env.indexer, &mut env.rpc, &env_accounts, &env.payer)
-            .await
-            .unwrap();
+        perform_create_pda_with_event_rnd(
+            &mut env.indexer,
+            &mut env.rpc,
+            &env_accounts,
+            &env.payer,
+        )
+        .await
+        .unwrap();
 
         sleep(Duration::from_millis(100)).await;
-
     }
 
     let merkle_tree_pubkey = env.indexer.address_merkle_trees[0].accounts.merkle_tree;
@@ -187,11 +189,7 @@ async fn test_address_batched() {
 
     let pre_root = {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
         let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),
@@ -221,11 +219,7 @@ async fn test_address_batched() {
     }
 
     let mut rpc = pool.get_connection().await.unwrap();
-    let mut merkle_tree_account = rpc
-        .get_account(merkle_tree_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
+    let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
     let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
         merkle_tree_account.data.as_mut_slice(),
@@ -243,11 +237,7 @@ async fn test_address_batched() {
 
     let post_root = {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
         let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),

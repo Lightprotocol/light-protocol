@@ -299,7 +299,10 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         }
 
         for sbf_program in config.sbf_programs.iter() {
-            path.push_str(&format!(" --sbf-program {} {}", sbf_program.0, sbf_program.1));
+            path.push_str(&format!(
+                " --sbf-program {} {}",
+                sbf_program.0, sbf_program.1
+            ));
         }
 
         if let Some(prover_config) = config.prover_config {

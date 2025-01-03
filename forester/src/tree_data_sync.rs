@@ -66,7 +66,10 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
 fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
     let tree_account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account.data)
         .map_err(|e| {
-            ForesterError::Custom(format!("Failed to deserialize address tree account: {:?}", e))
+            ForesterError::Custom(format!(
+                "Failed to deserialize address tree account: {:?}",
+                e
+            ))
         })?;
     Ok(create_tree_accounts(
         pubkey,

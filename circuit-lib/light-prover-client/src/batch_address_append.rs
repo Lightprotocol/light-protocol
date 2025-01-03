@@ -69,7 +69,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     );
 
     println!("inserted_elements: {}, available_elements: {}, end_index: {}", inserted_elements, available_elements, end_index);
-    
+
     // Verify we have enough elements for at least one operation
     if end_index <= inserted_elements {
         return Err(ProverClientError::GenericError("Not enough elements for processing".into()));

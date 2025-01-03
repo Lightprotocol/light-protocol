@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::{assert_eq, println};
+
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
@@ -21,7 +21,6 @@ use num_bigint::BigUint;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use solana_sdk::signature::Keypair;
 use thiserror::Error;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
