@@ -45,7 +45,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 			name       string
 			treeHeight uint32
 			batchSize  uint32
-			startIndex uint32
+			startIndex uint64
 			shouldPass bool
 		}{
 			{"Single insert height 4", 4, 1, 2, true},
@@ -83,8 +83,9 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 			name         string
 			treeHeight   uint32
 			batchSize    uint32
-			startIndex   uint32
+			startIndex   uint64
 			modifyParams func(*BatchAddressAppendParameters)
+			wantPanic    bool
 		}{
 			{
 				name:       "Invalid OldRoot",
@@ -122,6 +123,55 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 					p.LowElementValues[0].Add(&p.LowElementValues[0], big.NewInt(1))
 				},
 			},
+			{
+				name:       "StartIndex too large",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.StartIndex = ^uint64(0)
+				},
+			},
+			{
+				name:       "Mismatched array length",
+				treeHeight: 4,
+				batchSize:  2,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementValues = p.LowElementValues[:len(p.LowElementValues)-1]
+				},
+				wantPanic: true,
+			},
+			{
+				name:       "Invalid proof length",
+				treeHeight: 4,
+				batchSize:  2,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementProofs[0] = p.LowElementProofs[0][:len(p.LowElementProofs[0])-1]
+				},
+				wantPanic: true,
+			},
+			{
+				name:       "Empty arrays",
+				treeHeight: 4,
+				batchSize:  2,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					p.LowElementValues = make([]big.Int, p.BatchSize)
+					p.NewElementValues = make([]big.Int, p.BatchSize)
+				},
+			},
+			{
+				name:       "Max values",
+				treeHeight: 4,
+				batchSize:  1,
+				startIndex: 0,
+				modifyParams: func(p *BatchAddressAppendParameters) {
+					maxBigInt := new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil), big.NewInt(1))
+					p.NewElementValues[0] = *maxBigInt
+				},
+			},
 		}
 
 		for _, tc := range testCases {
@@ -134,6 +184,14 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				}
 
 				tc.modifyParams(params)
+
+				if tc.wantPanic {
+					assert.Panics(func() {
+						witness, _ := params.CreateWitness()
+						test.IsSolved(&circuit, witness, ecc.BN254.ScalarField())
+					})
+					return
+				}
 
 				witness, err := params.CreateWitness()
 				if err != nil {

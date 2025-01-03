@@ -366,7 +366,7 @@ func BuildTestBatchAppendWithProofsTree(treeDepth int, batchSize int, previousTr
 	}
 }
 
-func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *merkletree.IndexedMerkleTree, startIndex uint32) (*BatchAddressAppendParameters, error) {
+func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *merkletree.IndexedMerkleTree, startIndex uint64) (*BatchAddressAppendParameters, error) {
 	var tree *merkletree.IndexedMerkleTree
 
 	if previousTree == nil {
@@ -409,8 +409,7 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *mer
 
 	newValues := make([]*big.Int, batchSize)
 	for i := uint32(0); i < batchSize; i++ {
-		newValues[i] = new(big.Int).SetUint64(uint64(startIndex + i + 2))
-
+		newValues[i] = new(big.Int).SetUint64(startIndex + uint64(i) + 2)
 		lowElementIndex, _ := tree.IndexArray.FindLowElementIndex(newValues[i])
 		lowElement := tree.IndexArray.Get(lowElementIndex)
 
@@ -427,7 +426,7 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *mer
 			return nil, fmt.Errorf("failed to get low element proof: %v", err)
 		}
 
-		newIndex := startIndex + i
+		newIndex := startIndex + uint64(i)
 
 		if err := tree.Append(newValues[i]); err != nil {
 			return nil, fmt.Errorf("failed to append value: %v", err)
@@ -462,12 +461,12 @@ func computeNewElementsHashChain(values []big.Int) *big.Int {
 	return result
 }
 
-func computePublicInputHash(oldRoot *big.Int, newRoot *big.Int, hashchainHash *big.Int, startIndex uint32) *big.Int {
+func computePublicInputHash(oldRoot *big.Int, newRoot *big.Int, hashchainHash *big.Int, startIndex uint64) *big.Int {
 	inputs := []*big.Int{
 		oldRoot,
 		newRoot,
 		hashchainHash,
-		big.NewInt(int64(startIndex)),
+		new(big.Int).SetUint64(startIndex),
 	}
 	return calculateHashChain(inputs, 4)
 
