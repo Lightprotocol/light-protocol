@@ -2,10 +2,10 @@ use errors::ZeroCopyError;
 
 pub mod cyclic_vec;
 pub mod errors;
-pub mod raw_pointer;
-pub mod raw_pointer_mut;
 pub mod slice_mut;
 pub mod vec;
+pub mod wrapped_pointer;
+pub mod wrapped_pointer_mut;
 
 use std::mem::{align_of, size_of};
 

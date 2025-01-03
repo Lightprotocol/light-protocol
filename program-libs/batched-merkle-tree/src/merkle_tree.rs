@@ -20,8 +20,8 @@ use light_verifier::{
     CompressedProof,
 };
 use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecUsize, errors::ZeroCopyError, raw_pointer_mut::RawPointerMut,
-    slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize,
+    cyclic_vec::ZeroCopyCyclicVecUsize, errors::ZeroCopyError, slice_mut::ZeroCopySliceMutUsize,
+    vec::ZeroCopyVecUsize, wrapped_pointer_mut::WrappedPointerMut,
 };
 use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
@@ -226,7 +226,7 @@ impl BatchedMerkleTreeMetadata {
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub struct BatchedMerkleTreeAccount {
-    metadata: RawPointerMut<BatchedMerkleTreeMetadata>,
+    metadata: WrappedPointerMut<BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecUsize<[u8; 32]>,
     pub batches: ZeroCopySliceMutUsize<Batch>,
     pub value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
@@ -339,9 +339,10 @@ impl BatchedMerkleTreeAccount {
     fn from_bytes_mut<const TREE_TYPE: u64>(
         account_data: &mut [u8],
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
-        let metadata = RawPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
-            account_data,
-        )?;
+        let metadata =
+            WrappedPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
+                account_data,
+            )?;
         if metadata.tree_type != TREE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
@@ -383,7 +384,7 @@ impl BatchedMerkleTreeAccount {
         set_discriminator::<Self>(&mut account_data[0..DISCRIMINATOR_LEN])?;
 
         let mut account_metadata =
-            RawPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
+            WrappedPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
                 account_data,
             )?;
         account_metadata.metadata = metadata;

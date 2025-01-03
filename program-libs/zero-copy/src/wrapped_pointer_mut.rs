@@ -2,21 +2,21 @@ use core::fmt;
 use std::{
     fmt::{Debug, Formatter},
     marker::PhantomData,
-    mem::{size_of, MaybeUninit},
+    mem::{size_of, ManuallyDrop},
     ops::{Deref, DerefMut},
 };
 
 use crate::{check_alignment, check_size, errors::ZeroCopyError};
 
-pub struct RawPointerMut<T>
+pub struct WrappedPointerMut<T>
 where
     T: Copy + Clone,
 {
-    ptr: MaybeUninit<*mut T>,
+    ptr: ManuallyDrop<*mut T>,
     _marker: PhantomData<T>,
 }
 
-impl<T> RawPointerMut<T>
+impl<T> WrappedPointerMut<T>
 where
     T: Copy + Clone,
 {
@@ -37,13 +37,13 @@ where
         Ok(new)
     }
 
-    /// Create a new `RawPointerMut` from a raw pointer.
+    /// Create a new `WrappedPointerMut` from a raw pointer.
     /// # Safety
-    /// This function is unsafe because it creates a `RawPointerMut` from a raw pointer.
+    /// This function is unsafe because it creates a `WrappedPointerMut` from a raw pointer.
     /// The caller must ensure that the pointer is valid and properly aligned.
     pub unsafe fn from_raw_parts(ptr: *mut T) -> Result<Self, ZeroCopyError> {
-        Ok(RawPointerMut {
-            ptr: MaybeUninit::new(ptr),
+        Ok(WrappedPointerMut {
+            ptr: ManuallyDrop::new(ptr),
             _marker: PhantomData,
         })
     }
@@ -53,11 +53,11 @@ where
     }
 
     pub fn get(&self) -> &T {
-        unsafe { &**self.ptr.as_ptr() }
+        unsafe { &**self.ptr }
     }
 
     pub fn get_mut(&mut self) -> &mut T {
-        unsafe { &mut **self.ptr.as_mut_ptr() }
+        unsafe { &mut **self.ptr }
     }
 
     pub fn from_bytes(bytes: &mut [u8]) -> Result<Self, ZeroCopyError> {
@@ -79,15 +79,15 @@ where
     }
 
     pub fn as_mut_ptr(&mut self) -> *mut T {
-        self.ptr.as_mut_ptr() as *mut T
+        *self.ptr
     }
 
     pub fn as_ptr(&self) -> *const T {
-        self.ptr.as_ptr() as *const T
+        *self.ptr as *const T
     }
 }
 
-impl<T> PartialEq for RawPointerMut<T>
+impl<T> PartialEq for WrappedPointerMut<T>
 where
     T: Copy + PartialEq,
 {
@@ -96,7 +96,7 @@ where
     }
 }
 
-impl<T> Debug for RawPointerMut<T>
+impl<T> Debug for WrappedPointerMut<T>
 where
     T: Copy + Debug,
 {
@@ -105,7 +105,7 @@ where
     }
 }
 
-impl<T> Deref for RawPointerMut<T>
+impl<T> Deref for WrappedPointerMut<T>
 where
     T: Copy + Clone,
 {
@@ -116,7 +116,7 @@ where
     }
 }
 
-impl<T> DerefMut for RawPointerMut<T>
+impl<T> DerefMut for WrappedPointerMut<T>
 where
     T: Copy + Clone,
 {
@@ -126,20 +126,20 @@ where
 }
 
 /// Test coverage:
-/// 1. Test `RawPointerMut::new` success
-/// 2. Test `RawPointerMut::new` with unaligned pointer
-/// 3. Test `RawPointerMut::new` with insufficient space
-/// 4. Test `RawPointerMut::new_at` success
-/// 5. Test `RawPointerMut::new_at` with out of bounds
-/// 6. Test `RawPointerMut::new_at` with insufficient memory
-/// 7. Test `RawPointerMut::from_bytes` with success
-/// 8. Test `RawPointerMut::from_bytes` with insufficient memory
-/// 9. Test `RawPointerMut::from_bytes_at` with success
-/// 10. Test `RawPointerMut::from_bytes_with_discriminator` with success
-/// 11. Test `RawPointerMut::from_bytes_with_discriminator` with insufficient memory (out of bounds)
-/// 11. Test `RawPointerMut::from_bytes_with_discriminator` with insufficient memory (value)
-/// 12. Test `RawPointerMut::deref` success
-/// 13. Test `RawPointerMut::size` success
+/// 1. Test `WrappedPointerMut::new` success
+/// 2. Test `WrappedPointerMut::new` with unaligned pointer
+/// 3. Test `WrappedPointerMut::new` with insufficient space
+/// 4. Test `WrappedPointerMut::new_at` success
+/// 5. Test `WrappedPointerMut::new_at` with out of bounds
+/// 6. Test `WrappedPointerMut::new_at` with insufficient memory
+/// 7. Test `WrappedPointerMut::from_bytes` with success
+/// 8. Test `WrappedPointerMut::from_bytes` with insufficient memory
+/// 9. Test `WrappedPointerMut::from_bytes_at` with success
+/// 10. Test `WrappedPointerMut::from_bytes_with_discriminator` with success
+/// 11. Test `WrappedPointerMut::from_bytes_with_discriminator` with insufficient memory (out of bounds)
+/// 11. Test `WrappedPointerMut::from_bytes_with_discriminator` with insufficient memory (value)
+/// 12. Test `WrappedPointerMut::deref` success
+/// 13. Test `WrappedPointerMut::size` success
 #[cfg(test)]
 mod test {
     use super::*;
@@ -149,7 +149,7 @@ mod test {
         let mut buffer = [0u8; 16];
         let value = 42u32;
 
-        let pointer = RawPointerMut::new(value, &mut buffer).unwrap();
+        let pointer = WrappedPointerMut::new(value, &mut buffer).unwrap();
         assert_eq!(*pointer.get(), value);
         assert_eq!(buffer[0..4], value.to_le_bytes());
         assert_eq!(buffer[4..16], [0u8; 12]);
@@ -160,7 +160,7 @@ mod test {
         let mut buffer = [0u8; 5];
         let value = 42u32;
 
-        let result = RawPointerMut::new(value, &mut buffer[1..]);
+        let result = WrappedPointerMut::new(value, &mut buffer[1..]);
         assert_eq!(result, Err(ZeroCopyError::UnalignedPointer));
     }
 
@@ -169,7 +169,7 @@ mod test {
         let mut buffer = [0u8; 3];
         let value = 42u32;
 
-        let result = RawPointerMut::new(value, &mut buffer);
+        let result = WrappedPointerMut::new(value, &mut buffer);
         assert_eq!(
             result,
             Err(ZeroCopyError::InsufficientMemoryAllocated(3, 4))
@@ -182,7 +182,7 @@ mod test {
         let mut offset = 4;
         let value = 42u32;
 
-        let pointer = RawPointerMut::new_at(value, &mut buffer, &mut offset).unwrap();
+        let pointer = WrappedPointerMut::new_at(value, &mut buffer, &mut offset).unwrap();
         assert_eq!(*pointer.get(), value);
         assert_eq!(offset, 8); // Size of u32
         assert_eq!(buffer[0..4], [0u8; 4]);
@@ -197,7 +197,7 @@ mod test {
         let mut offset = 5;
         let value = 42u32;
 
-        RawPointerMut::new_at(value, &mut buffer, &mut offset).unwrap();
+        WrappedPointerMut::new_at(value, &mut buffer, &mut offset).unwrap();
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod test {
         let mut offset = 4;
         let value = 42u32;
 
-        let result = RawPointerMut::new_at(value, &mut buffer, &mut offset);
+        let result = WrappedPointerMut::new_at(value, &mut buffer, &mut offset);
         assert_eq!(
             result,
             Err(ZeroCopyError::InsufficientMemoryAllocated(0, 4))
@@ -221,7 +221,7 @@ mod test {
         // Write value to buffer
         unsafe { *(buffer.as_mut_ptr() as *mut u32) = value };
 
-        let pointer: RawPointerMut<u32> = RawPointerMut::from_bytes(&mut buffer).unwrap();
+        let pointer: WrappedPointerMut<u32> = WrappedPointerMut::from_bytes(&mut buffer).unwrap();
         assert_eq!(*pointer.get(), value);
     }
 
@@ -230,7 +230,7 @@ mod test {
         let value = 42u32;
         let mut buffer = value.to_le_bytes();
 
-        let result = RawPointerMut::<u32>::from_bytes(&mut buffer[0..2]);
+        let result = WrappedPointerMut::<u32>::from_bytes(&mut buffer[0..2]);
         assert_eq!(
             result,
             Err(ZeroCopyError::InsufficientMemoryAllocated(2, 4))
@@ -245,8 +245,8 @@ mod test {
         // Write value to buffer
         unsafe { *(buffer[offset..].as_mut_ptr() as *mut u32) = value };
 
-        let pointer: RawPointerMut<u32> =
-            RawPointerMut::from_bytes_at(&mut buffer, &mut offset).unwrap();
+        let pointer: WrappedPointerMut<u32> =
+            WrappedPointerMut::from_bytes_at(&mut buffer, &mut offset).unwrap();
         assert_eq!(*pointer.get(), value);
         assert_eq!(offset, 8);
     }
@@ -260,7 +260,8 @@ mod test {
         buffer[..8].copy_from_slice(&1u64.to_le_bytes()); // Fake discriminator
         unsafe { *(buffer[8..].as_mut_ptr() as *mut u32) = value };
 
-        let mut pointer = RawPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer).unwrap();
+        let mut pointer =
+            WrappedPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer).unwrap();
         assert_eq!(*pointer.get(), value);
         assert_eq!(*pointer.get_mut(), value);
     }
@@ -269,7 +270,7 @@ mod test {
     #[should_panic(expected = "out of range for slice of length")]
     fn test_rawmutpointer_from_bytes_with_discriminator_fail() {
         let mut buffer = [0u8; 7]; // Not enough space for discriminator
-        let result = RawPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer);
+        let result = WrappedPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer);
         assert_eq!(
             result,
             Err(ZeroCopyError::InsufficientMemoryAllocated(7, 8))
@@ -279,7 +280,7 @@ mod test {
     #[test]
     fn test_rawmutpointer_from_bytes_with_discriminator_insufficient_memory() {
         let mut buffer = [0u8; 9];
-        let result = RawPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer);
+        let result = WrappedPointerMut::<u32>::from_bytes_with_discriminator(&mut buffer);
         assert_eq!(
             result,
             Err(ZeroCopyError::InsufficientMemoryAllocated(1, 4))
@@ -291,7 +292,7 @@ mod test {
         let mut buffer = [0u8; 8];
         let value = 42u32;
 
-        let mut pointer = RawPointerMut::new(value, &mut buffer).unwrap();
+        let mut pointer = WrappedPointerMut::new(value, &mut buffer).unwrap();
         assert_eq!(*pointer, value);
 
         // Update value via mutable dereference
@@ -301,7 +302,7 @@ mod test {
 
     #[test]
     fn test_size() {
-        let pointer = RawPointerMut::<u32>::new(42, &mut [0u8; 4]).unwrap();
+        let pointer = WrappedPointerMut::<u32>::new(42, &mut [0u8; 4]).unwrap();
         assert_eq!(pointer.size(), size_of::<u32>());
     }
 }

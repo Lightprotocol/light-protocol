@@ -1,11 +1,11 @@
 use core::{fmt, slice};
 use std::{
     marker::PhantomData,
-    mem::{size_of, MaybeUninit},
+    mem::{size_of, ManuallyDrop},
     ops::{Add, Index, IndexMut},
 };
 
-use crate::{add_padding, check_alignment, errors::ZeroCopyError, raw_pointer::RawPointer};
+use crate::{add_padding, check_alignment, errors::ZeroCopyError, wrapped_pointer::WrappedPointer};
 
 pub type ZeroCopySliceMutUsize<T> = ZeroCopySliceMut<usize, T>;
 pub type ZeroCopySliceMutU32<T> = ZeroCopySliceMut<u32, T>;
@@ -18,8 +18,8 @@ pub struct ZeroCopySliceMut<LEN, T>
 where
     LEN: Copy + Clone,
 {
-    length: RawPointer<LEN>,
-    data: MaybeUninit<*mut T>,
+    length: WrappedPointer<LEN>,
+    data: ManuallyDrop<*mut T>,
     _marker: PhantomData<T>,
 }
 
@@ -46,7 +46,7 @@ where
         let metadata_size = Self::metadata_size();
         *offset += metadata_size;
         let (metadata, data) = data.split_at_mut(metadata_size);
-        let len = RawPointer::<LEN>::new(length, metadata)?;
+        let len = WrappedPointer::<LEN>::new(length, metadata)?;
         let data = Self::data_ptr_from_bytes(data)?;
         *offset += Self::data_size(length);
 
@@ -71,10 +71,10 @@ where
         Ok(slices)
     }
 
-    fn data_ptr_from_bytes(bytes: &mut [u8]) -> Result<MaybeUninit<*mut T>, ZeroCopyError> {
+    fn data_ptr_from_bytes(bytes: &mut [u8]) -> Result<ManuallyDrop<*mut T>, ZeroCopyError> {
         let data_ptr = bytes.as_mut_ptr() as *mut T;
         check_alignment(data_ptr)?;
-        let data = MaybeUninit::new(data_ptr);
+        let data = ManuallyDrop::new(data_ptr);
         Ok(data)
     }
 
@@ -93,7 +93,7 @@ where
                 meta_data_size,
             ));
         }
-        let length = RawPointer::<LEN>::from_bytes_at(bytes, offset)?;
+        let length = WrappedPointer::<LEN>::from_bytes_at(bytes, offset)?;
         add_padding::<LEN, T>(offset);
         let full_vector_size = Self::data_size(*length);
         if bytes.len().saturating_sub(*offset) < full_vector_size {
@@ -212,12 +212,12 @@ where
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(self.data.assume_init() as *const T, self.len()) }
+        unsafe { slice::from_raw_parts(*self.data as *const T, self.len()) }
     }
 
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { slice::from_raw_parts_mut(self.data.assume_init(), self.len()) }
+        unsafe { slice::from_raw_parts_mut(*self.data, self.len()) }
     }
 
     #[inline]

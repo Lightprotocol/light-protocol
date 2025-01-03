@@ -14,7 +14,7 @@ use light_batched_merkle_tree::{
 };
 use light_hasher::Discriminator;
 use light_utils::account::set_discriminator;
-use light_zero_copy::raw_pointer_mut::RawPointerMut;
+use light_zero_copy::wrapped_pointer_mut::WrappedPointerMut;
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Tests:
@@ -37,7 +37,7 @@ fn test_bytes_to_struct() {
     // Test 1 functional init.
     set_discriminator::<MyStruct>(&mut bytes).unwrap();
     let inited_struct =
-        &mut RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
+        &mut WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
 
     (*inited_struct).data = 1;
 
@@ -45,11 +45,11 @@ fn test_bytes_to_struct() {
     assert_eq!(bytes[8..].to_vec(), vec![1, 0, 0, 0, 0, 0, 0, 0]);
     // Test 2 functional deserialize.
     let inited_struct =
-        *RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
+        *WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
     assert_eq!(inited_struct, MyStruct { data: 1 });
     // Test 3 failing deserialize invalid data.
     let inited_struct =
-        *RawPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut empty_bytes).unwrap();
+        *WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut empty_bytes).unwrap();
     assert_ne!(inited_struct, MyStruct { data: 1 });
 }
 
