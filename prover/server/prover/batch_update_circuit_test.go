@@ -107,6 +107,20 @@ func TestBatchUpdateCircuit(t *testing.T) {
 		}
 	})
 
+	t.Run("Invalid OldRoot", func(t *testing.T) {
+		treeDepth := 10
+		batchSize := 5
+		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
+
+		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
+		witness := createBatchUpdateWitness(params, 0, batchSize)
+
+		witness.OldRoot = frontend.Variable(new(big.Int).Add(params.OldRoot, big.NewInt(1)))
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
 	t.Run("Invalid NewRoot", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
@@ -117,6 +131,50 @@ func TestBatchUpdateCircuit(t *testing.T) {
 
 		// Modify NewRoot to make it invalid
 		witness.NewRoot = frontend.Variable(new(big.Int).Add(params.NewRoot, big.NewInt(1)))
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
+	t.Run("Invalid PublicInputHash", func(t *testing.T) {
+		treeDepth := 10
+		batchSize := 5
+		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
+
+		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
+		witness := createBatchUpdateWitness(params, 0, batchSize)
+
+		witness.PublicInputHash = frontend.Variable(new(big.Int).Add(params.PublicInputHash, big.NewInt(1)))
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
+	t.Run("Invalid PathIndex", func(t *testing.T) {
+		treeDepth := 10
+		batchSize := 5
+		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
+
+		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
+		witness := createBatchUpdateWitness(params, 0, batchSize)
+
+		// Set invalid path index
+		witness.PathIndices[0] = frontend.Variable(uint32(1 << treeDepth))
+
+		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
+		assert.Error(err)
+	})
+
+	t.Run("Invalid MerkleProof", func(t *testing.T) {
+		treeDepth := 10
+		batchSize := 5
+		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
+
+		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
+		witness := createBatchUpdateWitness(params, 0, batchSize)
+
+		// Corrupt merkle proof
+		witness.MerkleProofs[0][0] = frontend.Variable(new(big.Int).Add(big.NewInt(0).SetBytes(params.MerkleProofs[0][0].Bytes()), big.NewInt(1)))
 
 		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.Error(err)
