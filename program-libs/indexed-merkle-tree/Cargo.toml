@@ -18,7 +18,7 @@ light-bounded-vec = { workspace = true }
 light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-utils = { workspace = true }
+light-utils = { version = "1.1.0"}
 memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"

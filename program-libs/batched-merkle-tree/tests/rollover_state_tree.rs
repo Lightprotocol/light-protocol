@@ -17,9 +17,9 @@ use light_batched_merkle_tree::{
         assert_state_mt_roll_over, rollover_batched_state_tree, RolloverBatchStateTreeParams,
         StateMtRollOverAssertParams,
     },
-    zero_copy::ZeroCopyError,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use light_zero_copy::errors::ZeroCopyError;
 use rand::{rngs::StdRng, Rng};
 use solana_program::pubkey::Pubkey;
 

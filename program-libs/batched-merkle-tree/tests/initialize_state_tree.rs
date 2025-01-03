@@ -14,9 +14,76 @@ use light_batched_merkle_tree::{
         get_output_queue_account_size_default, BatchedQueueMetadata,
     },
 };
-use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
+use light_zero_copy::{
+    cyclic_vec::ZeroCopyCyclicVecUsize, slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize,
+};
 use rand::{rngs::StdRng, Rng};
 use solana_program::pubkey::Pubkey;
+#[test]
+fn test_different_parameters() {
+    let params = InitStateTreeAccountsInstructionData::test_default();
+    let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
+    let default_params = InitStateTreeAccountsInstructionData::default();
+    for params in vec![params, e2e_test_params, default_params] {
+        println!("params: {:?}", params);
+        let owner = Pubkey::new_unique();
+        let queue_account_size = get_output_queue_account_size(
+            params.output_queue_batch_size,
+            params.output_queue_zkp_batch_size,
+            params.output_queue_num_batches,
+        );
+
+        let mut output_queue_account_data = vec![0; queue_account_size];
+        let output_queue_pubkey = Pubkey::new_unique();
+
+        let mt_account_size = get_merkle_tree_account_size(
+            params.input_queue_batch_size,
+            params.bloom_filter_capacity,
+            params.input_queue_zkp_batch_size,
+            params.root_history_capacity,
+            params.height,
+            params.input_queue_num_batches,
+        );
+        let mut mt_account_data = vec![0; mt_account_size];
+        let mt_pubkey = Pubkey::new_unique();
+
+        let merkle_tree_rent = 1_000_000_000;
+        let queue_rent = 1_000_000_000;
+        let additional_bytes_rent = 1000;
+        init_batched_state_merkle_tree_accounts(
+            owner,
+            params.clone(),
+            &mut output_queue_account_data,
+            output_queue_pubkey,
+            queue_rent,
+            &mut mt_account_data,
+            mt_pubkey,
+            merkle_tree_rent,
+            additional_bytes_rent,
+        )
+        .unwrap();
+        let queue_account_params = CreateOutputQueueParams::from(
+            params,
+            owner,
+            merkle_tree_rent + queue_rent + additional_bytes_rent,
+            mt_pubkey,
+        );
+        let ref_output_queue_account = create_output_queue_account(queue_account_params);
+        assert_queue_zero_copy_inited(
+            output_queue_account_data.as_mut_slice(),
+            ref_output_queue_account,
+            0,
+        );
+        let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let ref_mt_account =
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
+        assert_state_mt_zero_copy_inited(
+            &mut mt_account_data,
+            ref_mt_account,
+            params.bloom_filter_num_iters,
+        );
+    }
+}
 
 #[test]
 fn test_account_init() {
@@ -116,17 +183,19 @@ fn test_rnd_account_init() {
             params.output_queue_num_batches,
         );
 
-        use std::mem::size_of;
         {
             let num_batches = params.output_queue_num_batches as usize;
             let num_zkp_batches =
                 params.output_queue_batch_size / params.output_queue_zkp_batch_size;
-            let batch_size = size_of::<Batch>() * num_batches + size_of::<BoundedVecMetadata>();
-            let value_vec_size = (params.output_queue_batch_size as usize * 32
-                + size_of::<BoundedVecMetadata>())
-                * num_batches;
+            let batch_size = ZeroCopySliceMutUsize::<Batch>::required_size_for_capacity(
+                params.output_queue_num_batches as usize,
+            );
+            let value_vec_size = ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
+                params.output_queue_batch_size as usize,
+            ) * num_batches;
             let hash_chain_store_size =
-                (num_zkp_batches as usize * 32 + size_of::<BoundedVecMetadata>()) * num_batches;
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(num_zkp_batches as usize)
+                    * num_batches;
             // Output queue
             let ref_queue_account_size =
                     // metadata
@@ -154,14 +223,17 @@ fn test_rnd_account_init() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
-            let batch_size = size_of::<Batch>() * num_batches + size_of::<BoundedVecMetadata>();
-            let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
-                + size_of::<BoundedVecMetadata>())
-                * num_batches;
+            let batch_size =
+                ZeroCopySliceMutUsize::<Batch>::required_size_for_capacity(num_batches);
+            let bloom_filter_size = ZeroCopySliceMutUsize::<u8>::required_size_for_capacity(
+                params.bloom_filter_capacity as usize / 8,
+            ) * num_batches;
             let hash_chain_store_size =
-                (num_zkp_batches as usize * 32 + size_of::<BoundedVecMetadata>()) * num_batches;
-            let root_history_size =
-                params.root_history_capacity as usize * 32 + size_of::<CyclicBoundedVecMetadata>();
+                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(num_zkp_batches as usize)
+                    * num_batches;
+            let root_history_size = ZeroCopyCyclicVecUsize::<[u8; 32]>::required_size_for_capacity(
+                params.root_history_capacity as usize,
+            );
             // Output queue
             let ref_account_size =
                     // metadata
