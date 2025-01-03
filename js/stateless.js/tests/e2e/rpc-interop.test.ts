@@ -22,7 +22,7 @@ describe('rpc-interop', () => {
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;
-    let testRpc: TestRpc | Rpc;
+    let testRpc: TestRpc;
     let executedTxs = 0;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -104,7 +104,13 @@ describe('rpc-interop', () => {
         executedTxs++;
 
         /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
+        await transfer(
+            testRpc as unknown as Rpc,
+            payer,
+            1e5,
+            payer,
+            bob.publicKey,
+        );
         executedTxs++;
     });
 
@@ -170,7 +176,7 @@ describe('rpc-interop', () => {
         /// Creates a compressed account with address using a (non-inclusion)
         /// 'validityProof' directly from a prover.
         await createAccount(
-            testRpc,
+            testRpc as unknown as Rpc,
             payer,
             newAddressSeeds,
             LightSystemProgram.programId,

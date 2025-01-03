@@ -1,108 +1,4 @@
-import {
-    Connection,
-    ConnectionConfig,
-    Commitment,
-    PublicKey,
-    Transaction,
-    VersionedTransaction,
-    SendOptions,
-    BlockhashWithExpiryBlockHeight,
-    RpcResponseAndContext,
-    GetBalanceConfig,
-    GetSupplyConfig,
-    Supply,
-    GetTokenAccountsByOwnerConfig,
-    GetProgramAccountsResponse,
-    TokenAccountsFilter,
-    AccountInfo,
-    GetMultipleAccountsConfig,
-    StakeActivationData,
-    GetStakeActivationConfig,
-    TransactionConfirmationStrategy,
-    SignatureResult,
-    ContactInfo,
-    VoteAccountStatus,
-    GetSlotConfig,
-    GetSlotLeaderConfig,
-    SignatureStatusConfig,
-    SignatureStatus,
-    GetTransactionCountConfig,
-    InflationGovernor,
-    GetInflationRewardConfig,
-    InflationReward,
-    InflationRate,
-    EpochInfo,
-    GetEpochInfoConfig,
-    EpochSchedule,
-    LeaderSchedule,
-    FeeCalculator,
-    GetRecentPrioritizationFeesConfig,
-    RecentPrioritizationFees,
-    GetLatestBlockhashConfig,
-    Version,
-    TransactionResponse,
-    VersionedTransactionResponse,
-    ParsedTransactionWithMeta,
-    ParsedConfirmedTransaction,
-    SimulateTransactionConfig,
-    SimulatedTransactionResponse,
-    Message,
-    Signer,
-    AccountChangeCallback,
-    AccountSubscriptionConfig,
-    ProgramAccountChangeCallback,
-    ProgramAccountSubscriptionConfig,
-    LogsFilter,
-    LogsCallback,
-    SlotChangeCallback,
-    SlotUpdateCallback,
-    SignatureResultCallback,
-    SignatureSubscriptionCallback,
-    SignatureSubscriptionOptions,
-    RootChangeCallback,
-    ConfirmOptions,
-    GetMultipleAccountsConfig as OriginalGetMultipleAccountsConfig,
-    GetAccountInfoConfig,
-    GetLargestAccountsConfig,
-    TokenAccountBalancePair,
-    AccountBalancePair,
-    ParsedAccountData,
-    SimulateTransactionConfig as OriginalSimulateTransactionConfig,
-    SimulatedTransactionResponse as OriginalSimulatedTransactionResponse,
-    SignatureSubscriptionOptions as OriginalSignatureSubscriptionOptions,
-    Finality,
-    GetTransactionConfig,
-    GetVersionedTransactionConfig,
-    ConfirmedBlock,
-    BlockProduction,
-    TransactionSignature,
-    BlockSignatures,
-    ConfirmedSignatureInfo,
-    AddressLookupTableAccount,
-    GetBlockHeightConfig,
-    GetBlockProductionConfig,
-    ParsedNoneModeBlockResponse,
-    SolanaJSONRPCError,
-    TokenAmount,
-    GetStakeMinimumDelegationConfig,
-    GetNonceAndContextConfig,
-    NonceAccount,
-    GetNonceConfig,
-    IsBlockhashValidConfig,
-    Blockhash,
-    GetProgramAccountsConfig,
-    GetParsedProgramAccountsConfig,
-    VersionedMessage,
-    VersionedNoneModeBlockResponse,
-    VersionedBlockResponse,
-    GetVersionedBlockConfig,
-    VersionedAccountsModeBlockResponse,
-    ParsedAccountsModeBlockResponse,
-    SignaturesForAddressOptions,
-    ConfirmedSignaturesForAddress2Options,
-    ConfirmedTransaction,
-    PerfSample,
-} from '@solana/web3.js';
+import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
@@ -154,7 +50,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { ConnectionInterface } from '../../connection-interface';
+// import { ConnectionInterface } from '../../connection-interface';
 
 export interface TestRpcConfig {
     /**
@@ -233,7 +129,7 @@ export async function getTestRpc(
             depth: depth || defaultAccounts.merkleTreeHeight,
             log,
         },
-    ) as unknown as Rpc;
+    );
 }
 /**
  * Simple mock rpc for unit tests that simulates the compression rpc interface.
@@ -245,7 +141,7 @@ export async function getTestRpc(
  * For advanced testing use photon: https://github.com/helius-labs/photon
  */
 export class TestRpc extends Connection implements CompressionApiInterface {
-    connection: Connection;
+    // connection: Connection;
     compressionApiEndpoint: string;
     proverEndpoint: string;
     merkleTreeAddress: PublicKey;
@@ -278,10 +174,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ) {
         super(endpoint, connectionConfig || 'confirmed');
 
-        this.connection = new Connection(
-            endpoint,
-            connectionConfig || 'confirmed',
-        );
+        // this.connection = new Connection(
+        //     endpoint,
+        //     connectionConfig || 'confirmed',
+        // );
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 

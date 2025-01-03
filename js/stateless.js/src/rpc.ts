@@ -1,107 +1,8 @@
 import {
     Connection,
     ConnectionConfig,
-    Commitment,
     PublicKey,
-    Transaction,
-    VersionedTransaction,
-    SendOptions,
-    BlockhashWithExpiryBlockHeight,
-    RpcResponseAndContext,
-    GetBalanceConfig,
-    GetSupplyConfig,
-    Supply,
-    GetTokenAccountsByOwnerConfig,
-    GetProgramAccountsResponse,
-    TokenAccountsFilter,
-    AccountInfo,
-    GetMultipleAccountsConfig,
-    StakeActivationData,
-    GetStakeActivationConfig,
-    TransactionConfirmationStrategy,
-    SignatureResult,
-    ContactInfo,
-    VoteAccountStatus,
-    GetSlotConfig,
-    GetSlotLeaderConfig,
-    SignatureStatusConfig,
-    SignatureStatus,
-    GetTransactionCountConfig,
-    InflationGovernor,
-    GetInflationRewardConfig,
-    InflationReward,
-    InflationRate,
-    EpochInfo,
-    GetEpochInfoConfig,
-    EpochSchedule,
-    LeaderSchedule,
-    FeeCalculator,
-    GetRecentPrioritizationFeesConfig,
-    RecentPrioritizationFees,
-    GetLatestBlockhashConfig,
-    Version,
-    TransactionResponse,
-    VersionedTransactionResponse,
-    ParsedTransactionWithMeta,
-    ParsedConfirmedTransaction,
-    SimulateTransactionConfig,
-    SimulatedTransactionResponse,
-    Message,
-    Signer,
-    AccountChangeCallback,
-    AccountSubscriptionConfig,
-    ProgramAccountChangeCallback,
-    ProgramAccountSubscriptionConfig,
-    LogsFilter,
-    LogsCallback,
-    SlotChangeCallback,
-    SlotUpdateCallback,
-    SignatureResultCallback,
-    SignatureSubscriptionCallback,
-    SignatureSubscriptionOptions,
-    RootChangeCallback,
-    ConfirmOptions,
-    GetMultipleAccountsConfig as OriginalGetMultipleAccountsConfig,
-    GetAccountInfoConfig,
-    GetLargestAccountsConfig,
-    TokenAccountBalancePair,
-    AccountBalancePair,
-    ParsedAccountData,
-    SimulateTransactionConfig as OriginalSimulateTransactionConfig,
-    SimulatedTransactionResponse as OriginalSimulatedTransactionResponse,
-    SignatureSubscriptionOptions as OriginalSignatureSubscriptionOptions,
-    Finality,
-    GetTransactionConfig,
-    GetVersionedTransactionConfig,
-    ConfirmedBlock,
-    BlockProduction,
-    TransactionSignature,
-    BlockSignatures,
-    ConfirmedSignatureInfo,
-    AddressLookupTableAccount,
-    GetBlockHeightConfig,
-    GetBlockProductionConfig,
-    ParsedNoneModeBlockResponse,
     SolanaJSONRPCError,
-    TokenAmount,
-    GetStakeMinimumDelegationConfig,
-    GetNonceAndContextConfig,
-    NonceAccount,
-    GetNonceConfig,
-    GetProgramAccountsConfig,
-    GetParsedProgramAccountsConfig,
-    Blockhash,
-    PerfSample,
-    VersionedMessage,
-    IsBlockhashValidConfig,
-    GetVersionedBlockConfig,
-    VersionedAccountsModeBlockResponse,
-    VersionedBlockResponse,
-    VersionedNoneModeBlockResponse,
-    ParsedAccountsModeBlockResponse,
-    ConfirmedTransaction,
-    ConfirmedSignaturesForAddress2Options,
-    SignaturesForAddressOptions,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
@@ -535,7 +436,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
     return inputs;
 }
 import { LightWasm } from './test-helpers';
-import { ConnectionInterface } from './connection-interface';
+// import { ConnectionInterface } from './connection-interface';
 
 function calculateTwoInputsHashChain(
     hashesFirst: BN[],
@@ -606,11 +507,8 @@ const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
 /**
  *
  */
-export class Rpc
-    extends Connection
-    implements ConnectionInterface, CompressionApiInterface
-{
-    connection: Connection;
+export class Rpc extends Connection implements CompressionApiInterface {
+    // connection: Connection;
     compressionApiEndpoint: string;
     proverEndpoint: string;
 
@@ -629,224 +527,224 @@ export class Rpc
         config?: ConnectionConfig,
     ) {
         super(endpoint, config || 'confirmed');
-        // super();
-        this.connection = new Connection(endpoint, config || 'confirmed');
+
+        // this.connection = new Connection(endpoint, config || 'confirmed');
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
     }
 
-    get commitment(): Commitment | undefined {
-        return this.connection.commitment;
-    }
+    // get commitment(): Commitment | undefined {
+    //     return this.connection.commitment;
+    // }
 
-    get rpcEndpoint(): string {
-        return this.connection.rpcEndpoint;
-    }
+    // get rpcEndpoint(): string {
+    //     return this.connection.rpcEndpoint;
+    // }
 
-    // === Connection Methods Delegated ===
+    // // === Connection Methods Delegated ===
 
-    async getBalanceAndContext(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetBalanceConfig,
-    ): Promise<RpcResponseAndContext<number>> {
-        return this.connection.getBalanceAndContext(
-            publicKey,
-            commitmentOrConfig,
-        );
-    }
+    // async getBalanceAndContext(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetBalanceConfig,
+    // ): Promise<RpcResponseAndContext<number>> {
+    //     return this.connection.getBalanceAndContext(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getBalance(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetBalanceConfig,
-    ): Promise<number> {
-        return this.connection.getBalance(publicKey, commitmentOrConfig);
-    }
+    // async getBalance(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetBalanceConfig,
+    // ): Promise<number> {
+    //     return this.connection.getBalance(publicKey, commitmentOrConfig);
+    // }
 
-    async getBlockTime(slot: number): Promise<number | null> {
-        return this.connection.getBlockTime(slot);
-    }
+    // async getBlockTime(slot: number): Promise<number | null> {
+    //     return this.connection.getBlockTime(slot);
+    // }
 
-    async getMinimumLedgerSlot(): Promise<number> {
-        return this.connection.getMinimumLedgerSlot();
-    }
+    // async getMinimumLedgerSlot(): Promise<number> {
+    //     return this.connection.getMinimumLedgerSlot();
+    // }
 
-    async getFirstAvailableBlock(): Promise<number> {
-        return this.connection.getFirstAvailableBlock();
-    }
+    // async getFirstAvailableBlock(): Promise<number> {
+    //     return this.connection.getFirstAvailableBlock();
+    // }
 
-    async getSupply(
-        config?: GetSupplyConfig | Commitment,
-    ): Promise<RpcResponseAndContext<Supply>> {
-        return this.connection.getSupply(config);
-    }
+    // async getSupply(
+    //     config?: GetSupplyConfig | Commitment,
+    // ): Promise<RpcResponseAndContext<Supply>> {
+    //     return this.connection.getSupply(config);
+    // }
 
-    async getTokenSupply(
-        tokenMintAddress: PublicKey,
-        commitment?: Commitment,
-    ): Promise<RpcResponseAndContext<TokenAmount>> {
-        return this.connection.getTokenSupply(tokenMintAddress, commitment);
-    }
+    // async getTokenSupply(
+    //     tokenMintAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<TokenAmount>> {
+    //     return this.connection.getTokenSupply(tokenMintAddress, commitment);
+    // }
 
-    async getTokenAccountBalance(
-        tokenAddress: PublicKey,
-        commitment?: Commitment,
-    ): Promise<RpcResponseAndContext<TokenAmount>> {
-        return this.connection.getTokenAccountBalance(tokenAddress, commitment);
-    }
+    // async getTokenAccountBalance(
+    //     tokenAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<TokenAmount>> {
+    //     return this.connection.getTokenAccountBalance(tokenAddress, commitment);
+    // }
 
-    async getTokenAccountsByOwner(
-        ownerAddress: PublicKey,
-        filter: TokenAccountsFilter,
-        commitmentOrConfig?: Commitment | GetTokenAccountsByOwnerConfig,
-    ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>> {
-        return this.connection.getTokenAccountsByOwner(
-            ownerAddress,
-            filter,
-            commitmentOrConfig,
-        );
-    }
+    // async getTokenAccountsByOwner(
+    //     ownerAddress: PublicKey,
+    //     filter: TokenAccountsFilter,
+    //     commitmentOrConfig?: Commitment | GetTokenAccountsByOwnerConfig,
+    // ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>> {
+    //     return this.connection.getTokenAccountsByOwner(
+    //         ownerAddress,
+    //         filter,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getParsedTokenAccountsByOwner(
-        ownerAddress: PublicKey,
-        filter: TokenAccountsFilter,
-        commitment?: Commitment,
-    ): Promise<
-        RpcResponseAndContext<
-            Array<{
-                pubkey: PublicKey;
-                account: AccountInfo<ParsedAccountData>;
-            }>
-        >
-    > {
-        return this.connection.getParsedTokenAccountsByOwner(
-            ownerAddress,
-            filter,
-            commitment,
-        );
-    }
+    // async getParsedTokenAccountsByOwner(
+    //     ownerAddress: PublicKey,
+    //     filter: TokenAccountsFilter,
+    //     commitment?: Commitment,
+    // ): Promise<
+    //     RpcResponseAndContext<
+    //         Array<{
+    //             pubkey: PublicKey;
+    //             account: AccountInfo<ParsedAccountData>;
+    //         }>
+    //     >
+    // > {
+    //     return this.connection.getParsedTokenAccountsByOwner(
+    //         ownerAddress,
+    //         filter,
+    //         commitment,
+    //     );
+    // }
 
-    async getLargestAccounts(
-        config?: GetLargestAccountsConfig,
-    ): Promise<RpcResponseAndContext<Array<AccountBalancePair>>> {
-        return this.connection.getLargestAccounts(config);
-    }
+    // async getLargestAccounts(
+    //     config?: GetLargestAccountsConfig,
+    // ): Promise<RpcResponseAndContext<Array<AccountBalancePair>>> {
+    //     return this.connection.getLargestAccounts(config);
+    // }
 
-    async getTokenLargestAccounts(
-        mintAddress: PublicKey,
-        commitment?: Commitment,
-    ): Promise<RpcResponseAndContext<Array<TokenAccountBalancePair>>> {
-        return this.connection.getTokenLargestAccounts(mintAddress, commitment);
-    }
+    // async getTokenLargestAccounts(
+    //     mintAddress: PublicKey,
+    //     commitment?: Commitment,
+    // ): Promise<RpcResponseAndContext<Array<TokenAccountBalancePair>>> {
+    //     return this.connection.getTokenLargestAccounts(mintAddress, commitment);
+    // }
 
-    async getAccountInfoAndContext(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
-    ): Promise<RpcResponseAndContext<AccountInfo<Buffer> | null>> {
-        return this.connection.getAccountInfoAndContext(
-            publicKey,
-            commitmentOrConfig,
-        );
-    }
+    // async getAccountInfoAndContext(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<RpcResponseAndContext<AccountInfo<Buffer> | null>> {
+    //     return this.connection.getAccountInfoAndContext(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getParsedAccountInfo(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
-    ): Promise<
-        RpcResponseAndContext<AccountInfo<Buffer | ParsedAccountData> | null>
-    > {
-        return this.connection.getParsedAccountInfo(
-            publicKey,
-            commitmentOrConfig,
-        );
-    }
+    // async getParsedAccountInfo(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<
+    //     RpcResponseAndContext<AccountInfo<Buffer | ParsedAccountData> | null>
+    // > {
+    //     return this.connection.getParsedAccountInfo(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getAccountInfo(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
-    ): Promise<AccountInfo<Buffer> | null> {
-        return this.connection.getAccountInfo(publicKey, commitmentOrConfig);
-    }
+    // async getAccountInfo(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+    // ): Promise<AccountInfo<Buffer> | null> {
+    //     return this.connection.getAccountInfo(publicKey, commitmentOrConfig);
+    // }
 
-    async getMultipleParsedAccounts(
-        publicKeys: PublicKey[],
-        rawConfig?: GetMultipleAccountsConfig,
-    ): Promise<
-        RpcResponseAndContext<
-            (AccountInfo<Buffer | ParsedAccountData> | null)[]
-        >
-    > {
-        return this.connection.getMultipleParsedAccounts(publicKeys, rawConfig);
-    }
+    // async getMultipleParsedAccounts(
+    //     publicKeys: PublicKey[],
+    //     rawConfig?: GetMultipleAccountsConfig,
+    // ): Promise<
+    //     RpcResponseAndContext<
+    //         (AccountInfo<Buffer | ParsedAccountData> | null)[]
+    //     >
+    // > {
+    //     return this.connection.getMultipleParsedAccounts(publicKeys, rawConfig);
+    // }
 
-    async getMultipleAccountsInfoAndContext(
-        publicKeys: PublicKey[],
-        commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
-    ): Promise<RpcResponseAndContext<(AccountInfo<Buffer> | null)[]>> {
-        return this.connection.getMultipleAccountsInfoAndContext(
-            publicKeys,
-            commitmentOrConfig,
-        );
-    }
+    // async getMultipleAccountsInfoAndContext(
+    //     publicKeys: PublicKey[],
+    //     commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
+    // ): Promise<RpcResponseAndContext<(AccountInfo<Buffer> | null)[]>> {
+    //     return this.connection.getMultipleAccountsInfoAndContext(
+    //         publicKeys,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getMultipleAccountsInfo(
-        publicKeys: PublicKey[],
-        commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
-    ): Promise<(AccountInfo<Buffer> | null)[]> {
-        return this.connection.getMultipleAccountsInfo(
-            publicKeys,
-            commitmentOrConfig,
-        );
-    }
+    // async getMultipleAccountsInfo(
+    //     publicKeys: PublicKey[],
+    //     commitmentOrConfig?: Commitment | GetMultipleAccountsConfig,
+    // ): Promise<(AccountInfo<Buffer> | null)[]> {
+    //     return this.connection.getMultipleAccountsInfo(
+    //         publicKeys,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getStakeActivation(
-        publicKey: PublicKey,
-        commitmentOrConfig?: Commitment | GetStakeActivationConfig,
-        epoch?: number,
-    ): Promise<StakeActivationData> {
-        return this.connection.getStakeActivation(
-            publicKey,
-            commitmentOrConfig,
-            epoch,
-        );
-    }
+    // async getStakeActivation(
+    //     publicKey: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetStakeActivationConfig,
+    //     epoch?: number,
+    // ): Promise<StakeActivationData> {
+    //     return this.connection.getStakeActivation(
+    //         publicKey,
+    //         commitmentOrConfig,
+    //         epoch,
+    //     );
+    // }
 
-    async getProgramAccounts(
-        programId: PublicKey,
-        configOrCommitment?: GetProgramAccountsConfig | Commitment,
-    ): Promise<GetProgramAccountsResponse>;
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetProgramAccountsConfig | Commitment,
+    // ): Promise<GetProgramAccountsResponse>;
 
-    async getProgramAccounts(
-        programId: PublicKey,
-        configOrCommitment: GetProgramAccountsConfig & { withContext: true },
-    ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>>;
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment: GetProgramAccountsConfig & { withContext: true },
+    // ): Promise<RpcResponseAndContext<GetProgramAccountsResponse>>;
 
-    async getProgramAccounts(
-        programId: PublicKey,
-        configOrCommitment?: GetProgramAccountsConfig | Commitment,
-    ): Promise<
-        | GetProgramAccountsResponse
-        | RpcResponseAndContext<GetProgramAccountsResponse>
-    > {
-        return this.connection.getProgramAccounts(
-            programId,
-            configOrCommitment,
-        );
-    }
+    // async getProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetProgramAccountsConfig | Commitment,
+    // ): Promise<
+    //     | GetProgramAccountsResponse
+    //     | RpcResponseAndContext<GetProgramAccountsResponse>
+    // > {
+    //     return this.connection.getProgramAccounts(
+    //         programId,
+    //         configOrCommitment,
+    //     );
+    // }
 
-    async getParsedProgramAccounts(
-        programId: PublicKey,
-        configOrCommitment?: GetParsedProgramAccountsConfig | Commitment,
-    ): Promise<
-        Array<{
-            pubkey: PublicKey;
-            account: AccountInfo<Buffer | ParsedAccountData>;
-        }>
-    > {
-        return this.connection.getParsedProgramAccounts(
-            programId,
-            configOrCommitment,
-        );
-    }
+    // async getParsedProgramAccounts(
+    //     programId: PublicKey,
+    //     configOrCommitment?: GetParsedProgramAccountsConfig | Commitment,
+    // ): Promise<
+    //     Array<{
+    //         pubkey: PublicKey;
+    //         account: AccountInfo<Buffer | ParsedAccountData>;
+    //     }>
+    // > {
+    //     return this.connection.getParsedProgramAccounts(
+    //         programId,
+    //         configOrCommitment,
+    //     );
+    // }
 
     // === Subscription Methods ===
 
@@ -1303,141 +1201,141 @@ export class Rpc
     //     return this.connection.getBlock(slot, rawConfig);
     // }
 
-    async getParsedBlock(
-        slot: number,
-        rawConfig?: GetVersionedBlockConfig,
-    ): Promise<ParsedAccountsModeBlockResponse>;
-    async getParsedBlock(
-        slot: number,
-        rawConfig: GetVersionedBlockConfig & { transactionDetails: 'accounts' },
-    ): Promise<ParsedAccountsModeBlockResponse>;
-    async getParsedBlock(
-        slot: number,
-        rawConfig: GetVersionedBlockConfig & { transactionDetails: 'none' },
-    ): Promise<ParsedNoneModeBlockResponse>;
-    async getParsedBlock(
-        slot: number,
-        rawConfig?: GetVersionedBlockConfig,
-    ): Promise<
-        ParsedAccountsModeBlockResponse | ParsedNoneModeBlockResponse | null
-    > {
-        return this.connection.getParsedBlock(slot, rawConfig);
-    }
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<ParsedAccountsModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'accounts' },
+    // ): Promise<ParsedAccountsModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig: GetVersionedBlockConfig & { transactionDetails: 'none' },
+    // ): Promise<ParsedNoneModeBlockResponse>;
+    // async getParsedBlock(
+    //     slot: number,
+    //     rawConfig?: GetVersionedBlockConfig,
+    // ): Promise<
+    //     ParsedAccountsModeBlockResponse | ParsedNoneModeBlockResponse | null
+    // > {
+    //     return this.connection.getParsedBlock(slot, rawConfig);
+    // }
 
-    async getConfirmedTransaction(
-        signature: TransactionSignature,
-        commitment?: Finality,
-    ): Promise<ConfirmedTransaction | null> {
-        return this.connection.getConfirmedTransaction(signature, commitment);
-    }
+    // async getConfirmedTransaction(
+    //     signature: TransactionSignature,
+    //     commitment?: Finality,
+    // ): Promise<ConfirmedTransaction | null> {
+    //     return this.connection.getConfirmedTransaction(signature, commitment);
+    // }
 
-    async getParsedConfirmedTransaction(
-        signature: TransactionSignature,
-        commitment?: Finality,
-    ): Promise<ParsedConfirmedTransaction | null> {
-        return this.connection.getParsedConfirmedTransaction(
-            signature,
-            commitment,
-        );
-    }
+    // async getParsedConfirmedTransaction(
+    //     signature: TransactionSignature,
+    //     commitment?: Finality,
+    // ): Promise<ParsedConfirmedTransaction | null> {
+    //     return this.connection.getParsedConfirmedTransaction(
+    //         signature,
+    //         commitment,
+    //     );
+    // }
 
-    async getParsedConfirmedTransactions(
-        signatures: TransactionSignature[],
-        commitment?: Finality,
-    ): Promise<(ParsedConfirmedTransaction | null)[]> {
-        return this.connection.getParsedConfirmedTransactions(
-            signatures,
-            commitment,
-        );
-    }
+    // async getParsedConfirmedTransactions(
+    //     signatures: TransactionSignature[],
+    //     commitment?: Finality,
+    // ): Promise<(ParsedConfirmedTransaction | null)[]> {
+    //     return this.connection.getParsedConfirmedTransactions(
+    //         signatures,
+    //         commitment,
+    //     );
+    // }
 
-    async getConfirmedSignaturesForAddress(
-        address: PublicKey,
-        startSlot: number,
-        endSlot: number,
-    ): Promise<Array<TransactionSignature>> {
-        return this.connection.getConfirmedSignaturesForAddress(
-            address,
-            startSlot,
-            endSlot,
-        );
-    }
+    // async getConfirmedSignaturesForAddress(
+    //     address: PublicKey,
+    //     startSlot: number,
+    //     endSlot: number,
+    // ): Promise<Array<TransactionSignature>> {
+    //     return this.connection.getConfirmedSignaturesForAddress(
+    //         address,
+    //         startSlot,
+    //         endSlot,
+    //     );
+    // }
 
-    async getConfirmedSignaturesForAddress2(
-        address: PublicKey,
-        options?: ConfirmedSignaturesForAddress2Options,
-        commitment?: Finality,
-    ): Promise<Array<ConfirmedSignatureInfo>> {
-        return this.connection.getConfirmedSignaturesForAddress2(
-            address,
-            options,
-            commitment,
-        );
-    }
+    // async getConfirmedSignaturesForAddress2(
+    //     address: PublicKey,
+    //     options?: ConfirmedSignaturesForAddress2Options,
+    //     commitment?: Finality,
+    // ): Promise<Array<ConfirmedSignatureInfo>> {
+    //     return this.connection.getConfirmedSignaturesForAddress2(
+    //         address,
+    //         options,
+    //         commitment,
+    //     );
+    // }
 
-    async getSignaturesForAddress(
-        address: PublicKey,
-        options?: SignaturesForAddressOptions,
-        commitment?: Finality,
-    ): Promise<Array<ConfirmedSignatureInfo>> {
-        return this.connection.getSignaturesForAddress(
-            address,
-            options,
-            commitment,
-        );
-    }
+    // async getSignaturesForAddress(
+    //     address: PublicKey,
+    //     options?: SignaturesForAddressOptions,
+    //     commitment?: Finality,
+    // ): Promise<Array<ConfirmedSignatureInfo>> {
+    //     return this.connection.getSignaturesForAddress(
+    //         address,
+    //         options,
+    //         commitment,
+    //     );
+    // }
 
-    async getRecentPrioritizationFees(
-        config?: GetRecentPrioritizationFeesConfig,
-    ): Promise<RecentPrioritizationFees[]> {
-        return this.connection.getRecentPrioritizationFees(config);
-    }
+    // async getRecentPrioritizationFees(
+    //     config?: GetRecentPrioritizationFeesConfig,
+    // ): Promise<RecentPrioritizationFees[]> {
+    //     return this.connection.getRecentPrioritizationFees(config);
+    // }
 
-    async getLatestBlockhash(
-        config?: GetLatestBlockhashConfig,
-    ): Promise<BlockhashWithExpiryBlockHeight> {
-        return this.connection.getLatestBlockhash(config);
-    }
-    async getLatestBlockhashAndContext(
-        commitmentOrConfig?: Commitment | GetLatestBlockhashConfig,
-    ): Promise<RpcResponseAndContext<BlockhashWithExpiryBlockHeight>> {
-        return this.connection.getLatestBlockhashAndContext(commitmentOrConfig);
-    }
+    // async getLatestBlockhash(
+    //     config?: GetLatestBlockhashConfig,
+    // ): Promise<BlockhashWithExpiryBlockHeight> {
+    //     return this.connection.getLatestBlockhash(config);
+    // }
+    // async getLatestBlockhashAndContext(
+    //     commitmentOrConfig?: Commitment | GetLatestBlockhashConfig,
+    // ): Promise<RpcResponseAndContext<BlockhashWithExpiryBlockHeight>> {
+    //     return this.connection.getLatestBlockhashAndContext(commitmentOrConfig);
+    // }
 
-    async isBlockhashValid(
-        blockhash: Blockhash,
-        config?: IsBlockhashValidConfig,
-    ): Promise<RpcResponseAndContext<boolean>> {
-        return this.connection.isBlockhashValid(blockhash, config);
-    }
+    // async isBlockhashValid(
+    //     blockhash: Blockhash,
+    //     config?: IsBlockhashValidConfig,
+    // ): Promise<RpcResponseAndContext<boolean>> {
+    //     return this.connection.isBlockhashValid(blockhash, config);
+    // }
 
-    async getVersion(): Promise<Version> {
-        return this.connection.getVersion();
-    }
+    // async getVersion(): Promise<Version> {
+    //     return this.connection.getVersion();
+    // }
 
-    async getAddressLookupTable(
-        accountKey: PublicKey,
-        config?: GetAccountInfoConfig,
-    ): Promise<RpcResponseAndContext<AddressLookupTableAccount | null>> {
-        return this.connection.getAddressLookupTable(accountKey, config);
-    }
+    // async getAddressLookupTable(
+    //     accountKey: PublicKey,
+    //     config?: GetAccountInfoConfig,
+    // ): Promise<RpcResponseAndContext<AddressLookupTableAccount | null>> {
+    //     return this.connection.getAddressLookupTable(accountKey, config);
+    // }
 
-    async getNonceAndContext(
-        nonceAccount: PublicKey,
-        commitmentOrConfig?: Commitment | GetNonceAndContextConfig,
-    ): Promise<RpcResponseAndContext<NonceAccount | null>> {
-        return this.connection.getNonceAndContext(
-            nonceAccount,
-            commitmentOrConfig,
-        );
-    }
+    // async getNonceAndContext(
+    //     nonceAccount: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetNonceAndContextConfig,
+    // ): Promise<RpcResponseAndContext<NonceAccount | null>> {
+    //     return this.connection.getNonceAndContext(
+    //         nonceAccount,
+    //         commitmentOrConfig,
+    //     );
+    // }
 
-    async getNonce(
-        nonceAccount: PublicKey,
-        commitmentOrConfig?: Commitment | GetNonceConfig,
-    ): Promise<NonceAccount | null> {
-        return this.connection.getNonce(nonceAccount, commitmentOrConfig);
-    }
+    // async getNonce(
+    //     nonceAccount: PublicKey,
+    //     commitmentOrConfig?: Commitment | GetNonceConfig,
+    // ): Promise<NonceAccount | null> {
+    //     return this.connection.getNonce(nonceAccount, commitmentOrConfig);
+    // }
 
     /**
      * Fetch the compressed account for the specified account address or hash
