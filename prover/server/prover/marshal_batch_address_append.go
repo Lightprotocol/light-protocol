@@ -12,7 +12,7 @@ type BatchAddressAppendParametersJSON struct {
 	OldRoot               string      `json:"oldRoot"`
 	NewRoot               string      `json:"newRoot"`
 	HashchainHash         string      `json:"hashchainHash"`
-	StartIndex            uint32      `json:"startIndex"`
+	StartIndex            uint64      `json:"startIndex"`
 	LowElementValues      []string    `json:"lowElementValues"`
 	LowElementIndices     []string    `json:"lowElementIndices"`
 	LowElementNextIndices []string    `json:"lowElementNextIndices"`

@@ -248,7 +248,7 @@ type BatchAddressAppendParameters struct {
 	OldRoot         *big.Int
 	NewRoot         *big.Int
 	HashchainHash   *big.Int
-	StartIndex      uint32
+	StartIndex      uint64
 
 	LowElementValues      []big.Int
 	LowElementIndices     []big.Int

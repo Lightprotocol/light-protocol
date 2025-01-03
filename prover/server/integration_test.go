@@ -465,7 +465,7 @@ func testBatchAddressAppendWithPreviousState40_100(t *testing.T) {
 }
 
 func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	startIndex := uint32(2)
+	startIndex := uint64(2)
 	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build first test tree: %v", err)
@@ -487,7 +487,7 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 	}
 	response1.Body.Close()
 
-	startIndex += batchSize
+	startIndex += uint64(batchSize)
 	params2, err := prover.BuildTestAddressTree(treeHeight, batchSize, params1.Tree, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build second test tree: %v", err)
@@ -521,7 +521,7 @@ func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32,
 func testBatchAddressAppendInvalidInput40_10(t *testing.T) {
 	treeHeight := uint32(40)
 	batchSize := uint32(10)
-	startIndex := uint32(0)
+	startIndex := uint64(0)
 
 	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {

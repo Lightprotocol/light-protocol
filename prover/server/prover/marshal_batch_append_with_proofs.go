@@ -12,7 +12,7 @@ type BatchAppendWithProofsInputsJSON struct {
 	OldRoot             string      `json:"oldRoot"`
 	NewRoot             string      `json:"newRoot"`
 	LeavesHashchainHash string      `json:"leavesHashchainHash"`
-	StartIndex          uint32      `json:"startIndex"`
+	StartIndex          uint64      `json:"startIndex"`
 	OldLeaves           []string    `json:"oldLeaves"`
 	Leaves              []string    `json:"leaves"`
 	MerkleProofs        [][]string  `json:"merkleProofs"`

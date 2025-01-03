@@ -80,7 +80,7 @@ type BatchAppendWithProofsParameters struct {
 	LeavesHashchainHash *big.Int
 	Leaves              []*big.Int
 	MerkleProofs        [][]big.Int
-	StartIndex          uint32
+	StartIndex          uint64
 	Height              uint32
 	BatchSize           uint32
 	Tree                *merkle_tree.PoseidonTree
