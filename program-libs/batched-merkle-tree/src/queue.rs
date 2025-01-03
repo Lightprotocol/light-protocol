@@ -9,8 +9,8 @@ use light_merkle_tree_metadata::{
 };
 use light_utils::account::{check_account_info_mut, set_discriminator, DISCRIMINATOR_LEN};
 use light_zero_copy::{
-    errors::ZeroCopyError, raw_pointer_mut::RawPointerMut, slice_mut::ZeroCopySliceMutUsize,
-    vec::ZeroCopyVecUsize,
+    errors::ZeroCopyError, slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize,
+    wrapped_pointer_mut::WrappedPointerMut,
 };
 use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
@@ -146,7 +146,7 @@ pub fn queue_account_size(
 #[repr(C)]
 #[derive(Debug)]
 pub struct BatchedQueueAccount {
-    metadata: RawPointerMut<BatchedQueueMetadata>,
+    metadata: WrappedPointerMut<BatchedQueueMetadata>,
     pub batches: ZeroCopySliceMutUsize<Batch>,
     pub value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     pub bloom_filter_stores: Vec<ZeroCopySliceMutUsize<u8>>,
@@ -215,7 +215,7 @@ impl BatchedQueueAccount {
         account_data: &mut [u8],
     ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
         let metadata =
-            RawPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
+            WrappedPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
 
         if metadata.metadata.queue_type != QUEUE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
@@ -249,7 +249,7 @@ impl BatchedQueueAccount {
     ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
         set_discriminator::<Self>(&mut account_data[0..DISCRIMINATOR_LEN])?;
         let mut account_metadata =
-            RawPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
+            WrappedPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
         account_metadata.get_mut().init(
             metadata,
             num_batches_output_queue,

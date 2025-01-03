@@ -6,7 +6,9 @@ use std::{
     ops::{Add, Index, IndexMut, Rem},
 };
 
-use crate::{add_padding, errors::ZeroCopyError, raw_pointer_mut::RawPointerMut, vec::ZeroCopyVec};
+use crate::{
+    add_padding, errors::ZeroCopyError, vec::ZeroCopyVec, wrapped_pointer_mut::WrappedPointerMut,
+};
 
 pub type ZeroCopyCyclicVecUsize<T> = ZeroCopyCyclicVec<usize, T>;
 pub type ZeroCopyCyclicVecU32<T> = ZeroCopyCyclicVec<u32, T>;
@@ -21,7 +23,7 @@ where
     <LEN as TryFrom<usize>>::Error: fmt::Debug,
     <LEN as TryInto<usize>>::Error: fmt::Debug,
 {
-    current_index: RawPointerMut<LEN>,
+    current_index: WrappedPointerMut<LEN>,
     vec: ZeroCopyVec<LEN, T>,
 }
 
@@ -46,7 +48,8 @@ where
         vec: &mut [u8],
         offset: &mut usize,
     ) -> Result<Self, ZeroCopyError> {
-        let current_index = RawPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), vec, offset)?;
+        let current_index =
+            WrappedPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), vec, offset)?;
         add_padding::<LEN, T>(offset);
         let vec = ZeroCopyVec::<LEN, T>::new_at(capacity, vec, offset)?;
         Ok(Self { current_index, vec })
@@ -87,7 +90,7 @@ where
         account_data: &mut [u8],
         offset: &mut usize,
     ) -> Result<Self, ZeroCopyError> {
-        let current_index = RawPointerMut::<LEN>::from_bytes_at(account_data, offset)?;
+        let current_index = WrappedPointerMut::<LEN>::from_bytes_at(account_data, offset)?;
         add_padding::<LEN, T>(offset);
         let vec = ZeroCopyVec::<LEN, T>::from_bytes_at(account_data, offset)?;
         Ok(Self { current_index, vec })

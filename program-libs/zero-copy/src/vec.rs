@@ -7,7 +7,8 @@ use std::{
 };
 
 use crate::{
-    add_padding, errors::ZeroCopyError, raw_pointer_mut::RawPointerMut, slice_mut::ZeroCopySliceMut,
+    add_padding, errors::ZeroCopyError, slice_mut::ZeroCopySliceMut,
+    wrapped_pointer_mut::WrappedPointerMut,
 };
 
 pub type ZeroCopyVecUsize<T> = ZeroCopyVec<usize, T>;
@@ -26,7 +27,7 @@ where
     T: Copy + Clone,
     <LEN as TryFrom<usize>>::Error: fmt::Debug,
 {
-    length: RawPointerMut<LEN>,
+    length: WrappedPointerMut<LEN>,
     data: ZeroCopySliceMut<LEN, T>,
 }
 
@@ -46,7 +47,8 @@ where
         data: &mut [u8],
         offset: &mut usize,
     ) -> Result<Self, ZeroCopyError> {
-        let length = RawPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), data, offset).unwrap();
+        let length =
+            WrappedPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), data, offset).unwrap();
         add_padding::<LEN, T>(offset);
         let data = ZeroCopySliceMut::<LEN, T>::new_at(capacity, data, offset)?;
         Ok(Self { length, data })
@@ -74,7 +76,7 @@ where
         bytes: &mut [u8],
         offset: &mut usize,
     ) -> Result<ZeroCopyVec<LEN, T>, ZeroCopyError> {
-        let length = RawPointerMut::<LEN>::from_bytes_at(bytes, offset)?;
+        let length = WrappedPointerMut::<LEN>::from_bytes_at(bytes, offset)?;
         add_padding::<LEN, T>(offset);
         let data = ZeroCopySliceMut::from_bytes_at(bytes, offset)?;
         Ok(ZeroCopyVec { length, data })
