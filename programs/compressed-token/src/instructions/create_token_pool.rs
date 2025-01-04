@@ -39,12 +39,12 @@ pub struct CreateTokenPoolInstruction<'info> {
 }
 
 pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
-    get_token_pool_pda_with_bump(mint, 0)
+    get_token_pool_pda_with_index(mint, 0)
 }
 
-pub fn get_token_pool_pda_with_bump(mint: &Pubkey, token_pool_bump: u8) -> Pubkey {
-    let seeds = &[POOL_SEED, mint.as_ref(), &[token_pool_bump]];
-    let seeds = if token_pool_bump == 0 {
+pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pubkey {
+    let seeds = &[POOL_SEED, mint.as_ref(), &[token_pool_index]];
+    let seeds = if token_pool_index == 0 {
         &seeds[..2]
     } else {
         &seeds[..]
@@ -77,7 +77,7 @@ pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
 
 /// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
 #[derive(Accounts)]
-#[instruction(token_pool_bump: u8)]
+#[instruction(token_pool_index: u8)]
 pub struct AddTokenPoolInstruction<'info> {
     /// UNCHECKED: only pays fees.
     #[account(mut)]
@@ -85,7 +85,7 @@ pub struct AddTokenPoolInstruction<'info> {
     #[account(
         init,
         seeds = [
-        POOL_SEED, &mint.key().to_bytes(), &[token_pool_bump],
+        POOL_SEED, &mint.key().to_bytes(), &[token_pool_index],
         ],
         bump,
         payer = fee_payer,
@@ -132,7 +132,7 @@ mod test {
         // 1. Functional: test_check_spl_token_pool_derivation_valid
         let mint = Pubkey::new_unique();
         for i in 0..NUM_MAX_POOL_ACCOUNTS {
-            let valid_pda = get_token_pool_pda_with_bump(&mint, i);
+            let valid_pda = get_token_pool_pda_with_index(&mint, i);
             assert!(check_spl_token_pool_derivation(&valid_pda, &mint).is_ok());
         }
 
@@ -143,12 +143,12 @@ mod test {
 
         // 3. Failing: test_check_spl_token_pool_derivation_bump_seed_equal_to_num_max_accounts
         let mint = Pubkey::new_unique();
-        let invalid_pda = get_token_pool_pda_with_bump(&mint, NUM_MAX_POOL_ACCOUNTS);
+        let invalid_pda = get_token_pool_pda_with_index(&mint, NUM_MAX_POOL_ACCOUNTS);
         assert!(check_spl_token_pool_derivation(&invalid_pda, &mint).is_err());
 
         // 4. Failing: test_check_spl_token_pool_derivation_bump_seed_larger_than_num_max_accounts
         let mint = Pubkey::new_unique();
-        let invalid_pda = get_token_pool_pda_with_bump(&mint, NUM_MAX_POOL_ACCOUNTS + 1);
+        let invalid_pda = get_token_pool_pda_with_index(&mint, NUM_MAX_POOL_ACCOUNTS + 1);
         assert!(check_spl_token_pool_derivation(&invalid_pda, &mint).is_err());
     }
 }

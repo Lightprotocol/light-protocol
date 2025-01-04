@@ -197,7 +197,7 @@ pub mod sdk {
 
     use super::CompressedTokenInstructionDataBurn;
     use crate::{
-        get_token_pool_pda_with_bump,
+        get_token_pool_pda_with_index,
         process_transfer::{
             get_cpi_authority_pda,
             transfer_sdk::{
@@ -221,7 +221,7 @@ pub mod sdk {
         pub burn_amount: u64,
         pub signer_is_delegate: bool,
         pub is_token_22: bool,
-        pub token_pool_bump: u8,
+        pub token_pool_index: u8,
         pub additional_pool_accounts: Vec<Pubkey>,
     }
 
@@ -274,7 +274,7 @@ pub mod sdk {
         }
         .data();
 
-        let token_pool_pda = get_token_pool_pda_with_bump(&inputs.mint, inputs.token_pool_bump);
+        let token_pool_pda = get_token_pool_pda_with_index(&inputs.mint, inputs.token_pool_index);
         let token_program = if inputs.is_token_22 {
             anchor_spl::token_2022::ID
         } else {

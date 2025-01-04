@@ -24,7 +24,7 @@ pub struct BurnInstruction<'info> {
     /// CHECK: is used to burn tokens.
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
-    /// CHECK: in burn_spl_from_pool_pda.
+    /// CHECK: in invoke_token_program_with_multiple_token_pool_accounts.
     #[account(mut)]
     pub token_pool_pda: AccountInfo<'info>,
     pub token_program: Interface<'info, TokenInterface>,

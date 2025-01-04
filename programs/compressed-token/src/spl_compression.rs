@@ -20,21 +20,25 @@ pub fn process_compression_or_decompression<'info>(
     }
 }
 
-pub fn check_spl_token_pool_derivation_with_bump(
+pub fn check_spl_token_pool_derivation_with_index(
     mint_bytes: &[u8],
     token_pool_pubkey: &Pubkey,
-    bump: &[u8],
+    pool_index: &[u8],
 ) -> Result<()> {
-    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, bump) {
+    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index) {
         Ok(())
     } else {
         err!(ErrorCode::InvalidTokenPoolPda)
     }
 }
 
-pub fn is_valid_token_pool_pda(mint_bytes: &[u8], token_pool_pubkey: &Pubkey, bump: &[u8]) -> bool {
-    let seeds = [POOL_SEED, mint_bytes, bump];
-    let seeds = if bump[0] == 0 {
+pub fn is_valid_token_pool_pda(
+    mint_bytes: &[u8],
+    token_pool_pubkey: &Pubkey,
+    pool_index: &[u8],
+) -> bool {
+    let seeds = [POOL_SEED, mint_bytes, pool_index];
+    let seeds = if pool_index[0] == 0 {
         &seeds[..2]
     } else {
         &seeds[..]
@@ -102,10 +106,10 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
     mut token_pool_pda: AccountInfo<'info>,
     mut amount: u64,
 ) -> Result<()> {
-    let mut token_pool_bumps: Vec<u8> = (0..NUM_MAX_POOL_ACCOUNTS).collect();
+    let mut token_pool_indices: Vec<u8> = (0..NUM_MAX_POOL_ACCOUNTS).collect();
     // 1. iterate over at most NUM_MAX_POOL_ACCOUNTS token pool accounts.
     for i in 0..NUM_MAX_POOL_ACCOUNTS {
-        // 2. Start with passed in token pool account.token_pool_bumps
+        // 2. Start with passed in token pool account.token_pool_indices
         if i != 0 {
             token_pool_pda = remaining_accounts[i as usize - 1].to_account_info();
         }
@@ -120,7 +124,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
             continue;
         }
         // 5. Check if the token pool account is derived from the mint for any bump.
-        for (index, i) in token_pool_bumps.iter().enumerate() {
+        for (index, i) in token_pool_indices.iter().enumerate() {
             if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i]) {
                 // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
@@ -142,11 +146,11 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
                     )?;
                 }
                 // 8. Remove bump from the list of bumps.
-                token_pool_bumps.remove(index);
+                token_pool_indices.remove(index);
                 // 9. Reduce the amount by the transferred or burned amount.
                 amount = amount.saturating_sub(action_amount);
                 break;
-            } else if index == token_pool_bumps.len() - 1 {
+            } else if index == token_pool_indices.len() - 1 {
                 // 6. Return error if the token pool account is not derived
                 //      from any combination of mint and bump.
                 return err!(crate::ErrorCode::NoMatchingBumpFound);

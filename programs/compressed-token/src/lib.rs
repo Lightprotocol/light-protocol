@@ -33,7 +33,7 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
-    use spl_compression::check_spl_token_pool_derivation_with_bump;
+    use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
 
@@ -53,16 +53,16 @@ pub mod light_compressed_token {
     /// The maximum number of token pools per mint is 5.
     pub fn add_token_pool<'info>(
         ctx: Context<'_, '_, '_, 'info, AddTokenPoolInstruction<'info>>,
-        token_pool_bump: u8,
+        token_pool_index: u8,
     ) -> Result<()> {
-        if token_pool_bump >= NUM_MAX_POOL_ACCOUNTS {
+        if token_pool_index >= NUM_MAX_POOL_ACCOUNTS {
             return err!(ErrorCode::InvalidTokenPoolBump);
         }
         // Check that token pool account with previous bump already exists.
-        check_spl_token_pool_derivation_with_bump(
+        check_spl_token_pool_derivation_with_index(
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
-            &[token_pool_bump.saturating_sub(1)],
+            &[token_pool_index.saturating_sub(1)],
         )
     }
 

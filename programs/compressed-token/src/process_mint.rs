@@ -358,7 +358,7 @@ pub mod mint_sdk {
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{
-        get_token_pool_pda, get_token_pool_pda_with_bump, process_transfer::get_cpi_authority_pda,
+        get_token_pool_pda, get_token_pool_pda_with_index, process_transfer::get_cpi_authority_pda,
     };
 
     pub fn create_create_token_pool_instruction(
@@ -393,13 +393,13 @@ pub mod mint_sdk {
     pub fn create_add_token_pool_instruction(
         fee_payer: &Pubkey,
         mint: &Pubkey,
-        token_pool_bump: u8,
+        token_pool_index: u8,
         is_token_22: bool,
     ) -> Instruction {
-        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
+        let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
         let existing_token_pool_pda =
-            get_token_pool_pda_with_bump(mint, token_pool_bump.saturating_sub(1));
-        let instruction_data = crate::instruction::AddTokenPool { token_pool_bump };
+            get_token_pool_pda_with_index(mint, token_pool_index.saturating_sub(1));
+        let instruction_data = crate::instruction::AddTokenPool { token_pool_index };
 
         let token_program: Pubkey = if is_token_22 {
             anchor_spl::token_2022::ID
@@ -433,9 +433,9 @@ pub mod mint_sdk {
         public_keys: Vec<Pubkey>,
         lamports: Option<u64>,
         token_2022: bool,
-        token_pool_bump: u8,
+        token_pool_index: u8,
     ) -> Instruction {
-        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
+        let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
 
         let instruction_data = crate::instruction::MintTo {
             amounts,

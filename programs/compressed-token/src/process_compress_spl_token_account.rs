@@ -54,7 +54,7 @@ pub mod sdk {
     use light_system_program::sdk::CompressedCpiContext;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::get_token_pool_pda_with_bump;
+    use crate::get_token_pool_pda_with_index;
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_compress_spl_token_account_instruction(
@@ -67,7 +67,7 @@ pub mod sdk {
         output_merkle_tree: &Pubkey,
         token_account: &Pubkey,
         is_token_22: bool,
-        token_pool_bump: u8,
+        token_pool_index: u8,
     ) -> Instruction {
         let instruction_data = crate::instruction::CompressSplTokenAccount {
             owner: *owner,
@@ -75,7 +75,7 @@ pub mod sdk {
             cpi_context,
         };
         let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
-        let token_pool_pda = get_token_pool_pda_with_bump(mint, token_pool_bump);
+        let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
         let token_program = if is_token_22 {
             Some(anchor_spl::token_2022::ID)
         } else {

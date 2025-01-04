@@ -2,8 +2,8 @@
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
-    prelude::AccountMeta, system_program, AnchorDeserialize, AnchorSerialize, InstructionData,
-    ToAccountMetas,
+    prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
+    InstructionData, ToAccountMetas,
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
@@ -16,12 +16,12 @@ use light_compressed_token::{
         CreateRevokeInstructionInputs,
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
-    get_token_pool_pda, get_token_pool_pda_with_bump,
+    get_token_pool_pda, get_token_pool_pda_with_index,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },
-    spl_compression::check_spl_token_pool_derivation_with_bump,
+    spl_compression::check_spl_token_pool_derivation_with_index,
     token_data::{AccountState, TokenData},
     ErrorCode,
 };
@@ -321,7 +321,7 @@ async fn test_failing_create_token_pool() {
 
         let token_pool_pubkey = get_token_pool_pda(&mint.pubkey());
         let token_pool_account = rpc.get_account(token_pool_pubkey).await.unwrap().unwrap();
-        check_spl_token_pool_derivation_with_bump(
+        check_spl_token_pool_derivation_with_index(
             &mint.pubkey().to_bytes(),
             &token_pool_pubkey,
             &[0],
@@ -517,23 +517,23 @@ pub async fn add_token_pool<R: RpcConnection>(
     fee_payer: &Keypair,
     mint: &Pubkey,
     invalid_mint: Option<Pubkey>,
-    token_pool_bump: u8,
+    token_pool_index: u8,
     is_token_22: bool,
     mode: FailingTestsAddTokenPool,
 ) -> Result<Signature, RpcError> {
     let token_pool_pda = if mode == FailingTestsAddTokenPool::InvalidTokenPoolPda {
         Pubkey::new_unique()
     } else {
-        get_token_pool_pda_with_bump(mint, token_pool_bump)
+        get_token_pool_pda_with_index(mint, token_pool_index)
     };
     let existing_token_pool_pda = if mode == FailingTestsAddTokenPool::InvalidExistingTokenPoolPda {
-        get_token_pool_pda_with_bump(mint, token_pool_bump.saturating_sub(2))
+        get_token_pool_pda_with_index(mint, token_pool_index.saturating_sub(2))
     } else if let Some(invalid_mint) = invalid_mint {
-        get_token_pool_pda_with_bump(&invalid_mint, token_pool_bump.saturating_sub(1))
+        get_token_pool_pda_with_index(&invalid_mint, token_pool_index.saturating_sub(1))
     } else {
-        get_token_pool_pda_with_bump(mint, token_pool_bump.saturating_sub(1))
+        get_token_pool_pda_with_index(mint, token_pool_index.saturating_sub(1))
     };
-    let instruction_data = light_compressed_token::instruction::AddTokenPool { token_pool_bump };
+    let instruction_data = light_compressed_token::instruction::AddTokenPool { token_pool_index };
 
     let token_program: Pubkey = if mode == FailingTestsAddTokenPool::InvalidTokenProgramId {
         Pubkey::new_unique()
@@ -1567,8 +1567,8 @@ pub async fn mint_tokens_to_all_token_pools<R: RpcConnection>(
     } else {
         iterator
     };
-    for bump in iterator {
-        let token_pool_pda = get_token_pool_pda_with_bump(mint, bump);
+    for token_pool_index in iterator {
+        let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
         let token_pool_account = rpc.get_account(token_pool_pda).await?;
         if token_pool_account.is_some() {
             mint_tokens_22_helper_with_lamports_and_bump(
@@ -1581,14 +1581,14 @@ pub async fn mint_tokens_to_all_token_pools<R: RpcConnection>(
                 recipients.clone(),
                 None,
                 is_token22,
-                bump,
+                token_pool_index,
             )
             .await;
         }
     }
     Ok(())
 }
-use anchor_lang::AccountDeserialize;
+
 /// Assert that every token pool account contains `amount` tokens.
 pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
     rpc: &mut R,
@@ -1596,7 +1596,7 @@ pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
     mint: &Pubkey,
 ) -> Result<(), RpcError> {
     for bump in 0..NUM_MAX_POOL_ACCOUNTS {
-        let token_pool_pda = get_token_pool_pda_with_bump(&mint, bump);
+        let token_pool_pda = get_token_pool_pda_with_index(&mint, bump);
         let mut token_pool_account = rpc.get_account(token_pool_pda).await?.unwrap();
         let token_pool_data =
             TokenAccount::try_deserialize_unchecked(&mut &*token_pool_account.data.as_mut_slice())
@@ -1807,7 +1807,7 @@ async fn test_multiple_decompression() {
                 .map(|x| x.token_data.amount)
                 .sum();
             let mut add_token_pool_accounts = (0..4)
-                .map(|x| get_token_pool_pda_with_bump(&mint, x.clone()))
+                .map(|x| get_token_pool_pda_with_index(&mint, x.clone()))
                 .collect::<Vec<_>>();
             add_token_pool_accounts.shuffle(rng);
             decompress_test(
@@ -3007,7 +3007,7 @@ async fn test_burn() {
                 .merkle_context
                 .nullifier_queue_pubkey;
             let mut additional_token_pool_accounts = (0..4)
-                .map(|x| get_token_pool_pda_with_bump(&mint, x))
+                .map(|x| get_token_pool_pda_with_index(&mint, x))
                 .collect::<Vec<_>>();
             let rng = &mut thread_rng();
             additional_token_pool_accounts.shuffle(rng);
@@ -4364,7 +4364,7 @@ async fn test_failing_decompression() {
                 decompress_amount,
                 false,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&mint, NUM_MAX_POOL_ACCOUNTS)),
+                Some(get_token_pool_pda_with_index(&mint, NUM_MAX_POOL_ACCOUNTS)),
                 &mint,
                 anchor_lang::error::ErrorCode::AccountNotInitialized.into(),
                 is_token_22,
@@ -4385,11 +4385,11 @@ async fn test_failing_decompression() {
                 decompress_amount,
                 false,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&mint, 3)),
+                Some(get_token_pool_pda_with_index(&mint, 3)),
                 &mint,
                 ErrorCode::InvalidTokenPoolPda.into(),
                 is_token_22,
-                Some(vec![get_token_pool_pda_with_bump(
+                Some(vec![get_token_pool_pda_with_index(
                     &mint,
                     NUM_MAX_POOL_ACCOUNTS,
                 )]),
@@ -4447,7 +4447,7 @@ async fn test_failing_decompression() {
                 decompress_amount,
                 false,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&mint, 4)),
+                Some(get_token_pool_pda_with_index(&mint, 4)),
                 &mint,
                 ErrorCode::NoMatchingBumpFound.into(),
                 is_token_22,
@@ -4458,7 +4458,7 @@ async fn test_failing_decompression() {
         }
         // Test 9: FailedToDecompress pass multiple correct token accounts with insufficient balance
         {
-            let token_pool = get_token_pool_pda_with_bump(&mint, 3);
+            let token_pool = get_token_pool_pda_with_index(&mint, 3);
             failing_compress_decompress(
                 &sender,
                 &mut context,
@@ -4475,9 +4475,9 @@ async fn test_failing_decompression() {
                 is_token_22,
                 Some(vec![
                     token_pool,
-                    get_token_pool_pda_with_bump(&mint, 1),
-                    get_token_pool_pda_with_bump(&mint, 2),
-                    get_token_pool_pda_with_bump(&mint, 4),
+                    get_token_pool_pda_with_index(&mint, 1),
+                    get_token_pool_pda_with_index(&mint, 2),
+                    get_token_pool_pda_with_index(&mint, 4),
                 ]),
             )
             .await
@@ -4497,11 +4497,11 @@ async fn test_failing_decompression() {
                 decompress_amount,
                 false,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&invalid_mint, 0)),
+                Some(get_token_pool_pda_with_index(&invalid_mint, 0)),
                 &mint,
                 ErrorCode::InvalidTokenPoolPda.into(),
                 is_token_22,
-                Some(vec![get_token_pool_pda_with_bump(
+                Some(vec![get_token_pool_pda_with_index(
                     &mint,
                     NUM_MAX_POOL_ACCOUNTS,
                 )]),
@@ -4521,11 +4521,11 @@ async fn test_failing_decompression() {
                 decompress_amount,
                 false,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&mint, 4)),
+                Some(get_token_pool_pda_with_index(&mint, 4)),
                 &mint,
                 ErrorCode::InvalidTokenPoolPda.into(),
                 is_token_22,
-                Some(vec![get_token_pool_pda_with_bump(&invalid_mint, 0)]),
+                Some(vec![get_token_pool_pda_with_index(&invalid_mint, 0)]),
             )
             .await
             .unwrap();
@@ -4622,7 +4622,7 @@ async fn test_failing_decompression() {
                 compress_amount,
                 true,
                 &token_account_keypair.pubkey(),
-                Some(get_token_pool_pda_with_bump(&invalid_mint, 0)),
+                Some(get_token_pool_pda_with_index(&invalid_mint, 0)),
                 &mint,
                 ErrorCode::InvalidTokenPoolPda.into(),
                 is_token_22,
