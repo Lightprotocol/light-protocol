@@ -22,7 +22,6 @@ members = [
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
-    "examples/name-service/programs/*",
     "examples/token-escrow/programs/*",
     "program-tests/account-compression-test/",
     "program-tests/compressed-token-test/",
