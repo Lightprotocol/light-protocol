@@ -1,10 +1,11 @@
-use std::{fmt::Debug, ops::Add, u8};
+use std::fmt::Debug;
 
 use light_zero_copy::{
     add_padding,
     errors::ZeroCopyError,
     vec::{ZeroCopyVec, ZeroCopyVecUsize},
 };
+use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
 use rand::{
     distributions::{Distribution, Standard},
     thread_rng, Rng,
@@ -96,16 +97,7 @@ fn test_zero_copy_u8_struct_vec() {
 
 fn test_zero_copy_vec_new<CAPACITY, T>(capacity: CAPACITY)
 where
-    CAPACITY: Debug
-        + Copy
-        + Clone
-        + Add<Output = CAPACITY>
-        + TryInto<usize>
-        + TryFrom<usize>
-        + PartialOrd
-        + num_traits::ToBytes,
-    <CAPACITY as TryFrom<usize>>::Error: std::fmt::Debug,
-    <CAPACITY as TryInto<usize>>::Error: std::fmt::Debug,
+    CAPACITY: FromPrimitive + ToPrimitive + PrimInt + num_traits::ToBytes + Debug,
     T: Copy + Clone + PartialEq + Debug,
     Standard: Distribution<T>,
 {
@@ -113,14 +105,14 @@ where
     let mut data =
         vec![
             0;
-            ZeroCopyVec::<CAPACITY, T>::required_size_for_capacity(capacity.try_into().unwrap())
+            ZeroCopyVec::<CAPACITY, T>::required_size_for_capacity(capacity.to_usize().unwrap())
         ];
     println!("data len: {}", data.len());
     println!("capacity: {:?}", capacity);
     // new
     {
         let zero_copy_vec = ZeroCopyVec::<CAPACITY, T>::new(capacity, &mut data).unwrap();
-        assert_eq!(zero_copy_vec.capacity(), capacity.try_into().unwrap());
+        assert_eq!(zero_copy_vec.capacity(), capacity.to_usize().unwrap());
         assert_eq!(zero_copy_vec.len(), 0);
         assert!(zero_copy_vec.is_empty());
     }
@@ -133,7 +125,7 @@ where
             let data = data.clone();
             let mut metadata_size = size_of::<CAPACITY>();
             let length = data[0..metadata_size].to_vec();
-            let ref_length: CAPACITY = (0).try_into().unwrap();
+            let ref_length: CAPACITY = CAPACITY::from_usize(0).unwrap();
             assert_eq!(length, ref_length.to_ne_bytes().as_ref().to_vec());
 
             let padding_start = metadata_size.clone();
@@ -144,7 +136,7 @@ where
             assert_eq!(data, vec![0; padding_end - padding_start]);
         }
     }
-    let capacity_usize: usize = capacity.try_into().unwrap();
+    let capacity_usize: usize = capacity.to_usize().unwrap();
     let mut reference_vec = vec![];
     // fill vector completely and assert:
     {
@@ -176,7 +168,7 @@ where
                 let data = data.clone();
                 let mut metadata_size = size_of::<CAPACITY>();
                 let length = data[0..metadata_size].to_vec();
-                let ref_length: CAPACITY = (i + 1).try_into().unwrap();
+                let ref_length: CAPACITY = CAPACITY::from_usize(i + 1).unwrap();
                 assert_eq!(length, ref_length.to_ne_bytes().as_ref().to_vec());
 
                 let padding_start = metadata_size.clone();
@@ -255,7 +247,7 @@ where
             let data = data.clone();
             let mut metadata_size = size_of::<CAPACITY>();
             let length = data[0..metadata_size].to_vec();
-            let ref_length: CAPACITY = (0).try_into().unwrap();
+            let ref_length: CAPACITY = CAPACITY::zero(); //;(0).to_usize().unwrap();
             assert_eq!(length, ref_length.to_ne_bytes().as_ref().to_vec());
 
             let padding_start = metadata_size.clone();
@@ -275,20 +267,12 @@ fn assert_full_vec<CAPACITY, T>(
     reference_vec: &mut Vec<T>,
     vec: &mut ZeroCopyVec<CAPACITY, T>,
 ) where
-    CAPACITY: Debug
-        + Copy
-        + Clone
-        + Add<Output = CAPACITY>
-        + TryInto<usize>
-        + TryFrom<usize>
-        + PartialOrd,
+    CAPACITY: FromPrimitive + ToPrimitive + PrimInt,
     T: Copy + Clone + PartialEq + Debug,
     Standard: Distribution<T>,
-    <CAPACITY as TryFrom<usize>>::Error: std::fmt::Debug,
-    <CAPACITY as TryInto<usize>>::Error: std::fmt::Debug,
 {
     // 1. vector capacity is correct
-    assert_eq!(vec.capacity(), capacity.try_into().unwrap());
+    assert_eq!(vec.capacity(), capacity.to_usize().unwrap());
     // 2. vector length is correct
     assert_eq!(vec.len(), capacity_usize);
     // 3. vector is not empty
@@ -320,19 +304,11 @@ fn assert_empty_vec<CAPACITY, T>(
     mut reference_vec: Vec<T>,
     mut vec: ZeroCopyVec<CAPACITY, T>,
 ) where
-    CAPACITY: Debug
-        + Copy
-        + Clone
-        + Add<Output = CAPACITY>
-        + TryInto<usize>
-        + TryFrom<usize>
-        + PartialOrd,
+    CAPACITY: FromPrimitive + ToPrimitive + PrimInt,
     T: Copy + Clone + PartialEq + Debug,
-    <CAPACITY as TryFrom<usize>>::Error: std::fmt::Debug,
-    <CAPACITY as TryInto<usize>>::Error: std::fmt::Debug,
 {
     // 1. vector capacity is correct
-    assert_eq!(vec.capacity(), capacity.try_into().unwrap());
+    assert_eq!(vec.capacity(), capacity.to_usize().unwrap());
     // 2. vector length is correct
     assert_eq!(vec.len(), 0);
     // 3. vector is empty

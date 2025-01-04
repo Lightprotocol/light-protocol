@@ -2,8 +2,10 @@ use core::{fmt, slice};
 use std::{
     marker::PhantomData,
     mem::{size_of, ManuallyDrop},
-    ops::{Add, Index, IndexMut},
+    ops::{Index, IndexMut},
 };
+
+use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
 
 use crate::{add_padding, check_alignment, errors::ZeroCopyError, wrapped_pointer::WrappedPointer};
 
@@ -16,7 +18,7 @@ pub type ZeroCopySliceMutU8<T> = ZeroCopySliceMut<u8, T>;
 #[repr(C)]
 pub struct ZeroCopySliceMut<LEN, T>
 where
-    LEN: Copy + Clone,
+    LEN: Copy,
 {
     length: WrappedPointer<LEN>,
     data: ManuallyDrop<*mut T>,
@@ -25,10 +27,8 @@ where
 
 impl<LEN, T> ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: ToPrimitive + Copy,
+    T: Copy,
 {
     pub fn new(length: LEN, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
         Self::new_at(length, data, &mut 0)
@@ -36,10 +36,10 @@ where
 
     pub fn new_at(length: LEN, data: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
         let data = data.split_at_mut(*offset).1;
-        if Self::required_size_for_capacity(length.try_into().unwrap()) > data.len() {
+        if Self::required_size_for_capacity(length) > data.len() {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
                 data.len(),
-                Self::required_size_for_capacity(length.try_into().unwrap()),
+                Self::required_size_for_capacity(length),
             ));
         }
 
@@ -141,21 +141,19 @@ where
 
     #[inline]
     pub fn data_size(length: LEN) -> usize {
-        length.try_into().unwrap() * size_of::<T>()
+        length.to_usize().unwrap() * size_of::<T>()
     }
 
     #[inline]
-    pub fn required_size_for_capacity(capacity: usize) -> usize {
-        Self::metadata_size() + Self::data_size(capacity.try_into().unwrap())
+    pub fn required_size_for_capacity(capacity: LEN) -> usize {
+        Self::metadata_size() + Self::data_size(capacity)
     }
 }
 
 impl<LEN, T> ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: ToPrimitive + Copy,
+    T: Copy,
 {
     pub fn copy_from_slice(&mut self, slice: &[T]) {
         let len = slice.len();
@@ -175,14 +173,12 @@ where
 
 impl<LEN, T> ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: ToPrimitive + Copy,
+    T: Copy,
 {
     #[inline]
     pub fn len(&self) -> usize {
-        (*self.length).try_into().unwrap()
+        (*self.length).to_usize().unwrap()
     }
 
     #[inline]
@@ -248,10 +244,8 @@ where
 
 impl<LEN, T> IndexMut<usize> for ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + Copy,
+    T: Copy,
 {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
@@ -261,10 +255,8 @@ where
 
 impl<LEN, T> Index<usize> for ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + Copy,
+    T: Copy,
 {
     type Output = T;
 
@@ -276,10 +268,8 @@ where
 
 impl<'a, LEN, T> IntoIterator for &'a ZeroCopySliceMut<LEN, T>
 where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + PrimInt,
+    T: Copy,
 {
     type Item = &'a T;
     type IntoIter = slice::Iter<'a, T>;
@@ -292,10 +282,8 @@ where
 
 impl<'a, LEN, T> IntoIterator for &'a mut ZeroCopySliceMut<LEN, T>
 where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + PrimInt,
+    T: Copy,
 {
     type Item = &'a mut T;
     type IntoIter = slice::IterMut<'a, T>;
@@ -308,10 +296,8 @@ where
 
 impl<'b, LEN, T> ZeroCopySliceMut<LEN, T>
 where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + PrimInt,
+    T: Copy,
 {
     #[inline]
     pub fn iter(&'b self) -> slice::Iter<'b, T> {
@@ -326,10 +312,8 @@ where
 
 impl<LEN, T> PartialEq for ZeroCopySliceMut<LEN, T>
 where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy,
-    T: Copy + PartialEq + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + Copy,
+    T: Copy + PartialEq,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -339,10 +323,8 @@ where
 
 impl<LEN, T> fmt::Debug for ZeroCopySliceMut<LEN, T>
 where
-    T: Copy + Clone + fmt::Debug,
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    T: Copy + fmt::Debug,
+    LEN: FromPrimitive + ToPrimitive + Copy,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

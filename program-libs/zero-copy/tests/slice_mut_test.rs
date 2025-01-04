@@ -1,36 +1,26 @@
 use core::fmt::Debug;
-use std::{convert::TryInto, ops::Add};
 
 use light_zero_copy::{
     add_padding,
     errors::ZeroCopyError,
     slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutUsize},
 };
+use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
 use rand::{distributions::Standard, prelude::*};
 
 fn test_zero_copy_slice_mut_new<LEN, T>(length: LEN)
 where
-    LEN: Debug
-        + Copy
-        + Clone
-        + Add<Output = LEN>
-        + TryInto<usize>
-        + TryFrom<usize>
-        + PartialOrd
-        + num_traits::ToBytes,
-    <LEN as TryFrom<usize>>::Error: std::fmt::Debug,
-    <LEN as TryInto<usize>>::Error: std::fmt::Debug,
+    LEN: ToPrimitive + FromPrimitive + PrimInt + num_traits::ToBytes,
     T: Copy + Clone + PartialEq + Debug + Default,
     Standard: Distribution<T>,
 {
     let mut rng = thread_rng();
-    let mut data =
-        vec![0; ZeroCopySliceMut::<LEN, T>::required_size_for_capacity(length.try_into().unwrap())];
+    let mut data = vec![0; ZeroCopySliceMut::<LEN, T>::required_size_for_capacity(length)];
     ZeroCopySliceMut::<LEN, T>::new(length, &mut data).unwrap();
 
     // Test from_bytes with a zeroed slice
     {
-        let reference_vec = vec![T::default(); length.try_into().unwrap()];
+        let reference_vec = vec![T::default(); length.to_usize().unwrap()];
         let slice = ZeroCopySliceMut::<LEN, T>::from_bytes(&mut data).unwrap();
         // 1. Validate length
         assert_eq!(slice.len(), reference_vec.len());
@@ -59,7 +49,7 @@ where
         assert_eq!(T::default(), *slice.last().unwrap());
     }
 
-    let length_usize: usize = length.try_into().unwrap();
+    let length_usize: usize = length.to_usize().unwrap();
     let mut reference_vec = vec![T::default(); length_usize];
 
     // Fill the slice completely and verify properties
@@ -179,7 +169,7 @@ fn test_empty() {
     let mut data = vec![0; ZeroCopySliceMut::<u8, u8>::required_size_for_capacity(length)];
     let mut zero_copy_slice =
         ZeroCopySliceMut::<u8, u8>::new(u8::try_from(length).unwrap(), &mut data).unwrap();
-    assert_eq!(zero_copy_slice.len(), length.try_into().unwrap());
+    assert_eq!(zero_copy_slice.len(), length.to_usize().unwrap());
     assert!(zero_copy_slice.is_empty());
     assert_eq!(zero_copy_slice.first(), None);
     assert_eq!(zero_copy_slice.last(), None);
@@ -201,7 +191,7 @@ fn test_index_out_of_bounds() {
     let mut data = vec![0; ZeroCopySliceMut::<u8, u8>::required_size_for_capacity(length)];
     let zero_copy_slice =
         ZeroCopySliceMut::<u8, u8>::new(u8::try_from(length).unwrap(), &mut data).unwrap();
-    zero_copy_slice[length];
+    zero_copy_slice[length as usize];
 }
 
 /// Test that metadata size is aligned to T.
@@ -280,19 +270,19 @@ fn test_required_size() {
         64 + 1
     );
     assert_eq!(
-        ZeroCopySliceMut::<u16, u8>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u16, u8>::required_size_for_capacity(length as u16),
         64 + 2
     );
     assert_eq!(
-        ZeroCopySliceMut::<u32, u8>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u32, u8>::required_size_for_capacity(length as u32),
         64 + 4
     );
     assert_eq!(
-        ZeroCopySliceMut::<u64, u8>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u64, u8>::required_size_for_capacity(length as u64),
         64 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<usize, u8>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<usize, u8>::required_size_for_capacity(length as usize),
         64 + 8
     );
 
@@ -301,19 +291,19 @@ fn test_required_size() {
         128 + 2
     );
     assert_eq!(
-        ZeroCopySliceMut::<u16, u16>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u16, u16>::required_size_for_capacity(length as u16),
         128 + 2
     );
     assert_eq!(
-        ZeroCopySliceMut::<u32, u16>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u32, u16>::required_size_for_capacity(length as u32),
         128 + 4
     );
     assert_eq!(
-        ZeroCopySliceMut::<u64, u16>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u64, u16>::required_size_for_capacity(length as u64),
         128 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<usize, u16>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<usize, u16>::required_size_for_capacity(length as usize),
         128 + 8
     );
 
@@ -322,19 +312,19 @@ fn test_required_size() {
         256 + 4
     );
     assert_eq!(
-        ZeroCopySliceMut::<u16, u32>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u16, u32>::required_size_for_capacity(length as u16),
         256 + 4
     );
     assert_eq!(
-        ZeroCopySliceMut::<u32, u32>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u32, u32>::required_size_for_capacity(length as u32),
         256 + 4
     );
     assert_eq!(
-        ZeroCopySliceMut::<u64, u32>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u64, u32>::required_size_for_capacity(length as u64),
         256 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<usize, u32>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<usize, u32>::required_size_for_capacity(length as usize),
         256 + 8
     );
 
@@ -343,19 +333,19 @@ fn test_required_size() {
         512 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<u16, u64>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u16, u64>::required_size_for_capacity(length as u16),
         512 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<u32, u64>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u32, u64>::required_size_for_capacity(length as u32),
         512 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<u64, u64>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<u64, u64>::required_size_for_capacity(length as u64),
         512 + 8
     );
     assert_eq!(
-        ZeroCopySliceMut::<usize, u64>::required_size_for_capacity(length),
+        ZeroCopySliceMut::<usize, u64>::required_size_for_capacity(length as usize),
         512 + 8
     );
 }

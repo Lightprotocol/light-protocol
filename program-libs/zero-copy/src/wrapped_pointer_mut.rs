@@ -10,7 +10,7 @@ use crate::{check_alignment, check_size, errors::ZeroCopyError};
 
 pub struct WrappedPointerMut<T>
 where
-    T: Copy + Clone,
+    T: Copy,
 {
     ptr: ManuallyDrop<*mut T>,
     _marker: PhantomData<T>,
@@ -18,7 +18,7 @@ where
 
 impl<T> WrappedPointerMut<T>
 where
-    T: Copy + Clone,
+    T: Copy,
 {
     pub fn new(value: T, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
         check_size::<T>(data)?;
@@ -107,7 +107,7 @@ where
 
 impl<T> Deref for WrappedPointerMut<T>
 where
-    T: Copy + Clone,
+    T: Copy,
 {
     type Target = T;
 
@@ -118,7 +118,7 @@ where
 
 impl<T> DerefMut for WrappedPointerMut<T>
 where
-    T: Copy + Clone,
+    T: Copy,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.get_mut()
