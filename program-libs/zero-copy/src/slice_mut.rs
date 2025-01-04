@@ -2,10 +2,12 @@ use core::{fmt, slice};
 use std::{
     marker::PhantomData,
     mem::{size_of, ManuallyDrop},
-    ops::{Add, Index, IndexMut},
+    ops::{Index, IndexMut},
 };
 
-use crate::{add_padding, check_alignment, errors::ZeroCopyError, wrapped_pointer::WrappedPointer};
+use crate::{
+    add_padding, check_alignment, errors::ZeroCopyError, wrapped_pointer::WrappedPointer, Length,
+};
 
 pub type ZeroCopySliceMutUsize<T> = ZeroCopySliceMut<usize, T>;
 pub type ZeroCopySliceMutU32<T> = ZeroCopySliceMut<u32, T>;
@@ -14,27 +16,21 @@ pub type ZeroCopySliceMutU16<T> = ZeroCopySliceMut<u16, T>;
 pub type ZeroCopySliceMutU8<T> = ZeroCopySliceMut<u8, T>;
 
 #[repr(C)]
-pub struct ZeroCopySliceMut<LEN, T>
+pub struct ZeroCopySliceMut<L, T>
 where
-    LEN: Copy + Clone,
+    L: Copy,
 {
-    length: WrappedPointer<LEN>,
+    length: WrappedPointer<L>,
     data: ManuallyDrop<*mut T>,
     _marker: PhantomData<T>,
 }
 
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
-    pub fn new(length: LEN, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
+impl<L: Length, T: Copy> ZeroCopySliceMut<L, T> {
+    pub fn new(length: L, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
         Self::new_at(length, data, &mut 0)
     }
 
-    pub fn new_at(length: LEN, data: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
+    pub fn new_at(length: L, data: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
         let data = data.split_at_mut(*offset).1;
         if Self::required_size_for_capacity(length.try_into().unwrap()) > data.len() {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
@@ -46,7 +42,7 @@ where
         let metadata_size = Self::metadata_size();
         *offset += metadata_size;
         let (metadata, data) = data.split_at_mut(metadata_size);
-        let len = WrappedPointer::<LEN>::new(length, metadata)?;
+        let len = WrappedPointer::<L>::new(length, metadata)?;
         let data = Self::data_ptr_from_bytes(data)?;
         *offset += Self::data_size(length);
 
@@ -59,10 +55,10 @@ where
 
     pub fn new_at_multiple(
         num_slices: usize,
-        capacity: LEN,
+        capacity: L,
         bytes: &mut [u8],
         offset: &mut usize,
-    ) -> Result<Vec<ZeroCopySliceMut<LEN, T>>, ZeroCopyError> {
+    ) -> Result<Vec<ZeroCopySliceMut<L, T>>, ZeroCopyError> {
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
             let slice = Self::new_at(capacity, bytes, offset)?;
@@ -85,7 +81,7 @@ where
     pub fn from_bytes_at(
         bytes: &mut [u8],
         offset: &mut usize,
-    ) -> Result<ZeroCopySliceMut<LEN, T>, ZeroCopyError> {
+    ) -> Result<ZeroCopySliceMut<L, T>, ZeroCopyError> {
         let meta_data_size = Self::metadata_size();
         if bytes.len().saturating_sub(*offset) < meta_data_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
@@ -93,8 +89,8 @@ where
                 meta_data_size,
             ));
         }
-        let length = WrappedPointer::<LEN>::from_bytes_at(bytes, offset)?;
-        add_padding::<LEN, T>(offset);
+        let length = WrappedPointer::<L>::from_bytes_at(bytes, offset)?;
+        add_padding::<L, T>(offset);
         let full_vector_size = Self::data_size(*length);
         if bytes.len().saturating_sub(*offset) < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
@@ -116,7 +112,7 @@ where
         num_slices: usize,
         bytes: &mut [u8],
         offset: &mut usize,
-    ) -> Result<Vec<ZeroCopySliceMut<LEN, T>>, ZeroCopyError> {
+    ) -> Result<Vec<ZeroCopySliceMut<L, T>>, ZeroCopyError> {
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
             let slice = Self::from_bytes_at(bytes, offset)?;
@@ -134,13 +130,13 @@ where
 
     #[inline]
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<LEN>();
-        add_padding::<LEN, T>(&mut size);
+        let mut size = size_of::<L>();
+        add_padding::<L, T>(&mut size);
         size
     }
 
     #[inline]
-    pub fn data_size(length: LEN) -> usize {
+    pub fn data_size(length: L) -> usize {
         length.try_into().unwrap() * size_of::<T>()
     }
 
@@ -150,13 +146,7 @@ where
     }
 }
 
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> ZeroCopySliceMut<L, T> {
     pub fn copy_from_slice(&mut self, slice: &[T]) {
         let len = slice.len();
         if len != self.len() {
@@ -173,13 +163,7 @@ where
     }
 }
 
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> ZeroCopySliceMut<L, T> {
     #[inline]
     pub fn len(&self) -> usize {
         (*self.length).try_into().unwrap()
@@ -246,26 +230,14 @@ where
     }
 }
 
-impl<LEN, T> IndexMut<usize> for ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> IndexMut<usize> for ZeroCopySliceMut<L, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.as_mut_slice()[index]
     }
 }
 
-impl<LEN, T> Index<usize> for ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> Index<usize> for ZeroCopySliceMut<L, T> {
     type Output = T;
 
     #[inline]
@@ -274,13 +246,7 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a ZeroCopySliceMut<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'a, L: Length, T: Copy> IntoIterator for &'a ZeroCopySliceMut<L, T> {
     type Item = &'a T;
     type IntoIter = slice::Iter<'a, T>;
 
@@ -290,13 +256,7 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a mut ZeroCopySliceMut<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'a, L: Length, T: Copy> IntoIterator for &'a mut ZeroCopySliceMut<L, T> {
     type Item = &'a mut T;
     type IntoIter = slice::IterMut<'a, T>;
 
@@ -306,13 +266,7 @@ where
     }
 }
 
-impl<'b, LEN, T> ZeroCopySliceMut<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'b, L: Length, T: Copy> ZeroCopySliceMut<L, T> {
     #[inline]
     pub fn iter(&'b self) -> slice::Iter<'b, T> {
         self.as_slice().iter()
@@ -324,26 +278,14 @@ where
     }
 }
 
-impl<LEN, T> PartialEq for ZeroCopySliceMut<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy,
-    T: Copy + PartialEq + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy + PartialEq> PartialEq for ZeroCopySliceMut<L, T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.as_slice() == other.as_slice() && self.len() == other.len()
     }
 }
 
-impl<LEN, T> fmt::Debug for ZeroCopySliceMut<LEN, T>
-where
-    T: Copy + Clone + fmt::Debug,
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy + fmt::Debug> fmt::Debug for ZeroCopySliceMut<L, T> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.to_vec())

@@ -2,13 +2,13 @@ use core::slice;
 use std::{
     fmt,
     mem::size_of,
-    ops::{Add, Index, IndexMut},
+    ops::{Index, IndexMut},
     ptr::{self},
 };
 
 use crate::{
     add_padding, errors::ZeroCopyError, slice_mut::ZeroCopySliceMut,
-    wrapped_pointer_mut::WrappedPointerMut,
+    wrapped_pointer_mut::WrappedPointerMut, Length,
 };
 
 pub type ZeroCopyVecUsize<T> = ZeroCopyVec<usize, T>;
@@ -21,45 +21,33 @@ pub type ZeroCopyVecU8<T> = ZeroCopyVec<u8, T>;
 /// post-initialization reallocations. The size is not known during compile
 /// time (that makes it different from arrays), but can be defined only once
 /// (that makes it different from [`Vec`](std::vec::Vec)).
-pub struct ZeroCopyVec<LEN, T>
+pub struct ZeroCopyVec<L, T>
 where
-    LEN: TryFrom<usize> + Clone + Copy,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
-    length: WrappedPointerMut<LEN>,
-    data: ZeroCopySliceMut<LEN, T>,
+    length: WrappedPointerMut<L>,
+    data: ZeroCopySliceMut<L, T>,
 }
 
-impl<LEN, T> ZeroCopyVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
-    pub fn new(capacity: LEN, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
+impl<L: Length, T: Copy> ZeroCopyVec<L, T> {
+    pub fn new(capacity: L, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
         Self::new_at(capacity, data, &mut 0)
     }
 
-    pub fn new_at(
-        capacity: LEN,
-        data: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Self, ZeroCopyError> {
-        let length =
-            WrappedPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), data, offset).unwrap();
-        add_padding::<LEN, T>(offset);
-        let data = ZeroCopySliceMut::<LEN, T>::new_at(capacity, data, offset)?;
+    pub fn new_at(capacity: L, data: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
+        let length = WrappedPointerMut::<L>::new_at(L::try_from(0).unwrap(), data, offset).unwrap();
+        add_padding::<L, T>(offset);
+        let data = ZeroCopySliceMut::<L, T>::new_at(capacity, data, offset)?;
         Ok(Self { length, data })
     }
 
     pub fn new_at_multiple(
         num: usize,
-        capacity: LEN,
+        capacity: L,
         bytes: &mut [u8],
         offset: &mut usize,
-    ) -> Result<Vec<ZeroCopyVec<LEN, T>>, ZeroCopyError> {
+    ) -> Result<Vec<ZeroCopyVec<L, T>>, ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
             let vec = Self::new_at(capacity, bytes, offset)?;
@@ -68,16 +56,16 @@ where
         Ok(value_vecs)
     }
 
-    pub fn from_bytes(bytes: &mut [u8]) -> Result<ZeroCopyVec<LEN, T>, ZeroCopyError> {
+    pub fn from_bytes(bytes: &mut [u8]) -> Result<ZeroCopyVec<L, T>, ZeroCopyError> {
         Self::from_bytes_at(bytes, &mut 0)
     }
 
     pub fn from_bytes_at(
         bytes: &mut [u8],
         offset: &mut usize,
-    ) -> Result<ZeroCopyVec<LEN, T>, ZeroCopyError> {
-        let length = WrappedPointerMut::<LEN>::from_bytes_at(bytes, offset)?;
-        add_padding::<LEN, T>(offset);
+    ) -> Result<ZeroCopyVec<L, T>, ZeroCopyError> {
+        let length = WrappedPointerMut::<L>::from_bytes_at(bytes, offset)?;
+        add_padding::<L, T>(offset);
         let data = ZeroCopySliceMut::from_bytes_at(bytes, offset)?;
         Ok(ZeroCopyVec { length, data })
     }
@@ -107,7 +95,7 @@ where
         }
 
         unsafe { ptr::write(self.data.data_as_mut_ptr().add(self.len()), value) };
-        *self.length = *self.length + LEN::try_from(1).unwrap();
+        *self.length = *self.length + L::try_from(1).unwrap();
 
         Ok(())
     }
@@ -119,29 +107,21 @@ where
 
     #[inline]
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<LEN>();
-        add_padding::<LEN, T>(&mut size);
+        let mut size = size_of::<L>();
+        add_padding::<L, T>(&mut size);
         size
     }
 
     #[inline]
-    pub fn data_size(length: LEN) -> usize {
-        ZeroCopySliceMut::<LEN, T>::required_size_for_capacity(length.try_into().unwrap())
+    pub fn data_size(length: L) -> usize {
+        ZeroCopySliceMut::<L, T>::required_size_for_capacity(length.try_into().unwrap())
     }
 
     #[inline]
     pub fn required_size_for_capacity(capacity: usize) -> usize {
         Self::metadata_size() + Self::data_size(capacity.try_into().unwrap())
     }
-}
 
-impl<LEN, T> ZeroCopyVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
     #[inline]
     pub fn len(&self) -> usize {
         (*self.length).try_into().unwrap()
@@ -206,7 +186,7 @@ where
             panic!("Capacity overflow. Cannot copy slice into ZeroCopyVec");
         }
         self.data.as_mut_slice()[len..].copy_from_slice(slice);
-        *self.length = LEN::try_from(new_len).unwrap();
+        *self.length = L::try_from(new_len).unwrap();
     }
 
     #[inline]
@@ -219,13 +199,7 @@ where
     }
 }
 
-impl<LEN, T> IndexMut<usize> for ZeroCopyVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> IndexMut<usize> for ZeroCopyVec<L, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         // Access the underlying mutable slice using as_mut_slice() and index it
@@ -233,13 +207,7 @@ where
     }
 }
 
-impl<LEN, T> Index<usize> for ZeroCopyVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> Index<usize> for ZeroCopyVec<L, T> {
     type Output = T;
 
     #[inline]
@@ -249,13 +217,7 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a ZeroCopyVec<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'a, L: Length, T: Copy> IntoIterator for &'a ZeroCopyVec<L, T> {
     type Item = &'a T;
     type IntoIter = slice::Iter<'a, T>;
 
@@ -265,13 +227,7 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a mut ZeroCopyVec<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'a, L: Length, T: Copy> IntoIterator for &'a mut ZeroCopyVec<L, T> {
     type Item = &'a mut T;
     type IntoIter = slice::IterMut<'a, T>;
 
@@ -281,13 +237,7 @@ where
     }
 }
 
-impl<'b, LEN, T> ZeroCopyVec<LEN, T>
-where
-    LEN: Copy + Clone + TryFrom<usize> + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'b, L: Length, T: Copy> ZeroCopyVec<L, T> {
     #[inline]
     pub fn iter(&'b self) -> slice::Iter<'b, T> {
         self.as_slice().iter()
@@ -299,26 +249,14 @@ where
     }
 }
 
-impl<LEN, T> PartialEq for ZeroCopyVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    T: Copy + Clone + PartialEq,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy + PartialEq> PartialEq for ZeroCopyVec<L, T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data && self.len() == other.len()
     }
 }
 
-impl<LEN, T> fmt::Debug for ZeroCopyVec<LEN, T>
-where
-    T: Copy + Clone + fmt::Debug,
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN>,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy + fmt::Debug> fmt::Debug for ZeroCopyVec<L, T> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.to_vec())

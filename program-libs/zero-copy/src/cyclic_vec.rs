@@ -3,11 +3,12 @@ use std::{
     fmt::Debug,
     marker::PhantomData,
     mem::size_of,
-    ops::{Add, Index, IndexMut, Rem},
+    ops::{Index, IndexMut},
 };
 
 use crate::{
     add_padding, errors::ZeroCopyError, vec::ZeroCopyVec, wrapped_pointer_mut::WrappedPointerMut,
+    Length,
 };
 
 pub type ZeroCopyCyclicVecUsize<T> = ZeroCopyCyclicVec<usize, T>;
@@ -16,51 +17,37 @@ pub type ZeroCopyCyclicVecU64<T> = ZeroCopyCyclicVec<u64, T>;
 pub type ZeroCopyCyclicVecU16<T> = ZeroCopyCyclicVec<u16, T>;
 pub type ZeroCopyCyclicVecU8<T> = ZeroCopyCyclicVec<u8, T>;
 
-pub struct ZeroCopyCyclicVec<LEN, T>
+pub struct ZeroCopyCyclicVec<L, T>
 where
-    LEN: TryFrom<usize> + Clone + Copy + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
-    current_index: WrappedPointerMut<LEN>,
-    vec: ZeroCopyVec<LEN, T>,
+    current_index: WrappedPointerMut<L>,
+    vec: ZeroCopyVec<L, T>,
 }
 
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
+impl<L, T> ZeroCopyCyclicVec<L, T>
 where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
-    pub fn new(capacity: LEN, vec: &mut [u8]) -> Result<Self, ZeroCopyError> {
+    pub fn new(capacity: L, vec: &mut [u8]) -> Result<Self, ZeroCopyError> {
         Self::new_at(capacity, vec, &mut 0)
     }
 
-    pub fn new_at(
-        capacity: LEN,
-        vec: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Self, ZeroCopyError> {
-        let current_index =
-            WrappedPointerMut::<LEN>::new_at(LEN::try_from(0).unwrap(), vec, offset)?;
-        add_padding::<LEN, T>(offset);
-        let vec = ZeroCopyVec::<LEN, T>::new_at(capacity, vec, offset)?;
+    pub fn new_at(capacity: L, vec: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
+        let current_index = WrappedPointerMut::<L>::new_at(L::try_from(0).unwrap(), vec, offset)?;
+        add_padding::<L, T>(offset);
+        let vec = ZeroCopyVec::<L, T>::new_at(capacity, vec, offset)?;
         Ok(Self { current_index, vec })
     }
 
     pub fn new_at_multiple(
         num: usize,
-        capacity: LEN,
+        capacity: L,
         account_data: &mut [u8],
         offset: &mut usize,
-    ) -> Result<Vec<ZeroCopyCyclicVec<LEN, T>>, ZeroCopyError> {
+    ) -> Result<Vec<ZeroCopyCyclicVec<L, T>>, ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
             let vec = Self::new_at(capacity, account_data, offset)?;
@@ -70,17 +57,10 @@ where
     }
 }
 
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
+impl<L, T> ZeroCopyCyclicVec<L, T>
 where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
     pub fn from_bytes(account_data: &mut [u8]) -> Result<Self, ZeroCopyError> {
         Self::from_bytes_at(account_data, &mut 0)
@@ -90,9 +70,9 @@ where
         account_data: &mut [u8],
         offset: &mut usize,
     ) -> Result<Self, ZeroCopyError> {
-        let current_index = WrappedPointerMut::<LEN>::from_bytes_at(account_data, offset)?;
-        add_padding::<LEN, T>(offset);
-        let vec = ZeroCopyVec::<LEN, T>::from_bytes_at(account_data, offset)?;
+        let current_index = WrappedPointerMut::<L>::from_bytes_at(account_data, offset)?;
+        add_padding::<L, T>(offset);
+        let vec = ZeroCopyVec::<L, T>::from_bytes_at(account_data, offset)?;
         Ok(Self { current_index, vec })
     }
 
@@ -110,17 +90,10 @@ where
     }
 }
 
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
+impl<L, T> ZeroCopyCyclicVec<L, T>
 where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
     #[inline]
     pub fn push(&mut self, value: T) {
@@ -131,7 +104,7 @@ where
             self.vec[current_index] = value;
         }
         let new_index = (self.current_index() + 1) % self.vec.capacity();
-        *self.current_index = LEN::try_from(new_index).unwrap();
+        *self.current_index = L::try_from(new_index).unwrap();
     }
 
     #[inline]
@@ -185,7 +158,7 @@ where
     }
 
     #[inline]
-    pub fn iter(&self) -> ZeroCopyCyclicVecIterator<'_, LEN, T> {
+    pub fn iter(&self) -> ZeroCopyCyclicVecIterator<'_, L, T> {
         ZeroCopyCyclicVecIterator {
             vec: self,
             current: self.first_index(),
@@ -198,7 +171,7 @@ where
     pub fn iter_from(
         &self,
         start: usize,
-    ) -> Result<ZeroCopyCyclicVecIterator<'_, LEN, T>, ZeroCopyError> {
+    ) -> Result<ZeroCopyCyclicVecIterator<'_, L, T>, ZeroCopyError> {
         if start >= self.len() {
             return Err(ZeroCopyError::IterFromOutOfBounds);
         }
@@ -211,13 +184,13 @@ where
     }
 
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<LEN>();
-        add_padding::<LEN, T>(&mut size);
+        let mut size = size_of::<L>();
+        add_padding::<L, T>(&mut size);
         size
     }
 
-    pub fn data_size(length: LEN) -> usize {
-        ZeroCopyVec::<LEN, T>::required_size_for_capacity(length.try_into().unwrap())
+    pub fn data_size(length: L) -> usize {
+        ZeroCopyVec::<L, T>::required_size_for_capacity(length.try_into().unwrap())
     }
 
     pub fn required_size_for_capacity(capacity: usize) -> usize {
@@ -269,31 +242,18 @@ where
     }
 }
 
-pub struct ZeroCopyCyclicVecIterator<'a, LEN, T>
+pub struct ZeroCopyCyclicVecIterator<'a, L, T>
 where
-    LEN: TryFrom<usize> + Clone + Copy + TryInto<usize> + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
+    L: Length,
+    T: Copy,
 {
-    vec: &'a ZeroCopyCyclicVec<LEN, T>,
+    vec: &'a ZeroCopyCyclicVec<L, T>,
     current: usize,
     is_finished: bool,
     _marker: PhantomData<T>,
 }
 
-impl<'a, LEN, T> Iterator for ZeroCopyCyclicVecIterator<'a, LEN, T>
-where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Rem<LEN, Output = LEN>
-        + Add<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<'a, L: Length, T: Copy> Iterator for ZeroCopyCyclicVecIterator<'a, L, T> {
     type Item = &'a T;
 
     #[inline]
@@ -312,18 +272,7 @@ where
     }
 }
 
-impl<LEN, T> IndexMut<usize> for ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> IndexMut<usize> for ZeroCopyCyclicVec<L, T> {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         // Access the underlying mutable slice using as_mut_slice() and index it
@@ -331,18 +280,7 @@ where
     }
 }
 
-impl<LEN, T> Index<usize> for ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy> Index<usize> for ZeroCopyCyclicVec<L, T> {
     type Output = T;
 
     #[inline]
@@ -352,31 +290,13 @@ where
     }
 }
 
-impl<LEN, T> PartialEq for ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: TryFrom<usize> + TryInto<usize> + Copy + Clone + Add<LEN, Output = LEN> + PartialEq,
-    T: Copy + Clone + PartialEq,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length + PartialEq, T: Copy + PartialEq> PartialEq for ZeroCopyCyclicVec<L, T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.vec == other.vec && *self.current_index == *other.current_index
     }
 }
-
-impl<LEN, T> fmt::Debug for ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: TryFrom<usize>
-        + TryInto<usize>
-        + Copy
-        + Clone
-        + Add<LEN, Output = LEN>
-        + Rem<LEN, Output = LEN>,
-    T: Copy + Clone + Debug,
-    <LEN as TryFrom<usize>>::Error: fmt::Debug,
-    <LEN as TryInto<usize>>::Error: fmt::Debug,
-{
+impl<L: Length, T: Copy + Debug> Debug for ZeroCopyCyclicVec<L, T> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.to_vec())

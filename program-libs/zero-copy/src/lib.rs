@@ -1,3 +1,5 @@
+use std::fmt;
+
 use errors::ZeroCopyError;
 
 pub mod cyclic_vec;
@@ -7,7 +9,10 @@ pub mod vec;
 pub mod wrapped_pointer;
 pub mod wrapped_pointer_mut;
 
-use std::mem::{align_of, size_of};
+use std::{
+    mem::{align_of, size_of},
+    ops::Add,
+};
 
 pub const SIZE_OF_ZERO_COPY_SLICE_METADATA: usize = 8;
 pub const SIZE_OF_ZERO_COPY_VEC_METADATA: usize = 16;
@@ -48,4 +53,20 @@ where
 {
     let padding = align_of::<T>().saturating_sub(size_of::<LEN>());
     *offset += padding;
+}
+
+pub trait Length:
+    Copy
+    + Add<Self, Output = Self>
+    + TryFrom<usize, Error: fmt::Debug>
+    + TryInto<usize, Error: fmt::Debug>
+{
+}
+
+impl<T> Length for T
+where
+    T: Copy + Add<T, Output = T> + TryFrom<usize> + TryInto<usize>,
+    <T as TryFrom<usize>>::Error: fmt::Debug,
+    <T as TryInto<usize>>::Error: fmt::Debug,
+{
 }
