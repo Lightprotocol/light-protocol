@@ -147,8 +147,6 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		proof, proofError = handler.nonInclusionProof(buf, proofRequestMeta)
 	case prover.CombinedCircuitType:
 		proof, proofError = handler.combinedProof(buf, proofRequestMeta)
-	case prover.BatchAppendWithSubtreesCircuitType:
-		proof, proofError = handler.batchAppendWithSubtreesHandler(buf)
 	case prover.BatchUpdateCircuitType:
 		proof, proofError = handler.batchUpdateProof(buf)
 	case prover.BatchAppendWithProofsCircuitType:
@@ -243,37 +241,6 @@ func (handler proveHandler) batchAppendWithProofsHandler(buf []byte) (*prover.Pr
 		return nil, provingError(err)
 	}
 
-	return proof, nil
-}
-
-func (handler proveHandler) batchAppendWithSubtreesHandler(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchAppendWithSubtreesParameters
-	err := json.Unmarshal(buf, &params)
-	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
-		return nil, malformedBodyError(err)
-	}
-
-	batchSize := uint32(len(params.Leaves))
-
-	var ps *prover.ProvingSystemV2
-	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendWithSubtreesCircuitType && provingSystem.BatchSize == batchSize && provingSystem.TreeHeight == params.TreeHeight {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for batch size %d", batchSize))
-	}
-
-	proof, err := ps.ProveBatchAppendWithSubtrees(&params)
-	if err != nil {
-		logging.Logger().Err(err)
-		return nil, provingError(err)
-	}
 	return proof, nil
 }
 

@@ -46,7 +46,7 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchAppendWithSubtreesCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppendWithProofsCircuitType && circuit != prover.BatchAddressAppendCircuitType {
+					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppendWithProofsCircuitType && circuit != prover.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -80,10 +80,6 @@ func runCli() {
 						}
 					}
 
-					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppendWithSubtreesCircuitType {
-						return fmt.Errorf("[Batch append]: tree height and batch size must be provided")
-					}
-
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
@@ -94,14 +90,7 @@ func runCli() {
 
 					logging.Logger().Info().Msg("Running setup")
 					var err error
-					if circuit == prover.BatchAppendWithSubtreesCircuitType {
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAppendWithSubtreesCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
-						if err != nil {
-							return err
-						}
-						err = prover.WriteProvingSystem(system, path, pathVkey)
-					} else if circuit == prover.BatchAppendWithProofsCircuitType {
+					if circuit == prover.BatchAppendWithProofsCircuitType {
 						var system *prover.ProvingSystemV2
 						system, err = prover.SetupCircuitV2(prover.BatchAppendWithProofsCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
@@ -158,7 +147,7 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchAppendWithSubtreesCircuitType {
+					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -167,8 +156,6 @@ func runCli() {
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
 					nonInclusionTreeHeight := uint32(context.Uint("non-inclusion-tree-height"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
-					batchAppendTreeHeight := uint32(context.Uint("append-tree-height"))
-					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
 					batchUpdateTreeHeight := uint32(context.Uint("update-tree-height"))
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
 					batchAddressAppendTreeHeight := uint32(context.Uint("address-append-tree-height"))
@@ -191,10 +178,6 @@ func runCli() {
 						}
 					}
 
-					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == prover.BatchAppendWithSubtreesCircuitType {
-						return fmt.Errorf("[Batch append]: tree height and batch size must be provided")
-					}
-
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
@@ -214,8 +197,6 @@ func runCli() {
 						cs, err = prover.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 					} else if circuit == prover.CombinedCircuitType {
 						cs, err = prover.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					} else if circuit == prover.BatchAppendWithSubtreesCircuitType {
-						cs, err = prover.R1CSBatchAppendWithSubtrees(batchAppendTreeHeight, batchAppendBatchSize)
 					} else if circuit == prover.BatchUpdateCircuitType {
 						cs, err = prover.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
 					} else if circuit == prover.BatchAddressAppendCircuitType {
@@ -290,7 +271,7 @@ func runCli() {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
 						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchAppendWithSubtreesSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
+						system, err = prover.ImportBatchAppendWithProofSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
@@ -590,15 +571,15 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("append") {
-						var params prover.BatchAppendWithSubtreesParameters
+						var params prover.BatchAppendWithProofsParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
 						}
 
 						for _, provingSystem := range psv2 {
-							if provingSystem.TreeHeight == params.TreeHeight && provingSystem.BatchSize == params.BatchSize() {
-								proof, err = provingSystem.ProveBatchAppendWithSubtrees(&params)
+							if provingSystem.TreeHeight == params.Height && provingSystem.BatchSize == params.BatchSize {
+								proof, err = provingSystem.ProveBatchAppendWithProofs(&params)
 								if err != nil {
 									return err
 								}
@@ -701,27 +682,6 @@ func runCli() {
 						default:
 							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
 						}
-					case *prover.ProvingSystemV2:
-						if circuit != "append" {
-							return fmt.Errorf("invalid circuit type for ProvingSystemV2: %s", circuit)
-						}
-						oldSubTreeHashChain, err := prover.ParseBigInt(context.String("old-sub-tree-hash-chain"))
-						if err != nil {
-							return fmt.Errorf("failed to parse old sub-tree hash chain: %v", err)
-						}
-						newSubTreeHashChain, err := prover.ParseBigInt(context.String("new-sub-tree-hash-chain"))
-						if err != nil {
-							return fmt.Errorf("failed to parse new sub-tree hash chain: %v", err)
-						}
-						newRoot, err := prover.ParseBigInt(context.String("new-root"))
-						if err != nil {
-							return fmt.Errorf("failed to parse new root: %v", err)
-						}
-						hashchainHash, err := prover.ParseBigInt(context.String("hashchain-hash"))
-						if err != nil {
-							return fmt.Errorf("failed to parse hashchain hash: %v", err)
-						}
-						verifyErr = s.VerifyBatchAppendWithSubtrees(oldSubTreeHashChain, newSubTreeHashChain, newRoot, hashchainHash, &proof)
 					default:
 						return fmt.Errorf("unknown proving system type")
 					}
