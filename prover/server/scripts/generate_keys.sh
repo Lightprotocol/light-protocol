@@ -24,10 +24,7 @@ generate_circuit() {
     local circuit_file
     local circuit_vkey_file
     local circuit_vkey_rs_file
-    if [ "$circuit_type" == "appendWithSubtrees" ]; then
-        compressed_accounts=$batch_size
-        circuit_type_rs="append_with_subtrees"
-    elif [ "$circuit_type" == "appendWithProofs" ]; then
+    if [ "$circuit_type" == "appendWithProofs" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="append_with_proofs"
     elif [ "$circuit_type" == "update" ]; then
@@ -93,11 +90,6 @@ main() {
 
     for batch_size in "${append_batch_sizes_arr[@]}"; do
         generate_circuit "appendWithProofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
-    done
-
-    declare -a append_batch_sizes_arr=("1" "10" "100" "500" "1000")
-    for batch_size in "${append_batch_sizes_arr[@]}"; do
-        generate_circuit "appendWithSubtrees" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
     declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")
