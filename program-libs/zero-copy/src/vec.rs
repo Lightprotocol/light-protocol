@@ -199,7 +199,7 @@ where
         &mut self.data.as_mut_slice()[..len]
     }
 
-    pub fn copy_from_slice(&mut self, slice: &[T]) {
+    pub fn extend_from_slice(&mut self, slice: &[T]) {
         let len = self.len();
         let new_len = len + slice.len();
         if new_len > self.capacity() {

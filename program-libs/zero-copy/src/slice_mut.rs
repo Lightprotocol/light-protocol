@@ -168,7 +168,7 @@ where
         }
 
         unsafe {
-            std::ptr::copy_nonoverlapping(slice.as_ptr(), self.data_as_mut_ptr(), slice.len());
+            std::ptr::copy_nonoverlapping(slice.as_ptr(), self.data_as_mut_ptr(), len);
         }
     }
 }

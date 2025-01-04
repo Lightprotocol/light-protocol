@@ -376,7 +376,7 @@ fn test_zero_copy_vec_to_array() {
     let capacity = 16;
     let mut data = vec![0; ZeroCopyVecUsize::<u32>::required_size_for_capacity(capacity)];
     let mut vec = ZeroCopyVecUsize::<u32>::new(capacity, &mut data).unwrap();
-    vec.copy_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    vec.extend_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
     let arr: [u32; 16] = vec.try_into_array().unwrap();
     assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
