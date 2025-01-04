@@ -6,7 +6,6 @@ import {
     bn,
     createRpc,
     getTestRpc,
-    TestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -15,7 +14,7 @@ const TEST_TOKEN_DECIMALS = 2;
 
 describe('rpc-interop token', () => {
     let rpc: Rpc;
-    let testRpc: TestRpc | Rpc;
+    let testRpc: Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
