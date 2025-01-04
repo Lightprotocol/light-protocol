@@ -476,7 +476,7 @@ func runCli() {
 					&cli.StringSliceFlag{
 						Name:  "circuit",
 						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-proofs,  update, append-with-proofs-test,  update-test, address-append, address-append-test)",
-						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "appendWithSubtrees", "update", "append-with-proofs-test", "update-test", "addressAppend", "address-append-test"),
+						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "update", "append-with-proofs-test", "update-test", "addressAppend", "address-append-test"),
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
