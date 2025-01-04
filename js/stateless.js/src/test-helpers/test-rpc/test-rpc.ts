@@ -140,7 +140,6 @@ export async function getTestRpc(
  * For advanced testing use photon: https://github.com/helius-labs/photon
  */
 export class TestRpc extends Connection implements CompressionApiInterface {
-    // connection: Connection;
     compressionApiEndpoint: string;
     proverEndpoint: string;
     merkleTreeAddress: PublicKey;
@@ -173,10 +172,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ) {
         super(endpoint, connectionConfig || 'confirmed');
 
-        // this.connection = new Connection(
-        //     endpoint,
-        //     connectionConfig || 'confirmed',
-        // );
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 

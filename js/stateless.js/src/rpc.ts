@@ -61,17 +61,6 @@ import { defaultTestStateTreeAccounts } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
 
-type ClientSubscriptionId = number;
-
-// // Define an interface that includes the methods you need from Connection
-// interface ConnectionInterface {
-//     sendTransaction(transaction: any, options?: any): Promise<any>;
-//     getLatestBlockhash(): Promise<BlockhashWithExpiryBlockHeight>;
-//     confirmTransaction(signature: string, commitment?: string): Promise<any>;
-//     commitment: string;
-//     // Add other methods and properties as needed
-// }
-
 import {
     proofFromJsonStruct,
     negateAndCompressProof,
@@ -507,7 +496,6 @@ const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
  *
  */
 export class Rpc extends Connection implements CompressionApiInterface {
-    // connection: Connection;
     compressionApiEndpoint: string;
     proverEndpoint: string;
 
@@ -527,7 +515,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ) {
         super(endpoint, config || 'confirmed');
 
-        // this.connection = new Connection(endpoint, config || 'confirmed');
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
     }
