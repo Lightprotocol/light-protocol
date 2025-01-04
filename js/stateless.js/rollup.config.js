@@ -3,8 +3,8 @@ import nodePolyfills from 'rollup-plugin-polyfill-node';
 import dts from 'rollup-plugin-dts';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import terser from '@rollup/plugin-terser';
 
+import json from '@rollup/plugin-json';
 const rolls = (fmt, env) => ({
     input: 'src/index.ts',
     output: {
@@ -15,11 +15,6 @@ const rolls = (fmt, env) => ({
     },
     external: [
         '@solana/web3.js',
-        // '@coral-xyz/borsh',
-        // '@noble/hashes',
-        'buffer',
-        'superstruct',
-        'buffer-layout',
     ],
     plugins: [
         typescript({
@@ -33,26 +28,7 @@ const rolls = (fmt, env) => ({
             preferBuiltins: env === 'node',
         }),
         env === 'browser' ? nodePolyfills() : undefined,
-        terser({
-            compress: {
-                drop_console: true,
-                drop_debugger: true,
-                passes: 3,
-                pure_funcs: ['console.log', 'console.error', 'console.warn'],
-                booleans_as_integers: true,
-                keep_fargs: false,
-                keep_fnames: false,
-                keep_infinity: true,
-                reduce_funcs: true,
-                reduce_vars: true,
-            },
-            mangle: {
-                toplevel: true,
-            },
-            output: {
-                comments: false,
-            },
-        }),
+        json(),
     ].filter(Boolean),
     onwarn(warning, warn) {
         if (warning.code !== 'CIRCULAR_DEPENDENCY') {

@@ -9,7 +9,7 @@
         ".": {
             "require": "./dist/cjs/node/index.cjs",
             "types": "./dist/types/index.d.ts",
-            "import": "./dist/es/browser/index.js"
+            "default": "./dist/cjs/node/index.cjs"
         },
         "./browser": {
             "import": "./dist/es/browser/index.js",
