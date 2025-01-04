@@ -417,7 +417,7 @@ func runCli() {
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-subtrees, append-with-proofs, update, append-with-subtrees-test, append-with-proofs-test, update-test, address-append, address-append-test)",
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined,  append-with-proofs, update,  append-with-proofs-test, update-test, address-append, address-append-test)",
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
@@ -475,8 +475,8 @@ func runCli() {
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 					&cli.StringSliceFlag{
 						Name:  "circuit",
-						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-proofs, append-with-subtrees, update, append-with-proofs-test, append-with-subtrees-test, update-test, address-append, address-append-test)",
-						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "appendWithSubtrees", "update", "append-with-proofs-test", "append-with-subtrees-test", "update-test", "addressAppend", "address-append-test"),
+						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append-with-proofs,  update, append-with-proofs-test,  update-test, address-append, address-append-test)",
+						Value: cli.NewStringSlice("inclusion", "non-inclusion", "combined", "appendWithProofs", "appendWithSubtrees", "update", "append-with-proofs-test", "update-test", "addressAppend", "address-append-test"),
 					},
 					&cli.StringFlag{
 						Name:  "run-mode",
