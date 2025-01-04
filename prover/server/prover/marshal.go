@@ -205,20 +205,6 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 			return nil, err
 		}
 		return ps, nil
-	} else if strings.Contains(strings.ToLower(path), "append-with-subtrees") {
-		ps := new(ProvingSystemV2)
-		ps.CircuitType = BatchAppendWithSubtreesCircuitType
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		_, err = ps.UnsafeReadFrom(file)
-		if err != nil {
-			return nil, err
-		}
-		return ps, nil
 	} else if strings.Contains(strings.ToLower(path), "update") {
 		ps := new(ProvingSystemV2)
 		ps.CircuitType = BatchUpdateCircuitType

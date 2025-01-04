@@ -114,62 +114,6 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 	}
 }
 
-func BuildAndUpdateBatchAppendWithSubtreesParameters(treeDepth uint32, batchSize uint32, startIndex uint32, previousParams *BatchAppendWithSubtreesParameters) BatchAppendWithSubtreesParameters {
-	var tree merkletree.PoseidonTree
-	var oldSubTreeHashChain *big.Int
-	var oldSubtrees []*big.Int
-
-	if previousParams == nil {
-		tree = merkletree.NewTree(int(treeDepth))
-		// Generate and insert initial leaves
-		for i := uint32(0); i < startIndex; i++ {
-			leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(i))})
-			tree.Update(int(i), *leaf)
-		}
-		oldSubtrees = tree.GetRightmostSubtrees(int(treeDepth))
-		oldSubTreeHashChain = calculateHashChain(oldSubtrees, int(treeDepth))
-	} else {
-		tree = *previousParams.tree.DeepCopy()
-		oldSubtrees = tree.GetRightmostSubtrees(int(treeDepth))
-		oldSubTreeHashChain = previousParams.NewSubTreeHashChain
-	}
-
-	// Generate new leaves for this batch
-	newLeaves := make([]*big.Int, batchSize)
-	for i := uint32(0); i < batchSize; i++ {
-		leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(int64(startIndex + i))})
-		newLeaves[i] = leaf
-		tree.Update(int(startIndex)+int(i), *leaf)
-	}
-
-	newSubtrees := tree.GetRightmostSubtrees(int(treeDepth))
-	newSubTreeHashChain := calculateHashChain(newSubtrees, int(treeDepth))
-	newRoot := tree.Root.Value()
-	hashchainHash := calculateHashChain(newLeaves, int(batchSize))
-
-	publicInputHash := calculateHashChain([]*big.Int{
-		oldSubTreeHashChain,
-		newSubTreeHashChain,
-		&newRoot,
-		hashchainHash,
-		big.NewInt(int64(startIndex))},
-		5)
-	params := BatchAppendWithSubtreesParameters{
-		PublicInputHash:     publicInputHash,
-		OldSubTreeHashChain: oldSubTreeHashChain,
-		NewSubTreeHashChain: newSubTreeHashChain,
-		NewRoot:             &newRoot,
-		HashchainHash:       hashchainHash,
-		StartIndex:          startIndex,
-		Leaves:              newLeaves,
-		Subtrees:            oldSubtrees,
-		TreeHeight:          treeDepth,
-		tree:                &tree,
-	}
-
-	return params
-}
-
 func calculateHashChain(hashes []*big.Int, length int) *big.Int {
 	if len(hashes) == 0 {
 		return big.NewInt(0)
