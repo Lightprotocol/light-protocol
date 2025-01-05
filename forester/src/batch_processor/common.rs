@@ -107,7 +107,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         };
 
         Self::calculate_completion_from_tree(account.data.as_mut_slice())
-    }
+            }
 
     async fn get_output_queue_completion(&self, rpc: &mut R) -> f64 {
         let mut account = match rpc.get_account(self.context.output_queue).await {
@@ -116,7 +116,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         };
 
         Self::calculate_completion_from_queue(account.data.as_mut_slice())
-    }
+            }
 
     fn calculate_completion_from_tree(data: &mut [u8]) -> f64 {
         let tree = match BatchedMerkleTreeAccount::state_tree_from_bytes_mut(data) {
@@ -166,7 +166,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)
-    }
+        }
 
     async fn get_num_inserted_zkps(&self, rpc: &mut R) -> Result<(u64, usize)> {
         let (num_inserted_zkps, zkp_batch_size) = {
