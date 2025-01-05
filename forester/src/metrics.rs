@@ -169,7 +169,7 @@ pub async fn push_metrics(url: &Option<String>) -> Result<()> {
             res.status(),
             res.text().await?
         );
-        Err(error_message.into())
+        Err(anyhow::anyhow!(error_message))
     }
 }
 

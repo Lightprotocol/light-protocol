@@ -11,20 +11,26 @@ use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::{runtime::Builder, sync::mpsc};
 use tracing::{debug, error};
 
-use crate::{errors::ForesterError, queue_helpers::QueueUpdate, ForesterConfig, Result};
+use crate::{
+    errors::{ChannelError, ForesterError},
+    queue_helpers::QueueUpdate,
+    ForesterConfig, Result,
+};
 
 pub async fn setup_pubsub_client(
     config: &ForesterConfig,
     queue_pubkeys: std::collections::HashSet<Pubkey>,
 ) -> Result<(mpsc::Receiver<QueueUpdate>, mpsc::Sender<()>)> {
-    let ws_url = match &config.external_services.ws_rpc_url {
-        Some(url) => url.clone(),
-        None => {
-            return Err(ForesterError::Custom(
-                "PubSub client requires a WebSocket URL".to_string(),
-            ))
-        }
-    };
+    let ws_url = config
+        .external_services
+        .ws_rpc_url
+        .as_ref()
+        .ok_or_else(|| {
+            ForesterError::Channel(ChannelError::General {
+                error: "PubSub client requires a WebSocket URL".to_string(),
+            })
+        })?
+        .clone();
 
     debug!(
         "Setting up pubsub client for {} queues",
@@ -61,13 +67,19 @@ fn spawn_pubsub_client(
         let rt = Builder::new_current_thread()
             .enable_all()
             .build()
-            .map_err(|e| ForesterError::Custom(format!("Failed to build runtime: {}", e)))?;
+            .map_err(|e| {
+                ForesterError::Channel(ChannelError::General {
+                    error: format!("Failed to build runtime: {}", e),
+                })
+            })?;
 
         rt.block_on(async {
             debug!("Connecting to PubSub at {}", ws_url);
-            let pubsub_client = PubsubClient::new(&ws_url).await.map_err(|e| {
-                ForesterError::Custom(format!("Failed to create PubsubClient: {}", e))
-            })?;
+            let pubsub_client = PubsubClient::new(&ws_url)
+                .await
+                .map_err(|e| ForesterError::Channel(ChannelError::General {
+                    error: format!("Failed to create PubsubClient: {}", e)
+                }))?;
 
             debug!("PubSub connection established");
 
@@ -86,9 +98,9 @@ fn spawn_pubsub_client(
                     }),
                 )
                 .await
-                .map_err(|e| {
-                    ForesterError::Custom(format!("Failed to subscribe to program: {}", e))
-                })?;
+                .map_err(|e| ForesterError::Channel(ChannelError::General {
+                    error: format!("Failed to subscribe to program: {}", e)
+                }))?;
 
             loop {
                 tokio::select! {

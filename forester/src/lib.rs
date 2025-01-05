@@ -1,6 +1,6 @@
-pub type Result<T> = std::result::Result<T, ForesterError>;
+pub type Result<T> = anyhow::Result<T>;
 
-pub mod batched_ops;
+mod batch_processor;
 pub mod cli;
 pub mod config;
 pub mod epoch_manager;
@@ -37,7 +37,6 @@ use tracing::debug;
 
 use crate::{
     epoch_manager::{run_service, WorkReport},
-    errors::ForesterError,
     metrics::QUEUE_LENGTH,
     queue_helpers::fetch_queue_item_data,
     slot_tracker::SlotTracker,
@@ -92,8 +91,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,
     )
-    .await
-    .map_err(|e| ForesterError::Custom(e.to_string()))?;
+    .await?;
 
     let protocol_config = {
         let mut rpc = rpc_pool.get_connection().await?;
