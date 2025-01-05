@@ -68,6 +68,17 @@ export type DelegatedTransfer = {
     delegateChangeAccountIndex: number | null;
 };
 
+export type MintToInstructionData = {
+    recipients: PublicKey[];
+    amounts: BN[];
+    lamports: BN | null;
+};
+export type CompressSplTokenAccountInstructionData = {
+    owner: PublicKey;
+    remainingAmount: BN | null;
+    cpiContext: CompressedCpiContext | null;
+};
+
 export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof

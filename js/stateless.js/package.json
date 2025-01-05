@@ -93,7 +93,7 @@
         "test:e2e:browser": "pnpm playwright test",
         "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/rpc-interop.test.ts",
         "test:index": "vitest run tests/e2e/program.test.ts",
-        "test:e2e:serde": "vitest run tests/e2e/serde.test.ts --reporter=verbose",
+        "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
         "test:verbose": "vitest run --reporter=verbose",
         "test:testnet": "vitest run tests/e2e/testnet.test.ts --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",

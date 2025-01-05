@@ -26,14 +26,17 @@ import {
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
-import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
+import {
+    CPI_AUTHORITY_SEED,
+    POOL_SEED,
+    CREATE_TOKEN_POOL_DISCRIMINATOR,
+} from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
 import {
-    CREATE_TOKEN_POOL_DISCRIMINATOR,
-    createTokenPoolAccountsLayout,
-    encodeCompressedTokenInstructionDataTransfer,
+    encodeTransferInstructionData,
     encodeCompressSplTokenAccountInstructionData,
     encodeMintToInstructionData,
+    createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
 } from './layout';
@@ -671,7 +674,11 @@ export class CompressedTokenProgram {
             solPoolPda: null, // TODO: add lamports support
         });
 
-        const data = encodeMintToInstructionData(toPubkeys, amounts, null);
+        const data = encodeMintToInstructionData({
+            recipients: toPubkeys,
+            amounts,
+            lamports: null,
+        });
 
         return new TransactionInstruction({
             programId: this.programId,
@@ -769,7 +776,7 @@ export class CompressedTokenProgram {
             lamportsChangeAccountMerkleTreeIndex: null,
         };
 
-        const data = encodeCompressedTokenInstructionDataTransfer(rawData);
+        const data = encodeTransferInstructionData(rawData);
 
         const {
             accountCompressionAuthority,
@@ -934,7 +941,7 @@ export class CompressedTokenProgram {
             lamportsChangeAccountMerkleTreeIndex: null,
         };
 
-        const data = encodeCompressedTokenInstructionDataTransfer(rawData);
+        const data = encodeTransferInstructionData(rawData);
 
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
@@ -1009,7 +1016,7 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-        const data = encodeCompressedTokenInstructionDataTransfer(rawData);
+        const data = encodeTransferInstructionData(rawData);
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
         const {
             accountCompressionAuthority,
@@ -1097,11 +1104,11 @@ export class CompressedTokenProgram {
             },
         ];
 
-        const data = encodeCompressSplTokenAccountInstructionData(
-            authority,
-            remainingAmount ?? null,
-            null,
-        );
+        const data = encodeCompressSplTokenAccountInstructionData({
+            owner: authority,
+            remainingAmount: remainingAmount ?? null,
+            cpiContext: null,
+        });
         const {
             accountCompressionAuthority,
             noopProgram,

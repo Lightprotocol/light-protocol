@@ -9,6 +9,10 @@ export const HIGHEST_ADDRESS_PLUS_ONE = new BN(
     '452312848583266388373324160190187140051835877600158453279131187530910662655',
 );
 
+export const INVOKE_DISCRIMINATOR = Buffer.from([
+    26, 16, 169, 7, 21, 202, 242, 25,
+]);
+
 // TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
 export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';

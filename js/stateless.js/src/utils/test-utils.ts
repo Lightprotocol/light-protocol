@@ -1,6 +1,7 @@
 import { Connection, Keypair, Signer } from '@solana/web3.js';
 import { confirmTx } from '../utils/send-and-confirm';
 import { Rpc } from '../rpc';
+import BN from 'bn.js';
 
 let c = 1;
 
@@ -8,6 +9,54 @@ export const ALICE = getTestKeypair(255);
 export const BOB = getTestKeypair(254);
 export const CHARLIE = getTestKeypair(253);
 export const DAVE = getTestKeypair(252);
+
+/**
+ * Deep comparison of two objects. Handles BN comparison correctly.
+ *
+ * @param ref - The reference object to compare.
+ * @param val - The value object to compare.
+ * @returns True if the objects are deeply equal, false otherwise.
+ */
+export function deepEqual(ref: any, val: any) {
+    if (typeof ref !== typeof val) {
+        console.log(`Type mismatch: ${typeof ref} !== ${typeof val}`);
+        return false;
+    }
+
+    if (ref instanceof BN && val instanceof BN) {
+        return ref.eq(val);
+    }
+
+    if (typeof ref === 'object' && ref !== null && val !== null) {
+        const refKeys = Object.keys(ref);
+        const valKeys = Object.keys(val);
+
+        if (refKeys.length !== valKeys.length) {
+            console.log(
+                `Key length mismatch: ${refKeys.length} !== ${valKeys.length}`,
+            );
+            return false;
+        }
+
+        for (let key of refKeys) {
+            if (!valKeys.includes(key)) {
+                console.log(`Key ${key} not found in value`);
+                return false;
+            }
+            if (!deepEqual(ref[key], val[key])) {
+                console.log(`Value mismatch at key ${key}`);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (ref !== val) {
+        console.log(`Value mismatch: ${ref} !== ${val}`);
+    }
+
+    return ref === val;
+}
 
 /**
  * Create a new account and airdrop lamports to it

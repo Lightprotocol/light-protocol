@@ -16,6 +16,7 @@ import {
 } from '@coral-xyz/borsh';
 import { InstructionDataInvoke, PublicTransactionEvent } from '../state';
 import { LightSystemProgram } from './system';
+import { INVOKE_DISCRIMINATOR } from '../constants';
 export const CompressedAccountLayout = struct(
     [
         publicKey('owner'),
@@ -53,7 +54,6 @@ export const NewAddressParamsLayout = struct(
     'newAddressParams',
 );
 
-// Use the defined structs in the main layout with field names
 export const InstructionDataInvokeLayout: Layout<InstructionDataInvoke> =
     struct([
         option(
@@ -93,11 +93,7 @@ export function encodeInstructionDataInvoke(
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
 
-    return Buffer.concat([
-        Buffer.from([26, 16, 169, 7, 21, 202, 242, 25]),
-        lengthBuffer,
-        dataBuffer,
-    ]);
+    return Buffer.concat([INVOKE_DISCRIMINATOR, lengthBuffer, dataBuffer]);
 }
 
 export function decodeInstructionDataInvoke(

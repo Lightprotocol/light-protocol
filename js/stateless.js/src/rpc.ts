@@ -424,7 +424,6 @@ export function convertNonInclusionMerkleProofInputsToHex(
     return inputs;
 }
 import { LightWasm } from './test-helpers';
-// import { ConnectionInterface } from './connection-interface';
 
 function calculateTwoInputsHashChain(
     hashesFirst: BN[],

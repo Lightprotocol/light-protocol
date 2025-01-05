@@ -49,7 +49,6 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-// import { ConnectionInterface } from '../../connection-interface';
 
 export interface TestRpcConfig {
     /**
@@ -214,7 +213,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         if (!hash) {
             throw new Error('hash is required');
         }
-        // @ts-ignore
+
         const account = await getCompressedAccountByHashTest(this, hash);
         return account ?? null;
     }
@@ -229,7 +228,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         if (!hash) {
             throw new Error('hash is required');
         }
-        // @ts-ignore
+
         const account = await getCompressedAccountByHashTest(this, hash);
         if (!account) {
             throw new Error('Account not found');
@@ -266,7 +265,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]> {
-        // @ts-ignore
         return await getMultipleCompressedAccountsByHashTest(this, hashes);
     }
     /**
@@ -284,7 +282,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     ): Promise<MerkleContextWithMerkleProof[]> {
         /// Build tree
         const events: PublicTransactionEvent[] = await getParsedEvents(
-            // @ts-ignore
             this,
         ).then(events => events.reverse());
         const allLeaves: number[][] = [];
@@ -350,7 +347,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         owner: PublicKey,
         _config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
-        // @ts-ignore
         const accounts = await getCompressedAccountsByOwnerTest(this, owner);
         return {
             items: accounts,
@@ -390,7 +386,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<WithCursor<ParsedTokenAccount[]>> {
         return await getCompressedTokenAccountsByOwnerTest(
-            // @ts-ignore
             this,
             owner,
             options!.mint!,
@@ -405,7 +400,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<WithCursor<ParsedTokenAccount[]>> {
         return await getCompressedTokenAccountsByDelegateTest(
-            // @ts-ignore
             this,
             delegate,
             options.mint!,
@@ -418,7 +412,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountBalance(
         hash: BN254,
     ): Promise<{ amount: BN }> {
-        // @ts-ignore
         const account = await getCompressedTokenAccountByHashTest(this, hash);
         return { amount: bn(account.parsed.amount) };
     }
@@ -433,7 +426,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<WithCursor<{ balance: BN; mint: PublicKey }[]>> {
         const accounts = await getCompressedTokenAccountsByOwnerTest(
-            // @ts-ignore
             this,
             publicKey,
             options.mint!,
@@ -456,7 +448,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<WithContext<WithCursor<TokenBalance[]>>> {
         const accounts = await getCompressedTokenAccountsByOwnerTest(
-            // @ts-ignore
             this,
             publicKey,
             options.mint!,

@@ -104,13 +104,7 @@ describe('rpc-interop', () => {
         executedTxs++;
 
         /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(
-            testRpc as unknown as Rpc,
-            payer,
-            1e5,
-            payer,
-            bob.publicKey,
-        );
+        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
         executedTxs++;
     });
 
@@ -176,7 +170,7 @@ describe('rpc-interop', () => {
         /// Creates a compressed account with address using a (non-inclusion)
         /// 'validityProof' directly from a prover.
         await createAccount(
-            testRpc as unknown as Rpc,
+            testRpc,
             payer,
             newAddressSeeds,
             LightSystemProgram.programId,

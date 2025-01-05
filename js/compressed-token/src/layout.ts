@@ -12,18 +12,19 @@ import {
     vecU8,
 } from '@coral-xyz/borsh';
 import { Buffer } from 'buffer';
-
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { CompressedTokenProgram } from './program';
-import BN from 'bn.js';
 import {
-    CompressedCpiContext,
     CompressedTokenInstructionDataTransfer,
+    CompressSplTokenAccountInstructionData,
+    MintToInstructionData,
 } from './types';
+import {
+    COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
+    MINT_TO_DISCRIMINATOR,
+    TRANSFER_DISCRIMINATOR,
+} from './constants';
 
-export const CREATE_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
-    23, 169, 27, 122, 147, 169, 209, 152,
-]);
 const CompressedProofLayout = struct([
     array(u8(), 32, 'a'),
     array(u8(), 64, 'b'),
@@ -92,44 +93,43 @@ export const compressSplTokenAccountInstructionDataLayout = struct([
     option(CpiContextLayout, 'cpiContext'),
 ]);
 
-const MINT_TO_DISCRIMINATOR = Buffer.from([
-    241, 34, 48, 186, 37, 179, 123, 192,
-]);
-export const TRANSFER_DISCRIMINATOR = Buffer.from([
-    163, 52, 200, 231, 140, 3, 69, 186,
-]);
 export function encodeMintToInstructionData(
-    recipients: PublicKey[],
-    amounts: BN[],
-    lamports: BN | null,
+    data: MintToInstructionData,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
     const len = mintToLayout.encode(
         {
-            recipients,
-            amounts,
-            lamports,
+            recipients: data.recipients,
+            amounts: data.amounts,
+            lamports: data.lamports,
         },
         buffer,
     );
     return Buffer.concat([MINT_TO_DISCRIMINATOR, buffer.slice(0, len)]);
 }
 
-export const COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([
-    112, 230, 105, 101, 145, 202, 157, 97,
-]);
+export function decodeMintToInstructionData(
+    buffer: Buffer,
+): MintToInstructionData {
+    const data: any = mintToLayout.decode(
+        buffer.slice(MINT_TO_DISCRIMINATOR.length),
+    );
+    return {
+        recipients: data.recipients,
+        amounts: data.amounts,
+        lamports: data.lamports,
+    };
+}
 
 export function encodeCompressSplTokenAccountInstructionData(
-    owner: PublicKey,
-    remainingAmount: BN | null,
-    cpiContext: CompressedCpiContext | null,
+    data: CompressSplTokenAccountInstructionData,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
     const len = compressSplTokenAccountInstructionDataLayout.encode(
         {
-            owner,
-            remainingAmount,
-            cpiContext,
+            owner: data.owner,
+            remainingAmount: data.remainingAmount,
+            cpiContext: data.cpiContext,
         },
         buffer,
     );
@@ -139,7 +139,19 @@ export function encodeCompressSplTokenAccountInstructionData(
     ]);
 }
 
-export function encodeCompressedTokenInstructionDataTransfer(
+export function decodeCompressSplTokenAccountInstructionData(
+    buffer: Buffer,
+): CompressSplTokenAccountInstructionData {
+    const data: any = compressSplTokenAccountInstructionDataLayout.decode(
+        buffer.slice(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR.length),
+    );
+    return {
+        owner: data.owner,
+        remainingAmount: data.remainingAmount,
+        cpiContext: data.cpiContext,
+    };
+}
+export function encodeTransferInstructionData(
     data: CompressedTokenInstructionDataTransfer,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
@@ -159,6 +171,26 @@ export function encodeCompressedTokenInstructionDataTransfer(
     ]);
 }
 
+export function decodeTransferInstructionData(
+    buffer: Buffer,
+): CompressedTokenInstructionDataTransfer {
+    return CompressedTokenInstructionDataTransferLayout.decode(
+        buffer.slice(TRANSFER_DISCRIMINATOR.length + 4),
+    ) as CompressedTokenInstructionDataTransfer;
+}
+
+interface BaseAccountsLayoutParams {
+    feePayer: PublicKey;
+    authority: PublicKey;
+    cpiAuthorityPda: PublicKey;
+    lightSystemProgram: PublicKey;
+    registeredProgramPda: PublicKey;
+    noopProgram: PublicKey;
+    accountCompressionAuthority: PublicKey;
+    accountCompressionProgram: PublicKey;
+    selfProgram: PublicKey;
+    systemProgram: PublicKey;
+}
 export type createTokenPoolAccountsLayoutParams = {
     feePayer: PublicKey;
     tokenPoolPda: PublicKey;
@@ -167,6 +199,24 @@ export type createTokenPoolAccountsLayoutParams = {
     tokenProgram: PublicKey;
     cpiAuthorityPda: PublicKey;
 };
+export type mintToAccountsLayoutParams = BaseAccountsLayoutParams & {
+    mint: PublicKey;
+    tokenPoolPda: PublicKey;
+    tokenProgram: PublicKey;
+    merkleTree: PublicKey;
+    solPoolPda: PublicKey | null;
+};
+export type transferAccountsLayoutParams = BaseAccountsLayoutParams & {
+    tokenPoolPda?: PublicKey;
+    compressOrDecompressTokenAccount?: PublicKey;
+    tokenProgram?: PublicKey;
+};
+export type approveAccountsLayoutParams = BaseAccountsLayoutParams;
+export type revokeAccountsLayoutParams = approveAccountsLayoutParams;
+export type freezeAccountsLayoutParams = BaseAccountsLayoutParams & {
+    mint: PublicKey;
+};
+export type thawAccountsLayoutParams = freezeAccountsLayoutParams;
 
 export const createTokenPoolAccountsLayout = (
     accounts: createTokenPoolAccountsLayoutParams,
@@ -188,24 +238,6 @@ export const createTokenPoolAccountsLayout = (
         { pubkey: tokenProgram, isSigner: false, isWritable: false },
         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
     ];
-};
-
-export type mintToAccountsLayoutParams = {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    mint: PublicKey;
-    tokenPoolPda: PublicKey;
-    tokenProgram: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    merkleTree: PublicKey;
-    selfProgram: PublicKey;
-    systemProgram: PublicKey;
-    solPoolPda: PublicKey | null;
 };
 
 export const mintToAccountsLayout = (
@@ -262,106 +294,6 @@ export const mintToAccountsLayout = (
 
     return accountsList;
 };
-
-export type compressSplTokenAccountAccountsLayoutParams = {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    selfProgram: PublicKey;
-    tokenPoolPda?: PublicKey;
-    compressOrDecompressTokenAccount?: PublicKey;
-    tokenProgram?: PublicKey;
-    systemProgram: PublicKey;
-};
-
-export const compressSplTokenAccountAccountsLayout = (
-    accounts: compressSplTokenAccountAccountsLayoutParams,
-): AccountMeta[] => {
-    const defaultPubkey = CompressedTokenProgram.programId;
-    const {
-        feePayer,
-        authority,
-        cpiAuthorityPda,
-        lightSystemProgram,
-        registeredProgramPda,
-        noopProgram,
-        accountCompressionAuthority,
-        accountCompressionProgram,
-        selfProgram,
-        tokenPoolPda,
-        compressOrDecompressTokenAccount,
-        tokenProgram,
-        systemProgram,
-    } = accounts;
-
-    const accountsList: AccountMeta[] = [
-        { pubkey: feePayer, isSigner: true, isWritable: true },
-        { pubkey: authority, isSigner: true, isWritable: false },
-        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-        { pubkey: noopProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: accountCompressionAuthority,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: accountCompressionProgram,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: selfProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: tokenPoolPda ?? defaultPubkey,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: compressOrDecompressTokenAccount ?? defaultPubkey,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: tokenProgram ?? defaultPubkey,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: systemProgram, isSigner: false, isWritable: false },
-    ];
-
-    return accountsList;
-};
-
-export const compressSplTokenAccountArgsLayout = struct(
-    [
-        publicKey('owner'),
-        option(u64(), 'remainingAmount'),
-        option(struct([], 'CompressedCpiContext'), 'cpiContext'),
-    ],
-    'compressSplTokenAccountArgs',
-);
-
-export interface transferAccountsLayoutParams {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    selfProgram: PublicKey;
-    tokenPoolPda?: PublicKey;
-    compressOrDecompressTokenAccount?: PublicKey;
-    tokenProgram?: PublicKey;
-    systemProgram: PublicKey;
-}
 
 export const transferAccountsLayout = (
     accounts: transferAccountsLayoutParams,
@@ -422,186 +354,84 @@ export const transferAccountsLayout = (
     return accountsList;
 };
 
-export type compressSplTokenAccountLayoutParams = {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    selfProgram: PublicKey;
-    tokenPoolPda?: PublicKey;
-    compressOrDecompressTokenAccount?: PublicKey;
-    tokenProgram?: PublicKey;
-    systemProgram: PublicKey;
-};
+// export const approveAccountsLayout = (
+//     accounts: approveAccountsLayoutParams,
+// ): AccountMeta[] => {
+//     const {
+//         feePayer,
+//         authority,
+//         cpiAuthorityPda,
+//         lightSystemProgram,
+//         registeredProgramPda,
+//         noopProgram,
+//         accountCompressionAuthority,
+//         accountCompressionProgram,
+//         selfProgram,
+//         systemProgram,
+//     } = accounts;
 
-export const compressSplTokenAccountLayout = (
-    accounts: compressSplTokenAccountLayoutParams,
-): AccountMeta[] => {
-    const defaultPubkey = CompressedTokenProgram.programId;
-    const {
-        feePayer,
-        authority,
-        cpiAuthorityPda,
-        lightSystemProgram,
-        registeredProgramPda,
-        noopProgram,
-        accountCompressionAuthority,
-        accountCompressionProgram,
-        selfProgram,
-        tokenPoolPda,
-        compressOrDecompressTokenAccount,
-        tokenProgram,
-        systemProgram,
-    } = accounts;
+//     return [
+//         { pubkey: feePayer, isSigner: true, isWritable: true },
+//         { pubkey: authority, isSigner: true, isWritable: false },
+//         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
+//         { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
+//         { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
+//         { pubkey: noopProgram, isSigner: false, isWritable: false },
+//         {
+//             pubkey: accountCompressionAuthority,
+//             isSigner: false,
+//             isWritable: false,
+//         },
+//         {
+//             pubkey: accountCompressionProgram,
+//             isSigner: false,
+//             isWritable: false,
+//         },
+//         { pubkey: selfProgram, isSigner: false, isWritable: false },
+//         { pubkey: systemProgram, isSigner: false, isWritable: false },
+//     ];
+// };
 
-    return [
-        { pubkey: feePayer, isSigner: true, isWritable: true },
-        { pubkey: authority, isSigner: true, isWritable: false },
-        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-        { pubkey: noopProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: accountCompressionAuthority,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: accountCompressionProgram,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: selfProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: tokenPoolPda ?? defaultPubkey,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: compressOrDecompressTokenAccount ?? defaultPubkey,
-            isSigner: false,
-            isWritable: true,
-        },
-        {
-            pubkey: tokenProgram ?? defaultPubkey,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: systemProgram, isSigner: false, isWritable: false },
-    ];
-};
+// export const revokeAccountsLayout = approveAccountsLayout;
 
-export type approveAccountsLayoutParams = {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    selfProgram: PublicKey;
-    systemProgram: PublicKey;
-};
+// export const freezeAccountsLayout = (
+//     accounts: freezeAccountsLayoutParams,
+// ): AccountMeta[] => {
+//     const {
+//         feePayer,
+//         authority,
+//         cpiAuthorityPda,
+//         lightSystemProgram,
+//         registeredProgramPda,
+//         noopProgram,
+//         accountCompressionAuthority,
+//         accountCompressionProgram,
+//         selfProgram,
+//         systemProgram,
+//         mint,
+//     } = accounts;
 
-export const approveAccountsLayout = (
-    accounts: approveAccountsLayoutParams,
-): AccountMeta[] => {
-    const {
-        feePayer,
-        authority,
-        cpiAuthorityPda,
-        lightSystemProgram,
-        registeredProgramPda,
-        noopProgram,
-        accountCompressionAuthority,
-        accountCompressionProgram,
-        selfProgram,
-        systemProgram,
-    } = accounts;
+//     return [
+//         { pubkey: feePayer, isSigner: true, isWritable: true },
+//         { pubkey: authority, isSigner: true, isWritable: false },
+//         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
+//         { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
+//         { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
+//         { pubkey: noopProgram, isSigner: false, isWritable: false },
+//         {
+//             pubkey: accountCompressionAuthority,
+//             isSigner: false,
+//             isWritable: false,
+//         },
+//         {
+//             pubkey: accountCompressionProgram,
+//             isSigner: false,
+//             isWritable: false,
+//         },
+//         { pubkey: selfProgram, isSigner: false, isWritable: false },
+//         { pubkey: systemProgram, isSigner: false, isWritable: false },
+//         { pubkey: mint, isSigner: false, isWritable: false },
+//     ];
+// };
 
-    return [
-        { pubkey: feePayer, isSigner: true, isWritable: true },
-        { pubkey: authority, isSigner: true, isWritable: false },
-        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-        { pubkey: noopProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: accountCompressionAuthority,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: accountCompressionProgram,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: selfProgram, isSigner: false, isWritable: false },
-        { pubkey: systemProgram, isSigner: false, isWritable: false },
-    ];
-};
-
-export type revokeAccountsLayoutParams = approveAccountsLayoutParams;
-export const revokeAccountsLayout = approveAccountsLayout;
-
-export type freezeAccountsLayoutParams = {
-    feePayer: PublicKey;
-    authority: PublicKey;
-    cpiAuthorityPda: PublicKey;
-    lightSystemProgram: PublicKey;
-    registeredProgramPda: PublicKey;
-    noopProgram: PublicKey;
-    accountCompressionAuthority: PublicKey;
-    accountCompressionProgram: PublicKey;
-    selfProgram: PublicKey;
-    systemProgram: PublicKey;
-    mint: PublicKey;
-};
-
-export const freezeAccountsLayout = (
-    accounts: freezeAccountsLayoutParams,
-): AccountMeta[] => {
-    const {
-        feePayer,
-        authority,
-        cpiAuthorityPda,
-        lightSystemProgram,
-        registeredProgramPda,
-        noopProgram,
-        accountCompressionAuthority,
-        accountCompressionProgram,
-        selfProgram,
-        systemProgram,
-        mint,
-    } = accounts;
-
-    return [
-        { pubkey: feePayer, isSigner: true, isWritable: true },
-        { pubkey: authority, isSigner: true, isWritable: false },
-        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
-        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
-        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
-        { pubkey: noopProgram, isSigner: false, isWritable: false },
-        {
-            pubkey: accountCompressionAuthority,
-            isSigner: false,
-            isWritable: false,
-        },
-        {
-            pubkey: accountCompressionProgram,
-            isSigner: false,
-            isWritable: false,
-        },
-        { pubkey: selfProgram, isSigner: false, isWritable: false },
-        { pubkey: systemProgram, isSigner: false, isWritable: false },
-        { pubkey: mint, isSigner: false, isWritable: false },
-    ];
-};
-
-export type thawAccountsLayoutParams = freezeAccountsLayoutParams;
-export const thawAccountsLayout = freezeAccountsLayout;
+// export const thawAccountsLayout = freezeAccountsLayout;
