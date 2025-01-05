@@ -11,6 +11,11 @@ cargo clippy \
       --exclude name-service \
       --exclude photon-api \
       --exclude name-service \
+      # --exclude account-compression \
+      # --exclude light-compressed-token \
+      # --exclude light-system-program \
+      # --exclude light-registry \
+      # --exclude light-test-utils \
       -- -A clippy::result_large_err \
          -A clippy::empty-docs \
          -A clippy::to-string-trait-impl \

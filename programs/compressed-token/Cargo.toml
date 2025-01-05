@@ -16,11 +16,13 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap", "idl-build"]
+default = ["custom-heap", "no-idl"]
 test-sbf = []
 bench-sbf = []
 cpi-context = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+no-idl = []
+
 
 [dependencies]
 anchor-lang = { workspace = true }
