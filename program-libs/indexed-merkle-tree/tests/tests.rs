@@ -42,8 +42,8 @@ fn program_insert<H>(
 where
     H: Hasher,
 {
-    for i in 0..NR_NULLIFIERS {
-        let nullifier = BigUint::from_be_bytes(nullifiers[i].as_slice());
+    for nullifier_bytes in &nullifiers {
+        let nullifier = BigUint::from_be_bytes(nullifier_bytes.as_slice());
         queue.insert(&nullifier, merkle_tree.sequence_number())?;
     }
     Ok(())
@@ -57,6 +57,7 @@ enum RelayerUpdateError {
 
 /// A mock function which imitates a Merkle tree program instruction for
 /// inserting nullifiers from the queue to the tree.
+#[allow(clippy::too_many_arguments)]
 fn program_update<H>(
     // PDAs
     queue: &mut RefMut<'_, HashSet>,
@@ -132,7 +133,7 @@ where
             )
             .unwrap();
         let mut low_nullifier_proof = relayer_merkle_tree
-            .get_proof_of_leaf(usize::from(old_low_nullifier.index), false)
+            .get_proof_of_leaf(old_low_nullifier.index, false)
             .unwrap();
 
         // Update on-chain tree.
@@ -487,7 +488,7 @@ where
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(1).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
-        .get(usize::from(low_nullifier.next_index))
+        .get(low_nullifier.next_index)
         .cloned()
         .unwrap()
         .value;
@@ -524,7 +525,7 @@ where
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(0).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
-        .get(usize::from(low_nullifier.next_index))
+        .get(low_nullifier.next_index)
         .cloned()
         .unwrap()
         .value;
@@ -1110,7 +1111,7 @@ fn perform_change_log_test<
     for (i, (address, indexed_array)) in addresses.iter().zip(indexed_arrays.iter_mut()).enumerate()
     {
         let (old_low_address, old_low_address_next_value) = indexed_array
-            .find_low_element_for_nonexistent(&address)
+            .find_low_element_for_nonexistent(address)
             .unwrap();
         let address_bundle = indexed_array
             .new_element_with_low_element_index(old_low_address.index, address)

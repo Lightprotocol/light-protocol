@@ -54,7 +54,7 @@ fn test_rollover() {
 
         init_batched_state_merkle_tree_accounts(
             owner,
-            params.clone(),
+            params,
             &mut queue_account_data,
             queue_pubkey,
             queue_rent,
@@ -100,7 +100,7 @@ fn test_rollover() {
                 old_mt_pubkey: mt_pubkey,
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
-                new_mt_pubkey: new_mt_pubkey,
+                new_mt_pubkey,
                 old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
@@ -108,7 +108,7 @@ fn test_rollover() {
                 old_queue_pubkey: queue_pubkey,
                 new_output_queue_data: &mut new_queue_account_data,
                 new_output_queue_rent: queue_rent,
-                new_output_queue_pubkey: new_output_queue_pubkey,
+                new_output_queue_pubkey,
                 additional_bytes_rent,
                 additional_bytes,
                 network_fee: params.network_fee,
@@ -140,7 +140,7 @@ fn test_rollover() {
                 old_mt_pubkey: mt_pubkey,
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
-                new_mt_pubkey: new_mt_pubkey,
+                new_mt_pubkey,
                 old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
@@ -148,7 +148,7 @@ fn test_rollover() {
                 old_queue_pubkey: queue_pubkey,
                 new_output_queue_data: &mut new_queue_account_data,
                 new_output_queue_rent: queue_rent,
-                new_output_queue_pubkey: new_output_queue_pubkey,
+                new_output_queue_pubkey,
                 additional_bytes_rent,
                 additional_bytes,
                 network_fee: params.network_fee,
@@ -252,15 +252,15 @@ fn test_rollover() {
             };
             rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
-            let mut ref_rolledover_mt = ref_mt_account.clone();
+            let mut ref_rolledover_mt = ref_mt_account;
             ref_rolledover_mt.next_index = 1 << height;
-            let mut new_ref_output_queue_account = ref_output_queue_account.clone();
+            let mut new_ref_output_queue_account = ref_output_queue_account;
             new_ref_output_queue_account
                 .metadata
                 .rollover_metadata
                 .additional_bytes = additional_bytes;
             new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-            let mut new_ref_merkle_tree_account = ref_mt_account.clone();
+            let mut new_ref_merkle_tree_account = ref_mt_account;
             new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
             let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {
                 mt_account_data: mt_account_data.to_vec(),
@@ -297,7 +297,7 @@ fn test_rollover() {
                 old_mt_pubkey: mt_pubkey,
                 new_mt_data: &mut new_mt_account_data,
                 new_mt_rent: merkle_tree_rent,
-                new_mt_pubkey: new_mt_pubkey,
+                new_mt_pubkey,
                 old_output_queue: &mut BatchedQueueAccount::output_queue_from_bytes_mut(
                     &mut queue_account_data,
                 )
@@ -305,7 +305,7 @@ fn test_rollover() {
                 old_queue_pubkey: queue_pubkey,
                 new_output_queue_data: &mut new_queue_account_data,
                 new_output_queue_rent: queue_rent,
-                new_output_queue_pubkey: new_output_queue_pubkey,
+                new_output_queue_pubkey,
                 additional_bytes_rent,
                 additional_bytes,
                 network_fee: params.network_fee,
@@ -337,7 +337,7 @@ fn test_rollover() {
 
         init_batched_state_merkle_tree_accounts(
             owner,
-            params.clone(),
+            params,
             &mut queue_account_data,
             queue_pubkey,
             queue_rent,
@@ -379,10 +379,7 @@ fn test_rollover() {
                 network_fee: Some(1),
             };
             let result = rollover_batched_state_tree(params);
-            assert_eq!(
-                result,
-                Err(BatchedMerkleTreeError::InvalidNetworkFee.into())
-            );
+            assert_eq!(result, Err(BatchedMerkleTreeError::InvalidNetworkFee));
         }
         let mut new_mt_account_data = vec![0; mt_account_size];
         let mut new_queue_account_data = vec![0; queue_account_size];
@@ -434,15 +431,15 @@ fn test_rollover() {
             };
             rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
-            let mut ref_rolledover_mt = ref_mt_account.clone();
+            let mut ref_rolledover_mt = ref_mt_account;
             ref_rolledover_mt.next_index = 1 << height;
-            let mut new_ref_output_queue_account = ref_output_queue_account.clone();
+            let mut new_ref_output_queue_account = ref_output_queue_account;
             new_ref_output_queue_account
                 .metadata
                 .rollover_metadata
                 .additional_bytes = additional_bytes;
             new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-            let mut new_ref_merkle_tree_account = ref_mt_account.clone();
+            let mut new_ref_merkle_tree_account = ref_mt_account;
             new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
 
             let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {
@@ -541,7 +538,7 @@ fn test_rnd_rollover() {
         let additional_bytes = rng.gen_range(0..1000);
         init_batched_state_merkle_tree_accounts(
             owner,
-            params.clone(),
+            params,
             &mut output_queue_account_data,
             output_queue_pubkey,
             queue_rent,
@@ -603,15 +600,15 @@ fn test_rnd_rollover() {
         };
         rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
-        let mut ref_rolledover_mt = ref_mt_account.clone();
+        let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << height;
-        let mut new_ref_output_queue_account = ref_output_queue_account.clone();
+        let mut new_ref_output_queue_account = ref_output_queue_account;
         new_ref_output_queue_account
             .metadata
             .rollover_metadata
             .additional_bytes = additional_bytes;
         new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-        let mut new_ref_merkle_tree_account = ref_mt_account.clone();
+        let mut new_ref_merkle_tree_account = ref_mt_account;
         new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
 
         let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {

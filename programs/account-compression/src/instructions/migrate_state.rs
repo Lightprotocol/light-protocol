@@ -156,7 +156,7 @@ mod migrate_state_test {
         };
 
         let account = BatchedQueueMetadata {
-            metadata: metadata.clone(),
+            metadata,
             next_index: 0,
             batch_metadata: BatchMetadata {
                 batch_size: 1000,
@@ -178,7 +178,7 @@ mod migrate_state_test {
         };
         let data = unsafe {
             std::slice::from_raw_parts_mut(
-                mock_account.account_data.as_mut_ptr() as *mut u8,
+                mock_account.account_data.as_mut_ptr(),
                 mock_account.account_data.len(),
             )
         };
@@ -248,7 +248,7 @@ mod migrate_state_test {
         {
             let input = MigrateLeafParams {
                 change_log_index: concurrent_mt_with_canopy.changelog_index() as u64,
-                leaf: leaves[0].clone(),
+                leaf: leaves[0],
                 leaf_index: 0,
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(0, false)
@@ -278,7 +278,7 @@ mod migrate_state_test {
         {
             let input = MigrateLeafParams {
                 change_log_index: concurrent_mt_with_canopy.changelog_index() as u64,
-                leaf: leaves[1].clone(),
+                leaf: leaves[1],
                 leaf_index: 1,
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(1, false)
@@ -305,7 +305,7 @@ mod migrate_state_test {
         }
         let input = MigrateLeafParams {
             change_log_index: concurrent_mt_with_canopy.changelog_index() as u64,
-            leaf: leaves[2].clone(),
+            leaf: leaves[2],
             leaf_index: 2,
             proof: ref_merkle_tree
                 .get_proof_of_leaf(2, false)
@@ -435,7 +435,7 @@ mod migrate_state_test {
             let leaf_index = ref_merkle_tree.get_leaf_index(&leaf).unwrap();
             let input = MigrateLeafParams {
                 change_log_index: concurrent_mt_with_canopy.changelog_index() as u64,
-                leaf: leaf.clone(),
+                leaf,
                 leaf_index: leaf_index as u64,
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(leaf_index, false)

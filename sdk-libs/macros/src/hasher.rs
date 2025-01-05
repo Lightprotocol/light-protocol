@@ -265,7 +265,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
     }
 }"#;
 
-        assert_eq!(formatted_output.contains(expected_output), true);
+        assert!(formatted_output.contains(expected_output));
     }
     #[test]
     fn test_option_handling() {

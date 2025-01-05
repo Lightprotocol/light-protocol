@@ -132,6 +132,7 @@ impl SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
+    #[allow(clippy::result_large_err)]
     fn parse_inner_instructions<T: BorshDeserialize>(
         &self,
         signature: Signature,

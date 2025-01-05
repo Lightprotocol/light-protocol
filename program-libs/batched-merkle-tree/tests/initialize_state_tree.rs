@@ -52,7 +52,7 @@ fn test_different_parameters() {
         let additional_bytes_rent = 1000;
         init_batched_state_merkle_tree_accounts(
             owner,
-            params.clone(),
+            params,
             &mut output_queue_account_data,
             output_queue_pubkey,
             queue_rent,
@@ -105,7 +105,7 @@ fn test_account_init() {
     let additional_bytes_rent = 1000;
     init_batched_state_merkle_tree_accounts(
         owner,
-        params.clone(),
+        params,
         &mut output_queue_account_data,
         output_queue_pubkey,
         queue_rent,
@@ -252,7 +252,7 @@ fn test_rnd_account_init() {
         let additional_bytes_rent = rng.gen_range(0..10000000);
         init_batched_state_merkle_tree_accounts(
             owner,
-            params.clone(),
+            params,
             &mut output_queue_account_data,
             output_queue_pubkey,
             queue_rent,

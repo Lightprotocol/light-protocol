@@ -26,13 +26,8 @@ fn test_account_init() {
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-    init_batched_address_merkle_tree_account(
-        owner.into(),
-        params.clone(),
-        &mut mt_account_data,
-        merkle_tree_rent,
-    )
-    .unwrap();
+    init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
+        .unwrap();
 
     assert_address_mt_zero_copy_inited(
         &mut mt_account_data,
@@ -115,7 +110,7 @@ fn test_rnd_account_init() {
 
         init_batched_address_merkle_tree_account(
             owner,
-            params.clone(),
+            params,
             &mut mt_account_data,
             merkle_tree_rent,
         )

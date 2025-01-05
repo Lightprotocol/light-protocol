@@ -89,7 +89,7 @@ mod test {
 
             let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()

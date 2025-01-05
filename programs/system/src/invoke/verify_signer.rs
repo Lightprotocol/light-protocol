@@ -54,7 +54,7 @@ mod test {
 
         assert_eq!(
             input_compressed_accounts_signer_check(
-                &vec![compressed_account_with_context.clone()],
+                &[compressed_account_with_context.clone()],
                 &authority
             ),
             Ok(())

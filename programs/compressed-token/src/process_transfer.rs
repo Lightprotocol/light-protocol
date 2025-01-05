@@ -1042,7 +1042,7 @@ mod test {
         };
         sum_check(
             inputs.as_slice(),
-            &output_amounts,
+            output_amounts,
             compress_or_decompress_amount,
             is_compress,
         )

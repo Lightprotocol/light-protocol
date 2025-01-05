@@ -246,7 +246,7 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
 
 /// For each read-only account
 /// 1. prove inclusion by index in the output queue if leaf index should exist in the output queue.
-/// 1.1. if inclusion was proven by index, return Ok.
+///    1.1. if inclusion was proven by index, return Ok.
 /// 2. prove non-inclusion in the bloom filters
 ///    2.1. skip wiped batches.
 ///    2.2. prove non-inclusion in the bloom filters for each batch.

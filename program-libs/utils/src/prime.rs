@@ -129,11 +129,11 @@ mod test {
 
     #[test]
     fn test_is_prime() {
-        assert_eq!(is_prime(1), false);
-        assert_eq!(is_prime(2), true);
-        assert_eq!(is_prime(3), true);
-        assert_eq!(is_prime(4), false);
-        assert_eq!(is_prime(17), true);
-        assert_eq!(is_prime(19), true);
+        assert!(!is_prime(1));
+        assert!(is_prime(2));
+        assert!(is_prime(3));
+        assert!(!is_prime(4));
+        assert!(is_prime(17));
+        assert!(is_prime(19));
     }
 }

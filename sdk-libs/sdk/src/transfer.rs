@@ -42,7 +42,7 @@ mod tests {
     use crate::{account_info::LightInputAccountInfo, merkle_context::PackedMerkleContext};
 
     /// Creates a mock account with the given input lamports.
-    fn mock_account<'a>(owner: &'a Pubkey, lamports: Option<u64>) -> LightAccountInfo<'a> {
+    fn mock_account(owner: &Pubkey, lamports: Option<u64>) -> LightAccountInfo<'_> {
         LightAccountInfo {
             input: Some(LightInputAccountInfo {
                 lamports,
@@ -72,7 +72,7 @@ mod tests {
     }
 
     /// Creates a mock account without input.
-    fn mock_account_without_input<'a>(owner: &'a Pubkey) -> LightAccountInfo<'a> {
+    fn mock_account_without_input(owner: &Pubkey) -> LightAccountInfo<'_> {
         LightAccountInfo {
             input: None,
             owner,
