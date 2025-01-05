@@ -14,7 +14,7 @@ solana = []
 [dependencies]
 aligned-sized = { workspace=true}
 solana-program = { workspace = true }
-light-bounded-vec = { workspace=true, features = ["solana"] }
+light-zero-copy = { workspace=true, features = ["solana"] }
 light-hasher = { workspace=true, features = ["solana"] }
 light-utils = { workspace=true }
 light-bloom-filter = { workspace=true, features = ["solana"] }
@@ -25,6 +25,7 @@ borsh = "0.10"
 light-macros = {workspace = true}
 anchor-lang = { workspace = true , optional = true }
 bytemuck = { workspace = true }
+light-bounded-vec = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"

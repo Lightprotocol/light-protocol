@@ -8,7 +8,7 @@ members = [
     "program-libs/utils",
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
-    "program-libs/bounded-vec",
+    "program-libs/zero-copy",
     "program-libs/concurrent-merkle-tree",
     "program-libs/hash-set",
     "program-libs/indexed-merkle-tree",
@@ -95,6 +95,7 @@ light-sdk = { path = "sdk-libs/sdk", version = "0.11.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
 light-utils = { path = "program-libs/utils", version = "1.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
+light-zero-copy = { path = "program-libs/zero-copy", version = "0.1.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.45.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
 account-compression = { path = "programs/account-compression", version = "1.2.0", features = ["cpi"] }
@@ -107,7 +108,7 @@ light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.1.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
-light-bounded-vec = { path = "program-libs/bounded-vec", version = "1.1.0" }
+light-bounded-vec = { version = "1.1.0" }
 light-poseidon = { version = "0.2.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }

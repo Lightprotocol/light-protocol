@@ -87,7 +87,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
             input_queue_num_batches: 2,
             height: 40,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
-            bloom_filter_capacity: (DEFAULT_BATCH_SIZE + 1) * 8,
+            bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
             network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
@@ -180,7 +180,7 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     );
 
     assert!(params.bloom_filter_num_iters > 0);
-    assert!(params.bloom_filter_capacity > params.input_queue_batch_size * 8);
+    assert!(params.bloom_filter_capacity >= params.input_queue_batch_size * 8);
     assert_eq!(
         params.bloom_filter_capacity % 8,
         0,

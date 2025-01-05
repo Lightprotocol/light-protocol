@@ -1,13 +1,11 @@
 use light_bloom_filter::BloomFilterError;
-use light_bounded_vec::BoundedVecError;
 use light_hasher::HasherError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::UtilsError;
 use light_verifier::VerifierError;
+use light_zero_copy::errors::ZeroCopyError;
 use solana_program::program_error::ProgramError;
 use thiserror::Error;
-
-use crate::zero_copy::ZeroCopyError;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum BatchedMerkleTreeError {
@@ -29,8 +27,6 @@ pub enum BatchedMerkleTreeError {
     Hasher(#[from] HasherError),
     #[error("Utils error {0}")]
     Utils(#[from] UtilsError),
-    #[error("Bounded vector error: {0}")]
-    BoundedVec(#[from] BoundedVecError),
     #[error("Zero copy error {0}")]
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Merkle tree metadata error {0}")]
@@ -55,7 +51,6 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize => 14306,
             BatchedMerkleTreeError::InclusionProofByIndexFailed => 14307,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
-            BatchedMerkleTreeError::BoundedVec(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),
             BatchedMerkleTreeError::BloomFilter(e) => e.into(),
