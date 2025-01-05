@@ -284,17 +284,6 @@ pub fn verify_read_only_account_inclusion<'a>(
             merkle_tree
                 .check_input_queue_non_inclusion(&read_only_account.account_hash)
                 .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
-
-            // let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
-            // for i in 0..num_bloom_filters {
-            //     let bloom_filter_store = merkle_tree.bloom_filter_stores[i].as_mut_slice();
-            //     let batch = &merkle_tree.batches[i];
-            //     if !batch.bloom_filter_is_wiped {
-            //         batch
-            //             .check_non_inclusion(&read_only_account.account_hash, bloom_filter_store)
-            //             .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
-            //     }
-            // }
         }
     }
     Ok(num_prove_read_only_accounts_prove_by_index)
@@ -315,15 +304,6 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
         merkle_tree
             .check_input_queue_non_inclusion(&read_only_address.address)
             .map_err(|_| SystemProgramError::ReadOnlyAddressAlreadyExists)?;
-
-        // let num_bloom_filters = merkle_tree.bloom_filter_stores.len();
-        // for i in 0..num_bloom_filters {
-        //     let bloom_filter_store = merkle_tree.bloom_filter_stores[i].as_mut_slice();
-        //     let batch = &merkle_tree.batches[i];
-        //     batch
-        //         .check_non_inclusion(&read_only_address.address, bloom_filter_store)
-        //         .map_err(|_| SystemProgramError::ReadOnlyAddressAlreadyExists)?;
-        // }
     }
     Ok(())
 }

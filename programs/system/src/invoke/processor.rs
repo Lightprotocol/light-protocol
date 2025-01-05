@@ -225,7 +225,7 @@ pub fn process<
         )
         .map_err(ProgramError::from)?;
         // Insert nullifiers for compressed input account hashes into nullifier
-        // queue except read-only accounts.
+        // queue.
         insert_nullifiers(
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx,
@@ -247,6 +247,10 @@ pub fn process<
     )?;
 
     // Verify that all instances of queue_index.is_some() are plausible.
+    // Protects against the attack of marking an account as proof by index
+    // with queue_index.is_some() but the accounts index is not in the
+    // current value vec.
+    // (The account compression program does not throw an error in this case.)
     if num_prove_by_index_input_accounts != 0 {
         verify_input_accounts_proof_by_index(
             ctx.remaining_accounts,
@@ -254,11 +258,6 @@ pub fn process<
         )?;
     }
 
-    msg!("num_read_only_accounts {}", num_read_only_accounts);
-    msg!(
-        "num_prove_read_only_accounts_prove_by_index {}",
-        num_prove_read_only_accounts_prove_by_index
-    );
     // Proof inputs order:
     // 1. input compressed accounts
     // 2. read only compressed accounts
@@ -276,7 +275,8 @@ pub fn process<
             let mut input_compressed_account_roots =
                 Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
             // We need to clone to add read only accounts which shouldn't be part of the event
-            // and we remove accounts proven by index which should be part of the event.
+            // and we remove accounts proven by index which should be part of the event
+            // but not of the proof verification.
             let mut input_compressed_account_hashes = input_compressed_account_hashes.clone();
 
             let state_tree_height = {
