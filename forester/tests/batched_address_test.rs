@@ -143,7 +143,7 @@ async fn test_address_batched() {
     println!("Creating new address batch tree...");
 
     let merkle_tree_keypair = Keypair::new();
-    env.indexer
+        env.indexer
         .add_address_merkle_tree(
             &mut env.rpc,
             &merkle_tree_keypair,
@@ -151,7 +151,7 @@ async fn test_address_batched() {
             None,
             2,
         )
-        .await;
+            .await;
     env_accounts.batch_address_merkle_tree = merkle_tree_keypair.pubkey();
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
