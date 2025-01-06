@@ -559,8 +559,6 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.5.5)(terser@5.31.0)
 
-  programs: {}
-
   program-tests: {}
 
   program-tests/sdk-test-program:
@@ -596,6 +594,8 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
+
+  programs: {}
 
   tsconfig: {}
 
