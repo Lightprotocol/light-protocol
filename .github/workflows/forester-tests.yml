@@ -1,9 +1,12 @@
+name: forester-tests
+
 on:
   push:
     branches:
       - main
     paths:
       - "forester/**"
+      - "forester-utils/**"
       - "photon-api/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
@@ -11,6 +14,7 @@ on:
       - "**"
     paths:
       - "forester/**"
+      - "forester-utils/**"
       - "photon-api/**"
       - ".github/workflows/forester-tests.yml"
     types:
@@ -19,40 +23,62 @@ on:
       - reopened
       - ready_for_review
 
-name: forester-tests
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+
 jobs:
-  forester-tests:
-    name: forester-tests
-    if: github.event.pull_request.draft == false
+  test-address-batched:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-
+    timeout-minutes: 60
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-
-      - name: Clean build artifacts before tests
-        shell: bash
-        run: |
-          cargo clean
-          rm -rf target/debug/deps/*
-
-      - name: Check available disk space
-        shell: bash
-        run: |
-          df -h /
-          du -sh /home/runner/work/* | sort -hr | head -n 10
-
-      - name: Run forester tests
+      - name: Build test program
         run: |
           source ./scripts/devenv.sh
           cargo test-sbf -p create-address-test-program
-          npx nx test @lightprotocol/forester
+      - name: Run address batched tests
+        run: |
+          source ./scripts/devenv.sh
+          cargo test --package forester test_address_batched -- --nocapture
+
+  test-state-batched:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+      - name: Run state batched tests
+        run: |
+          source ./scripts/devenv.sh
+          cargo test --package forester test_state_batched -- --nocapture
+
+  test-2-foresters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+      - name: Run 2 foresters test
+        run: |
+          source ./scripts/devenv.sh
+          cargo test --package forester test_epoch_monitor_with_2_foresters -- --nocapture
+
+  test-double-registration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+      - name: Run epoch double registration test
+        run: |
+          source ./scripts/devenv.sh
+          cargo test --package forester test_epoch_double_registration -- --nocapture
