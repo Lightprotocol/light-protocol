@@ -775,7 +775,6 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-        console.log('TRANSFER');
         const data = encodeTransferInstructionData(rawData);
 
         const {
@@ -940,7 +939,6 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-        console.log('COMPRESS');
         const data = encodeTransferInstructionData(rawData);
 
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
@@ -1016,7 +1014,6 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-        console.log('DECOMPRESS');
         const data = encodeTransferInstructionData(rawData);
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
         const {
@@ -1066,7 +1063,7 @@ export class CompressedTokenProgram {
         if (inputCompressedTokenAccounts.length > 3) {
             throw new Error('Cannot merge more than 3 token accounts at once');
         }
-        console.log('MERGE');
+
         const ix = await this.transfer({
             payer,
             inputCompressedTokenAccounts,
