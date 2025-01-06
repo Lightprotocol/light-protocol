@@ -5,7 +5,6 @@ use light_batched_merkle_tree::merkle_tree::{
 
 use crate::{
     emit_indexer_event,
-    errors::AccountCompressionErrorCode,
     utils::check_signer_is_registered_or_authority::{
         check_signer_is_registered_or_authority, GroupAccounts,
     },
@@ -47,10 +46,6 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
         ctx,
         merkle_tree,
     )?;
-    let associated_queue = merkle_tree.get_metadata().metadata.associated_queue;
-    if ctx.accounts.output_queue.key() != associated_queue {
-        return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
-    }
 
     let event = merkle_tree
         .update_output_queue_account_info(

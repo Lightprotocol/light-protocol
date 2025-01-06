@@ -6,8 +6,7 @@ use account_compression::{
 };
 use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
-    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
-    queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
@@ -122,7 +121,7 @@ pub fn output_compressed_accounts_write_access_check(
     Ok(())
 }
 
-pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
+pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
 ) -> Result<(u32, Option<u64>, u64, Pubkey)> {
@@ -155,7 +154,12 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
                     merkle_tree_acc_info.key(),
                 )
             }
-            BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+                if !IS_NULLIFY {
+                    return err!(
+                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                    );
+                }
                 let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
                     merkle_tree_acc_info,
                 )
@@ -172,14 +176,19 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
                     merkle_tree_acc_info.key(),
                 )
             }
-            BatchedQueueMetadata::DISCRIMINATOR => {
+            BatchedQueueAccount::DISCRIMINATOR => {
+                //
+                if IS_NULLIFY {
+                    return err!(
+                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                    );
+                }
                 let merkle_tree =
                     BatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
                         .map_err(ProgramError::from)?;
                 let account = merkle_tree.get_metadata();
                 let seq = u64::MAX;
                 let next_index: u32 = account.next_index.try_into().unwrap();
-
                 (
                     seq,
                     next_index,
@@ -233,7 +242,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
             let merkle_tree_unpacked = merkle_tree.load()?;
             merkle_tree_unpacked.metadata
         }
-        BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {
             let merkle_tree =
                 BatchedMerkleTreeAccount::address_tree_from_account_info_mut(merkle_tree_acc_info)
                     .map_err(ProgramError::from)?;

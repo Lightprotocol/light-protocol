@@ -72,4 +72,5 @@ pub enum SystemProgramError {
     ReadOnlyAccountDoesNotExist,
     HashChainInputsLenghtInconsistent,
     InvalidAddressTreeHeight,
+    InvalidStateTreeHeight,
 }

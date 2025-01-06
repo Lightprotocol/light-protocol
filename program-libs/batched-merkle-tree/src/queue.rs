@@ -39,11 +39,6 @@ pub struct BatchedQueueMetadata {
 }
 
 // TODO: make discriminators anchor conistent
-impl Discriminator for BatchedQueueMetadata {
-    const DISCRIMINATOR: [u8; 8] = *b"queueacc";
-}
-
-// TODO: make discriminators anchor conistent
 impl Discriminator for BatchedQueueAccount {
     const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
@@ -320,7 +315,7 @@ impl BatchedQueueAccount {
         Ok(false)
     }
 
-    pub fn could_exist_in_batches(
+    pub fn leaf_index_could_exist_in_batches(
         &mut self,
         leaf_index: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
@@ -362,6 +357,17 @@ impl BatchedQueueAccount {
         let next_full_batch = self.batch_metadata.currently_processing_batch_index;
         let batch = self.batches.get(next_full_batch as usize).unwrap();
         batch.get_num_inserted() + batch.get_current_zkp_batch_index() * batch.zkp_batch_size
+    }
+
+    pub fn is_associated(&self, account: &Pubkey) -> bool {
+        self.metadata.get().metadata.associated_merkle_tree == *account
+    }
+
+    pub fn check_is_associated(&self, account: &Pubkey) -> Result<(), BatchedMerkleTreeError> {
+        if !self.is_associated(account) {
+            return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
+        }
+        Ok(())
     }
 }
 

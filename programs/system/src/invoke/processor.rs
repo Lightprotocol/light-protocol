@@ -15,14 +15,16 @@ use crate::{
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_state_proof::{
-            fetch_address_roots, fetch_input_roots, hash_input_compressed_accounts,
-            verify_input_accounts_proof_by_index, verify_read_only_account_inclusion,
+            fetch_address_roots, fetch_input_state_roots, hash_input_compressed_accounts,
+            verify_input_accounts_proof_by_index, verify_read_only_account_inclusion_by_index,
             verify_read_only_address_queue_non_inclusion, verify_state_proof,
         },
     },
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
-        compressed_account::PackedReadOnlyCompressedAccount,
+        compressed_account::{
+            PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+        },
     },
     InstructionDataInvoke,
 };
@@ -99,8 +101,7 @@ pub fn process<
     let num_read_only_accounts = read_only_accounts.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-    let mut input_compressed_account_hashes =
-        Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
+    let mut input_compressed_account_hashes = Vec::with_capacity(num_input_compressed_accounts);
 
     let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
         vec![None; num_input_compressed_accounts + num_new_addresses];
@@ -116,7 +117,8 @@ pub fn process<
     // Verify state and or address proof ---------------------------------------------------
     let read_only_addresses = read_only_addresses.unwrap_or_default();
     let num_of_read_only_addresses = read_only_addresses.len();
-    let mut new_addresses = Vec::with_capacity(num_new_addresses + num_of_read_only_addresses);
+    let num_new_addresses = num_new_addresses + num_of_read_only_addresses;
+    let mut new_addresses = Vec::with_capacity(num_new_addresses);
 
     // hash input compressed accounts ---------------------------------------------------
     bench_sbf_start!("cpda_hash_input_compressed_accounts");
@@ -133,17 +135,27 @@ pub fn process<
         )?;
         // # Safety this is a safeguard for memory safety.
         // This error should never be triggered.
-        if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-            msg!(
-                "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
-                hashed_pubkeys.capacity(),
-                hashed_pubkeys_capacity
-            );
-            return err!(SystemProgramError::InvalidCapacity);
-        }
+        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, &"hashed_pubkeys")?;
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
+
+    // Verify read only address non-inclusion in bloom filters
+    // prior to inserting new addresses.
+    verify_read_only_address_queue_non_inclusion(ctx.remaining_accounts, &read_only_addresses)?;
+
+    let mut new_address_roots = Vec::with_capacity(num_new_addresses);
+    // Record state of the address merkle tree queue before inserting new addresses.
+    let address_tree_height = fetch_address_roots(
+        ctx.remaining_accounts,
+        &inputs.new_address_params,
+        &read_only_addresses,
+        &mut new_address_roots,
+    )?;
+    // # Safety this is a safeguard for memory safety.
+    // This error should never be triggered.
+    check_vec_capacity(num_new_addresses, &new_address_roots, &"new_address_roots")?;
+
     // Insert addresses into address merkle tree queue ---------------------------------------------------
     let address_network_fee_bundle = if num_new_addresses != 0 {
         derive_new_addresses(
@@ -163,12 +175,6 @@ pub fn process<
     } else {
         None
     };
-
-    // Verify read only account inclusion ---------------------------------------------------
-    // Verify before proving inclusion by index in output queues so that
-    // reading an account is successful even when it is modified in the same transaction.
-    let num_prove_read_only_accounts_prove_by_index =
-        verify_read_only_account_inclusion(ctx.remaining_accounts, &read_only_accounts)?;
 
     // Allocate space for sequence numbers with remaining account length as a
     // proxy. We cannot allocate heap memory in
@@ -190,14 +196,7 @@ pub fn process<
         )?;
         // # Safety this is a safeguard for memory safety.
         // This error should never be triggered.
-        if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-            msg!(
-                "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
-                hashed_pubkeys.capacity(),
-                hashed_pubkeys_capacity
-            );
-            return err!(SystemProgramError::InvalidCapacity);
-        }
+        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, &"hashed_pubkeys")?;
         bench_sbf_end!("cpda_append");
         network_fee_bundle
     } else {
@@ -206,6 +205,29 @@ pub fn process<
     bench_sbf_start!("emit_state_transition_event");
     // Reduce the capacity of the sequence numbers vector.
     sequence_numbers.shrink_to_fit();
+
+    // Verify read only account inclusion ---------------------------------------------------
+    // Verify before proving inclusion by index in output queues so that
+    // reading an account is successful even when it is modified in the same transaction.
+    let num_prove_read_only_accounts_prove_by_index =
+        verify_read_only_account_inclusion_by_index(ctx.remaining_accounts, &read_only_accounts)?;
+    let num_input_state_roots = num_input_compressed_accounts - num_prove_by_index_input_accounts
+        + num_read_only_accounts
+        - num_prove_read_only_accounts_prove_by_index;
+    let mut input_compressed_account_roots = Vec::with_capacity(num_input_state_roots);
+    let state_tree_height = fetch_input_state_roots(
+        ctx.remaining_accounts,
+        &inputs.input_compressed_accounts_with_merkle_context,
+        &read_only_accounts,
+        &mut input_compressed_account_roots,
+    )?;
+    // # Safety this is a safeguard for memory safety.
+    // This error should never be triggered.
+    check_vec_capacity(
+        num_input_state_roots,
+        &input_compressed_account_roots,
+        &"input_compressed_account_roots",
+    )?;
 
     // insert nullifiers (input compressed account hashes)---------------------------------------------------
     // Nullifiers need to be inserted befor proof verification because the
@@ -216,6 +238,18 @@ pub fn process<
         .input_compressed_accounts_with_merkle_context
         .is_empty()
     {
+        // Verify that all instances of queue_index.is_some() are plausible.
+        // Protects against the attack of marking an account as proof by index
+        // with queue_index.is_some() but the accounts index is not in the
+        // current value vec.
+        // (The account compression program does not throw an error in this case.)
+        if num_prove_by_index_input_accounts != 0 {
+            verify_input_accounts_proof_by_index(
+                ctx.remaining_accounts,
+                &inputs.input_compressed_accounts_with_merkle_context,
+            )?;
+        }
+
         // Access the current slot
         let current_slot = Clock::get()?.slot;
         let tx_hash = create_tx_hash(
@@ -246,88 +280,48 @@ pub fn process<
         output_network_fee_bundle,
     )?;
 
-    // Verify that all instances of queue_index.is_some() are plausible.
-    // Protects against the attack of marking an account as proof by index
-    // with queue_index.is_some() but the accounts index is not in the
-    // current value vec.
-    // (The account compression program does not throw an error in this case.)
-    if num_prove_by_index_input_accounts != 0 {
-        verify_input_accounts_proof_by_index(
-            ctx.remaining_accounts,
-            &inputs.input_compressed_accounts_with_merkle_context,
-        )?;
-    }
-
     // Proof inputs order:
     // 1. input compressed accounts
     // 2. read only compressed accounts
     // 3. new addresses
     // 4. read only addresses
-    if num_prove_by_index_input_accounts < num_input_compressed_accounts
-        || num_prove_read_only_accounts_prove_by_index < num_read_only_accounts
-        || !new_addresses.is_empty()
-        || !read_only_addresses.is_empty()
-    {
-        bench_sbf_start!("cpda_verify_state_proof");
+    if num_input_state_roots > 0 || num_new_addresses > 0 {
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
+            // Add read only addresses to new addresses before proof verification.
+            // We don't add read only addresses before since
+            // read-only addresses must not be used in compressed accounts.
+            for read_only_address in read_only_addresses.iter() {
+                new_addresses.push(read_only_address.address);
+            }
 
-            let mut input_compressed_account_roots =
-                Vec::with_capacity(num_input_compressed_accounts + num_read_only_accounts);
-            // We need to clone to add read only accounts which shouldn't be part of the event
-            // and we remove accounts proven by index which should be part of the event
-            // but not of the proof verification.
-            let mut input_compressed_account_hashes = input_compressed_account_hashes.clone();
+            // Select accounts account hashes for ZKP.
+            // We need to filter out accounts that are proven by index.
+            let mut proof_input_compressed_account_hashes =
+                Vec::with_capacity(num_input_state_roots);
+            filter_for_accounts_not_proven_by_index(
+                &inputs.input_compressed_accounts_with_merkle_context,
+                &read_only_accounts,
+                &input_compressed_account_hashes,
+                &mut proof_input_compressed_account_hashes,
+            );
+            check_vec_capacity(
+                num_input_state_roots,
+                &proof_input_compressed_account_hashes,
+                &"proof_input_compressed_account_hashes",
+            )?;
 
-            let state_tree_height = {
-                for read_only_account in read_only_accounts.iter() {
-                    // only push read only account hashes which are not marked as proof by index
-                    if read_only_account.merkle_context.queue_index.is_none() {
-                        input_compressed_account_hashes.push(read_only_account.account_hash);
-                    }
-                }
-
-                fetch_input_roots(
-                    ctx.remaining_accounts,
-                    &inputs.input_compressed_accounts_with_merkle_context,
-                    &read_only_accounts,
-                    &mut input_compressed_account_roots,
-                )?
-            };
-
-            let mut new_address_roots =
-                Vec::with_capacity(num_new_addresses + num_of_read_only_addresses);
-
-            let address_tree_height = {
-                verify_read_only_address_queue_non_inclusion(
-                    ctx.remaining_accounts,
-                    &read_only_addresses,
-                )?;
-
-                for read_only_address in read_only_addresses.iter() {
-                    new_addresses.push(read_only_address.address);
-                }
-
-                fetch_address_roots(
-                    ctx.remaining_accounts,
-                    &inputs.new_address_params,
-                    &read_only_addresses,
-                    &mut new_address_roots,
-                )?
-            };
-
-            let compressed_verifier_proof = CompressedVerifierProof {
+            let compressed_proof = CompressedVerifierProof {
                 a: proof.a,
                 b: proof.b,
                 c: proof.c,
             };
             match verify_state_proof(
-                &inputs.input_compressed_accounts_with_merkle_context,
                 &input_compressed_account_roots,
-                &mut input_compressed_account_hashes,
+                &proof_input_compressed_account_hashes,
                 &new_address_roots,
                 &new_addresses,
-                &compressed_verifier_proof,
+                &compressed_proof,
                 address_tree_height,
                 state_tree_height,
             ) {
@@ -335,8 +329,8 @@ pub fn process<
                 Err(e) => {
                     msg!("proof  {:?}", proof);
                     msg!(
-                        "input_compressed_account_hashes {:?}",
-                        input_compressed_account_hashes
+                        "proof_input_compressed_account_hashes {:?}",
+                        proof_input_compressed_account_hashes
                     );
                     msg!("input roots {:?}", input_compressed_account_roots);
                     msg!("read_only_accounts {:?}", read_only_accounts);
@@ -378,6 +372,41 @@ pub fn process<
     bench_sbf_end!("emit_state_transition_event");
 
     Ok(())
+}
+
+fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
+    if vec.capacity() != expected_capacity {
+        msg!(
+            "{} exceeded capacity. Used {}, allocated {}.",
+            vec_name,
+            vec.capacity(),
+            expected_capacity
+        );
+        return err!(SystemProgramError::InvalidCapacity);
+    }
+    Ok(())
+}
+
+fn filter_for_accounts_not_proven_by_index(
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
+    read_only_accounts: &Vec<PackedReadOnlyCompressedAccount>,
+    input_compressed_account_hashes: &Vec<[u8; 32]>,
+    proof_input_compressed_account_hashes: &mut Vec<[u8; 32]>,
+) {
+    for (hash, input_account) in input_compressed_account_hashes
+        .iter()
+        .zip(input_compressed_accounts_with_merkle_context.iter())
+    {
+        if input_account.merkle_context.queue_index.is_none() {
+            proof_input_compressed_account_hashes.push(*hash);
+        }
+    }
+    for read_only_account in read_only_accounts.iter() {
+        // only push read only account hashes which are not marked as proof by index
+        if read_only_account.merkle_context.queue_index.is_none() {
+            proof_input_compressed_account_hashes.push(read_only_account.account_hash);
+        }
+    }
 }
 
 /// Network fee distribution:

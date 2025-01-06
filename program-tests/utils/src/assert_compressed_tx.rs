@@ -6,8 +6,7 @@ use forester_utils::{
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
-    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
-    queue::BatchedQueueMetadata,
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
 };
 use light_client::rpc::RpcConnection;
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
@@ -181,7 +180,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
             }
-            BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account_data)
@@ -441,7 +440,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     version: 1,
                 });
             }
-            BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+            BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree_account_lamports = account_data.lamports;
                 let merkle_tree =
                     BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account_data.data)
