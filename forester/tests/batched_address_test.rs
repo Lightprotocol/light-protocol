@@ -19,6 +19,7 @@ use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
     indexer::TestIndexer,
 };
+use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
 use tokio::{
@@ -32,10 +33,11 @@ use crate::test_utils::{forester_config, general_action_config, init, keypair_ac
 mod test_utils;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 15,
+        wait_time: 40,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],

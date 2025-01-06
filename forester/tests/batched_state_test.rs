@@ -16,6 +16,7 @@ use light_test_utils::{
     e2e_test_env::{init_program_test_env, E2ETestEnv},
     indexer::TestIndexer,
 };
+use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::{
     commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
@@ -31,6 +32,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
 async fn test_state_batched() {
     let devnet = false;
     let tree_params = if devnet {
@@ -41,7 +43,7 @@ async fn test_state_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 15,
+        wait_time: 40,
         prover_config: None,
         sbf_programs: vec![],
     }))
