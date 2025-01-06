@@ -53,7 +53,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
             BatchReadyState::ReadyForNullify => self.process_state_nullify().await,
             BatchReadyState::NotReady => Ok(0),
         }
-    }
+        }
 
     async fn verify_batch_ready(&self) -> BatchReadyState {
         let mut rpc = match self.context.rpc_pool.get_connection().await {
@@ -152,14 +152,14 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
 
         let remaining = total - batch.get_num_inserted_zkps();
         remaining as f64 / total as f64
-    }
+            }
 
     async fn process_state_append(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (num_inserted_zkps, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_append(&self.context, &mut rpc, num_inserted_zkps).await?;
         Ok(zkp_batch_size)
-    }
+            }
 
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
