@@ -56,10 +56,7 @@ pub struct BatchedMerkleTreeMetadata {
     pub root_history_capacity: u32,
     pub queue_metadata: BatchMetadata,
 }
-// TODO: make anchor consistent
-impl Discriminator for BatchedMerkleTreeMetadata {
-    const DISCRIMINATOR: [u8; 8] = *b"BatchMka";
-}
+
 // TODO: make anchor consistent
 impl Discriminator for BatchedMerkleTreeAccount {
     const DISCRIMINATOR: [u8; 8] = *b"BatchMka";
@@ -445,6 +442,9 @@ impl BatchedMerkleTreeAccount {
         instruction_data: InstructionDataBatchAppendInputs,
         id: [u8; 32],
     ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
+        if self.get_metadata().metadata.associated_queue != *queue_account_info.key {
+            return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
+        }
         let queue_account =
             &mut BatchedQueueAccount::output_queue_from_account_info_mut(queue_account_info)?;
         self.update_output_queue_account(queue_account, instruction_data, id)

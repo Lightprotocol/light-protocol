@@ -30,6 +30,10 @@ pub struct RolloverBatchStateTreeParams<'a> {
 pub fn rollover_batched_state_tree(
     params: RolloverBatchStateTreeParams,
 ) -> Result<(), BatchedMerkleTreeError> {
+    params
+        .old_output_queue
+        .check_is_associated(&params.old_mt_pubkey)?;
+
     // Check that old merkle tree is ready for rollover.
     batched_tree_is_ready_for_rollover(
         params.old_merkle_tree.get_metadata_mut(),
