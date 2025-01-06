@@ -231,7 +231,6 @@ export const createTokenPoolAccountsLayout = (
         tokenProgram,
         cpiAuthorityPda,
     } = accounts;
-
     return [
         { pubkey: feePayer, isSigner: true, isWritable: true },
         { pubkey: tokenPoolPda, isSigner: false, isWritable: true },

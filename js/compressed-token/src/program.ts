@@ -621,6 +621,13 @@ export class CompressedTokenProgram {
             systemProgram: SystemProgram.programId,
         });
 
+        console.log(
+            'createTokenPool - deriveCpiAuthorityPda',
+            this.deriveCpiAuthorityPda,
+        );
+        console.log('createTokenPool - tokenPoolPda', tokenPoolPda);
+        console.log('createTokenPool - Keys', keys);
+
         return new TransactionInstruction({
             programId: this.programId,
             keys,
