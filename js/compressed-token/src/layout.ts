@@ -356,6 +356,7 @@ export const transferAccountsLayout = (
     return accountsList;
 };
 
+// TODO: use this layout for approve/revoke/freeze/thaw once we add them
 // export const approveAccountsLayout = (
 //     accounts: approveAccountsLayoutParams,
 // ): AccountMeta[] => {
