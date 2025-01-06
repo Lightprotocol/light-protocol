@@ -8,9 +8,9 @@ use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::{debug, info, instrument};
+use tracing::info;
 
-use super::{address, error, error::Result, state};
+use super::{address, error::Result, state, BatchProcessError};
 
 #[derive(Debug)]
 pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
@@ -24,6 +24,13 @@ pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
 }
 
 #[derive(Debug)]
+pub enum BatchReadyState {
+    NotReady,
+    ReadyForAppend,
+    ReadyForNullify,
+}
+
+#[derive(Debug)]
 pub struct BatchProcessor<R: RpcConnection, I: Indexer<R>> {
     context: BatchContext<R, I>,
     tree_type: TreeType,
@@ -34,42 +41,76 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         Self { context, tree_type }
     }
 
-    #[instrument(level = "debug", skip(self))]
     pub async fn process(&self) -> Result<usize> {
-        if !self.verify_batch_ready().await {
-            debug!("Batch is not ready for processing");
-            return Ok(0);
-        }
-
-        match self.tree_type {
-            TreeType::BatchedAddress => {
-                info!("Processing address batch");
-                address::process_batch(&self.context).await
-            }
-            TreeType::BatchedState => {
-                info!("Processing state batch");
-                state::process_batch(&self.context).await
-            }
-            _ => Err(error::BatchProcessError::UnsupportedTreeType(
-                self.tree_type,
-            )),
+        match self.verify_batch_ready().await {
+            BatchReadyState::ReadyForAppend => match self.tree_type {
+                TreeType::BatchedAddress => address::process_batch(&self.context).await,
+                TreeType::BatchedState => self.process_state_append().await,
+                _ => Err(BatchProcessError::UnsupportedTreeType(self.tree_type)),
+            },
+            BatchReadyState::ReadyForNullify => self.process_state_nullify().await,
+            BatchReadyState::NotReady => Ok(0),
         }
     }
 
-    async fn verify_batch_ready(&self) -> bool {
+    async fn process_state_append(&self) -> Result<usize> {
+        let mut rpc = self.context.rpc_pool.get_connection().await?;
+        let (num_inserted_zkps, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
+        state::perform_append(&self.context, &mut rpc, num_inserted_zkps).await?;
+        Ok(zkp_batch_size)
+    }
+
+    async fn process_state_nullify(&self) -> Result<usize> {
+        let mut rpc = self.context.rpc_pool.get_connection().await?;
+        let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
+        state::perform_nullify(&self.context, &mut rpc).await?;
+        Ok(zkp_batch_size)
+    }
+
+    async fn get_num_inserted_zkps(&self, rpc: &mut R) -> Result<(u64, usize)> {
+        let (num_inserted_zkps, zkp_batch_size) = {
+            let mut output_queue_account =
+                rpc.get_account(self.context.output_queue).await?.unwrap();
+            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
+                output_queue_account.data.as_mut_slice(),
+            )
+            .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
+
+            let batch_index = output_queue
+                .get_metadata()
+                .batch_metadata
+                .next_full_batch_index;
+            let zkp_batch_size = output_queue.get_metadata().batch_metadata.zkp_batch_size;
+
+            (
+                output_queue.batches[batch_index as usize].get_num_inserted_zkps(),
+                zkp_batch_size as usize,
+            )
+        };
+        Ok((num_inserted_zkps, zkp_batch_size))
+    }
+
+    async fn verify_batch_ready(&self) -> BatchReadyState {
         let mut rpc = match self.context.rpc_pool.get_connection().await {
             Ok(rpc) => rpc,
-            Err(_) => return false,
+            Err(_) => return BatchReadyState::NotReady,
         };
 
         if self.tree_type == TreeType::BatchedAddress {
-            return self.verify_input_queue_batch_ready(&mut rpc).await;
+            return if self.verify_input_queue_batch_ready(&mut rpc).await {
+                BatchReadyState::ReadyForAppend
+            } else {
+                BatchReadyState::NotReady
+            };
         }
 
-        let input_queue_ready = self.verify_input_queue_batch_ready(&mut rpc).await;
-        let output_queue_ready = self.verify_output_queue_batch_ready(&mut rpc).await;
-
-        input_queue_ready && output_queue_ready
+        if self.verify_input_queue_batch_ready(&mut rpc).await {
+            BatchReadyState::ReadyForNullify
+        } else if self.verify_output_queue_batch_ready(&mut rpc).await {
+            BatchReadyState::ReadyForAppend
+        } else {
+            BatchReadyState::NotReady
+        }
     }
 
     async fn verify_input_queue_batch_ready(&self, rpc: &mut R) -> bool {

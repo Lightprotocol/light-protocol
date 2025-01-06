@@ -3,55 +3,17 @@ use forester_utils::{
     indexer::Indexer,
     instructions::{create_append_batch_ix_data, create_nullify_batch_ix_data},
 };
-use light_batched_merkle_tree::{
-    event::{BatchAppendEvent, BatchNullifyEvent},
-    queue::BatchedQueueAccount,
-};
+use light_batched_merkle_tree::event::{BatchAppendEvent, BatchNullifyEvent};
 use light_client::rpc::RpcConnection;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
 use solana_sdk::signer::Signer;
-use tracing::info;
 
 use super::common::BatchContext;
 use crate::batch_processor::error::{BatchProcessError, Result};
 
-pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R>>(
-    context: &BatchContext<R, I>,
-) -> Result<usize> {
-    info!("Processing state batch append operation");
-    let mut rpc = context.rpc_pool.get_connection().await?;
-
-    let (num_inserted_zkps, zkp_batch_size) = {
-        let mut output_queue_account = rpc.get_account(context.output_queue).await?.unwrap();
-        let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-            output_queue_account.data.as_mut_slice(),
-        )
-        .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
-
-        let batch_index = output_queue
-            .get_metadata()
-            .batch_metadata
-            .next_full_batch_index;
-        let zkp_batch_size = output_queue.get_metadata().batch_metadata.zkp_batch_size;
-
-        (
-            output_queue.batches[batch_index as usize].get_num_inserted_zkps(),
-            zkp_batch_size as usize,
-        )
-    };
-
-    perform_append(context, &mut rpc, num_inserted_zkps).await?;
-    info!("Append operation completed");
-
-    perform_nullify(context, &mut rpc).await?;
-    info!("Nullify operation completed");
-
-    Ok(zkp_batch_size * 2)
-}
-
-async fn perform_append<R: RpcConnection, I: Indexer<R>>(
+pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
     num_inserted_zkps: u64,
@@ -97,7 +59,7 @@ async fn perform_append<R: RpcConnection, I: Indexer<R>>(
     Ok(())
 }
 
-async fn perform_nullify<R: RpcConnection, I: Indexer<R>>(
+pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {

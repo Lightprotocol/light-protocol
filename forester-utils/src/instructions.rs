@@ -322,11 +322,11 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             )
         } else {
             error!(
-                "create_append_batch_ix_data: failed to get proof from server: {:?}",
+                "create_append_batch_ix_data: prover server respond: {:?}",
                 response.text().await
             );
             return Err(ForesterUtilsError::ProverError(
-                "Failed to get proof from server".into(),
+                "Prover response failed".to_string(),
             ));
         }
     };
