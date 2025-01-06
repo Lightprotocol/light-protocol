@@ -19,9 +19,16 @@ import {
     mintToAccountsLayout,
     createTokenPoolAccountsLayout,
     transferAccountsLayout,
+    CompressedTokenProgram,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import { SystemProgram } from '@solana/web3.js';
+import {
+    defaultStaticAccountsStruct,
+    LightSystemProgram,
+} from '@lightprotocol/stateless.js';
 
 const getTestProgram = (): Program<LightCompressedToken> => {
     const mockKeypair = Keypair.generate();
@@ -86,6 +93,24 @@ const IX_DISCRIMINATOR = 8;
 const LENGTH_DISCRIMINATOR = 4;
 
 describe('layout', () => {
+    const mint = Keypair.generate().publicKey;
+    const feePayer = Keypair.generate().publicKey;
+    const authority = Keypair.generate().publicKey;
+    const cpiAuthorityPda = CompressedTokenProgram.deriveCpiAuthorityPda;
+    const tokenPoolPda = CompressedTokenProgram.deriveTokenPoolPda(mint);
+    const tokenProgram = TOKEN_2022_PROGRAM_ID;
+    const lightSystemProgram = LightSystemProgram.programId;
+    const registeredProgramPda =
+        defaultStaticAccountsStruct().registeredProgramPda;
+    const noopProgram = defaultStaticAccountsStruct().noopProgram;
+    const accountCompressionAuthority =
+        defaultStaticAccountsStruct().accountCompressionAuthority;
+    const accountCompressionProgram =
+        defaultStaticAccountsStruct().accountCompressionProgram;
+    const merkleTree = PublicKey.default;
+    const selfProgram = CompressedTokenProgram.programId;
+    const systemProgram = SystemProgram.programId;
+    const solPoolPda = LightSystemProgram.deriveCompressedSolPda();
     describe('encode/decode transfer/compress/decompress', () => {
         const testCases = [
             {
@@ -488,38 +513,38 @@ describe('layout', () => {
     describe('Accounts Layout Helper Functions', () => {
         it('createTokenPoolAccountsLayout should return correct AccountMeta array', () => {
             const accounts = {
-                feePayer: PublicKey.default,
-                tokenPoolPda: PublicKey.default,
-                systemProgram: PublicKey.default,
-                mint: PublicKey.default,
-                tokenProgram: PublicKey.default,
-                cpiAuthorityPda: PublicKey.default,
+                feePayer,
+                tokenPoolPda,
+                systemProgram,
+                mint,
+                tokenProgram,
+                cpiAuthorityPda,
             };
 
             const expected = [
-                { pubkey: PublicKey.default, isSigner: true, isWritable: true },
+                { pubkey: feePayer, isSigner: true, isWritable: true },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenPoolPda,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: systemProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: mint,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: cpiAuthorityPda,
                     isSigner: false,
                     isWritable: false,
                 },
@@ -531,92 +556,92 @@ describe('layout', () => {
 
         it('mintToAccountsLayout should return correct AccountMeta array', () => {
             const accounts = {
-                feePayer: PublicKey.default,
-                authority: PublicKey.default,
-                cpiAuthorityPda: PublicKey.default,
-                mint: PublicKey.default,
-                tokenPoolPda: PublicKey.default,
-                tokenProgram: PublicKey.default,
-                lightSystemProgram: PublicKey.default,
-                registeredProgramPda: PublicKey.default,
-                noopProgram: PublicKey.default,
-                accountCompressionAuthority: PublicKey.default,
-                accountCompressionProgram: PublicKey.default,
-                merkleTree: PublicKey.default,
-                selfProgram: PublicKey.default,
-                systemProgram: PublicKey.default,
-                solPoolPda: PublicKey.default,
+                feePayer,
+                authority,
+                cpiAuthorityPda,
+                mint,
+                tokenPoolPda,
+                tokenProgram,
+                lightSystemProgram,
+                registeredProgramPda,
+                noopProgram,
+                accountCompressionAuthority,
+                accountCompressionProgram,
+                merkleTree,
+                selfProgram,
+                systemProgram,
+                solPoolPda,
             };
 
             const expected = [
-                { pubkey: PublicKey.default, isSigner: true, isWritable: true },
+                { pubkey: feePayer, isSigner: true, isWritable: true },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: authority,
                     isSigner: true,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: cpiAuthorityPda,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: mint,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenPoolPda,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: lightSystemProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: registeredProgramPda,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: noopProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: accountCompressionAuthority,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: accountCompressionProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: merkleTree,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: selfProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: systemProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: solPoolPda,
                     isSigner: false,
                     isWritable: true,
                 },
@@ -627,81 +652,83 @@ describe('layout', () => {
         });
 
         it('transferAccountsLayout should return correct AccountMeta array', () => {
+            const compressOrDecompressTokenAccount =
+                Keypair.generate().publicKey;
             const accounts = {
-                feePayer: PublicKey.default,
-                authority: PublicKey.default,
-                cpiAuthorityPda: PublicKey.default,
-                lightSystemProgram: PublicKey.default,
-                registeredProgramPda: PublicKey.default,
-                noopProgram: PublicKey.default,
-                accountCompressionAuthority: PublicKey.default,
-                accountCompressionProgram: PublicKey.default,
-                selfProgram: PublicKey.default,
-                tokenPoolPda: PublicKey.default,
-                compressOrDecompressTokenAccount: PublicKey.default,
-                tokenProgram: PublicKey.default,
-                systemProgram: PublicKey.default,
+                feePayer,
+                authority,
+                cpiAuthorityPda,
+                lightSystemProgram,
+                registeredProgramPda,
+                noopProgram,
+                accountCompressionAuthority,
+                accountCompressionProgram,
+                selfProgram,
+                tokenPoolPda,
+                compressOrDecompressTokenAccount,
+                tokenProgram,
+                systemProgram,
             };
 
             const expected = [
-                { pubkey: PublicKey.default, isSigner: true, isWritable: true },
+                { pubkey: feePayer, isSigner: true, isWritable: true },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: authority,
                     isSigner: true,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: cpiAuthorityPda,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: lightSystemProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: registeredProgramPda,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: noopProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: accountCompressionAuthority,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: accountCompressionProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: selfProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenPoolPda,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: compressOrDecompressTokenAccount,
                     isSigner: false,
                     isWritable: true,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: tokenProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: PublicKey.default,
+                    pubkey: systemProgram,
                     isSigner: false,
                     isWritable: false,
                 },
