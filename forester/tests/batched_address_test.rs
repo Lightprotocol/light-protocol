@@ -143,11 +143,6 @@ async fn test_address_batched() {
     println!("Creating new address batch tree...");
     {
         let new_merkle_tree = Keypair::new();
-        // let test_tree_params = InitAddressTreeAccountsInstructionData::default();
-        // // test_tree_params.network_fee = Some(1);
-        // let result =
-        //     create_batch_address_merkle_tree(&mut env.rpc, &env.payer, &new_merkle_tree, test_tree_params)
-        //         .await;
         env.indexer
             .add_address_merkle_tree(&mut env.rpc, &new_merkle_tree, &new_merkle_tree, None, 2)
             .await;
@@ -169,7 +164,6 @@ async fn test_address_batched() {
 
     for i in 0..50 {
         println!("===================== tx {} =====================", i);
-        // env.create_address(None, Some(0)).await;
 
         perform_create_pda_with_event_rnd(
             &mut env.indexer,
@@ -204,7 +198,7 @@ async fn test_address_batched() {
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
     let service_handle = tokio::spawn(run_pipeline(
-        Arc::from(config.clone()),
+        config.clone(),
         Arc::new(Mutex::new(env.indexer)),
         shutdown_receiver,
         work_report_sender,
