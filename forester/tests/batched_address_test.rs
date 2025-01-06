@@ -37,7 +37,7 @@ mod test_utils;
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 40,
+        wait_time: 60,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
