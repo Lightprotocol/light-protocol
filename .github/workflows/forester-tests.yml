@@ -54,4 +54,5 @@ jobs:
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh
+          cargo test-sbf -p create-address-test-program
           npx nx test @lightprotocol/forester
