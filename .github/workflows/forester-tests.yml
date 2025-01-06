@@ -3,14 +3,18 @@ name: forester-tests
 on:
   push:
     branches: [main]
-    paths: &paths
+    paths:
       - "forester/**"
       - "forester-utils/**"
       - "photon-api/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
     branches: ["**"]
-    paths: *paths
+    paths:
+      - "forester/**"
+      - "forester-utils/**"
+      - "photon-api/**"
+      - ".github/workflows/forester-tests.yml"
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
@@ -47,7 +51,7 @@ jobs:
         run: |
           df -h /
           du -sh /home/runner/work/* | sort -hr | head -n 10
-      - name: Build Light CLI
+      - name: Build CLI
         run: |
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
