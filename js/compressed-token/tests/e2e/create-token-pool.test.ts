@@ -155,7 +155,7 @@ describe('createTokenPool', () => {
             CompressedTokenProgram.deriveTokenPoolPda(token22Mint);
 
         assert(token22Mint.equals(token22MintKeypair.publicKey));
-        console.log('token22Mint', token22Mint.toString());
+
         /// Mint already exists externally
         await expect(
             createMint(

@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.17.2-alpha.2",
+    "version": "0.17.2-alpha.3",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
