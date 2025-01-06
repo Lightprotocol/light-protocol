@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, SystemProgram } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     Program,
@@ -16,7 +16,12 @@ import {
 } from '../../src/programs/layout';
 import { InstructionDataInvoke, PublicTransactionEvent } from '../../src/state';
 import { Buffer } from 'buffer';
-import { IDL, LightSystemProgram, LightSystemProgramIDL } from '../../src';
+import {
+    defaultStaticAccountsStruct,
+    IDL,
+    LightSystemProgram,
+    LightSystemProgramIDL,
+} from '../../src';
 
 const getTestProgram = (): Program<LightSystemProgramIDL> => {
     const mockKeypair = Keypair.generate();
@@ -259,71 +264,153 @@ describe('layout', () => {
     });
 
     describe('invokeAccountsLayout', () => {
-        it('should return correct AccountMeta array', () => {
+        const feePayer = new Keypair().publicKey;
+        const authority = new Keypair().publicKey;
+        const registeredProgramPda =
+            defaultStaticAccountsStruct().registeredProgramPda;
+        const noopProgram = defaultStaticAccountsStruct().noopProgram;
+        const accountCompressionAuthority =
+            defaultStaticAccountsStruct().accountCompressionAuthority;
+        const accountCompressionProgram =
+            defaultStaticAccountsStruct().accountCompressionProgram;
+        const solPoolPda = LightSystemProgram.deriveCompressedSolPda();
+        const decompressionRecipient =
+            LightSystemProgram.deriveCompressedSolPda();
+        const systemProgram = SystemProgram.programId;
+
+        it('should return correct AccountMeta array with null solPoodPda', () => {
             const accounts = {
-                feePayer: new PublicKey('11111111111111111111111111111111'),
-                authority: new PublicKey('11111111111111111111111111111111'),
-                registeredProgramPda: new PublicKey(
-                    '11111111111111111111111111111111',
-                ),
-                noopProgram: new PublicKey('11111111111111111111111111111111'),
-                accountCompressionAuthority: new PublicKey(
-                    '11111111111111111111111111111111',
-                ),
-                accountCompressionProgram: new PublicKey(
-                    '11111111111111111111111111111111',
-                ),
+                feePayer,
+                authority,
+                registeredProgramPda,
+                noopProgram,
+                accountCompressionAuthority,
+                accountCompressionProgram,
                 solPoolPda: null,
-                decompressionRecipient: null,
-                systemProgram: new PublicKey(
-                    '11111111111111111111111111111111',
-                ),
+                decompressionRecipient,
+                systemProgram,
             };
 
             const expected = [
-                { pubkey: accounts.feePayer, isSigner: true, isWritable: true },
+                { pubkey: feePayer, isSigner: true, isWritable: true },
+                { pubkey: authority, isSigner: true, isWritable: false },
                 {
-                    pubkey: accounts.authority,
-                    isSigner: true,
+                    pubkey: registeredProgramPda,
+                    isSigner: false,
                     isWritable: false,
                 },
+                { pubkey: noopProgram, isSigner: false, isWritable: false },
                 {
-                    pubkey: accounts.registeredProgramPda,
+                    pubkey: accountCompressionAuthority,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: accounts.noopProgram,
+                    pubkey: accountCompressionProgram,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: accounts.accountCompressionAuthority,
+                    pubkey: LightSystemProgram.programId,
                     isSigner: false,
                     isWritable: false,
                 },
                 {
-                    pubkey: accounts.accountCompressionProgram,
-                    isSigner: false,
-                    isWritable: false,
-                },
-                {
-                    pubkey: accounts.solPoolPda ?? LightSystemProgram.programId,
-                    isSigner: false,
-                    isWritable: false,
-                },
-                {
-                    pubkey:
-                        accounts.decompressionRecipient ??
-                        LightSystemProgram.programId,
+                    pubkey: decompressionRecipient,
                     isSigner: false,
                     isWritable: true,
                 },
+                { pubkey: systemProgram, isSigner: false, isWritable: false },
+            ];
+
+            const result = invokeAccountsLayout(accounts);
+            expect(result).toEqual(expected);
+        });
+
+        it('should return correct AccountMeta array with non-null solPoolPda', () => {
+            const accounts = {
+                feePayer,
+                authority,
+                registeredProgramPda,
+                noopProgram,
+                accountCompressionAuthority,
+                accountCompressionProgram,
+                solPoolPda,
+                decompressionRecipient,
+                systemProgram,
+            };
+
+            const expected = [
+                { pubkey: feePayer, isSigner: true, isWritable: true },
+                { pubkey: authority, isSigner: true, isWritable: false },
                 {
-                    pubkey: accounts.systemProgram,
+                    pubkey: registeredProgramPda,
                     isSigner: false,
                     isWritable: false,
                 },
+                { pubkey: noopProgram, isSigner: false, isWritable: false },
+                {
+                    pubkey: accountCompressionAuthority,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accountCompressionProgram,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                { pubkey: solPoolPda, isSigner: false, isWritable: true },
+                {
+                    pubkey: decompressionRecipient,
+                    isSigner: false,
+                    isWritable: true,
+                },
+                { pubkey: systemProgram, isSigner: false, isWritable: false },
+            ];
+
+            const result = invokeAccountsLayout(accounts);
+            expect(result).toEqual(expected);
+        });
+
+        it('should return correct AccountMeta array with null decompressionRecipient', () => {
+            const accounts = {
+                feePayer,
+                authority,
+                registeredProgramPda,
+                noopProgram,
+                accountCompressionAuthority,
+                accountCompressionProgram,
+                solPoolPda,
+                decompressionRecipient: null,
+                systemProgram,
+            };
+
+            const expected = [
+                { pubkey: feePayer, isSigner: true, isWritable: true },
+                { pubkey: authority, isSigner: true, isWritable: false },
+                {
+                    pubkey: registeredProgramPda,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                { pubkey: noopProgram, isSigner: false, isWritable: false },
+                {
+                    pubkey: accountCompressionAuthority,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accountCompressionProgram,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                { pubkey: solPoolPda, isSigner: false, isWritable: true },
+                {
+                    pubkey: LightSystemProgram.programId,
+                    isSigner: false,
+                    isWritable: true,
+                },
+                { pubkey: systemProgram, isSigner: false, isWritable: false },
             ];
 
             const result = invokeAccountsLayout(accounts);
