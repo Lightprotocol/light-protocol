@@ -1,8 +1,40 @@
-import { decodePublicTransactionEvent } from '../../src/programs/layout';
 import { describe, it, expect } from 'vitest';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import { InstructionDataInvoke } from '../../src/state';
+import {
+    Program,
+    AnchorProvider,
+    setProvider,
+    Wallet,
+} from '@coral-xyz/anchor';
+import {
+    encodeInstructionDataInvoke,
+    decodeInstructionDataInvoke,
+    encodePublicTransactionEvent,
+    decodePublicTransactionEvent,
+    invokeAccountsLayout,
+} from '../../src/programs/layout';
+import { InstructionDataInvoke, PublicTransactionEvent } from '../../src/state';
+import { Buffer } from 'buffer';
+import { IDL, LightSystemProgram, LightSystemProgramIDL } from '../../src';
+
+const getTestProgram = (): Program<LightSystemProgramIDL> => {
+    const mockKeypair = Keypair.generate();
+    const mockConnection = new Connection('http://127.0.0.1:8899', 'confirmed');
+    const mockProvider = new AnchorProvider(
+        mockConnection,
+        new Wallet(mockKeypair),
+        {
+            commitment: 'confirmed',
+        },
+    );
+    setProvider(mockProvider);
+    return new Program(
+        IDL,
+        new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+        mockProvider,
+    );
+};
 
 function deepEqual(ref: any, val: any) {
     if (typeof ref !== typeof val) {
@@ -25,7 +57,7 @@ function deepEqual(ref: any, val: any) {
             return false;
         }
 
-        for (let key of refKeys) {
+        for (const key of refKeys) {
             if (!valKeys.includes(key)) {
                 console.log(`Key ${key} not found in value`);
                 return false;
@@ -46,34 +78,256 @@ function deepEqual(ref: any, val: any) {
 }
 
 describe('layout', () => {
-    it('decode event', async () => {
-        const data = [
-            0, 0, 0, 0, 1, 0, 0, 0, 33, 32, 204, 221, 5, 83, 170, 139, 228, 191,
-            81, 173, 10, 116, 229, 191, 155, 209, 23, 164, 28, 64, 188, 34, 248,
-            127, 110, 97, 26, 188, 139, 164, 0, 0, 0, 0, 1, 0, 0, 0, 22, 143,
-            135, 215, 254, 121, 58, 95, 241, 202, 91, 53, 255, 47, 224, 255, 67,
-            218, 48, 172, 51, 208, 29, 102, 177, 187, 207, 73, 108, 18, 59, 255,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 1, 0, 0, 0, 68, 77, 125, 32, 76, 128, 61, 180, 1, 207, 69,
-            44, 121, 118, 153, 17, 179, 183, 115, 34, 163, 127, 102, 214, 1, 87,
-            175, 177, 95, 49, 65, 69, 0,
+    describe('encode/decode InstructionDataInvoke', () => {
+        const testCases = [
+            {
+                description: 'default case',
+                data: {
+                    proof: null,
+                    inputCompressedAccountsWithMerkleContext: [],
+                    outputCompressedAccounts: [],
+                    relayFee: null,
+                    newAddressParams: [],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
+            {
+                description: 'with proof',
+                data: {
+                    proof: {
+                        a: [
+                            32, 3, 117, 58, 153, 131, 148, 196, 202, 221, 250,
+                            146, 196, 209, 8, 192, 211, 235, 57, 47, 234, 98,
+                            152, 195, 227, 9, 16, 156, 194, 41, 247, 89,
+                        ],
+                        b: [
+                            22, 192, 18, 134, 24, 94, 169, 42, 151, 182, 237,
+                            164, 250, 163, 253, 24, 51, 142, 37, 55, 141, 92,
+                            198, 146, 177, 23, 113, 12, 122, 27, 143, 64, 26,
+                            191, 99, 235, 113, 154, 23, 234, 173, 101, 16, 34,
+                            192, 108, 61, 10, 206, 251, 84, 242, 238, 92, 131,
+                            107, 252, 227, 70, 181, 35, 236, 195, 209,
+                        ],
+                        c: [
+                            166, 160, 56, 185, 41, 239, 140, 4, 255, 144, 213,
+                            185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
+                            132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
+                        ],
+                    },
+                    inputCompressedAccountsWithMerkleContext: [],
+                    outputCompressedAccounts: [],
+                    relayFee: null,
+                    newAddressParams: [],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
+            {
+                description: 'with inputCompressedAccountsWithMerkleContext',
+                data: {
+                    proof: null,
+                    inputCompressedAccountsWithMerkleContext: [
+                        {
+                            compressedAccount: {
+                                owner: new PublicKey(
+                                    '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
+                                ),
+                                lamports: new BN(0),
+                                address: null,
+                                data: null,
+                            },
+                            merkleContext: {
+                                merkleTreePubkeyIndex: 0,
+                                nullifierQueuePubkeyIndex: 1,
+                                leafIndex: 10,
+                                queueIndex: null,
+                            },
+                            rootIndex: 0,
+                            readOnly: false,
+                        },
+                    ],
+                    outputCompressedAccounts: [],
+                    relayFee: null,
+                    newAddressParams: [],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
+            {
+                description: 'with outputCompressedAccounts',
+                data: {
+                    proof: null,
+                    inputCompressedAccountsWithMerkleContext: [],
+                    outputCompressedAccounts: [
+                        {
+                            compressedAccount: {
+                                owner: new PublicKey(
+                                    'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
+                                ),
+                                lamports: new BN(0),
+                                address: null,
+                                data: null,
+                            },
+                            merkleTreeIndex: 0,
+                        },
+                    ],
+                    relayFee: null,
+                    newAddressParams: [],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
+            {
+                description: 'with relayFee',
+                data: {
+                    proof: null,
+                    inputCompressedAccountsWithMerkleContext: [],
+                    outputCompressedAccounts: [],
+                    relayFee: new BN(500),
+                    newAddressParams: [],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
+            {
+                description: 'with newAddressParams',
+                data: {
+                    proof: null,
+                    inputCompressedAccountsWithMerkleContext: [],
+                    outputCompressedAccounts: [],
+                    relayFee: null,
+                    newAddressParams: [
+                        {
+                            seed: Array.from({ length: 32 }, () =>
+                                Math.floor(Math.random() * 256),
+                            ),
+                            addressQueueAccountIndex: 0,
+                            addressMerkleTreeAccountIndex: 0,
+                            addressMerkleTreeRootIndex: 0,
+                        },
+                    ],
+                    compressOrDecompressLamports: null,
+                    isCompress: true,
+                },
+            },
         ];
 
-        const event = decodePublicTransactionEvent(Buffer.from(data));
+        testCases.forEach(({ description, data }) => {
+            it(`should encode/decode InstructionDataInvoke: ${description}`, () => {
+                const encoded = encodeInstructionDataInvoke(data);
+                const decoded = decodeInstructionDataInvoke(encoded);
 
-        const refOutputCompressedAccountHash = [
-            33, 32, 204, 221, 5, 83, 170, 139, 228, 191, 81, 173, 10, 116, 229,
-            191, 155, 209, 23, 164, 28, 64, 188, 34, 248, 127, 110, 97, 26, 188,
-            139, 164,
-        ];
+                expect(deepEqual(decoded, data)).toBe(true);
 
-        expect(event.outputCompressedAccountHashes[0]).toEqual(
-            Buffer.from(refOutputCompressedAccountHash),
-        );
+                const anchordata = getTestProgram().coder.types.encode(
+                    'InstructionDataInvoke',
+                    data,
+                );
+                expect(anchordata).toEqual(encoded.slice(12));
+            });
+        });
     });
-    it('encode/decode CompressedTokenInstructionDataTransfer', () => {
-        const data: InstructionDataInvoke = {};
 
-        expect(deepEqual(decoded, data)).toBe(true);
+    describe('encode/decode PublicTransactionEvent', () => {
+        it('should encode and decode PublicTransactionEvent correctly', () => {
+            const data: PublicTransactionEvent = {
+                inputCompressedAccountHashes: [],
+                outputCompressedAccountHashes: [],
+                outputCompressedAccounts: [],
+                outputLeafIndices: [],
+                sequenceNumbers: [],
+                relayFee: null,
+                isCompress: true,
+                compressOrDecompressLamports: null,
+                pubkeyArray: [],
+                message: null,
+            };
+
+            const encoded = encodePublicTransactionEvent(data);
+
+            const decoded = decodePublicTransactionEvent(encoded);
+
+            const anchordata = getTestProgram().coder.types.encode(
+                'PublicTransactionEvent',
+                data,
+            );
+            expect(anchordata).toEqual(encoded);
+
+            expect(deepEqual(decoded, data)).toBe(true);
+        });
+    });
+
+    describe('invokeAccountsLayout', () => {
+        it('should return correct AccountMeta array', () => {
+            const accounts = {
+                feePayer: new PublicKey('11111111111111111111111111111111'),
+                authority: new PublicKey('11111111111111111111111111111111'),
+                registeredProgramPda: new PublicKey(
+                    '11111111111111111111111111111111',
+                ),
+                noopProgram: new PublicKey('11111111111111111111111111111111'),
+                accountCompressionAuthority: new PublicKey(
+                    '11111111111111111111111111111111',
+                ),
+                accountCompressionProgram: new PublicKey(
+                    '11111111111111111111111111111111',
+                ),
+                solPoolPda: null,
+                decompressionRecipient: null,
+                systemProgram: new PublicKey(
+                    '11111111111111111111111111111111',
+                ),
+            };
+
+            const expected = [
+                { pubkey: accounts.feePayer, isSigner: true, isWritable: true },
+                {
+                    pubkey: accounts.authority,
+                    isSigner: true,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accounts.registeredProgramPda,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accounts.noopProgram,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accounts.accountCompressionAuthority,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accounts.accountCompressionProgram,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey: accounts.solPoolPda ?? LightSystemProgram.programId,
+                    isSigner: false,
+                    isWritable: false,
+                },
+                {
+                    pubkey:
+                        accounts.decompressionRecipient ??
+                        LightSystemProgram.programId,
+                    isSigner: false,
+                    isWritable: true,
+                },
+                {
+                    pubkey: accounts.systemProgram,
+                    isSigner: false,
+                    isWritable: false,
+                },
+            ];
+
+            const result = invokeAccountsLayout(accounts);
+            expect(result).toEqual(expected);
+        });
     });
 });

@@ -99,7 +99,9 @@ export function encodeInstructionDataInvoke(
 export function decodeInstructionDataInvoke(
     buffer: Buffer,
 ): InstructionDataInvoke {
-    return InstructionDataInvokeLayout.decode(buffer);
+    return InstructionDataInvokeLayout.decode(
+        buffer.slice(INVOKE_DISCRIMINATOR.length + 4),
+    );
 }
 
 export type invokeAccountsLayoutParams = {
@@ -199,6 +201,7 @@ export function encodePublicTransactionEvent(
 ): Buffer {
     const buffer = Buffer.alloc(1000);
     const len = PublicTransactionEventLayout.encode(data, buffer);
+
     return buffer.slice(0, len);
 }
 

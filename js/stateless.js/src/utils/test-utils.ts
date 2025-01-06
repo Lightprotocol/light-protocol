@@ -38,7 +38,7 @@ export function deepEqual(ref: any, val: any) {
             return false;
         }
 
-        for (let key of refKeys) {
+        for (const key of refKeys) {
             if (!valKeys.includes(key)) {
                 console.log(`Key ${key} not found in value`);
                 return false;

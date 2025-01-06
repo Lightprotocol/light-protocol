@@ -49,7 +49,7 @@ const InputTokenDataWithContextLayout = struct([
             u8('merkleTreePubkeyIndex'),
             u8('nullifierQueuePubkeyIndex'),
             u32('leafIndex'),
-            option(QueueIndexLayout, 'QueueIndex'),
+            option(QueueIndexLayout, 'queueIndex'),
         ],
         'merkleContext',
     ),
@@ -105,6 +105,7 @@ export function encodeMintToInstructionData(
         },
         buffer,
     );
+
     return Buffer.concat([MINT_TO_DISCRIMINATOR, buffer.slice(0, len)]);
 }
 
@@ -133,6 +134,7 @@ export function encodeCompressSplTokenAccountInstructionData(
         },
         buffer,
     );
+
     return Buffer.concat([
         COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
         buffer.slice(0, len),

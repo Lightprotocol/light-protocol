@@ -54,12 +54,17 @@ export interface CompressedAccountData {
     data: Buffer; // bytes
     dataHash: number[]; // [u8; 32]
 }
+export interface MerkleTreeSequenceNumber {
+    pubkey: PublicKey;
+    seq: BN;
+}
 
 export interface PublicTransactionEvent {
     inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     outputLeafIndices: number[]; // Vec<u32>
+    sequenceNumbers: MerkleTreeSequenceNumber[]; // Vec<MerkleTreeSequenceNumber>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
     compressOrDecompressLamports: BN | null; // Option<u64>

@@ -30,8 +30,8 @@
     "license": "Apache-2.0",
     "peerDependencies": {
         "@lightprotocol/stateless.js": "workspace:*",
-        "@solana/web3.js": ">=1.73.5",
-        "@solana/spl-token": ">=0.3.9"
+        "@solana/spl-token": ">=0.3.9",
+        "@solana/web3.js": ">=1.73.5"
     },
     "dependencies": {
         "@coral-xyz/borsh": "^0.29.0",
@@ -39,6 +39,7 @@
         "buffer": "6.0.3"
     },
     "devDependencies": {
+        "@coral-xyz/anchor": "^0.29.0",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/hasher.rs": "0.2.1",
         "@lightprotocol/programs": "workspace:*",
@@ -50,8 +51,8 @@
         "@rollup/plugin-replace": "^5.0.7",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.6",
-        "@solana/web3.js": "1.98.0",
         "@solana/spl-token": "0.4.8",
+        "@solana/web3.js": "1.98.0",
         "@types/bn.js": "^5.1.5",
         "@types/node": "^22.5.5",
         "@typescript-eslint/eslint-plugin": "^7.13.1",
