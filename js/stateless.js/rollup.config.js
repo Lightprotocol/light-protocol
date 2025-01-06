@@ -64,7 +64,6 @@ const typesConfig = {
 
 export default [
     rolls('cjs', 'browser'),
-    // rolls('es', 'browser'),
     rolls('cjs', 'node'),
     typesConfig,
 ];

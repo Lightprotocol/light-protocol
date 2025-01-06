@@ -138,7 +138,7 @@ describe('createTokenPool', () => {
         /// Mint already registered
         await expect(createTokenPool(rpc, payer, mint)).rejects.toThrow();
     });
-    it.only('should register existing spl token22 mint', async () => {
+    it('should register existing spl token22 mint', async () => {
         const token22MintKeypair = Keypair.generate();
         const token22Mint = token22MintKeypair.publicKey;
         const token22MintAuthority = Keypair.generate();
