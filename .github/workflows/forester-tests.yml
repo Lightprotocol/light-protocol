@@ -38,6 +38,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+      - name: Clean build artifacts before tests
+        shell: bash
+        run: |
+          cargo clean
+          rm -rf target/debug/deps/*
+      - name: Check available disk space
+        shell: bash
+        run: |
+          df -h /
+          du -sh /home/runner/work/* | sort -hr | head -n 10
       - name: Build test program
         run: |
           source ./scripts/devenv.sh
@@ -54,6 +64,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+      - name: Clean build artifacts before tests
+        shell: bash
+        run: |
+          cargo clean
+          rm -rf target/debug/deps/*
+      - name: Check available disk space
+        shell: bash
+        run: |
+          df -h /
+          du -sh /home/runner/work/* | sort -hr | head -n 10
       - name: Run state batched tests
         run: |
           source ./scripts/devenv.sh
@@ -66,6 +86,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+      - name: Clean build artifacts before tests
+        shell: bash
+        run: |
+          cargo clean
+          rm -rf target/debug/deps/*
+      - name: Check available disk space
+        shell: bash
+        run: |
+          df -h /
+          du -sh /home/runner/work/* | sort -hr | head -n 10
       - name: Run 2 foresters test
         run: |
           source ./scripts/devenv.sh
@@ -78,6 +108,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+      - name: Clean build artifacts before tests
+        shell: bash
+        run: |
+          cargo clean
+          rm -rf target/debug/deps/*
+      - name: Check available disk space
+        shell: bash
+        run: |
+          df -h /
+          du -sh /home/runner/work/* | sort -hr | head -n 10
       - name: Run epoch double registration test
         run: |
           source ./scripts/devenv.sh
