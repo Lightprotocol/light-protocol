@@ -21,7 +21,7 @@ npm install -g @lightprotocol/zk-compression-cli
 ### Building from source
 
 If you prefer to build the CLI from source, follow the steps below to install
-the necessary prerequesites.
+the necessary prerequisites.
 
 **1. Activate the Development Environment**
 
