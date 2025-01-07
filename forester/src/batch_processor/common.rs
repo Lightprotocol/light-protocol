@@ -2,14 +2,16 @@ use std::sync::Arc;
 
 use forester_utils::{forester_epoch::TreeType, indexer::Indexer};
 use light_batched_merkle_tree::{
-    batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    batch::{Batch, BatchState},
+    merkle_tree::BatchedMerkleTreeAccount,
+    queue::BatchedQueueAccount,
 };
 use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
 use tracing::info;
-use light_batched_merkle_tree::batch::Batch;
+
 use super::{address, error::Result, state, BatchProcessError};
 
 #[derive(Debug)]

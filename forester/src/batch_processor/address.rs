@@ -2,6 +2,7 @@ use borsh::BorshSerialize;
 use forester_utils::{
     indexer::Indexer, instructions::create_batch_update_address_tree_instruction_data,
 };
+use light_batched_merkle_tree::event::BatchNullifyEvent;
 use light_client::rpc::RpcConnection;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
@@ -40,19 +41,14 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R>>(
         })?,
     );
 
-    // TODO: send transaction with event?
-    // rpc.create_and_send_transaction_with_event::<BatchAddressUpdateEvent>(
-    rpc.create_and_send_transaction(
+    rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
         &[instruction],
         &context.authority.pubkey(),
         &[&context.authority],
+        None,
     )
-    .await
-    .map_err(|e| {
-        BatchProcessError::Transaction(format!("Failed to send address update transaction: {}", e))
-    })?;
+    .await?;
 
-    // Update indexer state after successful transaction
     let mut indexer = context.indexer.lock().await;
     indexer
         .finalize_batched_address_tree_update(&mut *rpc, context.merkle_tree)
