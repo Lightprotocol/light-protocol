@@ -104,10 +104,10 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
             };
         }
 
-        if self.verify_input_queue_batch_ready(&mut rpc).await {
-            BatchReadyState::ReadyForNullify
-        } else if self.verify_output_queue_batch_ready(&mut rpc).await {
+        if self.verify_output_queue_batch_ready(&mut rpc).await {
             BatchReadyState::ReadyForAppend
+        } else if self.verify_input_queue_batch_ready(&mut rpc).await {
+            BatchReadyState::ReadyForNullify
         } else {
             BatchReadyState::NotReady
         }
