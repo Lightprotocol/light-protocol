@@ -797,9 +797,11 @@ impl<R: RpcConnection + Send + Sync + 'static> Indexer<R> for TestIndexer<R> {
             state_merkle_tree_bundle.merkle_tree.root(),
             "update indexer after append root invalid"
         );
+
+        let num_inserted_zkps = num_inserted_zkps + 1;
         // check can we get rid of this and use the data from the merkle tree
         if num_inserted_zkps == max_num_zkp_updates {
-            for _ in 0..zkp_batch_size {
+            for _ in 0..zkp_batch_size * max_num_zkp_updates {
                 state_merkle_tree_bundle.output_queue_elements.remove(0);
             }
         }
