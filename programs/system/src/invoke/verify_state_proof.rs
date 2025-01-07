@@ -440,7 +440,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 pub fn verify_state_proof(
     // input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     roots: &[[u8; 32]],
-    leaves: &Vec<[u8; 32]>,
+    leaves: &[[u8; 32]],
     address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],
     compressed_proof: &CompressedProof,

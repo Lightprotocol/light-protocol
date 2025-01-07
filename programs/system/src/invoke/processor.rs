@@ -135,7 +135,7 @@ pub fn process<
         )?;
         // # Safety this is a safeguard for memory safety.
         // This error should never be triggered.
-        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, &"hashed_pubkeys")?;
+        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, "hashed_pubkeys")?;
     }
 
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
@@ -154,7 +154,7 @@ pub fn process<
     )?;
     // # Safety this is a safeguard for memory safety.
     // This error should never be triggered.
-    check_vec_capacity(num_new_addresses, &new_address_roots, &"new_address_roots")?;
+    check_vec_capacity(num_new_addresses, &new_address_roots, "new_address_roots")?;
 
     // Insert addresses into address merkle tree queue ---------------------------------------------------
     let address_network_fee_bundle = if num_new_addresses != 0 {
@@ -196,7 +196,7 @@ pub fn process<
         )?;
         // # Safety this is a safeguard for memory safety.
         // This error should never be triggered.
-        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, &"hashed_pubkeys")?;
+        check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, "hashed_pubkeys")?;
         bench_sbf_end!("cpda_append");
         network_fee_bundle
     } else {
@@ -226,7 +226,7 @@ pub fn process<
     check_vec_capacity(
         num_input_state_roots,
         &input_compressed_account_roots,
-        &"input_compressed_account_roots",
+        "input_compressed_account_roots",
     )?;
 
     // insert nullifiers (input compressed account hashes)---------------------------------------------------
@@ -308,7 +308,7 @@ pub fn process<
             check_vec_capacity(
                 num_input_state_roots,
                 &proof_input_compressed_account_hashes,
-                &"proof_input_compressed_account_hashes",
+                "proof_input_compressed_account_hashes",
             )?;
 
             let compressed_proof = CompressedVerifierProof {
@@ -389,8 +389,8 @@ fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str)
 
 fn filter_for_accounts_not_proven_by_index(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    read_only_accounts: &Vec<PackedReadOnlyCompressedAccount>,
-    input_compressed_account_hashes: &Vec<[u8; 32]>,
+    read_only_accounts: &[PackedReadOnlyCompressedAccount],
+    input_compressed_account_hashes: &[[u8; 32]],
     proof_input_compressed_account_hashes: &mut Vec<[u8; 32]>,
 ) {
     for (hash, input_account) in input_compressed_account_hashes

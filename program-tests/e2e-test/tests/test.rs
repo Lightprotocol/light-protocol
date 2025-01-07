@@ -51,6 +51,7 @@ async fn test_10_all() {
                 ProofType::BatchAppendWithProofsTest,
             ],
         }),
+        None,
     )
     .await;
     let mut config = KeypairActionConfig::test_default();

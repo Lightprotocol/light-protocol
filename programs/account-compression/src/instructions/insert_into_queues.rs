@@ -243,9 +243,6 @@ fn add_queue_bundle_v1<'a, 'info>(
     element: &'a [u8; 32],
     remaining_accounts: &'info [AccountInfo<'info>],
 ) -> Result<()> {
-    if queue_type != QueueType::AddressQueue {
-        return err!(AccountCompressionErrorCode::InvalidQueueType);
-    }
     let queue = remaining_accounts.get(*remaining_accounts_index).unwrap();
     let merkle_tree = remaining_accounts
         .get(*remaining_accounts_index + 1)

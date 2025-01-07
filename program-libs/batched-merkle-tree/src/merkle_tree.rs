@@ -310,6 +310,7 @@ impl BatchedMerkleTreeAccount {
     pub fn address_tree_from_account_info_mut(
         account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+
         Self::from_account_info_mut::<BATCHED_ADDRESS_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
@@ -810,7 +811,7 @@ impl BatchedMerkleTreeAccount {
             let bloom_filter_store = self.bloom_filter_stores[i].as_mut_slice();
             let batch = &self.batches[i];
             if !batch.bloom_filter_is_wiped {
-                batch.check_non_inclusion(&value, bloom_filter_store)?;
+                batch.check_non_inclusion(value, bloom_filter_store)?;
             }
         }
         Ok(())
