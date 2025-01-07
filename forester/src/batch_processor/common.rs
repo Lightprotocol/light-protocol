@@ -53,7 +53,7 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
             BatchReadyState::ReadyForNullify => self.process_state_nullify().await,
             BatchReadyState::NotReady => Ok(0),
         }
-        }
+    }
 
     async fn verify_batch_ready(&self) -> BatchReadyState {
         let mut rpc = match self.context.rpc_pool.get_connection().await {
@@ -159,14 +159,14 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         let (num_inserted_zkps, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_append(&self.context, &mut rpc, num_inserted_zkps).await?;
         Ok(zkp_batch_size)
-            }
+    }
 
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)
-        }
+    }
 
     async fn get_num_inserted_zkps(&self, rpc: &mut R) -> Result<(u64, usize)> {
         let (num_inserted_zkps, zkp_batch_size) = {
