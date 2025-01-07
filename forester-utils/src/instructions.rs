@@ -22,7 +22,7 @@ use light_prover_client::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use light_verifier::CompressedProof;
-use log::error;
+use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
@@ -268,6 +268,8 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
+    info!("Leaves: {:?}", leaves);
+
     let (old_leaves, merkle_proofs) = {
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
@@ -281,6 +283,9 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         (old_leaves, merkle_proofs)
     };
+
+    info!("Old leaves: {:?}", old_leaves);
+
 
     let (proof, new_root) = {
         let circuit_inputs =

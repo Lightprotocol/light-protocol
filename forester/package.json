@@ -4,9 +4,9 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "cargo build",
-    "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --test-threads=1 --nocapture",
-    "test-state-batched": "cargo test --package forester test_state_batched -- --test-threads=1 --nocapture",
-    "test-address-batched": "cargo test --package forester test_address_batched -- --test-threads=1 --nocapture",
+    "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --nocapture",
+    "test-state-batched": "cargo test --package forester test_state_batched -- --nocapture",
+    "test-address-batched": "cargo test --package forester test_address_batched -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {

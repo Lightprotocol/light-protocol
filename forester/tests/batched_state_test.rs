@@ -43,7 +43,7 @@ async fn test_state_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 60,
+        wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],
     }))

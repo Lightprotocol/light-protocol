@@ -9,7 +9,7 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
 use tracing::info;
-
+use light_batched_merkle_tree::batch::Batch;
 use super::{address, error::Result, state, BatchProcessError};
 
 #[derive(Debug)]
@@ -53,6 +53,105 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         }
     }
 
+    async fn verify_batch_ready(&self) -> BatchReadyState {
+        let mut rpc = match self.context.rpc_pool.get_connection().await {
+            Ok(rpc) => rpc,
+            Err(_) => return BatchReadyState::NotReady,
+        };
+
+        let input_ready = self.verify_input_queue_batch_ready(&mut rpc).await;
+        let output_ready = if self.tree_type == TreeType::BatchedState {
+            self.verify_output_queue_batch_ready(&mut rpc).await
+        } else {
+            false
+        };
+
+        if self.tree_type == TreeType::BatchedAddress {
+            return if input_ready {
+                BatchReadyState::ReadyForAppend
+            } else {
+                BatchReadyState::NotReady
+            };
+        }
+
+        // For State tree type, we need to balance between append and nullify
+        // operations based on the queue states
+        match (input_ready, output_ready) {
+            (true, true) => {
+                // If both queues are ready, check their fill levels
+                let input_fill = self.get_input_queue_completion(&mut rpc).await;
+                let output_fill = self.get_output_queue_completion(&mut rpc).await;
+
+                info!(
+                    "Input queue fill: {:.2}, Output queue fill: {:.2}",
+                    input_fill, output_fill
+                );
+                // Prioritize the queue that is more full
+                if input_fill > output_fill {
+                    BatchReadyState::ReadyForNullify
+                } else {
+                    BatchReadyState::ReadyForAppend
+                }
+            }
+            (true, false) => BatchReadyState::ReadyForNullify,
+            (false, true) => BatchReadyState::ReadyForAppend,
+            (false, false) => BatchReadyState::NotReady,
+        }
+    }
+    async fn get_input_queue_completion(&self, rpc: &mut R) -> f64 {
+        let mut account = match rpc.get_account(self.context.merkle_tree).await {
+            Ok(Some(account)) => account,
+            _ => return 0.0,
+        };
+
+        Self::calculate_completion_from_tree(account.data.as_mut_slice())
+    }
+
+    async fn get_output_queue_completion(&self, rpc: &mut R) -> f64 {
+        let mut account = match rpc.get_account(self.context.output_queue).await {
+            Ok(Some(account)) => account,
+            _ => return 0.0,
+        };
+
+        Self::calculate_completion_from_queue(account.data.as_mut_slice())
+    }
+
+    fn calculate_completion_from_tree(data: &mut [u8]) -> f64 {
+        let tree = match BatchedMerkleTreeAccount::state_tree_from_bytes_mut(data) {
+            Ok(tree) => tree,
+            Err(_) => return 0.0,
+        };
+
+        let batch_index = tree.get_metadata().queue_metadata.next_full_batch_index;
+        match tree.batches.get(batch_index as usize) {
+            Some(batch) => Self::calculate_completion(batch),
+            None => 0.0,
+        }
+    }
+
+    fn calculate_completion_from_queue(data: &mut [u8]) -> f64 {
+        let queue = match BatchedQueueAccount::output_queue_from_bytes_mut(data) {
+            Ok(queue) => queue,
+            Err(_) => return 0.0,
+        };
+
+        let batch_index = queue.get_metadata().batch_metadata.next_full_batch_index;
+        match queue.batches.get(batch_index as usize) {
+            Some(batch) => Self::calculate_completion(batch),
+            None => 0.0,
+        }
+    }
+
+    fn calculate_completion(batch: &Batch) -> f64 {
+        let total = batch.get_num_zkp_batches();
+        if total == 0 {
+            return 0.0;
+        }
+
+        let remaining = total - batch.get_num_inserted_zkps();
+        remaining as f64 / total as f64
+    }
+
     async fn process_state_append(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (num_inserted_zkps, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
@@ -90,29 +189,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
         Ok((num_inserted_zkps, zkp_batch_size))
     }
 
-    async fn verify_batch_ready(&self) -> BatchReadyState {
-        let mut rpc = match self.context.rpc_pool.get_connection().await {
-            Ok(rpc) => rpc,
-            Err(_) => return BatchReadyState::NotReady,
-        };
-
-        if self.tree_type == TreeType::BatchedAddress {
-            return if self.verify_input_queue_batch_ready(&mut rpc).await {
-                BatchReadyState::ReadyForAppend
-            } else {
-                BatchReadyState::NotReady
-            };
-        }
-
-        if self.verify_output_queue_batch_ready(&mut rpc).await {
-            BatchReadyState::ReadyForAppend
-        } else if self.verify_input_queue_batch_ready(&mut rpc).await {
-            BatchReadyState::ReadyForNullify
-        } else {
-            BatchReadyState::NotReady
-        }
-    }
-
     async fn verify_input_queue_batch_ready(&self, rpc: &mut R) -> bool {
         let mut account = match rpc.get_account(self.context.merkle_tree).await {
             Ok(Some(account)) => account,
@@ -141,7 +217,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
     }
 
     async fn verify_output_queue_batch_ready(&self, rpc: &mut R) -> bool {
-        info!("verify_output_queue_batch_ready");
         let mut account = match rpc.get_account(self.context.output_queue).await {
             Ok(Some(account)) => account,
             _ => return false,
@@ -153,8 +228,6 @@ impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
             }
             _ => return false,
         };
-
-        info!("output_queue: {:?}", output_queue);
 
         if let Ok(queue) = output_queue {
             let batch_index = queue.get_metadata().batch_metadata.next_full_batch_index;
