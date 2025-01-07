@@ -286,7 +286,6 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
     info!("Old leaves: {:?}", old_leaves);
 
-
     let (proof, new_root) = {
         let circuit_inputs =
             get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
