@@ -164,7 +164,7 @@ impl VisitMut for LightProgramTransform {
         //
         // - The struct with Anchor accounts (implementing `anchor_lang::Accounts`) -
         //   it's specified as the last generic argument in `ctx`, e.g. `MyInstruction`.
-        // - The struct with compressed accounds (implementing `LightAccounts`) -
+        // - The struct with compressed accounts (implementing `LightAccounts`) -
         //   it's derived by adding the `Light` prefix to the previous struct name,
         //   e.g. `LightMyInstruction`.
         let arguments = match &ctx_segment.arguments {
