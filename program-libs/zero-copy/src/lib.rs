@@ -6,6 +6,7 @@ pub mod slice_mut;
 pub mod vec;
 pub mod wrapped_pointer;
 pub mod wrapped_pointer_mut;
+pub mod zero_copy_vec;
 
 use std::mem::{align_of, size_of};
 
