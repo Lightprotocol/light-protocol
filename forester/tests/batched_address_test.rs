@@ -6,7 +6,7 @@ use forester_utils::{
     registry::{register_test_forester, update_test_forester},
 };
 use light_batched_merkle_tree::{
-    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
@@ -141,13 +141,18 @@ async fn test_address_batched() {
     env.indexer.address_merkle_trees.clear();
 
     println!("Creating new address batch tree...");
-    {
-        let new_merkle_tree = Keypair::new();
-        env.indexer
-            .add_address_merkle_tree(&mut env.rpc, &new_merkle_tree, &new_merkle_tree, None, 2)
-            .await;
-        env_accounts.batch_address_merkle_tree = new_merkle_tree.pubkey();
-    }
+
+    let merkle_tree_keypair = Keypair::new();
+    env.indexer
+        .add_address_merkle_tree(
+            &mut env.rpc,
+            &merkle_tree_keypair,
+            &merkle_tree_keypair,
+            None,
+            2,
+        )
+        .await;
+    env_accounts.batch_address_merkle_tree = merkle_tree_keypair.pubkey();
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
         .indexer
@@ -183,7 +188,7 @@ async fn test_address_batched() {
 
     println!("zkp_batches: {}", zkp_batches);
 
-    let pre_root = {
+    let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
@@ -191,7 +196,15 @@ async fn test_address_batched() {
             merkle_tree_account.data.as_mut_slice(),
         )
         .unwrap();
-        merkle_tree.get_root().unwrap()
+
+        let initial_next_index = merkle_tree.get_metadata().next_index;
+        let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
+
+        (
+            initial_next_index,
+            initial_sequence_number,
+            merkle_tree.get_root().unwrap(),
+        )
     };
 
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
@@ -231,18 +244,65 @@ async fn test_address_batched() {
         "No batches were processed"
     );
 
-    let post_root = {
+    {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+
+        let mut merkle_tree_account = rpc
+            .get_account(merkle_tree_keypair.pubkey())
+            .await
+            .unwrap()
+            .unwrap();
 
         let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
             merkle_tree_account.data.as_mut_slice(),
         )
         .unwrap();
-        merkle_tree.get_root().unwrap()
-    };
 
-    assert_ne!(pre_root, post_root, "Roots are the same");
+        let final_metadata = merkle_tree.get_metadata();
+
+        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
+
+        let mut completed_items = 0;
+        for batch_idx in 0..merkle_tree.batches.len() {
+            let batch = merkle_tree.batches.get(batch_idx).unwrap();
+            if batch.get_state() == BatchState::Inserted {
+                completed_items += batch_size;
+            }
+        }
+
+        assert_eq!(
+            final_metadata.next_index,
+            initial_next_index + completed_items,
+            "Merkle tree next_index did not advance by expected amount",
+        );
+
+        assert!(
+            merkle_tree
+                .get_metadata()
+                .queue_metadata
+                .next_full_batch_index
+                > 0,
+            "No batches were processed"
+        );
+
+        assert!(
+            final_metadata.sequence_number > initial_sequence_number,
+            "Sequence number should have increased"
+        );
+
+        let post_root = merkle_tree.get_root().unwrap();
+        assert_ne!(pre_root, post_root, "Roots are the same");
+
+        assert_ne!(
+            pre_root,
+            merkle_tree.get_root().unwrap(),
+            "Root should have changed"
+        );
+        assert!(
+            merkle_tree.root_history.len() > 1,
+            "Root history should contain multiple roots"
+        );
+    }
 
     shutdown_sender
         .send(())
