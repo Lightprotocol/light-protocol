@@ -1,26 +1,20 @@
 import {
     PublicKey,
-    Keypair,
     TransactionInstruction,
     SystemProgram,
     Connection,
     AddressLookupTableProgram,
     AccountMeta,
 } from '@solana/web3.js';
-import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
-import { IDL, LightCompressedToken } from './idl/light_compressed_token';
+import BN from 'bn.js';
 import {
     CompressedProof,
     LightSystemProgram,
     ParsedTokenAccount,
-    TokenTransferOutputData,
     bn,
-    confirmConfig,
-    CompressedTokenInstructionDataTransfer,
     defaultStaticAccountsStruct,
     sumUpLamports,
     toArray,
-    useWallet,
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
@@ -32,8 +26,24 @@ import {
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
-import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
+import {
+    CPI_AUTHORITY_SEED,
+    POOL_SEED,
+    CREATE_TOKEN_POOL_DISCRIMINATOR,
+} from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
+import {
+    encodeTransferInstructionData,
+    encodeCompressSplTokenAccountInstructionData,
+    encodeMintToInstructionData,
+    createTokenPoolAccountsLayout,
+    mintToAccountsLayout,
+    transferAccountsLayout,
+} from './layout';
+import {
+    CompressedTokenInstructionDataTransfer,
+    TokenTransferOutputData,
+} from './types';
 
 export type CompressParams = {
     /**
@@ -518,42 +528,6 @@ export class CompressedTokenProgram {
             typeof programId === 'string'
                 ? new PublicKey(programId)
                 : programId;
-        // Reset program when programId changes
-        this._program = null;
-    }
-
-    private static _program: Program<LightCompressedToken> | null = null;
-
-    /** @internal */
-    static get program(): Program<LightCompressedToken> {
-        if (!this._program) {
-            this.initializeProgram();
-        }
-        return this._program!;
-    }
-
-    /**
-     * @internal
-     * Initializes the program statically if not already initialized.
-     */
-    private static initializeProgram() {
-        if (!this._program) {
-            /// Note: We can use a mock connection because we're using the
-            /// program only for serde and building instructions, not for
-            /// interacting with the network.
-            const mockKeypair = Keypair.generate();
-            const mockConnection = new Connection(
-                'http://127.0.0.1:8899',
-                'confirmed',
-            );
-            const mockProvider = new AnchorProvider(
-                mockConnection,
-                useWallet(mockKeypair),
-                confirmConfig,
-            );
-            setProvider(mockProvider);
-            this._program = new Program(IDL, this.programId, mockProvider);
-        }
     }
 
     /** @internal */
@@ -638,19 +612,20 @@ export class CompressedTokenProgram {
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
-        const ix = await this.program.methods
-            .createTokenPool()
-            .accounts({
-                mint,
-                feePayer,
-                tokenPoolPda,
-                systemProgram: SystemProgram.programId,
-                tokenProgram,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-            })
-            .instruction();
+        const keys = createTokenPoolAccountsLayout({
+            mint,
+            feePayer,
+            tokenPoolPda,
+            tokenProgram,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            systemProgram: SystemProgram.programId,
+        });
 
-        return ix;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data: CREATE_TOKEN_POOL_DISCRIMINATOR,
+        });
     }
 
     /**
@@ -681,29 +656,35 @@ export class CompressedTokenProgram {
                 'Amount and toPubkey arrays must have the same length',
             );
         }
+        const keys = mintToAccountsLayout({
+            mint,
+            feePayer,
+            authority,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            tokenProgram,
+            tokenPoolPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: systemKeys.registeredProgramPda,
+            noopProgram: systemKeys.noopProgram,
+            accountCompressionAuthority: systemKeys.accountCompressionAuthority,
+            accountCompressionProgram: systemKeys.accountCompressionProgram,
+            merkleTree: merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            solPoolPda: null, // TODO: add lamports support
+        });
 
-        const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts, null)
-            .accounts({
-                feePayer,
-                authority,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                mint,
-                tokenPoolPda,
-                tokenProgram,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: systemKeys.registeredProgramPda,
-                noopProgram: systemKeys.noopProgram,
-                accountCompressionAuthority:
-                    systemKeys.accountCompressionAuthority,
-                accountCompressionProgram: systemKeys.accountCompressionProgram,
-                merkleTree:
-                    merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
-                selfProgram: this.programId,
-                solPoolPda: null,
-            })
-            .instruction();
-        return instruction;
+        const data = encodeMintToInstructionData({
+            recipients: toPubkeys,
+            amounts,
+            lamports: null,
+        });
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -783,7 +764,7 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
         );
 
-        const data: CompressedTokenInstructionDataTransfer = {
+        const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
             delegatedTransfer: null, // TODO: implement
@@ -794,11 +775,7 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-
-        const encodedData = this.program.coder.types.encode(
-            'CompressedTokenInstructionDataTransfer',
-            data,
-        );
+        const data = encodeTransferInstructionData(rawData);
 
         const {
             accountCompressionAuthority,
@@ -806,27 +783,29 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
+        const keys = transferAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            tokenPoolPda: undefined,
+            compressOrDecompressTokenAccount: undefined,
+            tokenProgram: undefined,
+            systemProgram: SystemProgram.programId,
+        });
 
-        const instruction = await this.program.methods
-            .transfer(encodedData)
-            .accounts({
-                feePayer: payer!,
-                authority: currentOwner!,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: registeredProgramPda,
-                noopProgram: noopProgram,
-                accountCompressionAuthority: accountCompressionAuthority,
-                accountCompressionProgram: accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: null,
-                compressOrDecompressTokenAccount: null,
-                tokenProgram: null,
-            })
-            .remainingAccounts(remainingAccountMetas)
-            .instruction();
+        keys.push(...remainingAccountMetas);
 
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -945,7 +924,7 @@ export class CompressedTokenProgram {
             tokenTransferOutputs,
         });
 
-        const data: CompressedTokenInstructionDataTransfer = {
+        const rawData: CompressedTokenInstructionDataTransfer = {
             proof: null,
             mint,
             delegatedTransfer: null, // TODO: implement
@@ -960,36 +939,30 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
+        const data = encodeTransferInstructionData(rawData);
 
-        const encodedData = this.program.coder.types.encode(
-            'CompressedTokenInstructionDataTransfer',
-            data,
-        );
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const instruction = await this.program.methods
-            .transfer(encodedData)
-            .accounts({
-                feePayer: payer,
-                authority: owner,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda:
-                    defaultStaticAccountsStruct().registeredProgramPda,
-                noopProgram: defaultStaticAccountsStruct().noopProgram,
-                accountCompressionAuthority:
-                    defaultStaticAccountsStruct().accountCompressionAuthority,
-                accountCompressionProgram:
-                    defaultStaticAccountsStruct().accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: this.deriveTokenPoolPda(mint),
-                compressOrDecompressTokenAccount: source, // token
-                tokenProgram,
-            })
-            .remainingAccounts(remainingAccountMetas)
-            .instruction();
+        const keys = transferAccountsLayout({
+            ...defaultStaticAccountsStruct(),
+            feePayer: payer,
+            authority: owner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            compressOrDecompressTokenAccount: source,
+            tokenProgram,
+        });
 
-        return instruction;
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     /**
@@ -1030,7 +1003,7 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
         );
 
-        const data: CompressedTokenInstructionDataTransfer = {
+        const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
             delegatedTransfer: null, // TODO: implement
@@ -1041,12 +1014,8 @@ export class CompressedTokenProgram {
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
         };
-
-        const encodedData = this.program.coder.types.encode(
-            'CompressedTokenInstructionDataTransfer',
-            data,
-        );
-
+        const data = encodeTransferInstructionData(rawData);
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
         const {
             accountCompressionAuthority,
             noopProgram,
@@ -1054,28 +1023,29 @@ export class CompressedTokenProgram {
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
 
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+        const keys = transferAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            compressOrDecompressTokenAccount: toAddress,
+            tokenProgram,
+            systemProgram: SystemProgram.programId,
+        });
 
-        const instruction = await this.program.methods
-            .transfer(encodedData)
-            .accounts({
-                feePayer: payer,
-                authority: currentOwner,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda: registeredProgramPda,
-                noopProgram: noopProgram,
-                accountCompressionAuthority: accountCompressionAuthority,
-                accountCompressionProgram: accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: this.deriveTokenPoolPda(mint),
-                compressOrDecompressTokenAccount: toAddress,
-                tokenProgram,
-            })
-            .remainingAccounts(remainingAccountMetas)
-            .instruction();
+        keys.push(...remainingAccountMetas);
 
-        return instruction;
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     static async mergeTokenAccounts(
@@ -1132,30 +1102,40 @@ export class CompressedTokenProgram {
             },
         ];
 
-        const instruction = await this.program.methods
-            .compressSplTokenAccount(authority, remainingAmount ?? null, null)
-            .accounts({
-                feePayer,
-                authority,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-                lightSystemProgram: LightSystemProgram.programId,
-                registeredProgramPda:
-                    defaultStaticAccountsStruct().registeredProgramPda,
-                noopProgram: defaultStaticAccountsStruct().noopProgram,
-                accountCompressionAuthority:
-                    defaultStaticAccountsStruct().accountCompressionAuthority,
-                accountCompressionProgram:
-                    defaultStaticAccountsStruct().accountCompressionProgram,
-                selfProgram: this.programId,
-                tokenPoolPda: this.deriveTokenPoolPda(mint),
-                compressOrDecompressTokenAccount: tokenAccount,
-                tokenProgram,
-                systemProgram: SystemProgram.programId,
-            })
-            .remainingAccounts(remainingAccountMetas)
-            .instruction();
+        const data = encodeCompressSplTokenAccountInstructionData({
+            owner: authority,
+            remainingAmount: remainingAmount ?? null,
+            cpiContext: null,
+        });
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = transferAccountsLayout({
+            feePayer,
+            authority,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            compressOrDecompressTokenAccount: tokenAccount,
+            tokenProgram,
+            systemProgram: SystemProgram.programId,
+        });
 
-        return instruction;
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 
     static async get_mint_program_id(

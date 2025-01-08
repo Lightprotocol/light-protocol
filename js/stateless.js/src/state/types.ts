@@ -1,4 +1,4 @@
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { NewAddressParamsPacked } from '../utils';
@@ -54,12 +54,17 @@ export interface CompressedAccountData {
     data: Buffer; // bytes
     dataHash: number[]; // [u8; 32]
 }
+export interface MerkleTreeSequenceNumber {
+    pubkey: PublicKey;
+    seq: BN;
+}
 
 export interface PublicTransactionEvent {
     inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     outputLeafIndices: number[]; // Vec<u32>
+    sequenceNumbers: MerkleTreeSequenceNumber[]; // Vec<MerkleTreeSequenceNumber>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
     compressOrDecompressLamports: BN | null; // Option<u64>
@@ -82,32 +87,6 @@ export interface CompressedProof {
     b: number[]; // [u8; 64]
     c: number[]; // [u8; 32]
 }
-
-/**
- * Compressed-token types
- *
- * TODO: Token-related code should ideally not have to go into stateless.js.
- * Find a better altnerative way to extend the RPC.
- *
- */
-export type TokenTransferOutputData = {
-    owner: PublicKey;
-    amount: BN;
-    lamports: BN | null;
-    tlv: Buffer | null;
-};
-
-export type CompressedTokenInstructionDataTransfer = {
-    proof: CompressedProof | null;
-    mint: PublicKey;
-    delegatedTransfer: null;
-    inputTokenDataWithContext: InputTokenDataWithContext[];
-    outputCompressedAccounts: TokenTransferOutputData[];
-    isCompress: boolean;
-    compressOrDecompressAmount: BN | null;
-    cpiContext: null;
-    lamportsChangeAccountMerkleTreeIndex: number | null;
-};
 
 export interface InputTokenDataWithContext {
     amount: BN;

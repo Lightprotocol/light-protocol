@@ -1,4 +1,4 @@
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { FIELD_SIZE } from '../constants';
 import { CompressedProof } from '../state';
 
