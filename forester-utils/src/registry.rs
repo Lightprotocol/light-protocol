@@ -17,11 +17,10 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
 use crate::{
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
     create_account_instruction,
-    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
 };
 
 /// Creates and asserts forester account creation.

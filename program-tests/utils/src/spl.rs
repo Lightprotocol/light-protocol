@@ -1,7 +1,6 @@
 use anchor_spl::token::{Mint, TokenAccount};
 use forester_utils::{
     create_account_instruction,
-    indexer::{Indexer, TokenDataWithContext},
 };
 use light_client::{
     rpc::{errors::RpcError, RpcConnection},
@@ -38,13 +37,16 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
 };
 use spl_token::instruction::initialize_mint;
-
+use light_client::indexer::Indexer;
+use light_program_test::indexer::TestIndexerExtensions;
+use light_sdk::token::TokenDataWithMerkleContext;
 use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
 };
+use crate::conversions::{program_to_sdk_public_transaction_event, sdk_to_program_compressed_account, sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof, sdk_to_program_merkle_context, sdk_to_program_token_data};
 
-pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R>>(
+pub async fn mint_tokens_helper<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -510,7 +512,7 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -519,7 +521,7 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
     recipients: &[Pubkey],
     amounts: &[u64],
     mut lamports: Option<Vec<Option<u64>>>,
-    input_compressed_accounts: &[TokenDataWithContext],
+    input_compressed_accounts: &[TokenDataWithMerkleContext],
     output_merkle_tree_pubkeys: &[Pubkey],
     delegate_change_account_index: Option<u8>,
     delegate_is_signer: bool,
@@ -622,12 +624,15 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
         &input_merkle_tree_context,
         &output_compressed_accounts,
         &rpc_result.root_indices,
-        &rpc_result.proof,
-        &input_compressed_account_token_data, // input_token_data
+        &Some(sdk_to_program_compressed_proof(rpc_result.proof)),
+        &input_compressed_account_token_data
+            .into_iter()
+            .map(sdk_to_program_token_data)
+            .collect::<Vec<_>>(), // input_token_data
         &input_compressed_accounts
             .iter()
             .map(|x| &x.compressed_account.compressed_account)
-            .cloned()
+            .map(|x| sdk_to_program_compressed_account(x.clone()))
             .collect::<Vec<_>>(),
         *mint,
         delegate_pubkey, // owner_if_delegate_change_account_index
@@ -692,7 +697,7 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
     let slot = rpc.get_slot().await.unwrap();
     let (created_change_output_account, created_token_output_accounts) =
-        test_indexer.add_event_and_compressed_accounts(slot, &event);
+        test_indexer.add_event_and_compressed_accounts(slot, &program_to_sdk_public_transaction_event(event));
     let delegates = if let Some(index) = delegate_change_account_index {
         let mut delegates = vec![None; created_token_output_accounts.len()];
         delegates[index as usize] = Some(payer.pubkey());
@@ -711,7 +716,11 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
         rpc,
         test_indexer,
         &output_compressed_accounts,
-        created_output_accounts.as_slice(),
+        created_output_accounts
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect::<Vec<_>>()
+            .as_slice(),
         lamports,
         &input_compressed_account_hashes,
         &snapshots,
@@ -723,11 +732,11 @@ pub async fn compressed_transfer_22_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn decompress_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
-    input_compressed_accounts: Vec<TokenDataWithContext>,
+    input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     recipient_token_account: &Pubkey,
@@ -775,18 +784,20 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         &input_compressed_accounts
             .iter()
             .map(|x| x.compressed_account.merkle_context)
+            .map(sdk_to_program_merkle_context)
             .collect::<Vec<_>>(), // input_compressed_account_merkle_tree_pubkeys
         &[change_out_compressed_account], // output_compressed_accounts
         &proof_rpc_result.root_indices, // root_indices
-        &proof_rpc_result.proof,
+        &Some(sdk_to_program_compressed_proof(proof_rpc_result.proof)),
         input_compressed_accounts
             .iter()
-            .map(|x| x.token_data.clone())
+            .map(|x| sdk_to_program_token_data(x.token_data.clone()))
             .collect::<Vec<_>>()
             .as_slice(), // input_token_data
         &input_compressed_accounts
             .iter()
             .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| sdk_to_program_compressed_account(x.clone()))
             .cloned()
             .collect::<Vec<_>>(),
         mint,                           // mint
@@ -858,7 +869,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         .unwrap()
         .unwrap();
     let slot = rpc.get_slot().await.unwrap();
-    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(slot, &event);
+    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(slot, &program_to_sdk_public_transaction_event(event.clone()));
     assert_transfer(
         rpc,
         test_indexer,
@@ -866,6 +877,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
         created_output_accounts
             .iter()
             .map(|x| x.compressed_account.clone())
+            .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect::<Vec<_>>()
             .as_slice(),
         None,
@@ -925,7 +937,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>(
+pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     payer: &Keypair,
@@ -965,7 +977,7 @@ pub async fn perform_compress_spl_token_account<R: RpcConnection, I: Indexer<R>>
         .unwrap();
     // TODO: replace with get_transaction_slot() this only works with Program test
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_event_and_compressed_accounts(slot, &event);
+    test_indexer.add_event_and_compressed_accounts(slot, &program_to_sdk_public_transaction_event(event.clone()));
     let created_compressed_token_account =
         test_indexer.get_compressed_token_accounts_by_owner(&token_owner.pubkey())[0].clone();
     let expected_token_data = TokenData {

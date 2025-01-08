@@ -40,6 +40,7 @@ light-verifier = { workspace = true }
 light-utils = { workspace = true }
 light-program-test = { workspace =  true }
 forester-utils = { workspace = true }
+light-sdk = { workspace = true }
 memoffset = "0.9.1"
 rand = "0.8"
 photon-api = { workspace = true }

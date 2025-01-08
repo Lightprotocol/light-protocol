@@ -1,4 +1,3 @@
-use forester_utils::indexer::Indexer;
 use light_client::{
     rpc::{errors::RpcError, RpcConnection},
     transaction_params::TransactionParams,
@@ -19,13 +18,14 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
-
+use light_client::indexer::Indexer;
+use light_program_test::indexer::TestIndexerExtensions;
 use crate::assert_compressed_tx::{
     assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     address_merkle_tree_pubkeys: &[Pubkey],
@@ -292,7 +292,7 @@ pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
