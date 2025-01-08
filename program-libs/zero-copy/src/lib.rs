@@ -4,9 +4,6 @@ pub mod cyclic_vec;
 pub mod errors;
 pub mod slice_mut;
 pub mod vec;
-pub mod wrapped_pointer;
-pub mod wrapped_pointer_mut;
-pub mod zero_copy_vec;
 
 use std::mem::{align_of, size_of};
 
@@ -42,11 +39,7 @@ pub fn check_size<T>(bytes: &[u8]) -> Result<(), ZeroCopyError> {
     Ok(())
 }
 
-pub fn add_padding<LEN, T>(offset: &mut usize)
-where
-    LEN: Copy,
-    T: Copy,
-{
+pub fn add_padding<LEN, T>(offset: &mut usize) {
     let padding = align_of::<T>().saturating_sub(size_of::<LEN>());
     *offset += padding;
 }

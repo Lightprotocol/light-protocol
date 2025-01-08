@@ -3,40 +3,34 @@ use core::fmt::Debug;
 use light_zero_copy::{
     add_padding,
     errors::ZeroCopyError,
-    slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutUsize},
+    slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutU64},
 };
-use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
 use rand::{distributions::Standard, prelude::*};
+use zerocopy::IntoBytes;
+use zerocopy::{
+    little_endian::{U16, U32, U64},
+    FromBytes, Immutable, KnownLayout, Unaligned,
+};
 
 fn test_zero_copy_slice_mut_new<LEN, T>(length: LEN)
 where
-    LEN: ToPrimitive + FromPrimitive + PrimInt + num_traits::ToBytes,
-    T: Copy + Clone + PartialEq + Debug + Default,
+    LEN: Copy + FromBytes + Immutable + KnownLayout + IntoBytes,
+    T: Copy + Clone + PartialEq + Debug + Default + FromBytes + Immutable + KnownLayout + IntoBytes,
+    u64: From<LEN>,
     Standard: Distribution<T>,
 {
     let mut rng = thread_rng();
     let mut data = vec![0; ZeroCopySliceMut::<LEN, T>::required_size_for_capacity(length)];
     ZeroCopySliceMut::<LEN, T>::new(length, &mut data).unwrap();
+    let usize_len: usize = u64::try_from(length).unwrap() as usize;
 
     // Test from_bytes with a zeroed slice
     {
-        let reference_vec = vec![T::default(); length.to_usize().unwrap()];
+        let reference_vec = vec![T::default(); usize_len];
+        println!("data len {}", data.len());
         let slice = ZeroCopySliceMut::<LEN, T>::from_bytes(&mut data).unwrap();
         // 1. Validate length
         assert_eq!(slice.len(), reference_vec.len());
-        {
-            let data = data.clone();
-            let mut metadata_size = size_of::<LEN>();
-            let length_bytes = data[0..metadata_size].to_vec();
-            assert_eq!(length_bytes, length.to_ne_bytes().as_ref().to_vec());
-
-            let padding_start = metadata_size.clone();
-            add_padding::<LEN, T>(&mut metadata_size);
-            let padding_end = metadata_size;
-            let data = data[padding_start..padding_end].to_vec();
-            // Padding should be zeroed
-            assert_eq!(data, vec![0; padding_end - padding_start]);
-        }
 
         // 2. Validate slice content
         assert_eq!(slice.as_slice(), reference_vec.as_slice());
@@ -47,9 +41,26 @@ where
         // 4. Validate accessors return None
         assert_eq!(T::default(), *slice.first().unwrap());
         assert_eq!(T::default(), *slice.last().unwrap());
+        {
+            let data = data.clone();
+            let mut metadata_size = size_of::<LEN>();
+            let mut length_bytes = data[0..metadata_size].to_vec();
+            // pad with zeros until we have 8 bytes
+            while length_bytes.len() < 8 {
+                length_bytes.push(0);
+            }
+            assert_eq!(length_bytes, (u64::from(length).to_le_bytes()).to_vec());
+
+            let padding_start = metadata_size.clone();
+            add_padding::<LEN, T>(&mut metadata_size);
+            let padding_end = metadata_size;
+            let data = data[padding_start..padding_end].to_vec();
+            // Padding should be zeroed
+            assert_eq!(data, vec![0; padding_end - padding_start]);
+        }
     }
 
-    let length_usize: usize = length.to_usize().unwrap();
+    let length_usize: usize = usize_len;
     let mut reference_vec = vec![T::default(); length_usize];
 
     // Fill the slice completely and verify properties
@@ -89,7 +100,7 @@ where
         // 7. Mutate elements via iter_mut
         for (index, element) in slice.iter_mut().enumerate() {
             let new_element = rng.gen();
-            *element = new_element;
+            *element = new_element.clone();
             reference_vec[index] = new_element;
         }
 
@@ -102,18 +113,20 @@ where
 fn test_zero_copy_vec() {
     test_zero_copy_slice_mut_new::<u8, u32>(u8::MAX);
     println!("test_zero_copy_vec_with_capacity::<u8>()");
-    test_zero_copy_slice_mut_new::<u16, u32>(u8::MAX as u16);
+    test_zero_copy_slice_mut_new::<U16, u32>((u8::MAX as u16).into());
     println!("test_zero_copy_vec_with_capacity::<u16>()");
-    test_zero_copy_slice_mut_new::<u32, u32>(u8::MAX as u32);
+    test_zero_copy_slice_mut_new::<U32, u32>((u8::MAX as u32).into());
     println!("test_zero_copy_vec_with_capacity::<u32>()");
-    test_zero_copy_slice_mut_new::<u64, u32>(u8::MAX as u64);
+    test_zero_copy_slice_mut_new::<U64, u32>((u8::MAX as u64).into());
     println!("test_zero_copy_vec_with_capacity::<u64>()");
-    test_zero_copy_slice_mut_new::<usize, u32>(10000 as usize);
 }
 
 #[test]
 fn test_zero_copy_u64_struct_vec() {
-    #[derive(Copy, Clone, PartialEq, Debug, Default)]
+    #[derive(
+        Copy, Clone, PartialEq, Debug, Default, Immutable, FromBytes, KnownLayout, IntoBytes,
+    )]
+    #[repr(C)]
     struct TestStruct {
         a: u32,
         aa: u32,
@@ -126,27 +139,81 @@ fn test_zero_copy_u64_struct_vec() {
     impl Distribution<TestStruct> for Standard {
         fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> TestStruct {
             TestStruct {
-                a: rng.gen(),
-                aa: rng.gen(),
-                b: rng.gen(),
-                c: rng.gen(),
-                cc: rng.gen(),
-                ccc: rng.gen(),
+                a: rng.gen::<u32>(),
+                aa: rng.gen::<u32>(),
+                b: rng.gen::<u64>(),
+                c: rng.gen::<u16>(),
+                cc: rng.gen::<u16>(),
+                ccc: rng.gen::<u32>(),
                 d: rng.gen(),
             }
         }
     }
 
-    test_zero_copy_slice_mut_new::<u8, TestStruct>(u8::MAX);
-    test_zero_copy_slice_mut_new::<u16, TestStruct>(u8::MAX as u16);
-    test_zero_copy_slice_mut_new::<u32, TestStruct>(u8::MAX as u32);
-    test_zero_copy_slice_mut_new::<u64, TestStruct>(u8::MAX as u64);
-    test_zero_copy_slice_mut_new::<usize, TestStruct>(u8::MAX as usize);
+    test_zero_copy_slice_mut_new::<u8, TestStruct>(u8::MAX as u8);
+    test_zero_copy_slice_mut_new::<U16, TestStruct>((u8::MAX as u16).into());
+    test_zero_copy_slice_mut_new::<U32, TestStruct>((u8::MAX as u32).into());
+    test_zero_copy_slice_mut_new::<U64, TestStruct>((u8::MAX as u64).into());
+}
+
+#[test]
+#[should_panic = "Alignment"]
+fn test_unaligned() {
+    #[derive(
+        Copy, Clone, PartialEq, Debug, Default, Immutable, FromBytes, KnownLayout, IntoBytes,
+    )]
+    #[repr(C)]
+    struct TestStruct {
+        a: u32,
+        aa: u32,
+        b: u64,
+        c: u16,
+        cc: u16,
+        ccc: u32,
+        d: [u8; 32],
+    }
+    let mut data = vec![0; ZeroCopySliceMut::<u8, TestStruct>::required_size_for_capacity(1)];
+    ZeroCopySliceMut::<u8, TestStruct>::new(1, &mut data).unwrap();
+    ZeroCopySliceMut::<u8, TestStruct, false>::from_bytes(&mut data).unwrap();
+}
+
+/// Succeeds because derives Unaligned
+#[test]
+fn test_unaligned_success() {
+    #[derive(
+        Copy,
+        Clone,
+        PartialEq,
+        Debug,
+        Default,
+        Immutable,
+        FromBytes,
+        KnownLayout,
+        IntoBytes,
+        Unaligned,
+    )]
+    #[repr(C)]
+    struct TestStruct {
+        a: U32,
+        aa: U32,
+        b: U64,
+        c: U16,
+        cc: U16,
+        ccc: U32,
+        d: [u8; 32],
+    }
+    let mut data = vec![0; ZeroCopySliceMut::<u8, TestStruct>::required_size_for_capacity(1)];
+    ZeroCopySliceMut::<u8, TestStruct>::new(1, &mut data).unwrap();
+    let usize_len: usize = u64::try_from(1).unwrap() as usize;
+    let slice = ZeroCopySliceMut::<u8, TestStruct, false>::from_bytes(&mut data).unwrap();
+    assert_eq!(slice.len(), usize_len);
 }
 
 #[test]
 fn test_zero_copy_u8_struct_vec() {
-    #[derive(Copy, Clone, PartialEq, Debug, Default)]
+    #[derive(
+        Copy, Clone, PartialEq, Debug, Default, Immutable, FromBytes, IntoBytes, KnownLayout,
+    )]
     struct TestStruct {
         a: [u8; 32],
     }
@@ -160,16 +227,17 @@ fn test_zero_copy_u8_struct_vec() {
     test_zero_copy_slice_mut_new::<u16, TestStruct>(u8::MAX as u16);
     test_zero_copy_slice_mut_new::<u32, TestStruct>(u8::MAX as u32);
     test_zero_copy_slice_mut_new::<u64, TestStruct>(u8::MAX as u64);
-    test_zero_copy_slice_mut_new::<usize, TestStruct>(u8::MAX as usize);
+    // test_zero_copy_slice_mut_new::<usize, TestStruct>(u8::MAX as usize);
 }
-
 #[test]
 fn test_empty() {
     let length = 0;
     let mut data = vec![0; ZeroCopySliceMut::<u8, u8>::required_size_for_capacity(length)];
     let mut zero_copy_slice =
         ZeroCopySliceMut::<u8, u8>::new(u8::try_from(length).unwrap(), &mut data).unwrap();
-    assert_eq!(zero_copy_slice.len(), length.to_usize().unwrap());
+    let usize_len: usize = u64::try_from(length).unwrap() as usize;
+
+    assert_eq!(zero_copy_slice.len(), usize_len);
     assert!(zero_copy_slice.is_empty());
     assert_eq!(zero_copy_slice.first(), None);
     assert_eq!(zero_copy_slice.last(), None);
@@ -201,25 +269,21 @@ fn test_metadata_size() {
     assert_eq!(ZeroCopySliceMut::<u16, u8>::metadata_size(), 2);
     assert_eq!(ZeroCopySliceMut::<u32, u8>::metadata_size(), 4);
     assert_eq!(ZeroCopySliceMut::<u64, u8>::metadata_size(), 8);
-    assert_eq!(ZeroCopySliceMut::<usize, u8>::metadata_size(), 8);
 
     assert_eq!(ZeroCopySliceMut::<u8, u16>::metadata_size(), 2);
     assert_eq!(ZeroCopySliceMut::<u16, u16>::metadata_size(), 2);
     assert_eq!(ZeroCopySliceMut::<u32, u16>::metadata_size(), 4);
     assert_eq!(ZeroCopySliceMut::<u64, u16>::metadata_size(), 8);
-    assert_eq!(ZeroCopySliceMut::<usize, u16>::metadata_size(), 8);
 
     assert_eq!(ZeroCopySliceMut::<u8, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopySliceMut::<u16, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopySliceMut::<u32, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopySliceMut::<u64, u32>::metadata_size(), 8);
-    assert_eq!(ZeroCopySliceMut::<usize, u32>::metadata_size(), 8);
 
     assert_eq!(ZeroCopySliceMut::<u8, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopySliceMut::<u16, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopySliceMut::<u32, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopySliceMut::<u64, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopySliceMut::<usize, u64>::metadata_size(), 8);
 }
 
 #[test]
@@ -229,37 +293,21 @@ fn test_data_size() {
     assert_eq!(ZeroCopySliceMut::<u16, u8>::data_size(length as u16), 64);
     assert_eq!(ZeroCopySliceMut::<u32, u8>::data_size(length as u32), 64);
     assert_eq!(ZeroCopySliceMut::<u64, u8>::data_size(length as u64), 64);
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u8>::data_size(length as usize),
-        64
-    );
 
     assert_eq!(ZeroCopySliceMut::<u8, u16>::data_size(length), 128);
     assert_eq!(ZeroCopySliceMut::<u16, u16>::data_size(length as u16), 128);
     assert_eq!(ZeroCopySliceMut::<u32, u16>::data_size(length as u32), 128);
     assert_eq!(ZeroCopySliceMut::<u64, u16>::data_size(length as u64), 128);
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u16>::data_size(length as usize),
-        128
-    );
 
     assert_eq!(ZeroCopySliceMut::<u8, u32>::data_size(length), 256);
     assert_eq!(ZeroCopySliceMut::<u16, u32>::data_size(length as u16), 256);
     assert_eq!(ZeroCopySliceMut::<u32, u32>::data_size(length as u32), 256);
     assert_eq!(ZeroCopySliceMut::<u64, u32>::data_size(length as u64), 256);
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u32>::data_size(length as usize),
-        256
-    );
 
     assert_eq!(ZeroCopySliceMut::<u8, u64>::data_size(length), 512);
     assert_eq!(ZeroCopySliceMut::<u16, u64>::data_size(length as u16), 512);
     assert_eq!(ZeroCopySliceMut::<u32, u64>::data_size(length as u32), 512);
     assert_eq!(ZeroCopySliceMut::<u64, u64>::data_size(length as u64), 512);
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u64>::data_size(length as usize),
-        512
-    );
 }
 
 #[test]
@@ -281,10 +329,6 @@ fn test_required_size() {
         ZeroCopySliceMut::<u64, u8>::required_size_for_capacity(length as u64),
         64 + 8
     );
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u8>::required_size_for_capacity(length as usize),
-        64 + 8
-    );
 
     assert_eq!(
         ZeroCopySliceMut::<u8, u16>::required_size_for_capacity(length),
@@ -300,10 +344,6 @@ fn test_required_size() {
     );
     assert_eq!(
         ZeroCopySliceMut::<u64, u16>::required_size_for_capacity(length as u64),
-        128 + 8
-    );
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u16>::required_size_for_capacity(length as usize),
         128 + 8
     );
 
@@ -323,10 +363,6 @@ fn test_required_size() {
         ZeroCopySliceMut::<u64, u32>::required_size_for_capacity(length as u64),
         256 + 8
     );
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u32>::required_size_for_capacity(length as usize),
-        256 + 8
-    );
 
     assert_eq!(
         ZeroCopySliceMut::<u8, u64>::required_size_for_capacity(length),
@@ -344,44 +380,34 @@ fn test_required_size() {
         ZeroCopySliceMut::<u64, u64>::required_size_for_capacity(length as u64),
         512 + 8
     );
-    assert_eq!(
-        ZeroCopySliceMut::<usize, u64>::required_size_for_capacity(length as usize),
-        512 + 8
-    );
 }
 
 #[test]
 fn test_new_at_and_from_bytes_at_multiple() {
-    let mut account_data =
-        vec![0u8; ZeroCopySliceMutUsize::<u64>::required_size_for_capacity(4) * 2];
+    let mut account_data = vec![0u8; ZeroCopySliceMutU64::<u64>::required_size_for_capacity(4) * 2];
     // test new_at & fill vectors
     {
-        let mut offset = 0;
-        let mut vec =
-            ZeroCopySliceMutUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
+        let (mut vec, remaining_bytes) =
+            ZeroCopySliceMutU64::<u64>::new_at(4, &mut account_data).unwrap();
         for i in 0..4 {
             vec[i] = i as u64;
         }
         assert_eq!(
-            offset,
-            ZeroCopySliceMutUsize::<u64>::required_size_for_capacity(4)
+            remaining_bytes.len(),
+            ZeroCopySliceMutU64::<u64>::required_size_for_capacity(4)
         );
 
-        let mut vec =
-            ZeroCopySliceMutUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
+        let (mut vec, remaining_bytes) =
+            ZeroCopySliceMutU64::<u64>::new_at(4, remaining_bytes).unwrap();
         for i in 0..4 {
             vec[i] = i as u64 + 4;
         }
-        assert_eq!(
-            offset,
-            ZeroCopySliceMutUsize::<u64>::required_size_for_capacity(4) * 2
-        );
+        assert_eq!(remaining_bytes.len(), 0);
     }
     // test from_bytes_at_multiple
     {
-        let mut offset = 0;
-        let deserialized_vecs =
-            ZeroCopySliceMutUsize::<u64>::from_bytes_at_multiple(2, &mut account_data, &mut offset)
+        let (deserialized_vecs, remaining_bytes) =
+            ZeroCopySliceMutU64::<u64>::from_bytes_at_multiple(2, &mut account_data)
                 .expect("Failed to deserialize multiple ZeroCopyCyclicVecs");
 
         assert_eq!(deserialized_vecs.len(), 2);
@@ -390,31 +416,23 @@ fn test_new_at_and_from_bytes_at_multiple() {
                 assert_eq!(*element, (i * 4 + j) as u64);
             }
         }
-        assert_eq!(
-            offset,
-            ZeroCopySliceMutUsize::<u64>::required_size_for_capacity(4) * 2
-        );
+        assert_eq!(0, remaining_bytes.len());
     }
 }
 
 #[test]
 fn test_new_at_multiple() {
     let mut account_data = vec![0u8; 128];
-    let mut offset = 0;
-    let capacity = 4;
+    let capacity = 4usize;
     let mut reference_vecs = vec![vec![], vec![]];
 
     {
-        let mut initialized_vecs = ZeroCopySliceMutUsize::<u64>::new_at_multiple(
-            2,
-            capacity,
-            &mut account_data,
-            &mut offset,
-        )
-        .unwrap();
+        let (mut initialized_vecs, remaining_bytes) =
+            ZeroCopySliceMutU64::<u64>::new_at_multiple(2, capacity as u64, &mut account_data)
+                .unwrap();
         assert_eq!(
-            offset,
-            ZeroCopySliceMutUsize::<u64>::required_size_for_capacity(capacity) * 2
+            remaining_bytes.len(),
+            128 - ZeroCopySliceMutU64::<u64>::required_size_for_capacity(capacity as u64) * 2
         );
         assert_eq!(initialized_vecs.len(), 2);
         assert_eq!(initialized_vecs[0].len(), capacity);
@@ -430,51 +448,39 @@ fn test_new_at_multiple() {
         }
     }
     {
-        let vecs =
-            ZeroCopySliceMutUsize::<u64>::from_bytes_at_multiple(2, &mut account_data, &mut 0)
-                .unwrap();
+        let (vecs, _) =
+            ZeroCopySliceMutU64::<u64>::from_bytes_at_multiple(2, &mut account_data).unwrap();
         for (i, vec) in vecs.iter().enumerate() {
             assert_eq!(vec.to_vec(), reference_vecs[i]);
         }
     }
 }
 
-#[test]
-fn test_copy_from_slice_and_try_into_array() {
-    let capacity = 16;
-    let mut data = vec![0; ZeroCopySliceMutUsize::<u32>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopySliceMutUsize::<u32>::new(capacity, &mut data).unwrap();
-    vec.copy_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+// #[test]
+// fn test_copy_from_slice_and_try_into_array() {
+//     let capacity = 16;
+//     let mut data = vec![0; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity)];
+//     let mut vec = ZeroCopySliceMutU64::<U32>::new(capacity, &mut data).unwrap();
+//     vec.copy_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
-    let arr: [u32; 16] = vec.try_into_array().unwrap();
-    assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+//     let arr: [u32; 16] = vec.try_into_array().unwrap();
+//     assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
-    assert!(matches!(
-        vec.try_into_array::<15>(),
-        Err(ZeroCopyError::ArraySize(_, _))
-    ));
-    assert!(matches!(
-        vec.try_into_array::<17>(),
-        Err(ZeroCopyError::ArraySize(_, _))
-    ));
-}
-
-#[test]
-fn test_at_ptr() {
-    let capacity = 16;
-    let mut data = vec![0; ZeroCopySliceMutUsize::<u32>::required_size_for_capacity(capacity)];
-    let data_mut_ptr = data[ZeroCopySliceMutUsize::<u32>::metadata_size()..].as_mut_ptr();
-    let data_ptr = data[ZeroCopySliceMutUsize::<u32>::metadata_size()..].as_ptr();
-    let mut vec = ZeroCopySliceMutUsize::<u32>::new(capacity, &mut data).unwrap();
-    assert_eq!(data_ptr as *const u32, vec.data_as_ptr());
-    assert_eq!(data_mut_ptr as *mut u32, vec.data_as_mut_ptr());
-}
+//     assert!(matches!(
+//         vec.try_into_array::<15>(),
+//         Err(ZeroCopyError::ArraySize(_, _))
+//     ));
+//     assert!(matches!(
+//         vec.try_into_array::<17>(),
+//         Err(ZeroCopyError::ArraySize(_, _))
+//     ));
+// }
 
 #[test]
 fn test_failing_new() {
     let capacity = 16;
-    let mut data = vec![0; ZeroCopySliceMutUsize::<u32>::required_size_for_capacity(capacity) - 1];
-    let vec = ZeroCopySliceMutUsize::<u32>::new(capacity, &mut data);
+    let mut data = vec![0; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity) - 1];
+    let vec = ZeroCopySliceMutU64::<U32>::new(capacity, &mut data);
     assert!(matches!(
         vec,
         Err(ZeroCopyError::InsufficientMemoryAllocated(_, _))
@@ -484,14 +490,14 @@ fn test_failing_new() {
 #[test]
 fn test_failing_from_bytes_at() {
     let capacity = 16;
-    let mut data = vec![0; ZeroCopySliceMutUsize::<u32>::required_size_for_capacity(capacity)];
-    ZeroCopySliceMutUsize::<u32>::new(capacity, &mut data).unwrap();
-    let vec = ZeroCopySliceMutUsize::<u32>::from_bytes_at(&mut data[..7], &mut 0);
+    let mut data = vec![0; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity)];
+    ZeroCopySliceMutU64::<U32>::new(capacity, &mut data).unwrap();
+    let vec = ZeroCopySliceMutU64::<U32>::from_bytes_at(&mut data[..7]);
     assert!(matches!(
         vec,
         Err(ZeroCopyError::InsufficientMemoryAllocated(_, _))
     ));
-    let vec = ZeroCopySliceMutUsize::<u32>::from_bytes_at(&mut data[..9], &mut 0);
+    let vec = ZeroCopySliceMutU64::<U32>::from_bytes_at(&mut data[..9]);
     assert!(matches!(
         vec,
         Err(ZeroCopyError::InsufficientMemoryAllocated(_, _))

@@ -1,128 +1,115 @@
 use core::{fmt, slice};
 use std::{
-    marker::PhantomData,
-    mem::{size_of, ManuallyDrop},
+    mem::size_of,
     ops::{Index, IndexMut},
 };
 
-use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
-use crate::{add_padding, check_alignment, errors::ZeroCopyError, wrapped_pointer::WrappedPointer};
+use crate::{add_padding, errors::ZeroCopyError};
 
-pub type ZeroCopySliceMutUsize<T> = ZeroCopySliceMut<usize, T>;
-pub type ZeroCopySliceMutU32<T> = ZeroCopySliceMut<u32, T>;
-pub type ZeroCopySliceMutU64<T> = ZeroCopySliceMut<u64, T>;
-pub type ZeroCopySliceMutU16<T> = ZeroCopySliceMut<u16, T>;
-pub type ZeroCopySliceMutU8<T> = ZeroCopySliceMut<u8, T>;
+// pub type ZeroCopySliceMutUsize<'a, T> = ZeroCopySliceMut<'a, usize, T>;
+pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
+pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
+pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
+pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
+
+pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
+
+impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
 
 #[repr(C)]
-pub struct ZeroCopySliceMut<LEN, T>
+pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
 where
-    LEN: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
 {
-    length: WrappedPointer<LEN>,
-    data: ManuallyDrop<*mut T>,
-    _marker: PhantomData<T>,
+    length: Ref<&'a [u8], L>,
+    data: Ref<&'a mut [u8], [T]>,
 }
 
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: ToPrimitive + Copy,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
-    pub fn new(length: LEN, data: &mut [u8]) -> Result<Self, ZeroCopyError> {
-        Self::new_at(length, data, &mut 0)
+    pub fn new(length: L, data: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::new_at(length, data)?.0)
     }
 
-    pub fn new_at(length: LEN, data: &mut [u8], offset: &mut usize) -> Result<Self, ZeroCopyError> {
-        let data = data.split_at_mut(*offset).1;
-        if Self::required_size_for_capacity(length) > data.len() {
-            return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                data.len(),
-                Self::required_size_for_capacity(length),
-            ));
+    pub fn new_at(length: L, data: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let len = Self::required_size_for_capacity(length);
+        if len > data.len() {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(data.len(), len));
         }
-
-        let metadata_size = Self::metadata_size();
-        *offset += metadata_size;
-        let (metadata, data) = data.split_at_mut(metadata_size);
-        let len = WrappedPointer::<LEN>::new(length, metadata)?;
-        let data = Self::data_ptr_from_bytes(data)?;
-        *offset += Self::data_size(length);
-
-        Ok(Self {
-            length: len,
-            data,
-            _marker: PhantomData,
-        })
+        // write new value then deserialize as immutable
+        {
+            let (mut len, _) = Ref::<&mut [u8], L>::from_prefix(data).unwrap();
+            Ref::<&mut [u8], L>::write(&mut len, length);
+        }
+        let (meta_data, data) = data.split_at_mut(Self::metadata_size());
+        let len = Ref::<&[u8], L>::from_bytes(&meta_data[..size_of::<L>()]).unwrap();
+        let len_usize: usize = u64::try_from(length).unwrap() as usize;
+        let (data, bytes) = Ref::<&mut [u8], [T]>::from_prefix_with_elems(data, len_usize).unwrap();
+        Ok((Self { length: len, data }, bytes))
     }
 
     pub fn new_at_multiple(
         num_slices: usize,
-        capacity: LEN,
-        bytes: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Vec<ZeroCopySliceMut<LEN, T>>, ZeroCopyError> {
+        capacity: L,
+        mut bytes: &'a mut [u8],
+    ) -> Result<(Vec<ZeroCopySliceMut<'a, L, T, PAD>>, &'a mut [u8]), ZeroCopyError> {
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
-            let slice = Self::new_at(capacity, bytes, offset)?;
+            let (slice, _bytes) = Self::new_at(capacity, bytes)?;
+            bytes = _bytes;
             slices.push(slice);
         }
-        Ok(slices)
+        Ok((slices, bytes))
     }
 
-    fn data_ptr_from_bytes(bytes: &mut [u8]) -> Result<ManuallyDrop<*mut T>, ZeroCopyError> {
-        let data_ptr = bytes.as_mut_ptr() as *mut T;
-        check_alignment(data_ptr)?;
-        let data = ManuallyDrop::new(data_ptr);
-        Ok(data)
-    }
-
-    pub fn from_bytes(bytes: &mut [u8]) -> Result<Self, ZeroCopyError> {
-        Self::from_bytes_at(bytes, &mut 0)
+    pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::from_bytes_at(bytes)?.0)
     }
 
     pub fn from_bytes_at(
-        bytes: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<ZeroCopySliceMut<LEN, T>, ZeroCopyError> {
+        bytes: &'a mut [u8],
+    ) -> Result<(ZeroCopySliceMut<'a, L, T, PAD>, &'a mut [u8]), ZeroCopyError> {
         let meta_data_size = Self::metadata_size();
-        if bytes.len().saturating_sub(*offset) < meta_data_size {
+        if bytes.len() < meta_data_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len().saturating_sub(*offset),
+                bytes.len(),
                 meta_data_size,
             ));
         }
-        let length = WrappedPointer::<LEN>::from_bytes_at(bytes, offset)?;
-        add_padding::<LEN, T>(offset);
+
+        let (meta_data, bytes) = bytes.split_at_mut(meta_data_size);
+        let length = Ref::<&[u8], L>::from_bytes(&meta_data[..size_of::<L>()]).unwrap();
+        let usize_len: usize = u64::try_from(*length).unwrap() as usize;
         let full_vector_size = Self::data_size(*length);
-        if bytes.len().saturating_sub(*offset) < full_vector_size {
+        if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len().saturating_sub(*offset),
+                bytes.len(),
                 full_vector_size + meta_data_size,
             ));
         }
-        let bytes = &mut bytes[*offset..];
-        *offset += full_vector_size;
-
-        Ok(ZeroCopySliceMut {
-            length,
-            data: Self::data_ptr_from_bytes(bytes)?,
-            _marker: PhantomData,
-        })
+        let (data, bytes) =
+            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len).unwrap();
+        Ok((ZeroCopySliceMut { length, data }, bytes))
     }
 
     pub fn from_bytes_at_multiple(
         num_slices: usize,
-        bytes: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Vec<ZeroCopySliceMut<LEN, T>>, ZeroCopyError> {
+        mut bytes: &'a mut [u8],
+    ) -> Result<(Vec<ZeroCopySliceMut<'a, L, T, PAD>>, &'a mut [u8]), ZeroCopyError> {
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
-            let slice = Self::from_bytes_at(bytes, offset)?;
+            let (slice, _bytes) = Self::from_bytes_at(bytes)?;
+            bytes = _bytes;
             slices.push(slice);
         }
-        Ok(slices)
+        Ok((slices, bytes))
     }
 
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
@@ -134,51 +121,35 @@ where
 
     #[inline]
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<LEN>();
-        add_padding::<LEN, T>(&mut size);
+        let mut size = size_of::<L>();
+        if PAD {
+            add_padding::<L, T>(&mut size);
+        }
         size
     }
 
     #[inline]
-    pub fn data_size(length: LEN) -> usize {
-        length.to_usize().unwrap() * size_of::<T>()
+    pub fn data_size(length: L) -> usize {
+        let usize_len: usize = u64::try_from(length).unwrap() as usize;
+        usize_len * size_of::<T>()
     }
 
     #[inline]
-    pub fn required_size_for_capacity(capacity: LEN) -> usize {
+    pub fn required_size_for_capacity(capacity: L) -> usize {
         Self::metadata_size() + Self::data_size(capacity)
     }
 }
 
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: ToPrimitive + Copy,
-    T: Copy,
-{
-    pub fn copy_from_slice(&mut self, slice: &[T]) {
-        let len = slice.len();
-        if len != self.len() {
-            panic!(
-                "Slice length mismatch. Expected: {}, Found: {}",
-                self.len(),
-                len
-            );
-        }
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(slice.as_ptr(), self.data_as_mut_ptr(), len);
-        }
-    }
-}
-
-impl<LEN, T> ZeroCopySliceMut<LEN, T>
-where
-    LEN: ToPrimitive + Copy,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
     #[inline]
     pub fn len(&self) -> usize {
-        (*self.length).to_usize().unwrap()
+        let usize_len: usize = u64::try_from(*self.length).unwrap() as usize;
+        usize_len
     }
 
     #[inline]
@@ -208,12 +179,12 @@ where
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(*self.data as *const T, self.len()) }
+        self.data.as_ref()
     }
 
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { slice::from_raw_parts_mut(*self.data, self.len()) }
+        self.data.as_mut()
     }
 
     #[inline]
@@ -235,17 +206,23 @@ where
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
         self.as_mut_slice().get_mut(index)
     }
-
-    #[inline]
+}
+impl<'a, L, T, const PAD: bool> ZeroCopySliceMut<'a, L, T, PAD>
+where
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
+{
     pub fn to_vec(&self) -> Vec<T> {
         self.as_slice().to_vec()
     }
 }
 
-impl<LEN, T> IndexMut<usize> for ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> IndexMut<usize> for ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + Copy,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
@@ -253,10 +230,11 @@ where
     }
 }
 
-impl<LEN, T> Index<usize> for ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> Index<usize> for ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + Copy,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
     type Output = T;
 
@@ -266,13 +244,14 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a ZeroCopySliceMut<LEN, T>
+impl<'a, 'b, L, T, const PAD: bool> IntoIterator for &'b ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
-    type Item = &'a T;
-    type IntoIter = slice::Iter<'a, T>;
+    type Item = &'b T;
+    type IntoIter = slice::Iter<'b, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -280,13 +259,14 @@ where
     }
 }
 
-impl<'a, LEN, T> IntoIterator for &'a mut ZeroCopySliceMut<LEN, T>
+impl<'a, 'b, L, T, const PAD: bool> IntoIterator for &'b mut ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
-    type Item = &'a mut T;
-    type IntoIter = slice::IterMut<'a, T>;
+    type Item = &'b mut T;
+    type IntoIter = slice::IterMut<'b, T>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
@@ -294,10 +274,11 @@ where
     }
 }
 
-impl<'b, LEN, T> ZeroCopySliceMut<LEN, T>
+impl<'b, 'a, L, T, const PAD: bool> ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L>,
 {
     #[inline]
     pub fn iter(&'b self) -> slice::Iter<'b, T> {
@@ -310,10 +291,11 @@ where
     }
 }
 
-impl<LEN, T> PartialEq for ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> PartialEq for ZeroCopySliceMut<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + Copy,
-    T: Copy + PartialEq,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits + PartialEq,
+    u64: From<L>,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -321,10 +303,11 @@ where
     }
 }
 
-impl<LEN, T> fmt::Debug for ZeroCopySliceMut<LEN, T>
+impl<'a, L, T, const PAD: bool> fmt::Debug for ZeroCopySliceMut<'a, L, T, PAD>
 where
-    T: Copy + fmt::Debug,
-    LEN: FromPrimitive + ToPrimitive + Copy,
+    T: ZeroCopyTraits + fmt::Debug,
+    L: ZeroCopyTraits,
+    u64: From<L>,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
