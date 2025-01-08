@@ -16,3 +16,7 @@ export const TRANSFER_DISCRIMINATOR = Buffer.from([
 export const COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([
     112, 230, 105, 101, 145, 202, 157, 97,
 ]);
+
+export const BURN_DISCRIMINATOR = Buffer.from([
+    116, 110, 29, 56, 107, 219, 42, 93,
+]);

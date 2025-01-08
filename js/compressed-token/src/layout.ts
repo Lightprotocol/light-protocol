@@ -15,21 +15,22 @@ import { Buffer } from 'buffer';
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { CompressedTokenProgram } from './program';
 import {
+    BurnInstructionData,
     CompressedTokenInstructionDataTransfer,
     CompressSplTokenAccountInstructionData,
     MintToInstructionData,
 } from './types';
 import {
+    BURN_DISCRIMINATOR,
     COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
     MINT_TO_DISCRIMINATOR,
     TRANSFER_DISCRIMINATOR,
 } from './constants';
 
-const CompressedProofLayout = struct([
-    array(u8(), 32, 'a'),
-    array(u8(), 64, 'b'),
-    array(u8(), 32, 'c'),
-]);
+export const CompressedProofLayout = struct(
+    [array(u8(), 32, 'a'), array(u8(), 64, 'b'), array(u8(), 32, 'c')],
+    'proof',
+);
 
 const PackedTokenTransferOutputDataLayout = struct([
     publicKey('owner'),
@@ -69,6 +70,14 @@ export const CpiContextLayout = struct([
     u8('cpiContextAccountIndex'),
 ]);
 
+export const BurnInstructionDataLayout = struct([
+    CompressedProofLayout,
+    vec(InputTokenDataWithContextLayout, 'inputTokenDataWithContext'),
+    option(CpiContextLayout, 'cpiContext'),
+    u64('burnAmount'),
+    u8('changeAccountMerkleTreeIndex'),
+    option(DelegatedTransferLayout, 'delegatedTransfer'),
+]);
 export const CompressedTokenInstructionDataTransferLayout = struct([
     option(CompressedProofLayout, 'proof'),
     publicKey('mint'),
@@ -92,6 +101,23 @@ export const compressSplTokenAccountInstructionDataLayout = struct([
     option(u64(), 'remainingAmount'),
     option(CpiContextLayout, 'cpiContext'),
 ]);
+
+export function encodeBurnInstructionData(data: BurnInstructionData): Buffer {
+    const buffer = Buffer.alloc(1000);
+    const len = BurnInstructionDataLayout.encode(data, buffer);
+    const lengthBuffer = Buffer.alloc(4);
+    lengthBuffer.writeUInt32LE(len, 0);
+    return Buffer.concat([
+        BURN_DISCRIMINATOR,
+        lengthBuffer,
+        buffer.slice(0, len),
+    ]);
+}
+export function decodeBurnInstructionData(buffer: Buffer): BurnInstructionData {
+    return BurnInstructionDataLayout.decode(
+        buffer.slice(BURN_DISCRIMINATOR.length + 4),
+    ) as BurnInstructionData;
+}
 
 export function encodeMintToInstructionData(
     data: MintToInstructionData,
@@ -217,6 +243,11 @@ export type approveAccountsLayoutParams = BaseAccountsLayoutParams;
 export type revokeAccountsLayoutParams = approveAccountsLayoutParams;
 export type freezeAccountsLayoutParams = BaseAccountsLayoutParams & {
     mint: PublicKey;
+};
+export type burnAccountsLayoutParams = BaseAccountsLayoutParams & {
+    mint: PublicKey;
+    tokenPoolPda: PublicKey;
+    tokenProgram: PublicKey;
 };
 export type thawAccountsLayoutParams = freezeAccountsLayoutParams;
 
@@ -353,6 +384,50 @@ export const transferAccountsLayout = (
     ];
 
     return accountsList;
+};
+
+export const burnAccountsLayout = (
+    accounts: burnAccountsLayoutParams,
+): AccountMeta[] => {
+    const {
+        feePayer,
+        authority,
+        cpiAuthorityPda,
+        mint,
+        tokenPoolPda,
+        tokenProgram,
+        lightSystemProgram,
+        registeredProgramPda,
+        noopProgram,
+        accountCompressionAuthority,
+        accountCompressionProgram,
+        selfProgram,
+        systemProgram,
+    } = accounts;
+
+    return [
+        { pubkey: feePayer, isWritable: true, isSigner: true },
+        { pubkey: authority, isWritable: false, isSigner: true },
+        { pubkey: cpiAuthorityPda, isWritable: false, isSigner: false },
+        { pubkey: mint, isWritable: true, isSigner: false },
+        { pubkey: tokenPoolPda, isWritable: true, isSigner: false },
+        { pubkey: tokenProgram, isWritable: false, isSigner: false },
+        { pubkey: lightSystemProgram, isWritable: false, isSigner: false },
+        { pubkey: registeredProgramPda, isWritable: false, isSigner: false },
+        { pubkey: noopProgram, isWritable: false, isSigner: false },
+        {
+            pubkey: accountCompressionAuthority,
+            isWritable: false,
+            isSigner: false,
+        },
+        {
+            pubkey: accountCompressionProgram,
+            isWritable: false,
+            isSigner: false,
+        },
+        { pubkey: selfProgram, isWritable: false, isSigner: false },
+        { pubkey: systemProgram, isWritable: false, isSigner: false },
+    ];
 };
 
 // TODO: use this layout for approve/revoke/freeze/thaw once we add them

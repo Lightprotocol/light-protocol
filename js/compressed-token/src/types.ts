@@ -10,6 +10,16 @@ export type CompressedCpiContext = {
     firstSetContext: boolean;
     cpiContextAccountIndex: number; // u8
 };
+
+export type BurnInstructionData = {
+    proof: CompressedProof;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    burnAmount: BN;
+    changeAccountMerkleTreeIndex: number; // u8
+    delegatedTransfer: DelegatedTransfer | null;
+};
+
 /// TODO: remove index_mt_account on-chain. passed as part of
 /// CompressedTokenInstructionDataInvoke
 export type TokenTransferOutputData = {

@@ -20,6 +20,9 @@ import {
     createTokenPoolAccountsLayout,
     transferAccountsLayout,
     CompressedTokenProgram,
+    BurnInstructionData,
+    decodeBurnInstructionData,
+    encodeBurnInstructionData,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
@@ -111,6 +114,186 @@ describe('layout', () => {
     const selfProgram = CompressedTokenProgram.programId;
     const systemProgram = SystemProgram.programId;
     const solPoolPda = LightSystemProgram.deriveCompressedSolPda();
+
+    describe('encode/decode burn instruction ', async () => {
+        const testCases = [
+            {
+                description: 'burn instruction with default data',
+                data: {
+                    proof: {
+                        a: [
+                            32, 3, 117, 58, 153, 131, 148, 196, 202, 221, 250,
+                            146, 196, 209, 8, 192, 211, 235, 57, 47, 234, 98,
+                            152, 195, 227, 9, 16, 156, 194, 41, 247, 89,
+                        ],
+                        b: [
+                            22, 192, 18, 134, 24, 94, 169, 42, 151, 182, 237,
+                            164, 250, 163, 253, 24, 51, 142, 37, 55, 141, 92,
+                            198, 146, 177, 23, 113, 12, 122, 27, 143, 64, 26,
+                            191, 99, 235, 113, 154, 23, 234, 173, 101, 16, 34,
+                            192, 108, 61, 10, 206, 251, 84, 242, 238, 92, 131,
+                            107, 252, 227, 70, 181, 35, 236, 195, 209,
+                        ],
+                        c: [
+                            166, 160, 56, 185, 41, 239, 140, 4, 255, 144, 213,
+                            185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
+                            132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
+                        ],
+                    },
+                    inputTokenDataWithContext: [],
+                    cpiContext: null,
+                    burnAmount: new BN(1000),
+                    changeAccountMerkleTreeIndex: 0,
+                    delegatedTransfer: null,
+                },
+            },
+            {
+                description:
+                    'burn instruction with 2 items in inputTokenDataWithContext',
+                data: {
+                    proof: {
+                        a: [
+                            32, 3, 117, 58, 153, 131, 148, 196, 202, 221, 250,
+                            146, 196, 209, 8, 192, 211, 235, 57, 47, 234, 98,
+                            152, 195, 227, 9, 16, 156, 194, 41, 247, 89,
+                        ],
+                        b: [
+                            22, 192, 18, 134, 24, 94, 169, 42, 151, 182, 237,
+                            164, 250, 163, 253, 24, 51, 142, 37, 55, 141, 92,
+                            198, 146, 177, 23, 113, 12, 122, 27, 143, 64, 26,
+                            191, 99, 235, 113, 154, 23, 234, 173, 101, 16, 34,
+                            192, 108, 61, 10, 206, 251, 84, 242, 238, 92, 131,
+                            107, 252, 227, 70, 181, 35, 236, 195, 209,
+                        ],
+                        c: [
+                            166, 160, 56, 185, 41, 239, 140, 4, 255, 144, 213,
+                            185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
+                            132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
+                        ],
+                    },
+                    inputTokenDataWithContext: [
+                        {
+                            amount: new BN('03e8', 16),
+                            delegateIndex: null,
+                            merkleContext: {
+                                merkleTreePubkeyIndex: 0,
+                                nullifierQueuePubkeyIndex: 1,
+                                leafIndex: 10,
+                                queueIndex: null,
+                            },
+                            rootIndex: 11,
+                            lamports: null,
+                            tlv: null,
+                        },
+                    ],
+                    cpiContext: null,
+                    burnAmount: new BN(1000),
+                    changeAccountMerkleTreeIndex: 0,
+                    delegatedTransfer: null,
+                },
+            },
+            {
+                description: 'burn instruction with burnAmount 0',
+                data: {
+                    proof: {
+                        a: [
+                            32, 3, 117, 58, 153, 131, 148, 196, 202, 221, 250,
+                            146, 196, 209, 8, 192, 211, 235, 57, 47, 234, 98,
+                            152, 195, 227, 9, 16, 156, 194, 41, 247, 89,
+                        ],
+                        b: [
+                            22, 192, 18, 134, 24, 94, 169, 42, 151, 182, 237,
+                            164, 250, 163, 253, 24, 51, 142, 37, 55, 141, 92,
+                            198, 146, 177, 23, 113, 12, 122, 27, 143, 64, 26,
+                            191, 99, 235, 113, 154, 23, 234, 173, 101, 16, 34,
+                            192, 108, 61, 10, 206, 251, 84, 242, 238, 92, 131,
+                            107, 252, 227, 70, 181, 35, 236, 195, 209,
+                        ],
+                        c: [
+                            166, 160, 56, 185, 41, 239, 140, 4, 255, 144, 213,
+                            185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
+                            132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
+                        ],
+                    },
+                    inputTokenDataWithContext: [],
+                    cpiContext: null,
+                    burnAmount: new BN(0),
+                    changeAccountMerkleTreeIndex: 0,
+                    delegatedTransfer: null,
+                },
+            },
+            {
+                description: 'burn instruction with delegatedTransfer',
+                data: {
+                    proof: {
+                        a: [
+                            32, 3, 117, 58, 153, 131, 148, 196, 202, 221, 250,
+                            146, 196, 209, 8, 192, 211, 235, 57, 47, 234, 98,
+                            152, 195, 227, 9, 16, 156, 194, 41, 247, 89,
+                        ],
+                        b: [
+                            22, 192, 18, 134, 24, 94, 169, 42, 151, 182, 237,
+                            164, 250, 163, 253, 24, 51, 142, 37, 55, 141, 92,
+                            198, 146, 177, 23, 113, 12, 122, 27, 143, 64, 26,
+                            191, 99, 235, 113, 154, 23, 234, 173, 101, 16, 34,
+                            192, 108, 61, 10, 206, 251, 84, 242, 238, 92, 131,
+                            107, 252, 227, 70, 181, 35, 236, 195, 209,
+                        ],
+                        c: [
+                            166, 160, 56, 185, 41, 239, 140, 4, 255, 144, 213,
+                            185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
+                            132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
+                        ],
+                    },
+                    inputTokenDataWithContext: [],
+                    cpiContext: null,
+                    burnAmount: new BN(1000),
+                    changeAccountMerkleTreeIndex: 0,
+                    delegatedTransfer: {
+                        owner: new PublicKey(
+                            '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
+                        ),
+                        delegateChangeAccountIndex: null,
+                    },
+                },
+            },
+        ];
+
+        testCases.forEach(({ description, data }) => {
+            it(description, async () => {
+                const encoded = getTestProgram().coder.types.encode(
+                    'BurnInstructionData',
+                    data,
+                );
+
+                const instructionData = (
+                    await getTestProgram()
+                        .methods.burn(encoded)
+                        .accounts({
+                            feePayer: PublicKey.default,
+                            authority: PublicKey.default,
+                            cpiAuthorityPda: PublicKey.default,
+                            mint: PublicKey.default,
+                            tokenPoolPda: PublicKey.default,
+                            tokenProgram: PublicKey.default,
+                            lightSystemProgram: PublicKey.default,
+                            registeredProgramPda: PublicKey.default,
+                            noopProgram: PublicKey.default,
+                            accountCompressionAuthority: PublicKey.default,
+                            accountCompressionProgram: PublicKey.default,
+                            selfProgram: PublicKey.default,
+                            systemProgram: PublicKey.default,
+                        })
+                        .instruction()
+                ).data;
+
+                const encodedManual = encodeBurnInstructionData(data);
+                const decoded = decodeBurnInstructionData(instructionData);
+                expect(encodedManual).toEqual(instructionData);
+                expect(deepEqual(decoded, data)).toBe(true);
+            });
+        });
+    });
     describe('encode/decode transfer/compress/decompress', () => {
         const testCases = [
             {

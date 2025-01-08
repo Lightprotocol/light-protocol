@@ -39,11 +39,48 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    encodeBurnInstructionData,
+    burnAccountsLayout,
 } from './layout';
 import {
+    BurnInstructionData,
     CompressedTokenInstructionDataTransfer,
     TokenTransferOutputData,
 } from './types';
+
+export type BurnParams = {
+    /**
+     * The payer of the transaction.
+     */
+    payer: PublicKey;
+    /**
+     * input state be burned
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * amount of tokens to burn
+     */
+    amount: BN | number;
+    /**
+     * The recent state root indices of the input state. The expiry is tied to
+     * the proof.
+     */
+    recentInputStateRootIndices: number[];
+    /**
+     * The recent validity proof for state inclusion of the input state. It
+     * expires after n slots.
+     */
+    recentValidityProof: CompressedProof;
+    /**
+     * The state tree that the change tx output should be inserted into.
+     * Defaults to a public state tree if unspecified.
+     */
+    outputStateTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
+};
 
 export type CompressParams = {
     /**
@@ -292,6 +329,11 @@ export type MintToParams = {
      * Optional: The token program ID. Default: SPL Token Program ID
      */
     tokenProgramId?: PublicKey;
+    /**
+     * Optional: The lamports to be associated with each output token account.
+     * Defaults to 0.
+     */
+    lamports?: BN | number;
 };
 
 /**
@@ -649,6 +691,8 @@ export class CompressedTokenProgram {
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
+        const lamports = params.lamports ? bn(params.lamports) : null;
+
         const toPubkeys = toArray(toPubkey);
 
         if (amounts.length !== toPubkeys.length) {
@@ -656,6 +700,7 @@ export class CompressedTokenProgram {
                 'Amount and toPubkey arrays must have the same length',
             );
         }
+
         const keys = mintToAccountsLayout({
             mint,
             feePayer,
@@ -677,7 +722,7 @@ export class CompressedTokenProgram {
         const data = encodeMintToInstructionData({
             recipients: toPubkeys,
             amounts,
-            lamports: null,
+            lamports,
         });
 
         return new TransactionInstruction({
@@ -801,6 +846,69 @@ export class CompressedTokenProgram {
 
         keys.push(...remainingAccountMetas);
 
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+
+    static async burn(params: BurnParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            amount,
+            outputStateTree,
+            recentValidityProof,
+            recentInputStateRootIndices,
+            tokenProgramId,
+        } = params;
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+        const {
+            inputTokenDataWithContext,
+            packedOutputTokenData,
+            remainingAccountMetas,
+        } = packCompressedTokenAccounts({
+            inputCompressedTokenAccounts,
+            outputStateTrees: outputStateTree,
+            rootIndices: recentInputStateRootIndices,
+            tokenTransferOutputs: [],
+        });
+        const rawData: BurnInstructionData = {
+            proof: recentValidityProof,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            burnAmount: bn(amount),
+            changeAccountMerkleTreeIndex: 0,
+            delegatedTransfer: null,
+        };
+
+        const data = encodeBurnInstructionData(rawData);
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+
+        const keys = burnAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenProgram: tokenProgramId ?? TOKEN_PROGRAM_ID,
+            mint,
+        });
+        keys.push(...remainingAccountMetas);
         return new TransactionInstruction({
             programId: this.programId,
             keys,

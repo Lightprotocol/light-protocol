@@ -1090,6 +1090,52 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'BurnInstructionData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            defined: 'CompressedProof';
+                        };
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'burnAmount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'delegatedTransfer';
+                        type: {
+                            option: {
+                                defined: 'DelegatedTransfer';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'DelegatedTransfer';
             docs: [
                 'Struct to provide the owner when the delegate is signer of the transaction.',
@@ -2822,6 +2868,52 @@ export const IDL: LightCompressedToken = {
                         name: 'lamportsChangeAccountMerkleTreeIndex',
                         type: {
                             option: 'u8',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'BurnInstructionData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            defined: 'CompressedProof',
+                        },
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'burnAmount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'changeAccountMerkleTreeIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'delegatedTransfer',
+                        type: {
+                            option: {
+                                defined: 'DelegatedTransfer',
+                            },
                         },
                     },
                 ],
