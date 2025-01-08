@@ -58,7 +58,7 @@ pub struct BatchedMerkleTreeMetadata {
 }
 
 // TODO: make anchor consistent
-impl Discriminator for BatchedMerkleTreeAccount {
+impl<'a> Discriminator for BatchedMerkleTreeAccount<'a> {
     const DISCRIMINATOR: [u8; 8] = *b"BatchMka";
 }
 
@@ -222,16 +222,17 @@ impl BatchedMerkleTreeMetadata {
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
-pub struct BatchedMerkleTreeAccount {
+pub struct BatchedMerkleTreeAccount<'a> {
     metadata: WrappedPointerMut<BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecUsize<[u8; 32]>,
     pub batches: ZeroCopySliceMutUsize<Batch>,
     pub value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     pub bloom_filter_stores: Vec<ZeroCopySliceMutUsize<u8>>,
     pub hashchain_store: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    phantom: std::marker::PhantomData<&'a ()>,
 }
 
-impl Deref for BatchedMerkleTreeAccount {
+impl<'a> Deref for BatchedMerkleTreeAccount<'a> {
     type Target = BatchedMerkleTreeMetadata;
 
     fn deref(&self) -> &Self::Target {
@@ -239,7 +240,7 @@ impl Deref for BatchedMerkleTreeAccount {
     }
 }
 
-impl DerefMut for BatchedMerkleTreeAccount {
+impl<'a> DerefMut for BatchedMerkleTreeAccount<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.metadata.get_mut()
     }
@@ -279,7 +280,7 @@ pub struct AppendBatchProofInputsIx {
     pub new_root: [u8; 32],
 }
 
-impl BatchedMerkleTreeAccount {
+impl<'a> BatchedMerkleTreeAccount<'a> {
     // TODO: remove
     pub fn get_metadata(&self) -> &BatchedMerkleTreeMetadata {
         self.metadata.get()
@@ -291,8 +292,8 @@ impl BatchedMerkleTreeAccount {
 
     // TODO: add unit test
     pub fn state_tree_from_account_info_mut(
-        account_info: &AccountInfo<'_>,
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+        account_info: &AccountInfo<'a>,
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info_mut::<BATCHED_STATE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
@@ -302,15 +303,14 @@ impl BatchedMerkleTreeAccount {
     // TODO: add failing test
     #[cfg(not(target_os = "solana"))]
     pub fn state_tree_from_bytes_mut(
-        account_data: &mut [u8],
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+        account_data: &'a mut [u8],
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_bytes_mut::<BATCHED_STATE_TREE_TYPE>(account_data)
     }
 
     pub fn address_tree_from_account_info_mut(
-        account_info: &AccountInfo,
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
-
+        account_info: &AccountInfo<'a>,
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info_mut::<BATCHED_ADDRESS_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
@@ -319,8 +319,8 @@ impl BatchedMerkleTreeAccount {
 
     pub fn from_account_info_mut<const TREE_TYPE: u64>(
         program_id: &Pubkey,
-        account_info: &AccountInfo,
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+        account_info: &AccountInfo<'a>,
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         check_account_info_mut::<Self>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
         let merkle_tree = Self::from_bytes_mut::<TREE_TYPE>(account_data)?;
@@ -329,14 +329,14 @@ impl BatchedMerkleTreeAccount {
 
     #[cfg(not(target_os = "solana"))]
     pub fn address_tree_from_bytes_mut(
-        account_data: &mut [u8],
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+        account_data: &'a mut [u8],
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_bytes_mut::<BATCHED_ADDRESS_TREE_TYPE>(account_data)
     }
 
     fn from_bytes_mut<const TREE_TYPE: u64>(
         account_data: &mut [u8],
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let metadata =
             WrappedPointerMut::<BatchedMerkleTreeMetadata>::from_bytes_with_discriminator(
                 account_data,
@@ -363,6 +363,7 @@ impl BatchedMerkleTreeAccount {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
+            phantom: std::marker::PhantomData,
         })
     }
 
@@ -378,7 +379,7 @@ impl BatchedMerkleTreeAccount {
         num_iters: u64,
         bloom_filter_capacity: u64,
         tree_type: TreeType,
-    ) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+    ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         set_discriminator::<Self>(&mut account_data[0..DISCRIMINATOR_LEN])?;
 
         let mut account_metadata =
@@ -434,6 +435,7 @@ impl BatchedMerkleTreeAccount {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
+            phantom: std::marker::PhantomData,
         })
     }
 

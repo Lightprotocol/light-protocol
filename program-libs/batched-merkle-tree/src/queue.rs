@@ -39,7 +39,7 @@ pub struct BatchedQueueMetadata {
 }
 
 // TODO: make discriminators anchor conistent
-impl Discriminator for BatchedQueueAccount {
+impl<'a> Discriminator for BatchedQueueAccount<'a> {
     const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
 
@@ -140,16 +140,17 @@ pub fn queue_account_size(
 /// Batched output queue
 #[repr(C)]
 #[derive(Debug)]
-pub struct BatchedQueueAccount {
+pub struct BatchedQueueAccount<'a> {
     metadata: WrappedPointerMut<BatchedQueueMetadata>,
     pub batches: ZeroCopySliceMutUsize<Batch>,
     pub value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
     pub bloom_filter_stores: Vec<ZeroCopySliceMutUsize<u8>>,
     /// hashchain_store_capacity = batch_capacity / zkp_batch_size
     pub hashchain_store: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    marker: std::marker::PhantomData<&'a ()>,
 }
 
-impl Deref for BatchedQueueAccount {
+impl<'a> Deref for BatchedQueueAccount<'a> {
     type Target = BatchedQueueMetadata;
 
     fn deref(&self) -> &Self::Target {
@@ -157,13 +158,13 @@ impl Deref for BatchedQueueAccount {
     }
 }
 
-impl DerefMut for BatchedQueueAccount {
+impl<'a> DerefMut for BatchedQueueAccount<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.metadata.get_mut()
     }
 }
 
-impl BatchedQueueAccount {
+impl<'a> BatchedQueueAccount<'a> {
     // TODO: remove
     pub fn get_metadata(&self) -> &BatchedQueueMetadata {
         self.metadata.get()
@@ -175,8 +176,8 @@ impl BatchedQueueAccount {
     }
 
     pub fn output_queue_from_account_info_mut(
-        account_info: &AccountInfo<'_>,
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+        account_info: &AccountInfo<'a>,
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info_mut::<OUTPUT_QUEUE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
@@ -185,8 +186,8 @@ impl BatchedQueueAccount {
 
     pub fn from_account_info_mut<const QUEUE_TYPE: u64>(
         program_id: &Pubkey,
-        account_info: &AccountInfo<'_>,
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+        account_info: &AccountInfo<'a>,
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         check_account_info_mut::<Self>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
         Self::internal_from_bytes_mut::<OUTPUT_QUEUE_TYPE>(account_data)
@@ -194,21 +195,21 @@ impl BatchedQueueAccount {
 
     #[cfg(not(target_os = "solana"))]
     pub fn output_queue_from_bytes_mut(
-        account_data: &mut [u8],
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+        account_data: &'a mut [u8],
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         Self::internal_from_bytes_mut::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     #[cfg(not(target_os = "solana"))]
     pub fn from_bytes_mut<const QUEUE_TYPE: u64>(
-        account_data: &mut [u8],
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+        account_data: &'a mut [u8],
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         Self::internal_from_bytes_mut::<QUEUE_TYPE>(account_data)
     }
 
     fn internal_from_bytes_mut<const QUEUE_TYPE: u64>(
         account_data: &mut [u8],
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let metadata =
             WrappedPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
 
@@ -230,6 +231,7 @@ impl BatchedQueueAccount {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -241,7 +243,7 @@ impl BatchedQueueAccount {
         output_queue_zkp_batch_size: u64,
         num_iters: u64,
         bloom_filter_capacity: u64,
-    ) -> Result<BatchedQueueAccount, BatchedMerkleTreeError> {
+    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         set_discriminator::<Self>(&mut account_data[0..DISCRIMINATOR_LEN])?;
         let mut account_metadata =
             WrappedPointerMut::<BatchedQueueMetadata>::from_bytes_with_discriminator(account_data)?;
@@ -268,6 +270,7 @@ impl BatchedQueueAccount {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
+            marker: std::marker::PhantomData,
         })
     }
 

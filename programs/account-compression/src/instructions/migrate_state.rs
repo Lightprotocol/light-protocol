@@ -141,12 +141,12 @@ mod migrate_state_test {
     const ROOTS: usize = 100;
     use super::*;
 
-    pub struct MockQueueAccount {
+    pub struct MockQueueAccount<'a> {
         pub account_data: Vec<u8>,
-        pub account: Option<BatchedQueueAccount>,
+        pub account: Option<BatchedQueueAccount<'a>>,
     }
 
-    fn get_output_queue() -> MockQueueAccount {
+    fn get_output_queue<'a>() -> MockQueueAccount<'a> {
         let metadata = QueueMetadata {
             next_queue: Pubkey::new_unique(),
             access_metadata: AccessMetadata::default(),

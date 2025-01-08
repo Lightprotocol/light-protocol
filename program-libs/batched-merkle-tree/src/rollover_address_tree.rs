@@ -10,13 +10,13 @@ use crate::{
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
 
-pub fn rollover_batched_address_tree(
+pub fn rollover_batched_address_tree<'a>(
     old_merkle_tree: &mut BatchedMerkleTreeAccount,
     new_mt_data: &mut [u8],
     new_mt_rent: u64,
     new_mt_pubkey: Pubkey,
     network_fee: Option<u64>,
-) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
     // Check that old merkle tree is ready for rollover.
     let old_merkle_tree_metadata = old_merkle_tree.get_metadata();
     batched_tree_is_ready_for_rollover(old_merkle_tree_metadata, &network_fee)?;

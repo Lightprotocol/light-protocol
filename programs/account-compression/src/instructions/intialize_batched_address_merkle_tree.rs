@@ -67,7 +67,7 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
     Ok(())
 }
 
-impl GroupAccess for BatchedMerkleTreeAccount {
+impl GroupAccess for BatchedMerkleTreeAccount<'_> {
     fn get_owner(&self) -> &Pubkey {
         &self.get_metadata().metadata.access_metadata.owner
     }

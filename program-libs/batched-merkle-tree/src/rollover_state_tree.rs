@@ -12,12 +12,12 @@ use crate::{
 
 #[repr(C)]
 pub struct RolloverBatchStateTreeParams<'a> {
-    pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount,
+    pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount<'a>,
     pub old_mt_pubkey: Pubkey,
     pub new_mt_data: &'a mut [u8],
     pub new_mt_rent: u64,
     pub new_mt_pubkey: Pubkey,
-    pub old_output_queue: &'a mut BatchedQueueAccount,
+    pub old_output_queue: &'a mut BatchedQueueAccount<'a>,
     pub old_queue_pubkey: Pubkey,
     pub new_output_queue_data: &'a mut [u8],
     pub new_output_queue_rent: u64,
@@ -74,9 +74,9 @@ pub fn rollover_batched_state_tree(
     Ok(())
 }
 
-impl<'a> From<&'a RolloverBatchStateTreeParams<'a>> for InitStateTreeAccountsInstructionData {
+impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructionData {
     #[inline(always)]
-    fn from(params: &'a RolloverBatchStateTreeParams<'a>) -> Self {
+    fn from(params: &RolloverBatchStateTreeParams<'_>) -> Self {
         let old_merkle_tree_account = params.old_merkle_tree.get_metadata();
 
         InitStateTreeAccountsInstructionData {

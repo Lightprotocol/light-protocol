@@ -114,13 +114,13 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// Initializes the state Merkle tree and output queue accounts.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialize the output queue and state Merkle tree accounts.
-pub fn init_batched_state_merkle_tree_from_account_info(
+pub fn init_batched_state_merkle_tree_from_account_info<'a>(
     params: InitStateTreeAccountsInstructionData,
     owner: Pubkey,
-    merkle_tree_account_info: &AccountInfo<'_>,
-    queue_account_info: &AccountInfo<'_>,
+    merkle_tree_account_info: &AccountInfo<'a>,
+    queue_account_info: &AccountInfo<'a>,
     additional_bytes_rent: u64,
-) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let queue_rent;
     let merkle_tree_rent;
@@ -163,7 +163,7 @@ pub fn init_batched_state_merkle_tree_from_account_info(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn init_batched_state_merkle_tree_accounts(
+pub fn init_batched_state_merkle_tree_accounts<'a>(
     owner: Pubkey,
     params: InitStateTreeAccountsInstructionData,
     output_queue_account_data: &mut [u8],
@@ -173,7 +173,7 @@ pub fn init_batched_state_merkle_tree_accounts(
     mt_pubkey: Pubkey,
     merkle_tree_rent: u64,
     additional_bytes_rent: u64,
-) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let num_batches_output_queue = params.output_queue_num_batches;
     let height = params.height;
