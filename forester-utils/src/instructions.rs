@@ -26,8 +26,7 @@ use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
-
-use crate::indexer::Indexer;
+use light_client::indexer::Indexer;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -41,11 +40,15 @@ pub enum ForesterUtilsError {
     IndexerError(String),
 }
 
-pub async fn create_batch_update_address_tree_instruction_data<R: RpcConnection, I: Indexer<R>>(
+// TODO: replace TestIndexerExtensions with IndexerType
+pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
-) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError> {
+) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError> where
+    R: RpcConnection,
+    I: Indexer<R> //+ TestIndexerExtensions<R>,
+{
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await
         .map_err(|e| {
             error!(
@@ -143,7 +146,6 @@ pub async fn create_batch_update_address_tree_instruction_data<R: RpcConnection,
 
     let subtrees = indexer
         .get_subtrees(merkle_tree_pubkey.to_bytes())
-        .await
         .map_err(|e| {
             error!(
                 "create_batch_update_address_tree_instruction_data: failed to get subtrees from indexer: {:?}",

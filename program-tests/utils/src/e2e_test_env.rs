@@ -72,10 +72,6 @@ use forester_utils::{
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     airdrop_lamports,
     forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
-    indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle, TokenDataWithContext,
-    },
     registry::register_test_forester,
     AccountZeroCopy,
 };
@@ -125,7 +121,9 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithMerkleContext};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use crate::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue,
@@ -136,7 +134,6 @@ use crate::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
     },
     create_address_merkle_tree_and_queue_account_with_assert,
-    indexer::TestIndexer,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
         create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test,
@@ -212,7 +209,7 @@ impl Stats {
         println!("Finalized registrations {}", self.finalized_registrations);
     }
 }
-pub async fn init_program_test_env<R: RpcConnection>(
+pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt>(
     rpc: R,
     env_accounts: &EnvAccounts,
     skip_prover: bool,
@@ -288,7 +285,7 @@ pub struct TestForester {
     is_registered: Option<u64>,
 }
 
-pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
+pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> {
     pub payer: Keypair,
     pub governance_keypair: Keypair,
     pub indexer: I,
@@ -311,7 +308,7 @@ pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
     pub registration_epoch: u64,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> E2ETestEnv<R, I>
+impl<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> E2ETestEnv<R, I>
 where
     R: RpcConnection,
     I: Indexer<R>,
@@ -2320,7 +2317,7 @@ where
     pub async fn select_random_compressed_token_accounts(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, false)
             .await
     }
@@ -2328,7 +2325,7 @@ where
     pub async fn select_random_compressed_token_accounts_frozen(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, true)
             .await
     }
@@ -2339,7 +2336,7 @@ where
         delegated: bool,
         delegate: Option<Pubkey>,
         frozen: bool,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
@@ -2429,14 +2426,14 @@ where
                     token_account.token_data.mint == mint && tree_version == version
                 })
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if delegated {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.is_some())
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2446,14 +2443,14 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.unwrap() == delegate)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if frozen {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Frozen)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2462,7 +2459,7 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Initialized)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         let range_end = if token_accounts_with_mint.len() == 1 {
             1

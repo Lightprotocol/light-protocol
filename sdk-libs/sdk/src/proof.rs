@@ -41,3 +41,11 @@ pub struct ProofRpcResult {
     pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }
+
+#[derive(Debug, Default)]
+pub struct BatchedTreeProofRpcResult {
+    pub proof: Option<CompressedProof>,
+    // If none -> proof by index, else included in zkp
+    pub root_indices: Vec<Option<u16>>,
+    pub address_root_indices: Vec<u16>,
+}

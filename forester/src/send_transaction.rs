@@ -7,7 +7,6 @@ use account_compression::utils::constants::{
 use async_trait::async_trait;
 use forester_utils::{
     forester_epoch::{TreeAccounts, TreeType},
-    indexer::Indexer,
 };
 use futures::future::join_all;
 use light_client::{
@@ -32,7 +31,7 @@ use tokio::{
     time::{sleep, Instant},
 };
 use tracing::{debug, warn};
-
+use light_client::indexer::Indexer;
 use crate::{
     config::QueueConfig,
     epoch_manager::{MerkleProofType, WorkItem},

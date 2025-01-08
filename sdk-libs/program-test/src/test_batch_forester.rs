@@ -2,7 +2,6 @@ use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
 use forester_utils::{
     create_account_instruction,
-    indexer::{Indexer, StateMerkleTreeBundle},
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
@@ -393,6 +392,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
 }
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_client::indexer::{Indexer, StateMerkleTreeBundle};
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -881,7 +881,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             addresses,
             indexer
                 .get_subtrees(merkle_tree_pubkey.to_bytes())
-                .await
                 .unwrap()
                 .try_into()
                 .unwrap(),

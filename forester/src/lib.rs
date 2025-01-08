@@ -18,6 +18,7 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
+mod indexer_type;
 
 use std::{sync::Arc, time::Duration};
 
@@ -25,7 +26,6 @@ use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIE
 pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::{
     forester_epoch::{TreeAccounts, TreeType},
-    indexer::Indexer,
 };
 use light_client::{
     rpc::{RpcConnection, SolanaRpcConnection},
@@ -34,7 +34,7 @@ use light_client::{
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
-
+use light_client::indexer::Indexer;
 use crate::{
     epoch_manager::{run_service, WorkReport},
     metrics::QUEUE_LENGTH,
@@ -42,6 +42,8 @@ use crate::{
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
 };
+use crate::indexer_type::IndexerType;
+
 
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,
@@ -80,7 +82,7 @@ pub async fn run_queue_info(
     }
 }
 
-pub async fn run_pipeline<R: RpcConnection, I: Indexer<R>>(
+pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
