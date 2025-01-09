@@ -14,30 +14,42 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
+use light_client::{indexer::Indexer, rpc::merkle_tree::MerkleTreeExt};
 use light_hasher::{Hasher, Poseidon};
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
-use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
-use light_system_program::sdk::address::{derive_address, derive_address_legacy};
-use light_system_program::sdk::compressed_account::MerkleContext;
-use light_system_program::sdk::event::PublicTransactionEvent;
-use light_system_program::NewAddressParams;
-use light_test_utils::conversions::{
-    program_to_sdk_public_transaction_event, sdk_to_program_compressed_account,
-    sdk_to_program_compressed_proof, sdk_to_program_token_data,
+use light_system_program::{
+    sdk::{
+        address::{derive_address, derive_address_legacy},
+        compressed_account::MerkleContext,
+        event::PublicTransactionEvent,
+    },
+    NewAddressParams,
 };
-use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
-use light_test_utils::{FeeConfig, RpcConnection, RpcError, TransactionParams};
-use solana_sdk::instruction::{Instruction, InstructionError};
-use solana_sdk::signature::Keypair;
-use solana_sdk::{signer::Signer, transaction::Transaction};
-use light_client::indexer::Indexer;
-use light_client::rpc::merkle_tree::MerkleTreeExt;
-use token_escrow::escrow_with_compressed_pda::sdk::{
-    create_escrow_instruction, create_withdrawal_instruction, get_token_owner_pda,
-    CreateCompressedPdaEscrowInstructionInputs, CreateCompressedPdaWithdrawalInstructionInputs,
+use light_test_utils::{
+    conversions::{
+        program_to_sdk_public_transaction_event, sdk_to_program_compressed_account,
+        sdk_to_program_compressed_proof, sdk_to_program_token_data,
+    },
+    spl::{create_mint_helper, mint_tokens_helper},
+    FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use token_escrow::{EscrowError, EscrowTimeLock};
+use solana_sdk::{
+    instruction::{Instruction, InstructionError},
+    signature::Keypair,
+    signer::Signer,
+    transaction::Transaction,
+};
+use token_escrow::{
+    escrow_with_compressed_pda::sdk::{
+        create_escrow_instruction, create_withdrawal_instruction, get_token_owner_pda,
+        CreateCompressedPdaEscrowInstructionInputs, CreateCompressedPdaWithdrawalInstructionInputs,
+    },
+    EscrowError, EscrowTimeLock,
+};
 
 #[tokio::test]
 async fn test_escrow_with_compressed_pda() {
@@ -45,7 +57,7 @@ async fn test_escrow_with_compressed_pda() {
         String::from("token_escrow"),
         token_escrow::ID,
     )]))
-        .await;
+    .await;
     let payer = rpc.get_payer().insecure_clone();
 
     let test_indexer = TestIndexer::init_from_env(
@@ -69,7 +81,7 @@ async fn test_escrow_with_compressed_pda() {
         vec![amount],
         vec![payer.pubkey()],
     )
-        .await;
+    .await;
 
     let seed = [1u8; 32];
     let escrow_amount = 100u64;
@@ -84,8 +96,8 @@ async fn test_escrow_with_compressed_pda() {
         escrow_amount,
         seed,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     let current_slot = rpc.get_slot().await.unwrap();
     let lockup_end = lock_up_time + current_slot;
@@ -98,7 +110,7 @@ async fn test_escrow_with_compressed_pda() {
         &seed,
         &lockup_end,
     )
-        .await;
+    .await;
 
     println!("withdrawal _----------------------------------------------------------------");
     let withdrawal_amount = escrow_amount;
@@ -112,7 +124,7 @@ async fn test_escrow_with_compressed_pda() {
         new_lock_up_time,
         withdrawal_amount,
     )
-        .await;
+    .await;
 
     let instruction_error = InstructionError::Custom(EscrowError::EscrowLocked.into());
     let transaction_error =
@@ -130,8 +142,8 @@ async fn test_escrow_with_compressed_pda() {
         new_lock_up_time,
         withdrawal_amount,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     assert_withdrawal(
         &mut rpc,
@@ -143,7 +155,7 @@ async fn test_escrow_with_compressed_pda() {
         &seed,
         new_lock_up_time,
     )
-        .await;
+    .await;
 }
 
 pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
@@ -164,7 +176,7 @@ pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
         lock_up_time,
         escrow_amount,
     )
-        .await;
+    .await;
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -194,7 +206,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection + MerkleTreeExt>(
         lock_up_time,
         escrow_amount,
     )
-        .await;
+    .await;
     let event = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
@@ -210,9 +222,10 @@ pub async fn perform_escrow_with_event<R: RpcConnection + MerkleTreeExt>(
         )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &program_to_sdk_public_transaction_event(
-        event.unwrap().0,
-    ));
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.unwrap().0),
+    );
     Ok(())
 }
 
@@ -246,9 +259,11 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(vec![input_compressed_account_hash]),
-            Some(vec![compressed_input_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey]),
+            Some(vec![
+                compressed_input_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ]),
             Some(&[address]),
             Some(vec![env.address_merkle_tree_pubkey]),
             context,
@@ -376,7 +391,7 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
         new_lock_up_time,
         escrow_amount,
     )
-        .await;
+    .await;
     let event = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
@@ -386,9 +401,10 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
         )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &program_to_sdk_public_transaction_event(
-        event.unwrap().0,
-    ));
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.unwrap().0),
+    );
     Ok(())
 }
 
@@ -410,7 +426,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection + MerkleTreeExt>(
         new_lock_up_time,
         escrow_amount,
     )
-        .await;
+    .await;
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

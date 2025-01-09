@@ -6,16 +6,15 @@ use forester::{
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::rpc::RpcConnection;
-use light_program_test::test_env::get_test_env_accounts;
-use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
-use light_test_utils::{
-    e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User},
+use light_client::{
+    indexer::{Indexer, IndexerError, NewAddressProofWithContext},
+    rpc::RpcConnection,
 };
+use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
+use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
+use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
-use light_client::indexer::{Indexer, IndexerError, NewAddressProofWithContext};
-use light_program_test::indexer::TestIndexerExtensions;
 
 #[allow(dead_code)]
 pub async fn init(config: Option<LightValidatorConfig>) {
@@ -108,7 +107,10 @@ pub fn generate_pubkey_254() -> Pubkey {
 }
 
 #[allow(dead_code)]
-pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     indexer: &mut I,
     trees: &[Pubkey],
     addresses: &[Pubkey],
@@ -176,7 +178,10 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<R: RpcConnect
 }
 
 #[allow(dead_code)]
-pub async fn assert_accounts_by_owner<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_accounts_by_owner<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     indexer: &mut I,
     user: &User,
     photon_indexer: &PhotonIndexer<R>,
@@ -210,14 +215,16 @@ pub async fn assert_accounts_by_owner<R: RpcConnection, I: Indexer<R> + TestInde
 }
 
 #[allow(dead_code)]
-pub async fn assert_account_proofs_for_photon_and_test_indexer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_account_proofs_for_photon_and_test_indexer<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     indexer: &mut I,
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, IndexerError> = indexer
-        .get_compressed_accounts_by_owner(user_pubkey)
-        .await;
+    let accs: Result<Vec<String>, IndexerError> =
+        indexer.get_compressed_accounts_by_owner(user_pubkey).await;
     for account_hash in accs.unwrap() {
         let photon_result = photon_indexer
             .get_multiple_compressed_account_proofs(vec![account_hash.clone()])

@@ -10,12 +10,20 @@
 // - create escrow pda and just prove that utxo exists -> read utxo from compressed token account
 // release compressed tokens
 
+use light_client::indexer::Indexer;
 use light_hasher::Poseidon;
-use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+};
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error,
+    conversions::{
+        program_to_sdk_public_transaction_event, sdk_to_program_compressed_account,
+        sdk_to_program_compressed_proof, sdk_to_program_token_data,
+    },
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
@@ -24,9 +32,6 @@ use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
-use light_client::indexer::Indexer;
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
-use light_test_utils::conversions::{program_to_sdk_public_transaction_event, sdk_to_program_compressed_account, sdk_to_program_compressed_proof, sdk_to_program_token_data};
 use token_escrow::{
     escrow_with_compressed_pda::sdk::get_token_owner_pda,
     escrow_with_pda::sdk::{
@@ -283,7 +288,10 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     create_escrow_instruction(create_ix_inputs, *escrow_amount)
 }
 
-pub async fn perform_escrow_with_event<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_escrow_with_event<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -313,7 +321,10 @@ pub async fn perform_escrow_with_event<R: RpcConnection, I: Indexer<R> + TestInd
         .await?
         .unwrap();
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &program_to_sdk_public_transaction_event(event.0));
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.0),
+    );
     Ok(())
 }
 
@@ -336,7 +347,7 @@ pub async fn perform_escrow_failing<R: RpcConnection, I: Indexer<R> + TestIndexe
     rpc.process_transaction(transaction).await
 }
 
-pub async fn assert_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> (
+pub async fn assert_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &I,
     payer_pubkey: &Pubkey,
@@ -355,8 +366,10 @@ pub async fn assert_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensio
     assert_eq!(token_data_escrow.amount, escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
-    let token_data_change_compressed_token_account =
-        test_indexer.get_token_compressed_accounts()[0].token_data.clone();
+    let token_data_change_compressed_token_account = test_indexer.get_token_compressed_accounts()
+        [0]
+    .token_data
+    .clone();
     assert_eq!(
         token_data_change_compressed_token_account.amount,
         amount - escrow_amount
@@ -449,7 +462,10 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)
 }
 
-pub async fn perform_withdrawal_with_event<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_withdrawal_with_event<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -476,11 +492,17 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection, I: Indexer<R> + Tes
         .await?
         .unwrap();
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &program_to_sdk_public_transaction_event(event.0));
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.0),
+    );
     Ok(())
 }
 
-pub async fn perform_withdrawal_failing<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_withdrawal_failing<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -522,10 +544,13 @@ pub fn assert_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions
         "Withdrawal compressed account doesn't exist or has incorrect amount {} expected amount",
         withdrawal_amount
     );
-    let token_data_escrow_change = test_indexer.get_token_compressed_accounts().iter().any(|x| {
-        x.token_data.owner == token_owner_pda
-            && x.token_data.amount == escrow_amount - withdrawal_amount
-    });
+    let token_data_escrow_change = test_indexer
+        .get_token_compressed_accounts()
+        .iter()
+        .any(|x| {
+            x.token_data.owner == token_owner_pda
+                && x.token_data.amount == escrow_amount - withdrawal_amount
+        });
     assert!(
         token_data_escrow_change,
         "Escrow change compressed account doesn't exist or has incorrect amount {} expected amount",

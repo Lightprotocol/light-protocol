@@ -10,11 +10,9 @@ use light_client::{
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
-use light_program_test::test_env::EnvAccounts;
+use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::LightValidatorConfig;
-use light_test_utils::{
-    e2e_test_env::{init_program_test_env, E2ETestEnv},
-};
+use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::{
@@ -25,7 +23,7 @@ use tokio::{
     time::timeout,
 };
 use tracing::log::info;
-use light_program_test::indexer::TestIndexer;
+
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
