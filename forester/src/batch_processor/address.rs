@@ -1,16 +1,16 @@
 use borsh::BorshSerialize;
-use forester_utils::{
-    instructions::create_batch_update_address_tree_instruction_data,
-};
+use forester_utils::instructions::create_batch_update_address_tree_instruction_data;
 use light_batched_merkle_tree::event::BatchNullifyEvent;
-use light_client::rpc::RpcConnection;
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
-use light_client::indexer::Indexer;
+
 use super::common::BatchContext;
-use crate::batch_processor::error::{BatchProcessError, Result};
-use crate::indexer_type::{finalize_batch_address_tree_update, IndexerType};
+use crate::{
+    batch_processor::error::{BatchProcessError, Result},
+    indexer_type::{finalize_batch_address_tree_update, IndexerType},
+};
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
 pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
@@ -51,7 +51,8 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
     .await?;
 
     finalize_batch_address_tree_update(&mut *rpc, context.indexer.clone(), context.merkle_tree)
-        .await.expect("Failed to finalize batch address tree update");
+        .await
+        .expect("Failed to finalize batch address tree update");
 
     info!(
         "Address batch processing completed successfully. Batch size: {}",

@@ -9,7 +9,7 @@ use anchor_spl::{
     token::{Mint, TokenAccount},
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
-use light_test_utils::conversions::{sdk_to_program_compressed_account, sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof, sdk_to_program_merkle_context, sdk_to_program_token_data};
+use light_client::indexer::Indexer;
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
@@ -27,15 +27,22 @@ use light_compressed_token::{
     ErrorCode,
 };
 use light_program_test::{
-    test_env::setup_test_programs_with_accounts, test_rpc::ProgramTestRpcConnection,
+    indexer::{TestIndexer, TestIndexerExtensions},
+    test_env::setup_test_programs_with_accounts,
+    test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
+    conversions::{
+        sdk_to_program_compressed_account, sdk_to_program_compressed_account_with_merkle_context,
+        sdk_to_program_compressed_proof, sdk_to_program_merkle_context, sdk_to_program_token_data,
+    },
     create_account_instruction,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
@@ -60,9 +67,6 @@ use solana_sdk::{
     transaction::{Transaction, TransactionError},
 };
 use spl_token::{error::TokenError, instruction::initialize_mint};
-use light_client::indexer::Indexer;
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 
 #[serial]
 #[tokio::test]
@@ -1553,7 +1557,10 @@ async fn test_decompression() {
     kill_prover();
 }
 
-pub async fn mint_tokens_to_all_token_pools<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn mint_tokens_to_all_token_pools<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     merkle_tree_pubkey: &Pubkey,
@@ -4686,7 +4693,10 @@ async fn test_failing_decompression() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_compress_decompress<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn failing_compress_decompress<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     payer: &Keypair,
     rpc: &mut R,
     test_indexer: &mut I,
@@ -4929,7 +4939,9 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(sdk_to_program_compressed_proof(proof_rpc_result.proof.clone())),
+            &Some(sdk_to_program_compressed_proof(
+                proof_rpc_result.proof.clone(),
+            )),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -4954,7 +4966,9 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(sdk_to_program_compressed_proof(proof_rpc_result.proof.clone())),
+            &Some(sdk_to_program_compressed_proof(
+                proof_rpc_result.proof.clone(),
+            )),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -5003,7 +5017,9 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(sdk_to_program_compressed_proof(proof_rpc_result.proof.clone())),
+            &Some(sdk_to_program_compressed_proof(
+                proof_rpc_result.proof.clone(),
+            )),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -5027,7 +5043,9 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(sdk_to_program_compressed_proof(proof_rpc_result.proof.clone())),
+            &Some(sdk_to_program_compressed_proof(
+                proof_rpc_result.proof.clone(),
+            )),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,

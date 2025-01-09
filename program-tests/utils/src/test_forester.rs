@@ -5,10 +5,11 @@ use account_compression::{
     AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use forester_utils::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
+use forester_utils::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
+use light_client::{
+    indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
+    rpc::{errors::RpcError, RpcConnection},
 };
-use light_client::rpc::{errors::RpcError, RpcConnection};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
@@ -30,7 +31,6 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use thiserror::Error;
-use light_client::indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle};
 // doesn't keep its own Merkle tree but gets it from the indexer
 // can also get all the state and Address Merkle trees from the indexer
 // the lightweight version is just a function

@@ -12,6 +12,7 @@ use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVecError;
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
@@ -39,7 +40,6 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
 
 /// Tests insertion of addresses to the queue, dequeuing and Merkle tree update.
 /// 1. create address Merkle tree and queue accounts

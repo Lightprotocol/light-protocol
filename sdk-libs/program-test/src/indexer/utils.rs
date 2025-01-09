@@ -1,17 +1,21 @@
 use std::cmp;
-use anchor_lang::solana_program::instruction::InstructionError;
-use solana_sdk::signature::{Keypair, Signature, Signer};
-use solana_sdk::transaction;
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueAccount, RegisteredProgram};
-use account_compression::initialize_address_merkle_tree::Pubkey;
+
+use account_compression::{
+    initialize_address_merkle_tree::Pubkey, AddressMerkleTreeConfig, AddressQueueConfig,
+    QueueAccount, RegisteredProgram,
+};
 use forester_utils::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
-use light_merkle_tree_metadata::access::AccessMetadata;
-use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
-use light_merkle_tree_metadata::rollover::RolloverMetadata;
+use light_merkle_tree_metadata::{
+    access::AccessMetadata,
+    queue::{QueueMetadata, QueueType},
+    rollover::RolloverMetadata,
+};
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use light_utils::fee::compute_rollover_fee;
+use solana_sdk::signature::{Keypair, Signature, Signer};
+
 use crate::test_env::create_address_merkle_tree_and_queue_account;
 
 #[allow(clippy::too_many_arguments)]
@@ -40,7 +44,7 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
         queue_config,
         index,
     )
-        .await;
+    .await;
 
     // To initialize the indexed tree we do 4 operations:
     // 1. insert 0 append 0 and update 0
@@ -59,7 +63,7 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
             account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
             account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
         )
-            .unwrap();
+        .unwrap();
     reference_tree.init().unwrap();
 
     let expected_right_most_leaf = reference_tree
@@ -99,7 +103,7 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
         &owner,
         expected_indexed_change_log_length,
     )
-        .await;
+    .await;
 
     assert_address_queue_initialized(
         context,
@@ -113,41 +117,40 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
         forester,
         &owner,
     )
-        .await;
+    .await;
 
     result
 }
 
-/// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code
-/// or a program error.
-/// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
-/// we allow program error as well.
-// TODO: unify with assert_rpc_error
-pub fn assert_custom_error_or_program_error(
-    result: Result<solana_sdk::signature::Signature, RpcError>,
-    error_code: u32,
-) -> Result<(), RpcError> {
-    let accepted_errors = [
-        (0, InstructionError::ProgramFailedToComplete),
-        (0, InstructionError::Custom(error_code)),
-    ];
-
-    let is_accepted = accepted_errors.iter().any(|(index, error)| {
-        matches!(result, Err(RpcError::TransactionError(transaction::TransactionError::InstructionError(i, ref e))) if i == (*index as u8) && e == error)
-    });
-
-    if !is_accepted {
-        println!("result {:?}", result);
-        println!("error_code {:?}", error_code);
-        return Err(RpcError::AssertRpcError(format!(
-            "Expected error code {} or program error, got {:?}",
-            error_code, result
-        )));
-    }
-
-    Ok(())
-}
-
+// /// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code
+// /// or a program error.
+// /// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
+// /// we allow program error as well.
+// // TODO: unify with assert_rpc_error
+// pub fn assert_custom_error_or_program_error(
+//     result: Result<Signature, RpcError>,
+//     error_code: u32,
+// ) -> Result<(), RpcError> {
+//     let accepted_errors = [
+//         (0, InstructionError::ProgramFailedToComplete),
+//         (0, InstructionError::Custom(error_code)),
+//     ];
+//
+//     let is_accepted = accepted_errors.iter().any(|(index, error)| {
+//         matches!(result, Err(RpcError::TransactionError(transaction::TransactionError::InstructionError(i, ref e))) if i == (*index as u8) && e == error)
+//     });
+//
+//     if !is_accepted {
+//         println!("result {:?}", result);
+//         println!("error_code {:?}", error_code);
+//         return Err(RpcError::AssertRpcError(format!(
+//             "Expected error code {} or program error, got {:?}",
+//             error_code, result
+//         )));
+//     }
+//
+//     Ok(())
+// }
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
@@ -169,7 +172,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         rpc,
         *merkle_tree_pubkey,
     )
-        .await;
+    .await;
     let merkle_tree_account = merkle_tree.deserialized();
 
     assert_eq!(
@@ -232,7 +235,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         26,
         16,
     >(rpc, *merkle_tree_pubkey)
-        .await;
+    .await;
 
     assert_eq!(merkle_tree.height, merkle_tree_config.height as usize);
     assert_eq!(
@@ -273,7 +276,6 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     );
 }
 
-
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_queue_initialized<R: RpcConnection>(
     rpc: &mut R,
@@ -301,9 +303,8 @@ pub async fn assert_address_queue_initialized<R: RpcConnection>(
         None,
         payer_pubkey,
     )
-        .await;
+    .await;
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_queue<R: RpcConnection>(
@@ -337,10 +338,10 @@ pub async fn assert_address_queue<R: RpcConnection>(
         Some(threshold) => {
             compute_rollover_fee(threshold, associated_tree_config.height, balance_queue).unwrap()
                 + compute_rollover_fee(
-                threshold,
-                associated_tree_config.height,
-                balance_merkle_tree,
-            )
+                    threshold,
+                    associated_tree_config.height,
+                    balance_merkle_tree,
+                )
                 .unwrap()
         }
         None => 0,
@@ -360,7 +361,7 @@ pub async fn assert_address_queue<R: RpcConnection>(
         expected_next_queue,
         payer_pubkey,
     )
-        .await;
+    .await;
 }
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_queue<R: RpcConnection>(
@@ -413,4 +414,3 @@ pub async fn assert_queue<R: RpcConnection>(
         queue_config.sequence_threshold as usize
     );
 }
-

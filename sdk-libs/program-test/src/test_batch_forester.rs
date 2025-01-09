@@ -1,9 +1,6 @@
 use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
-use forester_utils::{
-    create_account_instruction,
-    AccountZeroCopy,
-};
+use forester_utils::{create_account_instruction, AccountZeroCopy};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     event::{BatchAppendEvent, BatchNullifyEvent},

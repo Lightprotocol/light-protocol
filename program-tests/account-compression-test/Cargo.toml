@@ -26,16 +26,11 @@ solana-program-test =  { workspace = true}
 light-test-utils = { workspace = true, features=["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
-reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {workspace = true }
 num-bigint = "0.4.6"
-num-traits = "0.2.19"
-spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
-light-compressed-token = { workspace = true }
-light-system-program = { workspace = true }
 account-compression = { workspace = true }
 light-hasher = {workspace = true}
 light-hash-set = { workspace = true}
@@ -46,11 +41,7 @@ light-bounded-vec = {workspace = true}
 light-utils = {workspace = true}
 light-verifier = {workspace = true}
 rand = "0.8"
-solana-cli-output = { workspace = true }
-serde_json = "1.0.114"
 solana-sdk = { workspace = true }
-thiserror = "1.0"
-memoffset = "0.9.1"
 serial_test = "3.1.1"
 light-bloom-filter = { workspace = true }
 light-batched-merkle-tree = { workspace = true }

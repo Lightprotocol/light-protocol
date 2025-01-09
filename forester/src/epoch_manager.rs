@@ -9,11 +9,12 @@ use std::{
 
 use anyhow::Context;
 use dashmap::DashMap;
-use forester_utils::{
-    forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType},
+use forester_utils::forester_epoch::{
+    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
 use futures::future::join_all;
 use light_client::{
+    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -31,19 +32,18 @@ use tokio::{
     time::{sleep, Instant},
 };
 use tracing::{debug, error, info, info_span, instrument, warn};
-use light_client::indexer::{Indexer, MerkleProof, NewAddressProofWithContext};
+
 use crate::{
     batch_processor::{process_batched_operations, BatchContext},
     errors::{
         ChannelError, ConfigurationError, ForesterError, InitializationError, RegistrationError,
         WorkReportError,
     },
+    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     queue_helpers::QueueItemData,
-    rollover::{
-        is_tree_ready_for_rollover,
-    },
+    rollover::is_tree_ready_for_rollover,
     send_transaction::{
         send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
         SendBatchedTransactionsConfig,
@@ -53,7 +53,6 @@ use crate::{
     tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
-use crate::indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType};
 
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {

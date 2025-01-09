@@ -6,6 +6,7 @@ pub mod config;
 pub mod epoch_manager;
 pub mod errors;
 pub mod forester_status;
+mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
 pub mod photon_indexer;
@@ -18,32 +19,29 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
-mod indexer_type;
 
 use std::{sync::Arc, time::Duration};
 
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use forester_utils::{
-    forester_epoch::{TreeAccounts, TreeType},
-};
+use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_client::{
+    indexer::Indexer,
     rpc::{RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
-use light_client::indexer::Indexer;
+
 use crate::{
     epoch_manager::{run_service, WorkReport},
+    indexer_type::IndexerType,
     metrics::QUEUE_LENGTH,
     queue_helpers::fetch_queue_item_data,
     slot_tracker::SlotTracker,
     utils::get_protocol_config,
 };
-use crate::indexer_type::IndexerType;
-
 
 pub async fn run_queue_info(
     config: Arc<ForesterConfig>,

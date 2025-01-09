@@ -2,7 +2,10 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
     StateMerkleTreeConfig,
 };
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::{
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    rpc::{RpcConnection, RpcError},
+};
 use light_registry::{
     account_compression_cpi::sdk::{
         create_rollover_state_merkle_tree_instruction, CreateRolloverMerkleTreeInstructionInputs,
@@ -17,7 +20,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+
 use crate::{
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
     create_account_instruction,

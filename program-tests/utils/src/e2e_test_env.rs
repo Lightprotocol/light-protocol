@@ -80,7 +80,11 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{
-    rpc::{errors::RpcError, RpcConnection},
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle,
+    },
+    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::{FeeConfig, TransactionParams},
 };
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
@@ -92,6 +96,7 @@ use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
     test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
@@ -103,6 +108,7 @@ use light_registry::{
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::{bigint::bigint_to_be_bytes_array, rand::gen_prime};
 use log::info;
@@ -120,10 +126,7 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle};
-use light_client::rpc::merkle_tree::MerkleTreeExt;
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+
 use crate::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue,
@@ -133,6 +136,7 @@ use crate::{
     assert_epoch::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
     },
+    conversions::sdk_to_program_compressed_account_with_merkle_context,
     create_address_merkle_tree_and_queue_account_with_assert,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
@@ -145,7 +149,6 @@ use crate::{
     },
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
 };
-use crate::conversions::sdk_to_program_compressed_account_with_merkle_context;
 
 pub struct User {
     pub keypair: Keypair,
@@ -2206,7 +2209,9 @@ where
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_with_merkle_context_by_owner(&self.users[user_index].keypair.pubkey())
+            .get_compressed_accounts_with_merkle_context_by_owner(
+                &self.users[user_index].keypair.pubkey(),
+            )
             .into_iter()
             .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect::<Vec<_>>();
@@ -2246,7 +2251,8 @@ where
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_with_merkle_context_by_owner(pubkey)
+        self.indexer
+            .get_compressed_accounts_with_merkle_context_by_owner(pubkey)
             .into_iter()
             .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect()

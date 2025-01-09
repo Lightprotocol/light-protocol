@@ -1,5 +1,5 @@
 // use std::fmt::Debug;
-// 
+//
 // use account_compression::initialize_address_merkle_tree::{
 //     Error as AccountCompressionError, Pubkey,
 // };
@@ -21,13 +21,13 @@
 // use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 // use solana_sdk::signature::Keypair;
 // use thiserror::Error;
-// 
+//
 // #[derive(Debug, Clone)]
 // pub struct TokenDataWithContext {
 //     pub token_data: TokenData,
 //     pub compressed_account: CompressedAccountWithMerkleContext,
 // }
-// 
+//
 // #[derive(Debug, Default)]
 // pub struct BatchedTreeProofRpcResult {
 //     pub proof: Option<CompressedProof>,
@@ -35,27 +35,27 @@
 //     pub root_indices: Vec<Option<u16>>,
 //     pub address_root_indices: Vec<u16>,
 // }
-// 
+//
 // #[derive(Debug, Default)]
 // pub struct ProofRpcResult {
 //     pub proof: CompressedProof,
 //     pub root_indices: Vec<Option<u16>>,
 //     pub address_root_indices: Vec<u16>,
 // }
-// 
+//
 // #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 // pub struct StateMerkleTreeAccounts {
 //     pub merkle_tree: Pubkey,
 //     pub nullifier_queue: Pubkey,
 //     pub cpi_context: Pubkey,
 // }
-// 
+//
 // #[derive(Debug, Clone, Copy)]
 // pub struct AddressMerkleTreeAccounts {
 //     pub merkle_tree: Pubkey,
 //     pub queue: Pubkey,
 // }
-// 
+//
 // #[derive(Debug, Clone)]
 // pub struct StateMerkleTreeBundle {
 //     pub rollover_fee: i64,
@@ -66,7 +66,7 @@
 //     /// leaf index, leaf, tx hash
 //     pub input_leaf_indices: Vec<(u32, [u8; 32], [u8; 32])>,
 // }
-// 
+//
 // #[derive(Debug, Clone)]
 // pub struct AddressMerkleTreeBundle {
 //     pub rollover_fee: i64,
@@ -75,19 +75,19 @@
 //     pub accounts: AddressMerkleTreeAccounts,
 //     pub queue_elements: Vec<[u8; 32]>,
 // }
-// 
+//
 // pub struct ProofOfLeaf {
 //     pub leaf: [u8; 32],
 //     pub proof: Vec<[u8; 32]>,
 // }
-// 
+//
 // #[async_trait]
 // pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
 //     /// Returns queue elements from the queue with the given pubkey. For input
 //     /// queues account compression program does not store queue elements in the
 //     /// account data but only emits these in the public transaction event. The
 //     /// indexer needs the queue elements to create batch update proofs.
-// 
+//
 //     // i
 //     async fn get_queue_elements(
 //         &self,
@@ -96,12 +96,12 @@
 //         start_offset: u64,
 //         end_offset: u64,
 //     ) -> Result<Vec<[u8; 32]>, IndexerError>;
-// 
+//
 //     // e
 //     fn get_proof_by_index(&mut self, _merkle_tree_pubkey: Pubkey, _index: u64) -> ProofOfLeaf {
 //         unimplemented!("get_proof_by_index not implemented")
 //     }
-// 
+//
 //     // e
 //     fn get_proofs_by_indices(
 //         &mut self,
@@ -110,7 +110,7 @@
 //     ) -> Vec<ProofOfLeaf> {
 //         unimplemented!("get_proof_by_index not implemented")
 //     }
-// 
+//
 //     // e
 //     fn get_leaf_indices_tx_hashes(
 //         &mut self,
@@ -119,41 +119,41 @@
 //     ) -> Vec<(u32, [u8; 32], [u8; 32])> {
 //         unimplemented!();
 //     }
-// 
+//
 //     // i
 //     async fn get_subtrees(
 //         &self,
 //         merkle_tree_pubkey: [u8; 32],
 //     ) -> Result<Vec<[u8; 32]>, IndexerError>;
-// 
+//
 //     // i
 //     async fn get_multiple_compressed_account_proofs(
 //         &self,
 //         hashes: Vec<String>,
 //     ) -> Result<Vec<MerkleProof>, IndexerError>;
-// 
+//
 //     async fn get_rpc_compressed_accounts_by_owner(
 //         &self,
 //         owner: &Pubkey,
 //     ) -> Result<Vec<String>, IndexerError>;
-// 
+//
 //     // i
 //     async fn get_multiple_new_address_proofs(
 //         &self,
 //         merkle_tree_pubkey: [u8; 32],
 //         addresses: Vec<[u8; 32]>,
 //     ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError>;
-// 
+//
 //     // i
 //     async fn get_multiple_new_address_proofs_full(
 //         &self,
 //         merkle_tree_pubkey: [u8; 32],
 //         addresses: Vec<[u8; 32]>,
 //     ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError>;
-// 
+//
 //     // e
 //     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
-// 
+//
 //     // e
 //     fn address_tree_updated(
 //         &mut self,
@@ -161,12 +161,12 @@
 //         _context: &NewAddressProofWithContext<16>,
 //     ) {
 //     }
-// 
+//
 //     // e
 //     fn get_state_merkle_tree_accounts(&self, _pubkeys: &[Pubkey]) -> Vec<StateMerkleTreeAccounts> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn add_event_and_compressed_accounts(
 //         &mut self,
@@ -178,42 +178,42 @@
 //     ) {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_state_merkle_trees(&self) -> &Vec<StateMerkleTreeBundle> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithContext> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_payer(&self) -> &Keypair {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_group_pda(&self) -> &Pubkey {
 //         unimplemented!()
 //     }
-// 
+//
 //     // i + e
 //     async fn create_proof_for_compressed_accounts(
 //         &mut self,
@@ -225,7 +225,7 @@
 //     ) -> ProofRpcResult {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     async fn create_proof_for_compressed_accounts2(
 //         &mut self,
@@ -237,7 +237,7 @@
 //     ) -> BatchedTreeProofRpcResult {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn add_address_merkle_tree_accounts(
 //         &mut self,
@@ -247,7 +247,7 @@
 //     ) -> AddressMerkleTreeAccounts {
 //         unimplemented!()
 //     }
-// 
+//
 //     // i
 //     fn get_compressed_accounts_by_owner(
 //         &self,
@@ -255,17 +255,17 @@
 //     ) -> Vec<CompressedAccountWithMerkleContext> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn get_compressed_token_accounts_by_owner(&self, _owner: &Pubkey) -> Vec<TokenDataWithContext> {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     fn add_state_bundle(&mut self, _state_bundle: StateMerkleTreeBundle) {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     async fn update_test_indexer_after_append(
 //         &mut self,
@@ -276,7 +276,7 @@
 //     ) {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     async fn update_test_indexer_after_nullification(
 //         &mut self,
@@ -286,7 +286,7 @@
 //     ) {
 //         unimplemented!()
 //     }
-// 
+//
 //     // e
 //     async fn finalize_batched_address_tree_update(
 //         &mut self,
@@ -296,7 +296,7 @@
 //         unimplemented!()
 //     }
 // }
-// 
+//
 // #[derive(Debug, Clone)]
 // pub struct MerkleProof {
 //     pub hash: String,
@@ -305,7 +305,7 @@
 //     pub proof: Vec<[u8; 32]>,
 //     pub root_seq: u64,
 // }
-// 
+//
 // // For consistency with the Photon API.
 // #[derive(Clone, Debug, PartialEq)]
 // pub struct NewAddressProofWithContext<const NET_HEIGHT: usize> {
@@ -321,7 +321,7 @@
 //     pub new_element: Option<IndexedElement<usize>>,
 //     pub new_element_next_value: Option<BigUint>,
 // }
-// 
+//
 // #[derive(Error, Debug)]
 // pub enum IndexerError {
 //     #[error("RPC Error: {0}")]
@@ -341,13 +341,13 @@
 //     #[error("unknown error")]
 //     Unknown,
 // }
-// 
+//
 // #[derive(Error, Debug)]
 // pub enum PhotonApiErrorWrapper {
 //     #[error(transparent)]
 //     GetCompressedAccountProofPostError(#[from] PhotonApiError<GetCompressedAccountProofPostError>),
 // }
-// 
+//
 // impl From<PhotonApiError<GetCompressedAccountProofPostError>> for IndexerError {
 //     fn from(err: PhotonApiError<GetCompressedAccountProofPostError>) -> Self {
 //         IndexerError::PhotonApiError(PhotonApiErrorWrapper::GetCompressedAccountProofPostError(
