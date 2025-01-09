@@ -23,6 +23,7 @@ use light_program_test::indexer::TestIndexerExtensions;
 use crate::assert_compressed_tx::{
     assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
 };
+use crate::conversions::{program_to_sdk_public_transaction_event, sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
@@ -104,7 +105,7 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -163,7 +164,7 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -207,7 +208,7 @@ pub async fn decompress_sol_test<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R>>(
+pub async fn transfer_compressed_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &mut I,
     authority: &Keypair,
@@ -351,7 +352,7 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R> + TestI
             .await;
 
         root_indices = proof_rpc_res.root_indices;
-        proof = proof_rpc_res.proof;
+        proof = Some(sdk_to_program_compressed_proof(proof_rpc_res.proof.unwrap_or_default()));
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(vec![]).as_slice());
@@ -432,7 +433,13 @@ pub async fn compressed_transaction_test<R: RpcConnection, I: Indexer<R> + TestI
     let slot = inputs.rpc.get_transaction_slot(&event.1).await.unwrap();
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
-        .add_event_and_compressed_accounts(slot, &event.0);
+        .add_event_and_compressed_accounts(slot, &program_to_sdk_public_transaction_event(event.0.clone()));
+
+    let created_output_compressed_accounts = created_output_compressed_accounts
+        .into_iter()
+        .map(sdk_to_program_compressed_account_with_merkle_context)
+        .collect::<Vec<_>>();
+
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,

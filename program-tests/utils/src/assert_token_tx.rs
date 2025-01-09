@@ -1,12 +1,12 @@
 use anchor_lang::AnchorSerialize;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
 use light_client::rpc::RpcConnection;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
-
+use light_client::indexer::Indexer;
+use light_sdk::token::TokenDataWithMerkleContext;
 use crate::assert_compressed_tx::{
     assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
     assert_public_transaction_event, MerkleTreeTestSnapShot,
@@ -195,7 +195,7 @@ pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
     mint: Pubkey,
     amounts: &[u64],
     snapshots: &[MerkleTreeTestSnapShot],
-    created_token_accounts: &[TokenDataWithContext],
+    created_token_accounts: &[TokenDataWithMerkleContext],
     previous_mint_supply: u64,
     previous_sol_pool_amount: u64,
     token_pool_pda: Pubkey,

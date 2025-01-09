@@ -11,8 +11,10 @@ use light_system_program::{
     NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
-
-use crate::{indexer::TestIndexer, Indexer};
+use light_client::indexer::Indexer;
+use light_client::rpc::merkle_tree::MerkleTreeExt;
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
+use crate::conversions::sdk_to_program_compressed_proof;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {
@@ -68,7 +70,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     }
 }
 
-pub async fn perform_create_pda_with_event_rnd<R: RpcConnection>(
+pub async fn perform_create_pda_with_event_rnd<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -78,8 +80,8 @@ pub async fn perform_create_pda_with_event_rnd<R: RpcConnection>(
     let data = rand::random();
     perform_create_pda_with_event(test_indexer, rpc, env, payer, seed, &data).await
 }
-pub async fn perform_create_pda_with_event<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<R>,
+pub async fn perform_create_pda_with_event<R: RpcConnection + MerkleTreeExt, I: Indexer<R> + TestIndexerExtensions<R>>(
+    test_indexer: &mut I,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -126,7 +128,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         data: *data,
         signer: &payer.pubkey(),
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &rpc_result.proof,
+        proof: &sdk_to_program_compressed_proof(rpc_result.proof),
         new_address_params,
 
         registered_program_pda: &env.registered_program_pda,
