@@ -337,9 +337,9 @@ pub async fn compressed_transaction_test<
         Some(state_input_merkle_trees)
     };
     let mut root_indices = Vec::new();
-    let mut proof = None;
     let mut input_merkle_tree_snapshots = Vec::new();
     let mut address_params = Vec::new();
+    let mut proof = None;
     if !inputs.input_compressed_accounts.is_empty() || !inputs.new_address_params.is_empty() {
         let address_merkle_tree_pubkeys = if inputs.new_address_params.is_empty() {
             None
@@ -364,9 +364,11 @@ pub async fn compressed_transaction_test<
             .await;
 
         root_indices = proof_rpc_res.root_indices;
-        proof = Some(sdk_to_program_compressed_proof(
-            proof_rpc_res.proof.unwrap_or_default(),
-        ));
+
+        if let Some(proof_rpc_res) = proof_rpc_res.proof {
+            proof = Some(sdk_to_program_compressed_proof(proof_rpc_res));
+        }
+
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(vec![]).as_slice());
