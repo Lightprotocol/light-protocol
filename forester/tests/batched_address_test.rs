@@ -2,7 +2,6 @@ use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
 use forester_utils::{
-    indexer::AddressMerkleTreeAccounts,
     registry::{register_test_forester, update_test_forester},
 };
 use light_batched_merkle_tree::{
@@ -17,7 +16,6 @@ use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
-    indexer::TestIndexer,
 };
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -27,7 +25,8 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::log::info;
-
+use light_client::indexer::AddressMerkleTreeAccounts;
+use light_program_test::indexer::TestIndexer;
 use crate::test_utils::{forester_config, general_action_config, init, keypair_action_config};
 
 mod test_utils;

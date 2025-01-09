@@ -6,7 +6,6 @@ use account_compression::{
 };
 use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_protocol_config};
 use forester_utils::{
-    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     registry::register_test_forester,
 };
 use light_client::{
@@ -21,7 +20,7 @@ use light_registry::{
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
 };
-use light_test_utils::{e2e_test_env::E2ETestEnv, indexer::TestIndexer, update_test_forester};
+use light_test_utils::{e2e_test_env::E2ETestEnv, update_test_forester};
 use serial_test::serial;
 use solana_sdk::{
     commitment_config::CommitmentConfig, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
@@ -31,6 +30,8 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::{sleep, timeout},
 };
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_program_test::indexer::TestIndexer;
 
 mod test_utils;
 use test_utils::*;

@@ -64,12 +64,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         unimplemented!()
     }
 
-    async fn get_multiple_new_address_proofs_full(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        unimplemented!()
+    async fn create_proof_for_compressed_accounts(
+        &mut self,
+        _compressed_accounts: Option<Vec<[u8; 32]>>,
+        _state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _new_addresses: Option<&[[u8; 32]]>,
+        _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _rpc: &mut R,
+    ) -> ProofRpcResult {
+        todo!()
     }
     async fn get_multiple_compressed_account_proofs(
         &self,
@@ -221,15 +224,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         Ok(proofs)
     }
 
-    async fn create_proof_for_compressed_accounts(
-        &mut self,
-        _compressed_accounts: Option<Vec<[u8; 32]>>,
-        _state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        _new_addresses: Option<&[[u8; 32]]>,
-        _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        _rpc: &mut R,
-    ) -> ProofRpcResult {
-        todo!()
+    async fn get_multiple_new_address_proofs_full(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        _addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
+        unimplemented!()
     }
 
     fn get_proofs_by_indices(

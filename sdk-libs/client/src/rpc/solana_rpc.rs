@@ -30,6 +30,7 @@ use crate::{
     rpc::{errors::RpcError, rpc_connection::RpcConnection},
     transaction_params::TransactionParams,
 };
+use crate::rpc::merkle_tree::MerkleTreeExt;
 
 pub enum SolanaRpcUrl {
     Testnet,
@@ -461,3 +462,5 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
 }
+
+impl MerkleTreeExt for SolanaRpcConnection {}
