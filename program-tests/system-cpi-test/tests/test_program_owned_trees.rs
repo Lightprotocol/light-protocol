@@ -29,7 +29,7 @@ use light_registry::{
 };
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
-    create_account_instruction, get_concurrent_merkle_tree, indexer::TestIndexer,
+    create_account_instruction, get_concurrent_merkle_tree,
     spl::create_mint_helper, FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
 use serial_test::serial;
@@ -40,6 +40,7 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
+use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use system_cpi_test::sdk::{
     create_initialize_address_merkle_tree_and_queue_instruction,
     create_initialize_merkle_tree_instruction,

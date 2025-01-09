@@ -1,18 +1,14 @@
 use light_sdk::{self as sdk, proof::CompressedProof};
 use light_system_program::invoke::processor::CompressedProof as ProgramCompressedProof;
 use light_system_program::invoke::OutputCompressedAccountWithPackedContext as ProgramOutputCompressedAccountWithPackedContext;
-use light_system_program::sdk::compressed_account::{
-    CompressedAccount as ProgramCompressedAccount,
-    CompressedAccountData as ProgramCompressedAccountData,
-    CompressedAccountWithMerkleContext as ProgramCompressedAccountWithMerkleContext,
-    MerkleContext as ProgramMerkleContext, QueueIndex as ProgramQueueIndex,
-};
+use light_system_program::sdk::compressed_account::{CompressedAccount as ProgramCompressedAccount, CompressedAccountData as ProgramCompressedAccountData, CompressedAccountWithMerkleContext as ProgramCompressedAccountWithMerkleContext, MerkleContext as ProgramMerkleContext, QueueIndex as ProgramQueueIndex, QueueIndex};
 
 use light_compressed_token::{
     token_data::AccountState as ProgramAccountState, TokenData as ProgramTokenData,
 };
 use light_system_program::sdk::event::MerkleTreeSequenceNumber as ProgramMerkleTreeSequenceNumber;
 use light_system_program::sdk::event::PublicTransactionEvent as ProgramPublicTransactionEvent;
+
 pub fn sdk_to_program_queue_index(
     sdk_queue_index: sdk::merkle_context::QueueIndex,
 ) -> ProgramQueueIndex {

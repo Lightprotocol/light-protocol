@@ -39,6 +39,8 @@ light-hasher = {workspace = true}
 light-concurrent-merkle-tree = {workspace = true}
 light-indexed-merkle-tree = {workspace = true}
 light-utils = {workspace = true}
+light-client = { workspace = true }
+light-sdk = { workspace = true }
 light-verifier = {workspace = true}
 light-registry = { workspace = true}
 solana-cli-output = { workspace = true }
