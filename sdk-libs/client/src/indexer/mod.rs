@@ -113,11 +113,11 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }
 
-#[derive(Debug, Clone)]
-pub struct TokenDataWithMerkleContext {
-    pub token_data: TokenData,
-    pub compressed_account: CompressedAccountWithMerkleContext,
-}
+// #[derive(Debug, Clone)]
+// pub struct TokenDataWithMerkleContext {
+//     pub token_data: TokenData,
+//     pub compressed_account: CompressedAccountWithMerkleContext,
+// }
 
 #[derive(Debug, Clone)]
 pub struct MerkleProof {

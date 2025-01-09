@@ -87,7 +87,6 @@ use light_client::{
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
-use light_compressed_token::token_data::AccountState;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
@@ -121,9 +120,10 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithMerkleContext};
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle};
 use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use crate::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue,
