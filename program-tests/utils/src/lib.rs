@@ -24,7 +24,6 @@ pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 #[allow(unused)]
-pub mod indexer;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
