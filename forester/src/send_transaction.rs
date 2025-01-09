@@ -355,7 +355,9 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     let address_data = if !address_items.is_empty() {
         let merkle_tree = address_items
             .first()
-            .ok_or_else(|| ForesterError::Custom("No address items found".to_string()))?
+            .ok_or_else(|| ForesterError::General {
+                error: "No address items found".to_string(),
+            })?
             .tree_account
             .merkle_tree
             .to_bytes();

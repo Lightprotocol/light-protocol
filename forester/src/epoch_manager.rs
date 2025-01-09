@@ -7,6 +7,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context;
 use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType},
@@ -18,7 +19,6 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_registry::{
-    errors::RegistryError,
     protocol_config::state::ProtocolConfig,
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
@@ -34,8 +34,11 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
-    batched_ops::process_batched_operations,
-    errors::ForesterError,
+    batch_processor::{process_batched_operations, BatchContext},
+    errors::{
+        ChannelError, ConfigurationError, ForesterError, InitializationError, RegistrationError,
+        WorkReportError,
+    },
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     queue_helpers::QueueItemData,
@@ -52,7 +55,7 @@ use crate::{
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
     pub epoch: u64,
     pub processed_items: usize,
@@ -298,9 +301,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 debug!("New epoch detected: {}", current_epoch);
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
-                    tx.send(current_epoch).await.map_err(|e| {
-                        ForesterError::Custom(format!("Failed to send new epoch: {}", e))
-                    })?;
+                    tx.send(current_epoch).await?;
                     last_epoch = Some(current_epoch);
                 }
             }
@@ -352,13 +353,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?;
 
-        match existing_pda {
-            Some(pda) => {
+        existing_pda
+            .map(|pda| async move {
                 self.recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, pda)
                     .await
-            }
-            None => Err(ForesterError::ForesterEpochPdaNotFound),
-        }
+            })
+            .ok_or(RegistrationError::ForesterEpochPdaNotFound {
+                epoch,
+                pda_address: forester_epoch_pda_pubkey,
+            })?
+            .await
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -370,16 +374,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         // Process previous epoch if still in active or later phase
         if slot > current_phases.registration.start {
             debug!("Processing previous epoch: {}", previous_epoch);
-            tx.send(previous_epoch).await.map_err(|e| {
-                ForesterError::Custom(format!("Failed to send previous epoch: {}", e))
-            })?;
+            tx.send(previous_epoch).await?;
         }
 
         // Process current epoch
         debug!("Processing current epoch: {}", current_epoch);
-        tx.send(current_epoch)
-            .await
-            .map_err(|e| ForesterError::Custom(format!("Failed to send current epoch: {}", e)))?;
+        tx.send(current_epoch).await?;
 
         debug!("Finished processing current and previous epochs");
         Ok(())
@@ -466,10 +466,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         // Check if it's already too late to register
         if slot >= phases.registration.end {
-            return Err(ForesterError::Custom(format!(
-                "Too late to register for epoch {}. Current slot: {}, Registration end: {}",
-                epoch, slot, phases.registration.end
-            )));
+            return Err(RegistrationError::RegistrationPhaseEnded {
+                epoch,
+                current_slot: slot,
+                registration_end: phases.registration.end,
+            }
+            .into());
         }
 
         for attempt in 0..max_retries {
@@ -508,10 +510,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 }
             }
         }
-        Err(ForesterError::Custom(format!(
-            "Failed to register for epoch {} after {} attempts",
-            epoch, max_retries
-        )))
+        Err(RegistrationError::MaxRetriesExceeded {
+            epoch,
+            attempts: max_retries,
+        }
+        .into())
     }
 
     #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
@@ -554,57 +557,46 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                     &self.config.derivation_pubkey,
                 )
                 .await
-                {
-                    Ok(Some(epoch)) => {
+                .with_context(|| {
+                    format!("Failed to execute epoch registration for epoch {}", epoch)
+                })? {
+                    Some(epoch) => {
                         debug!("Registered epoch: {:?}", epoch);
                         epoch
                     }
-                    Ok(None) => {
-                        return Err(ForesterError::Custom(
-                            "Epoch::register returned None".into(),
-                        ))
-                    }
-                    Err(e) => {
-                        return Err(ForesterError::Custom(format!(
-                            "Epoch::register failed: {:?}",
-                            e
-                        )))
+                    None => {
+                        return Err(RegistrationError::EmptyRegistration.into());
                     }
                 };
 
-                let forester_epoch_pda = match rpc
+                let forester_epoch_pda = rpc
                     .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
                     .await
-                {
-                    Ok(Some(pda)) => {
-                        debug!("ForesterEpochPda: {:?}", pda);
-                        pda
-                    }
-                    Ok(None) => {
-                        return Err(ForesterError::Custom(
-                            "Failed to get ForesterEpochPda: returned None".into(),
-                        ))
-                    }
-                    Err(e) => {
-                        return Err(ForesterError::Custom(format!(
-                            "Failed to get ForesterEpochPda: {:?}",
-                            e
-                        )))
-                    }
-                };
+                    .with_context(|| {
+                        format!(
+                            "Failed to fetch ForesterEpochPda from RPC for address {}",
+                            registered_epoch.forester_epoch_pda
+                        )
+                    })?
+                    .ok_or(RegistrationError::ForesterEpochPdaNotFound {
+                        epoch,
+                        pda_address: registered_epoch.forester_epoch_pda,
+                    })?;
 
                 let epoch_pda_address = get_epoch_pda_address(epoch);
-                let epoch_pda = match rpc
+                let epoch_pda = rpc
                     .get_anchor_account::<EpochPda>(&epoch_pda_address)
-                    .await?
-                {
-                    Some(pda) => pda,
-                    None => {
-                        return Err(ForesterError::Custom(
-                            "Failed to get EpochPda: returned None".into(),
-                        ))
-                    }
-                };
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to fetch EpochPda from RPC for address {}",
+                            epoch_pda_address
+                        )
+                    })?
+                    .ok_or(RegistrationError::EpochPdaNotFound {
+                        epoch,
+                        pda_address: epoch_pda_address,
+                    })?;
 
                 ForesterEpochInfo {
                     epoch: registered_epoch,
@@ -621,9 +613,12 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 "Too late to register for epoch {}. Current slot: {}, Registration end: {}",
                 epoch, slot, phases.registration.end
             );
-            Err(ForesterError::Custom(
-                "Too late to register for epoch".into(),
-            ))
+            Err(RegistrationError::RegistrationPhaseEnded {
+                epoch,
+                current_slot: slot,
+                registration_end: phases.registration.end,
+            }
+            .into())
         }
     }
 
@@ -640,17 +635,14 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let state = phases.get_current_epoch_state(slot);
 
         let epoch_pda_address = get_epoch_pda_address(epoch);
-        let epoch_pda = match rpc
+        let epoch_pda = rpc
             .get_anchor_account::<EpochPda>(&epoch_pda_address)
-            .await?
-        {
-            Some(pda) => pda,
-            None => {
-                return Err(ForesterError::Custom(
-                    "Failed to get EpochPda: returned None".into(),
-                ))
-            }
-        };
+            .await
+            .with_context(|| format!("Failed to fetch EpochPda for epoch {}", epoch))?
+            .ok_or(RegistrationError::EpochPdaNotFound {
+                epoch,
+                pda_address: epoch_pda_address,
+            })?;
 
         let epoch_info = Epoch {
             epoch,
@@ -712,17 +704,27 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         let mut epoch_info = (*epoch_info).clone();
         epoch_info.forester_epoch_pda = rpc
             .get_anchor_account::<ForesterEpochPda>(&epoch_info.epoch.forester_epoch_pda)
-            .await?
-            .ok_or_else(|| ForesterError::Custom("Failed to get ForesterEpochPda".to_string()))?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to fetch ForesterEpochPda for epoch {} at address {}",
+                    epoch_info.epoch.epoch, epoch_info.epoch.forester_epoch_pda
+                )
+            })?
+            .ok_or(RegistrationError::ForesterEpochPdaNotFound {
+                epoch: epoch_info.epoch.epoch,
+                pda_address: epoch_info.epoch.forester_epoch_pda,
+            })?;
 
         let slot = rpc.get_slot().await?;
         let trees = self.trees.lock().await;
+        info!("Adding schedule for trees: {:?}", *trees);
         epoch_info.add_trees_with_schedule(&trees, slot);
         info!("Finished waiting for active phase");
         Ok(epoch_info)
     }
 
-    // TODO: add receiver for new tree discoverd -> spawn new task to process this tree derive schedule etc.
+    // TODO: add receiver for new tree discovered -> spawn new task to process this tree derive schedule etc.
     // TODO: optimize active phase startup time
     #[instrument(
         level = "debug",
@@ -747,12 +749,15 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
-        debug!(
+        info!(
             "Creating threads for tree processing. Trees: {:?}",
             epoch_info.trees
         );
         for tree in epoch_info.trees.iter() {
-            info!("Creating thread for queue {}", tree.tree_accounts.queue);
+            info!(
+                "Creating thread for tree {}",
+                tree.tree_accounts.merkle_tree
+            );
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
             let tree = tree.clone();
@@ -811,8 +816,8 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         epoch_pda: &ForesterEpochPda,
         mut tree: TreeForesterSchedule,
     ) -> Result<()> {
-        debug!("enter process_queue");
-        debug!("Tree schedule slots: {:?}", tree.slots);
+        info!("enter process_queue");
+        info!("Tree schedule slots: {:?}", tree.slots);
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
@@ -830,7 +835,11 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                 .find(|(_, slot)| slot.is_some());
 
             if let Some((index, forester_slot)) = index_and_forester_slot {
-                debug!("Found eligible slot");
+                info!(
+                    "Found eligible slot, index: {}, tree: {}",
+                    index,
+                    tree.tree_accounts.merkle_tree.to_string()
+                );
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
 
@@ -845,41 +854,59 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
 
                 let light_slot_timeout = {
                     let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
-                        .map_err(|_| ForesterError::Custom("Slot length overflow".into()))?;
+                        .map_err(|_| ConfigurationError::SlotLengthOverflow {
+                            value: epoch_pda.protocol_config.slot_length,
+                        })?;
 
-                    slot_duration()
-                        .checked_mul(slot_length_u32)
-                        .ok_or_else(|| {
-                            ForesterError::Custom("Timeout calculation overflow".into())
-                        })?
+                    let duration = slot_duration();
+                    duration.checked_mul(slot_length_u32).ok_or(
+                        ConfigurationError::TimeoutCalculationOverflow {
+                            slot_duration: duration,
+                            slot_length: slot_length_u32,
+                        },
+                    )?
                 };
 
-                if tree.tree_accounts.tree_type == TreeType::BatchedState {
+                if tree.tree_accounts.tree_type == TreeType::BatchedState
+                    || tree.tree_accounts.tree_type == TreeType::BatchedAddress
+                {
+                    let batch_context = BatchContext {
+                        rpc_pool: self.rpc_pool.clone(),
+                        indexer: self.indexer.clone(),
+                        authority: self.config.payer_keypair.insecure_clone(),
+                        derivation: self.config.derivation_pubkey,
+                        epoch: epoch_info.epoch,
+                        merkle_tree: tree.tree_accounts.merkle_tree,
+                        output_queue: tree.tree_accounts.queue,
+                    };
+
                     let start_time = Instant::now();
-                    info!("Processing batched state operations");
 
-                    let rpc_pool = self.rpc_pool.clone();
-                    let indexer = self.indexer.clone();
-                    let payer = self.config.payer_keypair.insecure_clone();
-                    let derivation = self.config.derivation_pubkey;
-                    let merkle_tree = tree.tree_accounts.merkle_tree;
-                    let queue = tree.tree_accounts.queue;
-
-                    // TODO: measure & spawn child task for processing batched state operations
-                    let processed_count = process_batched_operations(
-                        rpc_pool,
-                        indexer,
-                        payer,
-                        derivation,
-                        epoch_info.epoch,
-                        merkle_tree,
-                        queue,
-                    )
-                    .await?;
-                    info!("Processed {} batched state operations", processed_count);
-                    queue_metric_update(epoch_info.epoch, 1, start_time.elapsed()).await;
-                    self.increment_processed_items_count(epoch_info.epoch, processed_count)
-                        .await;
+                    match process_batched_operations(batch_context, tree.tree_accounts.tree_type)
+                        .await
+                    {
+                        Ok(processed_count) => {
+                            info!(
+                                "Processed {} operations for tree type {:?}",
+                                processed_count, tree.tree_accounts.tree_type
+                            );
+                            queue_metric_update(
+                                epoch_info.epoch,
+                                processed_count,
+                                start_time.elapsed(),
+                            )
+                            .await;
+                            self.increment_processed_items_count(epoch_info.epoch, processed_count)
+                                .await;
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to process batched operations for tree {:?}: {:?}",
+                                tree.tree_accounts.merkle_tree, e
+                            );
+                            return Err(e.into());
+                        }
+                    }
                 } else {
                     // TODO: measure accuracy
                     // Optional replace with shutdown signal for all child processes
@@ -1024,6 +1051,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
             &self.config.derivation_pubkey,
             epoch_info.epoch.epoch,
         );
+
         match rpc
             .create_and_send_transaction(
                 &[ix],
@@ -1042,23 +1070,16 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
                         InstructionError::Custom(error_code),
                     )) = client_error.get_transaction_error()
                     {
-                        let reported_work_code = RegistryError::ForesterAlreadyReportedWork as u32;
-                        let not_in_report_work_phase_code =
-                            RegistryError::NotInReportWorkPhase as u32;
-
-                        if error_code == reported_work_code {
-                            info!("Work already reported for this epoch. Skipping.");
-                            return Ok(());
-                        } else if error_code == not_in_report_work_phase_code {
-                            warn!("Not in report work phase. Skipping report.");
-                            return Ok(());
-                        } else {
-                            // Log other registry errors but still return an Err
-                            warn!("Registry error encountered: {:?}", client_error);
-                        }
+                        return WorkReportError::from_registry_error(
+                            error_code,
+                            epoch_info.epoch.epoch,
+                        )
+                        .map_err(|e| anyhow::Error::from(ForesterError::from(e)));
                     }
                 }
-                return Err(ForesterError::from(e));
+                return Err(anyhow::Error::from(WorkReportError::Transaction(Box::new(
+                    e,
+                ))));
             }
         }
 
@@ -1070,7 +1091,10 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
         self.work_report_sender
             .send(report)
             .await
-            .map_err(|e| ForesterError::Custom(format!("Failed to send work report: {}", e)))?;
+            .map_err(|e| ChannelError::WorkReportSend {
+                epoch: report.epoch,
+                error: e.to_string(),
+            })?;
 
         info!("Work reported");
         Ok(())
@@ -1213,18 +1237,20 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
                                 config.retry_config.max_retries,
                                 start_time.elapsed()
                             );
-                            return Err(ForesterError::Custom(format!(
-                                "Failed to start forester after {} attempts: {:?}",
-                                config.retry_config.max_retries, e
-                            )));
+                            return Err(InitializationError::MaxRetriesExceeded {
+                                attempts: config.retry_config.max_retries,
+                                error: e.to_string(),
+                            }
+                            .into());
                         }
                     }
                 }
             }
 
-            Err(ForesterError::Custom(
-                "Unexpected error: Retry loop exited without returning".to_string(),
-            ))
+            Err(
+                InitializationError::Unexpected("Retry loop exited without returning".to_string())
+                    .into(),
+            )
         })
         .await
 }

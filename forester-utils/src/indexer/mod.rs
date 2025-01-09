@@ -258,6 +258,14 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     ) {
         unimplemented!()
     }
+
+    async fn finalize_batched_address_tree_update(
+        &mut self,
+        _rpc: &mut R,
+        _merkle_tree_pubkey: Pubkey,
+    ) {
+        unimplemented!()
+    }
 }
 
 #[derive(Debug, Clone)]

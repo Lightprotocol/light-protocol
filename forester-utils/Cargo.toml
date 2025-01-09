@@ -20,7 +20,7 @@ light-registry = { workspace = true }
 light-system-program = { workspace = true, features = ["cpi"] }
 light-utils = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
-
+light-verifier = { workspace = true }
 photon-api = { workspace = true }
 light-client = { workspace = true }
 

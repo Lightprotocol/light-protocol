@@ -51,6 +51,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         enable_indexer: false,
         wait_time: 10,
         prover_config: None,
+        sbf_programs: vec![],
     }))
     .await;
 
@@ -293,6 +294,7 @@ async fn test_epoch_monitor_with_2_foresters() {
         enable_indexer: false,
         wait_time: 40,
         prover_config: None,
+        sbf_programs: vec![],
     }))
     .await;
     let forester_keypair1 = Keypair::new();
@@ -641,6 +643,7 @@ async fn test_epoch_double_registration() {
         enable_indexer: false,
         wait_time: 10,
         prover_config: None,
+        sbf_programs: vec![],
     }))
     .await;
 

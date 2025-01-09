@@ -1892,18 +1892,9 @@ async fn test_batch_address_tree() {
             )
             .await
             .unwrap();
-            let mut account = rpc
-                .get_account(env.batch_address_merkle_tree)
-                .await
-                .unwrap()
-                .unwrap();
-            let zero_copy_account =
-                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
-                    .unwrap();
-            test_indexer.finalize_batched_address_tree_update(
-                env.batch_address_merkle_tree,
-                &zero_copy_account,
-            );
+            test_indexer
+                .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+                .await;
         }
     }
 
@@ -1921,18 +1912,9 @@ async fn test_batch_address_tree() {
             .await
             .unwrap();
         }
-        let mut account = rpc
-            .get_account(env.batch_address_merkle_tree)
-            .await
-            .unwrap()
-            .unwrap();
-        let zero_copy_account =
-            BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
-                .unwrap();
-        test_indexer.finalize_batched_address_tree_update(
-            env.batch_address_merkle_tree,
-            &zero_copy_account,
-        );
+        test_indexer
+            .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+            .await;
     }
 
     // Non eligible forester.
@@ -1970,15 +1952,9 @@ async fn test_batch_address_tree() {
         .await
         .unwrap();
     }
-    let mut account = rpc
-        .get_account(env.batch_address_merkle_tree)
-        .await
-        .unwrap()
-        .unwrap();
-    let zero_copy_account =
-        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice()).unwrap();
     test_indexer
-        .finalize_batched_address_tree_update(env.batch_address_merkle_tree, &zero_copy_account);
+        .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+        .await;
 }
 
 pub async fn perform_batch_address_merkle_tree_update<R: RpcConnection>(

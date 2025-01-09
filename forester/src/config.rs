@@ -12,7 +12,8 @@ use solana_sdk::signature::Keypair;
 
 use crate::{
     cli::{StartArgs, StatusArgs},
-    errors::ForesterError,
+    errors::ConfigError,
+    Result,
 };
 
 #[derive(Debug)]
@@ -100,35 +101,46 @@ impl Default for TransactionConfig {
     }
 }
 impl ForesterConfig {
-    pub fn new_for_start(args: &StartArgs) -> Result<Self, ForesterError> {
+    pub fn new_for_start(args: &StartArgs) -> Result<Self> {
         let registry_pubkey = light_registry::program::LightRegistry::id().to_string();
 
         let payer: Vec<u8> = match &args.payer {
-            Some(payer_str) => serde_json::from_str(payer_str)
-                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
-            None => return Err(ForesterError::ConfigError("Payer is required".to_string())),
+            Some(payer_str) => {
+                serde_json::from_str(payer_str).map_err(|e| ConfigError::JsonParse {
+                    field: "payer",
+                    error: e.to_string(),
+                })?
+            }
+            None => return Err(ConfigError::MissingField { field: "payer" })?,
         };
         let payer =
-            Keypair::from_bytes(&payer).map_err(|e| ForesterError::ConfigError(e.to_string()))?;
+            Keypair::from_bytes(&payer).map_err(|e| ConfigError::InvalidKeypair(e.to_string()))?;
 
         let derivation: Vec<u8> = match &args.derivation {
-            Some(derivation_str) => serde_json::from_str(derivation_str)
-                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            Some(derivation_str) => {
+                serde_json::from_str(derivation_str).map_err(|e| ConfigError::JsonParse {
+                    field: "derivation",
+                    error: e.to_string(),
+                })?
+            }
             None => {
-                return Err(ForesterError::ConfigError(
-                    "Derivation is required".to_string(),
-                ))
+                return Err(ConfigError::MissingField {
+                    field: "derivation",
+                })?
             }
         };
-        let derivation_array: [u8; 32] = derivation
-            .try_into()
-            .map_err(|_| ForesterError::ConfigError("Derivation must be 32 bytes".to_string()))?;
+        let derivation_array: [u8; 32] =
+            derivation
+                .try_into()
+                .map_err(|_| ConfigError::InvalidDerivation {
+                    reason: "must be exactly 32 bytes".to_string(),
+                })?;
         let derivation = Pubkey::from(derivation_array);
 
         let rpc_url = args
             .rpc_url
             .clone()
-            .ok_or_else(|| ForesterError::ConfigError("RPC URL is required".to_string()))?;
+            .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
 
         Ok(Self {
             external_services: ExternalServicesConfig {
@@ -166,8 +178,12 @@ impl ForesterConfig {
                 tree_discovery_interval_seconds: args.tree_discovery_interval_seconds,
                 enable_metrics: args.enable_metrics(),
             },
-            registry_pubkey: Pubkey::from_str(&registry_pubkey)
-                .map_err(|e| ForesterError::ConfigError(e.to_string()))?,
+            registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
+                ConfigError::InvalidPubkey {
+                    field: "registry_pubkey",
+                    error: e.to_string(),
+                }
+            })?,
             payer_keypair: payer,
             derivation_pubkey: derivation,
             address_tree_data: vec![],
@@ -175,7 +191,7 @@ impl ForesterConfig {
         })
     }
 
-    pub fn new_for_status(args: &StatusArgs) -> Result<Self, ForesterError> {
+    pub fn new_for_status(args: &StatusArgs) -> Result<Self> {
         let rpc_url = args.rpc_url.clone();
 
         Ok(Self {

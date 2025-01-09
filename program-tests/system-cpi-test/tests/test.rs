@@ -2,10 +2,7 @@
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-use light_batched_merkle_tree::{
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::BatchedMerkleTreeAccount,
-};
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_compressed_token::{
     process_transfer::InputTokenDataWithContext, token_data::AccountState,
 };
@@ -147,7 +144,7 @@ async fn test_read_only_accounts() {
             // fails because of invalid leaves hashchain in some iteration
             let instruction_data = create_batch_update_address_tree_instruction_data_with_proof(
                 &mut e2e_env.rpc,
-                &mut e2e_env.indexer,
+                &e2e_env.indexer,
                 env.batch_address_merkle_tree,
             )
             .await
@@ -169,20 +166,13 @@ async fn test_read_only_accounts() {
                 )
                 .await
                 .unwrap();
-            let mut account = e2e_env
-                .rpc
-                .get_account(env.batch_address_merkle_tree)
-                .await
-                .unwrap()
-                .unwrap()
-                .data;
-            let onchain_account =
-                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.as_mut_slice())
-                    .unwrap();
-            e2e_env.indexer.finalize_batched_address_tree_update(
-                env.batch_address_merkle_tree,
-                &onchain_account,
-            );
+            e2e_env
+                .indexer
+                .finalize_batched_address_tree_update(
+                    &mut e2e_env.rpc,
+                    env.batch_address_merkle_tree,
+                )
+                .await;
         }
 
         for i in 0..params.output_queue_zkp_batch_size {
@@ -705,12 +695,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyAddress,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_verifier::VerifierError::ProofVerificationFailed.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,
@@ -746,12 +731,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyRootIndex,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            light_verifier::VerifierError::ProofVerificationFailed.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,
@@ -1315,6 +1295,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_address_merkle_tree_keypair,
             &program_owned_address_queue_keypair,
             Some(light_compressed_token::ID),
+            1,
         )
         .await;
     let env_with_program_owned_address_merkle_tree = EnvAccounts {
@@ -1425,6 +1406,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_address_merkle_tree_keypair,
             &program_owned_address_queue_keypair,
             Some(ID),
+            1,
         )
         .await;
     let env_with_program_owned_state_merkle_tree = EnvAccounts {

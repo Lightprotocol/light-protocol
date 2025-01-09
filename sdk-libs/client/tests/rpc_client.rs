@@ -42,6 +42,7 @@ async fn test_all_endpoints() {
             circuits: vec![ProofType::Combined],
         }),
         wait_time: 20,
+        sbf_programs: vec![],
     };
 
     spawn_validator(config).await;

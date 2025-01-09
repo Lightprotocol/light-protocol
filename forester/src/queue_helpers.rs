@@ -5,7 +5,7 @@ use light_client::rpc::RpcConnection;
 use light_hash_set::HashSet;
 use tracing::debug;
 
-use crate::{errors::ForesterError, Result};
+use crate::Result;
 
 #[derive(Debug, Clone)]
 pub struct QueueItemData {
@@ -21,10 +21,7 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
     queue_length: u16,
 ) -> Result<Vec<QueueItemData>> {
     debug!("Fetching queue data for {:?}", queue_pubkey);
-    let mut account = rpc
-        .get_account(*queue_pubkey)
-        .await?
-        .ok_or_else(|| ForesterError::Custom("Queue account not found".to_string()))?;
+    let mut account = rpc.get_account(*queue_pubkey).await?.unwrap();
     let queue: HashSet = unsafe {
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };

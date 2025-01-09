@@ -1,57 +1,66 @@
+name: forester-tests
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "forester/**"
+      - "forester-utils/**"
       - "photon-api/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
-    branches:
-      - "**"
+    branches: ["**"]
     paths:
       - "forester/**"
+      - "forester-utils/**"
       - "photon-api/**"
       - ".github/workflows/forester-tests.yml"
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-
-name: forester-tests
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUSTFLAGS: "--cfg tokio_unstable -D warnings"
+
 jobs:
-  forester-tests:
-    name: forester-tests
-    if: github.event.pull_request.draft == false
+  test:
+    strategy:
+      matrix:
+        test-name: [
+          {name: "address-batched", command: "test_address_batched", timeout: 60, needs-test-program: true},
+          {name: "state-batched", command: "test_state_batched", timeout: 60, needs-test-program: false},
+          {name: "2-foresters", command: "test_epoch_monitor_with_2_foresters", timeout: 60, needs-test-program: false},
+          {name: "double-registration", command: "test_epoch_double_registration", timeout: 30, needs-test-program: false}
+        ]
+    name: test-${{ matrix.test-name.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
-
+    timeout-minutes: ${{ matrix.test-name.timeout }}
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-
       - name: Clean build artifacts before tests
         shell: bash
         run: |
           cargo clean
           rm -rf target/debug/deps/*
-
       - name: Check available disk space
         shell: bash
         run: |
           df -h /
           du -sh /home/runner/work/* | sort -hr | head -n 10
-
-      - name: Run forester tests
+      - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx test @lightprotocol/forester
+          npx nx build @lightprotocol/zk-compression-cli
+      - name: Build test program
+        if: ${{ matrix.test-name.needs-test-program }}
+        run: |
+          source ./scripts/devenv.sh
+          cargo test-sbf -p create-address-test-program
+      - name: Run ${{ matrix.test-name.name }} tests
+        run: |
+          source ./scripts/devenv.sh
+          cargo test --package forester ${{ matrix.test-name.command }} -- --nocapture
