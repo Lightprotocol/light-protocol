@@ -6,6 +6,7 @@ use light_system_program::sdk::{
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 use light_client::indexer::Indexer;
+use light_program_test::indexer::TestIndexerExtensions;
 use light_sdk::token::TokenDataWithMerkleContext;
 use crate::assert_compressed_tx::{
     assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
@@ -21,7 +22,7 @@ use crate::assert_compressed_tx::{
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
@@ -78,7 +79,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     );
 }
 
-pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
+pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
@@ -188,7 +189,7 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &'a mut I,
     recipients: &[Pubkey],

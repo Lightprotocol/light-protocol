@@ -2,7 +2,6 @@ use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
 use forester_utils::{
     get_concurrent_merkle_tree, get_hash_set,
-    indexer::{Indexer, StateMerkleTreeAccounts},
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
@@ -18,8 +17,10 @@ use light_system_program::sdk::{
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};
+use light_client::indexer::{Indexer, StateMerkleTreeAccounts};
+use light_program_test::indexer::TestIndexerExtensions;
 
-pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>> {
+pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> {
     pub rpc: &'a mut R,
     pub test_indexer: &'a mut I,
     pub output_compressed_accounts: &'a [CompressedAccount],
@@ -47,7 +48,7 @@ pub struct AssertCompressedTransactionInputs<'a, R: RpcConnection, I: Indexer<R>
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_compressed_transaction<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     input: AssertCompressedTransactionInputs<'_, R, I>,
 ) {
     // CHECK 1
@@ -315,7 +316,7 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_merkle_tree_after_tx<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     test_indexer: &mut I,
