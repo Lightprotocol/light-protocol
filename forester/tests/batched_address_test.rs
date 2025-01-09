@@ -1,18 +1,17 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::{
-    registry::{register_test_forester, update_test_forester},
-};
+use forester_utils::registry::{register_test_forester, update_test_forester};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
+    indexer::AddressMerkleTreeAccounts,
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
-use light_program_test::test_env::EnvAccounts;
+use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
@@ -25,8 +24,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::log::info;
-use light_client::indexer::AddressMerkleTreeAccounts;
-use light_program_test::indexer::TestIndexer;
+
 use crate::test_utils::{forester_config, general_action_config, init, keypair_action_config};
 
 mod test_utils;
@@ -142,7 +140,7 @@ async fn test_address_batched() {
     println!("Creating new address batch tree...");
 
     let merkle_tree_keypair = Keypair::new();
-        env.indexer
+    env.indexer
         .add_address_merkle_tree(
             &mut env.rpc,
             &merkle_tree_keypair,
@@ -150,7 +148,7 @@ async fn test_address_batched() {
             None,
             2,
         )
-            .await;
+        .await;
     env_accounts.batch_address_merkle_tree = merkle_tree_keypair.pubkey();
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
