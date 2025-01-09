@@ -28,7 +28,7 @@ use light_test_utils::{
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, FeeConfig, RpcConnection, RpcError,
+    FeeConfig, RpcConnection, RpcError,
 };
 use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::ToBigUint;
@@ -39,6 +39,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
 
 /// Tests insertion of addresses to the queue, dequeuing and Merkle tree update.
 /// 1. create address Merkle tree and queue accounts

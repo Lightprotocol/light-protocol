@@ -25,6 +25,7 @@ ark-ff = "0.4.0"
 solana-program-test =  { workspace = true}
 light-test-utils = { workspace = true, features=["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
+light-client = { workspace = true }
 reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {workspace = true }
