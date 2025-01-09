@@ -5113,7 +5113,7 @@ async fn test_invalid_inputs() {
         let mut input_compressed_account_token_data =
             test_indexer.token_compressed_accounts[0].token_data.clone();
         input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
-        let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
+        let input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account
             .clone()];
         let mut input_compressed_accounts = input_compressed_accounts
