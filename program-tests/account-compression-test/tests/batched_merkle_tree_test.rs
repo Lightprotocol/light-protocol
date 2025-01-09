@@ -272,7 +272,7 @@ async fn test_batch_state_merkle_tree() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
         )
         .unwrap();
     }
@@ -361,7 +361,7 @@ async fn test_batch_state_merkle_tree() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
         )
         .unwrap();
     }

@@ -117,8 +117,8 @@ pub fn process<
     // Verify state and or address proof ---------------------------------------------------
     let read_only_addresses = read_only_addresses.unwrap_or_default();
     let num_of_read_only_addresses = read_only_addresses.len();
-    let num_new_addresses = num_new_addresses + num_of_read_only_addresses;
-    let mut new_addresses = Vec::with_capacity(num_new_addresses);
+    let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
+    let mut new_addresses = Vec::with_capacity(num_non_inclusion_proof_inputs);
 
     // hash input compressed accounts ---------------------------------------------------
     bench_sbf_start!("cpda_hash_input_compressed_accounts");
@@ -144,7 +144,7 @@ pub fn process<
     // prior to inserting new addresses.
     verify_read_only_address_queue_non_inclusion(ctx.remaining_accounts, &read_only_addresses)?;
 
-    let mut new_address_roots = Vec::with_capacity(num_new_addresses);
+    let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
     // Record state of the address merkle tree queue before inserting new addresses.
     let address_tree_height = fetch_address_roots(
         ctx.remaining_accounts,
@@ -154,7 +154,11 @@ pub fn process<
     )?;
     // # Safety this is a safeguard for memory safety.
     // This error should never be triggered.
-    check_vec_capacity(num_new_addresses, &new_address_roots, "new_address_roots")?;
+    check_vec_capacity(
+        num_non_inclusion_proof_inputs,
+        &new_address_roots,
+        "new_address_roots",
+    )?;
 
     // Insert addresses into address merkle tree queue ---------------------------------------------------
     let address_network_fee_bundle = if num_new_addresses != 0 {
@@ -211,10 +215,10 @@ pub fn process<
     // reading an account is successful even when it is modified in the same transaction.
     let num_prove_read_only_accounts_prove_by_index =
         verify_read_only_account_inclusion_by_index(ctx.remaining_accounts, &read_only_accounts)?;
-    let num_input_state_roots = num_input_compressed_accounts - num_prove_by_index_input_accounts
-        + num_read_only_accounts
-        - num_prove_read_only_accounts_prove_by_index;
-    let mut input_compressed_account_roots = Vec::with_capacity(num_input_state_roots);
+    let num_inclusion_proof_inputs =
+        num_input_compressed_accounts - num_prove_by_index_input_accounts + num_read_only_accounts
+            - num_prove_read_only_accounts_prove_by_index;
+    let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = fetch_input_state_roots(
         ctx.remaining_accounts,
         &inputs.input_compressed_accounts_with_merkle_context,
@@ -224,7 +228,7 @@ pub fn process<
     // # Safety this is a safeguard for memory safety.
     // This error should never be triggered.
     check_vec_capacity(
-        num_input_state_roots,
+        num_inclusion_proof_inputs,
         &input_compressed_account_roots,
         "input_compressed_account_roots",
     )?;
@@ -285,7 +289,7 @@ pub fn process<
     // 2. read only compressed accounts
     // 3. new addresses
     // 4. read only addresses
-    if num_input_state_roots > 0 || num_new_addresses > 0 {
+    if num_inclusion_proof_inputs > 0 || num_non_inclusion_proof_inputs > 0 {
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
             // Add read only addresses to new addresses before proof verification.
@@ -298,7 +302,7 @@ pub fn process<
             // Select accounts account hashes for ZKP.
             // We need to filter out accounts that are proven by index.
             let mut proof_input_compressed_account_hashes =
-                Vec::with_capacity(num_input_state_roots);
+                Vec::with_capacity(num_inclusion_proof_inputs);
             filter_for_accounts_not_proven_by_index(
                 &inputs.input_compressed_accounts_with_merkle_context,
                 &read_only_accounts,
@@ -306,7 +310,7 @@ pub fn process<
                 &mut proof_input_compressed_account_hashes,
             );
             check_vec_capacity(
-                num_input_state_roots,
+                num_inclusion_proof_inputs,
                 &proof_input_compressed_account_hashes,
                 "proof_input_compressed_account_hashes",
             )?;

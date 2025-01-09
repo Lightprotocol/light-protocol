@@ -6980,6 +6980,7 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-compressed-token",
  "light-hasher",
+ "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",
  "light-registry",
