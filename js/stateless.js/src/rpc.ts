@@ -1,8 +1,8 @@
 import {
     Connection,
     ConnectionConfig,
-    SolanaJSONRPCError,
     PublicKey,
+    SolanaJSONRPCError,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import {
@@ -58,9 +58,8 @@ import {
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 import {
     proofFromJsonStruct,
@@ -514,6 +513,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         config?: ConnectionConfig,
     ) {
         super(endpoint, config || 'confirmed');
+
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
     }

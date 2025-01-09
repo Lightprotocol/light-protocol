@@ -18,6 +18,7 @@ import {
     getTestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 
 /**
  * Assert that createTokenPool() creates system-pool account for external mint,
@@ -58,6 +59,7 @@ async function createTestSplMint(
     payer: Signer,
     mintKeypair: Signer,
     mintAuthority: Keypair,
+    isToken22?: boolean,
 ) {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -74,7 +76,7 @@ async function createTestSplMint(
         TEST_TOKEN_DECIMALS,
         mintAuthority.publicKey,
         null,
-        TOKEN_PROGRAM_ID,
+        isToken22 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID,
     );
     const { blockhash } = await rpc.getLatestBlockhash();
 
@@ -135,6 +137,52 @@ describe('createTokenPool', () => {
 
         /// Mint already registered
         await expect(createTokenPool(rpc, payer, mint)).rejects.toThrow();
+    });
+    it('should register existing spl token22 mint', async () => {
+        const token22MintKeypair = Keypair.generate();
+        const token22Mint = token22MintKeypair.publicKey;
+        const token22MintAuthority = Keypair.generate();
+
+        /// Create external SPL Token 2022 mint
+        await createTestSplMint(
+            rpc,
+            payer,
+            token22MintKeypair,
+            token22MintAuthority,
+        );
+
+        const poolAccount =
+            CompressedTokenProgram.deriveTokenPoolPda(token22Mint);
+
+        assert(token22Mint.equals(token22MintKeypair.publicKey));
+
+        /// Mint already exists externally
+        await expect(
+            createMint(
+                rpc,
+                payer,
+                token22MintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                token22MintKeypair,
+                undefined,
+                true,
+            ),
+        ).rejects.toThrow();
+
+        await createTokenPool(rpc, payer, token22Mint);
+
+        await assertRegisterMint(
+            token22Mint,
+            token22MintAuthority.publicKey,
+            rpc,
+            TEST_TOKEN_DECIMALS,
+            poolAccount,
+        );
+
+        /// Mint already registered
+        await expect(
+            createTokenPool(rpc, payer, token22Mint),
+        ).rejects.toThrow();
     });
 
     it('should create mint with payer as authority', async () => {

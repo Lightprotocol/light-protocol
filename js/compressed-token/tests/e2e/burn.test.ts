@@ -5,30 +5,24 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMint, decompress, mintTo } from '../../src/actions';
+import { burn, createMint, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 
-/**
- * Assert that we created recipient and change ctokens for the sender, with all
- * amounts correctly accounted for
- */
-async function assertDecompress(
+// /**
+//  * Assert that we created recipient and change ctokens for the sender, with all
+//  * amounts correctly accounted for
+//  */
+async function assertBurn(
     rpc: Rpc,
-    refRecipientAtaBalanceBefore: BN,
-    refRecipientAta: PublicKey, // all
     refMint: PublicKey,
     refAmount: BN,
     refSender: PublicKey,
     refSenderCompressedTokenBalanceBefore: ParsedTokenAccount[],
 ) {
-    const refRecipientAtaBalanceAfter =
-        await rpc.getTokenAccountBalance(refRecipientAta);
-
     const senderCompressedTokenBalanceAfter = (
         await rpc.getCompressedTokenAccountsByOwner(refSender, {
             mint: refMint,
@@ -44,20 +38,13 @@ async function assertDecompress(
         bn(0),
     );
 
-    /// recipient ata should have received the amount
-    expect(
-        bn(refRecipientAtaBalanceAfter.value.amount)
-            .sub(refAmount)
-            .eq(refRecipientAtaBalanceBefore),
-    ).toBe(true);
-
-    /// should have sent the amount
+    /// should have burned the amount
     expect(senderSumPost.eq(senderSumPre.sub(refAmount))).toBe(true);
 }
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('decompress', () => {
+describe('burn', () => {
     let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
@@ -66,7 +53,6 @@ describe('decompress', () => {
     let charlieAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -98,37 +84,35 @@ describe('decompress', () => {
         await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
     });
 
-    const LOOP = 10;
-    it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
+    it(`should burn all from bob`, async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
-        for (let i = 0; i < LOOP; i++) {
-            const recipientAtaBalanceBefore =
-                await rpc.getTokenAccountBalance(charlieAta);
-            const senderCompressedTokenBalanceBefore =
-                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                    mint,
-                });
 
-            await decompress(
-                rpc,
-                payer,
+        const bobCompressedTokenBalanceBefore =
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
-                bn(5),
-                bob,
-                charlieAta,
-                merkleTree,
-            );
+            });
 
-            await assertDecompress(
-                rpc,
-                bn(recipientAtaBalanceBefore.value.amount),
-                charlieAta,
+        const txId = await burn(rpc, bob, mint, bn(500), bob);
+        await assertBurn(
+            rpc,
+            mint,
+            bn(500),
+            bob.publicKey,
+            bobCompressedTokenBalanceBefore.items,
+        );
+
+        const bobCompressedTokenBalanceBefore2 =
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
-                bn(5),
-                bob.publicKey,
-                senderCompressedTokenBalanceBefore.items,
-            );
-        }
+            });
+        const txId2 = await burn(rpc, payer, mint, bn(500), bob);
+        await assertBurn(
+            rpc,
+            mint,
+            bn(500),
+            bob.publicKey,
+            bobCompressedTokenBalanceBefore2.items,
+        );
     });
 });

@@ -24,34 +24,26 @@ import { selectMinCompressedTokenAccountsForTransfer } from './transfer';
  * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint of the compressed token
- * @param amount         Number of tokens to transfer
+ * @param amount         Number of tokens to burn
  * @param owner          Owner of the compressed tokens
- * @param toAddress      Destination **uncompressed** (associated) token account
- *                       address.
  * @param merkleTree     State tree account that any change compressed tokens should be
  *                       inserted into. Defaults to a default state tree
  *                       account.
  * @param confirmOptions Options for confirming the transaction
- *
+ * @param tokenProgramId Optional: The token program ID. Default: SPL Token Program ID
  *
  * @return Signature of the confirmed transaction
  */
-export async function decompress(
+export async function burn(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
     amount: number | BN,
     owner: Signer,
-    toAddress: PublicKey,
-    /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
-
     amount = bn(amount);
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -71,10 +63,9 @@ export async function decompress(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
-    const ix = await CompressedTokenProgram.decompress({
+    const ix = await CompressedTokenProgram.burn({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
-        toAddress, // TODO: add explicit check that it is a token account
         amount,
         outputStateTree: merkleTree,
         recentInputStateRootIndices: proof.rootIndices,
@@ -85,7 +76,7 @@ export async function decompress(
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         additionalSigners,

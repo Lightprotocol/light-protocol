@@ -1,5 +1,5 @@
 import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
@@ -44,9 +44,9 @@ import {
 import { IndexedArray } from '../merkle-tree';
 import {
     MerkleContextWithNewAddressProof,
+    Rpc,
     convertMerkleProofsWithContextToHex,
     convertNonInclusionMerkleProofInputsToHex,
-    getPublicInputHash,
     proverRequest,
 } from '../../rpc';
 
@@ -79,6 +79,7 @@ export interface TestRpcConfig {
     addressQueueAddress?: PublicKey;
 }
 
+export type ClientSubscriptionId = number;
 export interface LightWasm {
     blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array;
     poseidonHash(input: string[] | BN[]): Uint8Array;
@@ -169,6 +170,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         testRpcConfig?: TestRpcConfig,
     ) {
         super(endpoint, connectionConfig || 'confirmed');
+
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 
@@ -211,6 +213,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         if (!hash) {
             throw new Error('hash is required');
         }
+
         const account = await getCompressedAccountByHashTest(this, hash);
         return account ?? null;
     }
@@ -225,6 +228,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         if (!hash) {
             throw new Error('hash is required');
         }
+
         const account = await getCompressedAccountByHashTest(this, hash);
         if (!account) {
             throw new Error('Account not found');
@@ -343,13 +347,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         owner: PublicKey,
         _config?: GetCompressedAccountsByOwnerConfig,
     ): Promise<WithCursor<CompressedAccountWithMerkleContext[]>> {
-        // TODO(swen): revisit
-        // if (_config) {
-        //     throw new Error(
-        //         'dataSlice or filters are not supported in test-rpc. Please use rpc.ts instead.',
-        //     );
-        // }
-
         const accounts = await getCompressedAccountsByOwnerTest(this, owner);
         return {
             items: accounts,
