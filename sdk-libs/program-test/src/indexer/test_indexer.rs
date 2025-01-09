@@ -1876,12 +1876,12 @@ where
         Ok(proofs)
     }
 
-    // pub(crate) fn get_address_merkle_tree(
-    //     &self,
-    //     merkle_tree_pubkey: Pubkey,
-    // ) -> Option<&AddressMerkleTreeBundle> {
-    //     self.address_merkle_trees
-    //         .iter()
-    //         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
-    // }
+    pub fn get_address_merkle_tree(
+        &self,
+        merkle_tree_pubkey: Pubkey,
+    ) -> Option<&AddressMerkleTreeBundle> {
+        self.address_merkle_trees
+            .iter()
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+    }
 }
