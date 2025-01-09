@@ -7313,6 +7313,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-client",
  "light-compressed-token",
  "light-hasher",
  "light-program-test",
