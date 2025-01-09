@@ -8,9 +8,8 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use crate::{add_padding, errors::ZeroCopyError};
 
-// pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, usize, T>;
-pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
+pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
 pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
 

@@ -51,7 +51,6 @@ pub struct BatchedQueueMetadata {
     pub next_index: u64,
 }
 
-// TODO: make discriminators anchor conistent
 impl Discriminator for BatchedQueueAccount<'_> {
     const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
@@ -159,7 +158,6 @@ pub struct BatchedQueueAccount<'a> {
     pub bloom_filter_stores: Vec<ZeroCopySliceMutU64<'a, u8>>,
     /// hashchain_store_capacity = batch_capacity / zkp_batch_size
     pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-    marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl Deref for BatchedQueueAccount<'_> {
@@ -202,10 +200,10 @@ impl<'a> BatchedQueueAccount<'a> {
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         check_account_info_mut::<Self>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
+        // Necessary to convince the borrow checker.
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-
         Self::internal_from_bytes_mut::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
@@ -228,9 +226,10 @@ impl<'a> BatchedQueueAccount<'a> {
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         check_discriminator::<BatchedQueueAccount>(discriminator)?;
-        // TODO: remove unwrap
+
         let (metadata, account_data) =
-            Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data).unwrap();
+            Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
+                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
 
         if metadata.metadata.queue_type != QUEUE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
@@ -250,7 +249,6 @@ impl<'a> BatchedQueueAccount<'a> {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -268,7 +266,8 @@ impl<'a> BatchedQueueAccount<'a> {
         set_discriminator::<Self>(discriminator)?;
 
         let (mut account_metadata, account_data) =
-            Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data).unwrap();
+            Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
+                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
 
         account_metadata.init(
             metadata,
@@ -308,7 +307,6 @@ impl<'a> BatchedQueueAccount<'a> {
             value_vecs,
             bloom_filter_stores,
             hashchain_store,
-            marker: std::marker::PhantomData,
         })
     }
 
@@ -435,7 +433,9 @@ pub fn insert_into_current_batch(
         let mut value_store = value_vecs.get_mut(currently_processing_batch_index);
         let mut hashchain_store = hashchain_store.get_mut(currently_processing_batch_index);
 
-        let current_batch = batches.get_mut(currently_processing_batch_index).unwrap();
+        let current_batch = batches
+            .get_mut(currently_processing_batch_index)
+            .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted {
             current_batch.advance_state_to_can_be_filled()?;
@@ -528,11 +528,9 @@ pub fn output_queue_from_bytes(
     ),
     BatchedMerkleTreeError,
 > {
-    // let mut start_offset = BatchedQueueMetadata::LEN;
     let (batches, account_data) = ZeroCopySliceMutU64::from_bytes_at(account_data)?;
     let (value_vecs, account_data) =
         ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
-
     let (bloom_filter_stores, account_data) =
         ZeroCopySliceMutU64::from_bytes_at_multiple(num_stores, account_data)?;
     let (hashchain_store, _) =
@@ -556,40 +554,12 @@ pub fn input_queue_bytes<'a>(
 > {
     let (num_value_stores, num_stores, hashchain_store_capacity) =
         account.get_size_parameters(queue_type)?;
-    // if queue_type == QueueType::Output as u64 {
-    //     *start_offset += BatchedQueueMetadata::LEN;
-    // }
+
     let (batches, account_data) = ZeroCopySliceMutU64::from_bytes_at(account_data)?;
     let (value_vecs, account_data) =
         ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
-    // let mut bloom_filter_stores = Vec::with_capacity(num_stores);
     let (bloom_filter_stores, account_data) =
         ZeroCopySliceMutU64::from_bytes_at_multiple(num_stores, account_data)?;
-    // for _ in 0..num_stores {
-
-    // }
-    println!(
-        "account.bloom_filter_capacity {:?}",
-        account.bloom_filter_capacity / 8
-    );
-    // let account_data = &mut account_data[*start_offset..];
-    // let (bloom_filter_store, account_data) = Ref::<&'a mut [u8], [u8]>::from_prefix_with_elems(
-    //     account_data,
-    //     (account.bloom_filter_capacity / 8) as usize,
-    // )
-    // .unwrap();
-    // // *start_offset += (account.bloom_filter_capacity / 8) as usize;
-    // bloom_filter_stores.push(bloom_filter_store);
-    // let (bloom_filter_store, account_data) = Ref::<&'a mut [u8], [u8]>::from_prefix_with_elems(
-    //     account_data,
-    //     (account.bloom_filter_capacity / 8) as usize,
-    // )
-    // .unwrap();
-    // // *start_offset += (account.bloom_filter_capacity / 8) as usize;
-    // bloom_filter_stores.push(bloom_filter_store);
-
-    // // reset start_offset to 0
-    // *start_offset = 0;
 
     let (hashchain_store, _) =
         ZeroCopyVecU64::from_bytes_at_multiple(hashchain_store_capacity, account_data)?;
@@ -617,10 +587,6 @@ pub fn init_queue<'a>(
     let (num_value_stores, num_stores, num_hashchain_stores) =
         account.get_size_parameters(queue_type)?;
 
-    // if queue_type == QueueType::Output as u64 {
-    //     *start_offset += BatchedQueueMetadata::LEN;
-    // }
-
     let (mut batches, account_data) =
         ZeroCopySliceMutU64::new_at(account.num_batches, account_data)?;
 
@@ -641,48 +607,7 @@ pub fn init_queue<'a>(
         account.bloom_filter_capacity / 8,
         account_data,
     )?;
-    // ZeroCopySliceMutU64::new_at_multiple(
-    //     num_stores,
-    //     account.bloom_filter_capacity as usize / 8,
-    //     account_data,
-    //     start_offset,
-    // )?;
-    // if num_stores == 2 {
-    //     let account_data = &mut account_data[*start_offset..];
-    //     let (bloom_filter_store, account_data) = Ref::<&mut [u8], [u8]>::from_prefix_with_elems(
-    //         account_data,
-    //         (account.bloom_filter_capacity / 8) as usize,
-    //     )
-    //     .unwrap();
-    //     *start_offset += (account.bloom_filter_capacity / 8) as usize;
-    //     bloom_filter_stores.push(bloom_filter_store);
-    //     let (bloom_filter_store, account_data) = Ref::<&mut [u8], [u8]>::from_prefix_with_elems(
-    //         account_data,
-    //         (account.bloom_filter_capacity / 8) as usize,
-    //     )
-    //     .unwrap();
-    //     *start_offset += (account.bloom_filter_capacity / 8) as usize;
-    //     bloom_filter_stores.push(bloom_filter_store);
-    //     *start_offset = 0;
-    //     let hashchain_store = ZeroCopyVecU64::new_at_multiple(
-    //         num_hashchain_stores,
-    //         account.get_num_zkp_batches() as usize,
-    //         account_data,
-    //         start_offset,
-    //     )?;
 
-    //     Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
-    // } else {
-    //     assert_eq!(num_stores, 0);
-    //     let hashchain_store = ZeroCopyVecU64::new_at_multiple(
-    //         num_hashchain_stores,
-    //         account.get_num_zkp_batches() as usize,
-    //         account_data,
-    //         start_offset,
-    //     )?;
-
-    //     Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
-    // }
     let (hashchain_store, _) = ZeroCopyVecU64::new_at_multiple(
         num_hashchain_stores,
         account.get_num_zkp_batches(),

@@ -121,7 +121,7 @@ fn test_zero_copy_vec() {
 }
 
 #[test]
-fn test_zero_copy_u64_struct_vec() {
+fn test_zero_copy_unaligned_type_for_len() {
     #[derive(
         Copy, Clone, PartialEq, Debug, Default, Immutable, FromBytes, KnownLayout, IntoBytes,
     )]
@@ -138,12 +138,12 @@ fn test_zero_copy_u64_struct_vec() {
     impl Distribution<TestStruct> for Standard {
         fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> TestStruct {
             TestStruct {
-                a: rng.gen::<u32>(),
-                aa: rng.gen::<u32>(),
-                b: rng.gen::<u64>(),
-                c: rng.gen::<u16>(),
-                cc: rng.gen::<u16>(),
-                ccc: rng.gen::<u32>(),
+                a: rng.gen(),
+                aa: rng.gen(),
+                b: rng.gen(),
+                c: rng.gen(),
+                cc: rng.gen(),
+                ccc: rng.gen(),
                 d: rng.gen(),
             }
         }
@@ -226,8 +226,8 @@ fn test_zero_copy_u8_struct_vec() {
     test_zero_copy_slice_mut_new::<u16, TestStruct>(u8::MAX as u16);
     test_zero_copy_slice_mut_new::<u32, TestStruct>(u8::MAX as u32);
     test_zero_copy_slice_mut_new::<u64, TestStruct>(u8::MAX as u64);
-    // test_zero_copy_slice_mut_new::<usize, TestStruct>(u8::MAX as usize);
 }
+
 #[test]
 fn test_empty() {
     let length = 0;
@@ -455,25 +455,28 @@ fn test_new_at_multiple() {
     }
 }
 
-// #[test]
-// fn test_copy_from_slice_and_try_into_array() {
-//     let capacity = 16;
-//     let mut data = vec![0; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity)];
-//     let mut vec = ZeroCopySliceMutU64::<U32>::new(capacity, &mut data).unwrap();
-//     vec.copy_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+#[test]
+fn test_copy_from_slice_and_try_into_array() {
+    let capacity = 16;
+    let mut data = vec![0; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopySliceMutU64::<U32>::new(capacity, &mut data).unwrap();
 
-//     let arr: [u32; 16] = vec.try_into_array().unwrap();
-//     assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    for i in &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] {
+        vec[*i] = U32::new(*i as u32);
+    }
 
-//     assert!(matches!(
-//         vec.try_into_array::<15>(),
-//         Err(ZeroCopyError::ArraySize(_, _))
-//     ));
-//     assert!(matches!(
-//         vec.try_into_array::<17>(),
-//         Err(ZeroCopyError::ArraySize(_, _))
-//     ));
-// }
+    let arr = vec.try_into_array().unwrap();
+    assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+
+    assert!(matches!(
+        vec.try_into_array::<15>(),
+        Err(ZeroCopyError::ArraySize(_, _))
+    ));
+    assert!(matches!(
+        vec.try_into_array::<17>(),
+        Err(ZeroCopyError::ArraySize(_, _))
+    ));
+}
 
 #[test]
 fn test_failing_new() {

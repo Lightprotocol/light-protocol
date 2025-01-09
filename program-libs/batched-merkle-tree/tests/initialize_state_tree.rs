@@ -162,7 +162,7 @@ fn test_rnd_account_init() {
             program_owner,
             forester,
             additional_bytes: rng.gen_range(0..1000),
-            bloom_filter_num_iters: 2, //rng.gen_range(0..4),
+            bloom_filter_num_iters: rng.gen_range(0..4),
             input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
             output_queue_batch_size: rng.gen_range(1..1000) * output_queue_zkp_batch_size,
             input_queue_zkp_batch_size,
@@ -173,7 +173,7 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: 2, //rng.gen_range(1..4),
+            input_queue_num_batches: rng.gen_range(1..4),
             output_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
@@ -268,7 +268,6 @@ fn test_rnd_account_init() {
             merkle_tree_rent + queue_rent + additional_bytes_rent,
             mt_pubkey,
         );
-        println!("queue_account_params: {:?}", queue_account_params);
         let ref_output_queue_account = create_output_queue_account(queue_account_params);
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),

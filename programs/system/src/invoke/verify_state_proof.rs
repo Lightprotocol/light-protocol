@@ -438,7 +438,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 #[allow(clippy::too_many_arguments)]
 #[heap_neutral]
 pub fn verify_state_proof(
-    // input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],
     address_roots: &[[u8; 32]],
@@ -447,19 +446,6 @@ pub fn verify_state_proof(
     address_tree_height: u8,
     state_tree_height: u8,
 ) -> anchor_lang::Result<()> {
-    // // Accounts proven by index are not part of the zkp.
-    // // filter out accounts which are proven by index with queue_index.is_some()
-    // let mut num_removed = 0;
-    // for (i, input_account) in input_compressed_accounts_with_merkle_context
-    //     .iter()
-    //     .enumerate()
-    // {
-    //     if input_account.merkle_context.queue_index.is_some() {
-    //         leaves.remove(i - num_removed);
-    //         num_removed += 1;
-    //     }
-    // }
-
     if state_tree_height as u32 == DEFAULT_BATCH_STATE_TREE_HEIGHT
         || address_tree_height as u32 == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
     {

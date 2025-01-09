@@ -174,7 +174,7 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: 2, // rng.gen_range(1..4),
+            input_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
         if forester.is_some() {

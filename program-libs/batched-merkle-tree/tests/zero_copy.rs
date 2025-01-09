@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use bytemuck::{Pod, Zeroable};
 use light_batched_merkle_tree::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID,
     initialize_address_tree::{
@@ -12,45 +11,7 @@ use light_batched_merkle_tree::{
     merkle_tree::{get_merkle_tree_account_size_default, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size_default, BatchedQueueAccount},
 };
-use light_hasher::Discriminator;
-use light_utils::account::set_discriminator;
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
-
-// /// Tests:
-// /// 1. functional init
-// /// 2. functional deserialize
-// /// 3. failing deserialize invalid data
-// #[test]
-// fn test_bytes_to_struct() {
-//     #[repr(C)]
-//     #[derive(Debug, PartialEq, Copy, Clone, Pod, Zeroable)]
-//     pub struct MyStruct {
-//         pub data: u64,
-//     }
-//     impl Discriminator for MyStruct {
-//         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-//     }
-//     let mut bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
-//     let mut empty_bytes = vec![0; 8 + std::mem::size_of::<MyStruct>()];
-
-//     // Test 1 functional init.
-//     set_discriminator::<MyStruct>(&mut bytes).unwrap();
-//     let inited_struct =
-//         &mut WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
-
-//     (*inited_struct).data = 1;
-
-//     assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
-//     assert_eq!(bytes[8..].to_vec(), vec![1, 0, 0, 0, 0, 0, 0, 0]);
-//     // Test 2 functional deserialize.
-//     let inited_struct =
-//         *WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut bytes).unwrap();
-//     assert_eq!(inited_struct, MyStruct { data: 1 });
-//     // Test 3 failing deserialize invalid data.
-//     let inited_struct =
-//         *WrappedPointerMut::<MyStruct>::from_bytes_with_discriminator(&mut empty_bytes).unwrap();
-//     assert_ne!(inited_struct, MyStruct { data: 1 });
-// }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TestAccount {

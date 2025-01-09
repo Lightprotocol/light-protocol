@@ -52,8 +52,6 @@ pub enum UtilsError {
     InvalidAccountBalance,
     #[error("Failed to borrow rent sysvar.")]
     FailedBorrowRentSysvar,
-    #[error("Load account failed {0}.")]
-    LoadAccountFailed(String),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -75,7 +73,6 @@ impl From<UtilsError> for u32 {
             UtilsError::AlreadyInitialized => 12012,
             UtilsError::InvalidAccountBalance => 12013,
             UtilsError::FailedBorrowRentSysvar => 12014,
-            UtilsError::LoadAccountFailed(_) => 12015,
             UtilsError::HasherError(e) => u32::from(e),
         }
     }

@@ -131,10 +131,7 @@ pub fn init_batched_address_merkle_tree_account(
 ) -> Result<BatchedMerkleTreeAccount<'_>, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let height = params.height;
-    // let (discriminator, mt_account_data) = mt_account_data.split_at_mut(DISCRIMINATOR_LEN);
-    // let account_data_len = mt_account_data.len();
-    // println!("account_data_len {:?}", account_data_len);
-    // set_discriminator::<BatchedMerkleTreeAccount<'_>>(discriminator)?;
+
     let rollover_fee = match params.rollover_threshold {
         Some(rollover_threshold) => {
             let rent = merkle_tree_rent;

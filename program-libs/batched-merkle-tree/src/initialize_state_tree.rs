@@ -208,7 +208,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             associated_merkle_tree: mt_pubkey,
         };
 
-        let batched_queue_account = BatchedQueueAccount::init(
+        BatchedQueueAccount::init(
             output_queue_account_data,
             metadata,
             num_batches_output_queue,
@@ -217,7 +217,6 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             0,
             0,
         )?;
-        println!("batched_queue_account {:?}", batched_queue_account.batches);
     }
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),

@@ -25,12 +25,8 @@ fn test_account_init() {
     let merkle_tree_rent = 1_000_000_000;
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
-    println!("{:?}", params);
     let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-    println!("ref_mt_account {:?}", ref_mt_account);
-    let account_data_len = mt_account_data.len();
-    println!("account_data_len {:?}", account_data_len);
     init_batched_address_merkle_tree_account(
         owner.into(),
         params.clone(),
@@ -46,7 +42,6 @@ fn test_account_init() {
     );
 }
 
-#[ignore = "debug later network_fee and rollover_threshold missmatch"]
 #[test]
 fn test_rnd_account_init() {
     use rand::SeedableRng;
@@ -71,7 +66,7 @@ fn test_rnd_account_init() {
             index: rng.gen_range(0..1000),
             program_owner,
             forester,
-            bloom_filter_num_iters: 2, //rng.gen_range(0..4),
+            bloom_filter_num_iters: rng.gen_range(0..4),
             input_queue_batch_size: rng.gen_range(1..1000) * input_queue_zkp_batch_size,
             input_queue_zkp_batch_size,
             // 8 bits per byte, divisible by 8 for aligned memory
@@ -80,7 +75,7 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: 2, // rng.gen_range(1..4),
+            input_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
 

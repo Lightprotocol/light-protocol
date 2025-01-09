@@ -177,7 +177,6 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                 )
             }
             BatchedQueueAccount::DISCRIMINATOR => {
-                //
                 if IS_NULLIFY {
                     return err!(
                         AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch

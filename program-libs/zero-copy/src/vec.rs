@@ -326,7 +326,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.data == other.data && self.len() == other.len()
+        self.as_slice() == other.as_slice()
     }
 }
 
