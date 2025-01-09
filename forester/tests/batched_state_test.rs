@@ -350,9 +350,6 @@ async fn test_state_batched() {
 
         assert_eq!(merkle_tree.root_history.len(), expected_root_history_len);
 
-        let post_root = merkle_tree.get_root().unwrap();
-        assert_ne!(pre_root, post_root, "Roots are the same");
-
         assert_ne!(
             pre_root,
             merkle_tree.get_root().unwrap(),
