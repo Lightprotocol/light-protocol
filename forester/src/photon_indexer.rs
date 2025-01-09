@@ -16,7 +16,7 @@ use photon_api::{
 };
 use solana_sdk::bs58;
 use tracing::debug;
-
+use light_client::indexer::LeafIndexInfo;
 use crate::utils::decode_hash;
 
 pub struct PhotonIndexer<R: RpcConnection> {
@@ -244,7 +244,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         &mut self,
         _merkle_tree_pubkey: Pubkey,
         _zkp_batch_size: usize,
-    ) -> Vec<(u32, [u8; 32], [u8; 32])> {
+    ) -> Vec<LeafIndexInfo> {
         todo!()
     }
 

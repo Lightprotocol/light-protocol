@@ -67,7 +67,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-
+use light_client::indexer::LeafIndexInfo;
 use crate::{
     indexer::{
         utils::create_address_merkle_tree_and_queue_account_with_assert, TestIndexerExtensions,
@@ -570,7 +570,7 @@ where
         &mut self,
         merkle_tree_pubkey: Pubkey,
         zkp_batch_size: usize,
-    ) -> Vec<(u32, [u8; 32], [u8; 32])> {
+    ) -> Vec<LeafIndexInfo> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
@@ -1001,12 +1001,12 @@ where
             let batch_size = batch.zkp_batch_size;
             let leaf_indices_tx_hashes =
                 state_merkle_tree_bundle.input_leaf_indices[..batch_size as usize].to_vec();
-            for (index, leaf, tx_hash) in leaf_indices_tx_hashes.iter() {
-                let index = *index as usize;
-                let leaf = *leaf;
+            for leaf_info in leaf_indices_tx_hashes.iter() {
+                let index = leaf_info.leaf_index as usize;
+                let leaf = leaf_info.leaf;
                 let index_bytes = index.to_be_bytes();
 
-                let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, tx_hash]).unwrap();
+                let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
 
                 state_merkle_tree_bundle.input_leaf_indices.remove(0);
                 state_merkle_tree_bundle
@@ -1675,7 +1675,11 @@ where
                 let leaf_hash = event.input_compressed_account_hashes[i];
                 bundle
                     .input_leaf_indices
-                    .push((leaf_index, leaf_hash, tx_hash));
+                    .push(LeafIndexInfo {
+                        leaf_index,
+                        leaf: leaf_hash,
+                        tx_hash,
+                    });
             }
         }
         let mut new_addresses = vec![];

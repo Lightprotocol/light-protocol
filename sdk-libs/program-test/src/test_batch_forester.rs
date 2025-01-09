@@ -299,10 +299,10 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let mut tx_hashes = Vec::new();
     let mut old_leaves = Vec::new();
     let mut path_indices = Vec::new();
-    for (index, leaf, tx_hash) in leaf_indices_tx_hashes.iter() {
-        path_indices.push(*index);
-        let index = *index as usize;
-        let leaf = *leaf;
+    for leaf_info in leaf_indices_tx_hashes.iter() {
+        path_indices.push(leaf_info.leaf_index);
+        let index = leaf_info.leaf_index as usize;
+        let leaf = leaf_info.leaf;
 
         leaves.push(leaf);
         // + 2 because next index is + 1 and we need to init the leaf in
@@ -324,8 +324,8 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         bundle.input_leaf_indices.remove(0);
         let index_bytes = index.to_be_bytes();
         use light_hasher::Hasher;
-        let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, tx_hash]).unwrap();
-        tx_hashes.push(*tx_hash);
+        let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        tx_hashes.push(leaf_info.tx_hash);
         nullifiers.push(nullifier);
         bundle.merkle_tree.update(&nullifier, index).unwrap();
     }
