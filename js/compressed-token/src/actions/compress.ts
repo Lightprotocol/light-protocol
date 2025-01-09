@@ -12,7 +12,7 @@ import {
     dedupeSigner,
 } from '@lightprotocol/stateless.js';
 
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
 

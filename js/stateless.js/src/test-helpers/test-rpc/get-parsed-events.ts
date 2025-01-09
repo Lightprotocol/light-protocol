@@ -2,11 +2,12 @@ import {
     ParsedMessageAccount,
     ParsedTransactionWithMeta,
 } from '@solana/web3.js';
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import bs58 from 'bs58';
 import { defaultStaticAccountsStruct } from '../../constants';
 import { LightSystemProgram } from '../../programs';
 import { Rpc } from '../../rpc';
 import { PublicTransactionEvent } from '../../state';
+import { decodePublicTransactionEvent } from '../../programs/layout';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
@@ -116,10 +117,7 @@ export const parsePublicTransactionEventWithIdl = (
     const numericData = Buffer.from(data.map(byte => byte));
 
     try {
-        return LightSystemProgram.program.coder.types.decode(
-            'PublicTransactionEvent',
-            numericData,
-        );
+        return decodePublicTransactionEvent(numericData);
     } catch (error) {
         console.error('Error deserializing event:', error);
         return null;

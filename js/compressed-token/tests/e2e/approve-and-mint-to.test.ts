@@ -17,7 +17,7 @@ import {
     getTestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { BN } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 
 async function createTestSplMint(
     rpc: Rpc,
