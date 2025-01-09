@@ -3,7 +3,7 @@ use account_compression::{
     AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Bumps, Discriminator};
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_hasher::Discriminator as LightDiscriminator;
 
 use crate::{
@@ -48,7 +48,7 @@ pub fn derive_new_addresses(
                     &new_address_params.seed,
                 )
                 .map_err(ProgramError::from)?,
-                BatchedMerkleTreeMetadata::DISCRIMINATOR => {
+                BatchedMerkleTreeAccount::DISCRIMINATOR => {
                     if invoking_program_id.is_none() {
                         return err!(SystemProgramError::DeriveAddressError);
                     }

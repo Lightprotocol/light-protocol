@@ -66,7 +66,7 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         addresses: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_into_queues::<AddressMerkleTreeAccount>(
+        process_insert_into_queues(
             ctx,
             addresses.as_slice(),
             Vec::new(),
@@ -200,7 +200,7 @@ pub mod account_compression {
         leaf_indices: Vec<u32>,
         tx_hash: Option<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_into_queues::<StateMerkleTreeAccount>(
+        process_insert_into_queues(
             ctx,
             &nullifiers,
             leaf_indices,

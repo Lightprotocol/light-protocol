@@ -143,7 +143,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             let network_fee;
             // Check 1.
             (mt_next_index, network_fee, seq, merkle_tree_pubkey) =
-                check_program_owner_state_merkle_tree(
+                check_program_owner_state_merkle_tree::<false>(
                     &remaining_accounts[account.merkle_tree_index as usize],
                     invoking_program,
                 )?;

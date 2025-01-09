@@ -519,14 +519,15 @@ where
                             &self.foresters,
                             self.slot,
                         ) {
-                            let mut merkle_tree_account = self
+                            let mut merkle_tree_account_data = self
                                 .rpc
                                 .get_account(merkle_tree_pubkey)
                                 .await
                                 .unwrap()
-                                .unwrap();
+                                .unwrap()
+                                .data;
                             let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                                merkle_tree_account.data.as_mut_slice(),
+                                merkle_tree_account_data.as_mut_slice(),
                             )
                             .unwrap();
                             let next_full_batch_index = merkle_tree
@@ -569,10 +570,15 @@ where
                             self.slot,
                         ) {
                             println!("\n --------------------------------------------------\n\t\t Appending LEAVES batched (v2)\n --------------------------------------------------");
-                            let mut queue_account =
-                                self.rpc.get_account(queue_pubkey).await.unwrap().unwrap();
+                            let mut queue_account_data = self
+                                .rpc
+                                .get_account(queue_pubkey)
+                                .await
+                                .unwrap()
+                                .unwrap()
+                                .data;
                             let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-                                queue_account.data.as_mut_slice(),
+                                queue_account_data.as_mut_slice(),
                             )
                             .unwrap();
                             let next_full_batch_index = output_queue

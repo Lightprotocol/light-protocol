@@ -28,7 +28,7 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
-    use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
+    use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     use light_heap::{bench_sbf_end, bench_sbf_start};
 
     use self::{
@@ -45,7 +45,7 @@ pub mod light_system_program {
         discriminator_bytes.copy_from_slice(&data[0..8]);
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => Ok(()),
-            BatchedMerkleTreeMetadata::DISCRIMINATOR => Ok(()),
+            BatchedMerkleTreeAccount::DISCRIMINATOR => Ok(()),
             _ => {
                 err!(AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch)
             }

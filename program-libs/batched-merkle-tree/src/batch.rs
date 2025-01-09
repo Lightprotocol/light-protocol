@@ -233,11 +233,6 @@ impl Batch {
         let num_zkp_batches = self.get_num_zkp_batches();
 
         self.num_inserted_zkps += 1;
-        msg!(
-            "Marking batch as inserted in the merkle tree. num_inserted_zkps: {}",
-            self.num_inserted_zkps
-        );
-        msg!("num_zkp_batches: {}", num_zkp_batches);
         // Batch has been successfully inserted into the tree.
         if self.num_inserted_zkps == num_zkp_batches {
             self.current_zkp_batch_index = 0;

@@ -122,7 +122,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                         .collect::<Vec<&[u8; 32]>>()
                         .as_slice(),
                 )?,
-                BatchedQueueMetadata::DISCRIMINATOR => {
+                BatchedQueueAccount::DISCRIMINATOR => {
                     append_v2(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
                 _ => {
