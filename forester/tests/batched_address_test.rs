@@ -167,7 +167,17 @@ async fn test_address_batched() {
         println!("Tree {:?} is_v2: {}", tree, is_v2);
     }
 
-    for i in 0..50 {
+    let mut merkle_tree_account = env
+        .rpc
+        .get_account(merkle_tree_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    let merkle_tree =
+        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut merkle_tree_account.data)
+            .unwrap();
+
+    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
         println!("===================== tx {} =====================", i);
 
         perform_create_pda_with_event_rnd(
@@ -261,6 +271,8 @@ async fn test_address_batched() {
         let final_metadata = merkle_tree.get_metadata();
 
         let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
         for batch_idx in 0..merkle_tree.batches.len() {
@@ -276,19 +288,23 @@ async fn test_address_batched() {
             "Merkle tree next_index did not advance by expected amount",
         );
 
-        assert!(
+        assert_eq!(
             merkle_tree
                 .get_metadata()
                 .queue_metadata
-                .next_full_batch_index
-                > 0,
-            "No batches were processed"
+                .next_full_batch_index,
+            1
         );
 
-        assert!(
-            final_metadata.sequence_number > initial_sequence_number,
-            "Sequence number should have increased"
-        );
+        const UPDATES_PER_BATCH: u64 = 1;
+
+        let expected_sequence_number =
+            initial_sequence_number + (num_zkp_batches * UPDATES_PER_BATCH);
+        let expected_root_history_len = (expected_sequence_number + 1) as usize;
+
+        assert_eq!(final_metadata.sequence_number, expected_sequence_number);
+
+        assert_eq!(merkle_tree.root_history.len(), expected_root_history_len);
 
         let post_root = merkle_tree.get_root().unwrap();
         assert_ne!(pre_root, post_root, "Roots are the same");

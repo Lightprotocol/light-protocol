@@ -324,19 +324,31 @@ async fn test_state_batched() {
             "Merkle tree next_index did not advance by expected amount",
         );
 
-        assert!(
+        assert_eq!(
             merkle_tree
                 .get_metadata()
                 .queue_metadata
-                .next_full_batch_index
-                > 0,
-            "No batches were processed"
+                .next_full_batch_index,
+            1
         );
 
         assert!(
             final_metadata.sequence_number > initial_sequence_number,
             "Sequence number should have increased"
         );
+
+        // compress_sol_deterministic creates 1 output
+        // transfer_sol_deterministic invalidates 1 input and creates 1 output
+        // 1 + 1 + 1 = 3
+        const UPDATES_PER_BATCH: u64 = 3;
+
+        let expected_sequence_number =
+            initial_sequence_number + (num_zkp_batches * UPDATES_PER_BATCH);
+        let expected_root_history_len = (expected_sequence_number + 1) as usize;
+
+        assert_eq!(final_metadata.sequence_number, expected_sequence_number);
+
+        assert_eq!(merkle_tree.root_history.len(), expected_root_history_len);
 
         let post_root = merkle_tree.get_root().unwrap();
         assert_ne!(pre_root, post_root, "Roots are the same");
@@ -345,10 +357,6 @@ async fn test_state_batched() {
             pre_root,
             merkle_tree.get_root().unwrap(),
             "Root should have changed"
-        );
-        assert!(
-            merkle_tree.root_history.len() > 1,
-            "Root history should contain multiple roots"
         );
     }
 
