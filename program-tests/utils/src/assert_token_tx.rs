@@ -1,13 +1,13 @@
 use anchor_lang::AnchorSerialize;
-use light_client::rpc::RpcConnection;
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
+use light_program_test::indexer::TestIndexerExtensions;
+use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
-use light_client::indexer::Indexer;
-use light_program_test::indexer::TestIndexerExtensions;
-use light_sdk::token::TokenDataWithMerkleContext;
+
 use crate::assert_compressed_tx::{
     assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
     assert_public_transaction_event, MerkleTreeTestSnapShot,
@@ -79,7 +79,10 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
     );
 }
 
-pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub fn assert_compressed_token_accounts<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,

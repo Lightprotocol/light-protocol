@@ -10,7 +10,10 @@ use forester_utils::{
     registry::RentExemption,
 };
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::{
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    rpc::{RpcConnection, RpcError},
+};
 use light_hasher::Poseidon;
 use light_registry::{
     account_compression_cpi::sdk::{
@@ -24,8 +27,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tracing::info;
-use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
-use crate::{errors::ForesterError};
+
+use crate::errors::ForesterError;
 
 enum TreeAccount {
     State(StateMerkleTreeAccount),
@@ -319,7 +322,6 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     );
     context.process_transaction(transaction).await
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(

@@ -6,6 +6,7 @@ use light_client::{
     rpc::merkle_tree::MerkleTreeExt,
 };
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
@@ -26,7 +27,6 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 
 #[tokio::test]
 async fn test_sdk_test() {
@@ -47,7 +47,7 @@ async fn test_sdk_test() {
         }],
         payer.insecure_clone(),
         env.group_pda,
-        None
+        None,
     )
     .await;
 
@@ -87,7 +87,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -127,7 +128,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -154,7 +156,7 @@ async fn with_nested_data<R, I>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
-    I: Indexer<R> + TestIndexerExtensions<R>
+    I: Indexer<R> + TestIndexerExtensions<R>,
 {
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -229,7 +231,7 @@ async fn update_nested_data<R, I>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
-    I: Indexer<R> + TestIndexerExtensions<R>
+    I: Indexer<R> + TestIndexerExtensions<R>,
 {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;

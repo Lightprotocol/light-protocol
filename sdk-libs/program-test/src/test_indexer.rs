@@ -1,5 +1,5 @@
 // use std::{marker::PhantomData, time::Duration};
-// 
+//
 // use account_compression::StateMerkleTreeAccount;
 // use anchor_lang::Discriminator;
 // use borsh::BorshDeserialize;
@@ -58,7 +58,7 @@
 // use num_traits::FromBytes;
 // use reqwest::Client;
 // use solana_sdk::pubkey::Pubkey;
-// 
+//
 // #[derive(Debug)]
 // pub struct TestIndexer<R>
 // where
@@ -73,7 +73,7 @@
 //     pub events: Vec<PublicTransactionEvent>,
 //     _rpc: PhantomData<R>,
 // }
-// 
+//
 // impl<R> Indexer<R> for TestIndexer<R>
 // where
 //     R: RpcConnection + MerkleTreeExt,
@@ -121,7 +121,7 @@
 //                 self.token_compressed_accounts.remove(index);
 //             }
 //         }
-// 
+//
 //         let mut compressed_accounts = Vec::new();
 //         let mut token_compressed_accounts = Vec::new();
 //         for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
@@ -220,11 +220,11 @@
 //                 )
 //                 .expect("insert failed");
 //         }
-// 
+//
 //         self.events.push(event.clone());
 //         (compressed_accounts, token_compressed_accounts)
 //     }
-// 
+//
 //     async fn create_proof_for_compressed_accounts(
 //         &mut self,
 //         compressed_accounts: Option<&[[u8; 32]]>,
@@ -252,7 +252,7 @@
 //                     let (payload, payload_legacy, indices) = self
 //                         .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
 //                         .await;
-// 
+//
 //                     if let Some(payload) = payload {
 //                         (indices, Vec::new(), payload.to_string())
 //                     } else {
@@ -278,7 +278,7 @@
 //                     let (inclusion_payload, inclusion_payload_legacy, inclusion_indices) = self
 //                         .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
 //                         .await;
-// 
+//
 //                     let (
 //                         non_inclusion_payload,
 //                         non_inclusion_payload_legacy,
@@ -309,7 +309,7 @@
 //                             ])
 //                             .unwrap(),
 //                         );
-// 
+//
 //                         CombinedJsonStruct {
 //                             circuit_type: ProofType::Combined.to_string(),
 //                             state_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
@@ -337,7 +337,7 @@
 //                     panic!("At least one of compressed_accounts or new_addresses must be provided")
 //                 }
 //             };
-// 
+//
 //         let mut retries = 3;
 //         while retries > 0 {
 //             let response_result = client
@@ -370,7 +370,7 @@
 //         }
 //         panic!("Failed to get proof from server");
 //     }
-// 
+//
 //     /// Returns compressed accounts owned by the given `owner`.
 //     fn get_compressed_accounts_by_owner(
 //         &self,
@@ -383,7 +383,7 @@
 //             .collect()
 //     }
 // }
-// 
+//
 // impl<R> TestIndexer<R>
 // where
 //     R: RpcConnection + MerkleTreeExt,
@@ -408,28 +408,28 @@
 //                 }
 //             })
 //             .collect::<Vec<_>>();
-// 
+//
 //         let address_merkle_trees = address_merkle_tree_accounts
 //             .iter()
 //             .map(|accounts| Self::add_address_merkle_tree_bundle(accounts))
 //             .collect::<Vec<_>>();
-// 
+//
 //         let mut prover_config = ProverConfig {
 //             circuits: vec![],
 //             run_mode: None,
 //         };
-// 
+//
 //         if inclusion {
 //             prover_config.circuits.push(ProofType::Inclusion);
 //         }
 //         if non_inclusion {
 //             prover_config.circuits.push(ProofType::NonInclusion);
 //         }
-// 
+//
 //         spawn_prover(true, prover_config).await;
-// 
+//
 //         health_check(20, 1).await;
-// 
+//
 //         Self {
 //             state_merkle_trees,
 //             address_merkle_trees,
@@ -441,7 +441,7 @@
 //             _rpc: PhantomData,
 //         }
 //     }
-// 
+//
 //     pub fn add_address_merkle_tree_bundle(
 //         accounts: &AddressMerkleTreeAccounts,
 //         // TODO: add config here
@@ -463,7 +463,7 @@
 //             rollover_fee: FeeConfig::default().address_queue_rollover,
 //         }
 //     }
-// 
+//
 //     async fn process_inclusion_proofs(
 //         &self,
 //         merkle_tree_pubkeys: &[Pubkey],
@@ -477,7 +477,7 @@
 //         let mut inclusion_proofs = Vec::new();
 //         let mut root_indices = Vec::new();
 //         let mut height = 0;
-// 
+//
 //         for (i, account) in accounts.iter().enumerate() {
 //             let bundle = &self
 //                 .state_merkle_trees
@@ -494,7 +494,7 @@
 //                 .await
 //                 .unwrap()
 //                 .unwrap();
-// 
+//
 //             let discriminator = merkle_tree_account.data[0..8].try_into().unwrap();
 //             let version = match discriminator {
 //                 StateMerkleTreeAccount::DISCRIMINATOR => 1,
@@ -549,10 +549,10 @@
 //                 )
 //             };
 //             assert_eq!(merkle_tree.root(), root, "Merkle tree root mismatch");
-// 
+//
 //             root_indices.push(root_index as u16);
 //         }
-// 
+//
 //         let (batch_inclusion_proof_inputs, legacy) = if height
 //             == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
 //         {
@@ -575,10 +575,10 @@
 //         } else {
 //             panic!("Unsupported tree height")
 //         };
-// 
+//
 //         (batch_inclusion_proof_inputs, legacy, root_indices)
 //     }
-// 
+//
 //     async fn process_non_inclusion_proofs(
 //         &self,
 //         address_merkle_tree_pubkeys: &[Pubkey],
@@ -618,7 +618,7 @@
 //                 tree_heights
 //             );
 //         }
-// 
+//
 //         let (batch_non_inclusion_proof_inputs, batch_non_inclusion_proof_inputs_legacy) =
 //             if tree_heights[0] == 26 {
 //                 let non_inclusion_proof_inputs =
@@ -651,7 +651,7 @@
 //             address_root_indices,
 //         )
 //     }
-// 
+//
 //     /// deserializes an event
 //     /// adds the output_compressed_accounts to the compressed_accounts
 //     /// removes the input_compressed_accounts from the compressed_accounts

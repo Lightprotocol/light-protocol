@@ -20,6 +20,7 @@ pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 #[allow(unused)]
@@ -29,7 +30,6 @@ pub mod state_tree_rollover;
 pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
-pub mod conversions;
 
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{

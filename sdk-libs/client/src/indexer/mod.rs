@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+
 use async_trait::async_trait;
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
@@ -6,14 +7,11 @@ use light_indexed_merkle_tree::{
     reference::IndexedMerkleTree,
 };
 use light_merkle_tree_reference::MerkleTree;
-use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext,
-    proof::ProofRpcResult
-};
+use light_sdk::proof::ProofRpcResult;
 use num_bigint::BigUint;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
-use light_sdk::token::TokenData;
+
 use crate::rpc::RpcConnection;
 
 #[derive(Error, Debug)]
@@ -37,7 +35,6 @@ pub struct ProofOfLeaf {
 
 #[async_trait]
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-
     /// Returns queue elements from the queue with the given pubkey. For input
     /// queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
@@ -50,10 +47,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         end_offset: u64,
     ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
-    fn get_subtrees(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError>;
+    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError>;
 
     // fn add_event_and_compressed_accounts(
     //     &mut self,

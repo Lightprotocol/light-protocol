@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
-use std::collections::HashSet;
-use std::hash::Hash;
+use std::{collections::HashSet, hash::Hash};
+
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
     MigrateLeafParams, NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig,
@@ -18,8 +18,10 @@ use light_batched_merkle_tree::{
     merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::BatchedQueueAccount,
 };
+use light_client::indexer::Indexer;
 use light_hasher::Poseidon;
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{
         assert_perform_state_mt_roll_over, create_append_batch_ix_data,
         create_batch_address_merkle_tree,
@@ -84,8 +86,6 @@ use solana_sdk::{
     signature::{read_keypair_file, Keypair, Signature},
     signer::Signer,
 };
-use light_client::indexer::Indexer;
-use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 
 #[test]
 fn test_protocol_config_active_phase_continuity() {
@@ -1427,7 +1427,8 @@ async fn test_migrate_state() {
             26,
         >(&mut rpc, env_accounts.merkle_tree_pubkey)
         .await;
-        let compressed_account = &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0];
+        let compressed_account =
+            &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[0];
         let hash = compressed_account.hash().unwrap();
         let bundle = &test_indexer
             .get_state_merkle_trees()
@@ -1511,7 +1512,8 @@ async fn test_migrate_state() {
             26,
         >(&mut rpc, env_accounts.merkle_tree_pubkey)
         .await;
-        let compressed_account = &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[1];
+        let compressed_account =
+            &test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&payer.pubkey())[1];
         let hash = compressed_account.hash().unwrap();
         let bundle = &test_indexer
             .get_state_merkle_trees()
@@ -1957,7 +1959,10 @@ async fn test_batch_address_tree() {
         .await;
 }
 
-pub async fn perform_batch_address_merkle_tree_update<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_batch_address_merkle_tree_update<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     rpc: &mut R,
     test_indexer: &mut I,
     forester: &Keypair,

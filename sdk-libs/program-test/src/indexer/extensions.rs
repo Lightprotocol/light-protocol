@@ -1,11 +1,16 @@
-use async_trait::async_trait;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle};
-use light_client::rpc::RpcConnection;
-use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_sdk::event::PublicTransactionEvent;
-use light_sdk::proof::{BatchedTreeProofRpcResult};
-use light_sdk::token::TokenDataWithMerkleContext;
+use async_trait::async_trait;
+use light_client::{
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext,
+        ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+    },
+    rpc::RpcConnection,
+};
+use light_sdk::{
+    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext,
+};
 use solana_sdk::signature::Keypair;
 
 #[async_trait]
@@ -15,7 +20,11 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         merkle_tree_pubkey: Pubkey,
     ) -> Option<&AddressMerkleTreeBundle>;
 
-    fn add_compressed_accounts_with_token_data(&mut self, slot: u64, event: &PublicTransactionEvent);
+    fn add_compressed_accounts_with_token_data(
+        &mut self,
+        slot: u64,
+        event: &PublicTransactionEvent,
+    );
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 

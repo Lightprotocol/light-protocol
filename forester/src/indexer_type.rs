@@ -1,25 +1,30 @@
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
+
 use async_trait::async_trait;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use tokio::sync::Mutex;
-use tracing::info;
 use forester_utils::forester_epoch::TreeAccounts;
-use light_client::indexer::{Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle};
-use light_client::rpc::RpcConnection;
+use light_client::{
+    indexer::{Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
+    rpc::RpcConnection,
+};
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::indexer::{TestIndexer, TestIndexerExtensions};
 use light_sdk::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT};
-use crate::errors::ForesterError;
-use crate::ForesterConfig;
-use crate::photon_indexer::PhotonIndexer;
-use crate::rollover::{perform_address_merkle_tree_rollover, perform_state_merkle_tree_rollover_forester};
+use solana_program::pubkey::Pubkey;
+use solana_sdk::{signature::Keypair, signer::Signer};
+use tokio::sync::Mutex;
+use tracing::info;
+
+use crate::{
+    errors::ForesterError,
+    photon_indexer::PhotonIndexer,
+    rollover::{perform_address_merkle_tree_rollover, perform_state_merkle_tree_rollover_forester},
+    ForesterConfig,
+};
 
 mod sealed {
     use light_client::rpc::merkle_tree::MerkleTreeExt;
+
     use super::*;
     pub trait Sealed {}
     impl<R: RpcConnection + MerkleTreeExt> Sealed for TestIndexer<R> {}
@@ -69,7 +74,9 @@ pub trait IndexerType<R: RpcConnection>: sealed::Sealed {
 }
 
 #[async_trait]
-impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerType<R> for TestIndexer<R> {
+impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerType<R>
+    for TestIndexer<R>
+{
     fn handle_state_bundle(
         indexer: &mut impl Indexer<R>,
         new_merkle_tree: Pubkey,
@@ -112,25 +119,45 @@ impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerTy
         new_merkle_tree_pubkey: Pubkey,
     ) {
         if let Some(test_indexer) = (indexer as &mut dyn Any).downcast_mut::<TestIndexer<R>>() {
-            test_indexer.finalize_batched_address_tree_update(rpc, new_merkle_tree_pubkey).await;
+            test_indexer
+                .finalize_batched_address_tree_update(rpc, new_merkle_tree_pubkey)
+                .await;
         }
     }
 
-    async fn update_test_indexer_after_nullification(rpc: &mut R, indexer: &mut impl Indexer<R>, merkle_tree_pubkey: Pubkey, batch_index: usize)
-    where
-        Self: Sized
+    async fn update_test_indexer_after_nullification(
+        rpc: &mut R,
+        indexer: &mut impl Indexer<R>,
+        merkle_tree_pubkey: Pubkey,
+        batch_index: usize,
+    ) where
+        Self: Sized,
     {
         if let Some(test_indexer) = (indexer as &mut dyn Any).downcast_mut::<TestIndexer<R>>() {
-            test_indexer.update_test_indexer_after_nullification(rpc, merkle_tree_pubkey, batch_index).await;
+            test_indexer
+                .update_test_indexer_after_nullification(rpc, merkle_tree_pubkey, batch_index)
+                .await;
         }
     }
 
-    async fn update_test_indexer_after_append(rpc: &mut R, indexer: &mut impl Indexer<R>, merkle_tree_pubkey: Pubkey, output_queue: Pubkey, num_inserted_zkps: u64)
-    where
-        Self: Sized
+    async fn update_test_indexer_after_append(
+        rpc: &mut R,
+        indexer: &mut impl Indexer<R>,
+        merkle_tree_pubkey: Pubkey,
+        output_queue: Pubkey,
+        num_inserted_zkps: u64,
+    ) where
+        Self: Sized,
     {
         if let Some(test_indexer) = (indexer as &mut dyn Any).downcast_mut::<TestIndexer<R>>() {
-            test_indexer.update_test_indexer_after_append(rpc, merkle_tree_pubkey, output_queue, num_inserted_zkps).await;
+            test_indexer
+                .update_test_indexer_after_append(
+                    rpc,
+                    merkle_tree_pubkey,
+                    output_queue,
+                    num_inserted_zkps,
+                )
+                .await;
         }
     }
 }
@@ -167,7 +194,7 @@ impl<R: RpcConnection> IndexerType<R> for PhotonIndexer<R> {
         _rpc: &mut R,
         _indexer: &mut impl Indexer<R>,
         _merkle_tree_pubkey: Pubkey,
-        _batch_index: usize
+        _batch_index: usize,
     ) {
         // No-op for production indexer
     }
@@ -177,7 +204,7 @@ impl<R: RpcConnection> IndexerType<R> for PhotonIndexer<R> {
         _indexer: &mut impl Indexer<R>,
         _merkle_tree_pubkey: Pubkey,
         _output_queue: Pubkey,
-        _num_inserted_zkps: u64
+        _num_inserted_zkps: u64,
     ) {
         // No-op for production indexer
     }
@@ -204,8 +231,9 @@ pub async fn rollover_state_merkle_tree<R: RpcConnection, I: Indexer<R> + Indexe
         &tree_accounts.merkle_tree,
         &tree_accounts.queue,
         &Pubkey::default(),
-        epoch)
-        .await?;
+        epoch,
+    )
+    .await?;
 
     info!("State rollover signature: {:?}", rollover_signature);
 
@@ -229,8 +257,17 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R> + Inde
     let new_nullifier_queue_keypair = Keypair::new();
     let new_merkle_tree_keypair = Keypair::new();
 
-    let rollover_signature = perform_address_merkle_tree_rollover(&config.payer_keypair, &config.derivation_pubkey, rpc, &new_nullifier_queue_keypair, &new_merkle_tree_keypair, &tree_accounts.merkle_tree, &tree_accounts.queue, epoch)
-        .await?;
+    let rollover_signature = perform_address_merkle_tree_rollover(
+        &config.payer_keypair,
+        &config.derivation_pubkey,
+        rpc,
+        &new_nullifier_queue_keypair,
+        &new_merkle_tree_keypair,
+        &tree_accounts.merkle_tree,
+        &tree_accounts.queue,
+        epoch,
+    )
+    .await?;
 
     info!("Address rollover signature: {:?}", rollover_signature);
 
@@ -243,21 +280,28 @@ pub async fn rollover_address_merkle_tree<R: RpcConnection, I: Indexer<R> + Inde
     Ok(())
 }
 
-pub async fn finalize_batch_address_tree_update<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
-   rpc: &mut R,
-   indexer: Arc<Mutex<I>>,
-   new_merkle_tree_pubkey: Pubkey,
+pub async fn finalize_batch_address_tree_update<
+    R: RpcConnection,
+    I: Indexer<R> + IndexerType<R>,
+>(
+    rpc: &mut R,
+    indexer: Arc<Mutex<I>>,
+    new_merkle_tree_pubkey: Pubkey,
 ) -> Result<(), ForesterError> {
     I::finalize_batch_address_tree_update(
         &mut *rpc,
         &mut *indexer.lock().await,
         new_merkle_tree_pubkey,
-    ).await;
+    )
+    .await;
 
     Ok(())
 }
 
-pub async fn update_test_indexer_after_nullification<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn update_test_indexer_after_nullification<
+    R: RpcConnection,
+    I: Indexer<R> + IndexerType<R>,
+>(
     rpc: &mut R,
     indexer: Arc<Mutex<I>>,
     merkle_tree_pubkey: Pubkey,
@@ -268,11 +312,11 @@ pub async fn update_test_indexer_after_nullification<R: RpcConnection, I: Indexe
         &mut *indexer.lock().await,
         merkle_tree_pubkey,
         batch_index,
-    ).await;
+    )
+    .await;
 
     Ok(())
 }
-
 
 pub async fn update_test_indexer_after_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     rpc: &mut R,
@@ -286,8 +330,9 @@ pub async fn update_test_indexer_after_append<R: RpcConnection, I: Indexer<R> + 
         &mut *indexer.lock().await,
         merkle_tree_pubkey,
         output_queue,
-        num_inserted_zkps
-    ).await;
+        num_inserted_zkps,
+    )
+    .await;
 
     Ok(())
 }

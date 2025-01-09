@@ -5,11 +5,10 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::{
-    forester_epoch::{TreeAccounts, TreeType},
-};
+use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use futures::future::join_all;
 use light_client::{
+    indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -31,7 +30,7 @@ use tokio::{
     time::{sleep, Instant},
 };
 use tracing::{debug, warn};
-use light_client::indexer::Indexer;
+
 use crate::{
     config::QueueConfig,
     epoch_manager::{MerkleProofType, WorkItem},

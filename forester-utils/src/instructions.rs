@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     },
     queue::BatchedQueueAccount,
 };
-use light_client::rpc::RpcConnection;
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_hasher::{Hasher, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -26,7 +26,6 @@ use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
-use light_client::indexer::Indexer;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -45,9 +44,10 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
-) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError> where
+) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError>
+where
     R: RpcConnection,
-    I: Indexer<R> //+ TestIndexerExtensions<R>,
+    I: Indexer<R>, //+ TestIndexerExtensions<R>,
 {
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await
         .map_err(|e| {
