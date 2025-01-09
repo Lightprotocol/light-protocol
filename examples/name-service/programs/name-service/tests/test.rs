@@ -356,7 +356,8 @@ where
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }
 
@@ -435,7 +436,8 @@ where
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }
 
