@@ -145,6 +145,7 @@ use crate::{
     },
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
 };
+use crate::conversions::sdk_to_program_compressed_account_with_merkle_context;
 
 pub struct User {
     pub keypair: Keypair,
@@ -2205,7 +2206,10 @@ where
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+            .get_compressed_accounts_with_merkle_context_by_owner(&self.users[user_index].keypair.pubkey())
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect::<Vec<_>>();
         if input_compressed_accounts.is_empty() {
             return vec![];
         }
@@ -2242,7 +2246,10 @@ where
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_by_owner(pubkey)
+        self.indexer.get_compressed_accounts_with_merkle_context_by_owner(pubkey)
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect()
     }
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {

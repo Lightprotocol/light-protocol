@@ -1566,7 +1566,7 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
         created_output_accounts
             .iter()
             .map(|x| x.compressed_account.clone())
-            .sdk_to_program_compressed_account_with_merkle_context()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect::<Vec<_>>()
             .as_slice(),
         change_lamports,
