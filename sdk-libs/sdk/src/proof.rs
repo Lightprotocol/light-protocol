@@ -35,6 +35,16 @@ pub struct CompressedProof {
     pub c: [u8; 32],
 }
 
+impl Default for CompressedProof {
+    fn default() -> Self {
+        Self {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        }
+    }
+}
+
 #[derive(Debug, AnchorDeserialize, AnchorSerialize)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
