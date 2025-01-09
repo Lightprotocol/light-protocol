@@ -34,19 +34,18 @@ use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
     mock_batched_forester::{self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
-use light_utils::hashchain::create_hash_chain_from_slice;
+use light_utils::{hashchain::create_hash_chain_from_slice, pubkey::Pubkey};
 use light_verifier::CompressedProof;
-use light_zero_copy::{slice_mut::ZeroCopySliceMutUsize, vec::ZeroCopyVecUsize};
+use light_zero_copy::{slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
 use rand::{rngs::StdRng, Rng};
 use serial_test::serial;
-use solana_program::pubkey::Pubkey;
 
 pub fn assert_nullifier_queue_insert(
     pre_account: BatchedMerkleTreeMetadata,
-    pre_batches: ZeroCopySliceMutUsize<Batch>,
-    pre_value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    pre_batches: ZeroCopySliceMutU64<Batch>,
+    pre_value_vecs: Vec<ZeroCopyVecU64<[u8; 32]>>,
     pre_roots: Vec<[u8; 32]>,
-    pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
     merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_indices: Vec<u64>,
@@ -80,10 +79,10 @@ pub fn assert_nullifier_queue_insert(
 /// 3.
 pub fn assert_input_queue_insert(
     mut pre_account: BatchedMerkleTreeMetadata,
-    mut pre_batches: ZeroCopySliceMutUsize<Batch>,
-    mut pre_value_vecs: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    mut pre_batches: ZeroCopySliceMutU64<Batch>,
+    mut pre_value_vecs: Vec<ZeroCopyVecU64<[u8; 32]>>,
     pre_roots: Vec<[u8; 32]>,
-    mut pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    mut pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
     mut merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_hashchain_insert_values: Vec<[u8; 32]>,
@@ -156,7 +155,7 @@ pub fn assert_input_queue_insert(
             pre_hashchains[inserted_batch_index].clear();
             expected_batch.sequence_number = 0;
             expected_batch.advance_state_to_can_be_filled().unwrap();
-            expected_batch.bloom_filter_is_wiped = false;
+            expected_batch.set_bloom_filter_is_not_wiped();
         }
         println!(
             "assert input queue batch update: inserted_batch_index: {}",
@@ -226,7 +225,7 @@ pub fn assert_input_queue_insert(
     let inserted_batch_index = pre_account.queue_metadata.currently_processing_batch_index as usize;
     let mut expected_batch = pre_batches[inserted_batch_index].clone();
     if should_be_wiped {
-        expected_batch.bloom_filter_is_wiped = true;
+        expected_batch.set_bloom_filter_is_wiped();
     }
     assert_eq!(
         merkle_tree_account.batches[inserted_batch_index],
@@ -251,8 +250,8 @@ pub fn assert_input_queue_insert(
 pub fn assert_output_queue_insert(
     mut pre_account: BatchedQueueMetadata,
     mut pre_batches: Vec<Batch>,
-    mut pre_value_store: Vec<ZeroCopyVecUsize<[u8; 32]>>,
-    mut pre_hashchains: Vec<ZeroCopyVecUsize<[u8; 32]>>,
+    mut pre_value_store: Vec<ZeroCopyVecU64<[u8; 32]>>,
+    mut pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
     mut output_account: BatchedQueueAccount,
     insert_values: Vec<[u8; 32]>,
 ) -> Result<(), BatchedMerkleTreeError> {
@@ -428,7 +427,7 @@ async fn test_simulate_transactions() {
 
     let mt_account_size = get_merkle_tree_account_size_default();
     let mut mt_account_data = vec![0; mt_account_size];
-    let mt_pubkey = ACCOUNT_COMPRESSION_PROGRAM_ID;
+    let mt_pubkey = ACCOUNT_COMPRESSION_PROGRAM_ID.into();
 
     let params = InitStateTreeAccountsInstructionData::test_default();
 
@@ -541,6 +540,8 @@ async fn test_simulate_transactions() {
 
             let mut pre_mt_data = mt_account_data.clone();
             let mut pre_account_bytes = output_queue_account_data.clone();
+            let mut pre_account_bytes2 = output_queue_account_data.clone();
+
             let pre_output_account =
                 BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes).unwrap();
             let pre_output_metadata = pre_output_account.get_metadata().clone();
@@ -548,7 +549,7 @@ async fn test_simulate_transactions() {
             let pre_output_value_stores = pre_output_account.value_vecs;
             let pre_output_hashchains = pre_output_account.hashchain_store;
             let pre_output_value_stores_2 =
-                BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes)
+                BatchedQueueAccount::output_queue_from_bytes_mut(&mut pre_account_bytes2)
                     .unwrap()
                     .value_vecs;
             let mut pre_mt_account_bytes = mt_account_data.clone();
@@ -811,7 +812,7 @@ async fn test_simulate_transactions() {
                 new_root,
                 &old_output_account,
                 &old_account,
-                mt_pubkey,
+                mt_pubkey.into(),
             );
             assert_merkle_tree_update(
                 old_account,
@@ -886,7 +887,7 @@ async fn test_e2e() {
     let additional_bytes_rent = 1000;
 
     init_batched_state_merkle_tree_accounts(
-        owner,
+        owner.into(),
         params,
         &mut output_queue_account_data,
         output_queue_pubkey,
@@ -1481,7 +1482,7 @@ async fn test_fill_queues_completely() {
         let additional_bytes_rent = 1000;
 
         init_batched_state_merkle_tree_accounts(
-            owner,
+            owner.into(),
             params.clone(),
             &mut output_queue_account_data,
             output_queue_pubkey,
@@ -1745,7 +1746,7 @@ async fn test_fill_queues_completely() {
                     &mut BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data)
                         .unwrap();
                 let batch = merkle_tree_account.batches.get(0).unwrap();
-                assert!(batch.bloom_filter_is_wiped);
+                assert!(batch.bloom_filter_is_wiped());
             }
             println!(
                 "performed input queue batched update {} created root {:?}",
@@ -1774,9 +1775,9 @@ async fn test_fill_queues_completely() {
             for (i, batch) in merkle_tree_account.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
-                    assert!(batch.bloom_filter_is_wiped);
+                    assert!(batch.bloom_filter_is_wiped());
                 } else {
-                    assert!(!batch.bloom_filter_is_wiped);
+                    assert!(!batch.bloom_filter_is_wiped());
                 }
             }
         }
@@ -1871,7 +1872,7 @@ async fn test_fill_address_tree_completely() {
         let merkle_tree_rent = 1_000_000_000;
 
         init_batched_address_merkle_tree_account(
-            owner,
+            owner.into(),
             params,
             &mut mt_account_data,
             merkle_tree_rent,
@@ -1981,12 +1982,12 @@ async fn test_fill_address_tree_completely() {
                     .unwrap();
             let batch = merkle_tree_account.batches.get(0).unwrap();
             let batch_one = merkle_tree_account.batches.get(1).unwrap();
-            assert!(!batch_one.bloom_filter_is_wiped);
+            assert!(!batch_one.bloom_filter_is_wiped());
 
             if i >= 4 {
-                assert!(batch.bloom_filter_is_wiped);
+                assert!(batch.bloom_filter_is_wiped());
             } else {
-                assert!(!batch.bloom_filter_is_wiped);
+                assert!(!batch.bloom_filter_is_wiped());
             }
         }
         // assert all bloom_filters are inserted
@@ -1997,9 +1998,9 @@ async fn test_fill_address_tree_completely() {
             for (i, batch) in merkle_tree_account.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
-                    assert!(batch.bloom_filter_is_wiped);
+                    assert!(batch.bloom_filter_is_wiped());
                 } else {
-                    assert!(!batch.bloom_filter_is_wiped);
+                    assert!(!batch.bloom_filter_is_wiped());
                 }
             }
         }

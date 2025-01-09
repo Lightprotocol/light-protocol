@@ -21,11 +21,11 @@ pub struct AddressMerkleTreeAccount {
 }
 
 impl GroupAccess for AddressMerkleTreeAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 
@@ -54,7 +54,7 @@ impl AddressMerkleTreeAccount {
         associated_queue: Pubkey,
     ) {
         self.metadata
-            .init(access_metadata, rollover_metadata, associated_queue)
+            .init(access_metadata, rollover_metadata, associated_queue.into())
     }
 }
 

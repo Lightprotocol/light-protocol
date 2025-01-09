@@ -66,18 +66,21 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
 
     assert_eq!(
         merkle_tree_account.metadata.next_merkle_tree,
-        Pubkey::default()
+        Pubkey::default().into()
     );
     let expected_access_meta_data = AccessMetadata {
-        owner: *owner_pubkey,
-        program_owner: program_owner.unwrap_or_default(),
-        forester: forester.unwrap_or_default(),
+        owner: (*owner_pubkey).into(),
+        program_owner: program_owner.unwrap_or_default().into(),
+        forester: forester.unwrap_or_default().into(),
     };
     assert_eq!(
         merkle_tree_account.metadata.access_metadata,
         expected_access_meta_data
     );
-    assert_eq!(merkle_tree_account.metadata.associated_queue, *queue_pubkey);
+    assert_eq!(
+        merkle_tree_account.metadata.associated_queue,
+        (*queue_pubkey).into()
+    );
 
     let merkle_tree = get_indexed_merkle_tree::<
         account_compression::AddressMerkleTreeAccount,

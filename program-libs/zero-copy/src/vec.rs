@@ -14,7 +14,6 @@ use crate::{
     slice_mut::{ZeroCopySliceMut, ZeroCopyTraits},
 };
 
-// pub type ZeroCopyVecUsize<T> = ZeroCopyVec<usize, T>;
 pub type ZeroCopyVecU64<'a, T> = ZeroCopyVec<'a, u64, T>;
 pub type ZeroCopyVecU32<'a, T> = ZeroCopyVec<'a, u32, T>;
 pub type ZeroCopyVecU16<'a, T> = ZeroCopyVec<'a, u16, T>;
@@ -64,7 +63,7 @@ where
         num: usize,
         capacity: L,
         mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<ZeroCopyVec<'a, L, T, PAD>>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
             let (vec, _bytes) = Self::new_at(capacity, bytes)?;
@@ -158,7 +157,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> ZeroCopyVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -244,7 +243,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> IndexMut<usize> for ZeroCopyVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> IndexMut<usize> for ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -257,7 +256,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> Index<usize> for ZeroCopyVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> Index<usize> for ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -302,7 +301,7 @@ where
     }
 }
 
-impl<'a, 'b, L, T, const PAD: bool> ZeroCopyVec<'a, L, T, PAD>
+impl<'b, L, T, const PAD: bool> ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -319,7 +318,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> PartialEq for ZeroCopyVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> PartialEq for ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits + PartialEq,
@@ -331,7 +330,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> fmt::Debug for ZeroCopyVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> fmt::Debug for ZeroCopyVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits + fmt::Debug,

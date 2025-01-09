@@ -267,7 +267,7 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         let merkle_tree_account_info =
             &remaining_accounts[read_only_account.merkle_context.merkle_tree_pubkey_index as usize];
         output_queue
-            .check_is_associated(merkle_tree_account_info.key)
+            .check_is_associated(&(*merkle_tree_account_info.key).into())
             .map_err(ProgramError::from)?;
 
         // Checks inclusion by index in the output queue if leaf index should exist in the output queue.

@@ -253,7 +253,7 @@ fn add_queue_bundle_v1<'a, 'info>(
         check_queue_type(&queue.metadata.queue_type, &queue_type).map_err(ProgramError::from)?;
         queue.metadata.associated_merkle_tree
     };
-    if merkle_tree.key() != associated_merkle_tree {
+    if merkle_tree.key() != associated_merkle_tree.into() {
         msg!(
             "Queue account {:?} is not associated with Merkle tree  {:?}",
             queue.key(),
@@ -289,7 +289,7 @@ fn add_queue_bundle_v2<'a, 'info>(
         BatchedQueueAccount::output_queue_from_account_info_mut(output_queue)
             .map_err(ProgramError::from)?;
     output_queue_account
-        .check_is_associated(merkle_tree.key)
+        .check_is_associated(&merkle_tree.key().into())
         .map_err(ProgramError::from)?;
 
     queue_map

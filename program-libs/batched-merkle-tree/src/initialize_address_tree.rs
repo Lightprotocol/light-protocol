@@ -4,9 +4,10 @@ use light_merkle_tree_metadata::{
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
 use light_utils::{
-    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, UtilsError,
+    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
+    UtilsError,
 };
-use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+use solana_program::account_info::AccountInfo;
 
 use crate::{
     constants::{
@@ -98,11 +99,11 @@ impl Default for InitAddressTreeAccountsInstructionData {
 /// Initializes a batched address Merkle tree account.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialized the address Merkle tree account.
-pub fn init_batched_address_merkle_tree_from_account_info<'a>(
+pub fn init_batched_address_merkle_tree_from_account_info(
     params: InitAddressTreeAccountsInstructionData,
     owner: Pubkey,
-    mt_account_info: &AccountInfo<'a>,
-) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+    mt_account_info: &AccountInfo<'_>,
+) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
@@ -118,18 +119,22 @@ pub fn init_batched_address_merkle_tree_from_account_info<'a>(
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
         .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
-    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)
+    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)?;
+    Ok(())
 }
 
-pub fn init_batched_address_merkle_tree_account<'a>(
+pub fn init_batched_address_merkle_tree_account(
     owner: Pubkey,
     params: InitAddressTreeAccountsInstructionData,
     mt_account_data: &mut [u8],
     merkle_tree_rent: u64,
-) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount<'_>, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let height = params.height;
-
+    // let (discriminator, mt_account_data) = mt_account_data.split_at_mut(DISCRIMINATOR_LEN);
+    // let account_data_len = mt_account_data.len();
+    // println!("account_data_len {:?}", account_data_len);
+    // set_discriminator::<BatchedMerkleTreeAccount<'_>>(discriminator)?;
     let rollover_fee = match params.rollover_threshold {
         Some(rollover_threshold) => {
             let rent = merkle_tree_rent;

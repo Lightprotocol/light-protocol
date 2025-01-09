@@ -80,15 +80,15 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             merkle_tree_account_loaded
                 .metadata
                 .rollover(
-                    ctx.accounts.old_queue.key(),
-                    ctx.accounts.new_address_merkle_tree.key(),
+                    ctx.accounts.old_queue.key().into(),
+                    ctx.accounts.new_address_merkle_tree.key().into(),
                 )
                 .map_err(ProgramError::from)?;
             queue_account_loaded
                 .metadata
                 .rollover(
-                    ctx.accounts.old_address_merkle_tree.key(),
-                    ctx.accounts.new_queue.key(),
+                    ctx.accounts.old_address_merkle_tree.key().into(),
+                    ctx.accounts.new_queue.key().into(),
                 )
                 .map_err(ProgramError::from)?;
 
@@ -114,9 +114,9 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         process_initialize_address_merkle_tree(
             &ctx.accounts.new_address_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
-            merkle_tree_metadata.access_metadata.owner,
-            Some(merkle_tree_metadata.access_metadata.program_owner),
-            Some(merkle_tree_metadata.access_metadata.forester),
+            merkle_tree_metadata.access_metadata.owner.into(),
+            Some(merkle_tree_metadata.access_metadata.program_owner.into()),
+            Some(merkle_tree_metadata.access_metadata.forester.into()),
             merkle_tree.height as u32,
             merkle_tree.changelog.capacity() as u64,
             merkle_tree.roots.capacity() as u64,
@@ -138,9 +138,9 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             &ctx.accounts.new_queue.to_account_info(),
             &ctx.accounts.new_queue,
             queue_metadata.rollover_metadata.index,
-            queue_metadata.access_metadata.owner,
-            Some(queue_metadata.access_metadata.program_owner),
-            Some(queue_metadata.access_metadata.forester),
+            queue_metadata.access_metadata.owner.into(),
+            Some(queue_metadata.access_metadata.program_owner.into()),
+            Some(queue_metadata.access_metadata.forester.into()),
             ctx.accounts.new_address_merkle_tree.key(),
             queue.hash_set.get_capacity() as u16,
             queue.hash_set.sequence_threshold as u64,

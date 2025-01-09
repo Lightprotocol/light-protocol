@@ -73,7 +73,7 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         old_merkle_tree_account,
         new_mt_data,
         merkle_tree_rent,
-        ctx.accounts.new_address_merkle_tree.key(),
+        ctx.accounts.new_address_merkle_tree.key().into(),
         network_fee,
     )
     .map_err(ProgramError::from)?;

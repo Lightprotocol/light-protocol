@@ -3,7 +3,8 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use solana_program::pubkey::Pubkey;
+use light_utils::pubkey::Pubkey;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
 
@@ -15,10 +16,21 @@ pub enum TreeType {
     BatchedState = 3,
     BatchedAddress = 4,
 }
-
 #[repr(C)]
 #[derive(
-    AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default, Clone, Copy, Pod, Zeroable,
+    AnchorDeserialize,
+    AnchorSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Clone,
+    Copy,
+    Pod,
+    Zeroable,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
 )]
 pub struct MerkleTreeMetadata {
     pub access_metadata: AccessMetadata,

@@ -194,7 +194,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     next_index,
                     account.metadata.rollover_metadata.network_fee,
                     account.metadata.access_metadata.program_owner,
-                    account.metadata.associated_merkle_tree,
+                    account.metadata.associated_merkle_tree.into(),
                 )
             }
             _ => {
@@ -210,9 +210,9 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
     } else {
         None
     };
-    if program_owner != Pubkey::default() {
+    if program_owner != Pubkey::default().into() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == program_owner {
+            if *invoking_program == program_owner.into() {
                 return Ok((next_index, network_fee, seq, merkle_tree_pubkey));
             }
         }
@@ -262,9 +262,9 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         None
     };
 
-    if metadata.access_metadata.program_owner != Pubkey::default() {
+    if metadata.access_metadata.program_owner != Pubkey::default().into() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == metadata.access_metadata.program_owner {
+            if *invoking_program == metadata.access_metadata.program_owner.into() {
                 msg!(
                     "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
                     invoking_program,

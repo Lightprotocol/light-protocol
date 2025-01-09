@@ -1,5 +1,5 @@
 use light_merkle_tree_metadata::utils::if_equals_none;
-use solana_program::pubkey::Pubkey;
+use light_utils::pubkey::Pubkey;
 
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -11,8 +11,8 @@ use crate::{
 };
 
 pub fn rollover_batched_address_tree<'a>(
-    old_merkle_tree: &mut BatchedMerkleTreeAccount,
-    new_mt_data: &mut [u8],
+    old_merkle_tree: &mut BatchedMerkleTreeAccount<'a>,
+    new_mt_data: &'a mut [u8],
     new_mt_rent: u64,
     new_mt_pubkey: Pubkey,
     network_fee: Option<u64>,
@@ -96,6 +96,7 @@ pub fn assert_address_mt_roll_over(
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)
         .unwrap();
+
     let old_mt_account =
         BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut old_mt_account_data).unwrap();
     assert_eq!(old_mt_account.get_metadata(), &old_ref_mt_account);

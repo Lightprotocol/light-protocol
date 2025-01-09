@@ -4,8 +4,8 @@ use super::constants::CPI_AUTHORITY_PDA_SEED;
 use crate::{errors::AccountCompressionErrorCode, RegisteredProgram};
 
 pub trait GroupAccess {
-    fn get_owner(&self) -> &Pubkey;
-    fn get_program_owner(&self) -> &Pubkey;
+    fn get_owner(&self) -> Pubkey;
+    fn get_program_owner(&self) -> Pubkey;
 }
 
 pub trait GroupAccounts<'info> {
@@ -50,7 +50,7 @@ pub fn check_signer_is_registered_or_authority<
             }
         }
         None => {
-            if ctx.accounts.get_authority().key() == *checked_account.get_owner() {
+            if ctx.accounts.get_authority().key() == checked_account.get_owner() {
                 Ok(())
             } else {
                 Err(AccountCompressionErrorCode::InvalidAuthority.into())

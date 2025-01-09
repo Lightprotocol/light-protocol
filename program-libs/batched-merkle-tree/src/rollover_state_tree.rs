@@ -1,5 +1,6 @@
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use solana_program::{msg, pubkey::Pubkey};
+use light_utils::pubkey::Pubkey;
+use solana_program::msg;
 
 use crate::{
     errors::BatchedMerkleTreeError,

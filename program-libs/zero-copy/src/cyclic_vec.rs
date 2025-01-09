@@ -6,8 +6,9 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use crate::{add_padding, errors::ZeroCopyError, slice_mut::ZeroCopyTraits, vec::ZeroCopyVec};
 use zerocopy::Ref;
+
+use crate::{add_padding, errors::ZeroCopyError, slice_mut::ZeroCopyTraits, vec::ZeroCopyVec};
 
 pub type ZeroCopyCyclicVecU32<'a, T> = ZeroCopyCyclicVec<'a, u32, T>;
 pub type ZeroCopyCyclicVecU64<'a, T> = ZeroCopyCyclicVec<'a, u64, T>;
@@ -55,7 +56,7 @@ where
         num: usize,
         capacity: L,
         mut account_data: &'a mut [u8],
-    ) -> Result<(Vec<ZeroCopyCyclicVec<'a, L, T, PAD>>, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
             let (vec, _bytes) = Self::new_at(capacity, account_data)?;
@@ -107,7 +108,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> ZeroCopyCyclicVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> ZeroCopyCyclicVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -302,7 +303,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> IndexMut<usize> for ZeroCopyCyclicVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> IndexMut<usize> for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -315,7 +316,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> Index<usize> for ZeroCopyCyclicVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> Index<usize> for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits,
@@ -330,7 +331,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> PartialEq for ZeroCopyCyclicVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> PartialEq for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits + PartialEq,
     T: ZeroCopyTraits + PartialEq,
@@ -342,7 +343,7 @@ where
     }
 }
 
-impl<'a, L, T, const PAD: bool> fmt::Debug for ZeroCopyCyclicVec<'a, L, T, PAD>
+impl<L, T, const PAD: bool> fmt::Debug for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
     L: ZeroCopyTraits,
     T: ZeroCopyTraits + Debug,

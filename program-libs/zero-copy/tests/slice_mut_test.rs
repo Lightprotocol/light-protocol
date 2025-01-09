@@ -6,10 +6,9 @@ use light_zero_copy::{
     slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutU64},
 };
 use rand::{distributions::Standard, prelude::*};
-use zerocopy::IntoBytes;
 use zerocopy::{
     little_endian::{U16, U32, U64},
-    FromBytes, Immutable, KnownLayout, Unaligned,
+    FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned,
 };
 
 fn test_zero_copy_slice_mut_new<LEN, T>(length: LEN)

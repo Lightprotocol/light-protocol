@@ -1,12 +1,13 @@
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
-use light_zero_copy::vec::ZeroCopyVecUsize;
+use light_zero_copy::vec::ZeroCopyVecU64;
 use solana_program::msg;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::errors::BatchedMerkleTreeError;
 
-#[repr(u64)]
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
+#[repr(u64)]
 pub enum BatchState {
     /// Batch can be filled with values.
     CanBeFilled,
@@ -16,12 +17,29 @@ pub enum BatchState {
     Full,
 }
 
+impl From<u64> for BatchState {
+    fn from(value: u64) -> Self {
+        match value {
+            0 => BatchState::CanBeFilled,
+            1 => BatchState::Inserted,
+            2 => BatchState::Full,
+            _ => panic!("Invalid BatchState value"),
+        }
+    }
+}
+
+impl From<BatchState> for u64 {
+    fn from(val: BatchState) -> Self {
+        val as u64
+    }
+}
+
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, KnownLayout, Immutable, IntoBytes, FromBytes)]
 pub struct Batch {
     /// Number of inserted elements in the zkp batch.
     num_inserted: u64,
-    state: BatchState,
+    state: u64,
     current_zkp_batch_index: u64,
     num_inserted_zkps: u64,
     /// Number of iterations for the bloom_filter.
@@ -34,11 +52,12 @@ pub struct Batch {
     /// Sequence number when it is save to clear the batch without advancing to
     /// the saved root index.
     pub sequence_number: u64,
-    pub root_index: u32,
     pub start_index: u64,
+    pub root_index: u32,
     /// Placeholder for forester to signal that the bloom filter is wiped
     /// already.
-    pub bloom_filter_is_wiped: bool,
+    bloom_filter_is_wiped: u8,
+    _padding: [u8; 3],
 }
 
 impl Batch {
@@ -54,29 +73,42 @@ impl Batch {
             bloom_filter_capacity,
             batch_size,
             num_inserted: 0,
-            state: BatchState::CanBeFilled,
+            state: BatchState::CanBeFilled.into(),
             zkp_batch_size,
             current_zkp_batch_index: 0,
             num_inserted_zkps: 0,
             sequence_number: 0,
             root_index: 0,
             start_index,
-            bloom_filter_is_wiped: false,
+            bloom_filter_is_wiped: 0,
+            _padding: [0u8; 3],
         }
     }
 
     pub fn get_state(&self) -> BatchState {
-        self.state
+        self.state.into()
+    }
+
+    pub fn bloom_filter_is_wiped(&self) -> bool {
+        self.bloom_filter_is_wiped == 1
+    }
+
+    pub fn set_bloom_filter_is_wiped(&mut self) {
+        self.bloom_filter_is_wiped = 1;
+    }
+
+    pub fn set_bloom_filter_is_not_wiped(&mut self) {
+        self.bloom_filter_is_wiped = 0;
     }
 
     /// fill -> full -> inserted -> fill
     pub fn advance_state_to_can_be_filled(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        if self.state == BatchState::Inserted {
-            self.state = BatchState::CanBeFilled;
+        if self.get_state() == BatchState::Inserted {
+            self.state = BatchState::CanBeFilled.into();
         } else {
             msg!(
                 "Batch is in incorrect state {} expected Inserted 3",
-                self.state as u64
+                self.state
             );
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
@@ -85,12 +117,12 @@ impl Batch {
 
     /// fill -> full -> inserted -> fill
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        if self.state == BatchState::Full {
-            self.state = BatchState::Inserted;
+        if self.get_state() == BatchState::Full {
+            self.state = BatchState::Inserted.into();
         } else {
             msg!(
                 "Batch is in incorrect state {} expected ReadyToUpdateTree 2",
-                self.state as u64
+                self.state
             );
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
@@ -99,12 +131,12 @@ impl Batch {
 
     /// fill -> full -> inserted -> fill
     pub fn advance_state_to_full(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        if self.state == BatchState::CanBeFilled {
-            self.state = BatchState::Full;
+        if self.get_state() == BatchState::CanBeFilled {
+            self.state = BatchState::Full.into();
         } else {
             msg!(
                 "Batch is in incorrect state {} expected ReadyToUpdateTree 2",
-                self.state as u64
+                self.state
             );
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
@@ -112,7 +144,7 @@ impl Batch {
     }
 
     pub fn get_first_ready_zkp_batch(&self) -> Result<u64, BatchedMerkleTreeError> {
-        if self.state == BatchState::Inserted {
+        if self.get_state() == BatchState::Inserted {
             Err(BatchedMerkleTreeError::BatchAlreadyInserted)
         } else if self.current_zkp_batch_index > self.num_inserted_zkps {
             Ok(self.num_inserted_zkps)
@@ -140,9 +172,9 @@ impl Batch {
     pub fn store_value(
         &mut self,
         value: &[u8; 32],
-        value_store: &mut ZeroCopyVecUsize<[u8; 32]>,
+        value_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.state != BatchState::CanBeFilled {
+        if self.get_state() != BatchState::CanBeFilled {
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
         value_store.push(*value)?;
@@ -152,8 +184,8 @@ impl Batch {
     pub fn store_and_hash_value(
         &mut self,
         value: &[u8; 32],
-        value_store: &mut ZeroCopyVecUsize<[u8; 32]>,
-        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
+        value_store: &mut ZeroCopyVecU64<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.store_value(value, value_store)?;
         self.add_to_hash_chain(value, hashchain_store)
@@ -166,7 +198,7 @@ impl Batch {
         bloom_filter_value: &[u8; 32],
         hashchain_value: &[u8; 32],
         store: &mut [u8],
-        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)?;
@@ -177,7 +209,7 @@ impl Batch {
     pub fn add_to_hash_chain(
         &mut self,
         value: &[u8; 32],
-        hashchain_store: &mut ZeroCopyVecUsize<[u8; 32]>,
+        hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
             hashchain_store.push(*value)?;
@@ -236,7 +268,7 @@ impl Batch {
         // Batch has been successfully inserted into the tree.
         if self.num_inserted_zkps == num_zkp_batches {
             self.current_zkp_batch_index = 0;
-            self.state = BatchState::Inserted;
+            self.state = BatchState::Inserted.into();
             self.num_inserted_zkps = 0;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
@@ -304,7 +336,7 @@ mod tests {
         assert_eq!(batch.get_state(), BatchState::Inserted);
         assert_eq!(batch.get_num_inserted(), 0);
         let mut ref_batch = get_test_batch();
-        ref_batch.state = BatchState::Inserted;
+        ref_batch.state = BatchState::Inserted.into();
         ref_batch.root_index = root_index;
         ref_batch.sequence_number = sequence_number + root_history_length as u64;
         assert_eq!(batch, ref_batch);
@@ -317,18 +349,18 @@ mod tests {
         let mut value_store_bytes =
             vec![
                 0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
             ];
         let mut value_store =
-            ZeroCopyVecUsize::new(batch.batch_size as usize, &mut value_store_bytes).unwrap();
+            ZeroCopyVecU64::new(batch.batch_size, &mut value_store_bytes).unwrap();
         let mut hashchain_store_bytes = vec![
-                0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
-                    batch.get_hashchain_store_len()
-                )
-            ];
-        let mut hashchain_store = ZeroCopyVecUsize::new(
-            batch.get_hashchain_store_len(),
+            0u8;
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
+                batch.get_hashchain_store_len()
+            )
+        ];
+        let mut hashchain_store = ZeroCopyVecU64::new(
+            batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -347,7 +379,7 @@ mod tests {
                 ref_batch.current_zkp_batch_index += 1;
             }
             if ref_batch.current_zkp_batch_index == ref_batch.get_num_zkp_batches() {
-                ref_batch.state = BatchState::Full;
+                ref_batch.state = BatchState::Full.into();
                 ref_batch.num_inserted = 0;
             }
             assert_eq!(batch, ref_batch);
@@ -374,13 +406,13 @@ mod tests {
         let mut store = vec![0u8; 20_000];
 
         let mut hashchain_store_bytes = vec![
-                0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
-                    batch.get_hashchain_store_len()
-                )
-            ];
-        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
-            batch.get_hashchain_store_len(),
+            0u8;
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
+                batch.get_hashchain_store_len()
+            )
+        ];
+        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -412,7 +444,7 @@ mod tests {
                 ref_batch.current_zkp_batch_index += 1;
             }
             if i == batch.batch_size - 1 {
-                ref_batch.state = BatchState::Full;
+                ref_batch.state = BatchState::Full.into();
                 ref_batch.num_inserted = 0;
             }
             assert_eq!(batch, ref_batch);
@@ -424,13 +456,13 @@ mod tests {
     fn test_add_to_hash_chain() {
         let mut batch = get_test_batch();
         let mut hashchain_store_bytes = vec![
-                0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
-                    batch.get_hashchain_store_len()
-                )
-            ];
-        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
-            batch.get_hashchain_store_len(),
+            0u8;
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
+                batch.get_hashchain_store_len()
+            )
+        ];
+        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -462,13 +494,13 @@ mod tests {
         let value = [1u8; 32];
         let mut store = vec![0u8; 20_000];
         let mut hashchain_store_bytes = vec![
-                0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
-                    batch.get_hashchain_store_len()
-                )
-            ];
-        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
-            batch.get_hashchain_store_len(),
+            0u8;
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
+                batch.get_hashchain_store_len()
+            )
+        ];
+        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -554,19 +586,18 @@ mod tests {
         let mut value_store_bytes =
             vec![
                 0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
             ];
         let mut value_store =
-            ZeroCopyVecUsize::<[u8; 32]>::new(batch.batch_size as usize, &mut value_store_bytes)
-                .unwrap();
+            ZeroCopyVecU64::<[u8; 32]>::new(batch.batch_size, &mut value_store_bytes).unwrap();
         let mut hashchain_store_bytes = vec![
-                0u8;
-                ZeroCopyVecUsize::<[u8; 32]>::required_size_for_capacity(
-                    batch.get_hashchain_store_len()
-                )
-            ];
-        let mut hashchain_store = ZeroCopyVecUsize::<[u8; 32]>::new(
-            batch.get_hashchain_store_len(),
+            0u8;
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
+                batch.get_hashchain_store_len()
+            )
+        ];
+        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();

@@ -29,22 +29,22 @@ pub struct AppendLeaves<'info> {
 }
 
 impl GroupAccess for StateMerkleTreeAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 
 impl GroupAccess for BatchedQueueMetadata {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 

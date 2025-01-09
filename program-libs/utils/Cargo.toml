@@ -6,6 +6,10 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+[features]
+default = []
+anchor = ["anchor-lang"]
+
 [dependencies]
 anyhow = "1.0"
 ark-ff = "0.4"
@@ -16,9 +20,12 @@ thiserror = "1.0"
 solana-program = { workspace = true }
 ark-bn254 = "0.4.0"
 rand = "0.8"
+zerocopy = {workspace = true, features = ["derive"]}
+borsh = {workspace = true}
+bytemuck = {workspace = true}
+anchor-lang = {workspace = true , optional = true}
 
 [dev-dependencies]
-bytemuck = "1.17"
 memoffset = "0.9"
 light-poseidon = {workspace = true}
 borsh = {workspace = true}

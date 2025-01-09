@@ -2858,6 +2858,7 @@ dependencies = [
  "solana-program",
  "thiserror",
  "tokio",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -3038,8 +3039,10 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.3",
  "bytemuck",
+ "light-utils 1.1.0",
  "solana-program",
  "thiserror",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -3262,6 +3265,7 @@ dependencies = [
 name = "light-utils"
 version = "1.1.0"
 dependencies = [
+ "anchor-lang",
  "anyhow",
  "ark-bn254",
  "ark-ff",
@@ -3275,6 +3279,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-program",
  "thiserror",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]

@@ -5,8 +5,10 @@ use light_merkle_tree_metadata::{
     queue::{QueueMetadata, QueueType},
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
-use light_utils::{account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee};
-use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use light_utils::{
+    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
+};
+use solana_program::{account_info::AccountInfo, msg};
 
 use crate::{
     batch_metadata::BatchMetadata,
@@ -116,11 +118,11 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// 2. Initialize the output queue and state Merkle tree accounts.
 pub fn init_batched_state_merkle_tree_from_account_info<'a>(
     params: InitStateTreeAccountsInstructionData,
-    owner: Pubkey,
+    owner: solana_program::pubkey::Pubkey,
     merkle_tree_account_info: &AccountInfo<'a>,
     queue_account_info: &AccountInfo<'a>,
     additional_bytes_rent: u64,
-) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let queue_rent;
     let merkle_tree_rent;
@@ -150,16 +152,17 @@ pub fn init_batched_state_merkle_tree_from_account_info<'a>(
     let mt_data = &mut merkle_tree_account_info.try_borrow_mut_data()?;
 
     init_batched_state_merkle_tree_accounts(
-        owner,
+        owner.into(),
         params,
         queue_data,
-        *queue_account_info.key,
+        (*queue_account_info.key).into(),
         queue_rent,
         mt_data,
-        *merkle_tree_account_info.key,
+        (*merkle_tree_account_info.key).into(),
         merkle_tree_rent,
         additional_bytes_rent,
-    )
+    )?;
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -169,7 +172,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
     output_queue_account_data: &mut [u8],
     output_queue_pubkey: Pubkey,
     queue_rent: u64,
-    mt_account_data: &mut [u8],
+    mt_account_data: &'a mut [u8],
     mt_pubkey: Pubkey,
     merkle_tree_rent: u64,
     additional_bytes_rent: u64,
@@ -177,7 +180,6 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
     let num_batches_input_queue = params.input_queue_num_batches;
     let num_batches_output_queue = params.output_queue_num_batches;
     let height = params.height;
-
     // Output queue
     {
         let rollover_fee = match params.rollover_threshold {
@@ -206,7 +208,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             associated_merkle_tree: mt_pubkey,
         };
 
-        BatchedQueueAccount::init(
+        let batched_queue_account = BatchedQueueAccount::init(
             output_queue_account_data,
             metadata,
             num_batches_output_queue,
@@ -215,6 +217,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             0,
             0,
         )?;
+        println!("batched_queue_account {:?}", batched_queue_account.batches);
     }
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),
@@ -308,7 +311,7 @@ pub fn assert_state_mt_zero_copy_inited(
 ) {
     let account = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited(
+    _assert_mt_zero_copy_inited::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
         account,
         ref_account,
         num_iters,
@@ -322,13 +325,20 @@ pub fn assert_address_mt_zero_copy_inited(
     ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
+    use crate::{constants::BATCHED_ADDRESS_TREE_TYPE, merkle_tree::BatchedMerkleTreeAccount};
+
     let account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited(account, ref_account, num_iters, TreeType::Address as u64);
+    _assert_mt_zero_copy_inited::<BATCHED_ADDRESS_TREE_TYPE>(
+        account,
+        ref_account,
+        num_iters,
+        TreeType::Address as u64,
+    );
 }
 
 #[cfg(not(target_os = "solana"))]
-fn _assert_mt_zero_copy_inited(
+fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
     mut account: BatchedMerkleTreeAccount,
     ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
@@ -389,6 +399,7 @@ fn _assert_mt_zero_copy_inited(
     );
 }
 
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct CreateOutputQueueParams {
     pub owner: Pubkey,

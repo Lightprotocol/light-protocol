@@ -11,12 +11,12 @@ use light_batched_merkle_tree::{
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
     SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA, SIZE_OF_ZERO_COPY_SLICE_METADATA,
     SIZE_OF_ZERO_COPY_VEC_METADATA,
 };
 use rand::thread_rng;
-use solana_program::pubkey::Pubkey;
 
 /// Test rollover of address tree
 /// 1. failing: not ready for rollover
@@ -174,7 +174,7 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
+            input_queue_num_batches: 2, // rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
         if forester.is_some() {

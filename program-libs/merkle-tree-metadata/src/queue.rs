@@ -3,13 +3,26 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use solana_program::pubkey::Pubkey;
+use light_utils::pubkey::Pubkey;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
 
 #[repr(C)]
 #[derive(
-    AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default, Pod, Zeroable, Clone, Copy,
+    AnchorDeserialize,
+    AnchorSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Pod,
+    Zeroable,
+    Clone,
+    Copy,
+    Immutable,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
 )]
 pub struct QueueMetadata {
     pub access_metadata: AccessMetadata,

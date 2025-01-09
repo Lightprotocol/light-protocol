@@ -26,6 +26,7 @@ light-macros = {workspace = true}
 anchor-lang = { workspace = true , optional = true }
 bytemuck = { workspace = true }
 light-bounded-vec = { workspace = true }
+zerocopy = "0.8.14"
 
 [dev-dependencies]
 rand = "0.8.5"
