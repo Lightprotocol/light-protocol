@@ -581,6 +581,27 @@ impl<R> TestIndexerExtensions<R> for TestIndexer<R>
 where
     R: RpcConnection + MerkleTreeExt,
 {
+    
+    fn get_address_merkle_tree(
+        &self,
+        merkle_tree_pubkey: Pubkey,
+    ) -> Option<&AddressMerkleTreeBundle> {
+        self.address_merkle_trees
+            .iter()
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+    }
+    
+    /// deserializes an event
+    /// adds the output_compressed_accounts to the compressed_accounts
+    /// removes the input_compressed_accounts from the compressed_accounts
+    /// adds the input_compressed_accounts to the nullified_compressed_accounts
+    /// deserialiazes token data from the output_compressed_accounts
+    /// adds the token_compressed_accounts to the token_compressed_accounts
+    fn add_compressed_accounts_with_token_data(&mut self, slot: u64, event: &PublicTransactionEvent) {
+        self.add_event_and_compressed_accounts(slot, event);
+    }
+
+
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
         let decoded_hash: [u8; 32] = bs58::decode(account_hash)
             .into_vec()
@@ -1529,15 +1550,6 @@ where
         self.add_event_and_compressed_accounts(slot, &event);
     }
 
-    /// deserializes an event
-    /// adds the output_compressed_accounts to the compressed_accounts
-    /// removes the input_compressed_accounts from the compressed_accounts
-    /// adds the input_compressed_accounts to the nullified_compressed_accounts
-    /// deserialiazes token data from the output_compressed_accounts
-    /// adds the token_compressed_accounts to the token_compressed_accounts
-    pub fn add_compressed_accounts_with_token_data(&mut self, slot: u64, event: &PublicTransactionEvent) {
-        self.add_event_and_compressed_accounts(slot, event);
-    }
 
     /// returns the compressed sol balance of the owner pubkey
     pub fn get_compressed_balance(&self, owner: &Pubkey) -> u64 {
@@ -1874,14 +1886,5 @@ where
             proofs.push(proof);
         }
         Ok(proofs)
-    }
-
-    pub fn get_address_merkle_tree(
-        &self,
-        merkle_tree_pubkey: Pubkey,
-    ) -> Option<&AddressMerkleTreeBundle> {
-        self.address_merkle_trees
-            .iter()
-            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
     }
 }

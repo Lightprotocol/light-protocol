@@ -10,6 +10,13 @@ use solana_sdk::signature::Keypair;
 
 #[async_trait]
 pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
+    fn get_address_merkle_tree(
+        &self,
+        merkle_tree_pubkey: Pubkey,
+    ) -> Option<&AddressMerkleTreeBundle>;
+
+    fn add_compressed_accounts_with_token_data(&mut self, slot: u64, event: &PublicTransactionEvent);
+
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 
     fn address_tree_updated(
