@@ -581,7 +581,7 @@ impl<R> TestIndexerExtensions<R> for TestIndexer<R>
 where
     R: RpcConnection + MerkleTreeExt,
 {
-    
+
     fn get_address_merkle_tree(
         &self,
         merkle_tree_pubkey: Pubkey,
@@ -590,7 +590,7 @@ where
             .iter()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
     }
-    
+
     /// deserializes an event
     /// adds the output_compressed_accounts to the compressed_accounts
     /// removes the input_compressed_accounts from the compressed_accounts
