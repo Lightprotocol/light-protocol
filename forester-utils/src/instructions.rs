@@ -389,8 +389,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         merkle_proofs.push(proof.proof.clone());
         tx_hashes.push(leaf_info.tx_hash);
         let index_bytes = leaf_info.leaf_index.to_be_bytes();
-        let nullifier =
-            Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        let nullifier = Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
         nullifiers.push(nullifier);
     }
 
