@@ -1,44 +1,75 @@
+name: rust
+
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - ".cargo/**"
       - "**/*.rs"
       - "**/Cargo.*"
-      - "prover/server/**"
+      - "prover/client/**"
       - ".github/workflows/rust.yml"
   pull_request:
-    branches:
-      - "*"
+    branches: ["*"]
     paths:
       - "**/*.rs"
       - "**/Cargo.*"
-      - "prover/server/**"
+      - "prover/client/**"
       - ".github/workflows/rust.yml"
-
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-
-name: rust
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUST_MIN_STACK: 8388608
+  RUSTFLAGS: "-D warnings"
+
 jobs:
   test:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    container:
-      options: --memory=4g
+    outputs:
+      timing: ${{ steps.test-timing.outputs.timing }}
+    strategy:
+      matrix:
+        group:
+          - name: concurrent-merkle-tree
+            packages: light-concurrent-merkle-tree
+          - name: program-libs
+            packages: >-
+              aligned-sized
+              light-batched-merkle-tree
+              light-bloom-filter
+              light-hasher
+              light-utils
+              light-verifier
+              light-merkle-tree-metadata
+              light-zero-copy
+              light-hash-set
+              light-indexed-merkle-tree
+          - name: sdk-libs
+            packages: >-
+              light-macros
+              light-sdk
+              light-program-test
+              light-client
+          - name: program-tests
+            packages: >-
+              account-compression-test
+              compressed-token-test
+              e2e-test
+              registry-test
+              system-cpi-test
+              system-test
+              sdk-test
+      fail-fast: false
+    name: Test ${{ matrix.group.name }}
+    
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
@@ -47,33 +78,69 @@ jobs:
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-      # concurrent merkle tree crate must run in isolation because otherwise it
-      # tries to use the idl-build feature (which fails).
-      - name: Test client
+      - name: Run tests
+        id: test-timing
         run: |
           source ./scripts/devenv.sh
-          echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" \
-            cargo test --all-targets --package light-client
-
-      - name: Test workspace (excluding light-concurrent-merkle-tree)
+          {
+            echo "Testing group: ${{ matrix.group.name }}"
+            echo "Packages: ${{ matrix.group.packages }}"
+            echo "Rust version: $(rustc --version)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          
+          # Function to format time duration
+          format_duration() {
+            local duration="$1"
+            local minutes=$((duration / 60))
+            local seconds=$((duration % 60))
+            echo "${minutes}m ${seconds}s"
+          }
+          
+          # Record group start time
+          group_start=$(date +%s)
+          
+          # Convert space-separated packages into array
+          readarray -t packages <<< "$(echo "${{ matrix.group.packages }}" | tr ' ' '\n')"
+          
+          # Test each package and measure time
+          for pkg in "${packages[@]}"; do
+            if [[ -n "$pkg" ]]; then  # Skip empty lines
+              echo "::group::Testing ${pkg}"
+              start=$(date +%s)
+              
+              cargo test -p "${pkg}" || exit 1
+              
+              end=$(date +%s)
+              duration=$((end - start))
+              formatted_time=$(format_duration "$duration")
+              echo "Package ${pkg} completed in ${formatted_time}"
+              echo "::endgroup::"
+            fi
+          done
+          
+          # Record and print group total time
+          group_end=$(date +%s)
+          group_duration=$((group_end - group_start))
+          formatted_group_time=$(format_duration "$group_duration")
+          
+          # Create timing report with simplified output
+          echo "timing=${{ matrix.group.name }}:${formatted_group_time}" >> "$GITHUB_OUTPUT"
+          echo "Group ${{ matrix.group.name }} total time: ${formatted_group_time}" >> "$GITHUB_STEP_SUMMARY"
+  
+  collect-times:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create timing summary
         run: |
-          source ./scripts/devenv.sh
-          echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" \
-            cargo test --all-targets --workspace \
-            --exclude light-client \
-            --exclude light-concurrent-merkle-tree \
-            --exclude photon-api \
-            --exclude forester \
-            --exclude name-service \
-            --exclude mixed-accounts
-
-      - name: Test light-concurrent-merkle-tree
-        run: |
-          source ./scripts/devenv.sh
-          echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --package light-concurrent-merkle-tree
-
-      - name: Memory status
-        run: free -h
+          {
+            echo "# Test Execution Times"
+            echo "| Group | Time |"
+            echo "|-------|------|"
+            for timing in ${{ needs.test.outputs.timing }}; do
+              group="${timing%%:*}"
+              time="${timing#*:}"
+              echo "| $group | $time |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
