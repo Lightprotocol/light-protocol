@@ -347,16 +347,13 @@ mod tests {
         let mut batch = get_test_batch();
 
         let mut value_store_bytes =
-            vec![
-                0u8;
-                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
-            ];
+            vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
         let mut value_store =
             ZeroCopyVecU64::new(batch.batch_size, &mut value_store_bytes).unwrap();
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len()
+                batch.get_hashchain_store_len() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::new(
@@ -408,7 +405,7 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len()
+                batch.get_hashchain_store_len() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
@@ -458,7 +455,7 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len()
+                batch.get_hashchain_store_len() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
@@ -496,7 +493,7 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len()
+                batch.get_hashchain_store_len() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
@@ -584,16 +581,13 @@ mod tests {
             Err(BatchedMerkleTreeError::BatchNotReady.into())
         );
         let mut value_store_bytes =
-            vec![
-                0u8;
-                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size as usize)
-            ];
+            vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
         let mut value_store =
             ZeroCopyVecU64::<[u8; 32]>::new(batch.batch_size, &mut value_store_bytes).unwrap();
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len()
+                batch.get_hashchain_store_len() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(

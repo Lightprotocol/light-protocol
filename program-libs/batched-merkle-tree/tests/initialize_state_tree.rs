@@ -191,10 +191,10 @@ fn test_rnd_account_init() {
                 params.output_queue_num_batches,
             );
             let value_vec_size = ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                params.output_queue_batch_size as usize,
+                params.output_queue_batch_size,
             ) * num_batches;
             let hash_chain_store_size =
-                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches as usize)
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
                     * num_batches;
             // Output queue
             let ref_queue_account_size =
@@ -228,7 +228,7 @@ fn test_rnd_account_init() {
                 params.bloom_filter_capacity / 8,
             ) * num_batches as usize;
             let hash_chain_store_size =
-                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches as usize)
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
                     * num_batches as usize;
             let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
                 params.root_history_capacity as u64,

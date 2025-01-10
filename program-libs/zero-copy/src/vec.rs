@@ -3,7 +3,6 @@ use std::{
     fmt,
     mem::size_of,
     ops::{Index, IndexMut},
-    ptr::{self},
 };
 
 use zerocopy::Ref;
@@ -29,7 +28,7 @@ where
     T: ZeroCopyTraits,
 {
     length: Ref<&'a mut [u8], L>,
-    data: ZeroCopySliceMut<'a, L, T, PAD>,
+    slice: ZeroCopySliceMut<'a, L, T, PAD>,
 }
 
 impl<'a, L, T, const PAD: bool> ZeroCopyVec<'a, L, T, PAD>
@@ -38,25 +37,20 @@ where
     T: ZeroCopyTraits,
     u64: From<L> + TryInto<L>,
 {
-    pub fn new(capacity: L, data: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
-        Ok(Self::new_at(capacity, data)?.0)
+    pub fn new(capacity: L, bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::new_at(capacity, bytes)?.0)
     }
 
-    pub fn new_at(capacity: L, data: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (length, data) = Ref::<&mut [u8], L>::from_prefix(data).unwrap();
+    pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+
+        let (length, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
         if u64::from(*length) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
-        if PAD {
-            let mut offset = 0;
-            add_padding::<L, T>(&mut offset);
-            let (_padding, data) = data.split_at_mut(offset);
-            let (data, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::new_at(capacity, data)?;
-            Ok((Self { length, data }, bytes))
-        } else {
-            let (data, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::new_at(capacity, data)?;
-            Ok((Self { length, data }, bytes))
-        }
+        let (slice, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::new_at(capacity, bytes)?;
+        Ok((Self { length, slice }, bytes))
     }
 
     pub fn new_at_multiple(
@@ -78,17 +72,11 @@ where
     }
 
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (length, data) = Ref::<&mut [u8], L>::from_prefix(bytes).unwrap();
-        if PAD {
-            let mut offset = 0;
-            add_padding::<L, T>(&mut offset);
-            let (_padding, data) = data.split_at_mut(offset);
-            let (data, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::from_bytes_at(data)?;
-            Ok((Self { length, data }, bytes))
-        } else {
-            let (data, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::from_bytes_at(data)?;
-            Ok((Self { length, data }, bytes))
-        }
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let (length, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        let (slice, bytes) = ZeroCopySliceMut::<'a, L, T, PAD>::from_bytes_at(bytes)?;
+        Ok((Self { length, slice }, bytes))
     }
 
     pub fn from_bytes_at_multiple(
@@ -106,7 +94,7 @@ where
 
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.data.len()
+        self.slice.len()
     }
 
     #[inline]
@@ -115,11 +103,11 @@ where
             return Err(ZeroCopyError::Full);
         }
 
-        unsafe { ptr::write(self.data.data_as_mut_ptr().add(self.len()), value) };
-        *self.length = (u64::from(*self.length) + 1u64)
+        let len = self.len();
+        self.slice.as_mut_slice()[len] = value;
+        *self.length = (len as u64 + 1u64)
             .try_into()
-            .map_err(|_| ZeroCopyError::InvalidConversion)
-            .unwrap();
+            .map_err(|_| ZeroCopyError::InvalidConversion)?;
 
         Ok(())
     }
@@ -136,7 +124,9 @@ where
     #[inline]
     pub fn metadata_size() -> usize {
         let mut size = size_of::<L>();
-        add_padding::<L, T>(&mut size);
+        if PAD {
+            add_padding::<L, T>(&mut size);
+        }
         size
     }
 
@@ -146,23 +136,10 @@ where
     }
 
     #[inline]
-    pub fn required_size_for_capacity(capacity: usize) -> usize {
-        Self::metadata_size()
-            + Self::data_size(
-                (capacity as u64)
-                    .try_into()
-                    .map_err(|_| ZeroCopyError::InvalidConversion)
-                    .unwrap(),
-            )
+    pub fn required_size_for_capacity(capacity: L) -> usize {
+        Self::metadata_size() + Self::data_size(capacity)
     }
-}
 
-impl<L, T, const PAD: bool> ZeroCopyVec<'_, L, T, PAD>
-where
-    L: ZeroCopyTraits,
-    T: ZeroCopyTraits,
-    u64: From<L> + TryInto<L>,
-{
     #[inline]
     pub fn len(&self) -> usize {
         u64::from(*self.length) as usize
@@ -178,7 +155,7 @@ where
         if index >= self.len() {
             return None;
         }
-        Some(&self.data[index])
+        Some(&self.slice[index])
     }
 
     #[inline]
@@ -186,7 +163,7 @@ where
         if index >= self.len() {
             return None;
         }
-        Some(&mut self.data[index])
+        Some(&mut self.slice[index])
     }
 
     #[inline]
@@ -211,13 +188,13 @@ where
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        &self.data.as_slice()[..self.len()]
+        &self.slice.as_slice()[..self.len()]
     }
 
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         let len = self.len();
-        &mut self.data.as_mut_slice()[..len]
+        &mut self.slice.as_mut_slice()[..len]
     }
 
     pub fn extend_from_slice(&mut self, slice: &[T]) {
@@ -226,7 +203,7 @@ where
         if new_len > self.capacity() {
             panic!("Capacity overflow. Cannot copy slice into ZeroCopyVec");
         }
-        self.data.as_mut_slice()[len..].copy_from_slice(slice);
+        self.slice.as_mut_slice()[len..].copy_from_slice(slice);
         *self.length = (new_len as u64)
             .try_into()
             .map_err(|_| ZeroCopyError::InvalidConversion)
@@ -239,7 +216,7 @@ where
     }
 
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
-        self.data.try_into_array()
+        self.slice.try_into_array()
     }
 }
 

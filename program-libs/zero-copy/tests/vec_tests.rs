@@ -106,11 +106,7 @@ where
     Standard: Distribution<T>,
 {
     let mut rng = thread_rng();
-    let mut data =
-        vec![
-            0;
-            ZeroCopyVec::<CAPACITY, T>::required_size_for_capacity(u64::from(capacity) as usize)
-        ];
+    let mut data = vec![0; ZeroCopyVec::<CAPACITY, T>::required_size_for_capacity(capacity)];
     println!("data len: {}", data.len());
     println!("capacity: {:?}", capacity);
     // new
@@ -454,7 +450,7 @@ fn test_init_multiple_pass() {
         ZeroCopyVecU64::<u64>::new_at_multiple(2, capacity as u64, &mut account_data).unwrap();
     assert_eq!(
         remaining_bytes.len(),
-        128 - ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity) * 2
+        128 - ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity as u64) * 2
     );
     assert_eq!(initialized_vecs.len(), 2);
     assert_eq!(initialized_vecs[0].capacity(), capacity);

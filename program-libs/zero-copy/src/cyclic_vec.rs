@@ -31,89 +31,61 @@ where
     T: ZeroCopyTraits,
     u64: From<L> + TryInto<L>,
 {
-    pub fn new(capacity: L, data: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
-        Ok(Self::new_at(capacity, data)?.0)
+    pub fn new(capacity: L, bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::new_at(capacity, bytes)?.0)
     }
 
-    pub fn new_at(capacity: L, data: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (current_index, data) = Ref::<&mut [u8], L>::from_prefix(data).unwrap();
+    pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
         if u64::from(*current_index) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
-        if PAD {
-            let mut offset = 0;
-            add_padding::<L, T>(&mut offset);
-            let (_padding, data) = data.split_at_mut(offset);
-            let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::new_at(capacity, data)?;
-            Ok((Self { current_index, vec }, bytes))
-        } else {
-            let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::new_at(capacity, data)?;
-            Ok((Self { current_index, vec }, bytes))
-        }
+
+        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::new_at(capacity, bytes)?;
+        Ok((Self { current_index, vec }, bytes))
     }
 
     pub fn new_at_multiple(
         num: usize,
         capacity: L,
-        mut account_data: &'a mut [u8],
+        mut bytes: &'a mut [u8],
     ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
-            let (vec, _bytes) = Self::new_at(capacity, account_data)?;
-            account_data = _bytes;
+            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
+            bytes = _bytes;
             value_vecs.push(vec);
         }
-        Ok((value_vecs, account_data))
-    }
-}
-
-impl<'a, L, T, const PAD: bool> ZeroCopyCyclicVec<'a, L, T, PAD>
-where
-    L: ZeroCopyTraits,
-    T: ZeroCopyTraits,
-    u64: From<L> + TryInto<L>,
-{
-    pub fn from_bytes(account_data: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
-        Ok(Self::from_bytes_at(account_data)?.0)
+        Ok((value_vecs, bytes))
     }
 
-    pub fn from_bytes_at(
-        account_data: &'a mut [u8],
-    ) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (current_index, account_data) = Ref::<&mut [u8], L>::from_prefix(account_data).unwrap();
+    pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::from_bytes_at(bytes)?.0)
+    }
 
-        if PAD {
-            let mut offset = 0;
-            add_padding::<L, T>(&mut offset);
-            let (_padding, account_data) = account_data.split_at_mut(offset);
-            let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(account_data)?;
-            Ok((Self { current_index, vec }, bytes))
-        } else {
-            let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(account_data)?;
-            Ok((Self { current_index, vec }, bytes))
-        }
+    pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(bytes)?;
+        Ok((Self { current_index, vec }, bytes))
     }
 
     pub fn from_bytes_at_multiple(
         num: usize,
-        mut account_data: &'a mut [u8],
+        mut bytes: &'a mut [u8],
     ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
-            let (vec, _bytes) = Self::from_bytes_at(account_data)?;
-            account_data = _bytes;
+            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
+            bytes = _bytes;
             value_vecs.push(vec);
         }
-        Ok((value_vecs, account_data))
+        Ok((value_vecs, bytes))
     }
-}
 
-impl<L, T, const PAD: bool> ZeroCopyCyclicVec<'_, L, T, PAD>
-where
-    L: ZeroCopyTraits,
-    T: ZeroCopyTraits,
-    u64: From<L> + TryInto<L>,
-{
     #[inline]
     pub fn push(&mut self, value: T) {
         if self.vec.len() < self.vec.capacity() {
@@ -210,12 +182,14 @@ where
 
     pub fn metadata_size() -> usize {
         let mut size = size_of::<L>();
-        add_padding::<L, T>(&mut size);
+        if PAD {
+            add_padding::<L, T>(&mut size);
+        }
         size
     }
 
     pub fn data_size(length: L) -> usize {
-        ZeroCopyVec::<L, T>::required_size_for_capacity(u64::from(length) as usize)
+        ZeroCopyVec::<L, T>::required_size_for_capacity(length)
     }
 
     pub fn required_size_for_capacity(capacity: L) -> usize {

@@ -156,7 +156,6 @@ fn test_zero_copy_unaligned_type_for_len() {
 }
 
 #[test]
-#[should_panic = "Alignment"]
 fn test_unaligned() {
     #[derive(
         Copy, Clone, PartialEq, Debug, Default, Immutable, FromBytes, KnownLayout, IntoBytes,
@@ -171,9 +170,17 @@ fn test_unaligned() {
         ccc: u32,
         d: [u8; 32],
     }
-    let mut data = vec![0; ZeroCopySliceMut::<u8, TestStruct>::required_size_for_capacity(1)];
-    ZeroCopySliceMut::<u8, TestStruct>::new(1, &mut data).unwrap();
-    ZeroCopySliceMut::<u8, TestStruct, false>::from_bytes(&mut data).unwrap();
+    {
+        let mut data =
+            vec![0; ZeroCopySliceMut::<u8, TestStruct, false>::required_size_for_capacity(1)];
+        let result = ZeroCopySliceMut::<u8, TestStruct, false>::new(1, &mut data);
+        assert!(matches!(result, Err(ZeroCopyError::CastError(_))),);
+    }
+    {
+        let mut data =
+            vec![0; ZeroCopySliceMut::<u8, TestStruct, true>::required_size_for_capacity(1)];
+        ZeroCopySliceMut::<u8, TestStruct, true>::new(1, &mut data).unwrap();
+    }
 }
 
 /// Succeeds because derives Unaligned

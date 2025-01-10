@@ -132,14 +132,14 @@ pub fn queue_account_size(
     let batches_size =
         ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(batch_metadata.num_batches);
     let value_vecs_size =
-        ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch_metadata.batch_size as usize)
+        ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch_metadata.batch_size)
             * num_value_vec;
     // Bloomfilter capacity is in bits.
     let bloom_filter_stores_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
         batch_metadata.bloom_filter_capacity / 8,
     ) * num_bloom_filter_stores;
     let hashchain_store_size = ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-        batch_metadata.get_num_zkp_batches() as usize,
+        batch_metadata.get_num_zkp_batches(),
     ) * num_hashchain_store;
     let size = account_size
         + batches_size
