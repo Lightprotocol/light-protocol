@@ -78,9 +78,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             .process_transaction_with_metadata(transaction)
             .await
             .map_err(RpcError::from)?;
-        result
-            .result
-            .map_err(|e| RpcError::TransactionError(Box::new(e)))?;
+        result.result.map_err(|e| RpcError::TransactionError(Box::new(e)))?;
         Ok(sig)
     }
 
@@ -95,9 +93,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             .process_transaction_with_metadata(transaction)
             .await
             .map_err(RpcError::from)?;
-        result
-            .result
-            .map_err(|e| RpcError::TransactionError(Box::new(e)))?;
+        result.result.map_err(|e| RpcError::TransactionError(Box::new(e)))?;
         let slot = self.context.banks_client.get_root_slot().await?;
         Ok((sig, slot))
     }
@@ -320,9 +316,9 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(RpcError::from)
             .and_then(|status| {
                 status
-                    .ok_or(RpcError::TransactionError(Box::new(
-                        TransactionError::SignatureFailure,
-                    )))
+                    .ok_or(RpcError::TransactionError(
+                        Box::new(TransactionError::SignatureFailure),
+                    ))
                     .map(|status| status.slot)
             })
     }
