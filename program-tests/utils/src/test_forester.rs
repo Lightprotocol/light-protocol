@@ -216,7 +216,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     Ok(())
 }
 
-async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
+async fn assert_value_is_marked_in_queue<R: RpcConnection>(
     rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,

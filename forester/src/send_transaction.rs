@@ -66,7 +66,7 @@ const TIMEOUT_CHECK_ENABLED: bool = false;
 ///
 /// Strategy:
 /// 1. Execute transaction batches until max number of batches is
-/// reached or light slot ended (global timeout).
+///    reached or light slot ended (global timeout).
 /// 2. Fetch queue items.
 /// 3. If work items is empty, await minimum batch time.
 /// 4. Fetch recent blockhash.

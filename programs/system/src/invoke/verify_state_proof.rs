@@ -298,9 +298,9 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
             .map_err(ProgramError::from)?;
             merkle_tree
                 .check_input_queue_non_inclusion(&read_only_account.account_hash)
-                .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
-        }
-    }
+                        .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+                }
+            }
     Ok(num_prove_read_only_accounts_prove_by_index)
 }
 
