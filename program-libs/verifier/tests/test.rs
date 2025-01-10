@@ -33,11 +33,11 @@ mod test {
         .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3] {
-            let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);
+            let big_int_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H32);
 
             let inputs = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()

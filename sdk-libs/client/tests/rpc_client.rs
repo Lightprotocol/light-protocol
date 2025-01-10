@@ -41,7 +41,7 @@ async fn test_all_endpoints() {
             run_mode: None,
             circuits: vec![ProofType::Combined],
         }),
-        wait_time: 20,
+        wait_time: 60,
         sbf_programs: vec![],
     };
 
