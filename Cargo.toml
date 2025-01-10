@@ -22,7 +22,7 @@ members = [
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
-    "examples/token-escrow/programs/*",
+    "examples/token-escrow/programs/token-escrow",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
     "program-tests/e2e-test",
