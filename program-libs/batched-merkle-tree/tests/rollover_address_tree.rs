@@ -13,8 +13,9 @@ use light_batched_merkle_tree::{
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
-    SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA, SIZE_OF_ZERO_COPY_SLICE_METADATA,
-    SIZE_OF_ZERO_COPY_VEC_METADATA,
+    cyclic_vec::{ZeroCopyCyclicVec, ZeroCopyCyclicVecU64},
+    slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutU64},
+    vec::ZeroCopyVecU64,
 };
 use rand::thread_rng;
 
@@ -194,14 +195,16 @@ fn test_rnd_rollover() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
-            let batch_size = size_of::<Batch>() * num_batches + SIZE_OF_ZERO_COPY_SLICE_METADATA;
+            let batch_size =
+                size_of::<Batch>() * num_batches + ZeroCopySliceMutU64::<Batch>::metadata_size();
             let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
-                + SIZE_OF_ZERO_COPY_SLICE_METADATA)
+                + ZeroCopySliceMutU64::<u8>::metadata_size())
                 * num_batches;
-            let hash_chain_store_size =
-                (num_zkp_batches as usize * 32 + SIZE_OF_ZERO_COPY_VEC_METADATA) * num_batches;
-            let root_history_size =
-                params.root_history_capacity as usize * 32 + SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA;
+            let hash_chain_store_size = (num_zkp_batches as usize * 32
+                + ZeroCopyVecU64::<[u8; 32]>::metadata_size())
+                * num_batches;
+            let root_history_size = params.root_history_capacity as usize * 32
+                + ZeroCopyCyclicVecU64::<[u8; 32]>::metadata_size();
             // Output queue
             let ref_account_size =
                 // metadata
