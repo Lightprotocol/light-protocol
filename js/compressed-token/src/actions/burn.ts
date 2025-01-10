@@ -19,7 +19,7 @@ import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from './transfer';
 
 /**
- * Decompress compressed tokens
+ * Burn compressed tokens
  *
  * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
