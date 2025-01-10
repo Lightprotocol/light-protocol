@@ -7,7 +7,7 @@ use num_bigint::BigUint;
 /// Patch the indexed changelogs.
 /// 1. find changelog entries of the same index
 /// 2. iterate over entries
-///    2.1 if next_value < new_element.value patch element
+///   2.1 if next_value < new_element.value patch element
 /// 3.
 #[inline(never)]
 pub fn patch_indexed_changelogs<const HEIGHT: usize>(
