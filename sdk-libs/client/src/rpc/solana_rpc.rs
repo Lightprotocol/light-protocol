@@ -387,7 +387,7 @@ impl RpcConnection for SolanaRpcConnection {
             let signature = self
                 .client
                 .request_airdrop(to, lamports)
-                .map_err(RpcError::ClientError)?;
+                .map_err(|e| RpcError::ClientError(Box::new(e)))?;
             self.retry(|| async {
                 if self
                     .client

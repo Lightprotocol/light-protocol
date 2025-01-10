@@ -415,7 +415,7 @@ fn filter_for_accounts_not_proven_by_index(
 
 /// Network fee distribution:
 /// - if any account is created or modified -> transfer network fee (5000 lamports)
-/// (Previously we didn't charge for appends now we have to since values go into a queue.)
+///   (Previously we didn't charge for appends now we have to since values go into a queue.)
 /// - if an address is created -> transfer an additional network fee (5000 lamports)
 ///
 /// Examples:

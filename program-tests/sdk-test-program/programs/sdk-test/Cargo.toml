@@ -33,3 +33,11 @@ light-client = { workspace = true , features = ["devenv"]}
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
+
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint", "anchor-debug"))',
+]

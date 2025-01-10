@@ -667,7 +667,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// - value is committed to bloom_filter for non-inclusion proof
     /// - nullifier is Hash(value, tx_hash), committed to leaves hashchain
     /// - tx_hash is hash of all inputs and outputs
-    /// -> we can access the history of how commitments are spent in zkps for example fraud proofs
+    ///   -> we can access the history of how commitments are spent in zkps for example fraud proofs
     pub fn insert_nullifier_into_current_batch(
         &mut self,
         compressed_account_hash: &[u8; 32],
@@ -782,9 +782,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 1. Previous batch must be inserted and bloom filter must not be wiped.
     /// 2. Current batch must be 50% full
     /// 3. if yes
-    /// 3.1 zero out bloom filter
-    /// 3.2 mark bloom filter as wiped
-    /// 3.3 zero out roots if needed
+    ///    3.1 zero out bloom filter
+    ///    3.2 mark bloom filter as wiped
+    ///    3.3 zero out roots if needed
     pub fn wipe_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
         let current_batch = self
             .get_metadata()
