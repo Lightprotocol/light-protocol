@@ -180,8 +180,6 @@ fn test_rnd_rollover() {
             params.network_fee = None;
         }
 
-        use std::mem::size_of;
-
         let mt_account_size = get_merkle_tree_account_size(
             params.input_queue_batch_size,
             params.bloom_filter_capacity,
@@ -194,15 +192,16 @@ fn test_rnd_rollover() {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
             let batch_size =
-                size_of::<Batch>() * num_batches + ZeroCopySliceMutU64::<Batch>::metadata_size();
-            let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
-                + ZeroCopySliceMutU64::<u8>::metadata_size())
-                * num_batches;
-            let hash_chain_store_size = (num_zkp_batches as usize * 32
-                + ZeroCopyVecU64::<[u8; 32]>::metadata_size())
-                * num_batches;
-            let root_history_size = params.root_history_capacity as usize * 32
-                + ZeroCopyCyclicVecU64::<[u8; 32]>::metadata_size();
+                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
+            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
+                (params.bloom_filter_capacity / 8) as u64,
+            ) * num_batches;
+            let hash_chain_store_size =
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
+                    * num_batches;
+            let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
+                params.root_history_capacity as u64,
+            );
             // Output queue
             let ref_account_size =
                 // metadata
