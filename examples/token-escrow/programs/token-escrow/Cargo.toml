@@ -25,14 +25,14 @@ light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 account-compression = { workspace = true }
 light-hasher = { workspace = true }
-light-verifier = { workspace = true }
 light-sdk = { workspace = true, features = ["legacy"] }
-light-client = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
+light-verifier = { workspace = true }
+light-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }

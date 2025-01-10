@@ -4709,17 +4709,11 @@ name = "sdk-test"
 version = "0.7.0"
 dependencies = [
  "anchor-lang",
- "borsh 0.10.3",
  "light-client",
  "light-hasher",
- "light-macros",
  "light-program-test",
  "light-sdk",
- "light-sdk-macros",
  "light-test-utils",
- "light-utils 1.1.0",
- "light-verifier",
- "solana-program-test",
  "solana-sdk",
  "tokio",
 ]
