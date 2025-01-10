@@ -4,8 +4,8 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
 use light_client::{
     indexer::{
-        AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo, MerkleProof,
-        NewAddressProofWithContext, ProofOfLeaf,
+        AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
+        ProofOfLeaf,
     },
     rpc::RpcConnection,
 };
@@ -16,7 +16,7 @@ use photon_api::{
 };
 use solana_sdk::bs58;
 use tracing::debug;
-
+use light_client::indexer::LeafIndexInfo;
 use crate::utils::decode_hash;
 
 pub struct PhotonIndexer<R: RpcConnection> {
