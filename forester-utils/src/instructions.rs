@@ -39,7 +39,6 @@ pub enum ForesterUtilsError {
     IndexerError(String),
 }
 
-// TODO: replace TestIndexerExtensions with IndexerType
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
@@ -47,7 +46,7 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
 ) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError>
 where
     R: RpcConnection,
-    I: Indexer<R>, //+ TestIndexerExtensions<R>,
+    I: Indexer<R>,
 {
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await
         .map_err(|e| {
@@ -117,7 +116,7 @@ where
 
     // Get proof info after addresses are retrieved
     let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs_full(
+        .get_multiple_new_address_proofs_h40(
             merkle_tree_pubkey.to_bytes(),
             addresses.clone(),
         )
@@ -389,7 +388,8 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         merkle_proofs.push(proof.proof.clone());
         tx_hashes.push(leaf_info.tx_hash);
         let index_bytes = leaf_info.leaf_index.to_be_bytes();
-        let nullifier = Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        let nullifier =
+            Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
         nullifiers.push(nullifier);
     }
 

@@ -74,7 +74,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError>;
 
-    async fn get_multiple_new_address_proofs_full(
+    async fn get_multiple_new_address_proofs_h40(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,

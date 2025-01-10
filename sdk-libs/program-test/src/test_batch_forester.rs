@@ -855,7 +855,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let mut low_element_next_values = Vec::new();
     let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
     let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs_full(merkle_tree_pubkey.to_bytes(), addresses.clone())
+        .get_multiple_new_address_proofs_h40(merkle_tree_pubkey.to_bytes(), addresses.clone())
         .await
         .unwrap();
     for non_inclusion_proof in &non_inclusion_proofs {

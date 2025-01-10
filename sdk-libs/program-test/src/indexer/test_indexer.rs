@@ -17,8 +17,9 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, MerkleProof,
-        NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo,
+        MerkleProof, NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
@@ -67,7 +68,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use light_client::indexer::LeafIndexInfo;
+
 use crate::{
     indexer::{
         utils::create_address_merkle_tree_and_queue_account_with_assert, TestIndexerExtensions,
@@ -546,7 +547,7 @@ where
             .await
     }
 
-    async fn get_multiple_new_address_proofs_full(
+    async fn get_multiple_new_address_proofs_h40(
         &self,
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
@@ -1006,7 +1007,8 @@ where
                 let leaf = leaf_info.leaf;
                 let index_bytes = index.to_be_bytes();
 
-                let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+                let nullifier =
+                    Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
 
                 state_merkle_tree_bundle.input_leaf_indices.remove(0);
                 state_merkle_tree_bundle
@@ -1673,13 +1675,11 @@ where
             // Store leaf indices of input accounts for batched trees
             if bundle.version == 2 {
                 let leaf_hash = event.input_compressed_account_hashes[i];
-                bundle
-                    .input_leaf_indices
-                    .push(LeafIndexInfo {
-                        leaf_index,
-                        leaf: leaf_hash,
-                        tx_hash,
-                    });
+                bundle.input_leaf_indices.push(LeafIndexInfo {
+                    leaf_index,
+                    leaf: leaf_hash,
+                    tx_hash,
+                });
             }
         }
         let mut new_addresses = vec![];
