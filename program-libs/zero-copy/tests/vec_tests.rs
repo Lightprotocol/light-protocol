@@ -271,7 +271,7 @@ where
                 .to_vec()
             );
 
-            let padding_start = metadata_size.clone();
+            let padding_start = metadata_size;
             add_padding::<CAPACITY, T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
@@ -457,7 +457,7 @@ fn test_init_multiple_pass() {
     assert_eq!(initialized_vecs[1].capacity(), capacity);
     assert_eq!(initialized_vecs[0].len(), 0);
     assert_eq!(initialized_vecs[1].len(), 0);
-    let mut reference_vecs = vec![vec![], vec![]];
+    let mut reference_vecs = [vec![], vec![]];
     for i in 0..capacity {
         for (j, vec) in initialized_vecs.iter_mut().enumerate() {
             assert!(vec.get(i).is_none());
