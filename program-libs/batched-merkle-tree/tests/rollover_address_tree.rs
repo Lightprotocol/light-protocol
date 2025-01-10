@@ -13,9 +13,7 @@ use light_batched_merkle_tree::{
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
-    cyclic_vec::{ZeroCopyCyclicVec, ZeroCopyCyclicVecU64},
-    slice_mut::{ZeroCopySliceMut, ZeroCopySliceMutU64},
-    vec::ZeroCopyVecU64,
+    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
 };
 use rand::thread_rng;
 
