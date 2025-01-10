@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::io;
+use std::{fmt::Debug, io};
 
 use solana_banks_client::BanksClientError;
 use solana_client::client_error::ClientError;
@@ -56,48 +55,52 @@ impl From<io::Error> for RpcError {
     }
 }
 
-
 pub fn assert_rpc_error<T: Debug>(
     result: Result<T, RpcError>,
     i: u8,
     expected_error_code: u32,
 ) -> Result<(), RpcError> {
     match result {
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                index,
-                InstructionError::Custom(_)
-            ) if index != i
-        ) => {
-            let TransactionError::InstructionError(_, InstructionError::Custom(actual_error_code)) = **box_err else {
+        Err(RpcError::TransactionError(ref box_err))
+            if matches!(
+                **box_err,
+                TransactionError::InstructionError(
+                    index,
+                    InstructionError::Custom(_)
+                ) if index != i
+            ) =>
+        {
+            let TransactionError::InstructionError(_, InstructionError::Custom(actual_error_code)) =
+                **box_err
+            else {
                 unreachable!()
             };
-            Err(RpcError::AssertRpcError(
-                format!(
-                    "Expected error code: {}, got: {} error: {:?}",
-                    expected_error_code,
-                    actual_error_code,
-                    result
-                )
-            ))
-        },
+            Err(RpcError::AssertRpcError(format!(
+                "Expected error code: {}, got: {} error: {:?}",
+                expected_error_code, actual_error_code, result
+            )))
+        }
 
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                index,
-                InstructionError::Custom(error_code)
-            ) if index == i && error_code == expected_error_code
-        ) => Ok(()),
+        Err(RpcError::TransactionError(ref box_err))
+            if matches!(
+                **box_err,
+                TransactionError::InstructionError(
+                    index,
+                    InstructionError::Custom(error_code)
+                ) if index == i && error_code == expected_error_code
+            ) =>
+        {
+            Ok(())
+        }
 
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                0,
-                InstructionError::ProgramFailedToComplete
-            )
-        ) => Ok(()),
+        Err(RpcError::TransactionError(ref box_err))
+            if matches!(
+                **box_err,
+                TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
+            ) =>
+        {
+            Ok(())
+        }
 
         Err(e) => Err(RpcError::AssertRpcError(format!(
             "Unexpected error type: {:?}",
