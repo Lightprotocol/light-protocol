@@ -64,6 +64,7 @@ describe('compressSplTokenAccount', () => {
             alice.publicKey,
             mintAuthority,
             bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await decompress(rpc, payer, mint, bn(1000), alice, aliceAta);
@@ -330,6 +331,7 @@ describe('compressSplTokenAccount', () => {
             alice.publicKey,
             mintAuthority,
             bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await decompress(rpc, payer, mint, bn(1000), alice, aliceAta);

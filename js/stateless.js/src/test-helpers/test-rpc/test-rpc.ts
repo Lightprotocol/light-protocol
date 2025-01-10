@@ -13,7 +13,10 @@ import {
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
+import {
+    defaultTestStateTreeAccounts,
+    localTestActiveStateTreeInfo,
+} from '../../constants';
 import {
     AddressWithTree,
     CompressedMintTokenHolders,
@@ -44,11 +47,11 @@ import {
 import { IndexedArray } from '../merkle-tree';
 import {
     MerkleContextWithNewAddressProof,
-    Rpc,
     convertMerkleProofsWithContextToHex,
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
+import { ActiveTreeBundle } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
@@ -148,6 +151,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
+    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -198,6 +202,27 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         this.addressQueueAddress = addressQueueAddress ?? addressQueue;
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
+    }
+
+    /**
+     * Manually set state tree addresses
+     */
+    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+        this.activeStateTreeInfo = info;
+    }
+
+    /**
+     * Returns local test state trees.
+     */
+    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+        return localTestActiveStateTreeInfo();
+    }
+
+    /**
+     * Returns local test state trees.
+     */
+    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+        return localTestActiveStateTreeInfo();
     }
 
     /**

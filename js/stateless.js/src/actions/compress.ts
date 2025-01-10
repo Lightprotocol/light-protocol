@@ -7,10 +7,9 @@ import {
 } from '@solana/web3.js';
 
 import { LightSystemProgram } from '../programs';
-import { Rpc } from '../rpc';
+import { pickRandomTreeAndQueue, Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
-import { defaultTestStateTreeAccounts } from '../constants';
 
 /**
  * Compress lamports to a solana address
@@ -35,6 +34,12 @@ export async function compress(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
+
+    if (!outputStateTree) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
+        outputStateTree = tree;
+    }
 
     const ix = await LightSystemProgram.compress({
         payer: payer.publicKey,

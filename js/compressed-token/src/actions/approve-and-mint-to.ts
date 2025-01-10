@@ -11,6 +11,7 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    pickRandomTreeAndQueue,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -25,7 +26,7 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
  * @param authority      Minting authority
  * @param amount         Amount to mint
  * @param merkleTree     State tree account that the compressed tokens should be
- *                       part of. Defaults to the default state tree account.
+ *                       part of. Defaults to random public state tree account.
  * @param confirmOptions Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -55,6 +56,12 @@ export async function approveAndMintTo(
         confirmOptions,
         tokenProgramId,
     );
+
+    if (!merkleTree) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
+        merkleTree = tree;
+    }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
         feePayer: payer.publicKey,

@@ -39,7 +39,6 @@ export async function transfer(
     lamports: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {

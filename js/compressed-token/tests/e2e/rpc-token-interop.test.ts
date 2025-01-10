@@ -6,6 +6,7 @@ import {
     bn,
     createRpc,
     getTestRpc,
+    defaultTestStateTreeAccounts,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -43,7 +44,15 @@ describe('rpc-interop token', () => {
         bob = await newAccountWithLamports(rpc, 1e9, 256);
         charlie = await newAccountWithLamports(rpc, 1e9, 256);
 
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
@@ -243,7 +252,15 @@ describe('rpc-interop token', () => {
             )
         ).mint;
 
-        await mintTo(rpc, payer, mint2, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint2,
+            bob.publicKey,
+            mintAuthority,
+            bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,

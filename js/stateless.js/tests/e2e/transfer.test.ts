@@ -1,8 +1,8 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
-import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc } from '../../src/rpc';
-import { bn, compress } from '../../src';
+import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
 import { transfer } from '../../src/actions/transfer';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -18,7 +18,13 @@ describe('transfer', () => {
         payer = await newAccountWithLamports(rpc, 2e9, 256);
         bob = await newAccountWithLamports(rpc, 2e9, 256);
 
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        await compress(
+            rpc,
+            payer,
+            1e9,
+            payer.publicKey,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
     });
 
     const numberOfTransfers = 10;

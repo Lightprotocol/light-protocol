@@ -3,14 +3,11 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
   rpc,
 } from "../../utils/utils";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { approveAndMintTo } from "@lightprotocol/compressed-token";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class ApproveAndMintToCommand extends Command {
   static summary =

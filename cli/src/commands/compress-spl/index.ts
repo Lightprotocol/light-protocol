@@ -3,14 +3,11 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
   rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
 import { compress } from "@lightprotocol/compressed-token";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 import { CompressedTokenProgram } from "@lightprotocol/compressed-token";
 
 /// TODO: add ability to compress from non-fee payer

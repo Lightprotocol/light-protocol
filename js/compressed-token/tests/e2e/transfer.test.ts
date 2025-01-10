@@ -105,7 +105,15 @@ describe('transfer', () => {
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
 
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
     });
 
     it('should transfer from bob -> charlie', async () => {
@@ -244,7 +252,15 @@ describe('transfer', () => {
             mintAccountInfo!.owner.toBase58(),
             TOKEN_2022_PROGRAM_ID.toBase58(),
         );
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
@@ -261,7 +277,7 @@ describe('transfer', () => {
             bn(700),
             bob,
             charlie.publicKey,
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await assertTransfer(

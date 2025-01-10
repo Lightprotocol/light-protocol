@@ -10,6 +10,7 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    pickRandomTreeAndQueue,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -49,6 +50,12 @@ export async function compress(
     tokenProgramId = tokenProgramId
         ? tokenProgramId
         : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+
+    if (!merkleTree) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
+        merkleTree = tree;
+    }
 
     const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,

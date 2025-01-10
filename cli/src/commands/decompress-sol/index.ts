@@ -3,12 +3,10 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
   rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { decompress, getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { decompress } from "@lightprotocol/stateless.js";
 
 class DecompressSolCommand extends Command {
   static summary = "Decompress SOL.";

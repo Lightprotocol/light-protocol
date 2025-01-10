@@ -43,7 +43,6 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    /// TODO: allow multiple
     merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,

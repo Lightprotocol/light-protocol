@@ -5,7 +5,7 @@ import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
-import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { compress, decompress, transfer } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -37,7 +37,7 @@ describe('test-rpc', () => {
             refPayer,
             refCompressLamports,
             refPayer.publicKey,
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         /// compress
@@ -49,7 +49,7 @@ describe('test-rpc', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
     });
 
@@ -120,7 +120,13 @@ describe('test-rpc', () => {
                 STATE_MERKLE_TREE_NETWORK_FEE.toNumber(),
         );
 
-        await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
+        await compress(
+            rpc,
+            payer,
+            compressLamportsAmount,
+            payer.publicKey,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
