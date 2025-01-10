@@ -96,16 +96,16 @@ pub enum EpochState {
 ///
 /// To get the latest registry epoch:
 /// - slot = 0;
-///   let current_registry_epoch = (slot - genesis) / active_phase_length;
-///   current_registry_epoch =  (0 - 0) / 1000 = 0;
-///   first active phase starts at genesis + registration_phase_length
+/// let current_registry_epoch = (slot - genesis) / active_phase_length;
+/// current_registry_epoch =  (0 - 0) / 1000 = 0;
+/// first active phase starts at genesis + registration_phase_length
 ///     = 0 + 100 = 100;
 ///
 /// To get the current active epoch:
 /// - slot = 100;
-///   let current_active_epoch =
+/// let current_active_epoch =
 ///     (slot - genesis - registration_phase_length) / active_phase_length;
-///   current_active_epoch = (100 - 0 - 100) / 1000 = 0;
+/// current_active_epoch = (100 - 0 - 100) / 1000 = 0;
 ///
 /// Epoch 0:
 /// - Registration 0: 0 - 100

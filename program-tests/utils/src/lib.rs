@@ -176,10 +176,7 @@ pub fn assert_custom_error_or_program_error(
     ];
 
     let is_accepted = accepted_errors.iter().any(|(index, error)| {
-        matches!(&result, Err(RpcError::TransactionError(box_err)) if matches!(
-            **box_err,
-            transaction::TransactionError::InstructionError(i, ref e) if i == (*index as u8) && e == error
-        ))
+        matches!(result, Err(RpcError::TransactionError(transaction::TransactionError::InstructionError(i, ref e))) if i == (*index as u8) && e == error)
     });
 
     if !is_accepted {

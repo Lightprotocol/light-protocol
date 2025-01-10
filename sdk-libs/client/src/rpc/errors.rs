@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::io;
 
 use solana_banks_client::BanksClientError;
@@ -10,16 +9,16 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum RpcError {
     #[error("BanksError: {0}")]
-    BanksError(#[from] Box<BanksClientError>),
+    BanksError(#[from] BanksClientError),
 
     #[error("TransactionError: {0}")]
-    TransactionError(#[from] Box<TransactionError>),
+    TransactionError(#[from] TransactionError),
 
     #[error("ClientError: {0}")]
-    ClientError(#[from] Box<ClientError>),
+    ClientError(#[from] ClientError),
 
     #[error("IoError: {0}")]
-    IoError(#[from] Box<io::Error>),
+    IoError(#[from] io::Error),
 
     #[error("Error: `{0}`")]
     CustomError(String),
@@ -32,73 +31,33 @@ pub enum RpcError {
     InvalidWarpSlot,
 }
 
-impl From<BanksClientError> for RpcError {
-    fn from(err: BanksClientError) -> Self {
-        RpcError::BanksError(Box::new(err))
-    }
-}
-
-impl From<TransactionError> for RpcError {
-    fn from(err: TransactionError) -> Self {
-        RpcError::TransactionError(Box::new(err))
-    }
-}
-
-impl From<ClientError> for RpcError {
-    fn from(err: ClientError) -> Self {
-        RpcError::ClientError(Box::new(err))
-    }
-}
-
-impl From<io::Error> for RpcError {
-    fn from(err: io::Error) -> Self {
-        RpcError::IoError(Box::new(err))
-    }
-}
-
-
-pub fn assert_rpc_error<T: Debug>(
+pub fn assert_rpc_error<T>(
     result: Result<T, RpcError>,
     i: u8,
     expected_error_code: u32,
 ) -> Result<(), RpcError> {
     match result {
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                index,
-                InstructionError::Custom(_)
-            ) if index != i
-        ) => {
-            let TransactionError::InstructionError(_, InstructionError::Custom(actual_error_code)) = **box_err else {
-                unreachable!()
-            };
-            Err(RpcError::AssertRpcError(
-                format!(
-                    "Expected error code: {}, got: {} error: {:?}",
-                    expected_error_code,
-                    actual_error_code,
-                    result
-                )
-            ))
-        },
-
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                index,
-                InstructionError::Custom(error_code)
-            ) if index == i && error_code == expected_error_code
-        ) => Ok(()),
-
-        Err(RpcError::TransactionError(ref box_err)) if matches!(
-            **box_err,
-            TransactionError::InstructionError(
-                0,
-                InstructionError::ProgramFailedToComplete
+        Err(RpcError::TransactionError(TransactionError::InstructionError(
+            index,
+            InstructionError::Custom(error_code),
+        ))) if index != i => Err(RpcError::AssertRpcError(
+            format!(
+                "Expected error code: {}, got: {} error: {}",
+                expected_error_code,
+                error_code,
+                unsafe { result.unwrap_err_unchecked() }
             )
-        ) => Ok(()),
+            .to_string(),
+        )),
+        Err(RpcError::TransactionError(TransactionError::InstructionError(
+            index,
+            InstructionError::Custom(error_code),
+        ))) if index == i && error_code == expected_error_code => Ok(()),
 
+        Err(RpcError::TransactionError(TransactionError::InstructionError(
+            0,
+            InstructionError::ProgramFailedToComplete,
+        ))) => Ok(()),
         Err(e) => Err(RpcError::AssertRpcError(format!(
             "Unexpected error type: {:?}",
             e
