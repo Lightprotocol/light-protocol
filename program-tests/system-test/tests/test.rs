@@ -2486,7 +2486,7 @@ pub async fn double_spend_compressed_account<
             context,
         )
         .await;
-    let mut proof = Some(sdk_to_program_compressed_proof(proof_rpc_result.proof));
+    let proof = Some(sdk_to_program_compressed_proof(proof_rpc_result.proof));
     let input_compressed_accounts = vec![compressed_account_with_context_1.compressed_account];
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
