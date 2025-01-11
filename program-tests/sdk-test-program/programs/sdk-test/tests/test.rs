@@ -10,6 +10,7 @@ use light_program_test::{
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
@@ -47,7 +48,10 @@ async fn test_sdk_test() {
         }],
         payer.insecure_clone(),
         env.group_pda,
-        None,
+        Some(ProverConfig {
+            circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
+            run_mode: None,
+        }),
     )
     .await;
 
