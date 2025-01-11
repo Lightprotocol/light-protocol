@@ -23,8 +23,7 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_system_program::{
     sdk::{
-        address::{derive_address, derive_address_legacy},
-        compressed_account::MerkleContext,
+        address::derive_address_legacy, compressed_account::MerkleContext,
         event::PublicTransactionEvent,
     },
     NewAddressParams,
