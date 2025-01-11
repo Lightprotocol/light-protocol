@@ -40,8 +40,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
 
     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle>;
 
-    // fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
-
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle>;
 
     fn get_token_compressed_accounts(&self) -> &Vec<TokenDataWithMerkleContext>;
@@ -88,18 +86,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
     );
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf;
-
-    // fn get_proofs_by_indices(
-    //     &mut self,
-    //     merkle_tree_pubkey: Pubkey,
-    //     indices: &[u64],
-    // ) -> Vec<ProofOfLeaf>;
-    //
-    // fn get_leaf_indices_tx_hashes(
-    //     &mut self,
-    //     merkle_tree_pubkey: Pubkey,
-    //     zkp_batch_size: usize,
-    // ) -> Vec<(u32, [u8; 32], [u8; 32])>;
 
     async fn update_test_indexer_after_append(
         &mut self,

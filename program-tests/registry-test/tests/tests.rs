@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
-use std::{collections::HashSet, hash::Hash};
+use std::collections::HashSet;
 
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,

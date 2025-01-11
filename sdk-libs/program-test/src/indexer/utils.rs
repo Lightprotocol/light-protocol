@@ -122,36 +122,6 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
     result
 }
 
-// /// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code
-// /// or a program error.
-// /// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
-// /// we allow program error as well.
-// // TODO: unify with assert_rpc_error
-// pub fn assert_custom_error_or_program_error(
-//     result: Result<Signature, RpcError>,
-//     error_code: u32,
-// ) -> Result<(), RpcError> {
-//     let accepted_errors = [
-//         (0, InstructionError::ProgramFailedToComplete),
-//         (0, InstructionError::Custom(error_code)),
-//     ];
-//
-//     let is_accepted = accepted_errors.iter().any(|(index, error)| {
-//         matches!(result, Err(RpcError::TransactionError(transaction::TransactionError::InstructionError(i, ref e))) if i == (*index as u8) && e == error)
-//     });
-//
-//     if !is_accepted {
-//         println!("result {:?}", result);
-//         println!("error_code {:?}", error_code);
-//         return Err(RpcError::AssertRpcError(format!(
-//             "Expected error code {} or program error, got {:?}",
-//             error_code, result
-//         )));
-//     }
-//
-//     Ok(())
-// }
-
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     rpc: &mut R,

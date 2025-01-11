@@ -13,7 +13,6 @@ use solana_sdk::{
 
 pub mod address;
 pub mod address_tree_rollover;
-pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;
@@ -49,13 +48,13 @@ pub use light_client::{
     transaction_params::{FeeConfig, TransactionParams},
 };
 use light_hasher::Poseidon;
-use light_program_test::test_env::create_address_merkle_tree_and_queue_account;
+use light_program_test::{
+    indexer::utils::assert_address_merkle_tree_initialized,
+    test_env::create_address_merkle_tree_and_queue_account,
+};
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 
-use crate::{
-    assert_address_merkle_tree::assert_address_merkle_tree_initialized,
-    assert_queue::assert_address_queue_initialized,
-};
+use crate::assert_queue::assert_address_queue_initialized;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]

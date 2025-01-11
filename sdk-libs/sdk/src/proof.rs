@@ -55,7 +55,7 @@ pub struct ProofRpcResult {
 #[derive(Debug, Default)]
 pub struct BatchedTreeProofRpcResult {
     pub proof: Option<CompressedProof>,
-    // If none -> proof by index, else included in zkp
+    // If none -> proof by index  and not included in zkp, else included in zkp
     pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }
