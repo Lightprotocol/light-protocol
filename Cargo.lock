@@ -4674,6 +4674,7 @@ dependencies = [
  "light-client",
  "light-hasher",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
  "light-test-utils",
  "solana-sdk",
