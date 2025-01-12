@@ -639,15 +639,14 @@ pub async fn compressed_transfer_22_test<
     };
 
     let authority_signer = if delegate_is_signer { payer } else { from };
+
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &authority_signer.pubkey(), // authority
         &input_merkle_tree_context,
         &output_compressed_accounts,
         &rpc_result.root_indices,
-        &Some(sdk_to_program_compressed_proof(
-            rpc_result.proof.unwrap_or_default(),
-        )),
+        &rpc_result.proof.map(sdk_to_program_compressed_proof),
         &input_compressed_account_token_data
             .into_iter()
             .map(sdk_to_program_token_data)
