@@ -1836,9 +1836,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.11.5"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e13fa619b91fb2381732789fc5de83b45675e882f66623b7d8cb4f643017018d"
+checksum = "dcaee3d8e3cfc3fd92428d477bc97fc29ec8716d180c0d74c643bb26166660e0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1951,7 +1951,7 @@ dependencies = [
  "bs58 0.5.1",
  "clap 4.5.23",
  "dashmap 6.1.0",
- "env_logger 0.11.5",
+ "env_logger 0.11.6",
  "forester-utils",
  "futures",
  "lazy_static",
@@ -3107,7 +3107,7 @@ dependencies = [
  "ark-bn254",
  "ark-serialize",
  "ark-std",
- "env_logger 0.11.5",
+ "env_logger 0.11.6",
  "groth16-solana",
  "light-batched-merkle-tree",
  "light-bounded-vec",
