@@ -10,8 +10,7 @@ export type CompressedCpiContext = {
     firstSetContext: boolean;
     cpiContextAccountIndex: number; // u8
 };
-/// TODO: remove index_mt_account on-chain. passed as part of
-/// CompressedTokenInstructionDataInvoke
+
 export type TokenTransferOutputData = {
     /**
      * The owner of the output token account

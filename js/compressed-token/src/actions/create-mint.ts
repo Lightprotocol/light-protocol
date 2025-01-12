@@ -31,7 +31,7 @@ import {
  *                        TOKEN_PROGRAM_ID. You can pass in a boolean to
  *                        automatically resolve to TOKEN_2022_PROGRAM_ID if
  *                        true, or TOKEN_PROGRAM_ID if false.
- * @param freezeAuthority Account that will control freezing. Defaults to null.
+ * @param freezeAuthority Account that will control freeze and thaw. Defaults to null.
  *
  * @return Address of the new mint and the transaction signature
  */
