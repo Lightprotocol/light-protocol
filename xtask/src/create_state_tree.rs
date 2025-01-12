@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use clap::Parser;
+use dirs::home_dir;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_program_test::test_env::create_state_merkle_tree_and_queue_account;
 use solana_sdk::signature::{read_keypair_file, Keypair, Signer};
@@ -67,8 +68,12 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     let payer = if let Some(payer) = options.payer {
         read_keypair_file(&payer).unwrap_or_else(|_| panic!("{}{}.json", path, options.cpi_pubkey))
     } else {
-        read_keypair_file("/home/ananas/.config/solana/id.json")
-            .expect("Default payer keypair not found in /home/ananas/.config/solana/id.json")
+        // Construct the path to the keypair file in the user's home directory
+        let keypair_path: PathBuf = home_dir()
+            .expect("Could not find home directory")
+            .join(".config/solana/id.json");
+        read_keypair_file(keypair_path.clone())
+            .unwrap_or_else(|_| panic!("Keypair not found in default path {:?}", keypair_path))
     };
     println!("read payer: {:?}", payer.pubkey());
 

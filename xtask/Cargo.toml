@@ -26,3 +26,4 @@ tokio = {workspace = true}
 solana-sdk = {workspace = true}
 light-program-test = {workspace = true}
 light-client = {workspace = true}
+dirs = "6.0"
