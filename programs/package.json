@@ -11,7 +11,7 @@
     "test-compressed-token": "cargo test-sbf -p compressed-token-test",
     "e2e-test": "cargo-test-sbf -p e2e-test",
     "test-registry": "cargo-test-sbf -p registry-test",
-    "sdk-test-program": "cargo test-sbf -p sdk-test-program",
+    "sdk-test-program": "cargo test-sbf -p sdk-test",
     "test-system": "cargo test-sbf -p system-test",
     "test-system-cpi": "cargo test-sbf -p system-cpi-test",
     "ignored-token-escrow": "cargo-test-sbf -p token-escrow --features idl-build",
