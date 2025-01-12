@@ -50,7 +50,7 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     let mut cpi_keypairs: Vec<Keypair> = vec![];
 
     println!(
-        "ormat!( path, options.mt_pubkey) {:?}",
+        "path mt_pubkey {:?}",
         format!("{}-{}.json", path, options.mt_pubkey)
     );
 
