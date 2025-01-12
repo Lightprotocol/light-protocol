@@ -1,18 +1,19 @@
 use std::sync::Arc;
 
-use forester_utils::{forester_epoch::TreeType, indexer::Indexer};
+use forester_utils::forester_epoch::TreeType;
 use light_batched_merkle_tree::{
     batch::{Batch, BatchState},
     merkle_tree::BatchedMerkleTreeAccount,
     queue::BatchedQueueAccount,
 };
-use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::SolanaRpcPool};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
 use tracing::info;
 
 use super::{address, error::Result, state, BatchProcessError};
+use crate::indexer_type::IndexerType;
 
 #[derive(Debug)]
 pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
@@ -33,12 +34,12 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: RpcConnection, I: Indexer<R>> {
+pub struct BatchProcessor<R: RpcConnection, I: Indexer<R> + IndexerType<R>> {
     context: BatchContext<R, I>,
     tree_type: TreeType,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> BatchProcessor<R, I> {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }

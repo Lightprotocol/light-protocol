@@ -80,7 +80,7 @@ jobs:
           {
             echo "Testing group: ${{ matrix.group.name }}"
             echo "Packages: ${{ matrix.group.packages }}"
-            echo "Rust version: $(rustc --version)"
+          echo "Rust version: $(rustc --version)"
           } >> "$GITHUB_STEP_SUMMARY"
           
           # Function to format time duration

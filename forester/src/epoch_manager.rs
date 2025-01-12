@@ -9,12 +9,12 @@ use std::{
 
 use anyhow::Context;
 use dashmap::DashMap;
-use forester_utils::{
-    forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType},
-    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
+use forester_utils::forester_epoch::{
+    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
 };
 use futures::future::join_all;
 use light_client::{
+    indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -39,12 +39,11 @@ use crate::{
         ChannelError, ConfigurationError, ForesterError, InitializationError, RegistrationError,
         WorkReportError,
     },
+    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     queue_helpers::QueueItemData,
-    rollover::{
-        is_tree_ready_for_rollover, rollover_address_merkle_tree, rollover_state_merkle_tree,
-    },
+    rollover::is_tree_ready_for_rollover,
     send_transaction::{
         send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
         SendBatchedTransactionsConfig,
@@ -114,7 +113,7 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -1152,7 +1151,7 @@ impl<R: RpcConnection, I: Indexer<R>> EpochManager<R, I> {
     skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
     fields(forester = %config.payer_keypair.pubkey())
 )]
-pub async fn run_service<R: RpcConnection, I: Indexer<R>>(
+pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,

@@ -16,7 +16,6 @@ use solana_sdk::{
 
 pub mod address_merkle_tree_config;
 pub mod forester_epoch;
-pub mod indexer;
 pub mod instructions;
 pub mod registry;
 

@@ -1,7 +1,8 @@
 use anchor_lang::AnchorSerialize;
-use forester_utils::indexer::{Indexer, TokenDataWithContext};
-use light_client::rpc::RpcConnection;
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
+use light_program_test::indexer::TestIndexerExtensions;
+use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
@@ -21,7 +22,7 @@ use crate::assert_compressed_tx::{
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
@@ -78,7 +79,10 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R>>(
     );
 }
 
-pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
+pub fn assert_compressed_token_accounts<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
@@ -188,14 +192,14 @@ pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R>>(
+pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     rpc: &mut R,
     test_indexer: &'a mut I,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],
     snapshots: &[MerkleTreeTestSnapShot],
-    created_token_accounts: &[TokenDataWithContext],
+    created_token_accounts: &[TokenDataWithMerkleContext],
     previous_mint_supply: u64,
     previous_sol_pool_amount: u64,
     token_pool_pda: Pubkey,

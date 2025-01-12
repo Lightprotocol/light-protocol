@@ -72,10 +72,6 @@ use forester_utils::{
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     airdrop_lamports,
     forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
-    indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle, TokenDataWithContext,
-    },
     registry::register_test_forester,
     AccountZeroCopy,
 };
@@ -84,19 +80,23 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{
-    rpc::{errors::RpcError, RpcConnection},
+    indexer::{
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
+        StateMerkleTreeBundle,
+    },
+    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::{FeeConfig, TransactionParams},
 };
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
-use light_compressed_token::token_data::AccountState;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
     test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
@@ -108,6 +108,7 @@ use light_registry::{
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::{bigint::bigint_to_be_bytes_array, rand::gen_prime};
 use log::info;
@@ -135,8 +136,8 @@ use crate::{
     assert_epoch::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
     },
+    conversions::sdk_to_program_compressed_account_with_merkle_context,
     create_address_merkle_tree_and_queue_account_with_assert,
-    indexer::TestIndexer,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
         create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test,
@@ -212,7 +213,7 @@ impl Stats {
         println!("Finalized registrations {}", self.finalized_registrations);
     }
 }
-pub async fn init_program_test_env<R: RpcConnection>(
+pub async fn init_program_test_env<R: RpcConnection + MerkleTreeExt>(
     rpc: R,
     env_accounts: &EnvAccounts,
     skip_prover: bool,
@@ -288,7 +289,7 @@ pub struct TestForester {
     is_registered: Option<u64>,
 }
 
-pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
+pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> {
     pub payer: Keypair,
     pub governance_keypair: Keypair,
     pub indexer: I,
@@ -311,7 +312,7 @@ pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
     pub registration_epoch: u64,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> E2ETestEnv<R, I>
+impl<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>> E2ETestEnv<R, I>
 where
     R: RpcConnection,
     I: Indexer<R>,
@@ -2208,7 +2209,12 @@ where
     ) -> Vec<CompressedAccountWithMerkleContext> {
         let input_compressed_accounts = self
             .indexer
-            .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+            .get_compressed_accounts_with_merkle_context_by_owner(
+                &self.users[user_index].keypair.pubkey(),
+            )
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect::<Vec<_>>();
         if input_compressed_accounts.is_empty() {
             return vec![];
         }
@@ -2245,7 +2251,11 @@ where
         &self,
         pubkey: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext> {
-        self.indexer.get_compressed_accounts_by_owner(pubkey)
+        self.indexer
+            .get_compressed_accounts_with_merkle_context_by_owner(pubkey)
+            .into_iter()
+            .map(sdk_to_program_compressed_account_with_merkle_context)
+            .collect()
     }
 
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
@@ -2320,7 +2330,7 @@ where
     pub async fn select_random_compressed_token_accounts(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, false)
             .await
     }
@@ -2328,7 +2338,7 @@ where
     pub async fn select_random_compressed_token_accounts_frozen(
         &mut self,
         user: &Pubkey,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         self.select_random_compressed_token_accounts_delegated(user, false, None, true)
             .await
     }
@@ -2339,7 +2349,7 @@ where
         delegated: bool,
         delegate: Option<Pubkey>,
         frozen: bool,
-    ) -> (Pubkey, Vec<TokenDataWithContext>) {
+    ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
         let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
@@ -2429,14 +2439,14 @@ where
                     token_account.token_data.mint == mint && tree_version == version
                 })
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if delegated {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.is_some())
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2446,14 +2456,14 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.delegate.unwrap() == delegate)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         if frozen {
             token_accounts_with_mint = token_accounts_with_mint
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Frozen)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
             if token_accounts_with_mint.is_empty() {
                 return (mint, Vec::new());
             }
@@ -2462,7 +2472,7 @@ where
                 .iter()
                 .filter(|token_account| token_account.token_data.state == AccountState::Initialized)
                 .map(|token_account| (*token_account).clone())
-                .collect::<Vec<TokenDataWithContext>>();
+                .collect::<Vec<TokenDataWithMerkleContext>>();
         }
         let range_end = if token_accounts_with_mint.len() == 1 {
             1

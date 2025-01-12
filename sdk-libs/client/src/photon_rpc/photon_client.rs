@@ -114,7 +114,7 @@ impl PhotonClient {
         &self,
         merkle_tree_pubkey: Pubkey,
         addresses: Vec<Address>,
-    ) -> Result<Vec<NewAddressProofWithContext>, PhotonClientError> {
+    ) -> Result<Vec<NewAddressProofWithContext<16>>, PhotonClientError> {
         let params: Vec<photon_api::models::AddressWithTree> = addresses
             .iter()
             .map(|x| photon_api::models::AddressWithTree {
@@ -141,7 +141,7 @@ impl PhotonClient {
         }
 
         let photon_proofs = result.unwrap().result.unwrap().value;
-        let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();
+        let mut proofs: Vec<NewAddressProofWithContext<16>> = Vec::new();
         for photon_proof in photon_proofs {
             let tree_pubkey = Hash::from_base58(&photon_proof.merkle_tree).unwrap();
             let low_address_value = Hash::from_base58(&photon_proof.lower_range_address).unwrap();

@@ -2,9 +2,12 @@ use std::collections::HashMap;
 
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_client::rpc::{RpcConnection, RpcError};
+use light_client::{
+    indexer::Indexer,
+    rpc::{RpcConnection, RpcError},
+};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::test_env::EnvAccounts;
+use light_program_test::{indexer::TestIndexerExtensions, test_env::EnvAccounts};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::address::{derive_address, pack_new_address_params},
@@ -12,7 +15,7 @@ use light_system_program::{
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
-use crate::{indexer::TestIndexer, Indexer};
+use crate::conversions::sdk_to_program_compressed_proof;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {
@@ -68,8 +71,11 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     }
 }
 
-pub async fn perform_create_pda_with_event_rnd<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<R>,
+pub async fn perform_create_pda_with_event_rnd<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
+    test_indexer: &mut I,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -78,8 +84,11 @@ pub async fn perform_create_pda_with_event_rnd<R: RpcConnection>(
     let data = rand::random();
     perform_create_pda_with_event(test_indexer, rpc, env, payer, seed, &data).await
 }
-pub async fn perform_create_pda_with_event<R: RpcConnection>(
-    test_indexer: &mut TestIndexer<R>,
+pub async fn perform_create_pda_with_event<
+    R: RpcConnection,
+    I: Indexer<R> + TestIndexerExtensions<R>,
+>(
+    test_indexer: &mut I,
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -126,7 +135,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         data: *data,
         signer: &payer.pubkey(),
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &rpc_result.proof,
+        proof: &sdk_to_program_compressed_proof(rpc_result.proof),
         new_address_params,
 
         registered_program_pda: &env.registered_program_pda,

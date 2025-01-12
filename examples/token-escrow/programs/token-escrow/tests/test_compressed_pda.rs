@@ -14,8 +14,12 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
+use light_client::{indexer::Indexer, rpc::merkle_tree::MerkleTreeExt};
 use light_hasher::{Hasher, Poseidon};
-use light_program_test::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+};
 use light_prover_client::gnark::helpers::{ProverConfig, ProverMode};
 use light_system_program::{
     sdk::{
@@ -25,9 +29,12 @@ use light_system_program::{
     NewAddressParams,
 };
 use light_test_utils::{
-    indexer::TestIndexer,
+    conversions::{
+        program_to_sdk_public_transaction_event, sdk_to_program_compressed_account,
+        sdk_to_program_compressed_proof, sdk_to_program_token_data,
+    },
     spl::{create_mint_helper, mint_tokens_helper},
-    FeeConfig, Indexer, RpcConnection, RpcError, TransactionParams,
+    FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
@@ -62,7 +69,7 @@ async fn test_escrow_with_compressed_pda() {
     );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
-    test_indexer.state_merkle_trees.remove(1);
+
     let amount = 10000u64;
     mint_tokens_helper(
         &mut rpc,
@@ -150,7 +157,7 @@ async fn test_escrow_with_compressed_pda() {
     .await;
 }
 
-pub async fn perform_escrow_failing<R: RpcConnection>(
+pub async fn perform_escrow_failing<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -180,7 +187,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
     rpc.process_transaction(transaction).await
 }
 
-pub async fn perform_escrow_with_event<R: RpcConnection>(
+pub async fn perform_escrow_with_event<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -214,11 +221,14 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
         )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.unwrap().0),
+    );
     Ok(())
 }
 
-async fn create_escrow_ix<R: RpcConnection>(
+async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
     payer: &Keypair,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
@@ -266,7 +276,9 @@ async fn create_escrow_ix<R: RpcConnection>(
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
-        input_token_data: &[input_compressed_token_account_data.token_data.clone()],
+        input_token_data: &[sdk_to_program_token_data(
+            input_compressed_token_account_data.token_data.clone(),
+        )],
         lock_up_time,
         signer: &payer_pubkey,
         input_merkle_context: &[MerkleContext {
@@ -283,17 +295,19 @@ async fn create_escrow_ix<R: RpcConnection>(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &Some(rpc_result.proof),
+        proof: &Some(sdk_to_program_compressed_proof(rpc_result.proof)),
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
-        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
+        input_compressed_accounts: &[sdk_to_program_compressed_account(
+            compressed_input_account_with_context.compressed_account,
+        )],
     };
     let instruction = create_escrow_instruction(create_ix_inputs.clone(), escrow_amount);
     (payer_pubkey, instruction)
 }
 
-pub async fn assert_escrow<R: RpcConnection>(
+pub async fn assert_escrow<R: RpcConnection + MerkleTreeExt>(
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -327,6 +341,7 @@ pub async fn assert_escrow<R: RpcConnection>(
         .unwrap()
         .clone();
     let address = derive_address_legacy(&env.address_merkle_tree_pubkey, seed).unwrap();
+
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -357,7 +372,7 @@ pub async fn assert_escrow<R: RpcConnection>(
         Poseidon::hash(&compressed_escrow_pda_data.slot.to_le_bytes()).unwrap(),
     );
 }
-pub async fn perform_withdrawal_with_event<R: RpcConnection>(
+pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
@@ -385,11 +400,14 @@ pub async fn perform_withdrawal_with_event<R: RpcConnection>(
         )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
+    test_indexer.add_compressed_accounts_with_token_data(
+        slot,
+        &program_to_sdk_public_transaction_event(event.unwrap().0),
+    );
     Ok(())
 }
 
-pub async fn perform_withdrawal_failing<R: RpcConnection>(
+pub async fn perform_withdrawal_failing<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
@@ -417,7 +435,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
     );
     rpc.process_transaction(transaction).await
 }
-pub async fn perform_withdrawal<R: RpcConnection>(
+pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
@@ -476,7 +494,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         .await;
 
     let create_withdrawal_ix_inputs = CreateCompressedPdaWithdrawalInstructionInputs {
-        input_token_data: &[token_escrow.token_data.clone()],
+        input_token_data: &[sdk_to_program_token_data(token_escrow.token_data.clone())],
         signer: &payer_pubkey,
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,
@@ -496,13 +514,15 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &Some(rpc_result.proof),
+        proof: &Some(sdk_to_program_compressed_proof(rpc_result.proof)),
         mint: &token_escrow.token_data.mint,
         cpi_context_account: &env.cpi_context_account_pubkey,
         old_lock_up_time,
         new_lock_up_time,
         address: compressed_escrow_pda.compressed_account.address.unwrap(),
-        input_compressed_accounts: &[compressed_escrow_pda.compressed_account],
+        input_compressed_accounts: &[sdk_to_program_compressed_account(
+            compressed_escrow_pda.compressed_account,
+        )],
     };
     create_withdrawal_instruction(create_withdrawal_ix_inputs.clone(), escrow_amount)
 }
@@ -511,7 +531,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
 /// 2. Withdrawal token account exists
 /// 3. Compressed pda with update lock-up time exists
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_withdrawal<R: RpcConnection>(
+pub async fn assert_withdrawal<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,

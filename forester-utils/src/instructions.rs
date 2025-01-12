@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     },
     queue::BatchedQueueAccount,
 };
-use light_client::rpc::RpcConnection;
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_hasher::{Hasher, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -27,8 +27,6 @@ use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 
-use crate::indexer::Indexer;
-
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
     #[error("parse error: {0:?}")]
@@ -41,11 +39,15 @@ pub enum ForesterUtilsError {
     IndexerError(String),
 }
 
-pub async fn create_batch_update_address_tree_instruction_data<R: RpcConnection, I: Indexer<R>>(
+pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
-) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError> {
+) -> Result<(InstructionDataBatchNullifyInputs, usize), ForesterUtilsError>
+where
+    R: RpcConnection,
+    I: Indexer<R>,
+{
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await
         .map_err(|e| {
             error!(
@@ -114,7 +116,7 @@ pub async fn create_batch_update_address_tree_instruction_data<R: RpcConnection,
 
     // Get proof info after addresses are retrieved
     let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs_full(
+        .get_multiple_new_address_proofs_h40(
             merkle_tree_pubkey.to_bytes(),
             addresses.clone(),
         )
@@ -143,7 +145,6 @@ pub async fn create_batch_update_address_tree_instruction_data<R: RpcConnection,
 
     let subtrees = indexer
         .get_subtrees(merkle_tree_pubkey.to_bytes())
-        .await
         .map_err(|e| {
             error!(
                 "create_batch_update_address_tree_instruction_data: failed to get subtrees from indexer: {:?}",
@@ -376,18 +377,19 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         merkle_tree_pubkey,
         &leaf_indices_tx_hashes
             .iter()
-            .map(|(index, _, _)| *index as u64)
+            .map(|leaf_info| leaf_info.leaf_index as u64)
             .collect::<Vec<_>>(),
     );
 
-    for ((index, leaf, tx_hash), proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
-        path_indices.push(*index);
-        leaves.push(*leaf);
+    for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
+        path_indices.push(leaf_info.leaf_index);
+        leaves.push(leaf_info.leaf);
         old_leaves.push(proof.leaf);
         merkle_proofs.push(proof.proof.clone());
-        tx_hashes.push(*tx_hash);
-        let index_bytes = index.to_be_bytes();
-        let nullifier = Poseidon::hashv(&[leaf, &index_bytes, tx_hash]).unwrap();
+        tx_hashes.push(leaf_info.tx_hash);
+        let index_bytes = leaf_info.leaf_index.to_be_bytes();
+        let nullifier =
+            Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
         nullifiers.push(nullifier);
     }
 

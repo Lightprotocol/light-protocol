@@ -12,6 +12,7 @@ use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVecError;
+use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
@@ -28,7 +29,7 @@ use light_test_utils::{
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
-    AddressMerkleTreeAccounts, AddressMerkleTreeBundle, FeeConfig, RpcConnection, RpcError,
+    FeeConfig, RpcConnection, RpcError,
 };
 use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::ToBigUint;

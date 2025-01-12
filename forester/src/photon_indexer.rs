@@ -2,8 +2,14 @@ use std::fmt::Debug;
 
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
-use forester_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
-use light_client::rpc::RpcConnection;
+use light_client::{
+    indexer::{
+        AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo, MerkleProof,
+        NewAddressProofWithContext, ProofOfLeaf,
+    },
+    rpc::RpcConnection,
+};
+use light_sdk::proof::ProofRpcResult;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams},
@@ -53,19 +59,20 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<Vec<[u8; 32]>, IndexerError> {
         unimplemented!()
     }
-    async fn get_subtrees(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+
+    fn get_subtrees(&self, _merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
         unimplemented!()
     }
 
-    async fn get_multiple_new_address_proofs_full(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _addresses: Vec<[u8; 32]>,
-    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
-        unimplemented!()
+    async fn create_proof_for_compressed_accounts(
+        &mut self,
+        _compressed_accounts: Option<Vec<[u8; 32]>>,
+        _state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _new_addresses: Option<&[[u8; 32]]>,
+        _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _rpc: &mut R,
+    ) -> ProofRpcResult {
+        todo!()
     }
     async fn get_multiple_compressed_account_proofs(
         &self,
@@ -118,7 +125,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
     }
 
-    async fn get_rpc_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<String>, IndexerError> {
@@ -215,5 +222,33 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         }
 
         Ok(proofs)
+    }
+
+    async fn get_multiple_new_address_proofs_h40(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        _addresses: Vec<[u8; 32]>,
+    ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
+        unimplemented!()
+    }
+
+    fn get_proofs_by_indices(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _indices: &[u64],
+    ) -> Vec<ProofOfLeaf> {
+        todo!()
+    }
+
+    fn get_leaf_indices_tx_hashes(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _zkp_batch_size: usize,
+    ) -> Vec<LeafIndexInfo> {
+        todo!()
+    }
+
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+        todo!()
     }
 }
