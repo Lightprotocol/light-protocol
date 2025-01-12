@@ -6,14 +6,17 @@
     "build": "anchor build",
     "build-system": "anchor build --program-name light_system_program -- --features idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features idl-build custom-heap",
-    "test": "pnpm test-account-compression && pnpm test-system && pnpm test-compressed-token && pnpm test-registry",
-    "test-account-compression": "cargo-test-sbf -p account-compression-test -- --test-threads=1",
-    "test-system": "cargo test-sbf -p system-test -- --test-threads=1",
-    "test-compressed-token": "cargo test-sbf -p compressed-token-test -- --test-threads=1",
-    "test-registry": "cargo-test-sbf -p registry-test -- --test-threads=1",
-    "token-escrow": "cargo-test-sbf -p token-escrow -- --test-threads=1 --features idl-build",
-    "program-owned-account-test": "cargo-test-sbf -p program-owned-account-test -- --test-threads=1",
-    "random-e2e-test": "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
+    "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-account-compression &&  pnpm test-compressed-token && pnpm e2e-test && pnpm test-registry && pnpm sdk-test-program && pnpm test-system && pnpm test-system-cpi",
+    "test-account-compression": "cargo-test-sbf -p account-compression-test",
+    "test-compressed-token": "cargo test-sbf -p compressed-token-test",
+    "e2e-test": "cargo-test-sbf -p e2e-test",
+    "test-registry": "cargo-test-sbf -p registry-test",
+    "sdk-test-program": "cargo test-sbf -p sdk-test-program",
+    "test-system": "cargo test-sbf -p system-test",
+    "test-system-cpi": "cargo test-sbf -p system-cpi-test",
+    "ignored-token-escrow": "cargo-test-sbf -p token-escrow --features idl-build",
+    "ignored-program-owned-account-test": "cargo-test-sbf -p program-owned-account-test"
+
   },
   "nx": {
     "targets": {
