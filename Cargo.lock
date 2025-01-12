@@ -1701,7 +1701,7 @@ dependencies = [
  "solana-client",
  "solana-program-test",
  "solana-sdk",
- "spl-concurrent-merkle-tree 0.2.0",
+ "spl-concurrent-merkle-tree",
  "spl-token",
  "tokio",
 ]
@@ -2852,7 +2852,6 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "borsh 0.10.3",
- "bytemuck",
  "light-bounded-vec",
  "light-hash-set",
  "light-hasher",
@@ -2863,8 +2862,7 @@ dependencies = [
  "num-traits",
  "rand 0.8.5",
  "solana-program",
- "spl-account-compression",
- "spl-concurrent-merkle-tree 0.2.0",
+ "spl-concurrent-merkle-tree",
  "thiserror 1.0.64",
  "tokio",
 ]
@@ -3161,10 +3159,8 @@ dependencies = [
  "ark-ff",
  "borsh 0.10.3",
  "bytemuck",
- "light-bounded-vec",
  "light-hasher",
  "light-poseidon",
- "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-program",
@@ -6187,20 +6183,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spl-account-compression"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfcf740e5242f2ad63325e600c368702f32db84608fc8b70d70633c68dd1486d"
-dependencies = [
- "anchor-lang",
- "bytemuck",
- "solana-program",
- "solana-security-txt",
- "spl-concurrent-merkle-tree 0.3.0",
- "spl-noop",
-]
-
-[[package]]
 name = "spl-associated-token-account"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6221,17 +6203,6 @@ name = "spl-concurrent-merkle-tree"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "141eaea58588beae81b71d101373a53f096737739873de42d6b1368bc2b8fc30"
-dependencies = [
- "bytemuck",
- "solana-program",
- "thiserror 1.0.64",
-]
-
-[[package]]
-name = "spl-concurrent-merkle-tree"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5f45b971d82cbb0416fdffad3c9098f259545d54072e83a0a482f60f8f689"
 dependencies = [
  "bytemuck",
  "solana-program",
@@ -6313,15 +6284,6 @@ name = "spl-memo"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f180b03318c3dbab3ef4e1e4d46d5211ae3c780940dd0a28695aba4b59a75a"
-dependencies = [
- "solana-program",
-]
-
-[[package]]
-name = "spl-noop"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dd67ea3d0070a12ff141f5da46f9695f49384a03bce1203a5608f5739437950"
 dependencies = [
  "solana-program",
 ]

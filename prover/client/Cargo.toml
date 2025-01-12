@@ -41,6 +41,7 @@ num-traits = "0.2.19"
 tokio = { workspace = true, optional = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"], optional = true  }
 sysinfo = "0.33"
+
 [dev-dependencies]
 serial_test = "3.2.0"
 

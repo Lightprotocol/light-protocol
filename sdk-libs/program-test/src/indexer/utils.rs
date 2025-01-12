@@ -1,9 +1,6 @@
 use std::cmp;
 
-use account_compression::{
-    initialize_address_merkle_tree::Pubkey, AddressMerkleTreeConfig, AddressQueueConfig,
-    QueueAccount, RegisteredProgram,
-};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
 use forester_utils::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
@@ -14,7 +11,10 @@ use light_merkle_tree_metadata::{
 };
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use light_utils::fee::compute_rollover_fee;
-use solana_sdk::signature::{Keypair, Signature, Signer};
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{Keypair, Signature, Signer},
+};
 
 use crate::test_env::create_address_merkle_tree_and_queue_account;
 
@@ -184,18 +184,21 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
 
     assert_eq!(
         merkle_tree_account.metadata.next_merkle_tree,
-        Pubkey::default()
+        Pubkey::default().into()
     );
     let expected_access_meta_data = AccessMetadata {
-        owner: *owner_pubkey,
-        program_owner: program_owner.unwrap_or_default(),
-        forester: forester.unwrap_or_default(),
+        owner: (*owner_pubkey).into(),
+        program_owner: program_owner.unwrap_or_default().into(),
+        forester: forester.unwrap_or_default().into(),
     };
     assert_eq!(
         merkle_tree_account.metadata.access_metadata,
         expected_access_meta_data
     );
-    assert_eq!(merkle_tree_account.metadata.associated_queue, *queue_pubkey);
+    assert_eq!(
+        merkle_tree_account.metadata.associated_queue,
+        (*queue_pubkey).into()
+    );
 
     let merkle_tree = get_indexed_merkle_tree::<
         account_compression::AddressMerkleTreeAccount,
@@ -364,20 +367,21 @@ pub async fn assert_queue<R: RpcConnection>(
         additional_bytes: 0,
     };
     let expected_access_meta_data = AccessMetadata {
-        owner: *payer_pubkey,
-        program_owner: expected_program_owner.unwrap_or_default(),
-        forester: expected_forester.unwrap_or_default(),
+        owner: (*payer_pubkey).into(),
+        program_owner: expected_program_owner.unwrap_or_default().into(),
+        forester: expected_forester.unwrap_or_default().into(),
     };
     let expected_queue_meta_data = QueueMetadata {
         access_metadata: expected_access_meta_data,
         rollover_metadata: expected_rollover_meta_data,
-        associated_merkle_tree: *associated_merkle_tree_pubkey,
-        next_queue: expected_next_queue.unwrap_or_default(),
+        associated_merkle_tree: (*associated_merkle_tree_pubkey).into(),
+        next_queue: expected_next_queue.unwrap_or_default().into(),
         queue_type: expected_queue_type as u64,
     };
     assert_eq!(queue_account.metadata, expected_queue_meta_data);
 
-    let queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *queue_pubkey).await };
+    let queue =
+        unsafe { get_hash_set::<account_compression::QueueAccount, R>(rpc, *queue_pubkey).await };
     assert_eq!(queue.get_capacity(), queue_config.capacity as usize);
     assert_eq!(
         queue.sequence_threshold,
