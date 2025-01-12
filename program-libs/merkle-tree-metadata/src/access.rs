@@ -3,11 +3,24 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use solana_program::pubkey::Pubkey;
+use light_utils::pubkey::Pubkey;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[repr(C)]
 #[derive(
-    AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default, Pod, Zeroable, Clone, Copy,
+    AnchorDeserialize,
+    AnchorSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Pod,
+    Zeroable,
+    Clone,
+    Copy,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
 )]
 pub struct AccessMetadata {
     /// Owner of the Merkle tree.

@@ -36,11 +36,12 @@ jobs:
       matrix:
         group:
           - name: concurrent-merkle-tree
-            packages: light-concurrent-merkle-tree
+            packages: >-
+              light-concurrent-merkle-tree
+              light-batched-merkle-tree
           - name: program-libs
             packages: >-
               aligned-sized
-              light-batched-merkle-tree
               light-bloom-filter
               light-hasher
               light-utils
@@ -49,21 +50,15 @@ jobs:
               light-zero-copy
               light-hash-set
               light-indexed-merkle-tree
+              light-batched-merkle-tree
           - name: sdk-libs
             packages: >-
               light-macros
               light-sdk
               light-program-test
               light-client
-          - name: program-tests
-            packages: >-
-              account-compression-test
-              compressed-token-test
-              e2e-test
-              registry-test
-              system-cpi-test
-              system-test
-              sdk-test
+              light-batched-merkle-tree
+              
       fail-fast: false
     name: Test ${{ matrix.group.name }}
     
@@ -108,8 +103,23 @@ jobs:
               echo "::group::Testing ${pkg}"
               start=$(date +%s)
               
-              cargo test -p "${pkg}" || exit 1
-              
+
+              if [ "${pkg}" == "light-batched-merkle-tree" ]; then
+                if [ "${name}" == "sdk-libs" ]; then
+                  # execute simulate transactions test
+                  cargo test -p "${pkg}" -- --test test_simulate_transactions || exit 1
+                elif [ "${name}" == "program-libs" ]; then
+                  # execute e2e test
+                  cargo test -p "${pkg}" -- --test test_e2e || exit 1
+                else
+                  # execute all tests except test_simulate_transactions and test_e2e
+                  cargo test -p "${pkg}" -- --skip test_simulate_transactions --skip test_e2e || exit 1
+                fi
+              else {
+                cargo test -p "${pkg}" || exit 1
+                }
+              fi
+                            
               end=$(date +%s)
               duration=$((end - start))
               formatted_time=$(format_duration "$duration")

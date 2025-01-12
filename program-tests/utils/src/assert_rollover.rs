@@ -89,8 +89,14 @@ pub fn assert_rolledover_merkle_trees_metadata(
         new_merkle_tree_metadata.rollover_metadata.additional_bytes
     );
 
-    assert_eq!(new_merkle_tree_metadata.associated_queue, *new_queue_pubkey);
-    assert_eq!(new_merkle_tree_metadata.next_merkle_tree, Pubkey::default());
+    assert_eq!(
+        new_merkle_tree_metadata.associated_queue,
+        (*new_queue_pubkey).into()
+    );
+    assert_eq!(
+        new_merkle_tree_metadata.next_merkle_tree,
+        Pubkey::default().into()
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -137,9 +143,9 @@ pub fn assert_rolledover_queues_metadata(
     );
     assert_eq!(
         new_queue_metadata.associated_merkle_tree,
-        *new_merkle_tree_pubkey
+        (*new_merkle_tree_pubkey).into()
     );
-    assert_eq!(old_queue_metadata.next_queue, *new_queue_pubkey);
+    assert_eq!(old_queue_metadata.next_queue, (*new_queue_pubkey).into());
     assert_eq!(
         old_merkle_tree_lamports,
         new_merkle_tree_lamports + new_queue_lamports + old_merkle_tree_lamports

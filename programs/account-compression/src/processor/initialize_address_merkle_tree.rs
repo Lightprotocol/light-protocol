@@ -26,7 +26,11 @@ pub fn process_initialize_address_merkle_tree(
         // All rollover fees are collected by the address queue.
         let rollover_fee = 0;
         merkle_tree.init(
-            AccessMetadata::new(owner, program_owner, forester),
+            AccessMetadata {
+                owner: owner.into(),
+                program_owner: program_owner.unwrap_or_default().into(),
+                forester: forester.unwrap_or_default().into(),
+            },
             RolloverMetadata::new(
                 index,
                 rollover_fee,

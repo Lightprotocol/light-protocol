@@ -29,6 +29,7 @@ account-compression = { workspace = true  }
 light-hasher = { workspace = true }
 light-utils = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

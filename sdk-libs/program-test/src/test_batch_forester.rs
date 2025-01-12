@@ -507,9 +507,10 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree_pubkey).await;
 
     let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey).await;
-    let mt_params = CreateTreeParams::from_state_ix_params(params, payer_pubkey);
+    let mt_params = CreateTreeParams::from_state_ix_params(params, payer_pubkey.into());
 
-    let ref_mt_account = BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
+    let ref_mt_account =
+        BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
     assert_state_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),
         ref_mt_account,
@@ -542,8 +543,12 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
         .await
         .unwrap();
     let total_rent = queue_rent + mt_rent + additional_bytes_rent;
-    let queue_params =
-        CreateOutputQueueParams::from(params, payer_pubkey, total_rent, merkle_tree_pubkey);
+    let queue_params = CreateOutputQueueParams::from(
+        params,
+        payer_pubkey.into(),
+        total_rent,
+        merkle_tree_pubkey.into(),
+    );
     let ref_output_queue_account = create_output_queue_account(queue_params);
 
     assert_queue_zero_copy_inited(
@@ -685,10 +690,10 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
         .await
         .unwrap()
         .unwrap();
-    let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
+    let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner.into());
 
     let ref_mt_account =
-        BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, old_queue_pubkey);
+        BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, old_queue_pubkey.into());
     let old_queue_account_data = rpc
         .get_account(old_queue_pubkey)
         .await
@@ -699,30 +704,30 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
 
     let queue_params = CreateOutputQueueParams::from(
         params,
-        owner,
+        owner.into(),
         new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent,
-        old_state_merkle_tree_pubkey,
+        old_state_merkle_tree_pubkey.into(),
     );
     let ref_queue_account = create_output_queue_account(queue_params);
     let mut new_ref_queue_account = ref_queue_account;
-    new_ref_queue_account.metadata.associated_merkle_tree = new_state_merkle_tree_pubkey;
+    new_ref_queue_account.metadata.associated_merkle_tree = new_state_merkle_tree_pubkey.into();
     let mut new_ref_mt_account = ref_mt_account;
-    new_ref_mt_account.metadata.associated_queue = new_queue_pubkey;
+    new_ref_mt_account.metadata.associated_queue = new_queue_pubkey.into();
     let slot = rpc.get_slot().await.unwrap();
     let params = StateMtRollOverAssertParams {
         mt_account_data: old_state_merkle_tree.data.to_vec(),
         ref_rolledover_mt: ref_mt_account,
         new_mt_account_data: new_state_merkle_tree.data.to_vec(),
-        old_mt_pubkey: old_state_merkle_tree_pubkey,
-        new_mt_pubkey: new_state_merkle_tree_pubkey,
+        old_mt_pubkey: old_state_merkle_tree_pubkey.into(),
+        new_mt_pubkey: new_state_merkle_tree_pubkey.into(),
         bloom_filter_num_iters: params.bloom_filter_num_iters,
         ref_mt_account: new_ref_mt_account,
         queue_account_data: old_queue_account_data.to_vec(),
         ref_rolledover_queue: ref_queue_account,
         new_queue_account_data: new_queue_account.data.to_vec(),
-        new_queue_pubkey,
+        new_queue_pubkey: new_queue_pubkey.into(),
         ref_queue_account: new_ref_queue_account,
-        old_queue_pubkey,
+        old_queue_pubkey: old_queue_pubkey.into(),
         slot,
     };
     assert_state_mt_roll_over(params);
@@ -787,7 +792,7 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
         .get_minimum_balance_for_rent_exemption(mt_account_size)
         .await
         .unwrap();
-    let mt_params = CreateTreeParams::from_address_ix_params(params, payer_pubkey);
+    let mt_params = CreateTreeParams::from_address_ix_params(params, payer_pubkey.into());
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
     assert_address_mt_zero_copy_inited(
         merkle_tree.account.data.as_mut_slice(),

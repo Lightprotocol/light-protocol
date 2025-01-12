@@ -1741,7 +1741,7 @@ async fn test_rollover_batch_state_tree() {
         let custom_forester = Keypair::new();
         let mut params = InitStateTreeAccountsInstructionData::test_default();
         params.rollover_threshold = Some(0);
-        params.forester = Some(custom_forester.pubkey());
+        params.forester = Some(custom_forester.pubkey().into());
         params.network_fee = None;
         let is_light_forester = false;
 
@@ -1816,7 +1816,7 @@ async fn test_rollover_batch_state_tree() {
         {
             let mut params = InitStateTreeAccountsInstructionData::test_default();
             params.rollover_threshold = Some(0);
-            params.forester = Some(custom_forester.pubkey());
+            params.forester = Some(custom_forester.pubkey().into());
             params.network_fee = Some(1);
             let new_merkle_tree_keypair = Keypair::new();
             let new_nullifier_queue_keypair = Keypair::new();
@@ -2033,7 +2033,7 @@ async fn test_rollover_batch_address_tree() {
         .await
         .unwrap()
         .unwrap();
-    let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda);
+    let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda.into());
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
     assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account, 3);

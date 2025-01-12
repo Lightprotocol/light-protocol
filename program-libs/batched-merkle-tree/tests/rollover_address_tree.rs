@@ -11,12 +11,11 @@ use light_batched_merkle_tree::{
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
-    SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA, SIZE_OF_ZERO_COPY_SLICE_METADATA,
-    SIZE_OF_ZERO_COPY_VEC_METADATA,
+    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
 };
 use rand::thread_rng;
-use solana_program::pubkey::Pubkey;
 
 /// Test rollover of address tree
 /// 1. failing: not ready for rollover
@@ -181,8 +180,6 @@ fn test_rnd_rollover() {
             params.network_fee = None;
         }
 
-        use std::mem::size_of;
-
         let mt_account_size = get_merkle_tree_account_size(
             params.input_queue_batch_size,
             params.bloom_filter_capacity,
@@ -194,14 +191,17 @@ fn test_rnd_rollover() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
-            let batch_size = size_of::<Batch>() * num_batches + SIZE_OF_ZERO_COPY_SLICE_METADATA;
-            let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
-                + SIZE_OF_ZERO_COPY_SLICE_METADATA)
-                * num_batches;
+            let batch_size =
+                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
+            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
+                (params.bloom_filter_capacity / 8) as u64,
+            ) * num_batches;
             let hash_chain_store_size =
-                (num_zkp_batches as usize * 32 + SIZE_OF_ZERO_COPY_VEC_METADATA) * num_batches;
-            let root_history_size =
-                params.root_history_capacity as usize * 32 + SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA;
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
+                    * num_batches;
+            let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
+                params.root_history_capacity as u64,
+            );
             // Output queue
             let ref_account_size =
                 // metadata

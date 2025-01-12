@@ -51,7 +51,11 @@ pub fn process_initialize_address_queue<'info>(
         };
 
         address_queue.init(
-            AccessMetadata::new(owner, program_owner, forester),
+            AccessMetadata {
+                owner: owner.into(),
+                program_owner: program_owner.unwrap_or_default().into(),
+                forester: forester.unwrap_or_default().into(),
+            },
             RolloverMetadata::new(
                 index,
                 rollover_fee,

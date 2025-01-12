@@ -14,6 +14,12 @@ pub enum ZeroCopyError {
     InvalidAccountSize,
     #[error("Unaligned pointer.")]
     UnalignedPointer,
+    #[error("Memory not zeroed.")]
+    MemoryNotZeroed,
+    #[error("InvalidConversion.")]
+    InvalidConversion,
+    #[error("Zero copy cast error {0}")]
+    CastError(String),
 }
 
 #[cfg(feature = "solana")]
@@ -26,6 +32,9 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::InsufficientMemoryAllocated(_, _) => 15004,
             ZeroCopyError::InvalidAccountSize => 15005,
             ZeroCopyError::UnalignedPointer => 15006,
+            ZeroCopyError::MemoryNotZeroed => 15007,
+            ZeroCopyError::InvalidConversion => 15008,
+            ZeroCopyError::CastError(_) => 15009,
         }
     }
 }

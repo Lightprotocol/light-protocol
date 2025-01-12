@@ -32,19 +32,19 @@ impl QueueAccount {
         self.metadata.init(
             access_metadata,
             rollover_meta_data,
-            associated_merkle_tree,
+            associated_merkle_tree.into(),
             queue_type,
         )
     }
 }
 
 impl GroupAccess for QueueAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 

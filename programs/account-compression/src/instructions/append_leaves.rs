@@ -29,22 +29,22 @@ pub struct AppendLeaves<'info> {
 }
 
 impl GroupAccess for StateMerkleTreeAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 
 impl GroupAccess for BatchedQueueMetadata {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
     }
 }
 
@@ -122,7 +122,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                         .collect::<Vec<&[u8; 32]>>()
                         .as_slice(),
                 )?,
-                BatchedQueueMetadata::DISCRIMINATOR => {
+                BatchedQueueAccount::DISCRIMINATOR => {
                     append_v2(ctx, merkle_tree_acc_info, batch_size, &leaves[start..end])?
                 }
                 _ => {

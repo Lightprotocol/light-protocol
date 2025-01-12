@@ -4,9 +4,10 @@ use light_merkle_tree_metadata::{
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
 use light_utils::{
-    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, UtilsError,
+    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
+    UtilsError,
 };
-use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+use solana_program::account_info::AccountInfo;
 
 use crate::{
     constants::{
@@ -102,7 +103,7 @@ pub fn init_batched_address_merkle_tree_from_account_info(
     params: InitAddressTreeAccountsInstructionData,
     owner: Pubkey,
     mt_account_info: &AccountInfo<'_>,
-) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
@@ -118,7 +119,8 @@ pub fn init_batched_address_merkle_tree_from_account_info(
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
         .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
-    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)
+    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)?;
+    Ok(())
 }
 
 pub fn init_batched_address_merkle_tree_account(
@@ -126,7 +128,7 @@ pub fn init_batched_address_merkle_tree_account(
     params: InitAddressTreeAccountsInstructionData,
     mt_account_data: &mut [u8],
     merkle_tree_rent: u64,
-) -> Result<BatchedMerkleTreeAccount, BatchedMerkleTreeError> {
+) -> Result<BatchedMerkleTreeAccount<'_>, BatchedMerkleTreeError> {
     let num_batches_input_queue = params.input_queue_num_batches;
     let height = params.height;
 

@@ -1,10 +1,23 @@
 use bytemuck::{Pod, Zeroable};
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{BorshDeserialize, BorshSerialize};
 
 #[repr(C)]
 #[derive(
-    BorshDeserialize, BorshSerialize, Debug, PartialEq, Default, Pod, Zeroable, Clone, Copy,
+    BorshDeserialize,
+    BorshSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Pod,
+    Zeroable,
+    Clone,
+    Copy,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
 )]
 pub struct BatchMetadata {
     pub num_batches: u64,

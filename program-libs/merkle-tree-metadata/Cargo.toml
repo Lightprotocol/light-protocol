@@ -17,6 +17,8 @@ borsh = "0.10.0"
 bytemuck = "1.17"
 solana-program = { workspace = true }
 anchor-lang = { workspace = true , optional = true }
+zerocopy = {workspace = true, features = ["derive"]}
+light-utils = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

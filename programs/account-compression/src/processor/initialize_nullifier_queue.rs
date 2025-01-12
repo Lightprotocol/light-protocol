@@ -36,9 +36,9 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
 
         nullifier_queue.init(
             AccessMetadata {
-                owner,
-                program_owner: program_owner.unwrap_or_default(),
-                forester: forester.unwrap_or_default(),
+                owner: owner.into(),
+                program_owner: program_owner.unwrap_or_default().into(),
+                forester: forester.unwrap_or_default().into(),
             },
             rollover_meta_data,
             associated_merkle_tree,

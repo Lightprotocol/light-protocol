@@ -4,12 +4,25 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
 use solana_program::msg;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::errors::MerkleTreeMetadataError;
 
 #[repr(C)]
 #[derive(
-    AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default, Pod, Zeroable, Clone, Copy,
+    AnchorDeserialize,
+    AnchorSerialize,
+    Debug,
+    PartialEq,
+    Default,
+    Pod,
+    Zeroable,
+    Clone,
+    Copy,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
 )]
 pub struct RolloverMetadata {
     /// Unique index.

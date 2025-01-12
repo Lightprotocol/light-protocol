@@ -141,18 +141,18 @@ mod migrate_state_test {
     const ROOTS: usize = 100;
     use super::*;
 
-    pub struct MockQueueAccount {
+    pub struct MockQueueAccount<'a> {
         pub account_data: Vec<u8>,
-        pub account: Option<BatchedQueueAccount>,
+        pub account: Option<BatchedQueueAccount<'a>>,
     }
 
-    fn get_output_queue() -> MockQueueAccount {
+    fn get_output_queue<'a>() -> MockQueueAccount<'a> {
         let metadata = QueueMetadata {
-            next_queue: Pubkey::new_unique(),
+            next_queue: Pubkey::new_unique().into(),
             access_metadata: AccessMetadata::default(),
             rollover_metadata: RolloverMetadata::default(),
             queue_type: QueueType::Output as u64,
-            associated_merkle_tree: Pubkey::new_unique(),
+            associated_merkle_tree: Pubkey::new_unique().into(),
         };
 
         let account = BatchedQueueMetadata {
@@ -176,8 +176,14 @@ mod migrate_state_test {
             account_data,
             account: None,
         };
+        let data = unsafe {
+            std::slice::from_raw_parts_mut(
+                mock_account.account_data.as_mut_ptr() as *mut u8,
+                mock_account.account_data.len(),
+            )
+        };
         let output_queue = BatchedQueueAccount::init(
-            &mut mock_account.account_data,
+            data,
             metadata,
             account.batch_metadata.num_batches,
             account.batch_metadata.batch_size,

@@ -69,11 +69,11 @@ impl<'info> GroupAccounts<'info> for InitializeAddressMerkleTreeAndQueue<'info> 
 }
 
 impl GroupAccess for RegisteredProgram {
-    fn get_owner(&self) -> &Pubkey {
-        &self.group_authority_pda
+    fn get_owner(&self) -> Pubkey {
+        self.group_authority_pda
     }
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.registered_program_id
+    fn get_program_owner(&self) -> Pubkey {
+        self.registered_program_id
     }
 }
 

@@ -6,100 +6,86 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use num_traits::{FromPrimitive, PrimInt, ToPrimitive};
+use zerocopy::Ref;
 
-use crate::{
-    add_padding, errors::ZeroCopyError, vec::ZeroCopyVec, wrapped_pointer_mut::WrappedPointerMut,
-};
+use crate::{add_padding, errors::ZeroCopyError, slice_mut::ZeroCopyTraits, vec::ZeroCopyVec};
 
-pub type ZeroCopyCyclicVecUsize<T> = ZeroCopyCyclicVec<usize, T>;
-pub type ZeroCopyCyclicVecU32<T> = ZeroCopyCyclicVec<u32, T>;
-pub type ZeroCopyCyclicVecU64<T> = ZeroCopyCyclicVec<u64, T>;
-pub type ZeroCopyCyclicVecU16<T> = ZeroCopyCyclicVec<u16, T>;
-pub type ZeroCopyCyclicVecU8<T> = ZeroCopyCyclicVec<u8, T>;
+pub type ZeroCopyCyclicVecU32<'a, T> = ZeroCopyCyclicVec<'a, u32, T>;
+pub type ZeroCopyCyclicVecU64<'a, T> = ZeroCopyCyclicVec<'a, u64, T>;
+pub type ZeroCopyCyclicVecU16<'a, T> = ZeroCopyCyclicVec<'a, u16, T>;
+pub type ZeroCopyCyclicVecU8<'a, T> = ZeroCopyCyclicVec<'a, u8, T>;
 
-pub struct ZeroCopyCyclicVec<LEN, T>
+pub struct ZeroCopyCyclicVec<'a, L, T, const PAD: bool = true>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
-    current_index: WrappedPointerMut<LEN>,
-    vec: ZeroCopyVec<LEN, T>,
+    current_index: Ref<&'a mut [u8], L>,
+    vec: ZeroCopyVec<'a, L, T, PAD>,
 }
 
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
+impl<'a, L, T, const PAD: bool> ZeroCopyCyclicVec<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
-    pub fn new(capacity: LEN, vec: &mut [u8]) -> Result<Self, ZeroCopyError> {
-        Self::new_at(capacity, vec, &mut 0)
+    pub fn new(capacity: L, bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::new_at(capacity, bytes)?.0)
     }
 
-    pub fn new_at(
-        capacity: LEN,
-        vec: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Self, ZeroCopyError> {
-        let current_index = WrappedPointerMut::<LEN>::new_at(LEN::zero(), vec, offset)?;
-        add_padding::<LEN, T>(offset);
-        let vec = ZeroCopyVec::<LEN, T>::new_at(capacity, vec, offset)?;
-        Ok(Self { current_index, vec })
+    pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        if u64::from(*current_index) != 0 {
+            return Err(ZeroCopyError::MemoryNotZeroed);
+        }
+
+        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::new_at(capacity, bytes)?;
+        Ok((Self { current_index, vec }, bytes))
     }
 
     pub fn new_at_multiple(
         num: usize,
-        capacity: LEN,
-        account_data: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Vec<ZeroCopyCyclicVec<LEN, T>>, ZeroCopyError> {
+        capacity: L,
+        mut bytes: &'a mut [u8],
+    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
-            let vec = Self::new_at(capacity, account_data, offset)?;
+            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
+            bytes = _bytes;
             value_vecs.push(vec);
         }
-        Ok(value_vecs)
-    }
-}
-
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
-{
-    pub fn from_bytes(account_data: &mut [u8]) -> Result<Self, ZeroCopyError> {
-        Self::from_bytes_at(account_data, &mut 0)
+        Ok((value_vecs, bytes))
     }
 
-    pub fn from_bytes_at(
-        account_data: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Self, ZeroCopyError> {
-        let current_index = WrappedPointerMut::<LEN>::from_bytes_at(account_data, offset)?;
-        add_padding::<LEN, T>(offset);
-        let vec = ZeroCopyVec::<LEN, T>::from_bytes_at(account_data, offset)?;
-        Ok(Self { current_index, vec })
+    pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
+        Ok(Self::from_bytes_at(bytes)?.0)
+    }
+
+    pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
+            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(bytes)?;
+        Ok((Self { current_index, vec }, bytes))
     }
 
     pub fn from_bytes_at_multiple(
         num: usize,
-        account_data: &mut [u8],
-        offset: &mut usize,
-    ) -> Result<Vec<Self>, ZeroCopyError> {
+        mut bytes: &'a mut [u8],
+    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
         let mut value_vecs = Vec::with_capacity(num);
         for _ in 0..num {
-            let vec = Self::from_bytes_at(account_data, offset)?;
+            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
+            bytes = _bytes;
             value_vecs.push(vec);
         }
-        Ok(value_vecs)
+        Ok((value_vecs, bytes))
     }
-}
 
-impl<LEN, T> ZeroCopyCyclicVec<LEN, T>
-where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
-{
     #[inline]
     pub fn push(&mut self, value: T) {
         if self.vec.len() < self.vec.capacity() {
@@ -109,12 +95,18 @@ where
             self.vec[current_index] = value;
         }
         let new_index = (self.current_index() + 1) % self.vec.capacity();
-        *self.current_index = LEN::from_usize(new_index).unwrap();
+        *self.current_index = (new_index as u64)
+            .try_into()
+            .map_err(|_| ZeroCopyError::InvalidConversion)
+            .unwrap();
     }
 
     #[inline]
     pub fn clear(&mut self) {
-        *self.current_index = LEN::zero();
+        *self.current_index = 0
+            .try_into()
+            .map_err(|_| ZeroCopyError::InvalidConversion)
+            .unwrap();
         self.vec.clear();
     }
 
@@ -140,7 +132,7 @@ where
 
     #[inline]
     fn current_index(&self) -> usize {
-        (*self.current_index.get()).to_usize().unwrap()
+        u64::from(*self.current_index) as usize
     }
 
     /// First index is the next index after the last index mod capacity.
@@ -163,7 +155,7 @@ where
     }
 
     #[inline]
-    pub fn iter(&self) -> ZeroCopyCyclicVecIterator<'_, LEN, T> {
+    pub fn iter(&self) -> ZeroCopyCyclicVecIterator<'_, L, T, PAD> {
         ZeroCopyCyclicVecIterator {
             vec: self,
             current: self.first_index(),
@@ -176,7 +168,7 @@ where
     pub fn iter_from(
         &self,
         start: usize,
-    ) -> Result<ZeroCopyCyclicVecIterator<'_, LEN, T>, ZeroCopyError> {
+    ) -> Result<ZeroCopyCyclicVecIterator<'_, L, T, PAD>, ZeroCopyError> {
         if start >= self.len() {
             return Err(ZeroCopyError::IterFromOutOfBounds);
         }
@@ -189,17 +181,19 @@ where
     }
 
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<LEN>();
-        add_padding::<LEN, T>(&mut size);
+        let mut size = size_of::<L>();
+        if PAD {
+            add_padding::<L, T>(&mut size);
+        }
         size
     }
 
-    pub fn data_size(length: LEN) -> usize {
-        ZeroCopyVec::<LEN, T>::required_size_for_capacity(length.to_usize().unwrap())
+    pub fn data_size(length: L) -> usize {
+        ZeroCopyVec::<L, T>::required_size_for_capacity(length)
     }
 
-    pub fn required_size_for_capacity(capacity: usize) -> usize {
-        Self::metadata_size() + Self::data_size(LEN::from_usize(capacity).unwrap())
+    pub fn required_size_for_capacity(capacity: L) -> usize {
+        Self::metadata_size() + Self::data_size(capacity)
     }
 
     #[inline]
@@ -247,21 +241,23 @@ where
     }
 }
 
-pub struct ZeroCopyCyclicVecIterator<'a, LEN, T>
+pub struct ZeroCopyCyclicVecIterator<'a, L, T, const PAD: bool>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
-    vec: &'a ZeroCopyCyclicVec<LEN, T>,
+    vec: &'a ZeroCopyCyclicVec<'a, L, T, PAD>,
     current: usize,
     is_finished: bool,
     _marker: PhantomData<T>,
 }
 
-impl<'a, LEN, T> Iterator for ZeroCopyCyclicVecIterator<'a, LEN, T>
+impl<'a, L, T, const PAD: bool> Iterator for ZeroCopyCyclicVecIterator<'a, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
     type Item = &'a T;
 
@@ -281,10 +277,11 @@ where
     }
 }
 
-impl<LEN, T> IndexMut<usize> for ZeroCopyCyclicVec<LEN, T>
+impl<L, T, const PAD: bool> IndexMut<usize> for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
@@ -293,10 +290,11 @@ where
     }
 }
 
-impl<LEN, T> Index<usize> for ZeroCopyCyclicVec<LEN, T>
+impl<L, T, const PAD: bool> Index<usize> for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
 {
     type Output = T;
 
@@ -307,10 +305,11 @@ where
     }
 }
 
-impl<LEN, T> PartialEq for ZeroCopyCyclicVec<LEN, T>
+impl<L, T, const PAD: bool> PartialEq for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy + PartialEq,
+    L: ZeroCopyTraits + PartialEq,
+    T: ZeroCopyTraits + PartialEq,
+    u64: From<L> + TryInto<L>,
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -318,10 +317,11 @@ where
     }
 }
 
-impl<LEN, T> fmt::Debug for ZeroCopyCyclicVec<LEN, T>
+impl<L, T, const PAD: bool> fmt::Debug for ZeroCopyCyclicVec<'_, L, T, PAD>
 where
-    LEN: FromPrimitive + ToPrimitive + PrimInt,
-    T: Copy + Debug,
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits + Debug,
+    u64: From<L> + TryInto<L>,
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

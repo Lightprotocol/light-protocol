@@ -3,7 +3,7 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use num_traits::Zero;
@@ -151,7 +151,7 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree: Pubkey,
 ) -> bool {
-    let account = rpc.get_account(merkle_tree).await.unwrap().unwrap();
+    let mut account = rpc.get_account(merkle_tree).await.unwrap().unwrap();
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account.data.len())
         .await
@@ -169,15 +169,15 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
             .await;
             (tree.next_index(), tree_meta_data, 26)
         }
-        BatchedMerkleTreeMetadata::DISCRIMINATOR => {
-            let account = AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(rpc, merkle_tree).await;
-
-            let tree_meta_data = account.deserialized();
+        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            let tree_meta_data =
+                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+                    .unwrap();
 
             (
-                tree_meta_data.next_index as usize,
-                tree_meta_data.metadata,
-                tree_meta_data.height,
+                tree_meta_data.get_metadata().next_index as usize,
+                tree_meta_data.get_metadata().metadata,
+                tree_meta_data.get_metadata().height,
             )
         }
         _ => panic!("Invalid discriminator"),

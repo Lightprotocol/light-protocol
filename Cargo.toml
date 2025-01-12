@@ -116,6 +116,7 @@ bytemuck = { version = "1.17" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
+zerocopy = { version = "0.8.14"}
 
 # HTTP client
 reqwest = "0.11.26"

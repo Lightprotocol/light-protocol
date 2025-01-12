@@ -163,17 +163,21 @@ async fn test_batch_state_merkle_tree() {
             AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
 
-        let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let mt_params = CreateTreeParams::from_state_ix_params(params, owner.into());
         let ref_mt_account =
-            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         assert_state_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
-        let output_queue_params =
-            CreateOutputQueueParams::from(params, owner, total_rent, merkle_tree_pubkey);
+        let output_queue_params = CreateOutputQueueParams::from(
+            params,
+            owner.into(),
+            total_rent,
+            merkle_tree_pubkey.into(),
+        );
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
@@ -268,7 +272,7 @@ async fn test_batch_state_merkle_tree() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
         )
         .unwrap();
     }
@@ -357,7 +361,7 @@ async fn test_batch_state_merkle_tree() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
         )
         .unwrap();
     }
@@ -804,10 +808,10 @@ async fn test_init_batch_state_merkle_trees() {
         let mut queue =
             AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
-        let mt_params = CreateTreeParams::from_state_ix_params(*params, owner);
+        let mt_params = CreateTreeParams::from_state_ix_params(*params, owner.into());
 
         let ref_mt_account =
-            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
+            BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         let mut tree_data = merkle_tree.account.data.clone();
         assert_state_mt_zero_copy_inited(
@@ -815,8 +819,12 @@ async fn test_init_batch_state_merkle_trees() {
             ref_mt_account,
             params.bloom_filter_num_iters,
         );
-        let output_queue_params =
-            CreateOutputQueueParams::from(*params, owner, total_rent, merkle_tree_pubkey);
+        let output_queue_params = CreateOutputQueueParams::from(
+            *params,
+            owner.into(),
+            total_rent,
+            merkle_tree_pubkey.into(),
+        );
 
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(
@@ -1337,7 +1345,7 @@ async fn test_init_batch_address_merkle_trees() {
         let merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
                 .await;
-        let mt_params = CreateTreeParams::from_address_ix_params(*params, owner);
+        let mt_params = CreateTreeParams::from_address_ix_params(*params, owner.into());
 
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
@@ -1696,7 +1704,7 @@ async fn test_batch_address_merkle_trees() {
         // set rollover threshold to 0 to test rollover.
         params.rollover_threshold = Some(0);
         params.network_fee = None;
-        params.forester = Some(Pubkey::new_unique());
+        params.forester = Some(Pubkey::new_unique().into());
         let merkle_tree_keypair = Keypair::new();
         let address_merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 

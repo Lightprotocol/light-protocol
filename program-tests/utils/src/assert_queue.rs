@@ -171,15 +171,15 @@ pub async fn assert_queue<R: RpcConnection>(
         additional_bytes: 0,
     };
     let expected_access_meta_data = AccessMetadata {
-        owner: *payer_pubkey,
-        program_owner: expected_program_owner.unwrap_or_default(),
-        forester: expected_forester.unwrap_or_default(),
+        owner: (*payer_pubkey).into(),
+        program_owner: expected_program_owner.unwrap_or_default().into(),
+        forester: expected_forester.unwrap_or_default().into(),
     };
     let expected_queue_meta_data = QueueMetadata {
         access_metadata: expected_access_meta_data,
         rollover_metadata: expected_rollover_meta_data,
-        associated_merkle_tree: *associated_merkle_tree_pubkey,
-        next_queue: expected_next_queue.unwrap_or_default(),
+        associated_merkle_tree: (*associated_merkle_tree_pubkey).into(),
+        next_queue: expected_next_queue.unwrap_or_default().into(),
         queue_type: expected_queue_type as u64,
     };
     assert_eq!(queue_account.metadata, expected_queue_meta_data);

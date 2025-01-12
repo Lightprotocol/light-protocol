@@ -1,5 +1,6 @@
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use solana_program::{msg, pubkey::Pubkey};
+use light_utils::pubkey::Pubkey;
+use solana_program::msg;
 
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -12,12 +13,12 @@ use crate::{
 
 #[repr(C)]
 pub struct RolloverBatchStateTreeParams<'a> {
-    pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount,
+    pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount<'a>,
     pub old_mt_pubkey: Pubkey,
     pub new_mt_data: &'a mut [u8],
     pub new_mt_rent: u64,
     pub new_mt_pubkey: Pubkey,
-    pub old_output_queue: &'a mut BatchedQueueAccount,
+    pub old_output_queue: &'a mut BatchedQueueAccount<'a>,
     pub old_queue_pubkey: Pubkey,
     pub new_output_queue_data: &'a mut [u8],
     pub new_output_queue_rent: u64,
@@ -30,6 +31,10 @@ pub struct RolloverBatchStateTreeParams<'a> {
 pub fn rollover_batched_state_tree(
     params: RolloverBatchStateTreeParams,
 ) -> Result<(), BatchedMerkleTreeError> {
+    params
+        .old_output_queue
+        .check_is_associated(&params.old_mt_pubkey)?;
+
     // Check that old merkle tree is ready for rollover.
     batched_tree_is_ready_for_rollover(
         params.old_merkle_tree.get_metadata_mut(),
@@ -70,9 +75,9 @@ pub fn rollover_batched_state_tree(
     Ok(())
 }
 
-impl<'a> From<&'a RolloverBatchStateTreeParams<'a>> for InitStateTreeAccountsInstructionData {
+impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructionData {
     #[inline(always)]
-    fn from(params: &'a RolloverBatchStateTreeParams<'a>) -> Self {
+    fn from(params: &RolloverBatchStateTreeParams<'_>) -> Self {
         let old_merkle_tree_account = params.old_merkle_tree.get_metadata();
 
         InitStateTreeAccountsInstructionData {

@@ -1010,6 +1010,10 @@ export type LightSystemProgram = {
             code: 6037;
             name: 'InvalidAddressTreeHeight';
         },
+        {
+            code: 6038;
+            name: 'InvalidStateTreeHeight';
+        },
     ];
 };
 
@@ -2029,6 +2033,10 @@ export const IDL: LightSystemProgram = {
         {
             code: 6037,
             name: 'InvalidAddressTreeHeight',
+        },
+        {
+            code: 6038,
+            name: 'InvalidStateTreeHeight',
         },
     ],
 };

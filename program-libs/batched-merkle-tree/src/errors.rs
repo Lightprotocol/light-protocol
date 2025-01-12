@@ -37,6 +37,12 @@ pub enum BatchedMerkleTreeError {
     ProgramError(#[from] ProgramError),
     #[error("Verifier error {0}")]
     VerifierErrorError(#[from] VerifierError),
+    #[error("Zero copy cast error {0}")]
+    ZeroCopyCastError(String),
+    #[error("Invalid batch index")]
+    InvalidBatchIndex,
+    #[error("Invalid index")]
+    InvalidIndex,
 }
 
 #[cfg(feature = "solana")]
@@ -50,6 +56,9 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::InvalidNetworkFee => 14305,
             BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize => 14306,
             BatchedMerkleTreeError::InclusionProofByIndexFailed => 14307,
+            BatchedMerkleTreeError::ZeroCopyCastError(_) => 14308,
+            BatchedMerkleTreeError::InvalidBatchIndex => 14309,
+            BatchedMerkleTreeError::InvalidIndex => 14310,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),

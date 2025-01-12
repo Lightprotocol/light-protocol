@@ -9,12 +9,11 @@ use light_batched_merkle_tree::{
         BatchedMerkleTreeMetadata, CreateTreeParams,
     },
 };
+use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
-    SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA, SIZE_OF_ZERO_COPY_SLICE_METADATA,
-    SIZE_OF_ZERO_COPY_VEC_METADATA,
+    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
 };
 use rand::{rngs::StdRng, Rng};
-use solana_program::pubkey::Pubkey;
 
 #[test]
 fn test_account_init() {
@@ -22,19 +21,19 @@ fn test_account_init() {
 
     let mt_account_size = get_merkle_tree_account_size_default();
     let mut mt_account_data = vec![0; mt_account_size];
+    let merkle_tree_rent = 1_000_000_000;
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
-
-    let merkle_tree_rent = 1_000_000_000;
+    let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
+    let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
     init_batched_address_merkle_tree_account(
-        owner,
+        owner.into(),
         params.clone(),
         &mut mt_account_data,
         merkle_tree_rent,
     )
     .unwrap();
-    let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
-    let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
+
     assert_address_mt_zero_copy_inited(
         &mut mt_account_data,
         ref_mt_account,
@@ -79,8 +78,6 @@ fn test_rnd_account_init() {
             height: rng.gen_range(1..32),
         };
 
-        use std::mem::size_of;
-
         let mt_account_size = get_merkle_tree_account_size(
             params.input_queue_batch_size,
             params.bloom_filter_capacity,
@@ -92,18 +89,19 @@ fn test_rnd_account_init() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
-            let batch_size = size_of::<Batch>() * num_batches + SIZE_OF_ZERO_COPY_SLICE_METADATA;
-            let bloom_filter_size = (params.bloom_filter_capacity as usize / 8
-                + SIZE_OF_ZERO_COPY_SLICE_METADATA)
-                * num_batches;
+            let batch_size =
+                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
+            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
+                params.bloom_filter_capacity / 8,
+            ) * num_batches;
             let hash_chain_store_size =
-                (num_zkp_batches as usize * 32 + SIZE_OF_ZERO_COPY_VEC_METADATA) * num_batches;
-            let root_history_size =
-                params.root_history_capacity as usize * 32 + SIZE_OF_ZERO_COPY_CYCLIC_VEC_METADATA;
+                ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
+                    * num_batches;
+            let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
+                params.root_history_capacity as u64,
+            );
             // Output queue
-            let ref_account_size =
-                    // metadata
-                    BatchedMerkleTreeMetadata::LEN
+            let ref_account_size = BatchedMerkleTreeMetadata::LEN
                     + root_history_size
                     + batch_size
                     + bloom_filter_size

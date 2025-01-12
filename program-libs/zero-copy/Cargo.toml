@@ -14,6 +14,7 @@ solana = ["solana-program"]
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 num-traits = { version = "0.2" }
+zerocopy = {version="0.8.14", features=["derive"]}
 
 [dev-dependencies]
 rand = "0.8"

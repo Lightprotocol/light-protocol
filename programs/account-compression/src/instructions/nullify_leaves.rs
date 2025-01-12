@@ -92,9 +92,9 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
     {
         let merkle_tree = ctx.accounts.merkle_tree.load()?;
 
-        if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
+        if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key().into() {
             msg!(
-            "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
+            "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {:?} != nullifier queue {}",
             merkle_tree.metadata.associated_queue,
             ctx.accounts.nullifier_queue.key()
         );

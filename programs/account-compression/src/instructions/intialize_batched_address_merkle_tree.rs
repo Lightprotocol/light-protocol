@@ -62,17 +62,21 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
 
     // Initialize merkle tree.
     let mt_account_info = ctx.accounts.merkle_tree.to_account_info();
-    init_batched_address_merkle_tree_from_account_info(params, owner, &mt_account_info)
+    init_batched_address_merkle_tree_from_account_info(params, owner.into(), &mt_account_info)
         .map_err(ProgramError::from)?;
     Ok(())
 }
 
-impl GroupAccess for BatchedMerkleTreeAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.get_metadata().metadata.access_metadata.owner
+impl GroupAccess for BatchedMerkleTreeAccount<'_> {
+    fn get_owner(&self) -> Pubkey {
+        self.get_metadata().metadata.access_metadata.owner.into()
     }
 
-    fn get_program_owner(&self) -> &Pubkey {
-        &self.get_metadata().metadata.access_metadata.program_owner
+    fn get_program_owner(&self) -> Pubkey {
+        self.get_metadata()
+            .metadata
+            .access_metadata
+            .program_owner
+            .into()
     }
 }

@@ -1,5 +1,5 @@
 use light_zero_copy::{
-    cyclic_vec::{ZeroCopyCyclicVec, ZeroCopyCyclicVecUsize},
+    cyclic_vec::{ZeroCopyCyclicVec, ZeroCopyCyclicVecU64},
     errors::ZeroCopyError,
 };
 use rand::{thread_rng, Rng};
@@ -7,11 +7,10 @@ use rand::{thread_rng, Rng};
 #[test]
 fn test_cyclic_bounded_vec_with_capacity() {
     for capacity in 0..1024 {
-        let mut data = vec![0; ZeroCopyCyclicVecUsize::<u32>::required_size_for_capacity(capacity)];
-        let mut cyclic_bounded_vec =
-            ZeroCopyCyclicVecUsize::<u32>::new(capacity, &mut data).unwrap();
+        let mut data = vec![0; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(capacity)];
+        let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<u32>::new(capacity, &mut data).unwrap();
 
-        assert_eq!(cyclic_bounded_vec.capacity(), capacity);
+        assert_eq!(cyclic_bounded_vec.capacity(), capacity as usize);
         assert_eq!(cyclic_bounded_vec.len(), 0);
         assert_eq!(cyclic_bounded_vec.first_index(), 0);
         assert_eq!(cyclic_bounded_vec.last_index(), 0);
@@ -24,8 +23,8 @@ fn test_cyclic_bounded_vec_with_capacity() {
 fn test_cyclic_bounded_vec_is_empty() {
     let mut rng = thread_rng();
     let capacity = 1000;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<u32>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<u32>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<u32>::new(capacity, &mut data).unwrap();
 
     assert!(vec.is_empty());
     let mut ref_vec = Vec::new();
@@ -33,7 +32,6 @@ fn test_cyclic_bounded_vec_is_empty() {
         let element = rng.gen();
         vec.push(element);
         ref_vec.push(element);
-
         assert!(!vec.is_empty());
     }
     assert_eq!(vec.as_slice(), ref_vec.as_slice());
@@ -45,8 +43,8 @@ fn test_cyclic_bounded_vec_is_empty() {
 #[test]
 fn test_cyclic_bounded_vec_get() {
     let capacity = 1000;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..1000 {
         vec.push(i);
@@ -63,8 +61,8 @@ fn test_cyclic_bounded_vec_get() {
 #[test]
 fn test_cyclic_bounded_vec_get_mut() {
     let capacity = 1000;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..2000 {
         vec.push(i);
@@ -86,8 +84,8 @@ fn test_cyclic_bounded_vec_get_mut() {
 #[test]
 fn test_cyclic_bounded_vec_first() {
     let capacity = 500;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     assert!(vec.first().is_none());
 
@@ -104,8 +102,8 @@ fn test_cyclic_bounded_vec_first() {
 fn test_cyclic_bounded_vec_last() {
     let mut rng = thread_rng();
     let capacity = 500;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     assert!(vec.last().is_none());
 
@@ -121,8 +119,8 @@ fn test_cyclic_bounded_vec_last() {
 fn test_cyclic_bounded_vec_last_mut() {
     let mut rng = thread_rng();
     let capacity = 500;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     assert!(vec.last_mut().is_none());
 
@@ -147,8 +145,8 @@ fn test_cyclic_bounded_vec_last_mut() {
 #[test]
 fn test_cyclic_bounded_vec_manual() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     // Fill up the cyclic vector.
     //
@@ -262,8 +260,8 @@ fn test_cyclic_bounded_vec_manual() {
 #[test]
 fn test_cyclic_bounded_vec_iter_one_element() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     cyclic_bounded_vec.push(0);
 
@@ -305,8 +303,8 @@ fn test_cyclic_bounded_vec_iter_one_element() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_6_8_4() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..6 {
         cyclic_bounded_vec.push(i);
@@ -345,8 +343,8 @@ fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_6_8_4() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_5_5_4() {
     let capacity = 5;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..5 {
         cyclic_bounded_vec.push(i);
@@ -386,8 +384,8 @@ fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_5_5_4() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_without_reset_full_8_8_6() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..8 {
         cyclic_bounded_vec.push(i);
@@ -433,8 +431,8 @@ fn test_cyclic_bounded_vec_iter_from_without_reset_full_8_8_6() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_reset() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..12 {
         cyclic_bounded_vec.push(i);
@@ -453,8 +451,8 @@ fn test_cyclic_bounded_vec_iter_from_reset() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_out_of_bounds_not_full() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..4 {
         cyclic_bounded_vec.push(i);
@@ -480,8 +478,8 @@ fn test_cyclic_bounded_vec_iter_from_out_of_bounds_not_full() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_out_of_bounds_full() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..12 {
         cyclic_bounded_vec.push(i);
@@ -497,8 +495,8 @@ fn test_cyclic_bounded_vec_iter_from_out_of_bounds_full() {
 #[test]
 fn test_cyclic_bounded_vec_iter_from_out_of_bounds_iter_from() {
     let capacity = 8;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..8 {
         assert!(matches!(
@@ -511,9 +509,9 @@ fn test_cyclic_bounded_vec_iter_from_out_of_bounds_iter_from() {
 
 #[test]
 fn test_cyclic_bounded_vec_overwrite() {
-    let capacity = 64;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut cyclic_bounded_vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let capacity = 64u64;
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..256 {
         cyclic_bounded_vec.push(i);
@@ -535,9 +533,9 @@ fn test_cyclic_bounded_vec_overwrite() {
 
 #[test]
 fn test_clear_pass() {
-    let capacity = 5;
-    let mut data = vec![0; ZeroCopyCyclicVecUsize::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyCyclicVecUsize::<usize>::new(capacity, &mut data).unwrap();
+    let capacity = 5u64;
+    let mut data = vec![0; ZeroCopyCyclicVecU64::<usize>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyCyclicVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     vec.push(1);
     vec.push(2);
@@ -549,36 +547,32 @@ fn test_clear_pass() {
 
 #[test]
 fn test_deserialize_pass() {
-    let mut account_data = vec![0u8; ZeroCopyCyclicVecUsize::<u64>::required_size_for_capacity(4)];
-    let mut offset = 0;
+    let mut account_data = vec![0u8; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(4)];
 
-    // Initialize data with valid ZeroCopyCyclicVecUsize metadata and elements
-    ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
-    offset = 0;
+    // Initialize data with valid ZeroCopyCyclicVecU64 metadata and elements
+    ZeroCopyCyclicVecU64::<u64>::new(4, &mut account_data).unwrap();
 
-    // Deserialize the ZeroCopyCyclicVecUsize
-    let deserialized_vec =
-        ZeroCopyCyclicVecUsize::<u64>::from_bytes_at(&mut account_data, &mut offset)
-            .expect("Failed to deserialize ZeroCopyCyclicVecUsize");
+    // Deserialize the ZeroCopyCyclicVecU64
+    let deserialized_vec = ZeroCopyCyclicVecU64::<u64>::from_bytes(&mut account_data)
+        .expect("Failed to deserialize ZeroCopyCyclicVecU64");
 
     assert_eq!(deserialized_vec.capacity(), 4);
     assert_eq!(deserialized_vec.len(), 0);
-    assert_eq!(offset, account_data.len());
 }
 
 #[test]
 fn test_deserialize_multiple_pass() {
     let mut account_data =
-        vec![0u8; ZeroCopyCyclicVecUsize::<u64>::required_size_for_capacity(4) * 2];
-    let mut offset = 0;
+        vec![0u8; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(4) * 2];
 
-    // Initialize data for multiple ZeroCopyCyclicVecs
-    ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
-    ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
-    offset = 0;
+    {
+        // Initialize data for multiple ZeroCopyCyclicVecs
+        let (_, account_data) = ZeroCopyCyclicVecU64::<u64>::new_at(4, &mut account_data).unwrap();
+        ZeroCopyCyclicVecU64::<u64>::new_at(4, account_data).unwrap();
+    }
     // Deserialize multiple ZeroCopyCyclicVecs
-    let deserialized_vecs =
-        ZeroCopyCyclicVecUsize::<u64>::from_bytes_at_multiple(2, &mut account_data, &mut offset)
+    let (deserialized_vecs, _) =
+        ZeroCopyCyclicVecU64::<u64>::from_bytes_at_multiple(2, &mut account_data)
             .expect("Failed to deserialize multiple ZeroCopyCyclicVecs");
 
     assert_eq!(deserialized_vecs.len(), 2);
@@ -592,10 +586,9 @@ fn test_deserialize_multiple_pass() {
 #[test]
 fn test_init_pass() {
     let mut account_data = vec![0u8; 64];
-    let mut offset = 0;
 
-    // Initialize a ZeroCopyCyclicVecUsize with capacity 4
-    let mut vec = ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
+    // Initialize a ZeroCopyCyclicVecU64 with capacity 4
+    let (mut vec, _) = ZeroCopyCyclicVecU64::<u64>::new_at(4, &mut account_data).unwrap();
     assert_eq!(vec.capacity(), 4);
     assert_eq!(vec.len(), 0);
     for i in 0..4 {
@@ -609,10 +602,8 @@ fn test_init_pass() {
 #[test]
 fn test_init_multiple_pass() {
     let mut account_data = vec![0u8; 128];
-    let mut offset = 0;
-    let mut initialized_vecs =
-        ZeroCopyCyclicVecUsize::<u64>::new_at_multiple(2, 4, &mut account_data, &mut offset)
-            .unwrap();
+    let (mut initialized_vecs, _) =
+        ZeroCopyCyclicVecU64::<u64>::new_at_multiple(2, 4, &mut account_data).unwrap();
 
     assert_eq!(initialized_vecs.len(), 2);
     assert_eq!(initialized_vecs[0].capacity(), 4);
@@ -635,25 +626,21 @@ fn test_metadata_size() {
     assert_eq!(ZeroCopyCyclicVec::<u16, u8>::metadata_size(), 2);
     assert_eq!(ZeroCopyCyclicVec::<u32, u8>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<u64, u8>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<usize, u8>::metadata_size(), 8);
 
     assert_eq!(ZeroCopyCyclicVec::<u8, u16>::metadata_size(), 2);
     assert_eq!(ZeroCopyCyclicVec::<u16, u16>::metadata_size(), 2);
     assert_eq!(ZeroCopyCyclicVec::<u32, u16>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<u64, u16>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<usize, u16>::metadata_size(), 8);
 
     assert_eq!(ZeroCopyCyclicVec::<u8, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<u16, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<u32, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopyCyclicVec::<u64, u32>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<usize, u32>::metadata_size(), 8);
 
     assert_eq!(ZeroCopyCyclicVec::<u8, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyCyclicVec::<u16, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyCyclicVec::<u32, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyCyclicVec::<u64, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<usize, u64>::metadata_size(), 8);
 }
 
 #[test]
@@ -670,24 +657,21 @@ fn test_required_size() {
     );
     // current index + length + capacity + data
     assert_eq!(
-        ZeroCopyCyclicVec::<usize, u64>::required_size_for_capacity(64),
+        ZeroCopyCyclicVec::<u64, u64>::required_size_for_capacity(64),
         8 + 8 + 8 + 8 * 64
     );
 }
 
 #[test]
 fn test_partial_eq() {
-    let mut account_data = vec![0u8; ZeroCopyCyclicVecUsize::<u64>::required_size_for_capacity(4)];
-    let mut offset = 0;
-    let mut vec = ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
+    let mut account_data = vec![0u8; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(4)];
+    let mut vec = ZeroCopyCyclicVecU64::<u64>::new(4, &mut account_data).unwrap();
     for i in 0..5 {
         vec.push(i as u64 % 4);
     }
 
-    let mut account_data = vec![0u8; ZeroCopyCyclicVecUsize::<u64>::required_size_for_capacity(4)];
-    let mut offset = 0;
-    let mut vec2 =
-        ZeroCopyCyclicVecUsize::<u64>::new_at(4, &mut account_data, &mut offset).unwrap();
+    let mut account_data = vec![0u8; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(4)];
+    let mut vec2 = ZeroCopyCyclicVecU64::<u64>::new(4, &mut account_data).unwrap();
     for i in 0..4 {
         vec2.push(i as u64);
     }

@@ -42,7 +42,7 @@ impl StateMerkleTreeAccount {
         associated_queue: Pubkey,
     ) {
         self.metadata
-            .init(access_metadata, rollover_metadata, associated_queue)
+            .init(access_metadata, rollover_metadata, associated_queue.into())
     }
 }
 

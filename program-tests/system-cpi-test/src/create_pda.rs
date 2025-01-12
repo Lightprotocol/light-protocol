@@ -2,7 +2,7 @@ use account_compression::{
     program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Discriminator};
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeMetadata;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_hasher::{
     errors::HasherError, DataHasher, Discriminator as LightDiscriminator, Poseidon,
 };
@@ -49,6 +49,7 @@ pub enum CreatePdaMode {
     ProofIsNoneReadOnlyAccount,
     AccountNotInValueVecMarkedProofByIndex,
     InvalidLeafIndex,
+    ReadOnlyZkpOfInsertedAccount,
 }
 
 pub fn process_create_pda<'info>(
@@ -103,7 +104,8 @@ pub fn process_create_pda<'info>(
         | CreatePdaMode::InvalidReadOnlyAccountOutputQueue
         | CreatePdaMode::ProofIsNoneReadOnlyAccount
         | CreatePdaMode::AccountNotInValueVecMarkedProofByIndex
-        | CreatePdaMode::InvalidLeafIndex => {
+        | CreatePdaMode::InvalidLeafIndex
+        | CreatePdaMode::ReadOnlyZkpOfInsertedAccount => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
                 proof,
@@ -359,6 +361,15 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                 CreatePdaMode::InvalidLeafIndex => {
                     read_only_account[0].merkle_context.leaf_index += 1;
                 }
+                CreatePdaMode::ReadOnlyProofOfInsertedAccount => {
+                    inputs_struct.new_address_params = vec![];
+                    inputs_struct.output_compressed_accounts = vec![];
+                    inputs_struct.proof = None;
+                }
+                CreatePdaMode::ReadOnlyZkpOfInsertedAccount => {
+                    inputs_struct.new_address_params = vec![];
+                    inputs_struct.output_compressed_accounts = vec![];
+                }
                 _ => {}
             }
         }
@@ -467,7 +478,7 @@ fn create_compressed_pda_data(
             &new_address_params.seed,
         )
         .map_err(ProgramError::from)?,
-        BatchedMerkleTreeMetadata::DISCRIMINATOR => derive_address(
+        BatchedMerkleTreeAccount::DISCRIMINATOR => derive_address(
             &new_address_params.seed,
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
                 .key()

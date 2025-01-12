@@ -11,7 +11,7 @@ use light_merkle_tree_metadata::{
     queue::{QueueMetadata, QueueType},
     rollover::RolloverMetadata,
 };
-use solana_program::pubkey::Pubkey;
+use light_utils::pubkey::Pubkey;
 
 pub fn get_test_account_and_account_data(
     batch_size: u64,
