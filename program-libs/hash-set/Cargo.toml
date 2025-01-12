@@ -20,5 +20,5 @@ light-heap = { workspace = true }
 
 [dev-dependencies]
 ark-bn254 = "0.4"
-ark-ff = "0.4"
+ark-ff = "0.5"
 rand = "0.8"
