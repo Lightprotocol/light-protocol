@@ -435,7 +435,7 @@ fn test_new_at_multiple() {
     {
         let (mut initialized_vecs, remaining_bytes) =
             ZeroCopySliceMutU64::<u64>::new_at_multiple(2, capacity as u64, &mut account_data)
-        .unwrap();
+                .unwrap();
         assert_eq!(
             remaining_bytes.len(),
             128 - ZeroCopySliceMutU64::<u64>::required_size_for_capacity(capacity as u64) * 2

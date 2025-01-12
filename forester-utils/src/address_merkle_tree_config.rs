@@ -4,15 +4,15 @@ use account_compression::{
 };
 use anchor_lang::Discriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_client::rpc::RpcConnection;
+use light_client::{
+    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
+    rpc::RpcConnection,
+};
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
-use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
-use crate::{
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
-    AccountZeroCopy,
-};
+
+use crate::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
 
 pub async fn get_address_bundle_config<R: RpcConnection>(
     rpc: &mut R,

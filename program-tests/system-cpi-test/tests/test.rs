@@ -1581,17 +1581,17 @@ pub async fn perform_create_pda_with_event<
     let payer_pubkey = payer.pubkey();
     let mut instructions = vec![
         perform_create_pda(
-        env,
-        seed,
-        test_indexer,
-        rpc,
-        data,
-        payer_pubkey,
-        owner_program,
-        input_accounts,
+            env,
+            seed,
+            test_indexer,
+            rpc,
+            data,
+            payer_pubkey,
+            owner_program,
+            input_accounts,
             read_only_accounts.clone(),
             mode.clone(),
-    )
+        )
         .await,
     ];
     // create instruction which invalidates account
