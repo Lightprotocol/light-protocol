@@ -215,6 +215,8 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
+    /// Nullify a batch of leaves from the input queue
+    /// to a batched Merkle tree with a zkp.
     pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
         data: Vec<u8>,
@@ -268,6 +270,8 @@ pub mod account_compression {
         process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
     }
 
+    /// Migrate state from a v1 state Merkle tree
+    /// to a v2 state Merkle tree.
     pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
         input: MigrateLeafParams,
