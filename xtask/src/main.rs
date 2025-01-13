@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 
 mod bench;
+mod create_state_tree;
 mod create_vkeyrs_from_gnark_key;
 mod fee;
 mod hash_set;
@@ -38,9 +39,14 @@ enum Command {
     Fee,
     /// Hash set utilities.
     HashSet(hash_set::HashSetOptions),
+    /// Create state tree
+    /// Example:
+    /// cargo xtask create-state-tree --path ./target/state-trees/  --mt-pubkey smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f --nfq-pubkey nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4 --cpi-pubkey cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp --index 10
+    CreateStateTree(create_state_tree::Options),
 }
 
-fn main() -> Result<(), anyhow::Error> {
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
     let opts = XtaskOptions::parse();
 
     match opts.command {
@@ -55,5 +61,6 @@ fn main() -> Result<(), anyhow::Error> {
         Command::Bench(opts) => bench::bench(opts),
         Command::Fee => fee::fees(),
         Command::HashSet(opts) => hash_set::hash_set(opts),
+        Command::CreateStateTree(opts) => create_state_tree::create_state_tree(opts).await,
     }
 }
