@@ -233,8 +233,8 @@ importers:
         specifier: 9.17.0
         version: 9.17.0
       eslint-config-next:
-        specifier: 15.1.2
-        version: 15.1.2(eslint@9.17.0)(typescript@5.7.2)
+        specifier: 15.1.4
+        version: 15.1.4(eslint@9.17.0)(typescript@5.7.2)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -333,7 +333,7 @@ importers:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        version: 0.29.0(@solana/web3.js@1.98.0)
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
@@ -457,7 +457,7 @@ importers:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+        version: 0.29.0(@solana/web3.js@1.98.0)
       '@noble/hashes':
         specifier: 1.5.0
         version: 1.5.0
@@ -2139,8 +2139,8 @@ packages:
   '@next/env@15.0.4':
     resolution: {integrity: sha512-WNRvtgnRVDD4oM8gbUcRc27IAhaL4eXQ/2ovGbgLnPGUvdyDr8UdXP4Q/IBDdAdojnD2eScryIDirv0YUCjUVw==}
 
-  '@next/eslint-plugin-next@15.1.2':
-    resolution: {integrity: sha512-sgfw3+WdaYOGPKCvM1L+UucBmRfh8V2Ygefp7ELON0+0vY7uohQwXXnVWg3rY7mXDKharQR3o7uedpfvnU2hlQ==}
+  '@next/eslint-plugin-next@15.1.4':
+    resolution: {integrity: sha512-HwlEXwCK3sr6zmVGEvWBjW9tBFs1Oe6hTmTLoFQtpm4As5HCdu8jfSE0XJOp7uhfEGLniIx8yrGxEWwNnY0fmQ==}
 
   '@next/swc-darwin-arm64@15.0.4':
     resolution: {integrity: sha512-QecQXPD0yRHxSXWL5Ff80nD+A56sUXZG9koUsjWJwA2Z0ZgVQfuy7gd0/otjxoOovPVHR2eVEvPMHbtZP+pf9w==}
@@ -4450,8 +4450,8 @@ packages:
     peerDependencies:
       eslint: '>=6.0.0'
 
-  eslint-config-next@15.1.2:
-    resolution: {integrity: sha512-PrMm1/4zWSJ689wd/ypWIR5ZF1uvmp3EkgpgBV1Yu6PhEobBjXMGgT8bVNelwl17LXojO8D5ePFRiI4qXjsPRA==}
+  eslint-config-next@15.1.4:
+    resolution: {integrity: sha512-u9+7lFmfhKNgGjhQ9tBeyCFsPJyq0SvGioMJBngPC7HXUpR0U+ckEwQR48s7TrRNHra1REm6evGL2ie38agALg==}
     peerDependencies:
       eslint: ^7.23.0 || ^8.0.0 || ^9.0.0
       typescript: '>=3.3.1'
@@ -9452,7 +9452,7 @@ snapshots:
 
   '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.0)
       '@noble/hashes': 1.5.0
       '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -9492,7 +9492,7 @@ snapshots:
       - encoding
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10))':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.0)':
     dependencies:
       '@solana/web3.js': 1.98.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
@@ -9993,7 +9993,7 @@ snapshots:
 
   '@next/env@15.0.4': {}
 
-  '@next/eslint-plugin-next@15.1.2':
+  '@next/eslint-plugin-next@15.1.4':
     dependencies:
       fast-glob: 3.3.1
 
@@ -13221,9 +13221,9 @@ snapshots:
       eslint: 8.57.0
       semver: 7.6.3
 
-  eslint-config-next@15.1.2(eslint@9.17.0)(typescript@5.7.2):
+  eslint-config-next@15.1.4(eslint@9.17.0)(typescript@5.7.2):
     dependencies:
-      '@next/eslint-plugin-next': 15.1.2
+      '@next/eslint-plugin-next': 15.1.4
       '@rushstack/eslint-patch': 1.10.4
       '@typescript-eslint/eslint-plugin': 7.18.0(@typescript-eslint/parser@7.13.1(eslint@9.17.0)(typescript@5.7.2))(eslint@9.17.0)(typescript@5.7.2)
       '@typescript-eslint/parser': 7.13.1(eslint@9.17.0)(typescript@5.7.2)
@@ -14629,7 +14629,7 @@ snapshots:
 
   isobject@3.0.1: {}
 
-  isomorphic-ws@4.0.1(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)):
+  isomorphic-ws@4.0.1(ws@7.5.10):
     dependencies:
       ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
@@ -14671,7 +14671,7 @@ snapshots:
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
-      isomorphic-ws: 4.0.1(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      isomorphic-ws: 4.0.1(ws@7.5.10)
       json-stringify-safe: 5.0.1
       uuid: 8.3.2
       ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
