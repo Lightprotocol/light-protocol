@@ -36,7 +36,7 @@ impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
 /// to the state Merkle tree.
 /// Nullify means updating the leaf index with a nullifier.
 /// The input queue is part of the state Merkle tree account.
-/// 1. Check Merkle tree account discriminator and program ownership.
+/// 1. Check Merkle tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Nullify leaves from the input queue to the state Merkle tree.
 ///     3.1 Verifies batch zkp and updates root.
@@ -45,7 +45,7 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
-    // 1. Check Merkle tree account discriminator and program ownership.
+    // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let merkle_tree =
         &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
             .map_err(ProgramError::from)?;
@@ -56,7 +56,7 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     )?;
     // 3. Nullify leaves from the input queue to the state Merkle tree.
     let event = merkle_tree
-        .update_input_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
+        .update_tree_from_input_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
         .map_err(ProgramError::from)?;
     // 4. Emit indexer event.
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)

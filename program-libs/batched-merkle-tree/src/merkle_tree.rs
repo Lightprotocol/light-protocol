@@ -452,7 +452,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         })
     }
 
-    pub fn update_output_queue_account_info(
+    pub fn update_tree_from_output_queue_account_info(
         &mut self,
         queue_account_info: &AccountInfo<'_>,
         instruction_data: InstructionDataBatchAppendInputs,
@@ -539,7 +539,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         })
     }
 
-    pub fn update_input_queue(
+    pub fn update_tree_from_input_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
         id: [u8; 32],
@@ -547,7 +547,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         self.private_update_input_queue::<3>(instruction_data, id)
     }
 
-    pub fn update_address_queue(
+    pub fn update_tree_from_address_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
         id: [u8; 32],

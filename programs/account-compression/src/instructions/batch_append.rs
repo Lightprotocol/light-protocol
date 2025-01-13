@@ -21,7 +21,7 @@ pub struct BatchAppend<'info> {
     /// CHECK: in state_tree_from_account_info_mut.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-    /// CHECK: in update_output_queue_account_info.
+    /// CHECK: in update_tree_from_output_queue_account_info.
     #[account(mut)]
     pub output_queue: AccountInfo<'info>,
 }
@@ -37,7 +37,7 @@ impl<'info> GroupAccounts<'info> for BatchAppend<'info> {
 
 /// Append a batch of leaves from the output queue
 /// to the state Merkle tree.
-/// 1. Check Merkle tree account discriminator and program ownership.
+/// 1. Check Merkle tree account discriminator, tree type, and program ownership.
 /// 2. Check that signer is registered or authority.
 /// 3. Append leaves from the output queue to the state Merkle tree.
 ///     3.1 Checks that output queue is associated with the Merkle tree.
@@ -48,7 +48,7 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
     instruction_data: InstructionDataBatchAppendInputs,
 ) -> Result<()> {
-    // 1. Check Merkle tree account discriminator and program ownership.
+    // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let merkle_tree =
         &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
             .map_err(ProgramError::from)?;
@@ -60,7 +60,7 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
 
     // 3. Append leaves and check output queue account.
     let event = merkle_tree
-        .update_output_queue_account_info(
+        .update_tree_from_output_queue_account_info(
             &ctx.accounts.output_queue,
             instruction_data,
             ctx.accounts.merkle_tree.key().to_bytes(),

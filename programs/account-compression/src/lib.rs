@@ -237,6 +237,8 @@ pub mod account_compression {
         process_batch_append_leaves(&ctx, instruction_data)
     }
 
+    /// Insert a batch of addresses into a
+    /// batched address Merkle tree with a zkp.
     pub fn batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
         data: Vec<u8>,
