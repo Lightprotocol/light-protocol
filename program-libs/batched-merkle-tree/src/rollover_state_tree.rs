@@ -36,29 +36,19 @@ pub fn rollover_batched_state_tree(
         .check_is_associated(&params.old_mt_pubkey)?;
 
     // Check that old merkle tree is ready for rollover.
-    batched_tree_is_ready_for_rollover(
-        params.old_merkle_tree.get_metadata_mut(),
-        &params.network_fee,
-    )?;
+    batched_tree_is_ready_for_rollover(params.old_merkle_tree, &params.network_fee)?;
     // Rollover the old merkle tree.
     params
         .old_merkle_tree
-        .get_metadata_mut()
         .metadata
         .rollover(params.old_queue_pubkey, params.new_mt_pubkey)?;
     // Rollover the old output queue.
     params
         .old_output_queue
-        .get_metadata_mut()
         .metadata
         .rollover(params.old_mt_pubkey, params.new_output_queue_pubkey)?;
     let init_params = InitStateTreeAccountsInstructionData::from(&params);
-    let owner = params
-        .old_merkle_tree
-        .get_metadata()
-        .metadata
-        .access_metadata
-        .owner;
+    let owner = params.old_merkle_tree.metadata.access_metadata.owner;
 
     // Initialize the new merkle tree and output queue.
     init_batched_state_merkle_tree_accounts(
@@ -78,54 +68,47 @@ pub fn rollover_batched_state_tree(
 impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructionData {
     #[inline(always)]
     fn from(params: &RolloverBatchStateTreeParams<'_>) -> Self {
-        let old_merkle_tree_account = params.old_merkle_tree.get_metadata();
-
         InitStateTreeAccountsInstructionData {
-            index: old_merkle_tree_account.metadata.rollover_metadata.index,
+            index: params.old_merkle_tree.metadata.rollover_metadata.index,
             program_owner: if_equals_none(
-                old_merkle_tree_account
+                params
+                    .old_merkle_tree
                     .metadata
                     .access_metadata
                     .program_owner,
                 Pubkey::default(),
             ),
             forester: if_equals_none(
-                old_merkle_tree_account.metadata.access_metadata.forester,
+                params.old_merkle_tree.metadata.access_metadata.forester,
                 Pubkey::default(),
             ),
-            height: old_merkle_tree_account.height,
-            input_queue_batch_size: old_merkle_tree_account.queue_metadata.batch_size,
-            input_queue_zkp_batch_size: old_merkle_tree_account.queue_metadata.zkp_batch_size,
-            bloom_filter_capacity: old_merkle_tree_account.queue_metadata.bloom_filter_capacity,
+            height: params.old_merkle_tree.height,
+            input_queue_batch_size: params.old_merkle_tree.queue_metadata.batch_size,
+            input_queue_zkp_batch_size: params.old_merkle_tree.queue_metadata.zkp_batch_size,
+            bloom_filter_capacity: params.old_merkle_tree.queue_metadata.bloom_filter_capacity,
             bloom_filter_num_iters: params.old_merkle_tree.batches[0].num_iters,
-            root_history_capacity: old_merkle_tree_account.root_history_capacity,
+            root_history_capacity: params.old_merkle_tree.root_history_capacity,
             network_fee: params.network_fee,
             rollover_threshold: if_equals_none(
-                old_merkle_tree_account
+                params
+                    .old_merkle_tree
                     .metadata
                     .rollover_metadata
                     .rollover_threshold,
                 u64::MAX,
             ),
             close_threshold: if_equals_none(
-                old_merkle_tree_account
+                params
+                    .old_merkle_tree
                     .metadata
                     .rollover_metadata
                     .close_threshold,
                 u64::MAX,
             ),
-            input_queue_num_batches: old_merkle_tree_account.queue_metadata.num_batches,
+            input_queue_num_batches: params.old_merkle_tree.queue_metadata.num_batches,
             additional_bytes: params.additional_bytes,
-            output_queue_batch_size: params
-                .old_output_queue
-                .get_metadata()
-                .batch_metadata
-                .batch_size,
-            output_queue_zkp_batch_size: params
-                .old_output_queue
-                .get_metadata()
-                .batch_metadata
-                .zkp_batch_size,
+            output_queue_batch_size: params.old_output_queue.batch_metadata.batch_size,
+            output_queue_zkp_batch_size: params.old_output_queue.batch_metadata.zkp_batch_size,
             output_queue_num_batches: params.old_output_queue.batches.len() as u64,
         }
     }
@@ -133,7 +116,7 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
 
 // TODO: add unit test
 pub fn batched_tree_is_ready_for_rollover(
-    metadata: &BatchedMerkleTreeMetadata,
+    metadata: &BatchedMerkleTreeAccount<'_>,
     network_fee: &Option<u64>,
 ) -> Result<(), BatchedMerkleTreeError> {
     if metadata.metadata.rollover_metadata.rollover_threshold == u64::MAX {
@@ -201,10 +184,7 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
 
     let zero_copy_queue =
         BatchedQueueAccount::output_queue_from_bytes_mut(&mut queue_account_data).unwrap();
-    assert_eq!(
-        zero_copy_queue.get_metadata().metadata,
-        ref_rolledover_queue.metadata
-    );
+    assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
     let params = MtRollOverAssertParams {
         mt_account_data,
         ref_mt_account,

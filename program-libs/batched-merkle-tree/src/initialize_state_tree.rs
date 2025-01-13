@@ -345,11 +345,11 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
 ) {
     use light_hasher::Hasher;
 
-    let queue = account.get_metadata().queue_metadata;
+    let queue = account.queue_metadata;
     let ref_queue = ref_account.queue_metadata;
     let num_batches = ref_queue.num_batches as usize;
-    let mut next_index = account.get_metadata().next_index;
-    assert_eq!(*account.get_metadata(), ref_account, "metadata mismatch");
+    let mut next_index = account.next_index;
+    assert_eq!(*account, ref_account, "metadata mismatch");
 
     assert_eq!(
         account.root_history.capacity(),

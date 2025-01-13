@@ -65,15 +65,12 @@ where
         .unwrap();
 
         let old_root_index = merkle_tree.root_history.last_index();
-        let full_batch_index = merkle_tree
-            .get_metadata()
-            .queue_metadata
-            .next_full_batch_index;
+        let full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
         let batch = &merkle_tree.batches[full_batch_index as usize];
         let zkp_batch_index = batch.get_num_inserted_zkps();
         let leaves_hashchain =
             merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
-        let start_index = merkle_tree.get_metadata().next_index;
+        let start_index = merkle_tree.next_index;
         let current_root = *merkle_tree.root_history.last().unwrap();
         let batch_size = batch.zkp_batch_size as usize;
 
@@ -227,7 +224,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .unwrap();
         (
-            merkle_tree.get_metadata().next_index,
+            merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
         )
     };
@@ -239,9 +236,8 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .unwrap();
 
-        let queue_metadata = output_queue.get_metadata();
-        let full_batch_index = queue_metadata.batch_metadata.next_full_batch_index;
-        let zkp_batch_size = queue_metadata.batch_metadata.zkp_batch_size;
+        let full_batch_index = output_queue.batch_metadata.next_full_batch_index;
+        let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
 
         let num_inserted_zkps =
             output_queue.batches[full_batch_index as usize].get_num_inserted_zkps();
@@ -352,9 +348,8 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let merkle_tree =
             BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
                 .unwrap();
-        let metadata = merkle_tree.get_metadata();
-        let batch_idx = metadata.queue_metadata.next_full_batch_index as usize;
-        let zkp_size = metadata.queue_metadata.zkp_batch_size;
+        let batch_idx = merkle_tree.queue_metadata.next_full_batch_index as usize;
+        let zkp_size = merkle_tree.queue_metadata.zkp_batch_size;
         let batch = &merkle_tree.batches[batch_idx];
         let zkp_idx = batch.get_num_inserted_zkps();
         let hashchain = merkle_tree.hashchain_store[batch_idx][zkp_idx as usize];

@@ -175,12 +175,10 @@ impl DerefMut for BatchedQueueAccount<'_> {
 }
 
 impl<'a> BatchedQueueAccount<'a> {
-    // TODO: remove
     pub fn get_metadata(&self) -> &BatchedQueueMetadata {
         &self.metadata
     }
 
-    // TODO: remove
     pub fn get_metadata_mut(&mut self) -> &mut BatchedQueueMetadata {
         &mut self.metadata
     }

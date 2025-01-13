@@ -164,15 +164,14 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     merkle_tree_acc_info,
                 )
                 .map_err(ProgramError::from)?;
-                let account = merkle_tree.get_metadata();
-                let seq = account.sequence_number + 1;
-                let next_index: u32 = account.next_index.try_into().unwrap();
+                let seq = merkle_tree.sequence_number + 1;
+                let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
 
                 (
                     seq,
                     next_index,
-                    account.metadata.rollover_metadata.network_fee,
-                    account.metadata.access_metadata.program_owner,
+                    merkle_tree.metadata.rollover_metadata.network_fee,
+                    merkle_tree.metadata.access_metadata.program_owner,
                     merkle_tree_acc_info.key(),
                 )
             }
@@ -185,15 +184,14 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                 let merkle_tree =
                     BatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
                         .map_err(ProgramError::from)?;
-                let account = merkle_tree.get_metadata();
                 let seq = u64::MAX;
-                let next_index: u32 = account.next_index.try_into().unwrap();
+                let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
                 (
                     seq,
                     next_index,
-                    account.metadata.rollover_metadata.network_fee,
-                    account.metadata.access_metadata.program_owner,
-                    account.metadata.associated_merkle_tree.into(),
+                    merkle_tree.metadata.rollover_metadata.network_fee,
+                    merkle_tree.metadata.access_metadata.program_owner,
+                    merkle_tree.metadata.associated_merkle_tree.into(),
                 )
             }
             _ => {
@@ -245,8 +243,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
             let merkle_tree =
                 BatchedMerkleTreeAccount::address_tree_from_account_info_mut(merkle_tree_acc_info)
                     .map_err(ProgramError::from)?;
-            let account = merkle_tree.get_metadata();
-            account.metadata
+            merkle_tree.metadata
         }
         _ => {
             return err!(

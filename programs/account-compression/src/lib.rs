@@ -224,6 +224,8 @@ pub mod account_compression {
         process_batch_nullify(&ctx, instruction_data)
     }
 
+    /// Append a batch of leaves from an output queue
+    /// to a batched Merkle tree with a zkp.
     pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
         data: Vec<u8>,

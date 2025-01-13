@@ -409,7 +409,7 @@ mod migrate_state_test {
             light_merkle_tree_reference::MerkleTree::<Poseidon>::new(HEIGHT, 10);
         let mut queue_account = get_output_queue();
         let output_queue = &mut queue_account.account.as_mut().unwrap();
-        let batch_size = output_queue.get_metadata().batch_metadata.batch_size as usize;
+        let batch_size = output_queue.batch_metadata.batch_size as usize;
         // insert two test leaves into the merkle tree
 
         let num_leaves = 2000;
@@ -443,10 +443,7 @@ mod migrate_state_test {
                     .to_array()
                     .unwrap(),
             };
-            let current_batch = output_queue
-                .get_metadata()
-                .batch_metadata
-                .currently_processing_batch_index;
+            let current_batch = output_queue.batch_metadata.currently_processing_batch_index;
 
             let event = migrate_state(
                 input,

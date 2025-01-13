@@ -517,13 +517,12 @@ pub mod light_registry {
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let metadata = account.get_metadata().metadata;
             check_forester(
-                &metadata,
+                &account.metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                account.get_metadata().queue_metadata.batch_size,
+                account.queue_metadata.batch_size,
             )?;
         }
         process_batch_nullify(&ctx, bump, data)
@@ -542,13 +541,12 @@ pub mod light_registry {
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let metadata = merkle_tree.get_metadata().metadata;
             check_forester(
-                &metadata,
+                &merkle_tree.metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
-                queue_account.get_metadata().batch_metadata.batch_size,
+                queue_account.batch_metadata.batch_size,
             )?;
         }
         process_batch_append(&ctx, bump, data)
@@ -586,10 +584,8 @@ pub mod light_registry {
                 &ctx.accounts.merkle_tree,
             )
             .map_err(ProgramError::from)?;
-            let account = account.get_metadata();
-            let metadata = account.metadata;
             check_forester(
-                &metadata,
+                &account.metadata,
                 ctx.accounts.authority.key(),
                 ctx.accounts.merkle_tree.key(),
                 &mut ctx.accounts.registered_forester_pda,
@@ -608,7 +604,7 @@ pub mod light_registry {
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_metadata().metadata,
+            &account.metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_address_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
@@ -626,7 +622,7 @@ pub mod light_registry {
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_metadata().metadata,
+            &account.metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_state_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,

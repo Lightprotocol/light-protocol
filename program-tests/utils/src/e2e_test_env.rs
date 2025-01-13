@@ -531,10 +531,8 @@ where
                                 merkle_tree_account_data.as_mut_slice(),
                             )
                             .unwrap();
-                            let next_full_batch_index = merkle_tree
-                                .get_metadata()
-                                .queue_metadata
-                                .next_full_batch_index;
+                            let next_full_batch_index =
+                                merkle_tree.queue_metadata.next_full_batch_index;
                             let batch = merkle_tree
                                 .batches
                                 .get(next_full_batch_index as usize)
@@ -582,10 +580,8 @@ where
                                 queue_account_data.as_mut_slice(),
                             )
                             .unwrap();
-                            let next_full_batch_index = output_queue
-                                .get_metadata()
-                                .batch_metadata
-                                .next_full_batch_index;
+                            let next_full_batch_index =
+                                output_queue.batch_metadata.next_full_batch_index;
                             let batch = output_queue
                                 .batches
                                 .get(next_full_batch_index as usize)

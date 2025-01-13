@@ -125,7 +125,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             Err(_) => return 0.0,
         };
 
-        let batch_index = tree.get_metadata().queue_metadata.next_full_batch_index;
+        let batch_index = tree.queue_metadata.next_full_batch_index;
         match tree.batches.get(batch_index as usize) {
             Some(batch) => Self::calculate_completion(batch),
             None => 0.0,
@@ -138,7 +138,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             Err(_) => return 0.0,
         };
 
-        let batch_index = queue.get_metadata().batch_metadata.next_full_batch_index;
+        let batch_index = queue.batch_metadata.next_full_batch_index;
         match queue.batches.get(batch_index as usize) {
             Some(batch) => Self::calculate_completion(batch),
             None => 0.0,
@@ -178,11 +178,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             )
             .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
 
-            let batch_index = output_queue
-                .get_metadata()
-                .batch_metadata
-                .next_full_batch_index;
-            let zkp_batch_size = output_queue.get_metadata().batch_metadata.zkp_batch_size;
+            let batch_index = output_queue.batch_metadata.next_full_batch_index;
+            let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
 
             (
                 output_queue.batches[batch_index as usize].get_num_inserted_zkps(),
@@ -209,7 +206,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         if let Ok(tree) = merkle_tree {
-            let batch_index = tree.get_metadata().queue_metadata.next_full_batch_index;
+            let batch_index = tree.queue_metadata.next_full_batch_index;
             let full_batch = tree.batches.get(batch_index as usize).unwrap();
 
             full_batch.get_state() != BatchState::Inserted
@@ -233,7 +230,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         if let Ok(queue) = output_queue {
-            let batch_index = queue.get_metadata().batch_metadata.next_full_batch_index;
+            let batch_index = queue.batch_metadata.next_full_batch_index;
             let full_batch = queue.batches.get(batch_index as usize).unwrap();
 
             full_batch.get_state() != BatchState::Inserted
