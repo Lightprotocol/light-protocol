@@ -21,7 +21,7 @@ where
     let mut rng = thread_rng();
     let mut data = vec![0; ZeroCopySliceMut::<LEN, T>::required_size_for_capacity(length)];
     ZeroCopySliceMut::<LEN, T>::new(length, &mut data).unwrap();
-    let usize_len: usize = u64::try_from(length).unwrap() as usize;
+    let usize_len: usize = u64::from(length) as usize;
 
     // Test from_bytes with a zeroed slice
     {
@@ -50,7 +50,7 @@ where
             }
             assert_eq!(length_bytes, (u64::from(length).to_le_bytes()).to_vec());
 
-            let padding_start = metadata_size.clone();
+            let padding_start = metadata_size;
             add_padding::<LEN, T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
@@ -99,7 +99,7 @@ where
         // 7. Mutate elements via iter_mut
         for (index, element) in slice.iter_mut().enumerate() {
             let new_element = rng.gen();
-            *element = new_element.clone();
+            *element = new_element;
             reference_vec[index] = new_element;
         }
 
@@ -149,7 +149,7 @@ fn test_zero_copy_unaligned_type_for_len() {
         }
     }
 
-    test_zero_copy_slice_mut_new::<u8, TestStruct>(u8::MAX as u8);
+    test_zero_copy_slice_mut_new::<u8, TestStruct>(u8::MAX);
     test_zero_copy_slice_mut_new::<U16, TestStruct>((u8::MAX as u16).into());
     test_zero_copy_slice_mut_new::<U32, TestStruct>((u8::MAX as u32).into());
     test_zero_copy_slice_mut_new::<U64, TestStruct>((u8::MAX as u64).into());
@@ -239,9 +239,8 @@ fn test_zero_copy_u8_struct_vec() {
 fn test_empty() {
     let length = 0;
     let mut data = vec![0; ZeroCopySliceMut::<u8, u8>::required_size_for_capacity(length)];
-    let mut zero_copy_slice =
-        ZeroCopySliceMut::<u8, u8>::new(u8::try_from(length).unwrap(), &mut data).unwrap();
-    let usize_len: usize = u64::try_from(length).unwrap() as usize;
+    let mut zero_copy_slice = ZeroCopySliceMut::<u8, u8>::new(length, &mut data).unwrap();
+    let usize_len: usize = length as usize;
 
     assert_eq!(zero_copy_slice.len(), usize_len);
     assert!(zero_copy_slice.is_empty());
@@ -251,9 +250,10 @@ fn test_empty() {
     assert_eq!(zero_copy_slice.get_mut(0), None);
     assert_eq!(zero_copy_slice.as_slice(), &[]);
     assert_eq!(zero_copy_slice.iter().cloned().collect::<Vec<u8>>(), vec![]);
-    for element in zero_copy_slice.iter_mut() {
-        panic!("Expected no elements, found {:?}", element);
-    }
+    assert!(
+        zero_copy_slice.iter_mut().next().is_none(),
+        "Expected no elements"
+    );
     assert_eq!(zero_copy_slice.as_mut_slice(), &[]);
     assert_eq!(zero_copy_slice.to_vec(), vec![]);
 }
@@ -263,9 +263,8 @@ fn test_empty() {
 fn test_index_out_of_bounds() {
     let length = 1;
     let mut data = vec![0; ZeroCopySliceMut::<u8, u8>::required_size_for_capacity(length)];
-    let zero_copy_slice =
-        ZeroCopySliceMut::<u8, u8>::new(u8::try_from(length).unwrap(), &mut data).unwrap();
-    zero_copy_slice[length as usize];
+    let zero_copy_slice = ZeroCopySliceMut::<u8, u8>::new(length, &mut data).unwrap();
+    let _ = zero_copy_slice[length as usize];
 }
 
 /// Test that metadata size is aligned to T.
@@ -430,7 +429,7 @@ fn test_new_at_and_from_bytes_at_multiple() {
 fn test_new_at_multiple() {
     let mut account_data = vec![0u8; 128];
     let capacity = 4usize;
-    let mut reference_vecs = vec![vec![], vec![]];
+    let mut reference_vecs = [vec![], vec![]];
 
     {
         let (mut initialized_vecs, remaining_bytes) =

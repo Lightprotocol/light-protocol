@@ -31,6 +31,7 @@ pub enum RpcError {
     InvalidWarpSlot,
 }
 
+#[allow(clippy::result_large_err)]
 pub fn assert_rpc_error<T>(
     result: Result<T, RpcError>,
     i: u8,

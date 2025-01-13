@@ -316,7 +316,7 @@ mod tests {
         let mut root_index = 20;
         let root_history_length = 23;
         for i in 0..batch.get_num_zkp_batches() {
-            sequence_number += i as u64;
+            sequence_number += i;
             root_index += i as u32;
             batch
                 .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_length)
@@ -383,10 +383,7 @@ mod tests {
             assert_eq!(*value_store.get(i as usize).unwrap(), value);
         }
         let result = batch.store_and_hash_value(&[1u8; 32], &mut value_store, &mut hashchain_store);
-        assert_eq!(
-            result.unwrap_err(),
-            BatchedMerkleTreeError::BatchNotReady.into()
-        );
+        assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
         assert_eq!(batch.get_state(), BatchState::Full);
         assert_eq!(batch.get_num_inserted(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 5);
@@ -541,33 +538,21 @@ mod tests {
         let highest_eligible_value =
             batch.start_index + batch.get_num_zkp_batches() * batch.zkp_batch_size - 1;
         // 1. Failing test lowest value in eligble range - 1
-        assert_eq!(
-            batch
-                .value_is_inserted_in_batch(lowest_eligible_value - 1)
-                .unwrap(),
-            false
-        );
+        assert!(!batch
+            .value_is_inserted_in_batch(lowest_eligible_value - 1)
+            .unwrap());
         // 2. Functional test lowest value in eligble range
-        assert_eq!(
-            batch
-                .value_is_inserted_in_batch(lowest_eligible_value)
-                .unwrap(),
-            true
-        );
+        assert!(batch
+            .value_is_inserted_in_batch(lowest_eligible_value)
+            .unwrap());
         // 3. Functional test highest value in eligble range
-        assert_eq!(
-            batch
-                .value_is_inserted_in_batch(highest_eligible_value)
-                .unwrap(),
-            true
-        );
+        assert!(batch
+            .value_is_inserted_in_batch(highest_eligible_value)
+            .unwrap());
         // 4. Failing test eligble range + 1
-        assert_eq!(
-            batch
-                .value_is_inserted_in_batch(highest_eligible_value + 1)
-                .unwrap(),
-            false
-        );
+        assert!(!batch
+            .value_is_inserted_in_batch(highest_eligible_value + 1)
+            .unwrap());
     }
 
     /// 1. Failing: empty batch
@@ -578,7 +563,7 @@ mod tests {
         let mut batch = get_test_batch();
         assert_eq!(
             batch.get_first_ready_zkp_batch(),
-            Err(BatchedMerkleTreeError::BatchNotReady.into())
+            Err(BatchedMerkleTreeError::BatchNotReady)
         );
         let mut value_store_bytes =
             vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
@@ -613,12 +598,12 @@ mod tests {
             } else if i >= batch.batch_size {
                 assert_eq!(
                     batch.get_first_ready_zkp_batch(),
-                    Err(BatchedMerkleTreeError::BatchAlreadyInserted.into())
+                    Err(BatchedMerkleTreeError::BatchAlreadyInserted)
                 );
             } else {
                 assert_eq!(
                     batch.get_first_ready_zkp_batch(),
-                    Err(BatchedMerkleTreeError::BatchNotReady.into())
+                    Err(BatchedMerkleTreeError::BatchNotReady)
                 );
             }
         }

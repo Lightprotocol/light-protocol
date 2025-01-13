@@ -264,7 +264,7 @@ mod test {
                 data: None,
             },
         ];
-        let merkle_tree_indices = vec![0, 2];
+        let merkle_tree_indices = [0, 2];
         let merkle_tree_pubkey = Keypair::new().pubkey();
         let merkle_tree_pubkey_1 = Keypair::new().pubkey();
 
@@ -364,7 +364,7 @@ mod test {
                 .unwrap(),
             100
         );
-        assert_eq!(deserialized_instruction_data.is_compress, true);
+        assert!(deserialized_instruction_data.is_compress);
         let ref_account_meta = AccountMeta::new(payer, true);
         assert_eq!(instruction.accounts[0], ref_account_meta);
         assert_eq!(

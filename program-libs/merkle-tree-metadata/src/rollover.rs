@@ -132,7 +132,7 @@ mod tests {
 
         assert_eq!(
             metadata.rollover(),
-            Err(MerkleTreeMetadataError::RolloverNotConfigured.into())
+            Err(MerkleTreeMetadataError::RolloverNotConfigured)
         );
         let mut metadata = RolloverMetadata::new(0, 0, Some(95), 0, None, None);
         assert_eq!(metadata.close_threshold, u64::MAX);
@@ -144,7 +144,7 @@ mod tests {
 
         assert_eq!(
             metadata.rollover(),
-            Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into())
+            Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver)
         );
     }
 }

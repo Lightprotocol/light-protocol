@@ -363,8 +363,8 @@ pub mod test {
         assert_to_previous_hashes(hash4, &mut vec_previous_hashes);
 
         // different delegate
-        let delegate = Some(Pubkey::new_unique());
-        let hashed_delegate = hash_to_bn254_field_size_be(delegate.unwrap().to_bytes().as_slice())
+        let delegate = Pubkey::new_unique();
+        let hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
             .unwrap()
             .0;
         let hash7 = TokenData::hash_with_hashed_values::<Poseidon>(
@@ -382,7 +382,7 @@ pub mod test {
         let hash9 = token_data.hash::<Poseidon>().unwrap();
         assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
         // different account state with delegate
-        token_data.delegate = delegate;
+        token_data.delegate = Some(delegate);
         let hash10 = token_data.hash::<Poseidon>().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
     }

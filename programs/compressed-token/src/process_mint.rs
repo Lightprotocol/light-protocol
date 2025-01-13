@@ -486,7 +486,6 @@ pub mod mint_sdk {
 }
 
 #[cfg(test)]
-
 mod test {
     use light_hasher::Poseidon;
     use light_system_program::{
@@ -502,8 +501,8 @@ mod test {
 
     #[test]
     fn test_manual_ix_data_serialization_borsh_compat() {
-        let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
-        let amounts = vec![1, 2];
+        let pubkeys = [Pubkey::new_unique(), Pubkey::new_unique()];
+        let amounts = [1, 2];
         let mint_pubkey = Pubkey::new_unique();
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
@@ -568,8 +567,8 @@ mod test {
 
         for _ in 0..10000 {
             let mut rng = rand::thread_rng();
-            let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
-            let amounts = vec![rng.gen_range(0..1_000_000_000_000), rng.gen_range(1..100)];
+            let pubkeys = [Pubkey::new_unique(), Pubkey::new_unique()];
+            let amounts = [rng.gen_range(0..1_000_000_000_000), rng.gen_range(1..100)];
             let mint_pubkey = Pubkey::new_unique();
             let mut output_compressed_accounts =
                 vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
@@ -624,7 +623,7 @@ mod test {
             inputs_struct.serialize(&mut reference).unwrap();
 
             assert_eq!(inputs.len(), reference.len());
-            for (_, i) in inputs.iter().zip(reference.iter()).enumerate() {
+            for i in inputs.iter().zip(reference.iter()) {
                 assert_eq!(i.0, i.1);
             }
             assert_eq!(inputs, reference);

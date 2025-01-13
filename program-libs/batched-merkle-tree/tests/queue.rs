@@ -28,11 +28,11 @@ pub fn get_test_account_and_account_data(
     };
 
     let account = BatchedQueueMetadata {
-        metadata: metadata.clone(),
+        metadata,
         next_index: 0,
         batch_metadata: BatchMetadata {
-            batch_size: batch_size as u64,
-            num_batches: num_batches as u64,
+            batch_size,
+            num_batches,
             currently_processing_batch_index: 0,
             next_full_batch_index: 0,
             bloom_filter_capacity,
@@ -51,7 +51,8 @@ fn test_output_queue_account() {
     let num_batches = 2;
     let bloom_filter_capacity = 0;
     let bloom_filter_num_iters = 0;
-    for queue_type in vec![QueueType::Output] {
+    {
+        let queue_type = QueueType::Output;
         let (ref_account, mut account_data) = get_test_account_and_account_data(
             batch_size,
             num_batches,
@@ -85,16 +86,8 @@ fn test_output_queue_account() {
 fn test_value_exists_in_value_vec_present() {
     let (account, mut account_data) =
         get_test_account_and_account_data(100, 2, QueueType::Output, 0);
-    let mut account = BatchedQueueAccount::init(
-        &mut account_data,
-        account.metadata.clone(),
-        2,
-        100,
-        10,
-        0,
-        0,
-    )
-    .unwrap();
+    let mut account =
+        BatchedQueueAccount::init(&mut account_data, account.metadata, 2, 100, 10, 0, 0).unwrap();
 
     let value = [1u8; 32];
     let value2 = [2u8; 32];
@@ -116,12 +109,9 @@ fn test_value_exists_in_value_vec_present() {
         );
         assert!(account.prove_inclusion_by_index(0, &value).is_ok());
         // prove inclusion for value out of range returns false
-        assert_eq!(
-            account
-                .prove_inclusion_by_index(100000, &[0u8; 32])
-                .unwrap(),
-            false
-        );
+        assert!(!account
+            .prove_inclusion_by_index(100000, &[0u8; 32])
+            .unwrap());
         assert!(account
             .prove_inclusion_by_index_and_zero_out_leaf(0, &value)
             .is_ok());

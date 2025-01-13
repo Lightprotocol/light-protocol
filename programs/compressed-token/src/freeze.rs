@@ -541,7 +541,7 @@ pub mod test_freeze {
         vec
     }
     pub fn create_expected_input_accounts(
-        input_token_data_with_context: &Vec<InputTokenDataWithContext>,
+        input_token_data_with_context: &[InputTokenDataWithContext],
         mint: &Pubkey,
         owner: &Pubkey,
         remaining_accounts: &[Pubkey],
@@ -550,11 +550,9 @@ pub mod test_freeze {
         input_token_data_with_context
             .iter()
             .map(|x| {
-                let delegate = if let Some(index) = x.delegate_index {
-                    Some(remaining_accounts[index as usize])
-                } else {
-                    None
-                };
+                let delegate = x
+                    .delegate_index
+                    .map(|index| remaining_accounts[index as usize]);
                 let token_data = TokenData {
                     mint: *mint,
                     owner: *owner,

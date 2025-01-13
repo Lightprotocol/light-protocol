@@ -32,7 +32,7 @@ impl TestAccount {
         }
     }
 
-    pub fn get_account_info<'a>(&'a mut self) -> AccountInfo<'a> {
+    pub fn get_account_info(&mut self) -> AccountInfo<'_> {
         AccountInfo {
             key: &self.key,
             is_signer: false,
@@ -65,7 +65,7 @@ fn address_from_account_info() {
     // Test 1 functional init_batched_address_merkle_tree_from_account_info
     {
         let result = init_batched_address_merkle_tree_from_account_info(
-            params.clone(),
+            params,
             owner.into(),
             &account.get_account_info(),
         );
@@ -74,7 +74,7 @@ fn address_from_account_info() {
     // Test 2 already initialized
     {
         let result = init_batched_address_merkle_tree_from_account_info(
-            params.clone(),
+            params,
             owner.into(),
             &account.get_account_info(),
         );
@@ -89,7 +89,7 @@ fn address_from_account_info() {
     // Test 4 failing invalid owner
     {
         let mut account = account.clone();
-        account.owner = Pubkey::new_unique().into();
+        account.owner = Pubkey::new_unique();
         let account_info = account.get_account_info();
         let result = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&account_info);
         assert!(matches!(result,
@@ -117,13 +117,12 @@ fn address_from_account_info() {
 /// 8. failing invalid discriminator (output queue)
 #[test]
 fn state_from_account_info() {
-    let key = Pubkey::new_unique().into();
-    let owner = ACCOUNT_COMPRESSION_PROGRAM_ID.into();
+    let key = Pubkey::new_unique();
+    let owner = ACCOUNT_COMPRESSION_PROGRAM_ID;
     let mt_account_size = get_merkle_tree_account_size_default();
     let output_queue_size = get_output_queue_account_size_default();
     let mut merkle_tree_account = TestAccount::new(key, owner, mt_account_size);
-    let mut output_queue_account =
-        TestAccount::new(Pubkey::new_unique().into(), owner, output_queue_size);
+    let mut output_queue_account = TestAccount::new(Pubkey::new_unique(), owner, output_queue_size);
 
     let params = InitStateTreeAccountsInstructionData::test_default();
     let merkle_tree_rent = 1_000_000_000;
@@ -138,7 +137,7 @@ fn state_from_account_info() {
         let merkle_tree_account_info = merkle_tree_account.get_account_info();
 
         let result = init_batched_state_merkle_tree_from_account_info(
-            params.clone(),
+            params,
             owner,
             &merkle_tree_account_info,
             &output_queue_account_info,
@@ -152,7 +151,7 @@ fn state_from_account_info() {
         let merkle_tree_account_info = merkle_tree_account.get_account_info();
 
         let result = init_batched_state_merkle_tree_from_account_info(
-            params.clone(),
+            params,
             owner,
             &merkle_tree_account_info,
             &output_queue_account_info,
@@ -170,7 +169,7 @@ fn state_from_account_info() {
     // Test 4 failing invalid owner
     {
         let mut account = merkle_tree_account.clone();
-        account.owner = Pubkey::new_unique().into();
+        account.owner = Pubkey::new_unique();
         let account_info = account.get_account_info();
 
         let result = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&account_info);
@@ -196,7 +195,7 @@ fn state_from_account_info() {
     // Test 7 failing invalid owner
     {
         let mut output_queue_account = output_queue_account.clone();
-        output_queue_account.owner = Pubkey::new_unique().into();
+        output_queue_account.owner = Pubkey::new_unique();
         let account_info = output_queue_account.get_account_info();
         let result = BatchedQueueAccount::output_queue_from_account_info_mut(&account_info);
         assert!(matches!(result,

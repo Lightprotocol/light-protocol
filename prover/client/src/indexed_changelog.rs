@@ -7,7 +7,7 @@ use num_bigint::BigUint;
 /// Patch the indexed changelogs.
 /// 1. find changelog entries of the same index
 /// 2. iterate over entries
-///   2.1 if next_value < new_element.value patch element
+///    2.1 if next_value < new_element.value patch element
 /// 3.
 #[inline(never)]
 pub fn patch_indexed_changelogs<const HEIGHT: usize>(
@@ -239,7 +239,7 @@ mod tests {
             println!("indexed_changelog {:?}", indexed_changelog);
             for address in addresses.iter() {
                 indexed_merkle_tree
-                    .append(&address, &mut indexed_array)
+                    .append(address, &mut indexed_array)
                     .unwrap();
             }
             println!("man_indexed_array {:?}", man_indexed_array);
@@ -353,7 +353,7 @@ mod tests {
             println!("indexed_changelog {:?}", indexed_changelog);
             for address in addresses.iter() {
                 indexed_merkle_tree
-                    .append(&address, &mut indexed_array)
+                    .append(address, &mut indexed_array)
                     .unwrap();
             }
             println!("man_indexed_array {:?}", man_indexed_array);

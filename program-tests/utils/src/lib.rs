@@ -165,6 +165,7 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
 /// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
 /// we allow program error as well.
 // TODO: unify with assert_rpc_error
+#[allow(clippy::result_large_err)]
 pub fn assert_custom_error_or_program_error(
     result: Result<solana_sdk::signature::Signature, RpcError>,
     error_code: u32,

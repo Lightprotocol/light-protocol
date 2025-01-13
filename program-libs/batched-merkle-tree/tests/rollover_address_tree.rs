@@ -33,13 +33,8 @@ fn test_rollover() {
     let merkle_tree_rent = 1_000_000_000;
     // create first merkle tree
 
-    init_batched_address_merkle_tree_account(
-        owner,
-        params.clone(),
-        &mut mt_account_data,
-        merkle_tree_rent,
-    )
-    .unwrap();
+    init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
+        .unwrap();
 
     let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
 
@@ -108,9 +103,9 @@ fn test_rollover() {
             params.network_fee,
         )
         .unwrap();
-        let new_ref_mt_account = ref_mt_account.clone();
+        let new_ref_mt_account = ref_mt_account;
 
-        let mut ref_rolledover_mt = ref_mt_account.clone();
+        let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << ref_rolledover_mt.height;
         assert_address_mt_roll_over(
             mt_account_data.to_vec(),
@@ -219,7 +214,7 @@ fn test_rnd_rollover() {
 
         init_batched_address_merkle_tree_account(
             owner,
-            params.clone(),
+            params,
             &mut mt_account_data,
             merkle_tree_rent,
         )
@@ -248,8 +243,8 @@ fn test_rnd_rollover() {
             network_fee,
         )
         .unwrap();
-        let new_ref_mt_account = ref_mt_account.clone();
-        let mut ref_rolled_over_account = ref_mt_account.clone();
+        let new_ref_mt_account = ref_mt_account;
+        let mut ref_rolled_over_account = ref_mt_account;
         ref_rolled_over_account.next_index = 1 << params.height;
 
         assert_address_mt_roll_over(

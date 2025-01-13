@@ -129,7 +129,7 @@ where
 
             assert_eq!(length, vec![0; metadata_size]);
 
-            let padding_start = metadata_size.clone();
+            let padding_start = metadata_size;
             add_padding::<CAPACITY, T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
@@ -137,9 +137,7 @@ where
             assert_eq!(data, vec![0; padding_end - padding_start]);
         }
     }
-    let capacity_usize: usize = (u64::try_from(capacity)
-        .map_err(|_| ZeroCopyError::InvalidConversion)
-        .unwrap()) as usize;
+    let capacity_usize: usize = (u64::from(capacity)) as usize;
     let mut reference_vec = vec![];
     // fill vector completely and assert:
     {
@@ -215,7 +213,7 @@ where
                 }
                 assert_eq!(length, ((i as u64 + 1).to_ne_bytes().as_ref().to_vec()));
 
-                let padding_start = metadata_size.clone();
+                let padding_start = metadata_size;
                 add_padding::<CAPACITY, T>(&mut metadata_size);
                 let padding_end = metadata_size;
                 let cloned_data = cloned_data[padding_start..padding_end].to_vec();
@@ -263,15 +261,10 @@ where
             }
             assert_eq!(
                 length,
-                (u64::try_from(ref_length)
-                    .map_err(|_| ZeroCopyError::InvalidConversion)
-                    .unwrap())
-                .to_le_bytes()
-                .as_ref()
-                .to_vec()
+                u64::from(ref_length).to_le_bytes().as_ref().to_vec()
             );
 
-            let padding_start = metadata_size.clone();
+            let padding_start = metadata_size;
             add_padding::<CAPACITY, T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
@@ -294,7 +287,7 @@ fn assert_full_vec<CAPACITY, T>(
     u64: From<CAPACITY> + TryInto<CAPACITY>,
 {
     // 1. vector capacity is correct
-    assert_eq!(vec.capacity() as u64, capacity.try_into().unwrap());
+    assert_eq!(vec.capacity() as u64, capacity.into());
     // 2. vector length is correct
     assert_eq!(vec.len(), capacity_usize);
     // 3. vector is not empty
@@ -355,26 +348,22 @@ fn assert_empty_vec<CAPACITY, T>(
     // 12. vector to_vec returns correct vector
     assert_eq!(vec.to_vec(), reference_vec);
     // 13. (iter) iterating over vector returns correct elements
-    for (index, element) in vec.iter().enumerate() {
-        panic!(
-            "Should not iterate over empty vector: index={}, element={:?}",
-            index, element
-        );
-    }
+    assert!(
+        vec.iter().next().is_none(),
+        "Should not iterate over empty vector"
+    );
     // 14. (iter_mut) iterating over vector mutably returns correct elements
-    for (index, element) in vec.iter_mut().enumerate() {
-        panic!(
-            "Should not iterate over empty vector: index={}, element={:?}",
-            index, element
-        );
-    }
+    assert!(
+        vec.iter_mut().next().is_none(),
+        "Should not iterate over empty vector"
+    );
 }
 
 #[test]
 fn test_zero_copy_vec_to_array() {
     let capacity = 16;
     let mut data = vec![0; ZeroCopyVecU64::<u32>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyVecU64::<u32>::new(capacity as u64, &mut data).unwrap();
+    let mut vec = ZeroCopyVecU64::<u32>::new(capacity, &mut data).unwrap();
     vec.extend_from_slice(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
     let arr: [u32; 16] = vec.try_into_array().unwrap();
@@ -394,7 +383,7 @@ fn test_zero_copy_vec_to_array() {
 fn test_zero_copy_vec_into_iter() {
     let capacity = 1000;
     let mut data = vec![0; ZeroCopyVecU64::<usize>::required_size_for_capacity(capacity)];
-    let mut vec = ZeroCopyVecU64::<usize>::new(capacity as u64, &mut data).unwrap();
+    let mut vec = ZeroCopyVecU64::<usize>::new(capacity, &mut data).unwrap();
 
     for i in 0..1000 {
         vec.push(i).unwrap();
@@ -457,7 +446,7 @@ fn test_init_multiple_pass() {
     assert_eq!(initialized_vecs[1].capacity(), capacity);
     assert_eq!(initialized_vecs[0].len(), 0);
     assert_eq!(initialized_vecs[1].len(), 0);
-    let mut reference_vecs = vec![vec![], vec![]];
+    let mut reference_vecs = [vec![], vec![]];
     for i in 0..capacity {
         for (j, vec) in initialized_vecs.iter_mut().enumerate() {
             assert!(vec.get(i).is_none());
@@ -472,7 +461,7 @@ fn test_init_multiple_pass() {
         assert_full_vec(
             capacity as u64,
             &mut rng,
-            capacity as usize,
+            capacity,
             &mut reference_vecs[i],
             vec,
         );

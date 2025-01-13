@@ -196,7 +196,7 @@ mod check_account_tests {
             }
         }
 
-        pub fn get_account_info<'a>(&'a mut self) -> AccountInfo<'a> {
+        pub fn get_account_info(&mut self) -> AccountInfo<'_> {
             AccountInfo {
                 key: &self.key,
                 is_signer: false,

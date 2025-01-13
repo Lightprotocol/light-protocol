@@ -290,7 +290,7 @@ fn invalid_updates<H, const HEIGHT: usize, const CHANGELOG: usize>(
     let res = merkle_tree.update(
         changelog_index,
         &invalid_old_leaf,
-        &new_leaf,
+        new_leaf,
         0,
         &mut proof_clone,
     );
@@ -393,9 +393,9 @@ where
     ];
     let mut expected_canopy = Vec::new();
 
-    for canopy_level in 0..CANOPY {
-        println!("canopy_level: {canopy_level}");
-        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    for canopy_level in canopy_levels.iter().take(CANOPY) {
+        println!("canopy_level: {:?}", canopy_level);
+        expected_canopy.extend_from_slice(canopy_level);
     }
 
     assert_eq!(merkle_tree.changelog_index(), 4 % CHANGELOG);
@@ -469,8 +469,8 @@ where
         ][..],
     ];
     let mut expected_canopy = Vec::new();
-    for canopy_level in 0..CANOPY {
-        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    for canopy_level in canopy_levels.iter().take(CANOPY) {
+        expected_canopy.extend_from_slice(canopy_level);
     }
 
     assert_eq!(merkle_tree.changelog_index(), 5 % CHANGELOG);
@@ -543,8 +543,8 @@ where
         ][..],
     ];
     let mut expected_canopy = Vec::new();
-    for canopy_level in 0..CANOPY {
-        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    for canopy_level in canopy_levels.iter().take(CANOPY) {
+        expected_canopy.extend_from_slice(canopy_level);
     }
 
     assert_eq!(merkle_tree.changelog_index(), 6 % CHANGELOG);
@@ -616,8 +616,8 @@ where
         ][..],
     ];
     let mut expected_canopy = Vec::new();
-    for canopy_level in 0..CANOPY {
-        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    for canopy_level in canopy_levels.iter().take(CANOPY) {
+        expected_canopy.extend_from_slice(canopy_level);
     }
 
     assert_eq!(merkle_tree.changelog_index(), 7 % CHANGELOG);
@@ -689,8 +689,8 @@ where
         ][..],
     ];
     let mut expected_canopy = Vec::new();
-    for canopy_level in 0..CANOPY {
-        expected_canopy.extend_from_slice(&canopy_levels[canopy_level]);
+    for canopy_level in canopy_levels.iter().take(CANOPY) {
+        expected_canopy.extend_from_slice(canopy_level);
     }
 
     assert_eq!(merkle_tree.changelog_index(), 8 % CHANGELOG);
@@ -1396,7 +1396,7 @@ async fn test_spl_compat() {
                 .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof)
                 .unwrap();
             spl_concurrent_mt
-                .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), 0 as u32)
+                .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), 0_u32)
                 .unwrap();
             reference_tree.update(&new_leaf, 0).unwrap();
 
@@ -2171,8 +2171,7 @@ pub fn test_100_nullify_mt() {
             let leaf_cell = queue.get_unmarked_bucket(queue_index).unwrap().unwrap();
             let leaf_index = crank_merkle_tree
                 .get_leaf_index(&leaf_cell.value_bytes())
-                .unwrap()
-                .clone();
+                .unwrap();
 
             let mut proof = crank_merkle_tree
                 .get_proof_of_leaf(leaf_index, false)
@@ -2398,7 +2397,7 @@ fn test_subtree_updates() {
     spl_concurrent_mt.initialize().unwrap();
     con_mt.init().unwrap();
     assert_eq!(ref_mt.root(), con_mt.root());
-    for (_, leaf) in LEAVES_WITH_NULLIFICATIONS.iter().enumerate() {
+    for leaf in LEAVES_WITH_NULLIFICATIONS.iter() {
         match leaf.1 {
             Some(index) => {
                 let change_log_index = con_mt.changelog_index();
@@ -3378,7 +3377,7 @@ where
     tree.append(&leaf_0).unwrap();
     tree.append(&leaf_1).unwrap();
     tree.append(&leaf_2).unwrap();
-    let old_canopy = tree.canopy.as_slice()[0].clone();
+    let old_canopy = tree.canopy.as_slice()[0];
 
     let new_leaf_0 = [1; 32];
     let mut leaf_0_proof = BoundedVec::with_capacity(2);
@@ -3391,7 +3390,7 @@ where
         &mut leaf_0_proof,
     )
     .unwrap();
-    let new_canopy = tree.canopy.as_slice()[0].clone();
+    let new_canopy = tree.canopy.as_slice()[0];
 
     assert_ne!(old_canopy, new_canopy);
 

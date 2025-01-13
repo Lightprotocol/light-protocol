@@ -20,7 +20,7 @@ use crate::assert_compressed_tx::{
 /// 4. Merkle tree was updated correctly
 /// 5. TODO: Fees have been paid (after fee refactor)
 /// 6. Check compression amount was transferred (outside of this function)
-/// No addresses in token transactions
+///    No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
     context: &mut R,

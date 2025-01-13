@@ -10,7 +10,6 @@
 
 use crate::models;
 
-///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum AccountState {
     #[serde(rename = "initialized")]
@@ -19,11 +18,11 @@ pub enum AccountState {
     Frozen,
 }
 
-impl ToString for AccountState {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for AccountState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Initialized => String::from("initialized"),
-            Self::Frozen => String::from("frozen"),
+            Self::Initialized => write!(f, "initialized"),
+            Self::Frozen => write!(f, "frozen"),
         }
     }
 }

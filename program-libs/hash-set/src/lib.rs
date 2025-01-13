@@ -598,10 +598,10 @@ mod test {
             sequence_number: None,
         };
         // It should be always valid, no matter the sequence number.
-        assert_eq!(cell.is_valid(0), true);
+        assert!(cell.is_valid(0));
         for _ in 0..100 {
             let seq: usize = rng.gen();
-            assert_eq!(cell.is_valid(seq), true);
+            assert!(cell.is_valid(seq));
         }
 
         let cell = HashSetCell {
@@ -610,10 +610,10 @@ mod test {
         };
         // Sequence numbers up to 2400 should succeed.
         for i in 0..2400 {
-            assert_eq!(cell.is_valid(i), true);
+            assert!(cell.is_valid(i));
         }
         for i in 2400..10000 {
-            assert_eq!(cell.is_valid(i), false);
+            assert!(!cell.is_valid(i));
         }
     }
 
@@ -630,7 +630,7 @@ mod test {
         hs.mark_with_sequence_number(index_1_1, 1).unwrap();
 
         // Check if element exists in the set.
-        assert_eq!(hs.contains(&element_1_1, Some(1)).unwrap(), true);
+        assert!(hs.contains(&element_1_1, Some(1)).unwrap());
         // Try inserting the same element, even though we didn't reach the
         // threshold.
         assert!(matches!(
@@ -649,10 +649,10 @@ mod test {
         let index_2_6 = hs.insert(&element_2_6, 1).unwrap();
         let index_2_8 = hs.insert(&element_2_8, 1).unwrap();
         let index_2_9 = hs.insert(&element_2_9, 1).unwrap();
-        assert_eq!(hs.contains(&element_2_3, Some(2)).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_6, Some(2)).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_8, Some(2)).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_9, Some(2)).unwrap(), true);
+        assert!(hs.contains(&element_2_3, Some(2)).unwrap());
+        assert!(hs.contains(&element_2_6, Some(2)).unwrap());
+        assert!(hs.contains(&element_2_8, Some(2)).unwrap());
+        assert!(hs.contains(&element_2_9, Some(2)).unwrap());
         hs.mark_with_sequence_number(index_2_3, 2).unwrap();
         hs.mark_with_sequence_number(index_2_6, 2).unwrap();
         hs.mark_with_sequence_number(index_2_8, 2).unwrap();
@@ -682,10 +682,10 @@ mod test {
         let index_3_13 = hs.insert(&element_3_13, 2).unwrap();
         let index_3_21 = hs.insert(&element_3_21, 2).unwrap();
         let index_3_29 = hs.insert(&element_3_29, 2).unwrap();
-        assert_eq!(hs.contains(&element_3_11, Some(3)).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_13, Some(3)).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_21, Some(3)).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_29, Some(3)).unwrap(), true);
+        assert!(hs.contains(&element_3_11, Some(3)).unwrap());
+        assert!(hs.contains(&element_3_13, Some(3)).unwrap());
+        assert!(hs.contains(&element_3_21, Some(3)).unwrap());
+        assert!(hs.contains(&element_3_29, Some(3)).unwrap());
         hs.mark_with_sequence_number(index_3_11, 3).unwrap();
         hs.mark_with_sequence_number(index_3_13, 3).unwrap();
         hs.mark_with_sequence_number(index_3_21, 3).unwrap();
@@ -715,10 +715,10 @@ mod test {
         let index_4_65 = hs.insert(&element_4_65, 3).unwrap();
         let index_4_72 = hs.insert(&element_4_72, 3).unwrap();
         let index_4_15 = hs.insert(&element_4_15, 3).unwrap();
-        assert_eq!(hs.contains(&element_4_93, Some(4)).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_65, Some(4)).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_72, Some(4)).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_15, Some(4)).unwrap(), true);
+        assert!(hs.contains(&element_4_93, Some(4)).unwrap());
+        assert!(hs.contains(&element_4_65, Some(4)).unwrap());
+        assert!(hs.contains(&element_4_72, Some(4)).unwrap());
+        assert!(hs.contains(&element_4_15, Some(4)).unwrap());
         hs.mark_with_sequence_number(index_4_93, 4).unwrap();
         hs.mark_with_sequence_number(index_4_65, 4).unwrap();
         hs.mark_with_sequence_number(index_4_72, 4).unwrap();
@@ -770,22 +770,17 @@ mod test {
             std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
         for nf_chunk in nullifiers.chunks(2400) {
             for nullifier in nf_chunk.iter() {
-                assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
-                let index = hs.insert(&nullifier, seq as usize).unwrap();
-                assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
+                assert!(!hs.contains(nullifier, Some(seq)).unwrap());
+                let index = hs.insert(nullifier, seq).unwrap();
+                assert!(hs.contains(nullifier, Some(seq)).unwrap());
 
-                let nullifier_bytes = bigint_to_be_bytes_array(&nullifier).unwrap();
+                let nullifier_bytes = bigint_to_be_bytes_array(nullifier).unwrap();
 
-                let element = hs
-                    .find_element(&nullifier, Some(seq))
-                    .unwrap()
-                    .unwrap()
-                    .0
-                    .clone();
+                let element = *hs.find_element(nullifier, Some(seq)).unwrap().unwrap().0;
                 assert_eq!(
                     element,
                     HashSetCell {
-                        value: bigint_to_be_bytes_array(&nullifier).unwrap(),
+                        value: bigint_to_be_bytes_array(nullifier).unwrap(),
                         sequence_number: None,
                     }
                 );
@@ -796,12 +791,7 @@ mod test {
                 assert!(element.is_valid(seq));
 
                 hs.mark_with_sequence_number(index, seq).unwrap();
-                let element = hs
-                    .find_element(&nullifier, Some(seq))
-                    .unwrap()
-                    .unwrap()
-                    .0
-                    .clone();
+                let element = *hs.find_element(nullifier, Some(seq)).unwrap().unwrap().0;
 
                 assert_eq!(
                     element,
@@ -819,7 +809,7 @@ mod test {
                 // Trying to insert the same nullifier, before reaching the
                 // sequence threshold, should fail.
                 assert!(matches!(
-                    hs.insert(&nullifier, seq as usize + 2399),
+                    hs.insert(nullifier, seq + 2399),
                     Err(HashSetError::ElementAlreadyExists),
                 ));
                 seq += 1;
@@ -1023,7 +1013,7 @@ mod test {
             std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
 
         for nullifier in nullifiers.iter() {
-            hs.insert(&nullifier, 0).unwrap();
+            hs.insert(nullifier, 0).unwrap();
         }
 
         let mut sorted_nullifiers = nullifiers.iter().collect::<Vec<_>>();

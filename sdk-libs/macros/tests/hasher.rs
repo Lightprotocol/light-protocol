@@ -39,7 +39,7 @@ mod tests {
     /// - test_zero_values: assert_eq! zero-value field hash matches manual hash
     ///
     /// 2. Attribute Behavior:
-    ///   a. Truncate (Success):
+    ///    a. Truncate (Success):
     ///   - test_array_truncation: assert_ne! between different array hashes
     ///   - test_truncation_longer_array: assert_ne! between different long string hashes
     ///   - test_multiple_truncates: assert_ne! between multiple truncated field hashes
@@ -299,7 +299,7 @@ mod tests {
 
                 let manual_hash = Poseidon::hashv(&[
                     &test_struct.inner.hash::<Poseidon>().unwrap(),
-                    &light_utils::hash_to_bn254_field_size_be(&test_struct.data.as_bytes())
+                    &light_utils::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
                         .unwrap()
                         .0,
                 ])

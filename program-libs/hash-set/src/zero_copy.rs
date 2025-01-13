@@ -190,7 +190,7 @@ mod test {
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                let index = hs.insert(&nullifier, seq).unwrap();
+                let index = hs.insert(nullifier, seq).unwrap();
                 hs.mark_with_sequence_number(index, seq).unwrap();
             }
         }
@@ -201,11 +201,11 @@ mod test {
                 unsafe { HashSetZeroCopy::from_bytes_zero_copy_mut(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                assert_eq!(hs.contains(nullifier, Some(seq)).unwrap(), true);
+                assert!(hs.contains(nullifier, Some(seq)).unwrap());
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                hs.insert(&nullifier, 2400 + seq as usize).unwrap();
+                hs.insert(nullifier, 2400 + seq).unwrap();
             }
             drop(hs);
         }
@@ -215,10 +215,7 @@ mod test {
             let hs = unsafe { HashSet::from_bytes_copy(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                assert_eq!(
-                    hs.contains(nullifier, Some(2400 + seq as usize)).unwrap(),
-                    true
-                );
+                assert!(hs.contains(nullifier, Some(2400 + seq)).unwrap());
             }
         }
     }
