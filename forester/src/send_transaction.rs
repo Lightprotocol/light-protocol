@@ -5,12 +5,10 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::{
-    forester_epoch::{TreeAccounts, TreeType},
-    indexer::Indexer,
-};
+use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use futures::future::join_all;
 use light_client::{
+    indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
     rpc_pool::SolanaRpcPool,
 };

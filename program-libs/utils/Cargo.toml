@@ -13,19 +13,17 @@ anchor = ["anchor-lang"]
 [dependencies]
 anyhow = "1.0"
 ark-ff = "0.4"
-light-bounded-vec = { workspace = true }
-light-hasher = {workspace = true}
+light-hasher = { workspace = true }
 num-bigint = { version = "0.4", features = ["rand"] }
 thiserror = "1.0"
 solana-program = { workspace = true }
 ark-bn254 = "0.4.0"
 rand = "0.8"
-zerocopy = {workspace = true, features = ["derive"]}
-borsh = {workspace = true}
-bytemuck = {workspace = true}
-anchor-lang = {workspace = true , optional = true}
+zerocopy = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
-memoffset = "0.9"
-light-poseidon = {workspace = true}
-borsh = {workspace = true}
+light-poseidon = { workspace = true }
+borsh = { workspace = true }

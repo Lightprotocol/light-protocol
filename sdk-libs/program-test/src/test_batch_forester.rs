@@ -1,10 +1,6 @@
 use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
-use forester_utils::{
-    create_account_instruction,
-    indexer::{Indexer, StateMerkleTreeBundle},
-    AccountZeroCopy,
-};
+use forester_utils::{create_account_instruction, AccountZeroCopy};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     event::{BatchAppendEvent, BatchNullifyEvent},
@@ -303,10 +299,10 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let mut tx_hashes = Vec::new();
     let mut old_leaves = Vec::new();
     let mut path_indices = Vec::new();
-    for (index, leaf, tx_hash) in leaf_indices_tx_hashes.iter() {
-        path_indices.push(*index);
-        let index = *index as usize;
-        let leaf = *leaf;
+    for leaf_info in leaf_indices_tx_hashes.iter() {
+        path_indices.push(leaf_info.leaf_index);
+        let index = leaf_info.leaf_index as usize;
+        let leaf = leaf_info.leaf;
 
         leaves.push(leaf);
         // + 2 because next index is + 1 and we need to init the leaf in
@@ -328,8 +324,8 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         bundle.input_leaf_indices.remove(0);
         let index_bytes = index.to_be_bytes();
         use light_hasher::Hasher;
-        let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, tx_hash]).unwrap();
-        tx_hashes.push(*tx_hash);
+        let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        tx_hashes.push(leaf_info.tx_hash);
         nullifiers.push(nullifier);
         bundle.merkle_tree.update(&nullifier, index).unwrap();
     }
@@ -393,6 +389,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
 }
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_client::indexer::{Indexer, StateMerkleTreeBundle};
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -858,7 +855,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let mut low_element_next_values = Vec::new();
     let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
     let non_inclusion_proofs = indexer
-        .get_multiple_new_address_proofs_full(merkle_tree_pubkey.to_bytes(), addresses.clone())
+        .get_multiple_new_address_proofs_h40(merkle_tree_pubkey.to_bytes(), addresses.clone())
         .await
         .unwrap();
     for non_inclusion_proof in &non_inclusion_proofs {
@@ -881,7 +878,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             addresses,
             indexer
                 .get_subtrees(merkle_tree_pubkey.to_bytes())
-                .await
                 .unwrap()
                 .try_into()
                 .unwrap(),

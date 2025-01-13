@@ -22,23 +22,18 @@ anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 account-compression = { workspace = true }
-light-hasher = {workspace = true}
-light-concurrent-merkle-tree = {workspace = true}
-light-utils = {workspace = true}
-light-verifier = {workspace = true}
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-solana-program-test = { workspace = true }
+light-client = { workspace = true }
+light-sdk = { workspace = true }
+light-verifier = {workspace = true}
 light-test-utils = { workspace = true, features=["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
-reqwest = "0.11.26"
 tokio = { workspace = true }
 light-prover-client = {workspace = true }
-num-bigint = "0.4.6"
-num-traits = "0.2.19"
 spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = "0.8"

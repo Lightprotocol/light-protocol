@@ -53,7 +53,7 @@ dependencies = [
  "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-bounded-vec",
- "light-compressed-token",
+ "light-client",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
@@ -62,22 +62,14 @@ dependencies = [
  "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
- "light-system-program",
  "light-test-utils",
  "light-utils 1.1.0",
  "light-verifier",
- "memoffset 0.9.1",
  "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
- "reqwest 0.11.27",
- "serde_json",
  "serial_test",
- "solana-cli-output",
  "solana-program-test",
  "solana-sdk",
- "spl-token",
- "thiserror 1.0.64",
  "tokio",
 ]
 
@@ -683,12 +675,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atomic-waker"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
-
-[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1243,21 +1229,16 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-client",
  "light-compressed-token",
- "light-concurrent-merkle-tree",
- "light-hasher",
  "light-program-test",
  "light-prover-client",
+ "light-sdk",
  "light-system-program",
  "light-test-utils",
- "light-utils 1.1.0",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
- "reqwest 0.11.27",
  "serial_test",
- "solana-program-test",
  "solana-sdk",
  "spl-token",
  "tokio",
@@ -1716,11 +1697,11 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
- "reqwest 0.11.27",
+ "reqwest",
  "solana-client",
  "solana-program-test",
  "solana-sdk",
- "spl-concurrent-merkle-tree 0.2.0",
+ "spl-concurrent-merkle-tree",
  "spl-token",
  "tokio",
 ]
@@ -1985,11 +1966,12 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-registry",
+ "light-sdk",
  "light-system-program",
  "light-test-utils",
  "photon-api",
  "prometheus",
- "reqwest 0.11.27",
+ "reqwest",
  "scopeguard",
  "serde",
  "serde_json",
@@ -2031,7 +2013,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "photon-api",
- "reqwest 0.11.27",
+ "reqwest",
  "solana-client",
  "solana-program-test",
  "solana-sdk",
@@ -2249,25 +2231,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "h2"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524e8ac6999421f49a846c2d4411f337e53497d8ec55d67753beffa43c5d9205"
-dependencies = [
- "atomic-waker",
- "bytes",
- "fnv",
- "futures-core",
- "futures-sink",
- "http 1.1.0",
- "indexmap 2.5.0",
- "slab",
- "tokio",
- "tokio-util 0.7.13",
- "tracing",
-]
-
-[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2445,29 +2408,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-body"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1efedce1fb8e6913f23e0c92de8e62cd5b772a67e7b3946df930a62566c93184"
-dependencies = [
- "bytes",
- "http 1.1.0",
-]
-
-[[package]]
-name = "http-body-util"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793429d76616a256bcb62c2a2ec2bed781c8307e797e2598c50010f2bee2544f"
-dependencies = [
- "bytes",
- "futures-util",
- "http 1.1.0",
- "http-body 1.0.1",
- "pin-project-lite",
-]
-
-[[package]]
 name = "httparse"
 version = "1.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2495,9 +2435,9 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "h2 0.3.26",
+ "h2",
  "http 0.2.12",
- "http-body 0.4.6",
+ "http-body",
  "httparse",
  "httpdate",
  "itoa",
@@ -2510,26 +2450,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hyper"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50dfd22e0e76d0f662d429a5f80fcaf3855009297eab6a0a9f8543834744ba05"
-dependencies = [
- "bytes",
- "futures-channel",
- "futures-util",
- "h2 0.4.6",
- "http 1.1.0",
- "http-body 1.0.1",
- "httparse",
- "itoa",
- "pin-project-lite",
- "smallvec",
- "tokio",
- "want",
-]
-
-[[package]]
 name = "hyper-rustls"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2537,7 +2457,7 @@ checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
  "futures-util",
  "http 0.2.12",
- "hyper 0.14.30",
+ "hyper",
  "rustls",
  "tokio",
  "tokio-rustls",
@@ -2550,46 +2470,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6183ddfa99b85da61a140bea0efc93fdf56ceaa041b37d553518030827f9905"
 dependencies = [
  "bytes",
- "hyper 0.14.30",
+ "hyper",
  "native-tls",
  "tokio",
  "tokio-native-tls",
-]
-
-[[package]]
-name = "hyper-tls"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70206fc6890eaca9fde8a0bf71caa2ddfc9fe045ac9e5c70df101a7dbde866e0"
-dependencies = [
- "bytes",
- "http-body-util",
- "hyper 1.4.1",
- "hyper-util",
- "native-tls",
- "tokio",
- "tokio-native-tls",
- "tower-service",
-]
-
-[[package]]
-name = "hyper-util"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cde7055719c54e36e95e8719f95883f22072a48ede39db7fc17a4e1d5281e9b9"
-dependencies = [
- "bytes",
- "futures-channel",
- "futures-util",
- "http 1.1.0",
- "http-body 1.0.1",
- "hyper 1.4.1",
- "pin-project-lite",
- "socket2",
- "tokio",
- "tower",
- "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -2931,7 +2815,7 @@ dependencies = [
  "num-traits",
  "photon-api",
  "rand 0.8.5",
- "reqwest 0.11.27",
+ "reqwest",
  "solana-banks-client",
  "solana-client",
  "solana-program",
@@ -2968,7 +2852,6 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "borsh 0.10.3",
- "bytemuck",
  "light-bounded-vec",
  "light-hash-set",
  "light-hasher",
@@ -2979,8 +2862,7 @@ dependencies = [
  "num-traits",
  "rand 0.8.5",
  "solana-program",
- "spl-account-compression",
- "spl-concurrent-merkle-tree 0.2.0",
+ "spl-concurrent-merkle-tree",
  "thiserror 1.0.64",
  "tokio",
 ]
@@ -3104,6 +2986,7 @@ dependencies = [
  "light-compressed-token",
  "light-hasher",
  "light-indexed-merkle-tree",
+ "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-prover-client",
  "light-registry",
@@ -3114,7 +2997,7 @@ dependencies = [
  "log",
  "num-bigint 0.4.6",
  "num-traits",
- "reqwest 0.11.27",
+ "reqwest",
  "solana-banks-client",
  "solana-program-test",
  "solana-sdk",
@@ -3141,7 +3024,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-traits",
  "once_cell",
- "reqwest 0.11.27",
+ "reqwest",
  "serde",
  "serde_json",
  "serial_test",
@@ -3171,35 +3054,18 @@ name = "light-sdk"
 version = "0.11.0"
 dependencies = [
  "account-compression",
- "aligned-sized",
  "anchor-lang",
  "borsh 0.10.3",
- "bytemuck",
- "groth16-solana",
- "lazy_static",
- "light-concurrent-merkle-tree",
- "light-hash-set",
  "light-hasher",
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
- "light-merkle-tree-reference",
- "light-prover-client",
  "light-sdk-macros",
  "light-system-program",
  "light-utils 1.1.0",
- "light-verifier",
  "num-bigint 0.4.6",
- "num-traits",
- "rand 0.8.5",
- "reqwest 0.12.4",
- "serde_json",
- "solana-banks-interface",
- "solana-cli-output",
  "solana-program",
- "solana-program-test",
  "solana-sdk",
- "tokio",
 ]
 
 [[package]]
@@ -3261,6 +3127,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-registry",
+ "light-sdk",
  "light-system-program",
  "light-utils 1.1.0",
  "light-verifier",
@@ -3270,7 +3137,7 @@ dependencies = [
  "num-traits",
  "photon-api",
  "rand 0.8.5",
- "reqwest 0.11.27",
+ "reqwest",
  "serde",
  "solana-client",
  "solana-program-test",
@@ -3292,10 +3159,8 @@ dependencies = [
  "ark-ff",
  "borsh 0.10.3",
  "bytemuck",
- "light-bounded-vec",
  "light-hasher",
  "light-poseidon",
- "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-program",
@@ -3327,7 +3192,7 @@ dependencies = [
  "groth16-solana",
  "light-prover-client",
  "light-utils 1.1.0",
- "reqwest 0.11.27",
+ "reqwest",
  "serial_test",
  "solana-program",
  "thiserror 1.0.64",
@@ -4027,7 +3892,7 @@ dependencies = [
 name = "photon-api"
 version = "0.45.0"
 dependencies = [
- "reqwest 0.11.27",
+ "reqwest",
  "serde",
  "serde_derive",
  "serde_json",
@@ -4550,29 +4415,17 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl",
  "forester-utils",
  "light-batched-merkle-tree",
- "light-compressed-token",
- "light-concurrent-merkle-tree",
+ "light-client",
  "light-hasher",
- "light-indexed-merkle-tree",
  "light-program-test",
  "light-prover-client",
  "light-registry",
- "light-system-program",
  "light-test-utils",
  "light-utils 1.1.0",
- "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest 0.11.27",
- "serde_json",
  "serial_test",
- "solana-cli-output",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
@@ -4588,12 +4441,12 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
- "h2 0.3.26",
+ "h2",
  "http 0.2.12",
- "http-body 0.4.6",
- "hyper 0.14.30",
+ "http-body",
+ "hyper",
  "hyper-rustls",
- "hyper-tls 0.5.0",
+ "hyper-tls",
  "ipnet",
  "js-sys",
  "log",
@@ -4604,7 +4457,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "rustls",
- "rustls-pemfile 1.0.4",
+ "rustls-pemfile",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -4620,49 +4473,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "webpki-roots 0.25.4",
- "winreg 0.50.0",
-]
-
-[[package]]
-name = "reqwest"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "566cafdd92868e0939d3fb961bd0dc25fcfaaed179291093b3d43e6b3150ea10"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "encoding_rs",
- "futures-core",
- "futures-util",
- "h2 0.4.6",
- "http 1.1.0",
- "http-body 1.0.1",
- "http-body-util",
- "hyper 1.4.1",
- "hyper-tls 0.6.0",
- "hyper-util",
- "ipnet",
- "js-sys",
- "log",
- "mime",
- "native-tls",
- "once_cell",
- "percent-encoding",
- "pin-project-lite",
- "rustls-pemfile 2.1.3",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "sync_wrapper",
- "system-configuration",
- "tokio",
- "tokio-native-tls",
- "tower-service",
- "url",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "winreg 0.52.0",
+ "winreg",
 ]
 
 [[package]]
@@ -4778,7 +4589,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
 dependencies = [
  "openssl-probe",
- "rustls-pemfile 1.0.4",
+ "rustls-pemfile",
  "schannel",
  "security-framework",
 ]
@@ -4791,22 +4602,6 @@ checksum = "1c74cae0a4cf6ccbbf5f359f08efdf8ee7e1dc532573bf0db71968cb56b1448c"
 dependencies = [
  "base64 0.21.7",
 ]
-
-[[package]]
-name = "rustls-pemfile"
-version = "2.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "196fe16b00e106300d3e45ecfcb764fa292a535d7326a29a5875c579c7417425"
-dependencies = [
- "base64 0.22.1",
- "rustls-pki-types",
-]
-
-[[package]]
-name = "rustls-pki-types"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0a2ce646f8655401bb81e7927b812614bd5d91dbc968696be50603510fcaf0"
 
 [[package]]
 name = "rustls-webpki"
@@ -4910,17 +4705,12 @@ name = "sdk-test"
 version = "0.7.0"
 dependencies = [
  "anchor-lang",
- "borsh 0.10.3",
  "light-client",
  "light-hasher",
- "light-macros",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
- "light-sdk-macros",
  "light-test-utils",
- "light-utils 1.1.0",
- "light-verifier",
- "solana-program-test",
  "solana-sdk",
  "tokio",
 ]
@@ -5654,7 +5444,7 @@ dependencies = [
  "gethostname",
  "lazy_static",
  "log",
- "reqwest 0.11.27",
+ "reqwest",
  "solana-sdk",
  "thiserror 1.0.64",
 ]
@@ -5832,7 +5622,7 @@ dependencies = [
  "crossbeam-channel",
  "futures-util",
  "log",
- "reqwest 0.11.27",
+ "reqwest",
  "semver",
  "serde",
  "serde_derive",
@@ -5912,7 +5702,7 @@ dependencies = [
  "bs58 0.4.0",
  "indicatif",
  "log",
- "reqwest 0.11.27",
+ "reqwest",
  "semver",
  "serde",
  "serde_derive",
@@ -5934,7 +5724,7 @@ dependencies = [
  "base64 0.21.7",
  "bs58 0.4.0",
  "jsonrpc-core",
- "reqwest 0.11.27",
+ "reqwest",
  "semver",
  "serde",
  "serde_derive",
@@ -6393,20 +6183,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spl-account-compression"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfcf740e5242f2ad63325e600c368702f32db84608fc8b70d70633c68dd1486d"
-dependencies = [
- "anchor-lang",
- "bytemuck",
- "solana-program",
- "solana-security-txt",
- "spl-concurrent-merkle-tree 0.3.0",
- "spl-noop",
-]
-
-[[package]]
 name = "spl-associated-token-account"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6427,17 +6203,6 @@ name = "spl-concurrent-merkle-tree"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "141eaea58588beae81b71d101373a53f096737739873de42d6b1368bc2b8fc30"
-dependencies = [
- "bytemuck",
- "solana-program",
- "thiserror 1.0.64",
-]
-
-[[package]]
-name = "spl-concurrent-merkle-tree"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5f45b971d82cbb0416fdffad3c9098f259545d54072e83a0a482f60f8f689"
 dependencies = [
  "bytemuck",
  "solana-program",
@@ -6519,15 +6284,6 @@ name = "spl-memo"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0f180b03318c3dbab3ef4e1e4d46d5211ae3c780940dd0a28695aba4b59a75a"
-dependencies = [
- "solana-program",
-]
-
-[[package]]
-name = "spl-noop"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dd67ea3d0070a12ff141f5da46f9695f49384a03bce1203a5608f5739437950"
 dependencies = [
  "solana-program",
 ]
@@ -7016,19 +6772,21 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-batched-merkle-tree",
+ "light-client",
  "light-compressed-token",
  "light-hasher",
  "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",
  "light-registry",
+ "light-sdk",
  "light-system-program",
  "light-test-utils",
  "light-utils 1.1.0",
  "light-verifier",
  "num-bigint 0.4.6",
  "num-traits",
- "reqwest 0.11.27",
+ "reqwest",
  "serial_test",
  "solana-program-test",
  "solana-sdk",
@@ -7042,30 +6800,23 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl",
  "light-batched-merkle-tree",
- "light-compressed-token",
- "light-concurrent-merkle-tree",
+ "light-client",
  "light-hasher",
- "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
  "light-program-test",
  "light-prover-client",
  "light-registry",
+ "light-sdk",
  "light-system-program",
  "light-test-utils",
  "light-utils 1.1.0",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
  "quote",
- "reqwest 0.11.27",
  "serde_json",
  "serial_test",
  "solana-cli-output",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
@@ -7342,6 +7093,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "light-client",
  "light-compressed-token",
  "light-hasher",
  "light-program-test",
@@ -7521,27 +7273,6 @@ dependencies = [
  "toml_datetime",
  "winnow 0.6.18",
 ]
-
-[[package]]
-name = "tower"
-version = "0.4.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8fa9be0de6cf49e536ce1851f987bd21a43b771b09473c3549a6c853db37c1c"
-dependencies = [
- "futures-core",
- "futures-util",
- "pin-project",
- "pin-project-lite",
- "tokio",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "tower-layer"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
 
 [[package]]
 name = "tower-service"
@@ -7895,7 +7626,7 @@ dependencies = [
  "futures-util",
  "headers",
  "http 0.2.12",
- "hyper 0.14.30",
+ "hyper",
  "log",
  "mime",
  "mime_guess",
@@ -8281,16 +8012,6 @@ name = "winreg"
 version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
-dependencies = [
- "cfg-if",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "winreg"
-version = "0.52.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",

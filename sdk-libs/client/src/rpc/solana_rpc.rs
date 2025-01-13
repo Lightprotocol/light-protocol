@@ -27,7 +27,7 @@ use solana_transaction_status::{
 use tokio::time::{sleep, Instant};
 
 use crate::{
-    rpc::{errors::RpcError, rpc_connection::RpcConnection},
+    rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
     transaction_params::TransactionParams,
 };
 
@@ -461,3 +461,5 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
 }
+
+impl MerkleTreeExt for SolanaRpcConnection {}

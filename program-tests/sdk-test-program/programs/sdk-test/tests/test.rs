@@ -6,10 +6,11 @@ use light_client::{
     rpc::merkle_tree::MerkleTreeExt,
 };
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
-    test_indexer::TestIndexer,
     test_rpc::ProgramTestRpcConnection,
 };
+use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
@@ -36,17 +37,21 @@ async fn test_sdk_test() {
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
-        &[StateMerkleTreeAccounts {
+        vec![StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
             cpi_context: env.cpi_context_account_pubkey,
         }],
-        &[AddressMerkleTreeAccounts {
+        vec![AddressMerkleTreeAccounts {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         }],
-        true,
-        true,
+        payer.insecure_clone(),
+        env.group_pda,
+        Some(ProverConfig {
+            circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
+            run_mode: None,
+        }),
     )
     .await;
 
@@ -86,7 +91,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -126,7 +132,8 @@ async fn test_sdk_test() {
     .unwrap();
 
     // Check that it was updated correctly.
-    let compressed_accounts = test_indexer.get_compressed_accounts_by_owner(&sdk_test::ID);
+    let compressed_accounts =
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -139,10 +146,10 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
-async fn with_nested_data<R>(
+async fn with_nested_data<R, I>(
     name: String,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     env: &EnvAccounts,
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
@@ -153,6 +160,7 @@ async fn with_nested_data<R>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
+    I: Indexer<R> + TestIndexerExtensions<R>,
 {
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -209,13 +217,14 @@ where
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }
 
-async fn update_nested_data<R>(
+async fn update_nested_data<R, I>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut I,
     remaining_accounts: &mut RemainingAccounts,
     nested_data: NestedData,
     payer: &Keypair,
@@ -226,14 +235,15 @@ async fn update_nested_data<R>(
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
+    I: Indexer<R> + TestIndexerExtensions<R>,
 {
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
+            Some(vec![hash]),
+            Some(vec![merkle_tree_pubkey]),
             None,
             None,
             rpc,
@@ -282,6 +292,7 @@ where
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
         .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap().0);
+    let slot = rpc.get_slot().await.unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
     Ok(())
 }

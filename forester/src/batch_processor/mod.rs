@@ -5,7 +5,7 @@ mod state;
 
 use common::BatchProcessor;
 use error::Result;
-use forester_utils::{forester_epoch::TreeType, indexer::Indexer};
+use forester_utils::forester_epoch::TreeType;
 use light_client::rpc::RpcConnection;
 use tracing::{info, instrument};
 
@@ -17,7 +17,7 @@ use tracing::{info, instrument};
         tree_type = ?tree_type
     )
 )]
-pub async fn process_batched_operations<R: RpcConnection, I: Indexer<R>>(
+pub async fn process_batched_operations<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {
@@ -28,3 +28,6 @@ pub async fn process_batched_operations<R: RpcConnection, I: Indexer<R>>(
 
 pub use common::BatchContext;
 pub use error::BatchProcessError;
+use light_client::indexer::Indexer;
+
+use crate::indexer_type::IndexerType;

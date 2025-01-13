@@ -13,28 +13,27 @@ use solana_sdk::{
 
 pub mod address;
 pub mod address_tree_rollover;
-pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
+pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;
 #[allow(unused)]
-pub mod indexer;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
 #[allow(unused)]
 pub mod test_forester;
+
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
     airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
-    indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, TokenDataWithContext},
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions, register_test_forester,
@@ -49,13 +48,13 @@ pub use light_client::{
     transaction_params::{FeeConfig, TransactionParams},
 };
 use light_hasher::Poseidon;
-use light_program_test::test_env::create_address_merkle_tree_and_queue_account;
+use light_program_test::{
+    indexer::utils::assert_address_merkle_tree_initialized,
+    test_env::create_address_merkle_tree_and_queue_account,
+};
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 
-use crate::{
-    assert_address_merkle_tree::assert_address_merkle_tree_initialized,
-    assert_queue::assert_address_queue_initialized,
-};
+use crate::assert_queue::assert_address_queue_initialized;
 
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
