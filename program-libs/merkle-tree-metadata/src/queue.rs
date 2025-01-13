@@ -40,9 +40,9 @@ pub struct QueueMetadata {
 pub enum QueueType {
     NullifierQueue = 1,
     AddressQueue = 2,
-    Input = 3,
-    Address = 4,
-    Output = 5,
+    BatchedInput = 3,
+    BatchedAddress = 4,
+    BatchedOutput = 5,
 }
 
 impl From<u64> for QueueType {
@@ -50,9 +50,9 @@ impl From<u64> for QueueType {
         match value {
             1 => QueueType::NullifierQueue,
             2 => QueueType::AddressQueue,
-            3 => QueueType::Input,
-            4 => QueueType::Address,
-            5 => QueueType::Output,
+            3 => QueueType::BatchedInput,
+            4 => QueueType::BatchedAddress,
+            5 => QueueType::BatchedOutput,
             _ => panic!("Invalid queue type"),
         }
     }

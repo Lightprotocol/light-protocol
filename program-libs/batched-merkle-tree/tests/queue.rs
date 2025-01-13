@@ -52,7 +52,7 @@ fn test_output_queue_account() {
     let bloom_filter_capacity = 0;
     let bloom_filter_num_iters = 0;
     {
-        let queue_type = QueueType::Output;
+        let queue_type = QueueType::BatchedOutput;
         let (ref_account, mut account_data) = get_test_account_and_account_data(
             batch_size,
             num_batches,
@@ -76,7 +76,7 @@ fn test_output_queue_account() {
         let value = [1u8; 32];
         account.insert_into_current_batch(&value).unwrap();
         // assert!(account.insert_into_current_batch(&value).is_ok());
-        if queue_type != QueueType::Output {
+        if queue_type != QueueType::BatchedOutput {
             assert!(account.insert_into_current_batch(&value).is_err());
         }
     }
@@ -85,7 +85,7 @@ fn test_output_queue_account() {
 #[test]
 fn test_value_exists_in_value_vec_present() {
     let (account, mut account_data) =
-        get_test_account_and_account_data(100, 2, QueueType::Output, 0);
+        get_test_account_and_account_data(100, 2, QueueType::BatchedOutput, 0);
     let mut account =
         BatchedQueueAccount::init(&mut account_data, account.metadata, 2, 100, 10, 0, 0).unwrap();
 

@@ -160,7 +160,7 @@ impl BatchedMerkleTreeMetadata {
         );
         let size = account_size
             + root_history_size
-            + queue_account_size(&self.queue_metadata, QueueType::Input as u64)?;
+            + queue_account_size(&self.queue_metadata, QueueType::BatchedInput as u64)?;
         Ok(size)
     }
 
@@ -371,7 +371,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
             &metadata.queue_metadata,
             account_data,
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
         )?;
 
         Ok(BatchedMerkleTreeAccount {
@@ -437,7 +437,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
         let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
             &account_metadata.queue_metadata,
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
             account_data,
             num_iters,
             bloom_filter_capacity,
@@ -588,9 +588,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
         let new_root = instruction_data.public_inputs.new_root;
 
-        let public_input_hash = if QUEUE_TYPE == QueueType::Input as u64 {
+        let public_input_hash = if QUEUE_TYPE == QueueType::BatchedInput as u64 {
             create_hash_chain_from_array([*old_root, new_root, *leaves_hashchain])?
-        } else if QUEUE_TYPE == QueueType::Address as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
             let mut next_index_bytes = [0u8; 32];
             next_index_bytes[24..]
                 .copy_from_slice(self.get_metadata().next_index.to_be_bytes().as_slice());
@@ -627,7 +627,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account.queue_metadata.next_full_batch_index += 1;
             account.queue_metadata.next_full_batch_index %= account.queue_metadata.num_batches;
         }
-        if QUEUE_TYPE == QueueType::Address as u64 {
+        if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
             self.get_metadata_mut().next_index += circuit_batch_size;
         }
 
@@ -650,11 +650,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         proof: CompressedProof,
         public_input_hash: [u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        if QUEUE_TYPE == QueueType::Output as u64 {
+        if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
-        } else if QUEUE_TYPE == QueueType::Input as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedInput as u64 {
             verify_batch_update(batch_size, public_input_hash, &proof)?;
-        } else if QUEUE_TYPE == QueueType::Address as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
@@ -698,7 +698,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         leaves_hash_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
         let (root_index, sequence_number) = insert_into_current_batch(
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
             &mut self.metadata.queue_metadata,
             &mut self.batches,
             &mut self.value_vecs,

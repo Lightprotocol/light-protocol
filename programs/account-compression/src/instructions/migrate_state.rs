@@ -151,7 +151,7 @@ mod migrate_state_test {
             next_queue: Pubkey::new_unique().into(),
             access_metadata: AccessMetadata::default(),
             rollover_metadata: RolloverMetadata::default(),
-            queue_type: QueueType::Output as u64,
+            queue_type: QueueType::BatchedOutput as u64,
             associated_merkle_tree: Pubkey::new_unique().into(),
         };
 

@@ -99,17 +99,17 @@ impl BatchMetadata {
     ) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
         let num_batches = self.num_batches as usize;
         // Input queues don't store values
-        let num_value_stores = if queue_type == QueueType::Output as u64 {
+        let num_value_stores = if queue_type == QueueType::BatchedOutput as u64 {
             num_batches
-        } else if queue_type == QueueType::Input as u64 {
+        } else if queue_type == QueueType::BatchedInput as u64 {
             0
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         // Output queues don't use bloom filters.
-        let num_stores = if queue_type == QueueType::Input as u64 {
+        let num_stores = if queue_type == QueueType::BatchedInput as u64 {
             num_batches
-        } else if queue_type == QueueType::Output as u64 && self.bloom_filter_capacity == 0 {
+        } else if queue_type == QueueType::BatchedOutput as u64 && self.bloom_filter_capacity == 0 {
             0
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType);
@@ -124,7 +124,7 @@ pub fn queue_account_size(
 ) -> Result<usize, BatchedMerkleTreeError> {
     let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
         batch_metadata.get_size_parameters(queue_type)?;
-    let account_size = if queue_type != QueueType::Output as u64 {
+    let account_size = if queue_type != QueueType::BatchedOutput as u64 {
         0
     } else {
         BatchedQueueMetadata::LEN
@@ -367,6 +367,7 @@ impl<'a> BatchedQueueAccount<'a> {
         Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
     }
 
+    // TODO: add unit tests
     /// Zero out a leaf by index if it exists in the queues value vec. If
     /// checked fail if leaf is not found.
     pub fn prove_inclusion_by_index_and_zero_out_leaf(
@@ -479,13 +480,13 @@ pub fn insert_into_current_batch(
 
         let queue_type = QueueType::from(queue_type);
         match queue_type {
-            QueueType::Input | QueueType::Address => current_batch.insert(
+            QueueType::BatchedInput | QueueType::BatchedAddress => current_batch.insert(
                 value,
                 leaves_hash_value.unwrap(),
                 bloom_filter_stores.unwrap().as_mut_slice(),
                 hashchain_store.as_mut().unwrap(),
             ),
-            QueueType::Output => current_batch.store_and_hash_value(
+            QueueType::BatchedOutput => current_batch.store_and_hash_value(
                 value,
                 value_store.unwrap(),
                 hashchain_store.unwrap(),
@@ -628,7 +629,7 @@ pub fn get_output_queue_account_size_default() -> usize {
             ..Default::default()
         },
     };
-    queue_account_size(&account.batch_metadata, QueueType::Output as u64).unwrap()
+    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
 
 pub fn get_output_queue_account_size_from_params(
@@ -644,7 +645,7 @@ pub fn get_output_queue_account_size_from_params(
             ..Default::default()
         },
     };
-    queue_account_size(&account.batch_metadata, QueueType::Output as u64).unwrap()
+    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
 
 pub fn get_output_queue_account_size(
@@ -662,7 +663,7 @@ pub fn get_output_queue_account_size(
             ..Default::default()
         },
     };
-    queue_account_size(&account.batch_metadata, QueueType::Output as u64).unwrap()
+    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -694,7 +695,7 @@ pub fn assert_queue_inited(
         assert_eq!(batch, &ref_batch, "batch mismatch");
     }
 
-    if queue_type == QueueType::Output as u64 {
+    if queue_type == QueueType::BatchedOutput as u64 {
         assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
         assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
     } else {
@@ -702,7 +703,7 @@ pub fn assert_queue_inited(
         assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
     }
 
-    if queue_type == QueueType::Output as u64 {
+    if queue_type == QueueType::BatchedOutput as u64 {
         assert_eq!(
             bloom_filter_stores.capacity(),
             0,
