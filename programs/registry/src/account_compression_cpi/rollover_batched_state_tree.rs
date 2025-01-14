@@ -24,6 +24,7 @@ pub struct RolloverBatchedStateMerkleTree<'info> {
     #[account(mut)]
     pub old_output_queue: AccountInfo<'info>,
     /// CHECK: (system program) new cpi context account.
+    #[account(zero)]
     pub cpi_context_account: AccountInfo<'info>,
     /// CHECK: (account compression program) access control.
     pub registered_program_pda: AccountInfo<'info>,
