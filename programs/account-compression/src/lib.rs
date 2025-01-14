@@ -35,15 +35,6 @@ pub mod account_compression {
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
     use super::*;
 
-    pub fn initialize_batched_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
-            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_initialize_batched_state_merkle_tree(ctx, params)
-    }
-
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
@@ -215,6 +206,51 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
+    /// Initialize a batched state Merkle tree account and
+    /// an output queue account.
+    /// 1. append output state
+    ///     State is first inserted into the output queue with
+    ///     the instruction append_leaves_to_merkle_trees.
+    /// 2. batch append
+    ///     Leaves are inserted from the output queue into the
+    ///     state Merkle tree with the instruction batch_append.
+    /// 3. nullify (input) state
+    ///     State is nullified by inserting nullifiers into the
+    ///     input queue (part of the Merkle tree account).
+    ///     Nullifiers are inserted with the instruction
+    ///     insert_into_nullifier_queues.
+    /// 4. batch nullify
+    ///    Nullifiers are inserted from the input queue into the
+    ///    state Merkle tree with the instruction batch_nullify.
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
+
+    /// Initialize a batched address Merkle tree account.
+    /// A batched address Merkle tree is an indexed Merkle tree.
+    /// Addresses are first inserted into a queue and inserted into
+    /// the indexed Merkle tree in batches with a zkp.
+    /// The queue is part of the address Merkle tree account.
+    /// 1. queue addresses
+    ///     Addresses are inserted into the queue with the instruction
+    ///     insert_addresses.
+    /// 2. update address tree
+    ///     The address tree is updated with the instruction
+    ///     batch_update_address_tree.
+    pub fn intialize_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_address_merkle_tree(ctx, params)
+    }
+
     /// Nullify a batch of leaves from the input queue
     /// to a batched Merkle tree with a zkp.
     pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
@@ -246,15 +282,6 @@ pub mod account_compression {
         let instruction_data = InstructionDataBatchNullifyInputs::try_from_slice(&data)
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
         process_batch_update_address_tree(&ctx, instruction_data)
-    }
-
-    pub fn intialize_batched_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
-            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_initialize_batched_address_merkle_tree(ctx, params)
     }
 
     /// Rollover batched address Merkle tree.

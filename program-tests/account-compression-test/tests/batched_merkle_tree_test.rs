@@ -1389,7 +1389,7 @@ pub async fn perform_init_batch_address_merkle_tree(
     let instruction = account_compression::instruction::IntializeBatchedAddressMerkleTree {
         bytes: params.try_to_vec().unwrap(),
     };
-    let accounts = account_compression::accounts::InitializeBatchAddressMerkleTree {
+    let accounts = account_compression::accounts::InitializeBatchedAddressMerkleTree {
         authority: context.get_payer().pubkey(),
         merkle_tree: merkle_tree_pubkey,
         registered_program_pda: None,

@@ -49,19 +49,23 @@ pub struct MigrateLeafParams {
     pub proof: [[u8; 32]; 16], // height 26 - canopy 10
 }
 
-/// 1. Nullifies a leaf in the state merkle tree.
-/// 2. Emits a nullifier event.
-/// 3. Inserts the leaf in the output queue.
+/// Migrate a leaf from a v1 state tree to a v2 state tree.
+/// 1. Check that signer is a registered program.
+/// 2. Migrate state
+///     2.1 Nullifies a leaf in the state merkle tree.
+///     2.2 Create a nullifier event.
+///     2.3 Inserts the leaf in the output queue.    
+/// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
     migrate_leaf_params: MigrateLeafParams,
 ) -> Result<()> {
-    if ctx.accounts.registered_program_pda.is_none() {
-        msg!("Registered program PDA not set");
-        return err!(AccountCompressionErrorCode::RegistryProgramIsNone);
-    }
-    msg!("migrate_leaf_params: {:?}", migrate_leaf_params);
+    // 1. Check that signer is a registered program.
     {
+        if ctx.accounts.registered_program_pda.is_none() {
+            msg!("Registered program PDA not set");
+            return err!(AccountCompressionErrorCode::RegistryProgramIsNone);
+        }
         let merkle_tree = ctx.accounts.merkle_tree.load()?;
         check_signer_is_registered_or_authority::<MigrateState, StateMerkleTreeAccount>(
             ctx,
@@ -75,17 +79,22 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     let output_queue =
         &mut BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
             .map_err(ProgramError::from)?;
+    // 2. Migrate state
     let nullify_event = migrate_state(
         migrate_leaf_params,
         &mut zero_copy_merkle_tree,
         &merkle_tree.key(),
         output_queue,
     )?;
+    // 3. Emit nullifier event
     emit_indexer_event(nullify_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
 
     Ok(())
 }
 
+/// 1. Nullifies a leaf in the state merkle tree.
+/// 2. Create a nullifier event.
+/// 3. Inserts the leaf in the output queue.
 fn migrate_state(
     migrate_leaf_params: MigrateLeafParams,
     merkle_tree: &mut ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>,
@@ -98,6 +107,7 @@ fn migrate_state(
 
     let mut proof = from_vec(migrate_leaf_params.proof.as_slice(), merkle_tree.height)
         .map_err(ProgramError::from)?;
+    // 1. Nullifies a leaf in the state merkle tree by updating it with 0.
     merkle_tree
         .update(
             migrate_leaf_params.change_log_index as usize,
@@ -108,12 +118,14 @@ fn migrate_state(
         )
         .map_err(ProgramError::from)?;
 
+    // 2. Create a nullifier event.
     let nullify_event = NullifierEvent {
         id: merkle_tree_pubkey.to_bytes(),
         nullified_leaves_indices: vec![migrate_leaf_params.leaf_index],
         seq: merkle_tree.sequence_number() as u64,
     };
 
+    // 3. Inserts the leaf in the output queue.
     output_queue
         .insert_into_current_batch(&migrate_leaf_params.leaf)
         .map_err(ProgramError::from)?;

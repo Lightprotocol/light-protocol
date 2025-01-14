@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct InitializeBatchAddressMerkleTree<'info> {
+pub struct InitializeBatchedAddressMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: is initialized in this instruction.
@@ -24,7 +24,7 @@ pub struct InitializeBatchAddressMerkleTree<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }
 
-impl<'info> GroupAccounts<'info> for InitializeBatchAddressMerkleTree<'info> {
+impl<'info> GroupAccounts<'info> for InitializeBatchedAddressMerkleTree<'info> {
     fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -36,7 +36,7 @@ impl<'info> GroupAccounts<'info> for InitializeBatchAddressMerkleTree<'info> {
 /// 1. checks signer
 /// 2. initializes merkle tree
 pub fn process_initialize_batched_address_merkle_tree<'info>(
-    ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
+    ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
     params: InitAddressTreeAccountsInstructionData,
 ) -> Result<()> {
     #[cfg(feature = "test")]
@@ -52,7 +52,7 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
     let owner = match ctx.accounts.registered_program_pda.as_ref() {
         Some(registered_program_pda) => {
             check_signer_is_registered_or_authority::<
-                InitializeBatchAddressMerkleTree,
+                InitializeBatchedAddressMerkleTree,
                 RegisteredProgram,
             >(&ctx, registered_program_pda)?;
             registered_program_pda.group_authority_pda
