@@ -111,8 +111,5 @@ async fn get_batch_index<R: RpcConnection, I: Indexer<R>>(
         account.data.as_mut_slice(),
     ).map_err(|e| BatchProcessError::MerkleTreeParsing(e.to_string()))?;
 
-    Ok(merkle_tree
-        .get_metadata()
-        .queue_metadata
-        .next_full_batch_index as usize)
+    Ok(merkle_tree.queue_metadata.next_full_batch_index as usize)
 }

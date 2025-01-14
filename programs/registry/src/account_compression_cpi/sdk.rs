@@ -431,14 +431,14 @@ pub fn create_rollover_batch_state_tree_instruction(
     let registered_forester_pda =
         get_forester_epoch_pda_from_authority(&derivation_pubkey, epoch).0;
     let (cpi_authority, bump) = get_cpi_authority_pda();
-    let instruction_data = crate::instruction::RolloverBatchStateMerkleTree { bump };
+    let instruction_data = crate::instruction::RolloverBatchedStateMerkleTree { bump };
     let registered_forester_pda = if !light_forester {
         None
     } else {
         Some(registered_forester_pda)
     };
 
-    let accounts = crate::accounts::RolloverBatchStateMerkleTree {
+    let accounts = crate::accounts::RolloverBatchedStateMerkleTree {
         authority: forester,
         registered_forester_pda,
         registered_program_pda: register_program_pda,
@@ -526,7 +526,7 @@ pub fn create_rollover_batch_address_tree_instruction(
     let registered_program_pda = get_registered_program_pda(&crate::ID);
 
     let (cpi_authority_pda, bump) = get_cpi_authority_pda();
-    let accounts = crate::accounts::RolloverBatchAddressMerkleTree {
+    let accounts = crate::accounts::RolloverBatchedAddressMerkleTree {
         authority: forester,
         new_address_merkle_tree: new_merkle_tree,
         old_address_merkle_tree: old_merkle_tree,
@@ -536,7 +536,7 @@ pub fn create_rollover_batch_address_tree_instruction(
         account_compression_program: account_compression::ID,
         protocol_config_pda: get_protocol_config_pda_address().0,
     };
-    let instruction_data = crate::instruction::RolloverBatchAddressMerkleTree { bump };
+    let instruction_data = crate::instruction::RolloverBatchedAddressMerkleTree { bump };
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),

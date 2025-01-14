@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct RolloverBatchAddressMerkleTree<'info> {
+pub struct RolloverBatchedAddressMerkleTree<'info> {
     #[account(mut)]
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
@@ -29,7 +29,7 @@ pub struct RolloverBatchAddressMerkleTree<'info> {
     pub old_address_merkle_tree: AccountInfo<'info>,
 }
 
-impl<'info> GroupAccounts<'info> for RolloverBatchAddressMerkleTree<'info> {
+impl<'info> GroupAccounts<'info> for RolloverBatchedAddressMerkleTree<'info> {
     fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -38,28 +38,30 @@ impl<'info> GroupAccounts<'info> for RolloverBatchAddressMerkleTree<'info> {
     }
 }
 
-/// Checks:
-/// 1. Merkle tree is ready to be rolled over
-/// 2. Merkle tree is not already rolled over
-/// 3. Rollover threshold is configured, if not tree cannot be rolled over
-///
-/// Actions:
-/// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and nullifier queue with the same parameters
-pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, RolloverBatchAddressMerkleTree<'info>>,
+/// Rollover the old address Merkle tree to the new address Merkle tree.
+/// 1. Check Merkle tree account discriminator, tree type, and program ownership.
+/// 2. Check that signer is registered or authority.
+/// 3. Check that new address Merkle tree account is exactly rent exempt.
+/// 4. Rollover the old address Merkle tree to the new address Merkle tree.
+/// 5. Transfer rent exemption for new Merkle tree
+///     from old address Merkle tree to fee payer.
+pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
     network_fee: Option<u64>,
 ) -> Result<()> {
+    // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let old_merkle_tree_account =
         &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
             &ctx.accounts.old_address_merkle_tree,
         )
         .map_err(ProgramError::from)?;
+    // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<
-        RolloverBatchAddressMerkleTree,
+        RolloverBatchedAddressMerkleTree,
         BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
+    // 3. Check that new address Merkle tree account is exactly rent exempt.
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.new_address_merkle_tree.to_account_info(),
         ctx.accounts
@@ -68,6 +70,7 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
             .data_len(),
     )
     .map_err(ProgramError::from)?;
+    // 4. Rollover the old address Merkle tree to the new address Merkle tree.
     let new_mt_data = &mut ctx.accounts.new_address_merkle_tree.try_borrow_mut_data()?;
     rollover_batched_address_tree(
         old_merkle_tree_account,
@@ -78,6 +81,8 @@ pub fn process_rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     )
     .map_err(ProgramError::from)?;
 
+    // 5. Transfer rent exemption for new Merkle tree
+    //     from old address Merkle tree to fee payer.
     transfer_lamports(
         &ctx.accounts.old_address_merkle_tree.to_account_info(),
         &ctx.accounts.fee_payer.to_account_info(),

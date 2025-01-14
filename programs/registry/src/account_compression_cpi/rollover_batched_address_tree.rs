@@ -5,7 +5,7 @@ use light_merkle_tree_metadata::utils::if_equals_zero_u64;
 use crate::{protocol_config::state::ProtocolConfigPda, ForesterEpochPda};
 
 #[derive(Accounts)]
-pub struct RolloverBatchAddressMerkleTree<'info> {
+pub struct RolloverBatchedAddressMerkleTree<'info> {
     /// CHECK: only eligible foresters can nullify leaves. Is checked in ix.
     #[account(mut)]
     pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
@@ -26,14 +26,14 @@ pub struct RolloverBatchAddressMerkleTree<'info> {
     pub protocol_config_pda: Account<'info, ProtocolConfigPda>,
 }
 
-pub fn process_rollover_batch_address_merkle_tree(
-    ctx: &Context<RolloverBatchAddressMerkleTree>,
+pub fn process_rollover_batched_address_merkle_tree(
+    ctx: &Context<RolloverBatchedAddressMerkleTree>,
     bump: u8,
 ) -> Result<()> {
     let bump = &[bump];
     let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
     let signer_seeds = &[&seeds[..]];
-    let accounts = account_compression::cpi::accounts::RolloverBatchAddressMerkleTree {
+    let accounts = account_compression::cpi::accounts::RolloverBatchedAddressMerkleTree {
         fee_payer: ctx.accounts.authority.to_account_info(),
         authority: ctx.accounts.cpi_authority.to_account_info(),
         old_address_merkle_tree: ctx.accounts.old_address_merkle_tree.to_account_info(),
@@ -47,7 +47,7 @@ pub fn process_rollover_batch_address_merkle_tree(
         signer_seeds,
     );
 
-    account_compression::cpi::rollover_batch_address_merkle_tree(
+    account_compression::cpi::rollover_batched_address_merkle_tree(
         cpi_ctx,
         if_equals_zero_u64(ctx.accounts.protocol_config_pda.config.network_fee),
     )

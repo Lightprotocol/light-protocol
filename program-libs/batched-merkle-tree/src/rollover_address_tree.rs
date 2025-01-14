@@ -10,6 +10,14 @@ use crate::{
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
 
+/// Checks:
+/// 1. Merkle tree is ready to be rolled over
+/// 2. Merkle tree is not already rolled over
+/// 3. Rollover threshold is configured, if not tree cannot be rolled over
+///
+/// Actions:
+/// 1. mark Merkle tree as rolled over in this slot
+/// 2. initialize new Merkle tree and nullifier queue with the same parameters
 pub fn rollover_batched_address_tree<'a>(
     old_merkle_tree: &mut BatchedMerkleTreeAccount<'a>,
     new_mt_data: &'a mut [u8],
@@ -18,22 +26,16 @@ pub fn rollover_batched_address_tree<'a>(
     network_fee: Option<u64>,
 ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
     // Check that old merkle tree is ready for rollover.
-    let old_merkle_tree_metadata = old_merkle_tree.get_metadata();
-    batched_tree_is_ready_for_rollover(old_merkle_tree_metadata, &network_fee)?;
+    batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
     // Rollover the old merkle tree.
     old_merkle_tree
-        .get_metadata_mut()
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)?;
 
     // Initialize the new address merkle tree.
     let params = create_batched_address_tree_init_params(old_merkle_tree, network_fee);
-    let owner = old_merkle_tree
-        .get_metadata()
-        .metadata
-        .access_metadata
-        .owner;
+    let owner = old_merkle_tree.metadata.access_metadata.owner;
     init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent)
 }
 
@@ -41,44 +43,35 @@ fn create_batched_address_tree_init_params(
     old_merkle_tree: &mut BatchedMerkleTreeAccount,
     network_fee: Option<u64>,
 ) -> InitAddressTreeAccountsInstructionData {
-    let old_merkle_tree_metadata = old_merkle_tree.get_metadata();
     InitAddressTreeAccountsInstructionData {
-        index: old_merkle_tree_metadata.metadata.rollover_metadata.index,
+        index: old_merkle_tree.metadata.rollover_metadata.index,
         program_owner: if_equals_none(
-            old_merkle_tree_metadata
-                .metadata
-                .access_metadata
-                .program_owner,
+            old_merkle_tree.metadata.access_metadata.program_owner,
             Pubkey::default(),
         ),
         forester: if_equals_none(
-            old_merkle_tree_metadata.metadata.access_metadata.forester,
+            old_merkle_tree.metadata.access_metadata.forester,
             Pubkey::default(),
         ),
-        height: old_merkle_tree_metadata.height,
-        input_queue_batch_size: old_merkle_tree_metadata.queue_metadata.batch_size,
-        input_queue_zkp_batch_size: old_merkle_tree_metadata.queue_metadata.zkp_batch_size,
-        bloom_filter_capacity: old_merkle_tree_metadata
-            .queue_metadata
-            .bloom_filter_capacity,
+        height: old_merkle_tree.height,
+        input_queue_batch_size: old_merkle_tree.queue_metadata.batch_size,
+        input_queue_zkp_batch_size: old_merkle_tree.queue_metadata.zkp_batch_size,
+        bloom_filter_capacity: old_merkle_tree.queue_metadata.bloom_filter_capacity,
         bloom_filter_num_iters: old_merkle_tree.batches[0].num_iters,
-        root_history_capacity: old_merkle_tree_metadata.root_history_capacity,
+        root_history_capacity: old_merkle_tree.root_history_capacity,
         network_fee,
         rollover_threshold: if_equals_none(
-            old_merkle_tree_metadata
+            old_merkle_tree
                 .metadata
                 .rollover_metadata
                 .rollover_threshold,
             u64::MAX,
         ),
         close_threshold: if_equals_none(
-            old_merkle_tree_metadata
-                .metadata
-                .rollover_metadata
-                .close_threshold,
+            old_merkle_tree.metadata.rollover_metadata.close_threshold,
             u64::MAX,
         ),
-        input_queue_num_batches: old_merkle_tree_metadata.queue_metadata.num_batches,
+        input_queue_num_batches: old_merkle_tree.queue_metadata.num_batches,
     }
 }
 
@@ -99,8 +92,7 @@ pub fn assert_address_mt_roll_over(
 
     let old_mt_account =
         BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut old_mt_account_data).unwrap();
-    assert_eq!(old_mt_account.get_metadata(), &old_ref_mt_account);
-
+    assert_eq!(*old_mt_account.get_metadata(), old_ref_mt_account);
     crate::initialize_state_tree::assert_address_mt_zero_copy_inited(
         &mut new_mt_account_data,
         new_ref_mt_account,

@@ -202,13 +202,13 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
                 )
                 .map_err(ProgramError::from)?;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
-                height = merkle_tree.get_metadata().height as u8;
+                height = merkle_tree.height as u8;
             } else {
                 let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
                     merkle_tree_account_info,
                 )
                 .map_err(ProgramError::from)?;
-                height = merkle_tree.get_metadata().height as u8;
+                height = merkle_tree.height as u8;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
             }
         }

@@ -32,20 +32,30 @@ impl<'info> GroupAccounts<'info> for BatchUpdateAddressTree<'info> {
     }
 }
 
+/// Insert a batch of addresses into a batched address Merkle tree.
+/// 1. Check tree account discriminator, tree type, and program ownership.
+/// 2. Check that signer is registered or authority.
+/// 3. Update the address tree with the batch of addresses.
+///     3.1 Verifies batch update zkp and updates root.
+/// 4. Emit indexer event.
 pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
+    // 1. Check tree account discriminator, tree type, and program ownership.
     let merkle_tree = &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
         &ctx.accounts.merkle_tree,
     )
     .map_err(ProgramError::from)?;
+    // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<BatchUpdateAddressTree, BatchedMerkleTreeAccount>(
         ctx,
         merkle_tree,
     )?;
+    // 3. Update the address tree with the batch of addresses.
     let event = merkle_tree
-        .update_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
+        .update_tree_from_address_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
         .map_err(ProgramError::from)?;
+    // 4. Emit indexer event.
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)
 }

@@ -35,15 +35,6 @@ pub mod account_compression {
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
     use super::*;
 
-    pub fn initialize_batched_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
-            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_initialize_batched_state_merkle_tree(ctx, params)
-    }
-
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
@@ -215,6 +206,53 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
+    /// Initialize a batched state Merkle tree account and
+    /// an output queue account.
+    /// 1. append output state
+    ///     State is first inserted into the output queue with
+    ///     the instruction append_leaves_to_merkle_trees.
+    /// 2. batch append
+    ///     Leaves are inserted from the output queue into the
+    ///     state Merkle tree with the instruction batch_append.
+    /// 3. nullify (input) state
+    ///     State is nullified by inserting nullifiers into the
+    ///     input queue (part of the Merkle tree account).
+    ///     Nullifiers are inserted with the instruction
+    ///     insert_into_nullifier_queues.
+    /// 4. batch nullify
+    ///    Nullifiers are inserted from the input queue into the
+    ///    state Merkle tree with the instruction batch_nullify.
+    pub fn initialize_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedStateMerkleTreeAndQueue<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitStateTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_state_merkle_tree(ctx, params)
+    }
+
+    /// Initialize a batched address Merkle tree account.
+    /// A batched address Merkle tree is an indexed Merkle tree.
+    /// Addresses are first inserted into a queue and inserted into
+    /// the indexed Merkle tree in batches with a zkp.
+    /// The queue is part of the address Merkle tree account.
+    /// 1. queue addresses
+    ///     Addresses are inserted into the queue with the instruction
+    ///     insert_addresses.
+    /// 2. update address tree
+    ///     The address tree is updated with the instruction
+    ///     batch_update_address_tree.
+    pub fn intialize_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
+        bytes: Vec<u8>,
+    ) -> Result<()> {
+        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
+            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+        process_initialize_batched_address_merkle_tree(ctx, params)
+    }
+
+    /// Nullify a batch of leaves from the input queue
+    /// to a batched Merkle tree with a zkp.
     pub fn batch_nullify<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
         data: Vec<u8>,
@@ -224,6 +262,8 @@ pub mod account_compression {
         process_batch_nullify(&ctx, instruction_data)
     }
 
+    /// Append a batch of leaves from an output queue
+    /// to a batched Merkle tree with a zkp.
     pub fn batch_append<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
         data: Vec<u8>,
@@ -233,6 +273,8 @@ pub mod account_compression {
         process_batch_append_leaves(&ctx, instruction_data)
     }
 
+    /// Insert a batch of addresses into a
+    /// batched address Merkle tree with a zkp.
     pub fn batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
         data: Vec<u8>,
@@ -242,30 +284,31 @@ pub mod account_compression {
         process_batch_update_address_tree(&ctx, instruction_data)
     }
 
-    pub fn intialize_batched_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, InitializeBatchAddressMerkleTree<'info>>,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let params = InitAddressTreeAccountsInstructionData::try_from_slice(&bytes)
-            .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
-        process_initialize_batched_address_merkle_tree(ctx, params)
-    }
-
-    pub fn rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchAddressMerkleTree<'info>>,
+    /// Rollover batched address Merkle tree.
+    /// Rollover means creating a new Merkle tree accounts
+    /// with the parameters of the old account.
+    /// Rent is reimbursed from the old account to the payer.
+    pub fn rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         network_fee: Option<u64>,
     ) -> Result<()> {
-        process_rollover_batch_address_merkle_tree(ctx, network_fee)
+        process_rollover_batched_address_merkle_tree(ctx, network_fee)
     }
 
-    pub fn rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
+    /// Rollover batched state Merkle tree.
+    /// Rollover means creating new queue and Merkle tree accounts
+    /// with the parameters of the old accounts.
+    /// Rent is reimbursed from the old output queue account to the payer.
+    pub fn rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
         additional_bytes: u64,
         network_fee: Option<u64>,
     ) -> Result<()> {
-        process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
+        process_rollover_batched_state_merkle_tree(ctx, additional_bytes, network_fee)
     }
 
+    /// Migrate state from a v1 state Merkle tree
+    /// to a v2 state Merkle tree.
     pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
         input: MigrateLeafParams,

@@ -109,49 +109,37 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data).unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.batch_size
+                merkle_tree.queue_metadata.batch_size
             );
 
             println!(
                 "queue currently_processing_batch_index: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .currently_processing_batch_index as usize
+                merkle_tree.queue_metadata.currently_processing_batch_index as usize
             );
 
             println!(
                 "queue batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.batch_size
+                merkle_tree.queue_metadata.batch_size
             );
             println!(
                 "queue zkp_batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.zkp_batch_size
+                merkle_tree.queue_metadata.zkp_batch_size
             );
             println!(
                 "queue next_full_batch_index: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .next_full_batch_index
+                merkle_tree.queue_metadata.next_full_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .bloom_filter_capacity
+                merkle_tree.queue_metadata.bloom_filter_capacity
             );
             println!(
                 "queue num_batches: {:?}",
-                merkle_tree.get_metadata().queue_metadata.num_batches
+                merkle_tree.queue_metadata.num_batches
             );
 
-            println!(
-                "tree next_index: {:?}",
-                merkle_tree.get_metadata().next_index
-            );
-            println!("tree height: {:?}", merkle_tree.get_metadata().height);
+            println!("tree next_index: {:?}", merkle_tree.next_index);
+            println!("tree height: {:?}", merkle_tree.height);
 
             // TODO: implement
             let threshold = 0;
@@ -171,49 +159,37 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data).unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.batch_size
+                merkle_tree.queue_metadata.batch_size
             );
 
             println!(
                 "queue currently_processing_batch_index: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .currently_processing_batch_index as usize
+                merkle_tree.queue_metadata.currently_processing_batch_index as usize
             );
 
             println!(
                 "queue batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.batch_size
+                merkle_tree.queue_metadata.batch_size
             );
             println!(
                 "queue zkp_batch_size: {:?}",
-                merkle_tree.get_metadata().queue_metadata.zkp_batch_size
+                merkle_tree.queue_metadata.zkp_batch_size
             );
             println!(
                 "queue next_full_batch_index: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .next_full_batch_index
+                merkle_tree.queue_metadata.next_full_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
-                merkle_tree
-                    .get_metadata()
-                    .queue_metadata
-                    .bloom_filter_capacity
+                merkle_tree.queue_metadata.bloom_filter_capacity
             );
             println!(
                 "queue num_batches: {:?}",
-                merkle_tree.get_metadata().queue_metadata.num_batches
+                merkle_tree.queue_metadata.num_batches
             );
 
-            println!(
-                "tree next_index: {:?}",
-                merkle_tree.get_metadata().next_index
-            );
-            println!("tree height: {:?}", merkle_tree.get_metadata().height);
+            println!("tree next_index: {:?}", merkle_tree.next_index);
+            println!("tree height: {:?}", merkle_tree.height);
 
             // TODO: implement
             let threshold = 0;

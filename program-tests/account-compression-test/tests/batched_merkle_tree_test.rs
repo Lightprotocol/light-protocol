@@ -88,26 +88,36 @@ async fn test_batch_state_merkle_tree() {
     let mut context = ProgramTestRpcConnection { context };
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
+    let params = InitStateTreeAccountsInstructionData::test_default();
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+        params.output_queue_num_batches,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+        params.height,
+        params.input_queue_num_batches,
+    );
+    let queue_rent = context
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let mt_rent = context
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+    let additional_bytes_rent = context
+        .get_minimum_balance_for_rent_exemption(params.additional_bytes as usize)
+        .await
+        .unwrap();
+    let total_rent = queue_rent + mt_rent + additional_bytes_rent;
+
     // 1. Functional initialize a batched Merkle tree and output queue
     {
-        let params = InitStateTreeAccountsInstructionData::test_default();
-        let queue_account_size = get_output_queue_account_size(
-            params.output_queue_batch_size,
-            params.output_queue_zkp_batch_size,
-            params.output_queue_num_batches,
-        );
-        let mt_account_size = get_merkle_tree_account_size(
-            params.input_queue_batch_size,
-            params.bloom_filter_capacity,
-            params.input_queue_zkp_batch_size,
-            params.root_history_capacity,
-            params.height,
-            params.input_queue_num_batches,
-        );
-        let queue_rent = context
-            .get_minimum_balance_for_rent_exemption(queue_account_size)
-            .await
-            .unwrap();
         let create_queue_account_ix = create_account_instruction(
             &payer_pubkey,
             queue_account_size,
@@ -115,15 +125,7 @@ async fn test_batch_state_merkle_tree() {
             &ID,
             Some(&nullifier_queue_keypair),
         );
-        let mt_rent = context
-            .get_minimum_balance_for_rent_exemption(mt_account_size)
-            .await
-            .unwrap();
-        let additional_bytes_rent = context
-            .get_minimum_balance_for_rent_exemption(params.additional_bytes as usize)
-            .await
-            .unwrap();
-        let total_rent = queue_rent + mt_rent + additional_bytes_rent;
+
         let create_mt_account_ix = create_account_instruction(
             &payer_pubkey,
             mt_account_size,
@@ -210,6 +212,7 @@ async fn test_batch_state_merkle_tree() {
         )
         .unwrap();
     }
+    println!("post 2");
     // 3. Functional: insert 10 leaves into output queue
     let num_of_leaves = 10;
     let num_tx = 5;
@@ -345,6 +348,52 @@ async fn test_batch_state_merkle_tree() {
         .unwrap();
     }
 
+    let invalid_merkle_tree = Keypair::new();
+    let invalid_output_queue = Keypair::new();
+
+    // create 2nd merkle tree and output queue
+    {
+        let create_queue_account_ix = create_account_instruction(
+            &payer_pubkey,
+            queue_account_size,
+            queue_rent,
+            &ID,
+            Some(&invalid_output_queue),
+        );
+
+        let create_mt_account_ix = create_account_instruction(
+            &payer_pubkey,
+            mt_account_size,
+            mt_rent,
+            &ID,
+            Some(&invalid_merkle_tree),
+        );
+
+        let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+            bytes: params.try_to_vec().unwrap(),
+        };
+        let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+            authority: context.get_payer().pubkey(),
+            merkle_tree: invalid_merkle_tree.pubkey(),
+            queue: invalid_output_queue.pubkey(),
+            registered_program_pda: None,
+        };
+
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction.data(),
+        };
+        context
+            .create_and_send_transaction(
+                &[create_queue_account_ix, create_mt_account_ix, instruction],
+                &payer_pubkey,
+                &[&payer, &invalid_output_queue, &invalid_merkle_tree],
+            )
+            .await
+            .unwrap();
+    }
+    println!("created 2nd merkle tree and output queue");
     // 10. Failing Invalid Merkle tree - association (insert into nullifier queue)
     {
         let mut mock_indexer = mock_indexer.clone();
@@ -354,8 +403,26 @@ async fn test_batch_state_merkle_tree() {
             &mut 0,
             10,
             output_queue_pubkey,
-            output_queue_pubkey,
-            &invalid_payer,
+            invalid_merkle_tree.pubkey(),
+            &payer,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            0,
+            MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into(),
+        )
+        .unwrap();
+
+        let mut mock_indexer = mock_indexer.clone();
+        let result = perform_insert_into_input_queue(
+            &mut context,
+            &mut mock_indexer,
+            &mut 0,
+            10,
+            invalid_output_queue.pubkey(),
+            merkle_tree_pubkey,
+            &payer,
         )
         .await;
         assert_rpc_error(
@@ -1205,7 +1272,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         } else {
             old_output_queue_pubkey
         };
-    let accounts = account_compression::accounts::RolloverBatchStateMerkleTree {
+    let accounts = account_compression::accounts::RolloverBatchedStateMerkleTree {
         fee_payer: payer_pubkey,
         authority: payer_pubkey,
         old_state_merkle_tree,
@@ -1214,7 +1281,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         new_output_queue: new_output_queue_keypair.pubkey(),
         registered_program_pda: None,
     };
-    let instruction_data = account_compression::instruction::RolloverBatchStateMerkleTree {
+    let instruction_data = account_compression::instruction::RolloverBatchedStateMerkleTree {
         additional_bytes,
         network_fee,
     };
@@ -1389,7 +1456,7 @@ pub async fn perform_init_batch_address_merkle_tree(
     let instruction = account_compression::instruction::IntializeBatchedAddressMerkleTree {
         bytes: params.try_to_vec().unwrap(),
     };
-    let accounts = account_compression::accounts::InitializeBatchAddressMerkleTree {
+    let accounts = account_compression::accounts::InitializeBatchedAddressMerkleTree {
         authority: context.get_payer().pubkey(),
         merkle_tree: merkle_tree_pubkey,
         registered_program_pda: None,
@@ -1574,7 +1641,6 @@ async fn test_batch_address_merkle_trees() {
     // 9. Failing: invalid tree account (state tree account)
     {
         let mut mock_indexer = mock_indexer.clone();
-        println!("invalid tree account");
         let result = update_batch_address_tree(
             &mut context,
             &mut mock_indexer,
@@ -1631,7 +1697,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 12. functional: rollover
     let (_, new_address_merkle_tree) = {
-        rollover_batch_address_merkle_tree(
+        rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1646,7 +1712,7 @@ async fn test_batch_address_merkle_trees() {
         .unwrap();
     // 13. Failing: already rolled over
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1662,7 +1728,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 14. Failing: invalid authority
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &invalid_authority,
@@ -1678,7 +1744,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 15. Failing: account too small
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &payer,
@@ -1689,7 +1755,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 15. Failing: Account too large
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &payer,
@@ -1711,7 +1777,7 @@ async fn test_batch_address_merkle_trees() {
         perform_init_batch_address_merkle_tree(&mut context, &params, &merkle_tree_keypair)
             .await
             .unwrap();
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1728,7 +1794,7 @@ pub enum RolloverBatchAddressTreeTestMode {
     InvalidNewAccountSizeLarge,
 }
 
-pub async fn rollover_batch_address_merkle_tree(
+pub async fn rollover_batched_address_merkle_tree(
     context: &mut ProgramTestRpcConnection,
     address_merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
@@ -1761,10 +1827,10 @@ pub async fn rollover_batch_address_merkle_tree(
         &ID,
         Some(&new_address_merkle_tree_keypair),
     );
-    let instruction_data = account_compression::instruction::RolloverBatchAddressMerkleTree {
+    let instruction_data = account_compression::instruction::RolloverBatchedAddressMerkleTree {
         network_fee: params.network_fee,
     };
-    let accounts = account_compression::accounts::RolloverBatchAddressMerkleTree {
+    let accounts = account_compression::accounts::RolloverBatchedAddressMerkleTree {
         authority: payer_pubkey,
         old_address_merkle_tree: address_merkle_tree_pubkey,
         new_address_merkle_tree: new_address_merkle_tree_keypair.pubkey(),

@@ -160,7 +160,7 @@ impl BatchedMerkleTreeMetadata {
         );
         let size = account_size
             + root_history_size
-            + queue_account_size(&self.queue_metadata, QueueType::Input as u64)?;
+            + queue_account_size(&self.queue_metadata, QueueType::BatchedInput as u64)?;
         Ok(size)
     }
 
@@ -295,11 +295,10 @@ pub struct AppendBatchProofInputsIx {
 }
 
 impl<'a> BatchedMerkleTreeAccount<'a> {
-    // TODO: remove
     pub fn get_metadata(&self) -> &BatchedMerkleTreeMetadata {
         &self.metadata
     }
-    // TODO: remove
+
     pub fn get_metadata_mut(&mut self) -> &mut BatchedMerkleTreeMetadata {
         &mut self.metadata
     }
@@ -371,7 +370,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
             &metadata.queue_metadata,
             account_data,
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
         )?;
 
         Ok(BatchedMerkleTreeAccount {
@@ -437,7 +436,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
         let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
             &account_metadata.queue_metadata,
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
             account_data,
             num_iters,
             bloom_filter_capacity,
@@ -453,13 +452,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         })
     }
 
-    pub fn update_output_queue_account_info(
+    pub fn update_tree_from_output_queue_account_info(
         &mut self,
         queue_account_info: &AccountInfo<'_>,
         instruction_data: InstructionDataBatchAppendInputs,
         id: [u8; 32],
     ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
-        if self.get_metadata().metadata.associated_queue != (*queue_account_info.key).into() {
+        if self.metadata.metadata.associated_queue != (*queue_account_info.key).into() {
             return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
         }
         let queue_account =
@@ -477,7 +476,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         id: [u8; 32],
     ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
         let batch_index = queue_account.batch_metadata.next_full_batch_index;
-        let circuit_batch_size = queue_account.get_metadata().batch_metadata.zkp_batch_size;
+        let circuit_batch_size = queue_account.batch_metadata.zkp_batch_size;
         let batches = &mut queue_account.batches;
         let full_batch = batches
             .get_mut(batch_index as usize)
@@ -496,7 +495,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .root_history
             .last()
             .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
-        let start_index = self.get_metadata().next_index;
+        let start_index = self.next_index;
         let mut start_index_bytes = [0u8; 32];
         start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
         let public_input_hash = create_hash_chain_from_array([
@@ -511,10 +510,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             instruction_data.compressed_proof,
             public_input_hash,
         )?;
-        let account = self.get_metadata_mut();
-        account.next_index += circuit_batch_size;
-        let root_history_capacity = account.root_history_capacity;
-        let sequence_number = account.sequence_number;
+
+        self.metadata.next_index += circuit_batch_size;
+        let root_history_capacity = self.metadata.root_history_capacity;
+        let sequence_number = self.metadata.sequence_number;
         self.root_history.push(new_root);
         let root_index = self.root_history.last_index() as u32;
         full_batch.mark_as_inserted_in_merkle_tree(
@@ -523,15 +522,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             root_history_capacity,
         )?;
         if full_batch.get_state() == BatchState::Inserted {
-            queue_account
-                .get_metadata_mut()
-                .batch_metadata
-                .next_full_batch_index += 1;
-            queue_account
-                .get_metadata_mut()
-                .batch_metadata
-                .next_full_batch_index %=
-                queue_account.get_metadata_mut().batch_metadata.num_batches;
+            queue_account.batch_metadata.next_full_batch_index += 1;
+            queue_account.batch_metadata.next_full_batch_index %=
+                queue_account.batch_metadata.num_batches;
         }
         Ok(BatchAppendEvent {
             id,
@@ -542,11 +535,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             new_next_index: start_index + circuit_batch_size,
             new_root,
             root_index,
-            sequence_number: self.get_metadata().sequence_number,
+            sequence_number: self.sequence_number,
         })
     }
 
-    pub fn update_input_queue(
+    pub fn update_tree_from_input_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
         id: [u8; 32],
@@ -554,7 +547,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         self.private_update_input_queue::<3>(instruction_data, id)
     }
 
-    pub fn update_address_queue(
+    pub fn update_tree_from_address_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
         id: [u8; 32],
@@ -567,7 +560,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         instruction_data: InstructionDataBatchNullifyInputs,
         id: [u8; 32],
     ) -> Result<BatchNullifyEvent, BatchedMerkleTreeError> {
-        let batch_index = self.get_metadata().queue_metadata.next_full_batch_index;
+        let batch_index = self.queue_metadata.next_full_batch_index;
 
         let full_batch = self
             .batches
@@ -588,12 +581,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
         let new_root = instruction_data.public_inputs.new_root;
 
-        let public_input_hash = if QUEUE_TYPE == QueueType::Input as u64 {
+        let public_input_hash = if QUEUE_TYPE == QueueType::BatchedInput as u64 {
             create_hash_chain_from_array([*old_root, new_root, *leaves_hashchain])?
-        } else if QUEUE_TYPE == QueueType::Address as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
             let mut next_index_bytes = [0u8; 32];
-            next_index_bytes[24..]
-                .copy_from_slice(self.get_metadata().next_index.to_be_bytes().as_slice());
+            next_index_bytes[24..].copy_from_slice(self.next_index.to_be_bytes().as_slice());
             create_hash_chain_from_array([
                 *old_root,
                 new_root,
@@ -603,7 +595,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         };
-        let circuit_batch_size = self.get_metadata().queue_metadata.zkp_batch_size;
+        let circuit_batch_size = self.queue_metadata.zkp_batch_size;
         self.update::<QUEUE_TYPE>(
             circuit_batch_size as usize,
             instruction_data.compressed_proof,
@@ -611,8 +603,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         )?;
         self.root_history.push(new_root);
 
-        let root_history_capacity = self.get_metadata().root_history_capacity;
-        let sequence_number = self.get_metadata().sequence_number;
+        let root_history_capacity = self.root_history_capacity;
+        let sequence_number = self.sequence_number;
         let full_batch = self
             .batches
             .get_mut(batch_index as usize)
@@ -623,12 +615,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             root_history_capacity,
         )?;
         if full_batch.get_state() == BatchState::Inserted {
-            let account = self.get_metadata_mut();
-            account.queue_metadata.next_full_batch_index += 1;
-            account.queue_metadata.next_full_batch_index %= account.queue_metadata.num_batches;
+            self.metadata.queue_metadata.next_full_batch_index += 1;
+            self.metadata.queue_metadata.next_full_batch_index %=
+                self.metadata.queue_metadata.num_batches;
         }
-        if QUEUE_TYPE == QueueType::Address as u64 {
-            self.get_metadata_mut().next_index += circuit_batch_size;
+        if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
+            self.metadata.next_index += circuit_batch_size;
         }
 
         self.wipe_previous_batch_bloom_filter()?;
@@ -640,7 +632,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             zkp_batch_index: num_zkps,
             new_root,
             root_index: self.root_history.last_index() as u32,
-            sequence_number: self.get_metadata().sequence_number,
+            sequence_number: self.sequence_number,
         })
     }
 
@@ -650,11 +642,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         proof: CompressedProof,
         public_input_hash: [u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        if QUEUE_TYPE == QueueType::Output as u64 {
+        if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
-        } else if QUEUE_TYPE == QueueType::Input as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedInput as u64 {
             verify_batch_update(batch_size, public_input_hash, &proof)?;
-        } else if QUEUE_TYPE == QueueType::Address as u64 {
+        } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
@@ -674,7 +666,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         leaf_index: u64,
         tx_hash: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.get_metadata().tree_type != TreeType::BatchedState as u64 {
+        if self.tree_type != TreeType::BatchedState as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
         let leaf_index_bytes = leaf_index.to_be_bytes();
@@ -686,7 +678,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         &mut self,
         address: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.get_metadata().tree_type != TreeType::BatchedAddress as u64 {
+        if self.tree_type != TreeType::BatchedAddress as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
         self.insert_into_current_batch(address, address)
@@ -698,7 +690,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         leaves_hash_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
         let (root_index, sequence_number) = insert_into_current_batch(
-            QueueType::Input as u64,
+            QueueType::BatchedInput as u64,
             &mut self.metadata.queue_metadata,
             &mut self.batches,
             &mut self.value_vecs,
@@ -758,7 +750,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 
     fn zero_out_roots(&mut self, sequence_number: u64, root_index: Option<u32>) {
-        if sequence_number > self.get_metadata().sequence_number {
+        if sequence_number > self.sequence_number {
             // advance root history array current index from latest root
             // to root_index and overwrite all roots with zeros
             if let Some(root_index) = root_index {
@@ -786,16 +778,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///    3.2 mark bloom filter as wiped
     ///    3.3 zero out roots if needed
     pub fn wipe_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        let current_batch = self
-            .get_metadata()
-            .queue_metadata
-            .currently_processing_batch_index;
-        let batch_size = self.get_metadata().queue_metadata.batch_size;
-        let previous_full_batch_index = self
-            .get_metadata()
-            .queue_metadata
-            .next_full_batch_index
-            .saturating_sub(1) as usize;
+        let current_batch = self.queue_metadata.currently_processing_batch_index;
+        let batch_size = self.queue_metadata.batch_size;
+        let previous_full_batch_index =
+            self.queue_metadata.next_full_batch_index.saturating_sub(1) as usize;
         let num_inserted_elements = self
             .batches
             .get(current_batch as usize)
@@ -886,20 +872,16 @@ pub fn assert_nullify_event(
     old_account: &BatchedMerkleTreeAccount,
     mt_pubkey: Pubkey,
 ) {
-    let batch_index = old_account
-        .get_metadata()
-        .queue_metadata
-        .next_full_batch_index;
+    let batch_index = old_account.queue_metadata.next_full_batch_index;
     let batch = old_account.batches.get(batch_index as usize).unwrap();
     let ref_event = BatchNullifyEvent {
         id: mt_pubkey.to_bytes(),
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
-        root_index: (old_account.get_root_index() + 1)
-            % old_account.get_metadata().root_history_capacity,
-        sequence_number: old_account.get_metadata().sequence_number + 1,
-        batch_size: old_account.get_metadata().queue_metadata.zkp_batch_size,
+        root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
+        sequence_number: old_account.sequence_number + 1,
+        batch_size: old_account.queue_metadata.zkp_batch_size,
     };
     assert_eq!(event, ref_event);
 }
@@ -912,7 +894,6 @@ pub fn assert_batch_append_event_event(
     mt_pubkey: Pubkey,
 ) {
     let batch_index = old_output_queue_account
-        .get_metadata()
         .batch_metadata
         .next_full_batch_index;
     let batch = old_output_queue_account
@@ -924,16 +905,12 @@ pub fn assert_batch_append_event_event(
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
-        root_index: (old_account.get_root_index() + 1)
-            % old_account.get_metadata().root_history_capacity,
-        sequence_number: old_account.get_metadata().sequence_number + 1,
-        batch_size: old_account.get_metadata().queue_metadata.zkp_batch_size,
-        old_next_index: old_account.get_metadata().next_index,
-        new_next_index: old_account.get_metadata().next_index
-            + old_output_queue_account
-                .get_metadata()
-                .batch_metadata
-                .zkp_batch_size,
+        root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
+        sequence_number: old_account.sequence_number + 1,
+        batch_size: old_account.queue_metadata.zkp_batch_size,
+        old_next_index: old_account.next_index,
+        new_next_index: old_account.next_index
+            + old_output_queue_account.batch_metadata.zkp_batch_size,
     };
     assert_eq!(event, ref_event);
 }

@@ -174,9 +174,9 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
                     .unwrap();
 
             (
-                tree_meta_data.get_metadata().next_index as usize,
-                tree_meta_data.get_metadata().metadata,
-                tree_meta_data.get_metadata().height,
+                tree_meta_data.next_index as usize,
+                tree_meta_data.metadata,
+                tree_meta_data.height,
             )
         }
         _ => panic!("Invalid discriminator"),

@@ -764,7 +764,7 @@ where
             )
             .unwrap();
             (
-                merkle_tree.get_metadata().next_index as usize,
+                merkle_tree.next_index as usize,
                 *merkle_tree.root_history.last().unwrap(),
             )
         };
@@ -777,9 +777,8 @@ where
             )
             .unwrap();
 
-            let output_queue_account = output_queue.get_metadata();
-            let max_num_zkp_updates = output_queue_account.batch_metadata.get_num_zkp_batches();
-            let zkp_batch_size = output_queue_account.batch_metadata.zkp_batch_size;
+            let max_num_zkp_updates = output_queue.batch_metadata.get_num_zkp_batches();
+            let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
             (max_num_zkp_updates, zkp_batch_size)
         };
 
@@ -876,7 +875,7 @@ where
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
         let address_tree_index = address_tree.merkle_tree.merkle_tree.rightmost_index;
-        let onchain_next_index = onchain_account.get_metadata().next_index;
+        let onchain_next_index = onchain_account.next_index;
         let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
         let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
 

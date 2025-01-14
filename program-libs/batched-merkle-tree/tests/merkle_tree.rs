@@ -711,7 +711,7 @@ async fn test_simulate_transactions() {
                 };
 
                 (
-                    account.update_input_queue(instruction_data, mt_pubkey.to_bytes()),
+                    account.update_tree_from_input_queue(instruction_data, mt_pubkey.to_bytes()),
                     new_root,
                 )
             };
@@ -1213,7 +1213,7 @@ pub async fn perform_input_update(
         };
 
         (
-            account.update_input_queue(instruction_data, mt_pubkey.to_bytes()),
+            account.update_tree_from_input_queue(instruction_data, mt_pubkey.to_bytes()),
             new_root,
         )
     };
@@ -1286,7 +1286,7 @@ pub async fn perform_address_update(
         };
 
         (
-            account.update_address_queue(instruction_data, mt_pubkey.to_bytes()),
+            account.update_tree_from_address_queue(instruction_data, mt_pubkey.to_bytes()),
             new_root,
             next_full_batch,
         )

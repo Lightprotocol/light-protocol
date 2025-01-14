@@ -512,20 +512,18 @@ pub mod light_registry {
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
-        {
-            let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                &ctx.accounts.merkle_tree,
-            )
-            .map_err(ProgramError::from)?;
-            let metadata = account.get_metadata().metadata;
-            check_forester(
-                &metadata,
-                ctx.accounts.authority.key(),
-                ctx.accounts.merkle_tree.key(),
-                &mut ctx.accounts.registered_forester_pda,
-                account.get_metadata().queue_metadata.batch_size,
-            )?;
-        }
+        let merkle_tree =
+            BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+                .map_err(ProgramError::from)?;
+        check_forester(
+            &merkle_tree.metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.merkle_tree.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            // Reward for performed work is input queue batch size.
+            merkle_tree.queue_metadata.batch_size,
+        )?;
+
         process_batch_nullify(&ctx, bump, data)
     }
 
@@ -534,23 +532,23 @@ pub mod light_registry {
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
-        {
-            let queue_account =
-                BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
-                    .map_err(ProgramError::from)?;
-            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                &ctx.accounts.merkle_tree,
-            )
-            .map_err(ProgramError::from)?;
-            let metadata = merkle_tree.get_metadata().metadata;
-            check_forester(
-                &metadata,
-                ctx.accounts.authority.key(),
-                ctx.accounts.merkle_tree.key(),
-                &mut ctx.accounts.registered_forester_pda,
-                queue_account.get_metadata().batch_metadata.batch_size,
-            )?;
-        }
+        let queue_account =
+            BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
+                .map_err(ProgramError::from)?;
+        let merkle_tree =
+            BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+                .map_err(ProgramError::from)?;
+        // Eligibility is checked for the Merkle tree,
+        // so that the same forester is eligible to
+        // batch append and batch nullify of the same tree.
+        check_forester(
+            &merkle_tree.metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.merkle_tree.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            // Reward for performed work is output queue batch size.
+            queue_account.batch_metadata.batch_size,
+        )?;
         process_batch_append(&ctx, bump, data)
     }
 
@@ -581,26 +579,22 @@ pub mod light_registry {
         bump: u8,
         data: Vec<u8>,
     ) -> Result<()> {
-        {
-            let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                &ctx.accounts.merkle_tree,
-            )
-            .map_err(ProgramError::from)?;
-            let account = account.get_metadata();
-            let metadata = account.metadata;
-            check_forester(
-                &metadata,
-                ctx.accounts.authority.key(),
-                ctx.accounts.merkle_tree.key(),
-                &mut ctx.accounts.registered_forester_pda,
-                account.queue_metadata.batch_size,
-            )?;
-        }
+        let account =
+            BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+                .map_err(ProgramError::from)?;
+        check_forester(
+            &account.metadata,
+            ctx.accounts.authority.key(),
+            ctx.accounts.merkle_tree.key(),
+            &mut ctx.accounts.registered_forester_pda,
+            account.queue_metadata.batch_size,
+        )?;
+
         process_batch_update_address_tree(&ctx, bump, data)
     }
 
-    pub fn rollover_batch_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchAddressMerkleTree<'info>>,
+    pub fn rollover_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
@@ -608,17 +602,17 @@ pub mod light_registry {
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_metadata().metadata,
+            &account.metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_address_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
             DEFAULT_WORK_V1,
         )?;
-        process_rollover_batch_address_merkle_tree(&ctx, bump)
+        process_rollover_batched_address_merkle_tree(&ctx, bump)
     }
 
-    pub fn rollover_batch_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchStateMerkleTree<'info>>,
+    pub fn rollover_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchedStateMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
@@ -626,7 +620,7 @@ pub mod light_registry {
         )
         .map_err(ProgramError::from)?;
         check_forester(
-            &account.get_metadata().metadata,
+            &account.metadata,
             ctx.accounts.authority.key(),
             ctx.accounts.old_state_merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
@@ -637,7 +631,7 @@ pub mod light_registry {
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
-        process_rollover_batch_state_merkle_tree(&ctx, bump)?;
+        process_rollover_batched_state_merkle_tree(&ctx, bump)?;
 
         process_initialize_cpi_context(
             bump,

@@ -204,7 +204,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
                 params.close_threshold,
                 Some(params.additional_bytes),
             ),
-            queue_type: QueueType::Output as u64,
+            queue_type: QueueType::BatchedOutput as u64,
             associated_merkle_tree: mt_pubkey,
         };
 
@@ -345,11 +345,11 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
 ) {
     use light_hasher::Hasher;
 
-    let queue = account.get_metadata().queue_metadata;
+    let queue = account.queue_metadata;
     let ref_queue = ref_account.queue_metadata;
     let num_batches = ref_queue.num_batches as usize;
-    let mut next_index = account.get_metadata().next_index;
-    assert_eq!(*account.get_metadata(), ref_account, "metadata mismatch");
+    let mut next_index = account.next_index;
+    assert_eq!(*account, ref_account, "metadata mismatch");
 
     assert_eq!(
         account.root_history.capacity(),
@@ -381,9 +381,9 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
     }
 
     let queue_type = if tree_type == TreeType::BatchedState as u64 {
-        QueueType::Input as u64
+        QueueType::BatchedInput as u64
     } else {
-        QueueType::Address as u64
+        QueueType::BatchedAddress as u64
     };
     crate::queue::assert_queue_inited(
         queue,
@@ -464,7 +464,7 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
             network_fee: params.network_fee,
             additional_bytes: params.additional_bytes,
         },
-        queue_type: QueueType::Output as u64,
+        queue_type: QueueType::BatchedOutput as u64,
         associated_merkle_tree: params.associated_merkle_tree,
     };
     let batch_metadata = BatchMetadata::new_output_queue(
