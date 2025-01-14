@@ -1205,7 +1205,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         } else {
             old_output_queue_pubkey
         };
-    let accounts = account_compression::accounts::RolloverBatchStateMerkleTree {
+    let accounts = account_compression::accounts::RolloverBatchedStateMerkleTree {
         fee_payer: payer_pubkey,
         authority: payer_pubkey,
         old_state_merkle_tree,
@@ -1214,7 +1214,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         new_output_queue: new_output_queue_keypair.pubkey(),
         registered_program_pda: None,
     };
-    let instruction_data = account_compression::instruction::RolloverBatchStateMerkleTree {
+    let instruction_data = account_compression::instruction::RolloverBatchedStateMerkleTree {
         additional_bytes,
         network_fee,
     };
@@ -1631,7 +1631,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 12. functional: rollover
     let (_, new_address_merkle_tree) = {
-        rollover_batch_address_merkle_tree(
+        rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1646,7 +1646,7 @@ async fn test_batch_address_merkle_trees() {
         .unwrap();
     // 13. Failing: already rolled over
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1662,7 +1662,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 14. Failing: invalid authority
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &invalid_authority,
@@ -1678,7 +1678,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 15. Failing: account too small
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &payer,
@@ -1689,7 +1689,7 @@ async fn test_batch_address_merkle_trees() {
     }
     // 15. Failing: Account too large
     {
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             new_address_merkle_tree,
             &payer,
@@ -1711,7 +1711,7 @@ async fn test_batch_address_merkle_trees() {
         perform_init_batch_address_merkle_tree(&mut context, &params, &merkle_tree_keypair)
             .await
             .unwrap();
-        let result = rollover_batch_address_merkle_tree(
+        let result = rollover_batched_address_merkle_tree(
             &mut context,
             address_merkle_tree_pubkey,
             &payer,
@@ -1728,7 +1728,7 @@ pub enum RolloverBatchAddressTreeTestMode {
     InvalidNewAccountSizeLarge,
 }
 
-pub async fn rollover_batch_address_merkle_tree(
+pub async fn rollover_batched_address_merkle_tree(
     context: &mut ProgramTestRpcConnection,
     address_merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
@@ -1761,10 +1761,10 @@ pub async fn rollover_batch_address_merkle_tree(
         &ID,
         Some(&new_address_merkle_tree_keypair),
     );
-    let instruction_data = account_compression::instruction::RolloverBatchAddressMerkleTree {
+    let instruction_data = account_compression::instruction::RolloverBatchedAddressMerkleTree {
         network_fee: params.network_fee,
     };
-    let accounts = account_compression::accounts::RolloverBatchAddressMerkleTree {
+    let accounts = account_compression::accounts::RolloverBatchedAddressMerkleTree {
         authority: payer_pubkey,
         old_address_merkle_tree: address_merkle_tree_pubkey,
         new_address_merkle_tree: new_address_merkle_tree_keypair.pubkey(),

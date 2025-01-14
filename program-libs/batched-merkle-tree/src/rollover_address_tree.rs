@@ -10,6 +10,14 @@ use crate::{
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
 
+/// Checks:
+/// 1. Merkle tree is ready to be rolled over
+/// 2. Merkle tree is not already rolled over
+/// 3. Rollover threshold is configured, if not tree cannot be rolled over
+///
+/// Actions:
+/// 1. mark Merkle tree as rolled over in this slot
+/// 2. initialize new Merkle tree and nullifier queue with the same parameters
 pub fn rollover_batched_address_tree<'a>(
     old_merkle_tree: &mut BatchedMerkleTreeAccount<'a>,
     new_mt_data: &'a mut [u8],

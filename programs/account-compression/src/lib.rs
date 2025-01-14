@@ -257,19 +257,21 @@ pub mod account_compression {
         process_initialize_batched_address_merkle_tree(ctx, params)
     }
 
-    pub fn rollover_batch_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchAddressMerkleTree<'info>>,
+    /// Rollover batched address Merkle tree.
+    pub fn rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         network_fee: Option<u64>,
     ) -> Result<()> {
-        process_rollover_batch_address_merkle_tree(ctx, network_fee)
+        process_rollover_batched_address_merkle_tree(ctx, network_fee)
     }
 
-    pub fn rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
+    /// Rollover batched state Merkle tree.
+    pub fn rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
         additional_bytes: u64,
         network_fee: Option<u64>,
     ) -> Result<()> {
-        process_rollover_batch_state_merkle_tree(ctx, additional_bytes, network_fee)
+        process_rollover_batched_state_merkle_tree(ctx, additional_bytes, network_fee)
     }
 
     /// Migrate state from a v1 state Merkle tree

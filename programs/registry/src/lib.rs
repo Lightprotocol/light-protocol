@@ -595,8 +595,8 @@ pub mod light_registry {
         process_batch_update_address_tree(&ctx, bump, data)
     }
 
-    pub fn rollover_batch_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchAddressMerkleTree<'info>>,
+    pub fn rollover_batched_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
@@ -610,11 +610,11 @@ pub mod light_registry {
             &mut ctx.accounts.registered_forester_pda,
             DEFAULT_WORK_V1,
         )?;
-        process_rollover_batch_address_merkle_tree(&ctx, bump)
+        process_rollover_batched_address_merkle_tree(&ctx, bump)
     }
 
-    pub fn rollover_batch_state_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, RolloverBatchStateMerkleTree<'info>>,
+    pub fn rollover_batched_state_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, RolloverBatchedStateMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
         let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
@@ -633,7 +633,7 @@ pub mod light_registry {
             &ctx.accounts.protocol_config_pda.config,
         )?;
 
-        process_rollover_batch_state_merkle_tree(&ctx, bump)?;
+        process_rollover_batched_state_merkle_tree(&ctx, bump)?;
 
         process_initialize_cpi_context(
             bump,

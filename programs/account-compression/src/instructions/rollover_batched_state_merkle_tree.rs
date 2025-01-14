@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct RolloverBatchStateMerkleTree<'info> {
+pub struct RolloverBatchedStateMerkleTree<'info> {
     #[account(mut)]
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
@@ -37,7 +37,7 @@ pub struct RolloverBatchStateMerkleTree<'info> {
     pub old_output_queue: AccountInfo<'info>,
 }
 
-impl<'info> GroupAccounts<'info> for RolloverBatchStateMerkleTree<'info> {
+impl<'info> GroupAccounts<'info> for RolloverBatchedStateMerkleTree<'info> {
     fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -54,8 +54,8 @@ impl<'info> GroupAccounts<'info> for RolloverBatchStateMerkleTree<'info> {
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and output queue with the same parameters
-pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, RolloverBatchStateMerkleTree<'info>>,
+pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<()> {
@@ -68,7 +68,7 @@ pub fn process_rollover_batch_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     )
     .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<
-        RolloverBatchStateMerkleTree,
+        RolloverBatchedStateMerkleTree,
         BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
