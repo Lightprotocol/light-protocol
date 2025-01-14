@@ -81,7 +81,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
                 ctx.remaining_accounts,
             )?,
             // V2 nullifier (input state) queue
-            BatchedQueueAccount::DISCRIMINATOR => add_state_queue_bundle_v2(
+            BatchedQueueAccount::DISCRIMINATOR => add_nullifier_queue_bundle_v2(
                 &mut current_index,
                 queue_type,
                 &mut queue_map,
@@ -333,7 +333,7 @@ fn add_queue_bundle_v1<'a, 'info>(
 /// 2. Get or create a queue bundle.
 /// 3. Add the element to the queue bundle.
 /// 4. Add the index to the queue bundle.
-fn add_state_queue_bundle_v2<'a, 'info>(
+fn add_nullifier_queue_bundle_v2<'a, 'info>(
     remaining_accounts_index: &mut usize,
     queue_type: QueueType,
     queue_map: &mut HashMap<Pubkey, QueueBundle<'a, 'info>>,
