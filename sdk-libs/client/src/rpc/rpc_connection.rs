@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
+use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_program::{clock::Slot, instruction::Instruction};
 use solana_sdk::{
     account::{Account, AccountSharedData},
@@ -12,6 +13,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     transaction::Transaction,
 };
+use solana_transaction_status::TransactionStatus;
 
 use crate::{rpc::errors::RpcError, transaction_params::TransactionParams};
 
@@ -91,5 +93,15 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn get_slot(&mut self) -> Result<u64, RpcError>;
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;
+    async fn send_transaction_with_config(
+        &self,
+        transaction: &Transaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError>;
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError>;
+    async fn get_signature_statuses(
+        &self,
+        signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError>;
+    async fn get_block_height(&mut self) -> Result<u64, RpcError>;
 }

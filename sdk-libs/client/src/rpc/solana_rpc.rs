@@ -22,7 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, UiInstruction, UiTransactionEncoding,
+    option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
 };
 use tokio::time::{sleep, Instant};
 
@@ -343,6 +343,15 @@ impl RpcConnection for SolanaRpcConnection {
         let result = parsed_event.map(|e| (e, signature, slot));
         Ok(result)
     }
+    async fn get_signature_statuses(
+        &self,
+        signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
+        self.client
+            .get_signature_statuses(signatures)
+            .map(|response| response.value)
+            .map_err(RpcError::from)
+    }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
         self.retry(|| async {
@@ -443,6 +452,18 @@ impl RpcConnection for SolanaRpcConnection {
         })
         .await
     }
+    async fn send_transaction_with_config(
+        &self,
+        transaction: &Transaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        self.retry(|| async {
+            self.client
+                .send_transaction_with_config(transaction, config)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
 
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
         self.retry(|| async {
@@ -460,6 +481,10 @@ impl RpcConnection for SolanaRpcConnection {
                 .slot)
         })
         .await
+    }
+    async fn get_block_height(&mut self) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
+            .await
     }
 }
 

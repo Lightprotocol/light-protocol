@@ -23,6 +23,12 @@ light-client = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true }
 light-program-test = { workspace = true}
+solana-transaction-status = { workspace = true }
+bincode = "1.3"
+url = "2.2"
+tokio-tungstenite = "0.16"
+bb8 = { workspace = true }
+
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
@@ -48,3 +54,4 @@ serial_test = "3.2.0"
 light-prover-client = { workspace = true }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
+dotenvy = "0.15"
