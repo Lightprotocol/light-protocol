@@ -258,6 +258,9 @@ pub mod account_compression {
     }
 
     /// Rollover batched address Merkle tree.
+    /// Rollover means creating a new Merkle tree accounts
+    /// with the parameters of the old account.
+    /// Rent is reimbursed from the old account to the payer.
     pub fn rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         network_fee: Option<u64>,
@@ -266,6 +269,9 @@ pub mod account_compression {
     }
 
     /// Rollover batched state Merkle tree.
+    /// Rollover means creating new queue and Merkle tree accounts
+    /// with the parameters of the old accounts.
+    /// Rent is reimbursed from the old output queue account to the payer.
     pub fn rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
         additional_bytes: u64,

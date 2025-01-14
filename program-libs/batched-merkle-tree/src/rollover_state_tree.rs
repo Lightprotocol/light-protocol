@@ -28,6 +28,14 @@ pub struct RolloverBatchStateTreeParams<'a> {
     pub network_fee: Option<u64>,
 }
 
+/// Checks:
+/// 1. Merkle tree is ready to be rolled over
+/// 2. Merkle tree is not already rolled over
+/// 3. Rollover threshold is configured, if not tree cannot be rolled over
+///
+/// Actions:
+/// 1. mark Merkle tree as rolled over in this slot
+/// 2. initialize new Merkle tree and output queue with the same parameters
 pub fn rollover_batched_state_tree(
     params: RolloverBatchStateTreeParams,
 ) -> Result<(), BatchedMerkleTreeError> {
