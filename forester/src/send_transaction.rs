@@ -58,7 +58,7 @@ pub trait TransactionBuilder {
 // 3. Slot duration is 500ms.
 const LATENCY: Duration = Duration::from_millis(4 * 500);
 
-const TIMEOUT_CHECK_ENABLED: bool = false;
+const TIMEOUT_CHECK_ENABLED: bool = true;
 
 /// Setting:
 /// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
