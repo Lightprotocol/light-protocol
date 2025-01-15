@@ -12,8 +12,6 @@ pub struct Options {
     #[clap(long)]
     payer: Option<PathBuf>,
     #[clap(long)]
-    path: PathBuf,
-    #[clap(long)]
     mt_pubkey: String,
     #[clap(long)]
     nfq_pubkey: String,
@@ -40,24 +38,14 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
         String::from("https://api.mainnet-beta.solana.com")
     };
     let mut rpc = SolanaRpcConnection::new(rpc_url, None);
-    let path = if let Some(path) = options.path.to_str() {
-        String::from(path)
-    } else {
-        String::from("./target/state-trees/")
-    };
 
     let mut mt_keypairs: Vec<Keypair> = vec![];
     let mut nfq_keypairs: Vec<Keypair> = vec![];
     let mut cpi_keypairs: Vec<Keypair> = vec![];
 
-    println!(
-        "path mt_pubkey {:?}",
-        format!("{}-{}.json", path, options.mt_pubkey)
-    );
-
-    let mt_keypair = read_keypair_file(format!("{}{}.json", path, options.mt_pubkey)).unwrap();
-    let nfq_keypair = read_keypair_file(format!("{}{}.json", path, options.nfq_pubkey)).unwrap();
-    let cpi_keypair = read_keypair_file(format!("{}{}.json", path, options.cpi_pubkey)).unwrap();
+    let mt_keypair = read_keypair_file(options.mt_pubkey).unwrap();
+    let nfq_keypair = read_keypair_file(options.nfq_pubkey).unwrap();
+    let cpi_keypair = read_keypair_file(options.cpi_pubkey).unwrap();
     println!("read mt: {:?}", mt_keypair.pubkey());
     println!("read nfq: {:?}", nfq_keypair.pubkey());
     println!("read cpi: {:?}", cpi_keypair.pubkey());
@@ -65,8 +53,8 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     nfq_keypairs.push(nfq_keypair);
     cpi_keypairs.push(cpi_keypair);
 
-    let payer = if let Some(payer) = options.payer {
-        read_keypair_file(&payer).unwrap_or_else(|_| panic!("{}{}.json", path, options.cpi_pubkey))
+    let payer = if let Some(payer) = options.payer.as_ref() {
+        read_keypair_file(&payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
     } else {
         // Construct the path to the keypair file in the user's home directory
         let keypair_path: PathBuf = home_dir()

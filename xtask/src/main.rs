@@ -41,7 +41,7 @@ enum Command {
     HashSet(hash_set::HashSetOptions),
     /// Create state tree
     /// Example:
-    /// cargo xtask create-state-tree --path ./target/state-trees/  --mt-pubkey smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f --nfq-pubkey nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4 --cpi-pubkey cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp --index 10
+    /// cargo xtask create-state-tree --mt-pubkey ./target/tree-keypairs/smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f.json --nfq-pubkey ./target/tree-keypairs/nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4.json --cpi-pubkey ./target/tree-keypairs/cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp.json --index 10 --network local
     CreateStateTree(create_state_tree::Options),
 }
 
