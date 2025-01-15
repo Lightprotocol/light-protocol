@@ -223,6 +223,68 @@ impl EnvAccountKeypairs {
         }
     }
 
+    pub fn for_regenerate_accounts() -> EnvAccountKeypairs {
+        let prefix = String::from("../../../light-keypairs/");
+        let state_merkle_tree = read_keypair_file(format!(
+            "{}smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT.json",
+            prefix
+        ))
+        .unwrap();
+
+        let nullifier_queue = read_keypair_file(
+            "../../../light-keypairs/nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148.json",
+        )
+        .unwrap();
+
+        let governance_authority = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+
+        let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+        let address_merkle_tree = read_keypair_file(format!(
+            "{}amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2.json",
+            prefix
+        ))
+        .unwrap();
+        let address_merkle_tree_queue = read_keypair_file(format!(
+            "{}aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F.json",
+            prefix
+        ))
+        .unwrap();
+        let cpi_context_account = read_keypair_file(format!(
+            "{}cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4.json",
+            prefix
+        ))
+        .unwrap();
+        let system_program = read_keypair_file(format!(
+            "{}SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.json",
+            prefix
+        ))
+        .unwrap();
+        let registry_program = read_keypair_file(format!(
+            "{}Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX.json",
+            prefix
+        ))
+        .unwrap();
+        EnvAccountKeypairs {
+            state_merkle_tree,
+            nullifier_queue,
+            governance_authority,
+            forester,
+            address_merkle_tree,
+            address_merkle_tree_queue,
+            cpi_context_account,
+            system_program,
+            registry_program,
+            batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+                .unwrap(),
+            batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
+            batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
+            batch_address_merkle_tree: Keypair::from_bytes(
+                &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
+            )
+            .unwrap(),
+        }
+    }
+
     pub fn from_target_folder() -> EnvAccountKeypairs {
         let prefix = String::from("../../../light-keypairs/");
         let target_prefix = String::from("../../target/");
