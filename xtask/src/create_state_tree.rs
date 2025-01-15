@@ -54,7 +54,7 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     cpi_keypairs.push(cpi_keypair);
 
     let payer = if let Some(payer) = options.payer.as_ref() {
-        read_keypair_file(&payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
+        read_keypair_file(payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
     } else {
         // Construct the path to the keypair file in the user's home directory
         let keypair_path: PathBuf = home_dir()
