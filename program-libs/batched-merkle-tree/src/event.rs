@@ -25,3 +25,5 @@ pub struct BatchNullifyEvent {
     pub sequence_number: u64,
     pub batch_size: u64,
 }
+
+pub type BatchAddressAppendEvent = BatchNullifyEvent;

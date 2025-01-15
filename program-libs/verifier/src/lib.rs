@@ -310,7 +310,7 @@ pub fn verify<const N: usize>(
 
 #[inline(never)]
 pub fn verify_batch_append_with_proofs(
-    batch_size: usize,
+    batch_size: u64,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
@@ -341,7 +341,7 @@ pub fn verify_batch_append_with_proofs(
 
 #[inline(never)]
 pub fn verify_batch_update(
-    batch_size: usize,
+    batch_size: u64,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {
@@ -377,7 +377,7 @@ pub fn verify_batch_update(
 
 #[inline(never)]
 pub fn verify_batch_address_update(
-    batch_size: usize,
+    batch_size: u64,
     public_input_hash: [u8; 32],
     compressed_proof: &CompressedProof,
 ) -> Result<(), VerifierError> {

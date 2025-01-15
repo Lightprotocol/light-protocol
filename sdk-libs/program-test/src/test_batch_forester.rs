@@ -10,9 +10,8 @@ use light_batched_merkle_tree::{
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
-        get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
-        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+        get_merkle_tree_account_size, BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata,
+        CreateTreeParams, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
@@ -210,7 +209,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     };
 
     InstructionDataBatchAppendInputs {
-        public_inputs: AppendBatchProofInputsIx { new_root },
+        new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
@@ -369,10 +368,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     };
 
     Ok(InstructionDataBatchNullifyInputs {
-        public_inputs: BatchProofInputsIx {
-            new_root,
-            old_root_index: old_root_index as u16,
-        },
+        new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
@@ -804,7 +800,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let merkle_tree =
         BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
             .unwrap();
-    let old_root_index = merkle_tree.root_history.last_index();
     let full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
     let batch = &merkle_tree.batches[full_batch_index as usize];
     let zkp_batch_index = batch.get_num_inserted_zkps();
@@ -892,10 +887,8 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
         let instruction_data = InstructionDataBatchNullifyInputs {
-            public_inputs: BatchProofInputsIx {
-                new_root: circuit_inputs_new_root,
-                old_root_index: old_root_index as u16,
-            },
+            new_root: circuit_inputs_new_root,
+
             compressed_proof: CompressedProof {
                 a: proof_a,
                 b: proof_b,

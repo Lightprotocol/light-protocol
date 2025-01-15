@@ -348,9 +348,11 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
     pub fn finalize_batch_address_update(&mut self, batch_size: usize) {
         println!("finalize batch address update");
         let new_element_values = self.queue_leaves[..batch_size].to_vec();
+        println!("removing leaves from queue {}", batch_size);
         for _ in 0..batch_size {
             self.queue_leaves.remove(0);
         }
+        println!("new queue length {}", self.queue_leaves.len());
         for new_element_value in &new_element_values {
             self.merkle_tree
                 .append(

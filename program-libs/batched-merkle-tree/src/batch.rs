@@ -10,7 +10,7 @@ use crate::errors::BatchedMerkleTreeError;
 #[repr(u64)]
 pub enum BatchState {
     /// Batch can be filled with values.
-    CanBeFilled,
+    Fill,
     /// Batch has been inserted into the tree.
     Inserted,
     /// Batch is full, and insertion is in progress.
@@ -20,7 +20,7 @@ pub enum BatchState {
 impl From<u64> for BatchState {
     fn from(value: u64) -> Self {
         match value {
-            0 => BatchState::CanBeFilled,
+            0 => BatchState::Fill,
             1 => BatchState::Inserted,
             2 => BatchState::Full,
             _ => panic!("Invalid BatchState value"),
@@ -73,7 +73,7 @@ impl Batch {
             bloom_filter_capacity,
             batch_size,
             num_inserted: 0,
-            state: BatchState::CanBeFilled.into(),
+            state: BatchState::Fill.into(),
             zkp_batch_size,
             current_zkp_batch_index: 0,
             num_inserted_zkps: 0,
@@ -102,9 +102,9 @@ impl Batch {
     }
 
     /// fill -> full -> inserted -> fill
-    pub fn advance_state_to_can_be_filled(&mut self) -> Result<(), BatchedMerkleTreeError> {
+    pub fn advance_state_to_fill(&mut self) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Inserted {
-            self.state = BatchState::CanBeFilled.into();
+            self.state = BatchState::Fill.into();
         } else {
             msg!(
                 "Batch is in incorrect state {} expected Inserted 3",
@@ -131,7 +131,7 @@ impl Batch {
 
     /// fill -> full -> inserted -> fill
     pub fn advance_state_to_full(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        if self.get_state() == BatchState::CanBeFilled {
+        if self.get_state() == BatchState::Fill {
             self.state = BatchState::Full.into();
         } else {
             msg!(
@@ -174,7 +174,7 @@ impl Batch {
         value: &[u8; 32],
         value_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.get_state() != BatchState::CanBeFilled {
+        if self.get_state() != BatchState::Fill {
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
         value_store.push(*value)?;
@@ -253,23 +253,31 @@ impl Batch {
         self.batch_size / self.zkp_batch_size
     }
 
+    /// Marks the batch as inserted in the merkle tree.
+    /// 1. Checks that the batch is ready.
+    /// 2. increments the number of inserted zkps.
+    /// 3. If all zkps are inserted, sets the state to inserted.
+    /// 4. Returns the updated state of the batch.
     pub fn mark_as_inserted_in_merkle_tree(
         &mut self,
         sequence_number: u64,
         root_index: u32,
         root_history_length: u32,
-    ) -> Result<(), BatchedMerkleTreeError> {
-        // Check that batch is ready.
+    ) -> Result<BatchState, BatchedMerkleTreeError> {
+        // 1. Check that batch is ready.
         self.get_first_ready_zkp_batch()?;
 
         let num_zkp_batches = self.get_num_zkp_batches();
 
+        // 2. increments the number of inserted zkps.
         self.num_inserted_zkps += 1;
-        // Batch has been successfully inserted into the tree.
+        println!("num_inserted_zkps: {}", self.num_inserted_zkps);
+        // 3. If all zkps are inserted, sets the state to inserted.
         if self.num_inserted_zkps == num_zkp_batches {
-            self.current_zkp_batch_index = 0;
-            self.state = BatchState::Inserted.into();
+            println!("Setting state to inserted");
             self.num_inserted_zkps = 0;
+            self.current_zkp_batch_index = 0;
+            self.advance_state_to_inserted()?;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
@@ -277,7 +285,7 @@ impl Batch {
             self.root_index = root_index;
         }
 
-        Ok(())
+        Ok(self.get_state())
     }
 
     pub fn get_hashchain_store_len(&self) -> usize {
@@ -513,7 +521,7 @@ mod tests {
         let mut batch = get_test_batch();
         assert_eq!(batch.get_num_zkp_batches(), 5);
         assert_eq!(batch.get_hashchain_store_len(), 5);
-        assert_eq!(batch.get_state(), BatchState::CanBeFilled);
+        assert_eq!(batch.get_state(), BatchState::Fill);
         assert_eq!(batch.get_num_inserted(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 0);
         assert_eq!(batch.get_num_inserted_zkps(), 0);

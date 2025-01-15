@@ -13,9 +13,8 @@ use light_batched_merkle_tree::{
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
-        get_merkle_tree_account_size, AppendBatchProofInputsIx, BatchProofInputsIx,
-        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+        get_merkle_tree_account_size, BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata,
+        CreateTreeParams, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
@@ -764,7 +763,7 @@ pub async fn create_append_batch_ix_data(
         .unwrap();
 
     InstructionDataBatchAppendInputs {
-        public_inputs: AppendBatchProofInputsIx { new_root },
+        new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
@@ -781,7 +780,6 @@ pub async fn create_nullify_batch_ix_data(
         BatchedMerkleTreeAccount::state_from_bytes(account_data).unwrap();
     println!("batches {:?}", zero_copy_account.batches);
 
-    let old_root_index = zero_copy_account.root_history.last_index();
     let next_full_batch = zero_copy_account
         .get_metadata()
         .queue_metadata
@@ -820,10 +818,7 @@ pub async fn create_nullify_batch_ix_data(
         .await
         .unwrap();
     let instruction_data = InstructionDataBatchNullifyInputs {
-        public_inputs: BatchProofInputsIx {
-            new_root,
-            old_root_index: old_root_index as u16,
-        },
+        new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
@@ -1609,12 +1604,10 @@ async fn test_batch_address_merkle_trees() {
     }
     // 5. Failing: invalid proof
     // 6. Failing: invalid new root
-    // 7. Failing: invalid root index
-    // 8. Failing: update twice with the same instruction (proof and public inputs)
+    // 7. Failing: update twice with the same instruction (proof and public inputs)
     for (mode, ix_index) in vec![
         UpdateBatchAddressTreeTestMode::InvalidProof,
         UpdateBatchAddressTreeTestMode::InvalidNewRoot,
-        UpdateBatchAddressTreeTestMode::InvalidRootIndex,
         UpdateBatchAddressTreeTestMode::UpdateTwice,
     ]
     .iter()
@@ -1859,7 +1852,6 @@ pub enum UpdateBatchAddressTreeTestMode {
     Functional,
     InvalidProof,
     InvalidNewRoot,
-    InvalidRootIndex,
     UpdateTwice,
 }
 
@@ -1888,11 +1880,7 @@ pub async fn update_batch_address_tree(
         BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account_data).unwrap();
     let start_index = zero_copy_account.get_metadata().next_index;
 
-    let mut old_root_index = zero_copy_account.root_history.last_index();
-    let current_root = zero_copy_account
-        .root_history
-        .get(old_root_index as usize)
-        .unwrap();
+    let current_root = zero_copy_account.root_history.last().unwrap();
     let next_full_batch = zero_copy_account
         .get_metadata()
         .queue_metadata
@@ -1923,9 +1911,6 @@ pub async fn update_batch_address_tree(
         )
         .await
         .unwrap();
-    if mode == UpdateBatchAddressTreeTestMode::InvalidRootIndex {
-        old_root_index -= 1;
-    }
     if mode == UpdateBatchAddressTreeTestMode::InvalidNewRoot {
         new_root[0] = new_root[0].wrapping_add(1);
     }
@@ -1933,10 +1918,7 @@ pub async fn update_batch_address_tree(
         proof.a = proof.c;
     }
     let instruction_data = InstructionDataBatchNullifyInputs {
-        public_inputs: BatchProofInputsIx {
-            new_root,
-            old_root_index: old_root_index as u16,
-        },
+        new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,

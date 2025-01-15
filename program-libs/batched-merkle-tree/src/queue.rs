@@ -76,48 +76,6 @@ impl BatchedQueueMetadata {
     }
 }
 
-impl BatchMetadata {
-    pub fn init(
-        &mut self,
-        num_batches: u64,
-        batch_size: u64,
-        zkp_batch_size: u64,
-    ) -> Result<(), BatchedMerkleTreeError> {
-        self.num_batches = num_batches;
-        self.batch_size = batch_size;
-        // Check that batch size is divisible by zkp_batch_size.
-        if batch_size % zkp_batch_size != 0 {
-            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
-        }
-        self.zkp_batch_size = zkp_batch_size;
-        Ok(())
-    }
-
-    pub fn get_size_parameters(
-        &self,
-        queue_type: u64,
-    ) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
-        let num_batches = self.num_batches as usize;
-        // Input queues don't store values
-        let num_value_stores = if queue_type == QueueType::BatchedOutput as u64 {
-            num_batches
-        } else if queue_type == QueueType::BatchedInput as u64 {
-            0
-        } else {
-            return Err(MerkleTreeMetadataError::InvalidQueueType);
-        };
-        // Output queues don't use bloom filters.
-        let num_stores = if queue_type == QueueType::BatchedInput as u64 {
-            num_batches
-        } else if queue_type == QueueType::BatchedOutput as u64 && self.bloom_filter_capacity == 0 {
-            0
-        } else {
-            return Err(MerkleTreeMetadataError::InvalidQueueType);
-        };
-        Ok((num_value_stores, num_stores, num_batches))
-    }
-}
-
 pub fn queue_account_size(
     batch_metadata: &BatchMetadata,
     queue_type: u64,
@@ -148,9 +106,8 @@ pub fn queue_account_size(
         + hashchain_store_size;
     Ok(size)
 }
-/// Batched output queue
-#[repr(C)]
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq)]
 pub struct BatchedQueueAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
     pub batches: ZeroCopySliceMutU64<'a, Batch>,
@@ -199,24 +156,17 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     #[cfg(not(target_os = "solana"))]
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
-    #[cfg(not(target_os = "solana"))]
-    pub fn from_bytes<const QUEUE_TYPE: u64>(
-        account_data: &'a mut [u8],
-    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes::<QUEUE_TYPE>(account_data)
-    }
-
-    fn internal_from_bytes<const QUEUE_TYPE: u64>(
+    fn from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
@@ -445,7 +395,7 @@ pub fn insert_into_current_batch(
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
         let mut wipe = false;
         if current_batch.get_state() == BatchState::Inserted {
-            current_batch.advance_state_to_can_be_filled()?;
+            current_batch.advance_state_to_fill()?;
             if let Some(current_index) = current_index {
                 current_batch.start_index = current_index;
             }

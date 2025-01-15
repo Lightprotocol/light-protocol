@@ -477,7 +477,8 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         params.batch_size,
         params.zkp_batch_size,
         params.num_batches,
-    );
+    )
+    .unwrap();
     BatchedQueueMetadata {
         metadata,
         batch_metadata,
