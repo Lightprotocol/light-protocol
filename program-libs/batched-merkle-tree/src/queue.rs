@@ -46,7 +46,8 @@ pub struct BatchedQueueMetadata {
     /// next_index in queue is ahead or equal to next index in the associated
     /// batched Merkle tree account.
     pub next_index: u64,
-    /// Height of the associated tree.
+    /// Maximum number of leaves that can fit in the tree, calculated as 2^height.
+    /// For example, a tree with height 3 can hold up to 8 leaves.
     pub tree_capacity: u64,
 }
 
