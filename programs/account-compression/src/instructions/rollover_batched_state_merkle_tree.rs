@@ -26,13 +26,13 @@ pub struct RolloverBatchedStateMerkleTree<'info> {
     /// CHECK: is initialized in this instruction.
     #[account(zero)]
     pub new_state_merkle_tree: AccountInfo<'info>,
-    /// CHECK: in state_tree_from_account_info_mut.
+    /// CHECK: in state_from_account_info.
     #[account(mut)]
     pub old_state_merkle_tree: AccountInfo<'info>,
     /// CHECK: is initialized in this instruction.
     #[account(zero)]
     pub new_output_queue: AccountInfo<'info>,
-    /// CHECK: in output_queue_from_account_info_mut.
+    /// CHECK: in output_from_account_info.
     #[account(mut)]
     pub old_output_queue: AccountInfo<'info>,
 }
@@ -62,16 +62,14 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     network_fee: Option<u64>,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
-    let old_merkle_tree_account = &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-        &ctx.accounts.old_state_merkle_tree,
-    )
-    .map_err(ProgramError::from)?;
+    let old_merkle_tree_account =
+        &mut BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
+            .map_err(ProgramError::from)?;
 
     // 2. Check Queue account discriminator, and program ownership.
-    let old_output_queue = &mut BatchedQueueAccount::output_queue_from_account_info_mut(
-        &ctx.accounts.old_output_queue,
-    )
-    .map_err(ProgramError::from)?;
+    let old_output_queue =
+        &mut BatchedQueueAccount::output_from_account_info(&ctx.accounts.old_output_queue)
+            .map_err(ProgramError::from)?;
 
     // 3. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<

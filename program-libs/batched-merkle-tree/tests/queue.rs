@@ -38,6 +38,7 @@ pub fn get_test_account_and_account_data(
             bloom_filter_capacity,
             zkp_batch_size: 10,
         },
+        ..Default::default()
     };
     let account_data: Vec<u8> =
         vec![0; queue_account_size(&account.batch_metadata, account.metadata.queue_type).unwrap()];
@@ -71,8 +72,7 @@ fn test_output_queue_account() {
         .unwrap();
 
         assert_queue_zero_copy_inited(&mut account_data, ref_account, bloom_filter_num_iters);
-        let mut account =
-            BatchedQueueAccount::output_queue_from_bytes_mut(&mut account_data).unwrap();
+        let mut account = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
         let value = [1u8; 32];
         account.insert_into_current_batch(&value).unwrap();
         // assert!(account.insert_into_current_batch(&value).is_ok());

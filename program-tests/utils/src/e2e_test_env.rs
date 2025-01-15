@@ -527,7 +527,7 @@ where
                                 .unwrap()
                                 .unwrap()
                                 .data;
-                            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                                 merkle_tree_account_data.as_mut_slice(),
                             )
                             .unwrap();
@@ -576,7 +576,7 @@ where
                                 .unwrap()
                                 .unwrap()
                                 .data;
-                            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
+                            let output_queue = BatchedQueueAccount::output_from_bytes(
                                 queue_account_data.as_mut_slice(),
                             )
                             .unwrap();

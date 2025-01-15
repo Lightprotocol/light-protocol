@@ -53,8 +53,7 @@ fn test_rollover() {
     {
         let mut mt_account_data = mt_account_data.clone();
         let result = rollover_batched_address_tree(
-            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap(),
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -69,8 +68,7 @@ fn test_rollover() {
     {
         let mut mt_account_data = mt_account_data.clone();
         let merkle_tree =
-            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap();
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
         merkle_tree
             .get_metadata_mut()
             .metadata
@@ -91,8 +89,7 @@ fn test_rollover() {
     // 3. Functional: rollover address tree
     {
         let merkle_tree =
-            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap();
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
         merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
 
         rollover_batched_address_tree(
@@ -122,8 +119,7 @@ fn test_rollover() {
         let mut new_mt_account_data = vec![0; mt_account_size];
 
         let result = rollover_batched_address_tree(
-            &mut BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data)
-                .unwrap(),
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -233,7 +229,7 @@ fn test_rnd_rollover() {
         let network_fee = params.network_fee;
         let new_mt_pubkey = Pubkey::new_unique();
         let mut zero_copy_old_mt =
-            BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+            BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
         zero_copy_old_mt.get_metadata_mut().next_index = 1 << params.height;
         rollover_batched_address_tree(
             &mut zero_copy_old_mt,

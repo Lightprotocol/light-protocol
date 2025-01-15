@@ -19,14 +19,12 @@ light-hasher = { workspace=true, features = ["solana"] }
 light-utils = { workspace=true }
 light-bloom-filter = { workspace=true, features = ["solana"] }
 light-verifier = { workspace=true, features = ["solana"] }
-thiserror = "1.0"
+thiserror =  { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
-borsh = "0.10"
+borsh =  { workspace = true }
 light-macros = {workspace = true}
 anchor-lang = { workspace = true , optional = true }
-bytemuck = { workspace = true }
-light-bounded-vec = { workspace = true }
-zerocopy = "0.8.14"
+zerocopy =  { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"

@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
-use bytemuck::{Pod, Zeroable};
 use light_hasher::{Discriminator, Hasher, Poseidon};
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
@@ -52,8 +51,6 @@ use crate::{
     BorshDeserialize,
     Debug,
     PartialEq,
-    Pod,
-    Zeroable,
     Clone,
     Copy,
     FromBytes,
@@ -69,6 +66,7 @@ pub struct BatchedMerkleTreeMetadata {
     pub next_index: u64,
     pub height: u32,
     pub root_history_capacity: u32,
+    pub capacity: u64,
     pub queue_metadata: BatchMetadata,
 }
 
@@ -86,6 +84,7 @@ impl Default for BatchedMerkleTreeMetadata {
             tree_type: TreeType::BatchedState as u64,
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
+            capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
             queue_metadata: BatchMetadata {
                 currently_processing_batch_index: 0,
                 num_batches: 2,
@@ -231,6 +230,7 @@ impl BatchedMerkleTreeMetadata {
                 zkp_batch_size,
                 num_batches,
             ),
+            capacity: 2u64.pow(height),
         }
     }
 }
@@ -304,10 +304,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 
     // // TODO: add unit test
-    pub fn state_tree_from_account_info_mut(
+    pub fn state_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info_mut::<BATCHED_STATE_TREE_TYPE>(
+        Self::from_account_info::<BATCHED_STATE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -315,22 +315,22 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
     // TODO: add failing test
     #[cfg(not(target_os = "solana"))]
-    pub fn state_tree_from_bytes_mut(
+    pub fn state_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_bytes_mut::<BATCHED_STATE_TREE_TYPE>(account_data)
+        Self::from_bytes::<BATCHED_STATE_TREE_TYPE>(account_data)
     }
 
-    pub fn address_tree_from_account_info_mut(
+    pub fn address_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info_mut::<BATCHED_ADDRESS_TREE_TYPE>(
+        Self::from_account_info::<BATCHED_ADDRESS_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
     }
 
-    pub fn from_account_info_mut<const TREE_TYPE: u64>(
+    pub fn from_account_info<const TREE_TYPE: u64>(
         program_id: &solana_program::pubkey::Pubkey,
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
@@ -340,17 +340,17 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes_mut::<TREE_TYPE>(data_slice)
+        Self::from_bytes::<TREE_TYPE>(data_slice)
     }
 
     #[cfg(not(target_os = "solana"))]
-    pub fn address_tree_from_bytes_mut(
+    pub fn address_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_bytes_mut::<BATCHED_ADDRESS_TREE_TYPE>(account_data)
+        Self::from_bytes::<BATCHED_ADDRESS_TREE_TYPE>(account_data)
     }
 
-    fn from_bytes_mut<const TREE_TYPE: u64>(
+    fn from_bytes<const TREE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
@@ -407,6 +407,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;
         account_metadata.tree_type = tree_type as u64;
+        account_metadata.capacity = 2u64.pow(height);
         account_metadata.queue_metadata.init(
             num_batches_input_queue,
             input_queue_batch_size,
@@ -461,8 +462,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         if self.metadata.metadata.associated_queue != (*queue_account_info.key).into() {
             return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
         }
-        let queue_account =
-            &mut BatchedQueueAccount::output_queue_from_account_info_mut(queue_account_info)?;
+        let queue_account = &mut BatchedQueueAccount::output_from_account_info(queue_account_info)?;
         self.update_output_queue_account(queue_account, instruction_data, id)
     }
 
@@ -666,6 +666,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         leaf_index: u64,
         tx_hash: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
+        // Note, no need to check whether the tree is full
+        // since nullifier insertions update existing values
+        // in the tree and not append a values.
         if self.tree_type != TreeType::BatchedState as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
@@ -681,6 +684,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         if self.tree_type != TreeType::BatchedAddress as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
+        // Check if the tree is full.
+        self.check_tree_is_full()?;
+
         self.insert_into_current_batch(address, address)
     }
 
@@ -833,6 +839,17 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
         Ok(())
     }
+
+    pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
+        if self.tree_is_full() {
+            return Err(BatchedMerkleTreeError::TreeIsFull);
+        }
+        Ok(())
+    }
+
+    pub fn tree_is_full(&self) -> bool {
+        self.next_index == self.capacity
+    }
 }
 
 pub fn get_merkle_tree_account_size_default() -> usize {
@@ -862,6 +879,7 @@ pub fn get_merkle_tree_account_size(
             zkp_batch_size,
             ..Default::default()
         },
+        capacity: 2u64.pow(height),
     };
     mt_account.get_account_size().unwrap()
 }

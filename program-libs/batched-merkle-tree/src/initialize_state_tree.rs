@@ -214,6 +214,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             num_batches_output_queue,
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
+            // Output queues have no bloom filter.
             0,
             0,
         )?;
@@ -223,7 +224,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),
         rollover_metadata: RolloverMetadata::new(
             params.index,
-            // Complete rollover fee is charged when creating an output
+            // The complete rollover fee is charged when creating an output
             // compressed account by inserting it into the output queue.
             0,
             params.rollover_threshold,
@@ -233,6 +234,11 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         ),
         associated_queue: output_queue_pubkey,
     };
+
+    // Note, the state Merkle tree account contains the input queue,
+    // because to insert a nullifier into the input queue the
+    // compressed state is spent. To spend compressed state we need
+    // to prove inclusion of this state for which we need a root from the tree account.
     BatchedMerkleTreeAccount::init(
         mt_account_data,
         metadata,
@@ -308,7 +314,7 @@ pub fn assert_state_mt_zero_copy_inited(
     ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
-    let account = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data)
+    let account = BatchedMerkleTreeAccount::state_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
     _assert_mt_zero_copy_inited::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
         account,
@@ -326,7 +332,7 @@ pub fn assert_address_mt_zero_copy_inited(
 ) {
     use crate::{constants::BATCHED_ADDRESS_TREE_TYPE, merkle_tree::BatchedMerkleTreeAccount};
 
-    let account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account_data)
+    let account = BatchedMerkleTreeAccount::address_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
     _assert_mt_zero_copy_inited::<BATCHED_ADDRESS_TREE_TYPE>(
         account,
@@ -476,5 +482,6 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         metadata,
         batch_metadata,
         next_index: 0,
+        tree_capacity: 2u64.pow(params.height),
     }
 }

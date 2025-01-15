@@ -91,7 +91,7 @@ pub fn assert_address_mt_roll_over(
         .unwrap();
 
     let old_mt_account =
-        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut old_mt_account_data).unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data).unwrap();
     assert_eq!(*old_mt_account.get_metadata(), old_ref_mt_account);
     crate::initialize_state_tree::assert_address_mt_zero_copy_inited(
         &mut new_mt_account_data,

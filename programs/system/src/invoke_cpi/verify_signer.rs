@@ -160,10 +160,9 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                         AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
                     );
                 }
-                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                    merkle_tree_acc_info,
-                )
-                .map_err(ProgramError::from)?;
+                let merkle_tree =
+                    BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_acc_info)
+                        .map_err(ProgramError::from)?;
                 let seq = merkle_tree.sequence_number + 1;
                 let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
 
@@ -182,7 +181,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     );
                 }
                 let merkle_tree =
-                    BatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
+                    BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
                         .map_err(ProgramError::from)?;
                 let seq = u64::MAX;
                 let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
@@ -241,7 +240,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             let merkle_tree =
-                BatchedMerkleTreeAccount::address_tree_from_account_info_mut(merkle_tree_acc_info)
+                BatchedMerkleTreeAccount::address_from_account_info(merkle_tree_acc_info)
                     .map_err(ProgramError::from)?;
             merkle_tree.metadata
         }

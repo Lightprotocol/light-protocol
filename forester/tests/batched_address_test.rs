@@ -171,8 +171,7 @@ async fn test_address_batched() {
         .unwrap()
         .unwrap();
     let merkle_tree =
-        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut merkle_tree_account.data)
-            .unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account.data).unwrap();
 
     for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
         println!("===================== tx {} =====================", i);
@@ -199,10 +198,9 @@ async fn test_address_batched() {
         let mut rpc = pool.get_connection().await.unwrap();
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
-        let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-            merkle_tree_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let merkle_tree =
+            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
+                .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
         let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -237,10 +235,9 @@ async fn test_address_batched() {
     let mut rpc = pool.get_connection().await.unwrap();
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
 
-    let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-        merkle_tree_account.data.as_mut_slice(),
-    )
-    .unwrap();
+    let merkle_tree =
+        BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
+            .unwrap();
 
     assert!(
         merkle_tree
@@ -260,10 +257,9 @@ async fn test_address_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-            merkle_tree_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let merkle_tree =
+            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
+                .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
 

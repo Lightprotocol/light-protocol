@@ -131,7 +131,7 @@ async fn test_state_batched() {
         .unwrap()
         .unwrap();
     let merkle_tree =
-        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data).unwrap();
+        BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data).unwrap();
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
@@ -141,10 +141,9 @@ async fn test_state_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-            merkle_tree_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let merkle_tree =
+            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+                .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
         let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -244,10 +243,9 @@ async fn test_state_batched() {
         .unwrap()
         .unwrap();
 
-    let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-        merkle_tree_account.data.as_mut_slice(),
-    )
-    .unwrap();
+    let merkle_tree =
+        BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+            .unwrap();
 
     assert!(
         merkle_tree
@@ -267,10 +265,9 @@ async fn test_state_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-            merkle_tree_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let merkle_tree =
+            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+                .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
 
@@ -280,10 +277,9 @@ async fn test_state_batched() {
             .unwrap()
             .unwrap();
 
-        let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-            output_queue_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let output_queue =
+            BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                .unwrap();
 
         let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
         let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;

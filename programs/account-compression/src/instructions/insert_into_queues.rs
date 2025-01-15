@@ -212,9 +212,9 @@ fn process_queue_bundle_v1<'info>(
 
 /// Insert nullifiers into the batched nullifier queue.
 /// 1. Check discriminator & account ownership
-///     (state_tree_from_account_info_mut).
+///     (state_from_account_info).
 /// 2. Check discriminator & account ownership
-///    (output_queue_from_account_info_mut).
+///    (output_from_account_info).
 /// 3. Check queue and Merkle tree are associated.
 /// 3. Check that the signer is the authority or registered program.
 /// 4. prove inclusion by index and zero out the leaf.
@@ -232,13 +232,12 @@ fn process_nullifier_queue_bundle_v2<'info>(
 ) -> Result<u64> {
     // 1. Check discriminator & account ownership of Merkle tree.
     let merkle_tree =
-        &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(queue_bundle.accounts[0])
+        &mut BatchedMerkleTreeAccount::state_from_account_info(queue_bundle.accounts[0])
             .map_err(ProgramError::from)?;
 
     // 2. Check discriminator & account ownership of output queue.
-    let output_queue =
-        &mut BatchedQueueAccount::output_queue_from_account_info_mut(queue_bundle.accounts[1])
-            .map_err(ProgramError::from)?;
+    let output_queue = &mut BatchedQueueAccount::output_from_account_info(queue_bundle.accounts[1])
+        .map_err(ProgramError::from)?;
 
     // 3. Check queue and Merkle tree are associated.
     output_queue
@@ -286,7 +285,7 @@ fn process_address_queue_bundle_v2<'info>(
 ) -> Result<u64> {
     // 1. Check discriminator and account ownership.
     let merkle_tree =
-        &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(queue_bundle.accounts[0])
+        &mut BatchedMerkleTreeAccount::address_from_account_info(queue_bundle.accounts[0])
             .map_err(ProgramError::from)?;
     // 2. Check that the signer is the authority or registered program.
     check_signer_is_registered_or_authority::<InsertIntoQueues, BatchedMerkleTreeAccount>(

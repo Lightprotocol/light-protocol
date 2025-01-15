@@ -726,7 +726,7 @@ where
     }
     assert!(matches!(
         merkle_tree.append(&[4; 32]),
-        Err(ConcurrentMerkleTreeError::TreeFull)
+        Err(ConcurrentMerkleTreeError::TreeIsFull)
     ));
 }
 

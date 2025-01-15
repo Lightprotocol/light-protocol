@@ -537,7 +537,7 @@ where
             return Err(ConcurrentMerkleTreeError::EmptyLeaves);
         }
         if (self.next_index() + leaves.len() - 1) >= 1 << self.height {
-            return Err(ConcurrentMerkleTreeError::TreeFull);
+            return Err(ConcurrentMerkleTreeError::TreeIsFull);
         }
         if leaves.len() > self.changelog.capacity() {
             return Err(ConcurrentMerkleTreeError::BatchGreaterThanChangelog(

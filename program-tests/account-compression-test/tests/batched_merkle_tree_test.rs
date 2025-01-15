@@ -733,10 +733,9 @@ pub async fn create_append_batch_ix_data(
     mt_account_data: &mut [u8],
     output_queue_account_data: &mut [u8],
 ) -> InstructionDataBatchAppendInputs {
-    let zero_copy_account =
-        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(mt_account_data).unwrap();
+    let zero_copy_account = BatchedMerkleTreeAccount::state_from_bytes(mt_account_data).unwrap();
     let output_zero_copy_account =
-        BatchedQueueAccount::output_queue_from_bytes_mut(output_queue_account_data).unwrap();
+        BatchedQueueAccount::output_from_bytes(output_queue_account_data).unwrap();
 
     let next_index = zero_copy_account.get_metadata().next_index;
     let next_full_batch = output_zero_copy_account
@@ -779,7 +778,7 @@ pub async fn create_nullify_batch_ix_data(
     account_data: &mut [u8],
 ) -> InstructionDataBatchNullifyInputs {
     let zero_copy_account: BatchedMerkleTreeAccount =
-        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account_data).unwrap();
+        BatchedMerkleTreeAccount::state_from_bytes(account_data).unwrap();
     println!("batches {:?}", zero_copy_account.batches);
 
     let old_root_index = zero_copy_account.root_history.last_index();
@@ -1208,7 +1207,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let payer_pubkey = payer.pubkey();
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
-        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice()).unwrap();
+        BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
     let batch_zero = &old_merkle_tree.batches[0];
     let num_batches = old_merkle_tree.batches.len();
     let old_merkle_tree = old_merkle_tree.get_metadata();
@@ -1228,7 +1227,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
 
     let mut account = rpc.get_account(old_output_queue_pubkey).await?.unwrap();
     let old_queue_account =
-        BatchedQueueAccount::output_queue_from_bytes_mut(account.data.as_mut_slice()).unwrap();
+        BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
     let batch_zero = &old_queue_account.batches[0];
     let queue_account_size = get_output_queue_account_size(
         batch_zero.batch_size,
@@ -1886,8 +1885,7 @@ pub async fn update_batch_address_tree(
         .data;
 
     let zero_copy_account =
-        BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut merkle_tree_account_data)
-            .unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account_data).unwrap();
     let start_index = zero_copy_account.get_metadata().next_index;
 
     let mut old_root_index = zero_copy_account.root_history.last_index();

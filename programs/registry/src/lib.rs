@@ -513,7 +513,7 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         check_forester(
             &merkle_tree.metadata,
@@ -533,10 +533,10 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let queue_account =
-            BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
+            BatchedQueueAccount::output_from_account_info(&ctx.accounts.output_queue)
                 .map_err(ProgramError::from)?;
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         // Eligibility is checked for the Merkle tree,
         // so that the same forester is eligible to
@@ -580,7 +580,7 @@ pub mod light_registry {
         data: Vec<u8>,
     ) -> Result<()> {
         let account =
-            BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+            BatchedMerkleTreeAccount::address_from_account_info(&ctx.accounts.merkle_tree)
                 .map_err(ProgramError::from)?;
         check_forester(
             &account.metadata,
@@ -597,7 +597,7 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverBatchedAddressMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
-        let account = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
+        let account = BatchedMerkleTreeAccount::address_from_account_info(
             &ctx.accounts.old_address_merkle_tree,
         )
         .map_err(ProgramError::from)?;
@@ -615,10 +615,9 @@ pub mod light_registry {
         ctx: Context<'_, '_, '_, 'info, RolloverBatchedStateMerkleTree<'info>>,
         bump: u8,
     ) -> Result<()> {
-        let account = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-            &ctx.accounts.old_state_merkle_tree,
-        )
-        .map_err(ProgramError::from)?;
+        let account =
+            BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
+                .map_err(ProgramError::from)?;
         check_forester(
             &account.metadata,
             ctx.accounts.authority.key(),

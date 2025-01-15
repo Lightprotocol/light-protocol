@@ -17,7 +17,7 @@ pub enum ConcurrentMerkleTreeError {
     #[error("Canopy depth has to be lower than height")]
     CanopyGeThanHeight,
     #[error("Merkle tree is full, cannot append more leaves.")]
-    TreeFull,
+    TreeIsFull,
     #[error("Number of leaves ({0}) exceeds the changelog capacity ({1}).")]
     BatchGreaterThanChangelog(usize, usize),
     #[error("Invalid proof length, expected {0}, got {1}.")]
@@ -50,7 +50,7 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::ChangelogZero => 10004,
             ConcurrentMerkleTreeError::RootsZero => 10005,
             ConcurrentMerkleTreeError::CanopyGeThanHeight => 10006,
-            ConcurrentMerkleTreeError::TreeFull => 10007,
+            ConcurrentMerkleTreeError::TreeIsFull => 10007,
             ConcurrentMerkleTreeError::BatchGreaterThanChangelog(_, _) => 10008,
             ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 10009,
             ConcurrentMerkleTreeError::InvalidProof(_, _) => 10010,
