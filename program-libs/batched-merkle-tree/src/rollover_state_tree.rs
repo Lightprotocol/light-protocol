@@ -190,8 +190,7 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
 
     crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
 
-    let zero_copy_queue =
-        BatchedQueueAccount::output_queue_from_bytes_mut(&mut queue_account_data).unwrap();
+    let zero_copy_queue = BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
     assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
     let params = MtRollOverAssertParams {
         mt_account_data,
@@ -238,8 +237,7 @@ pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
         .rollover(old_queue_pubkey, new_mt_pubkey)
         .unwrap();
     ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
-    let zero_copy_mt =
-        BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut mt_account_data).unwrap();
+    let zero_copy_mt = BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
     assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
 
     crate::initialize_state_tree::assert_state_mt_zero_copy_inited(

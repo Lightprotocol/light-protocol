@@ -1,4 +1,3 @@
-use bytemuck::{Pod, Zeroable};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{BorshDeserialize, BorshSerialize};
@@ -10,8 +9,6 @@ use crate::{BorshDeserialize, BorshSerialize};
     Debug,
     PartialEq,
     Default,
-    Pod,
-    Zeroable,
     Clone,
     Copy,
     FromBytes,

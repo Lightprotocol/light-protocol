@@ -2568,7 +2568,7 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         .unwrap()
         .unwrap();
     let output_queue =
-        BatchedQueueAccount::output_queue_from_bytes_mut(&mut output_queue_account.data).unwrap();
+        BatchedQueueAccount::output_from_bytes(&mut output_queue_account.data).unwrap();
     let fullness = output_queue.get_batch_num_inserted_in_current_batch();
     let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
     for _ in 0..remaining_leaves {

@@ -178,7 +178,7 @@ fn append_to_concurrent_merkle_tree<'a, 'b, 'c: 'info, 'info>(
 
 /// Insert a batch of leaves into a batched Merkle tree output queue.
 /// 1. Check BatchedQueueAccount discriminator and ownership
-///     (output_queue_from_account_info_mut)
+///     (output_from_account_info)
 /// 2. Check signer is registered or authority
 /// 3. Insert leaves into output queue
 /// 4. Return rollover fee
@@ -189,7 +189,7 @@ fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
     leaves: &[(u8, [u8; 32])],
 ) -> Result<u64> {
     let output_queue_zero_copy =
-        &mut BatchedQueueAccount::output_queue_from_account_info_mut(merkle_tree_acc_info)
+        &mut BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
             .map_err(ProgramError::from)?;
     check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueMetadata>(
         ctx,

@@ -107,9 +107,11 @@ async fn get_batch_index<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
 ) -> Result<usize> {
     let mut account = rpc.get_account(context.merkle_tree).await?.unwrap();
-    let merkle_tree = light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-        account.data.as_mut_slice(),
-    ).map_err(|e| BatchProcessError::MerkleTreeParsing(e.to_string()))?;
+    let merkle_tree =
+        light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_from_bytes(
+            account.data.as_mut_slice(),
+        )
+        .map_err(|e| BatchProcessError::MerkleTreeParsing(e.to_string()))?;
 
     Ok(merkle_tree.queue_metadata.next_full_batch_index as usize)
 }

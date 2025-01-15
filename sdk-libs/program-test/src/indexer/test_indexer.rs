@@ -569,7 +569,7 @@ where
                         let mut queue =
                             AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey)
                                 .await;
-                        let queue_zero_copy = BatchedQueueAccount::output_queue_from_bytes_mut(
+                        let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
                             queue.account.data.as_mut_slice(),
                         )
                         .unwrap();
@@ -759,10 +759,9 @@ where
         let (merkle_tree_next_index, root) = {
             let mut merkle_tree_account =
                 rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-            let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-                merkle_tree_account.data.as_mut_slice(),
-            )
-            .unwrap();
+            let merkle_tree =
+                BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+                    .unwrap();
             (
                 merkle_tree.next_index as usize,
                 *merkle_tree.root_history.last().unwrap(),
@@ -772,10 +771,9 @@ where
         let (max_num_zkp_updates, zkp_batch_size) = {
             let mut output_queue_account =
                 rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
-            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-                output_queue_account.data.as_mut_slice(),
-            )
-            .unwrap();
+            let output_queue =
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                    .unwrap();
 
             let max_num_zkp_updates = output_queue.batch_metadata.get_num_zkp_batches();
             let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
@@ -833,10 +831,9 @@ where
             .unwrap();
 
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-        let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
-            merkle_tree_account.data.as_mut_slice(),
-        )
-        .unwrap();
+        let merkle_tree =
+            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+                .unwrap();
 
         let batch = &merkle_tree.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
@@ -867,8 +864,7 @@ where
     ) {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let onchain_account =
-            BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
-                .unwrap();
+            BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice()).unwrap();
         let address_tree = self
             .address_merkle_trees
             .iter_mut()
@@ -1254,7 +1250,7 @@ where
                 )
             } else {
                 let mut merkle_tree_account = rpc.get_account(pubkey).await.unwrap().unwrap();
-                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(
+                let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     merkle_tree_account.data.as_mut_slice(),
                 )
                 .unwrap();
@@ -1343,10 +1339,9 @@ where
                     .await
                     .unwrap();
                 if let Some(mut account) = account {
-                    let account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(
-                        account.data.as_mut_slice(),
-                    )
-                    .unwrap();
+                    let account =
+                        BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice())
+                            .unwrap();
                     address_root_indices.push(account.get_root_index() as u16);
                 } else {
                     panic!(

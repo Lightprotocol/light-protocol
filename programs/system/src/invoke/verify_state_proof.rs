@@ -158,10 +158,9 @@ pub fn verify_input_accounts_proof_by_index(
         if account.merkle_context.queue_index.is_some() {
             let output_queue_account_info =
                 &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-            let output_queue = &mut BatchedQueueAccount::output_queue_from_account_info_mut(
-                output_queue_account_info,
-            )
-            .map_err(ProgramError::from)?;
+            let output_queue =
+                &mut BatchedQueueAccount::output_from_account_info(output_queue_account_info)
+                    .map_err(ProgramError::from)?;
             output_queue
                 .leaf_index_could_exist_in_batches(account.merkle_context.leaf_index as u64)
                 .map_err(ProgramError::from)?;
@@ -197,17 +196,15 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             if IS_STATE {
-                let merkle_tree = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                    merkle_tree_account_info,
-                )
-                .map_err(ProgramError::from)?;
+                let merkle_tree =
+                    BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_account_info)
+                        .map_err(ProgramError::from)?;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
                 height = merkle_tree.height as u8;
             } else {
-                let merkle_tree = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-                    merkle_tree_account_info,
-                )
-                .map_err(ProgramError::from)?;
+                let merkle_tree =
+                    BatchedMerkleTreeAccount::address_from_account_info(merkle_tree_account_info)
+                        .map_err(ProgramError::from)?;
                 height = merkle_tree.height as u8;
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
             }
@@ -262,7 +259,7 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
             .nullifier_queue_pubkey_index
             as usize];
         let output_queue =
-            &mut BatchedQueueAccount::output_queue_from_account_info_mut(output_queue_account_info)
+            &mut BatchedQueueAccount::output_from_account_info(output_queue_account_info)
                 .map_err(ProgramError::from)?;
         let merkle_tree_account_info =
             &remaining_accounts[read_only_account.merkle_context.merkle_tree_pubkey_index as usize];
@@ -292,10 +289,9 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         // Since proving inclusion by index of non-read
         // only accounts overwrites the leaf in the output queue.
         if !proved_inclusion {
-            let merkle_tree = &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(
-                merkle_tree_account_info,
-            )
-            .map_err(ProgramError::from)?;
+            let merkle_tree =
+                &mut BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_account_info)
+                    .map_err(ProgramError::from)?;
             merkle_tree
                 .check_input_queue_non_inclusion(&read_only_account.account_hash)
                 .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
@@ -312,10 +308,9 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
     for read_only_address in read_only_addresses.iter() {
         let merkle_tree_account_info =
             &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize];
-        let merkle_tree = &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-            merkle_tree_account_info,
-        )
-        .map_err(ProgramError::from)?;
+        let merkle_tree =
+            &mut BatchedMerkleTreeAccount::address_from_account_info(merkle_tree_account_info)
+                .map_err(ProgramError::from)?;
         merkle_tree
             .check_input_queue_non_inclusion(&read_only_address.address)
             .map_err(|_| SystemProgramError::ReadOnlyAddressAlreadyExists)?;

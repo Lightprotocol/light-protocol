@@ -43,10 +43,9 @@ pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
     instruction_data: InstructionDataBatchNullifyInputs,
 ) -> Result<()> {
     // 1. Check tree account discriminator, tree type, and program ownership.
-    let merkle_tree = &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-        &ctx.accounts.merkle_tree,
-    )
-    .map_err(ProgramError::from)?;
+    let merkle_tree =
+        &mut BatchedMerkleTreeAccount::address_from_account_info(&ctx.accounts.merkle_tree)
+            .map_err(ProgramError::from)?;
     // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<BatchUpdateAddressTree, BatchedMerkleTreeAccount>(
         ctx,

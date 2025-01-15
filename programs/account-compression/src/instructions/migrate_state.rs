@@ -77,7 +77,7 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     let mut zero_copy_merkle_tree =
         state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree_data)?;
     let output_queue =
-        &mut BatchedQueueAccount::output_queue_from_account_info_mut(&ctx.accounts.output_queue)
+        &mut BatchedQueueAccount::output_from_account_info(&ctx.accounts.output_queue)
             .map_err(ProgramError::from)?;
     // 2. Migrate state
     let nullify_event = migrate_state(
@@ -178,6 +178,7 @@ mod migrate_state_test {
                 bloom_filter_capacity: 0,
                 zkp_batch_size: 10,
             },
+            tree_capacity: 2u64.pow(32),
         };
         let account_data: Vec<u8> =
             vec![

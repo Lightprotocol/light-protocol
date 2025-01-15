@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
-use bytemuck::{Pod, Zeroable};
 use light_hasher::Discriminator;
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
@@ -32,8 +31,6 @@ use crate::{
     Debug,
     PartialEq,
     Default,
-    Pod,
-    Zeroable,
     Clone,
     Copy,
     KnownLayout,
@@ -49,6 +46,8 @@ pub struct BatchedQueueMetadata {
     /// next_index in queue is ahead or equal to next index in the associated
     /// batched Merkle tree account.
     pub next_index: u64,
+    /// Height of the associated tree.
+    pub tree_capacity: u64,
 }
 
 impl Discriminator for BatchedQueueAccount<'_> {
@@ -183,16 +182,13 @@ impl<'a> BatchedQueueAccount<'a> {
         &mut self.metadata
     }
 
-    pub fn output_queue_from_account_info_mut(
+    pub fn output_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info_mut::<OUTPUT_QUEUE_TYPE>(
-            &ACCOUNT_COMPRESSION_PROGRAM_ID,
-            account_info,
-        )
+        Self::from_account_info::<OUTPUT_QUEUE_TYPE>(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)
     }
 
-    pub fn from_account_info_mut<const QUEUE_TYPE: u64>(
+    pub fn from_account_info<const QUEUE_TYPE: u64>(
         program_id: &solana_program::pubkey::Pubkey,
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
@@ -202,24 +198,24 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::internal_from_bytes_mut::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     #[cfg(not(target_os = "solana"))]
-    pub fn output_queue_from_bytes_mut(
+    pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes_mut::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     #[cfg(not(target_os = "solana"))]
-    pub fn from_bytes_mut<const QUEUE_TYPE: u64>(
+    pub fn from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes_mut::<QUEUE_TYPE>(account_data)
+        Self::internal_from_bytes::<QUEUE_TYPE>(account_data)
     }
 
-    fn internal_from_bytes_mut<const QUEUE_TYPE: u64>(
+    fn internal_from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
@@ -406,6 +402,17 @@ impl<'a> BatchedQueueAccount<'a> {
             return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
         }
         Ok(())
+    }
+
+    pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
+        if self.tree_is_full() {
+            return Err(BatchedMerkleTreeError::TreeIsFull);
+        }
+        Ok(())
+    }
+
+    pub fn tree_is_full(&self) -> bool {
+        self.tree_capacity == self.next_index
     }
 }
 
@@ -626,6 +633,7 @@ pub fn get_output_queue_account_size_default() -> usize {
             zkp_batch_size: 10,
             ..Default::default()
         },
+        ..Default::default()
     };
     queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
@@ -642,6 +650,7 @@ pub fn get_output_queue_account_size_from_params(
             zkp_batch_size: ix_data.output_queue_zkp_batch_size,
             ..Default::default()
         },
+        ..Default::default()
     };
     queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
@@ -660,6 +669,7 @@ pub fn get_output_queue_account_size(
             zkp_batch_size,
             ..Default::default()
         },
+        ..Default::default()
     };
     queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
@@ -744,7 +754,7 @@ pub fn assert_queue_zero_copy_inited(
     ref_account: BatchedQueueMetadata,
     num_iters: u64,
 ) {
-    let mut account = BatchedQueueAccount::output_queue_from_bytes_mut(account_data)
+    let mut account = BatchedQueueAccount::output_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
     let num_batches = ref_account.batch_metadata.num_batches as usize;
     let batch_metadata = account.batch_metadata;

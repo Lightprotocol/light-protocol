@@ -120,7 +120,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     fn calculate_completion_from_tree(data: &mut [u8]) -> f64 {
-        let tree = match BatchedMerkleTreeAccount::state_tree_from_bytes_mut(data) {
+        let tree = match BatchedMerkleTreeAccount::state_from_bytes(data) {
             Ok(tree) => tree,
             Err(_) => return 0.0,
         };
@@ -133,7 +133,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     fn calculate_completion_from_queue(data: &mut [u8]) -> f64 {
-        let queue = match BatchedQueueAccount::output_queue_from_bytes_mut(data) {
+        let queue = match BatchedQueueAccount::output_from_bytes(data) {
             Ok(queue) => queue,
             Err(_) => return 0.0,
         };
@@ -173,10 +173,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         let (num_inserted_zkps, zkp_batch_size) = {
             let mut output_queue_account =
                 rpc.get_account(self.context.output_queue).await?.unwrap();
-            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-                output_queue_account.data.as_mut_slice(),
-            )
-            .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
+            let output_queue =
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                    .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
 
             let batch_index = output_queue.batch_metadata.next_full_batch_index;
             let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
@@ -197,10 +196,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
 
         let merkle_tree = match self.tree_type {
             TreeType::BatchedAddress => {
-                BatchedMerkleTreeAccount::address_tree_from_bytes_mut(account.data.as_mut_slice())
+                BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice())
             }
             TreeType::BatchedState => {
-                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(account.data.as_mut_slice())
+                BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice())
             }
             _ => return false,
         };
@@ -224,7 +223,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
 
         let output_queue = match self.tree_type {
             TreeType::BatchedState => {
-                BatchedQueueAccount::output_queue_from_bytes_mut(account.data.as_mut_slice())
+                BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())
             }
             _ => return false,
         };

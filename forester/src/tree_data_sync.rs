@@ -52,9 +52,11 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
 }
 
 fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
-    let tree_account = BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut account.data)
-        .map_err(|e| AccountDeserializationError::BatchStateMerkleTree {
-            error: e.to_string(),
+    let tree_account =
+        BatchedMerkleTreeAccount::state_from_bytes(&mut account.data).map_err(|e| {
+            AccountDeserializationError::BatchStateMerkleTree {
+                error: e.to_string(),
+            }
         })?;
     Ok(create_tree_accounts(
         pubkey,
@@ -64,9 +66,11 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
 }
 
 fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
-    let tree_account = BatchedMerkleTreeAccount::address_tree_from_bytes_mut(&mut account.data)
-        .map_err(|e| AccountDeserializationError::BatchAddressMerkleTree {
-            error: e.to_string(),
+    let tree_account =
+        BatchedMerkleTreeAccount::address_from_bytes(&mut account.data).map_err(|e| {
+            AccountDeserializationError::BatchAddressMerkleTree {
+                error: e.to_string(),
+            }
         })?;
     Ok(create_tree_accounts(
         pubkey,

@@ -669,8 +669,7 @@ async fn test_custom_forester_batched() {
                 .unwrap()
                 .unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_tree_from_bytes_mut(&mut merkle_tree_account.data)
-                    .unwrap();
+                BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data).unwrap();
             // fill two output and one input batch
             for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
                 println!("\ntx {}", i);
@@ -1497,10 +1496,9 @@ async fn test_migrate_state() {
                 .await
                 .unwrap()
                 .unwrap();
-            let output_queue = BatchedQueueAccount::output_queue_from_bytes_mut(
-                output_queue_account.data_as_mut_slice(),
-            )
-            .unwrap();
+            let output_queue =
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data_as_mut_slice())
+                    .unwrap();
             assert_eq!(output_queue.value_vecs[0][0], hash);
         }
     }

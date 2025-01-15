@@ -18,7 +18,7 @@ pub struct BatchNullify<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: in state_tree_from_account_info_mut.
+    /// CHECK: in state_from_account_info.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
 }
@@ -47,7 +47,7 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let merkle_tree =
-        &mut BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&ctx.accounts.merkle_tree)
+        &mut BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.merkle_tree)
             .map_err(ProgramError::from)?;
     // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<BatchNullify, BatchedMerkleTreeAccount>(

@@ -43,6 +43,8 @@ pub enum BatchedMerkleTreeError {
     InvalidBatchIndex,
     #[error("Invalid index")]
     InvalidIndex,
+    #[error("Batched Merkle tree is full.")]
+    TreeIsFull,
 }
 
 #[cfg(feature = "solana")]
@@ -59,6 +61,7 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::ZeroCopyCastError(_) => 14308,
             BatchedMerkleTreeError::InvalidBatchIndex => 14309,
             BatchedMerkleTreeError::InvalidIndex => 14310,
+            BatchedMerkleTreeError::TreeIsFull => 14311,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),

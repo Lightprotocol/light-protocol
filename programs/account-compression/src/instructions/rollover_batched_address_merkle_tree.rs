@@ -50,11 +50,10 @@ pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     network_fee: Option<u64>,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
-    let old_merkle_tree_account =
-        &mut BatchedMerkleTreeAccount::address_tree_from_account_info_mut(
-            &ctx.accounts.old_address_merkle_tree,
-        )
-        .map_err(ProgramError::from)?;
+    let old_merkle_tree_account = &mut BatchedMerkleTreeAccount::address_from_account_info(
+        &ctx.accounts.old_address_merkle_tree,
+    )
+    .map_err(ProgramError::from)?;
     // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<
         RolloverBatchedAddressMerkleTree,

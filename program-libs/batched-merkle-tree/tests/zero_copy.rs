@@ -49,7 +49,7 @@ impl TestAccount {
 /// Test:
 /// 1. functional init_batched_address_merkle_tree_from_account_info
 /// 2. failing already initialized
-/// 3. functional address_tree_from_account_info_mut
+/// 3. functional address_from_account_info
 /// 4. failing invalid owner
 /// 5. failing invalid discriminator
 #[test]
@@ -81,9 +81,9 @@ fn address_from_account_info() {
         assert!(matches!(result,
             Err(error)  if   error.to_string().contains("Account is already initialized.")));
     }
-    // Test 3 functional address_tree_from_account_info_mut
+    // Test 3 functional address_from_account_info
     let account_info = account.get_account_info();
-    let result = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&account_info);
+    let result = BatchedMerkleTreeAccount::address_from_account_info(&account_info);
     assert!(result.is_ok());
 
     // Test 4 failing invalid owner
@@ -91,7 +91,7 @@ fn address_from_account_info() {
         let mut account = account.clone();
         account.owner = Pubkey::new_unique();
         let account_info = account.get_account_info();
-        let result = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&account_info);
+        let result = BatchedMerkleTreeAccount::address_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Account owned by wrong program.")));
     }
@@ -100,7 +100,7 @@ fn address_from_account_info() {
         let mut account = account.clone();
         account.data[0] = 1;
         let account_info = account.get_account_info();
-        let result = BatchedMerkleTreeAccount::address_tree_from_account_info_mut(&account_info);
+        let result = BatchedMerkleTreeAccount::address_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Invalid Discriminator.")));
     }
@@ -109,10 +109,10 @@ fn address_from_account_info() {
 /// Tests:
 /// 1. functional init_batched_state_merkle_tree_from_account_info
 /// 2. failing already initialized
-/// 3. functional state_tree_from_account_info_mut
+/// 3. functional state_from_account_info
 /// 4. failing invalid owner (state tree)
 /// 5. failing invalid discriminator (state tree)
-/// 6. functional output_queue_from_account_info_mut
+/// 6. functional output_from_account_info
 /// 7. failing invalid owner (output queue)
 /// 8. failing invalid discriminator (output queue)
 #[test]
@@ -160,10 +160,10 @@ fn state_from_account_info() {
         assert!(matches!(result,
         Err(error)  if   error.to_string().contains("Account is already initialized.")));
     }
-    // Test 3 functional state_tree_from_account_info_mut
+    // Test 3 functional state_from_account_info
     {
         let account_info = merkle_tree_account.get_account_info();
-        let result = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&account_info);
+        let result = BatchedMerkleTreeAccount::state_from_account_info(&account_info);
         assert!(result.is_ok());
     }
     // Test 4 failing invalid owner
@@ -172,7 +172,7 @@ fn state_from_account_info() {
         account.owner = Pubkey::new_unique();
         let account_info = account.get_account_info();
 
-        let result = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&account_info);
+        let result = BatchedMerkleTreeAccount::state_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Account owned by wrong program.")));
     }
@@ -181,15 +181,14 @@ fn state_from_account_info() {
         let mut account = merkle_tree_account.clone();
         account.data[0] = 1;
         let account_info = account.get_account_info();
-        let result = BatchedMerkleTreeAccount::state_tree_from_account_info_mut(&account_info);
+        let result = BatchedMerkleTreeAccount::state_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Invalid Discriminator.")));
     }
-    // Test 6 functional output_queue_from_account_info_mut
+    // Test 6 functional output_from_account_info
     {
-        let result = BatchedQueueAccount::output_queue_from_account_info_mut(
-            &output_queue_account.get_account_info(),
-        );
+        let result =
+            BatchedQueueAccount::output_from_account_info(&output_queue_account.get_account_info());
         assert!(result.is_ok());
     }
     // Test 7 failing invalid owner
@@ -197,7 +196,7 @@ fn state_from_account_info() {
         let mut output_queue_account = output_queue_account.clone();
         output_queue_account.owner = Pubkey::new_unique();
         let account_info = output_queue_account.get_account_info();
-        let result = BatchedQueueAccount::output_queue_from_account_info_mut(&account_info);
+        let result = BatchedQueueAccount::output_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Account owned by wrong program.")));
     }
@@ -207,7 +206,7 @@ fn state_from_account_info() {
         output_queue_account.data[0] = 1;
         let account_info = output_queue_account.get_account_info();
 
-        let result = BatchedQueueAccount::output_queue_from_account_info_mut(&account_info);
+        let result = BatchedQueueAccount::output_from_account_info(&account_info);
         assert!(matches!(result,
            Err(error)  if   error.to_string().contains("Invalid Discriminator.")));
     }
