@@ -261,14 +261,14 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2
       mocha:
-        specifier: ^10.7.3
-        version: 10.7.3
+        specifier: ^11.0.1
+        version: 11.0.1
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
       ts-mocha:
         specifier: ^10.0.0
-        version: 10.0.0(mocha@10.7.3)
+        version: 10.0.0(mocha@11.0.1)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -311,14 +311,14 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2
       mocha:
-        specifier: ^10.7.3
-        version: 10.7.3
+        specifier: ^11.0.1
+        version: 11.0.1
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
       ts-mocha:
         specifier: ^10.0.0
-        version: 10.0.0(mocha@10.7.3)
+        version: 10.0.0(mocha@11.0.1)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -604,14 +604,14 @@ importers:
         specifier: ^5.1.2
         version: 5.1.2
       mocha:
-        specifier: ^10.7.3
-        version: 10.7.3
+        specifier: ^11.0.1
+        version: 11.0.1
       prettier:
         specifier: ^2.6.2
         version: 2.8.8
       ts-mocha:
         specifier: ^10.0.0
-        version: 10.0.0(mocha@10.7.3)
+        version: 10.0.0(mocha@11.0.1)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
@@ -6129,6 +6129,11 @@ packages:
   mocha@10.7.3:
     resolution: {integrity: sha512-uQWxAu44wwiACGqjbPYmjo7Lg8sFrS3dQe7PP2FQI+woptP4vZXSMcfMyFL/e1yFEeEpV4RtyTpZROOKmxis+A==}
     engines: {node: '>= 14.0.0'}
+    hasBin: true
+
+  mocha@11.0.1:
+    resolution: {integrity: sha512-+3GkODfsDG71KSCQhc4IekSW+ItCK/kiez1Z28ksWvYhKXV/syxMlerR/sC7whDp7IyreZ4YxceMLdTs5hQE8A==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     hasBin: true
 
   mock-stdin@1.0.0:
@@ -15366,6 +15371,29 @@ snapshots:
       yargs-parser: 20.2.9
       yargs-unparser: 2.0.0
 
+  mocha@11.0.1:
+    dependencies:
+      ansi-colors: 4.1.3
+      browser-stdout: 1.3.1
+      chokidar: 3.5.3
+      debug: 4.3.7(supports-color@8.1.1)
+      diff: 5.2.0
+      escape-string-regexp: 4.0.0
+      find-up: 5.0.0
+      glob: 10.4.5
+      he: 1.2.0
+      js-yaml: 4.1.0
+      log-symbols: 4.1.0
+      minimatch: 5.1.6
+      ms: 2.1.3
+      serialize-javascript: 6.0.2
+      strip-json-comments: 3.1.1
+      supports-color: 8.1.1
+      workerpool: 6.5.1
+      yargs: 16.2.0
+      yargs-parser: 20.2.9
+      yargs-unparser: 2.0.0
+
   mock-stdin@1.0.0: {}
 
   ms@2.0.0: {}
@@ -16935,6 +16963,13 @@ snapshots:
   ts-mocha@10.0.0(mocha@10.7.3):
     dependencies:
       mocha: 10.7.3
+      ts-node: 7.0.1
+    optionalDependencies:
+      tsconfig-paths: 3.15.0
+
+  ts-mocha@10.0.0(mocha@11.0.1):
+    dependencies:
+      mocha: 11.0.1
       ts-node: 7.0.1
     optionalDependencies:
       tsconfig-paths: 3.15.0
