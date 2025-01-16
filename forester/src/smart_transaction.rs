@@ -82,7 +82,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
 /// * `transaction` - The transaction to be sent, which implements `SerializableTransaction`
 /// * `send_transaction_config` - Configuration options for sending the transaction
 /// * `last_valid_block_height` - The last block height at which the transaction is valid
-/// * `timeout` - Optional duration for polling transaction confirmation, defaults to 60 seconds
+/// * `timeout` - Duration for polling transaction confirmation
 ///
 /// # Returns
 /// The transaction signature, if successful
@@ -91,10 +91,8 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     transaction: &Transaction,
     send_transaction_config: RpcSendTransactionConfig,
     last_valid_block_height: u64,
-    timeout: Option<Duration>,
+    timeout: Duration,
 ) -> Result<Signature, light_client::rpc::RpcError> {
-    // Retry logic with a timeout
-    let timeout: Duration = timeout.unwrap_or(Duration::from_secs(60));
     let start_time: Instant = Instant::now();
 
     while Instant::now().duration_since(start_time) < timeout

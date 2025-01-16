@@ -851,6 +851,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 )
                 .await?;
 
+                // light slot length in s
                 let light_slot_timeout = {
                     let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
                         .map_err(|_| ConfigurationError::SlotLengthOverflow {

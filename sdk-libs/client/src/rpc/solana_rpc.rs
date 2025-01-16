@@ -56,6 +56,8 @@ impl Display for SolanaRpcUrl {
 pub struct RetryConfig {
     pub max_retries: u32,
     pub retry_delay: Duration,
+    /// Max Light slot timeout in time based on solana slot length and light
+    /// slot length.
     pub timeout: Duration,
 }
 
@@ -422,8 +424,15 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.retry(|| async { self.client.get_latest_blockhash().map_err(RpcError::from) })
-            .await
+        self.retry(|| async {
+            self.client
+                // Confirmed commitments land more reliably than finalized
+                // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
+                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+                .map(|response| response.0)
+                .map_err(RpcError::from)
+        })
+        .await
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {

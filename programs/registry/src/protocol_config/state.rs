@@ -25,7 +25,7 @@ pub struct ProtocolConfig {
     pub genesis_slot: u64,
     /// Minimum weight required for a forester to register to an epoch.
     pub min_weight: u64,
-    /// Light protocol slot length.
+    /// Light protocol slot length
     pub slot_length: u64,
     /// Foresters can register for this phase.
     pub registration_phase_length: u64,

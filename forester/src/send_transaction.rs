@@ -22,6 +22,7 @@ use light_registry::{
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     bs58,
+    commitment_config::CommitmentLevel,
     hash::Hash,
     instruction::Instruction,
     pubkey::Pubkey,
@@ -184,12 +185,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         ];
 
         let url = Url::parse(&rpc.get_url()).expect("Failed to parse URL");
-        println!("URL HOST_STR: {:?}", url.host_str());
         let priority_fee_recommendation = request_priority_fee_estimate(&url, account_keys).await?;
-        println!(
-            "Priority fee recommendation: {:?}",
-            priority_fee_recommendation
-        );
+
         let priority_fee = get_capped_priority_fee(priority_fee_recommendation);
 
         // 5. Iterate over work items in chunks of batch size.
@@ -198,18 +195,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         {
             // 6. Check if we reached the end of the light slot.
             if TIMEOUT_CHECK_ENABLED {
-                let remaining_time = match config
-                    .retry_config
-                    .timeout
-                    .checked_sub(start_time.elapsed())
-                {
-                    Some(time) => time,
-                    None => {
-                        debug!("Reached end of light slot");
-                        break;
-                    }
-                };
-
+                let remaining_time =
+                    get_remaining_time_in_light_slot(start_time, config.retry_config.timeout);
                 if remaining_time < LATENCY {
                     debug!("Reached end of light slot");
                     break;
@@ -237,16 +224,22 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
             let batch_start = Instant::now();
             if TIMEOUT_CHECK_ENABLED {
-                let remaining_time = config
-                    .retry_config
-                    .timeout
-                    .saturating_sub(start_time.elapsed());
-
+                let remaining_time =
+                    get_remaining_time_in_light_slot(start_time, config.retry_config.timeout);
                 if remaining_time < LATENCY {
                     debug!("Reached end of light slot");
                     break;
                 }
             }
+
+            let send_transaction_config = RpcSendTransactionConfig {
+                // Required for routing through staked connection, see
+                // https://docs.helius.dev/guides/sending-transactions-on-solana
+                skip_preflight: true,
+                max_retries: Some(0),
+                preflight_commitment: Some(CommitmentLevel::Confirmed),
+                ..Default::default()
+            };
             // Asynchronously send all transactions in the batch
             let send_futures: Vec<_> = transactions
                 .into_iter()
@@ -258,9 +251,9 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                                 send_and_confirm_transaction(
                                     &mut rpc,
                                     &tx,
-                                    RpcSendTransactionConfig::default(),
+                                    send_transaction_config,
                                     last_valid_block_height,
-                                    Some(Duration::from_secs(60)),
+                                    config.retry_config.timeout,
                                 )
                                 .await
                             }
@@ -308,6 +301,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
     debug!("Sent {} transactions", num_sent_transactions);
     Ok(num_sent_transactions)
+}
+
+fn get_remaining_time_in_light_slot(start_time: Instant, timeout: Duration) -> Duration {
+    timeout.saturating_sub(start_time.elapsed())
 }
 
 #[derive(Debug, Clone, Copy)]
