@@ -1,6 +1,6 @@
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
-use light_zero_copy::vec::ZeroCopyVecU64;
+use light_zero_copy::{slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
 use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -47,16 +47,18 @@ pub struct Batch {
     /// Theoretical capacity of the bloom_filter. We want to make it much larger
     /// than batch_size to avoid false positives.
     pub bloom_filter_capacity: u64,
+    /// Number of elements in a batch.
     pub batch_size: u64,
+    /// Number of elements in a zkp batch.
+    /// A batch consists out of one or more zkp batches.
     pub zkp_batch_size: u64,
     /// Sequence number when it is save to clear the batch without advancing to
     /// the saved root index.
     pub sequence_number: u64,
+    /// Start leaf index of the first
     pub start_index: u64,
     pub root_index: u32,
-    /// Placeholder for forester to signal that the bloom filter is wiped
-    /// already.
-    bloom_filter_is_wiped: u8,
+    bloom_filter_is_zeroed: u8,
     _padding: [u8; 3],
 }
 
@@ -80,7 +82,7 @@ impl Batch {
             sequence_number: 0,
             root_index: 0,
             start_index,
-            bloom_filter_is_wiped: 0,
+            bloom_filter_is_zeroed: 0,
             _padding: [0u8; 3],
         }
     }
@@ -89,16 +91,16 @@ impl Batch {
         self.state.into()
     }
 
-    pub fn bloom_filter_is_wiped(&self) -> bool {
-        self.bloom_filter_is_wiped == 1
+    pub fn bloom_filter_is_zeroed(&self) -> bool {
+        self.bloom_filter_is_zeroed == 1
     }
 
-    pub fn set_bloom_filter_is_wiped(&mut self) {
-        self.bloom_filter_is_wiped = 1;
+    pub fn set_bloom_filter_to_zeroed(&mut self) {
+        self.bloom_filter_is_zeroed = 1;
     }
 
-    pub fn set_bloom_filter_is_not_wiped(&mut self) {
-        self.bloom_filter_is_wiped = 0;
+    pub fn set_bloom_filter_to_not_zeroed(&mut self) {
+        self.bloom_filter_is_zeroed = 0;
     }
 
     /// fill -> full -> inserted -> fill
@@ -146,13 +148,26 @@ impl Batch {
     pub fn get_first_ready_zkp_batch(&self) -> Result<u64, BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Inserted {
             Err(BatchedMerkleTreeError::BatchAlreadyInserted)
-        } else if self.current_zkp_batch_index > self.num_inserted_zkps {
+        } else if self.batch_is_ready_to_insert() {
             Ok(self.num_inserted_zkps)
         } else {
             Err(BatchedMerkleTreeError::BatchNotReady)
         }
     }
 
+    pub fn batch_is_ready_to_insert(&self) -> bool {
+        self.current_zkp_batch_index > self.num_inserted_zkps
+    }
+
+    /// Returns the number of zkp batch updates
+    /// that are ready to be inserted into the tree.
+    pub fn num_ready_zkp_updates(&self) -> u64 {
+        self.current_zkp_batch_index
+            .saturating_sub(self.num_inserted_zkps)
+    }
+
+    /// Returns the number of inserted elements
+    /// in the current zkp batch.
     pub fn get_num_inserted(&self) -> u64 {
         self.num_inserted
     }
@@ -165,8 +180,27 @@ impl Batch {
         self.num_inserted_zkps
     }
 
+    /// Returns the number of inserted elements in the batch.
     pub fn get_num_inserted_elements(&self) -> u64 {
         self.num_inserted_zkps * self.zkp_batch_size + self.num_inserted
+    }
+
+    /// Returns the number of zkp batches in the batch.
+    pub fn get_num_zkp_batches(&self) -> u64 {
+        self.batch_size / self.zkp_batch_size
+    }
+
+    pub fn get_hashchain_store_len(&self) -> usize {
+        self.batch_size as usize / self.zkp_batch_size as usize
+    }
+
+    /// Returns the index of a value by leaf index in the value store,
+    /// provided it could exist in the batch.
+    pub fn get_value_index_in_batch(&self, leaf_index: u64) -> Result<u64, BatchedMerkleTreeError> {
+        self.leaf_index_could_exist_in_batch(leaf_index)?;
+        leaf_index
+            .checked_sub(self.start_index)
+            .ok_or(BatchedMerkleTreeError::LeafIndexNotInBatch)
     }
 
     pub fn store_value(
@@ -174,36 +208,48 @@ impl Batch {
         value: &[u8; 32],
         value_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.get_state() != BatchState::Fill {
-            return Err(BatchedMerkleTreeError::BatchNotReady);
-        }
         value_store.push(*value)?;
         Ok(())
     }
 
+    /// Stores the value in a value store,
+    /// and adds the value to the current hash chain.
     pub fn store_and_hash_value(
         &mut self,
         value: &[u8; 32],
         value_store: &mut ZeroCopyVecU64<[u8; 32]>,
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
-        self.store_value(value, value_store)?;
-        self.add_to_hash_chain(value, hashchain_store)
+        self.add_to_hash_chain(value, hashchain_store)?;
+        self.store_value(value, value_store)
     }
 
-    /// Inserts into the bloom filter and hashes the value.
-    /// (used by input/nullifier queue)
+    /// Inserts into the bloom filter and
+    /// add value a the current hash chain.
+    /// (used by nullifier & address queues)
     pub fn insert(
         &mut self,
         bloom_filter_value: &[u8; 32],
         hashchain_value: &[u8; 32],
-        store: &mut [u8],
+        bloom_filter_stores: &mut [ZeroCopySliceMutU64<u8>],
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
+        bloom_filter_index: usize,
     ) -> Result<(), BatchedMerkleTreeError> {
-        let mut bloom_filter =
-            BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)?;
-        bloom_filter.insert(bloom_filter_value)?;
-        self.add_to_hash_chain(hashchain_value, hashchain_store)
+        self.add_to_hash_chain(hashchain_value, hashchain_store)?;
+
+        for (i, bloom_filter) in bloom_filter_stores.iter_mut().enumerate() {
+            if i == bloom_filter_index {
+                let mut bloom_filter = BloomFilter::new(
+                    self.num_iters as usize,
+                    self.bloom_filter_capacity,
+                    bloom_filter.as_mut_slice(),
+                )?;
+                bloom_filter.insert(bloom_filter_value)?;
+            } else {
+                self.check_non_inclusion(bloom_filter_value, bloom_filter.as_mut_slice())?;
+            }
+        }
+        Ok(())
     }
 
     pub fn add_to_hash_chain(
@@ -211,29 +257,36 @@ impl Batch {
         value: &[u8; 32],
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.num_inserted == self.zkp_batch_size || self.num_inserted == 0 {
+        if self.get_state() != BatchState::Fill {
+            return Err(BatchedMerkleTreeError::BatchNotReady);
+        }
+        let start_new_hash_chain = self.num_inserted == 0;
+        if start_new_hash_chain {
             hashchain_store.push(*value)?;
-            self.num_inserted = 0;
         } else if let Some(last_hashchain) = hashchain_store.last() {
             let hashchain = Poseidon::hashv(&[last_hashchain, value.as_slice()])?;
             *hashchain_store.last_mut().unwrap() = hashchain;
+        } else {
+            // This state should never be reached.
+            return Err(BatchedMerkleTreeError::BatchNotReady);
         }
-
         self.num_inserted += 1;
-        if self.num_inserted == self.zkp_batch_size {
-            self.current_zkp_batch_index += 1;
-        }
 
-        if self.get_num_zkp_batches() == self.current_zkp_batch_index {
-            self.advance_state_to_full()?;
+        let zkp_batch_is_full = self.num_inserted == self.zkp_batch_size;
+        if zkp_batch_is_full {
+            self.current_zkp_batch_index += 1;
             self.num_inserted = 0;
+
+            let batch_is_full = self.current_zkp_batch_index == self.get_num_zkp_batches();
+            if batch_is_full {
+                self.advance_state_to_full()?;
+            }
         }
 
         Ok(())
     }
 
-    /// Inserts into the bloom filter and hashes the value.
-    /// (used by nullifier queue)
+    /// Checks that value is not in the bloom filter.
     pub fn check_non_inclusion(
         &self,
         value: &[u8; 32],
@@ -247,10 +300,6 @@ impl Batch {
             return Err(BatchedMerkleTreeError::BatchInsertFailed);
         }
         Ok(())
-    }
-
-    pub fn get_num_zkp_batches(&self) -> u64 {
-        self.batch_size / self.zkp_batch_size
     }
 
     /// Marks the batch as inserted in the merkle tree.
@@ -273,7 +322,8 @@ impl Batch {
         self.num_inserted_zkps += 1;
         println!("num_inserted_zkps: {}", self.num_inserted_zkps);
         // 3. If all zkps are inserted, sets the state to inserted.
-        if self.num_inserted_zkps == num_zkp_batches {
+        let batch_is_completly_inserted = self.num_inserted_zkps == num_zkp_batches;
+        if batch_is_completly_inserted {
             println!("Setting state to inserted");
             self.num_inserted_zkps = 0;
             self.current_zkp_batch_index = 0;
@@ -288,11 +338,11 @@ impl Batch {
         Ok(self.get_state())
     }
 
-    pub fn get_hashchain_store_len(&self) -> usize {
-        self.batch_size as usize / self.zkp_batch_size as usize
-    }
-
-    pub fn value_is_inserted_in_batch(
+    /// Returns true if value of leaf index could exist in batch.
+    /// `True` doesn't mean that the value exists in the batch,
+    /// just that it is plausible. The value might already be spent
+    /// or never inserted in case an invalid index was provided.
+    pub fn leaf_index_could_exist_in_batch(
         &self,
         leaf_index: u64,
     ) -> Result<bool, BatchedMerkleTreeError> {
@@ -300,12 +350,6 @@ impl Batch {
             self.get_num_zkp_batches() * self.zkp_batch_size + self.start_index;
         let min_batch_leaf_index = self.start_index;
         Ok(leaf_index < max_batch_leaf_index && leaf_index >= min_batch_leaf_index)
-    }
-
-    pub fn get_value_index_in_batch(&self, leaf_index: u64) -> Result<u64, BatchedMerkleTreeError> {
-        leaf_index
-            .checked_sub(self.start_index)
-            .ok_or(BatchedMerkleTreeError::LeafIndexNotInBatch)
     }
 }
 
@@ -382,6 +426,7 @@ mod tests {
             ref_batch.num_inserted += 1;
             if ref_batch.num_inserted == ref_batch.zkp_batch_size {
                 ref_batch.current_zkp_batch_index += 1;
+                ref_batch.num_inserted = 0;
             }
             if ref_batch.current_zkp_batch_index == ref_batch.get_num_zkp_batches() {
                 ref_batch.state = BatchState::Full.into();
@@ -405,51 +450,97 @@ mod tests {
     fn test_insert() {
         // Behavior Input queue
         let mut batch = get_test_batch();
-        let mut store = vec![0u8; 20_000];
-
+        let mut stores = vec![vec![0u8; 20_008]; 2];
+        let mut bloom_filter_stores = stores
+            .iter_mut()
+            .map(|store| ZeroCopySliceMutU64::new(20_000, store).unwrap())
+            .collect::<Vec<_>>();
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
                 batch.get_hashchain_store_len() as u64
             )
         ];
-        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+        ZeroCopyVecU64::<[u8; 32]>::new(
             batch.get_hashchain_store_len() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
 
         let mut ref_batch = get_test_batch();
-        for i in 0..batch.batch_size {
-            ref_batch.num_inserted %= ref_batch.zkp_batch_size;
-            let mut value = [0u8; 32];
-            value[24..].copy_from_slice(&i.to_be_bytes());
-            let ref_hash_chain = if i % batch.zkp_batch_size == 0 {
-                value
-            } else {
-                Poseidon::hashv(&[hashchain_store.last().unwrap(), &value]).unwrap()
-            };
-            assert!(batch
-                .insert(&value, &value, &mut store, &mut hashchain_store)
-                .is_ok());
-            let mut bloom_filter = BloomFilter {
-                num_iters: batch.num_iters as usize,
-                capacity: batch.bloom_filter_capacity,
-                store: &mut store,
-            };
-            assert!(bloom_filter.contains(&value));
-            batch.check_non_inclusion(&value, &mut store).unwrap_err();
+        for processing_index in 0..=1 {
+            for i in 0..(batch.batch_size / 2) {
+                let i = i + (batch.batch_size / 2) * (processing_index as u64);
 
-            ref_batch.num_inserted += 1;
-            assert_eq!(*hashchain_store.last().unwrap(), ref_hash_chain);
-            if ref_batch.num_inserted == ref_batch.zkp_batch_size {
-                ref_batch.current_zkp_batch_index += 1;
+                ref_batch.num_inserted %= ref_batch.zkp_batch_size;
+                let mut hashchain_store =
+                    ZeroCopyVecU64::<[u8; 32]>::from_bytes(hashchain_store_bytes.as_mut_slice())
+                        .unwrap();
+
+                let mut value = [0u8; 32];
+                value[24..].copy_from_slice(&i.to_be_bytes());
+                let ref_hash_chain = if i % batch.zkp_batch_size == 0 {
+                    value
+                } else {
+                    Poseidon::hashv(&[hashchain_store.last().unwrap(), &value]).unwrap()
+                };
+                let result = batch.insert(
+                    &value,
+                    &value,
+                    bloom_filter_stores.as_mut_slice(),
+                    &mut hashchain_store,
+                    processing_index,
+                );
+                // First insert should succeed
+                assert!(result.is_ok(), "Failed result: {:?}", result);
+                assert_eq!(*hashchain_store.last().unwrap(), ref_hash_chain);
+
+                {
+                    let mut cloned_hashchain_store = hashchain_store_bytes.clone();
+                    let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::from_bytes(
+                        cloned_hashchain_store.as_mut_slice(),
+                    )
+                    .unwrap();
+                    let mut batch = batch;
+                    // Reinsert should fail
+                    assert!(batch
+                        .insert(
+                            &value,
+                            &value,
+                            bloom_filter_stores.as_mut_slice(),
+                            &mut hashchain_store,
+                            processing_index
+                        )
+                        .is_err());
+                }
+                let mut bloom_filter = BloomFilter {
+                    num_iters: batch.num_iters as usize,
+                    capacity: batch.bloom_filter_capacity,
+                    store: bloom_filter_stores[processing_index].as_mut_slice(),
+                };
+                assert!(bloom_filter.contains(&value));
+                let other_index = if processing_index == 0 { 1 } else { 0 };
+                batch
+                    .check_non_inclusion(&value, bloom_filter_stores[other_index].as_mut_slice())
+                    .unwrap();
+                batch
+                    .check_non_inclusion(
+                        &value,
+                        bloom_filter_stores[processing_index].as_mut_slice(),
+                    )
+                    .unwrap_err();
+
+                ref_batch.num_inserted += 1;
+                if ref_batch.num_inserted == ref_batch.zkp_batch_size {
+                    ref_batch.current_zkp_batch_index += 1;
+                    ref_batch.num_inserted = 0;
+                }
+                if i == batch.batch_size - 1 {
+                    ref_batch.state = BatchState::Full.into();
+                    ref_batch.num_inserted = 0;
+                }
+                assert_eq!(batch, ref_batch);
             }
-            if i == batch.batch_size - 1 {
-                ref_batch.state = BatchState::Full.into();
-                ref_batch.num_inserted = 0;
-            }
-            assert_eq!(batch, ref_batch);
         }
         test_mark_as_inserted(batch);
     }
@@ -491,29 +582,50 @@ mod tests {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut batch = get_test_batch();
+        for processing_index in 0..=1 {
+            let mut batch = get_test_batch();
 
-        let value = [1u8; 32];
-        let mut store = vec![0u8; 20_000];
-        let mut hashchain_store_bytes = vec![
+            let value = [1u8; 32];
+            let mut stores = vec![vec![0u8; 20_008]; 2];
+            let mut bloom_filter_stores = stores
+                .iter_mut()
+                .map(|store| ZeroCopySliceMutU64::new(20_000, store).unwrap())
+                .collect::<Vec<_>>();
+            let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
                 batch.get_hashchain_store_len() as u64
             )
         ];
-        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_hashchain_store_len() as u64,
-            hashchain_store_bytes.as_mut_slice(),
-        )
-        .unwrap();
-
-        assert!(batch.check_non_inclusion(&value, &mut store).is_ok());
-        let ref_batch = get_test_batch();
-        assert_eq!(batch, ref_batch);
-        batch
-            .insert(&value, &value, &mut store, &mut hashchain_store)
+            let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+                batch.get_hashchain_store_len() as u64,
+                hashchain_store_bytes.as_mut_slice(),
+            )
             .unwrap();
-        assert!(batch.check_non_inclusion(&value, &mut store).is_err());
+
+            assert!(batch
+                .check_non_inclusion(&value, bloom_filter_stores[processing_index].as_mut_slice())
+                .is_ok());
+            let ref_batch = get_test_batch();
+            assert_eq!(batch, ref_batch);
+            batch
+                .insert(
+                    &value,
+                    &value,
+                    bloom_filter_stores.as_mut_slice(),
+                    &mut hashchain_store,
+                    processing_index,
+                )
+                .unwrap();
+            assert!(batch
+                .check_non_inclusion(&value, bloom_filter_stores[processing_index].as_mut_slice())
+                .is_err());
+
+            let other_index = if processing_index == 0 { 1 } else { 0 };
+            assert!(batch
+                .check_non_inclusion(&value, bloom_filter_stores[other_index].as_mut_slice())
+                .is_ok());
+        }
     }
 
     #[test]
@@ -547,19 +659,19 @@ mod tests {
             batch.start_index + batch.get_num_zkp_batches() * batch.zkp_batch_size - 1;
         // 1. Failing test lowest value in eligble range - 1
         assert!(!batch
-            .value_is_inserted_in_batch(lowest_eligible_value - 1)
+            .leaf_index_could_exist_in_batch(lowest_eligible_value - 1)
             .unwrap());
         // 2. Functional test lowest value in eligble range
         assert!(batch
-            .value_is_inserted_in_batch(lowest_eligible_value)
+            .leaf_index_could_exist_in_batch(lowest_eligible_value)
             .unwrap());
         // 3. Functional test highest value in eligble range
         assert!(batch
-            .value_is_inserted_in_batch(highest_eligible_value)
+            .leaf_index_could_exist_in_batch(highest_eligible_value)
             .unwrap());
         // 4. Failing test eligble range + 1
         assert!(!batch
-            .value_is_inserted_in_batch(highest_eligible_value + 1)
+            .leaf_index_could_exist_in_batch(highest_eligible_value + 1)
             .unwrap());
     }
 

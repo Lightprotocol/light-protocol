@@ -83,6 +83,14 @@ impl BatchMetadata {
         }
     }
 
+    /// Increment the currently_processing_batch_index if current state is full.
+    pub fn increment_currently_processing_batch_index_if_full(&mut self, state: BatchState) {
+        if state == BatchState::Full {
+            self.currently_processing_batch_index += 1;
+            self.currently_processing_batch_index %= self.num_batches;
+        }
+    }
+
     pub fn init(
         &mut self,
         num_batches: u64,

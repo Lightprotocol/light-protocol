@@ -1611,7 +1611,7 @@ async fn test_batch_address_merkle_trees() {
         UpdateBatchAddressTreeTestMode::UpdateTwice,
     ]
     .iter()
-    .zip(vec![0, 0, 0, 1])
+    .zip(vec![0, 0, 1])
     {
         let mut mock_indexer = mock_indexer.clone();
         let result = update_batch_address_tree(

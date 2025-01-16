@@ -89,7 +89,7 @@ pub fn assert_input_queue_insert(
     input_is_in_tree: Vec<bool>,
     array_indices: Vec<usize>,
 ) -> Result<(), BatchedMerkleTreeError> {
-    let mut should_be_wiped = false;
+    let mut should_be_zeroed = false;
     for (i, insert_value) in bloom_filter_insert_values.iter().enumerate() {
         if !input_is_in_tree[i] {
             let value_vec_index = array_indices[i];
@@ -142,20 +142,20 @@ pub fn assert_input_queue_insert(
             expected_batch.batch_size / 2
         );
 
-        if !should_be_wiped && expected_batch.get_state() == BatchState::Inserted {
-            should_be_wiped =
+        if !should_be_zeroed && expected_batch.get_state() == BatchState::Inserted {
+            should_be_zeroed =
                 expected_batch.get_num_inserted_elements() == expected_batch.batch_size / 2;
         }
         println!(
-            "assert input queue batch update: should_be_wiped: {}",
-            should_be_wiped
+            "assert input queue batch update: should_be_zeroed: {}",
+            should_be_zeroed
         );
         if expected_batch.get_state() == BatchState::Inserted {
             println!("assert input queue batch update: clearing batch");
             pre_hashchains[inserted_batch_index].clear();
             expected_batch.sequence_number = 0;
             expected_batch.advance_state_to_fill().unwrap();
-            expected_batch.set_bloom_filter_is_not_wiped();
+            expected_batch.set_bloom_filter_to_not_zeroed();
         }
         println!(
             "assert input queue batch update: inserted_batch_index: {}",
@@ -223,8 +223,8 @@ pub fn assert_input_queue_insert(
     );
     let inserted_batch_index = pre_account.queue_metadata.currently_processing_batch_index as usize;
     let mut expected_batch = pre_batches[inserted_batch_index];
-    if should_be_wiped {
-        expected_batch.set_bloom_filter_is_wiped();
+    if should_be_zeroed {
+        expected_batch.set_bloom_filter_to_zeroed();
     }
     assert_eq!(
         merkle_tree_account.batches[inserted_batch_index],
@@ -1307,19 +1307,19 @@ fn assert_merkle_tree_update(
             let previous_batch = batches.get_mut(previous_full_batch_index as usize).unwrap();
             println!("previous_batch state: {:?}", previous_batch.get_state());
             println!(
-                "previous_batch wiped?: {:?}",
-                previous_batch.bloom_filter_is_wiped()
+                "previous_batch zeroed?: {:?}",
+                previous_batch.bloom_filter_is_zeroed()
             );
             let previous_batch_is_ready = previous_batch.get_state() == BatchState::Inserted
-                && !previous_batch.bloom_filter_is_wiped();
+                && !previous_batch.bloom_filter_is_zeroed();
             let batch = batches
                 .get_mut(old_account.queue_metadata.next_full_batch_index as usize)
                 .unwrap();
 
             println!("previous_batch_is_ready: {:?}", previous_batch_is_ready);
             println!(
-                "batch.bloom_filter_is_wiped(): {:?}",
-                batch.bloom_filter_is_wiped()
+                "batch.bloom_filter_is_zeroed(): {:?}",
+                batch.bloom_filter_is_zeroed()
             );
             println!(
                 "batch.get_num_inserted_elements(): {:?}",
@@ -1327,14 +1327,14 @@ fn assert_merkle_tree_update(
             );
             println!("batch.batch_size: {:?}", batch.batch_size);
             println!(" batch.get_num_inserted_elements() >= batch.batch_size / 2 && previous_batch_is_ready: {:?}", batch.get_num_inserted_elements()+ batch.zkp_batch_size >= batch.batch_size / 2);
-            let wiped_batch = batch.get_num_inserted_elements() + batch.zkp_batch_size
+            let zeroed_batch = batch.get_num_inserted_elements() + batch.zkp_batch_size
                 >= batch.batch_size / 2
                 && previous_batch_is_ready;
             let previous_batch = batches.get_mut(previous_full_batch_index as usize).unwrap();
 
-            if wiped_batch {
-                previous_batch.set_bloom_filter_is_wiped();
-                println!("set bloom filter is wiped");
+            if zeroed_batch {
+                previous_batch.set_bloom_filter_to_zeroed();
+                println!("set bloom filter is zeroed");
             }
             (account.batches.to_vec(), batches, None, 0)
         };
@@ -1641,7 +1641,7 @@ async fn test_fill_queues_completely() {
                 vec![],
             )
             .unwrap();
-
+            println!("leaf {:?}", leaf);
             // Insert the same value twice
             {
                 // copy data so that failing test doesn't affect the state of
@@ -1701,12 +1701,12 @@ async fn test_fill_queues_completely() {
                 let merkle_tree_account =
                     &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
                 let batch = merkle_tree_account.batches.get(0).unwrap();
-                assert!(batch.bloom_filter_is_wiped());
+                assert!(batch.bloom_filter_is_zeroed());
             } else {
                 let merkle_tree_account =
                     &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
                 let batch = merkle_tree_account.batches.get(0).unwrap();
-                assert!(!batch.bloom_filter_is_wiped());
+                assert!(!batch.bloom_filter_is_zeroed());
             }
             println!(
                 "performed input queue batched update {} created root {:?}",
@@ -1734,9 +1734,9 @@ async fn test_fill_queues_completely() {
             for (i, batch) in merkle_tree_account.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
-                    assert!(batch.bloom_filter_is_wiped());
+                    assert!(batch.bloom_filter_is_zeroed());
                 } else {
-                    assert!(!batch.bloom_filter_is_wiped());
+                    assert!(!batch.bloom_filter_is_zeroed());
                 }
             }
         }
@@ -1930,12 +1930,12 @@ async fn test_fill_address_tree_completely() {
                 BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
             let batch = merkle_tree_account.batches.get(0).unwrap();
             let batch_one = merkle_tree_account.batches.get(1).unwrap();
-            assert!(!batch_one.bloom_filter_is_wiped());
+            assert!(!batch_one.bloom_filter_is_zeroed());
 
             if i >= 7 {
-                assert!(batch.bloom_filter_is_wiped());
+                assert!(batch.bloom_filter_is_zeroed());
             } else {
-                assert!(!batch.bloom_filter_is_wiped());
+                assert!(!batch.bloom_filter_is_zeroed());
             }
         }
         // assert all bloom_filters are inserted
@@ -1945,42 +1945,17 @@ async fn test_fill_address_tree_completely() {
             for (i, batch) in merkle_tree_account.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
-                    assert!(batch.bloom_filter_is_wiped());
+                    assert!(batch.bloom_filter_is_zeroed());
                 } else {
-                    assert!(!batch.bloom_filter_is_wiped());
+                    assert!(!batch.bloom_filter_is_zeroed());
                 }
             }
         }
-        // do one insert and expect that roots until  merkle_tree_account.batches[0].root_index are zero
         {
             let merkle_tree_account =
                 &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
             println!("root history {:?}", merkle_tree_account.root_history);
             let pre_batch_zero = *merkle_tree_account.batches.get(0).unwrap();
-
-            // let mut address = get_rnd_bytes(&mut rng);
-            // address[0] = 0;
-            // merkle_tree_account.insert_address_into_current_batch(&address);
-            // {
-            //     let post_batch = merkle_tree_account
-            //         .batches
-            //         .get(0)
-            //         .unwrap()
-            //         .clone();
-            //     assert_eq!(post_batch.get_state(), BatchState::Fill);
-            //     assert_eq!(post_batch.get_num_inserted(), 1);
-            //     let mut bloom_filter_store = merkle_tree_account
-            //         .bloom_filter_stores
-            //         .get_mut(0)
-            //         .unwrap();
-            //     let mut bloom_filter = BloomFilter::new(
-            //         params.bloom_filter_num_iters as usize,
-            //         params.bloom_filter_capacity,
-            //         bloom_filter_store.as_mut_slice(),
-            //     )
-            //     .unwrap();
-            //     assert!(bloom_filter.contains(&address));
-            // }
 
             for root in merkle_tree_account.root_history.iter() {
                 println!("root {:?}", root);

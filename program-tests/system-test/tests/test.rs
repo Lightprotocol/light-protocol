@@ -2569,7 +2569,7 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         .unwrap();
     let output_queue =
         BatchedQueueAccount::output_from_bytes(&mut output_queue_account.data).unwrap();
-    let fullness = output_queue.get_batch_num_inserted_in_current_batch();
+    let fullness = output_queue.get_num_inserted_in_current_batch();
     let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
     for _ in 0..remaining_leaves {
         create_output_accounts(context, &payer, test_indexer, output_queue_pubkey, 1, true).await?;

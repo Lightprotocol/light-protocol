@@ -28,7 +28,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 use super::{
     batch::Batch,
-    queue::{init_queue, input_queue_bytes, insert_into_current_batch, queue_account_size},
+    queue::{init_queue, input_queue_from_bytes, insert_into_current_batch, queue_account_size},
 };
 use crate::{
     batch::BatchState,
@@ -363,7 +363,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
 
         let (root_history, account_data) = ZeroCopyCyclicVecU64::from_bytes_at(account_data)?;
-        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_bytes(
+        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = input_queue_from_bytes(
             &metadata.queue_metadata,
             account_data,
             QueueType::BatchedInput as u64,
@@ -477,10 +477,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     2.2. Increment sequence number.
     ///     2.3. Increment next index.
     ///     2.4. Append new root to root history.
-    /// 3. Mark batch as inserted in the merkle tree.
+    /// 3. Mark zkp batch as inserted in the merkle tree.
     ///     3.1. Checks that the batch is ready.
     ///     3.2. Increment the number of inserted zkps.
-    ///     3.3. If all zkps are inserted, set the state to inserted.
+    ///     3.3. If all zkps are inserted, set batch state to inserted.
     /// 4. Increment next full batch index if inserted.
     /// 5. Return the batch append event.
     ///     
@@ -528,9 +528,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         let root_index = self.root_history.last_index() as u32;
 
-        // Update queue metadata.
+        // Update metadata and batch.
         {
-            // 3. Mark batch as inserted in the merkle tree.
+            // 3. Mark zkp batch as inserted in the merkle tree.
             let full_batch_state = full_batch.mark_as_inserted_in_merkle_tree(
                 self.metadata.sequence_number,
                 root_index,
@@ -590,7 +590,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     3.1. Checks that the batch is ready.
     ///     3.2. Increment the number of inserted zkps.
     ///     3.3. If all zkps are inserted, set the state to inserted.
-    /// 4. Wipe previous batch bloom filter if current batch is 50% inserted.
+    /// 4. Zero out previous batch bloom filter if current batch is 50% inserted.
     /// 5. Increment next full batch index if inserted.
     /// 6. Return the batch nullify event.
     fn update_input_queue<const QUEUE_TYPE: u64>(
@@ -648,12 +648,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 root_history_capacity,
             )?;
 
-            // 4. Wipe previous batch bloom filter
+            // 4. Zero out previous batch bloom filter
             //     if current batch is 50% inserted.
             // Needs to be executed prior to
             // incrementing next full batch index,
             // but post mark_as_inserted_in_merkle_tree.
-            self.wipe_previous_batch_bloom_filter()?;
+            self.zero_out_previous_batch_bloom_filter()?;
 
             // 5. Increment next full batch index if inserted.
             self.metadata
@@ -712,11 +712,17 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    /// State nullification:
-    /// - value is inserted into to a bloom_filter to prove non-inclusion in later txs.
-    /// - nullifier is Hash(value, tx_hash), committed to leaves hashchain
-    /// - tx_hash is hash of all inputs and outputs
-    ///   -> we can access the history of how commitments are spent in zkps for example fraud proofs
+    /// Insert nullifier into current batch.
+    /// 1. Check that the tree is a state tree.
+    /// 2. Create nullifier Hash(value,leaf_index, tx_hash).
+    /// 3. Insert nullifier into current batch.
+    ///     3.1. Insert compressed_account_hash into bloom filter.
+    ///         (bloom filter enables non-inclusion proofs in later txs)
+    ///     3.2. Add nullifier to leaves hash chain.
+    ///         (Nullification means, the compressed_account_hash in the tree,
+    ///         is overwritten with a nullifier hash)
+    ///     3.3. Check that compressed_account_hash
+    ///         does not exist in any other bloom filter.
     pub fn insert_nullifier_into_current_batch(
         &mut self,
         compressed_account_hash: &[u8; 32],
@@ -726,11 +732,19 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Note, no need to check whether the tree is full
         // since nullifier insertions update existing values
         // in the tree and do not append new values.
+
+        // 1. Check that the tree is a state tree.
         if self.tree_type != TreeType::BatchedState as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
-        let leaf_index_bytes = leaf_index.to_be_bytes();
-        let nullifier = Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])?;
+
+        // 2. Create nullifier Hash(value,leaf_index, tx_hash).
+        let nullifier = {
+            let leaf_index_bytes = leaf_index.to_be_bytes();
+            // Inclusion of the tx_hash enables zk proofs of how a value was spent.
+            Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])?
+        };
+        // 3. Insert nullifier into current batch.
         self.insert_into_current_batch(compressed_account_hash, &nullifier)
     }
 
@@ -747,6 +761,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         self.insert_into_current_batch(address, address)
     }
 
+    /// Insert value into the current batch.
+    /// 1. Insert value
+    /// 2. Zero out roots if bloom filter
+    ///     was zeroed out in (insert_into_current_batch).
     fn insert_into_current_batch(
         &mut self,
         bloom_filter_value: &[u8; 32],
@@ -759,8 +777,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             &mut self.value_vecs,
             &mut self.bloom_filter_stores,
             &mut self.hashchain_store,
-            bloom_filter_value,
-            Some(leaves_hash_value),
+            leaves_hash_value,
+            Some(bloom_filter_value),
             None,
         )?;
 
@@ -805,8 +823,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         if let Some(sequence_number) = sequence_number {
             // If the sequence number is greater than current sequence number
             // there is still at least one root which can be used to prove
-            // inclusion of a value which was in the batch that was just wiped.
-            self.zero_out_roots(sequence_number, root_index);
+            // inclusion of a value which was in the batch that was just zeroed out.
+            self.zero_out_roots(
+                sequence_number,
+                root_index.ok_or(BatchedMerkleTreeError::InvalidIndex)?,
+            );
         }
 
         Ok(())
@@ -817,51 +838,47 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. If yes:
     ///     2.1 Get, first safe root index.
     ///     2.2 Zero out roots from the oldest root to first safe root.
-    fn zero_out_roots(&mut self, sequence_number: u64, root_index: Option<u32>) {
+    fn zero_out_roots(&mut self, sequence_number: u64, root_index: u32) {
         // 1. Check whether overlapping roots exist.
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
-            if let Some(root_index) = root_index {
-                let root_index = root_index as usize;
+            let root_index = root_index as usize;
 
-                let oldest_root_index = self.root_history.first_index();
-                // 2.1. Get, index of first root inserted after input queue batch was inserted.
-                let first_safe_root_index = self.root_history.len() + root_index;
-                // 2.2. Zero out roots oldest to first safe root index.
-                for index in oldest_root_index..first_safe_root_index {
-                    let index = index % self.root_history.len();
-                    // TODO: test if needed
-                    if index == root_index {
-                        break;
-                    }
-                    self.root_history[index] = [0u8; 32];
+            let oldest_root_index = self.root_history.first_index();
+            // 2.1. Get, index of first root inserted after input queue batch was inserted.
+            let first_safe_root_index = self.root_history.len() + root_index;
+            // 2.2. Zero out roots oldest to first safe root index.
+            for index in oldest_root_index..first_safe_root_index {
+                let index = index % self.root_history.len();
+                // TODO: test if needed
+                if index == root_index {
+                    break;
                 }
-            } else {
-                unreachable!("root_index must be Some(root_index) if overlapping roots exist");
+                self.root_history[index] = [0u8; 32];
             }
         }
     }
 
-    /// Wipe bloom filter of previous batch if 50% of the
+    /// Zero out bloom filter of previous batch if 50% of the
     /// current batch has been processed.
     ///
     /// Idea:
-    /// 1. Wiping the bloom filter of the previous batch is expensive
+    /// 1. Zeroing out the bloom filter of the previous batch is expensive
     ///     -> the forester should do it.
-    /// 2. We don't want to wipe the bloom filter when inserting
+    /// 2. We don't want to zero out the bloom filter when inserting
     ///     the last zkp of a batch for this might result in failing user tx.
     /// 3. Wait until next batch is 50% full as grace period for clients
     ///     to switch from proof by index to proof by zkp
     ///     for values inserted in the previous batch.
     ///
     /// Steps:
-    /// 1. Previous batch must be inserted and bloom filter must not be wiped.
+    /// 1. Previous batch must be inserted and bloom filter must not be zeroed out.
     /// 2. Current batch must be 50% full
     /// 3. if yes
     ///    3.1 zero out bloom filter
-    ///    3.2 mark bloom filter as wiped
+    ///    3.2 mark bloom filter as zeroed
     ///    3.3 zero out roots if needed
-    pub fn wipe_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
+    pub fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
         let current_batch = self.queue_metadata.next_full_batch_index as usize;
         let batch_size = self.queue_metadata.batch_size;
         let previous_full_batch_index = current_batch.saturating_sub(1);
@@ -896,7 +913,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
 
         let previous_batch_is_ready = previous_full_batch.get_state() == BatchState::Inserted
-            && !previous_full_batch.bloom_filter_is_wiped();
+            && !previous_full_batch.bloom_filter_is_zeroed();
 
         if previous_batch_is_ready && current_batch_is_half_full {
             // Keep for finegrained unit test
@@ -911,15 +928,15 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                     .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
                 bloom_filter.as_mut_slice().iter_mut().for_each(|x| *x = 0);
             }
-            // 3.2 Mark bloom filter wiped.
-            previous_full_batch.set_bloom_filter_is_wiped();
+            // 3.2 Mark bloom filter zeroed.
+            previous_full_batch.set_bloom_filter_to_zeroed();
             // 3.3 Zero out roots if a root exists in root history
             // which allows to prove inclusion of a value
-            // that was inserted into the bloom filter just wiped.
+            // that was inserted into the bloom filter just zeroed out.
             {
                 let seq = previous_full_batch.sequence_number;
                 let root_index = previous_full_batch.root_index;
-                self.zero_out_roots(seq, Some(root_index));
+                self.zero_out_roots(seq, root_index);
             }
         }
 
@@ -935,7 +952,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
     // TODO: add unit test
     /// Checks non-inclusion in all bloom filters
-    /// which are not wiped.
+    /// which are not zeroed.
     pub fn check_input_queue_non_inclusion(
         &mut self,
         value: &[u8; 32],
@@ -944,7 +961,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         for i in 0..num_bloom_filters {
             let bloom_filter_store = self.bloom_filter_stores[i].as_mut_slice();
             let batch = &self.batches[i];
-            if !batch.bloom_filter_is_wiped() {
+            if !batch.bloom_filter_is_zeroed() {
                 batch.check_non_inclusion(value, bloom_filter_store)?;
             }
         }
