@@ -182,4 +182,32 @@ fn test_capped_priority_fee() {
         result.is_err(),
         "Expected panic for max fee less than min fee"
     );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 10_000,
+        min_fee_lamports: 50_000,
+        max_fee_lamports: 50_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 50_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 100_000,
+        min_fee_lamports: 50_000,
+        max_fee_lamports: 50_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 50_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
 }

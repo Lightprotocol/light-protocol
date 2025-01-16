@@ -165,7 +165,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         }
 
         // 4. Fetch recent confirmed blockhash.
-        // A recent blockhash is valid for 150 blocks.
+        // A blockhash is valid for 150 blocks.
         let recent_blockhash = rpc.get_latest_blockhash().await?;
         let current_block_height = rpc.get_block_height().await?;
         let last_valid_block_height = current_block_height + 150;
@@ -183,11 +183,21 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         let priority_fee_recommendation: u64 =
             request_priority_fee_estimate(&url, account_keys).await?;
 
+        // Cap the priority fee and CU usage with buffer.
         let cap_config = CapConfig {
             rec_fee_microlamports_per_cu: priority_fee_recommendation,
-            min_fee_lamports: 10_000,
-            max_fee_lamports: 100_000,
-            compute_unit_limit: 180_000,
+            min_fee_lamports: config
+                .build_transaction_batch_config
+                .compute_unit_price
+                .unwrap_or(10_000),
+            max_fee_lamports: config
+                .build_transaction_batch_config
+                .compute_unit_price
+                .unwrap_or(100_000),
+            compute_unit_limit: config
+                .build_transaction_batch_config
+                .compute_unit_limit
+                .unwrap_or(200_000) as u64,
         };
         let priority_fee = get_capped_priority_fee(cap_config);
 
@@ -205,8 +215,10 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 }
             }
 
-            // Minimum time to wait for the next batch of transactions.
-            // Can be used to avoid rate limits.
+            // Minimum time to wait for the next batch of transactions. Can be
+            // used to avoid rate limits. TODO(swen): check max feasible batch
+            // size and latency for large tx batches. TODO: add global rate
+            // limit across our instances and queues: max 100 RPS global.
             let transaction_build_time_start = Instant::now();
             let (transactions, _block_height) = transaction_builder
                 .build_signed_transaction_batch(
@@ -235,14 +247,14 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             }
 
             let send_transaction_config = RpcSendTransactionConfig {
-                // Required for routing through staked connection, see
+                // Use required settings for routing through staked connection:
                 // https://docs.helius.dev/guides/sending-transactions-on-solana
                 skip_preflight: true,
                 max_retries: Some(0),
                 preflight_commitment: Some(CommitmentLevel::Confirmed),
                 ..Default::default()
             };
-            // Asynchronously send all transactions in the batch
+            // Send and confirm all transactions in the batch non-blocking.
             let send_futures: Vec<_> = transactions
                 .into_iter()
                 .map(|tx| {
@@ -270,7 +282,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
             let results = join_all(send_futures).await;
 
-            // Process results
+            // Evaluate results
             for result in results {
                 match result {
                     Ok(signature) => {
@@ -370,10 +382,9 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
                 payer: payer.insecure_clone(),
                 instructions: vec![instruction],
                 recent_blockhash: *recent_blockhash,
-                compute_unit_price: config.compute_unit_price,
+                compute_unit_price: Some(priority_fee),
                 compute_unit_limit: config.compute_unit_limit,
                 last_valid_block_hash: last_valid_block_height,
-                priority_fee,
             })
             .await?;
             transactions.push(transaction);

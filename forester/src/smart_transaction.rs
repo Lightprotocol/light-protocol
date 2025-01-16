@@ -23,7 +23,6 @@ pub struct CreateSmartTransactionConfig {
     pub compute_unit_limit: Option<u32>,
     pub instructions: Vec<Instruction>,
     pub last_valid_block_hash: u64,
-    pub priority_fee: u64,
 }
 
 /// Poll a transaction to check whether it has been confirmed
@@ -37,7 +36,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
     txt_sig: Signature,
     abort_timeout: Duration,
 ) -> Result<Signature, light_client::rpc::RpcError> {
-    // 12 second timeout
+    // 12 second total timeout before exiting
     let timeout: Duration = Duration::from_secs(12);
     // 6 second retry interval
     let interval: Duration = Duration::from_secs(6);
@@ -78,16 +77,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
     }
 }
 
-/// Sends a transaction and handles its confirmation status
-///
-/// # Arguments
-/// * `transaction` - The transaction to be sent, which implements `SerializableTransaction`
-/// * `send_transaction_config` - Configuration options for sending the transaction
-/// * `last_valid_block_height` - The last block height at which the transaction is valid
-/// * `timeout` - Duration for polling transaction confirmation
-///
-/// # Returns
-/// The transaction signature, if successful
+// Sends a transaction and handles its confirmation. Retries until timeout or last_valid_block_height is reached.
 pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
     transaction: &Transaction,
@@ -97,8 +87,6 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
 ) -> Result<Signature, light_client::rpc::RpcError> {
     let start_time: Instant = Instant::now();
 
-    // As is, if timeout=30s, it'll send, poll 2 times within 12s,
-    // then try once again.
     while Instant::now().duration_since(start_time) < timeout
         && connection.get_slot().await? <= last_valid_block_height
     {
