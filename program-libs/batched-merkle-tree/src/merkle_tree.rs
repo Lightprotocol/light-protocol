@@ -483,10 +483,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     3.3. If all zkps are inserted, set the state to inserted.
     /// 4. Increment next full batch index if inserted.
     /// 5. Return the batch append event.
+    ///     
     /// Note: when proving inclusion by index in
-    /// value array we need to insert the value into a bloom_filter once it is
-    /// inserted into the tree. Check this with get_num_inserted_zkps
-    #[cfg(not(target_os = "solana"))]
+    ///     value array we need to insert the value into a bloom_filter once it is
+    ///     inserted into the tree. Check this with get_num_inserted_zkps
     pub fn update_tree_from_output_queue_account(
         &mut self,
         queue_account: &mut BatchedQueueAccount,
