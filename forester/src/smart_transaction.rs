@@ -35,10 +35,10 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
     connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
     txt_sig: Signature,
 ) -> Result<Signature, light_client::rpc::RpcError> {
-    // 15 second timeout
-    let timeout: Duration = Duration::from_secs(15);
-    // 5 second retry interval
-    let interval: Duration = Duration::from_secs(5);
+    // 12 second timeout
+    let timeout: Duration = Duration::from_secs(12);
+    // 6 second retry interval
+    let interval: Duration = Duration::from_secs(6);
     let start: Instant = Instant::now();
 
     loop {
@@ -95,6 +95,8 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
 ) -> Result<Signature, light_client::rpc::RpcError> {
     let start_time: Instant = Instant::now();
 
+    // As is, if timeout=30s, it'll send, poll 2 times within 12s,
+    // then try once again.
     while Instant::now().duration_since(start_time) < timeout
         && connection.get_slot().await? <= last_valid_block_height
     {
@@ -115,7 +117,7 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     }
 
     Err(light_client::rpc::RpcError::CustomError(
-        "Transaction failed to confirm in 60s.".to_string(),
+        "Transaction failed to confirm within timeout.".to_string(),
     ))
 }
 
