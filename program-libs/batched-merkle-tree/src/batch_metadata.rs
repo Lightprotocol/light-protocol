@@ -34,8 +34,20 @@ pub struct BatchMetadata {
 }
 
 impl BatchMetadata {
+    /// Returns the number of ZKP batches contained within a single regular batch.
     pub fn get_num_zkp_batches(&self) -> u64 {
         self.batch_size / self.zkp_batch_size
+    }
+
+    /// Validates that the batch size is properly divisible by the ZKP batch size.
+    fn validate_batch_sizes(
+        batch_size: u64,
+        zkp_batch_size: u64,
+    ) -> Result<(), BatchedMerkleTreeError> {
+        if batch_size % zkp_batch_size != 0 {
+            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
+        }
+        Ok(())
     }
 
     pub fn new_output_queue(
@@ -43,9 +55,7 @@ impl BatchMetadata {
         zkp_batch_size: u64,
         num_batches: u64,
     ) -> Result<Self, BatchedMerkleTreeError> {
-        if batch_size % zkp_batch_size != 0 {
-            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
-        }
+        Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
         Ok(BatchMetadata {
             num_batches,
             zkp_batch_size,
@@ -62,9 +72,8 @@ impl BatchMetadata {
         zkp_batch_size: u64,
         num_batches: u64,
     ) -> Result<Self, BatchedMerkleTreeError> {
-        if batch_size % zkp_batch_size != 0 {
-            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
-        }
+        Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
+
         Ok(BatchMetadata {
             num_batches,
             zkp_batch_size,
@@ -78,16 +87,15 @@ impl BatchMetadata {
     /// Increment the next full batch index if current state is BatchState::Inserted.
     pub fn increment_next_full_batch_index_if_inserted(&mut self, state: BatchState) {
         if state == BatchState::Inserted {
-            self.next_full_batch_index += 1;
-            self.next_full_batch_index %= self.num_batches;
+            self.next_full_batch_index = (self.next_full_batch_index + 1) % self.num_batches;
         }
     }
 
     /// Increment the currently_processing_batch_index if current state is BatchState::Full.
     pub fn increment_currently_processing_batch_index_if_full(&mut self, state: BatchState) {
         if state == BatchState::Full {
-            self.currently_processing_batch_index += 1;
-            self.currently_processing_batch_index %= self.num_batches;
+            self.currently_processing_batch_index =
+                (self.currently_processing_batch_index + 1) % self.num_batches;
         }
     }
 
@@ -97,12 +105,10 @@ impl BatchMetadata {
         batch_size: u64,
         zkp_batch_size: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
+        // Check that batch size is divisible by zkp_batch_size.
+        Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
         self.num_batches = num_batches;
         self.batch_size = batch_size;
-        // Check that batch size is divisible by zkp_batch_size.
-        if batch_size % zkp_batch_size != 0 {
-            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
-        }
         self.zkp_batch_size = zkp_batch_size;
         Ok(())
     }
@@ -164,4 +170,15 @@ fn test_increment_currently_processing_batch_index_if_full() {
     assert_eq!(metadata.currently_processing_batch_index, 0);
     metadata.increment_currently_processing_batch_index_if_full(BatchState::Inserted);
     assert_eq!(metadata.currently_processing_batch_index, 0);
+}
+
+#[test]
+fn test_batch_size_validation() {
+    // Test invalid batch size
+    assert!(BatchMetadata::new_input_queue(10, 10, 3, 2).is_err());
+    assert!(BatchMetadata::new_output_queue(10, 3, 2).is_err());
+
+    // Test valid batch size
+    assert!(BatchMetadata::new_input_queue(9, 10, 3, 2).is_ok());
+    assert!(BatchMetadata::new_output_queue(9, 3, 2).is_ok());
 }
