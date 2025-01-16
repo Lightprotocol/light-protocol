@@ -933,6 +933,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     };
 
                     debug!("Sending transactions...");
+                    // sequential
                     let start_time = Instant::now();
                     let batch_tx_future = send_batched_transactions(
                         &self.config.payer_keypair,

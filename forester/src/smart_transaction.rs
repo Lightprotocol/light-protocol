@@ -34,6 +34,7 @@ pub struct CreateSmartTransactionConfig {
 pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
     connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
     txt_sig: Signature,
+    abort_timeout: Duration,
 ) -> Result<Signature, light_client::rpc::RpcError> {
     // 12 second timeout
     let timeout: Duration = Duration::from_secs(12);
@@ -42,7 +43,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
     let start: Instant = Instant::now();
 
     loop {
-        if start.elapsed() >= timeout {
+        if start.elapsed() >= timeout || start.elapsed() >= abort_timeout {
             return Err(light_client::rpc::RpcError::CustomError(format!(
                 "Transaction {}'s confirmation timed out",
                 txt_sig
@@ -105,7 +106,7 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
         match result.await {
             Ok(signature) => {
                 // Poll for transaction confirmation
-                match poll_transaction_confirmation(connection, signature).await {
+                match poll_transaction_confirmation(connection, signature, timeout).await {
                     Ok(sig) => return Ok(sig),
                     // Retry on polling failure
                     Err(_) => continue,

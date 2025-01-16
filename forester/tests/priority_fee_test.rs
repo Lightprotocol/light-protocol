@@ -1,8 +1,6 @@
 use forester::{
     cli::StartArgs,
-    send_transaction::{
-        calculate_compute_unit_price, get_capped_priority_fee, request_priority_fee_estimate,
-    },
+    send_transaction::{get_capped_priority_fee, request_priority_fee_estimate, CapConfig},
     ForesterConfig,
 };
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
@@ -10,7 +8,6 @@ use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
 use url::Url;
 
 use crate::test_utils::init;
-
 mod test_utils;
 
 #[tokio::test]
@@ -84,20 +81,105 @@ async fn test_priority_fee_request() {
     println!("Priority fee: {:?}", priority_fee);
     assert!(priority_fee > 0, "Priority fee should be greater than 0");
 }
-
 #[test]
-fn test_capped_priority_fee() {
-    let test_cases = vec![
-        (1000, 1000),                                               // Below cap
-        (1_000_000, calculate_compute_unit_price(10_000, 170_000)), // Above cap
-    ];
 
-    for (input, expected) in test_cases {
-        let result = get_capped_priority_fee(input);
-        assert_eq!(
-            result, expected,
-            "Priority fee capping failed for input {}",
-            input
-        );
-    }
+fn test_capped_priority_fee() {
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 50_000,
+        min_fee_lamports: 10_000,
+        max_fee_lamports: 100_000,
+        // 1_000_000 cu x 50_000 microlamports per cu = 50_000 lamports total
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 50_000;
+
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 10_000,
+        min_fee_lamports: 10_000,
+        max_fee_lamports: 100_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 10_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 100_000,
+        min_fee_lamports: 10_000,
+        max_fee_lamports: 100_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 100_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 10_000,
+        min_fee_lamports: 20_000,
+        max_fee_lamports: 100_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 20_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 200_000,
+        min_fee_lamports: 10_000,
+        max_fee_lamports: 100_000,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 100_000;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 10_000,
+        min_fee_lamports: 0,
+        max_fee_lamports: 0,
+        compute_unit_limit: 1_000_000,
+    };
+    let expected = 0;
+    let result = get_capped_priority_fee(cap_config);
+    assert_eq!(
+        result, expected,
+        "Priority fee capping failed for input {}",
+        cap_config.rec_fee_microlamports_per_cu
+    );
+
+    let cap_config = CapConfig {
+        rec_fee_microlamports_per_cu: 10_000,
+        min_fee_lamports: 10_000,
+        max_fee_lamports: 0,
+        compute_unit_limit: 1_000_000,
+    };
+    println!("expecting panic");
+    let result = std::panic::catch_unwind(|| get_capped_priority_fee(cap_config));
+    assert!(
+        result.is_err(),
+        "Expected panic for max fee less than min fee"
+    );
 }

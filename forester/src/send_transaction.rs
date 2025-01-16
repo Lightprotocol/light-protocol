@@ -82,7 +82,7 @@ pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) ->
 }
 
 /// Setting:
-/// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
+/// 1. We have 1 light slot (n solana slots), and elements in thequeue
 /// 2. we want to send as many elements from the queue as possible
 ///
 /// Strategy:
@@ -99,7 +99,6 @@ pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) ->
 ///
 /// Questions:
 /// - How do we make sure that we have send all the transactions?
-/// - How can we monitor how many txs have been dropped?
 ///
 /// TODO:
 /// - return number of sent transactions
@@ -165,29 +164,32 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             continue;
         }
 
-        // TODO: note that fresh blockhash has higher chance of landing. consider doing per batch.
-        // 4. Fetch recent blockhash.
-        // A recent blockhash is valid for 2 mins we only need one per batch. We
-        // use a new one per batch in case that we want to retry these same
-        // transactions and identical transactions might be dropped.
+        // 4. Fetch recent confirmed blockhash.
+        // A recent blockhash is valid for 150 blocks.
         let recent_blockhash = rpc.get_latest_blockhash().await?;
         let current_block_height = rpc.get_block_height().await?;
         let last_valid_block_height = current_block_height + 150;
 
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
-        // Get the priority fee estimate based on write locked accounts
+        // Get the priority fee estimate based on write-locked accounts
         let account_keys = vec![
             payer.pubkey(),
             forester_epoch_pda_pubkey,
             tree_accounts.queue,
             tree_accounts.merkle_tree,
         ];
-
         let url = Url::parse(&rpc.get_url()).expect("Failed to parse URL");
-        let priority_fee_recommendation = request_priority_fee_estimate(&url, account_keys).await?;
+        let priority_fee_recommendation: u64 =
+            request_priority_fee_estimate(&url, account_keys).await?;
 
-        let priority_fee = get_capped_priority_fee(priority_fee_recommendation);
+        let cap_config = CapConfig {
+            rec_fee_microlamports_per_cu: priority_fee_recommendation,
+            min_fee_lamports: 10_000,
+            max_fee_lamports: 100_000,
+            compute_unit_limit: 180_000,
+        };
+        let priority_fee = get_capped_priority_fee(cap_config);
 
         // 5. Iterate over work items in chunks of batch size.
         for work_items in
@@ -301,6 +303,14 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
     debug!("Sent {} transactions", num_sent_transactions);
     Ok(num_sent_transactions)
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct CapConfig {
+    pub rec_fee_microlamports_per_cu: u64,
+    pub min_fee_lamports: u64,
+    pub max_fee_lamports: u64,
+    pub compute_unit_limit: u64,
 }
 
 fn get_remaining_time_in_light_slot(start_time: Instant, timeout: Duration) -> Duration {
@@ -548,8 +558,16 @@ pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>)
         )
 }
 
-/// Get capped priority fee for transaction
-pub fn get_capped_priority_fee(priority_fee_recommendation: u64) -> u64 {
-    let priority_fee_cap = calculate_compute_unit_price(10_000, 170_000);
-    std::cmp::min(priority_fee_recommendation, priority_fee_cap)
+/// Get capped priority fee for transaction between min and max.
+pub fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
+    if cap_config.max_fee_lamports < cap_config.min_fee_lamports {
+        panic!("Max fee is less than min fee");
+    }
+
+    let priority_fee_max =
+        calculate_compute_unit_price(cap_config.max_fee_lamports, cap_config.compute_unit_limit);
+    let priority_fee_min =
+        calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
+    let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);
+    std::cmp::max(capped_fee, priority_fee_min)
 }
