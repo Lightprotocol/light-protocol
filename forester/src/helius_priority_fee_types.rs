@@ -1,18 +1,5 @@
-use std::time::Duration;
-
+// adapted from https://github.com/helius-labs/helius-rust-sdk/blob/dev/src/types/types.rs
 use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct MicroLamportPriorityFeeLevels {
-    pub min: f64,
-    pub low: f64,
-    pub medium: f64,
-    pub high: f64,
-    #[serde(rename = "veryHigh")]
-    pub very_high: f64,
-    #[serde(rename = "unsafeMax")]
-    pub unsafe_max: f64,
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum PriorityLevel {
@@ -84,24 +71,4 @@ pub struct GetPriorityFeeEstimateRequest {
 pub struct GetPriorityFeeEstimateResponse {
     #[serde(rename = "priorityFeeEstimate")]
     pub priority_fee_estimate: Option<f64>,
-    // #[serde(rename = "priorityFeeLevels")]
-    // pub priority_fee_levels: Option<MicroLamportPriorityFeeLevels>,
-}
-
-pub struct Timeout {
-    pub duration: Duration,
-}
-
-impl Default for Timeout {
-    fn default() -> Self {
-        Self {
-            duration: Duration::from_secs(60),
-        }
-    }
-}
-
-impl From<Timeout> for Duration {
-    fn from(val: Timeout) -> Self {
-        val.duration
-    }
 }

@@ -1,4 +1,5 @@
-// from helius-sdk. adjusted for use in forester
+// adapted from https://github.com/helius-labs/helius-rust-sdk/blob/dev/src/optimized_transaction.rs
+// optimized for forester client
 use std::time::{Duration, Instant};
 
 use light_client::{rpc::RpcConnection, rpc_pool::SolanaConnectionManager};

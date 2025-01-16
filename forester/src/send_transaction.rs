@@ -41,7 +41,7 @@ use crate::{
     config::QueueConfig,
     epoch_manager::{MerkleProofType, WorkItem},
     errors::ForesterError,
-    helius_types::{
+    helius_priority_fee_types::{
         GetPriorityFeeEstimateOptions, GetPriorityFeeEstimateRequest,
         GetPriorityFeeEstimateResponse, RpcRequest, RpcResponse,
     },
