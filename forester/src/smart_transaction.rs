@@ -98,7 +98,7 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     let start_time: Instant = Instant::now();
 
     while Instant::now().duration_since(start_time) < timeout
-        || connection.get_slot().await? <= last_valid_block_height
+        && connection.get_slot().await? <= last_valid_block_height
     {
         let result = connection.send_transaction_with_config(transaction, send_transaction_config);
 

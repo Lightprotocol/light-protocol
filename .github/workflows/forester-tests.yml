@@ -22,18 +22,40 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  RUST_BACKTRACE: "1"
   RUSTFLAGS: "--cfg tokio_unstable -D warnings"
 
 jobs:
   test:
     strategy:
       matrix:
-        test-name: [
-          {name: "address-batched", command: "test_address_batched", timeout: 60, needs-test-program: true},
-          {name: "state-batched", command: "test_state_batched", timeout: 60, needs-test-program: false},
-          {name: "2-foresters", command: "test_epoch_monitor_with_2_foresters", timeout: 60, needs-test-program: false},
-          {name: "double-registration", command: "test_epoch_double_registration", timeout: 60, needs-test-program: false}
-        ]
+        test-name:
+          [
+            {
+              name: "address-batched",
+              command: "test_address_batched",
+              timeout: 60,
+              needs-test-program: true,
+            },
+            {
+              name: "state-batched",
+              command: "test_state_batched",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
+              name: "2-foresters",
+              command: "test_epoch_monitor_with_2_foresters",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
+              name: "double-registration",
+              command: "test_epoch_double_registration",
+              timeout: 60,
+              needs-test-program: false,
+            },
+          ]
     name: test-${{ matrix.test-name.name }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.test-name.timeout }}
