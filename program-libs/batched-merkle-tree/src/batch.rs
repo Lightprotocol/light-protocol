@@ -332,6 +332,11 @@ impl Batch {
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
             self.sequence_number = sequence_number + root_history_length as u64;
+            println!("root_history_length as u64: {}", root_history_length as u64);
+            println!("sequence_number: {}", sequence_number);
+            println!("recorded sequence_number: {}", self.sequence_number);
+            println!("current root index {}", root_index);
+
             self.root_index = root_index;
         }
 

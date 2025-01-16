@@ -424,6 +424,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_metadata.root_history_capacity as u64,
             account_data,
         )?;
+        // fill root history with zero bytes
+        for _ in 0..root_history.capacity() {
+            root_history.push([0u8; 32]);
+        }
         if tree_type == TreeType::BatchedState {
             root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
         } else if tree_type == TreeType::BatchedAddress {
@@ -432,6 +436,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // The initialized indexed Merkle tree contains two elements.
             account_metadata.next_index = 2;
         }
+
         let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
             &account_metadata.queue_metadata,
             QueueType::BatchedInput as u64,
@@ -534,7 +539,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             let full_batch_state = full_batch.mark_as_inserted_in_merkle_tree(
                 self.metadata.sequence_number,
                 root_index,
-                self.metadata.root_history_capacity,
+                self.root_history_capacity,
             )?;
             // 4. Increment next full batch index if inserted.
             queue_account
@@ -838,24 +843,40 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. If yes:
     ///     2.1 Get, first safe root index.
     ///     2.2 Zero out roots from the oldest root to first safe root.
-    fn zero_out_roots(&mut self, sequence_number: u64, root_index: u32) {
+    fn zero_out_roots(&mut self, sequence_number: u64, first_safe_root_index: u32) {
         // 1. Check whether overlapping roots exist.
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
-            let root_index = root_index as usize;
+            // let root_index = root_index as usize;
 
-            let oldest_root_index = self.root_history.first_index();
-            // 2.1. Get, index of first root inserted after input queue batch was inserted.
-            let first_safe_root_index = self.root_history.len() + root_index;
+            let mut oldest_root_index = self.root_history.first_index();
+            // 2.1. Get, num of remaining roots.
+            //    Remaining roots have not been updated since
+            //    the update of the previous batch hence enable to prove
+            //    inclusion of values nullified in the previous batch.
+            let num_remaining_roots = sequence_number - self.sequence_number;
+            println!("sequence_number: {}", sequence_number);
+            println!("self.sequence_number: {}", self.sequence_number);
+            println!("oldest_root_index: {}", oldest_root_index);
+            println!("first_safe_root_index: {}", first_safe_root_index);
+            println!("num_remaining_roots: {}", num_remaining_roots);
+            println!(
+                "self.root_history.len() as u64: {}",
+                self.root_history.len() as u64
+            );
             // 2.2. Zero out roots oldest to first safe root index.
-            for index in oldest_root_index..first_safe_root_index {
-                let index = index % self.root_history.len();
-                // TODO: test if needed
-                if index == root_index {
-                    break;
-                }
-                self.root_history[index] = [0u8; 32];
+            //      Skip one iteration we don't need to zero out
+            //      the first safe root.
+            for _ in 1..num_remaining_roots {
+                println!("zeroing out root index: {}", oldest_root_index);
+                self.root_history[oldest_root_index] = [0u8; 32];
+                oldest_root_index += 1;
+                oldest_root_index %= self.root_history.len();
             }
+            assert_eq!(
+                oldest_root_index as u32, first_safe_root_index,
+                "Zeroing out roots failed."
+            );
         }
     }
 
@@ -912,8 +933,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .get_mut(previous_full_batch_index)
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
 
-        let previous_batch_is_ready = previous_full_batch.get_state() == BatchState::Inserted
-            && !previous_full_batch.bloom_filter_is_zeroed();
+        let batch_is_inserted = previous_full_batch.get_state() == BatchState::Inserted;
+        let previous_batch_is_ready =
+            batch_is_inserted && !previous_full_batch.bloom_filter_is_zeroed();
 
         if previous_batch_is_ready && current_batch_is_half_full {
             // Keep for finegrained unit test

@@ -75,7 +75,7 @@ impl BatchMetadata {
         })
     }
 
-    /// Increment the next full batch index if current state is inserted.
+    /// Increment the next full batch index if current state is BatchState::Inserted.
     pub fn increment_next_full_batch_index_if_inserted(&mut self, state: BatchState) {
         if state == BatchState::Inserted {
             self.next_full_batch_index += 1;
@@ -83,7 +83,7 @@ impl BatchMetadata {
         }
     }
 
-    /// Increment the currently_processing_batch_index if current state is full.
+    /// Increment the currently_processing_batch_index if current state is BatchState::Full.
     pub fn increment_currently_processing_batch_index_if_full(&mut self, state: BatchState) {
         if state == BatchState::Full {
             self.currently_processing_batch_index += 1;
@@ -134,7 +134,6 @@ impl BatchMetadata {
 
 #[test]
 fn test_increment_next_full_batch_index_if_inserted() {
-    // create a new metadata struct
     let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 2).unwrap();
     assert_eq!(metadata.next_full_batch_index, 0);
     // increment next full batch index
@@ -148,4 +147,21 @@ fn test_increment_next_full_batch_index_if_inserted() {
     assert_eq!(metadata.next_full_batch_index, 0);
     metadata.increment_next_full_batch_index_if_inserted(BatchState::Full);
     assert_eq!(metadata.next_full_batch_index, 0);
+}
+
+#[test]
+fn test_increment_currently_processing_batch_index_if_full() {
+    let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 2).unwrap();
+    assert_eq!(metadata.currently_processing_batch_index, 0);
+    // increment currently_processing_batch_index
+    metadata.increment_currently_processing_batch_index_if_full(BatchState::Full);
+    assert_eq!(metadata.currently_processing_batch_index, 1);
+    // increment currently_processing_batch_index
+    metadata.increment_currently_processing_batch_index_if_full(BatchState::Full);
+    assert_eq!(metadata.currently_processing_batch_index, 0);
+    // try incrementing next full batch index with state not full
+    metadata.increment_currently_processing_batch_index_if_full(BatchState::Fill);
+    assert_eq!(metadata.currently_processing_batch_index, 0);
+    metadata.increment_currently_processing_batch_index_if_full(BatchState::Inserted);
+    assert_eq!(metadata.currently_processing_batch_index, 0);
 }
