@@ -8,6 +8,7 @@ use light_client::{
 };
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
+use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
     account::{Account, AccountSharedData},
     clock::Slot,
@@ -20,6 +21,7 @@ use solana_sdk::{
     system_instruction,
     transaction::{Transaction, TransactionError},
 };
+use solana_transaction_status::TransactionStatus;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
@@ -308,6 +310,14 @@ impl RpcConnection for ProgramTestRpcConnection {
         unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection")
     }
 
+    async fn send_transaction_with_config(
+        &self,
+        _transaction: &Transaction,
+        _config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        unimplemented!("send transaction with config is unimplemented for ProgramTestRpcConnection")
+    }
+
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
         self.context
             .banks_client
@@ -321,6 +331,16 @@ impl RpcConnection for ProgramTestRpcConnection {
                     ))
                     .map(|status| status.slot)
             })
+    }
+    async fn get_signature_statuses(
+        &self,
+        _signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
+        unimplemented!("get_signature_statuses is unimplemented for ProgramTestRpcConnection")
+    }
+
+    async fn get_block_height(&mut self) -> Result<u64, RpcError> {
+        unimplemented!("get_block_height is unimplemented for ProgramTestRpcConnection")
     }
 }
 

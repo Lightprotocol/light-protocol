@@ -12,12 +12,17 @@ use light_client::{
     rpc::{RetryConfig, RpcConnection},
     rpc_pool::SolanaRpcPool,
 };
-use light_registry::account_compression_cpi::sdk::{
-    create_nullify_instruction, create_update_address_merkle_tree_instruction,
-    CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+use light_registry::{
+    account_compression_cpi::sdk::{
+        create_nullify_instruction, create_update_address_merkle_tree_instruction,
+        CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+    },
+    utils::get_forester_epoch_pda_from_authority,
 };
+use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction,
+    bs58,
+    commitment_config::CommitmentLevel,
     hash::Hash,
     instruction::Instruction,
     pubkey::Pubkey,
@@ -30,25 +35,36 @@ use tokio::{
     time::{sleep, Instant},
 };
 use tracing::{debug, warn};
+use url::Url;
 
 use crate::{
     config::QueueConfig,
     epoch_manager::{MerkleProofType, WorkItem},
     errors::ForesterError,
+    helius_priority_fee_types::{
+        GetPriorityFeeEstimateOptions, GetPriorityFeeEstimateRequest,
+        GetPriorityFeeEstimateResponse, RpcRequest, RpcResponse,
+    },
     queue_helpers::fetch_queue_item_data,
+    smart_transaction::{
+        create_smart_transaction, send_and_confirm_transaction, CreateSmartTransactionConfig,
+    },
     Result,
 };
-
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait TransactionBuilder {
+    fn epoch(&self) -> u64;
     async fn build_signed_transaction_batch(
         &self,
         payer: &Keypair,
         derivation: &Pubkey,
         recent_blockhash: &Hash,
+        last_valid_block_height: u64,
+        priority_fee: u64,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
-    ) -> Result<Vec<Transaction>>;
+    ) -> Result<(Vec<Transaction>, u64)>;
 }
 
 // We're assuming that:
@@ -60,8 +76,13 @@ const LATENCY: Duration = Duration::from_millis(4 * 500);
 
 const TIMEOUT_CHECK_ENABLED: bool = true;
 
+/// Calculate the compute unit price in microLamports based on the target lamports and compute units
+pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) -> u64 {
+    ((target_lamports * 1_000_000) as f64 / compute_units as f64).ceil() as u64
+}
+
 /// Setting:
-/// 1. We have 1 light slot 15 seconds and a lot of elements in the queue
+/// 1. We have 1 light slot (n solana slots), and elements in thequeue
 /// 2. we want to send as many elements from the queue as possible
 ///
 /// Strategy:
@@ -78,7 +99,6 @@ const TIMEOUT_CHECK_ENABLED: bool = true;
 ///
 /// Questions:
 /// - How do we make sure that we have send all the transactions?
-/// - How can we monitor how many txs have been dropped?
 ///
 /// TODO:
 /// - return number of sent transactions
@@ -97,6 +117,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
     let start_time = Instant::now();
 
     let mut rpc = pool.get_connection().await?;
+
     let mut num_batches = 0;
     let mut num_sent_transactions: usize = 0;
     // 1. Execute batches until max number of batches is reached or light slot
@@ -143,43 +164,69 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             continue;
         }
 
-        // 4. Fetch recent blockhash.
-        // A recent blockhash is valid for 2 mins we only need one per batch. We
-        // use a new one per batch in case that we want to retry these same
-        // transactions and identical transactions might be dropped.
+        // 4. Fetch recent confirmed blockhash.
+        // A blockhash is valid for 150 blocks.
         let recent_blockhash = rpc.get_latest_blockhash().await?;
+        let current_block_height = rpc.get_block_height().await?;
+        let last_valid_block_height = current_block_height + 150;
+
+        let forester_epoch_pda_pubkey =
+            get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
+        // Get the priority fee estimate based on write-locked accounts
+        let account_keys = vec![
+            payer.pubkey(),
+            forester_epoch_pda_pubkey,
+            tree_accounts.queue,
+            tree_accounts.merkle_tree,
+        ];
+        let url = Url::parse(&rpc.get_url()).expect("Failed to parse URL");
+        let priority_fee_recommendation: u64 =
+            request_priority_fee_estimate(&url, account_keys).await?;
+
+        // Cap the priority fee and CU usage with buffer.
+        let cap_config = CapConfig {
+            rec_fee_microlamports_per_cu: priority_fee_recommendation,
+            min_fee_lamports: config
+                .build_transaction_batch_config
+                .compute_unit_price
+                .unwrap_or(10_000),
+            max_fee_lamports: config
+                .build_transaction_batch_config
+                .compute_unit_price
+                .unwrap_or(100_000),
+            compute_unit_limit: config
+                .build_transaction_batch_config
+                .compute_unit_limit
+                .unwrap_or(200_000) as u64,
+        };
+        let priority_fee = get_capped_priority_fee(cap_config);
+
         // 5. Iterate over work items in chunks of batch size.
         for work_items in
             work_items.chunks(config.build_transaction_batch_config.batch_size as usize)
         {
             // 6. Check if we reached the end of the light slot.
             if TIMEOUT_CHECK_ENABLED {
-                let remaining_time = match config
-                    .retry_config
-                    .timeout
-                    .checked_sub(start_time.elapsed())
-                {
-                    Some(time) => time,
-                    None => {
-                        debug!("Reached end of light slot");
-                        break;
-                    }
-                };
-
+                let remaining_time =
+                    get_remaining_time_in_light_slot(start_time, config.retry_config.timeout);
                 if remaining_time < LATENCY {
                     debug!("Reached end of light slot");
                     break;
                 }
             }
 
-            // Minimum time to wait for the next batch of transactions.
-            // Can be used to avoid rate limits.
+            // Minimum time to wait for the next batch of transactions. Can be
+            // used to avoid rate limits. TODO(swen): check max feasible batch
+            // size and latency for large tx batches. TODO: add global rate
+            // limit across our instances and queues: max 100 RPS global.
             let transaction_build_time_start = Instant::now();
-            let transactions: Vec<Transaction> = transaction_builder
+            let (transactions, _block_height) = transaction_builder
                 .build_signed_transaction_batch(
                     payer,
                     derivation,
                     &recent_blockhash,
+                    last_valid_block_height,
+                    priority_fee,
                     work_items,
                     config.build_transaction_batch_config,
                 )
@@ -191,43 +238,58 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
             let batch_start = Instant::now();
             if TIMEOUT_CHECK_ENABLED {
-                let remaining_time = config
-                    .retry_config
-                    .timeout
-                    .saturating_sub(start_time.elapsed());
-
+                let remaining_time =
+                    get_remaining_time_in_light_slot(start_time, config.retry_config.timeout);
                 if remaining_time < LATENCY {
                     debug!("Reached end of light slot");
                     break;
                 }
             }
-            // Asynchronously send all transactions in the batch
-            let pool_clone = Arc::clone(&pool);
-            let send_futures = transactions.into_iter().map(move |tx| {
-                let pool_clone = Arc::clone(&pool_clone);
-                tokio::spawn(async move {
-                    match pool_clone.get_connection().await {
-                        Ok(mut rpc) => {
-                            let result = rpc.process_transaction(tx).await;
-                            println!("tx result: {:?}", result);
-                            result
+
+            let send_transaction_config = RpcSendTransactionConfig {
+                // Use required settings for routing through staked connection:
+                // https://docs.helius.dev/guides/sending-transactions-on-solana
+                skip_preflight: true,
+                max_retries: Some(0),
+                preflight_commitment: Some(CommitmentLevel::Confirmed),
+                ..Default::default()
+            };
+            // Send and confirm all transactions in the batch non-blocking.
+            let send_futures: Vec<_> = transactions
+                .into_iter()
+                .map(|tx| {
+                    let pool_clone = Arc::clone(&pool);
+                    async move {
+                        match pool_clone.get_connection().await {
+                            Ok(mut rpc) => {
+                                send_and_confirm_transaction(
+                                    &mut rpc,
+                                    &tx,
+                                    send_transaction_config,
+                                    last_valid_block_height,
+                                    config.retry_config.timeout,
+                                )
+                                .await
+                            }
+                            Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
+                                "Failed to get RPC connection: {}",
+                                e
+                            ))),
                         }
-                        Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
-                            "Failed to get RPC connection: {}",
-                            e
-                        ))),
                     }
                 })
-            });
+                .collect();
 
             let results = join_all(send_futures).await;
 
-            // Process results
+            // Evaluate results
             for result in results {
                 match result {
-                    Ok(Ok(_)) => num_sent_transactions += 1,
-                    Ok(Err(e)) => warn!("Transaction failed: {:?}", e),
-                    Err(e) => warn!("Task failed: {:?}", e),
+                    Ok(signature) => {
+                        num_sent_transactions += 1;
+                        println!("Transaction sent: {:?}", signature);
+                    }
+                    Err(e) => warn!("Transaction failed: {:?}", e),
                 }
             }
 
@@ -256,6 +318,18 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct CapConfig {
+    pub rec_fee_microlamports_per_cu: u64,
+    pub min_fee_lamports: u64,
+    pub max_fee_lamports: u64,
+    pub compute_unit_limit: u64,
+}
+
+fn get_remaining_time_in_light_slot(start_time: Instant, timeout: Duration) -> Duration {
+    timeout.saturating_sub(start_time.elapsed())
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct SendBatchedTransactionsConfig {
     pub num_batches: u64,
     pub build_transaction_batch_config: BuildTransactionBatchConfig,
@@ -279,14 +353,20 @@ pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
 
 #[async_trait]
 impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransactions<R, I> {
+    fn epoch(&self) -> u64 {
+        self.epoch
+    }
+
     async fn build_signed_transaction_batch(
         &self,
         payer: &Keypair,
         derivation: &Pubkey,
         recent_blockhash: &Hash,
+        last_valid_block_height: u64,
+        priority_fee: u64,
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
-    ) -> Result<Vec<Transaction>> {
+    ) -> Result<(Vec<Transaction>, u64)> {
         let mut transactions = vec![];
         let (_, all_instructions) = fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -296,42 +376,21 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             work_items,
         )
         .await?;
+
         for instruction in all_instructions {
-            let transaction = build_signed_transaction(
-                payer,
-                recent_blockhash,
-                config.compute_unit_price,
-                config.compute_unit_limit,
-                instruction,
-            )
-            .await;
+            let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
+                payer: payer.insecure_clone(),
+                instructions: vec![instruction],
+                recent_blockhash: *recent_blockhash,
+                compute_unit_price: Some(priority_fee),
+                compute_unit_limit: config.compute_unit_limit,
+                last_valid_block_hash: last_valid_block_height,
+            })
+            .await?;
             transactions.push(transaction);
         }
-        Ok(transactions)
+        Ok((transactions, last_valid_block_height))
     }
-}
-
-async fn build_signed_transaction(
-    payer: &Keypair,
-    recent_blockhash: &Hash,
-    compute_unit_price: Option<u64>,
-    compute_unit_limit: Option<u32>,
-    instruction: Instruction,
-) -> Transaction {
-    let mut instructions: Vec<Instruction> = if let Some(price) = compute_unit_price {
-        vec![ComputeBudgetInstruction::set_compute_unit_price(price)]
-    } else {
-        vec![]
-    };
-    if let Some(limit) = compute_unit_limit {
-        instructions.push(ComputeBudgetInstruction::set_compute_unit_limit(limit));
-    }
-    instructions.push(instruction);
-
-    let mut transaction =
-        Transaction::new_with_payer(instructions.as_slice(), Some(&payer.pubkey()));
-    transaction.sign(&[payer], *recent_blockhash);
-    transaction
 }
 
 /// Work items should be of only one type and tree
@@ -452,4 +511,74 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     }
 
     Ok((proofs, instructions))
+}
+
+/// Request priority fee estimate from Helius RPC endpoint
+pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>) -> Result<u64> {
+    if url.host_str() == Some("localhost") {
+        return Ok(10_000);
+    }
+
+    let priority_fee_request = GetPriorityFeeEstimateRequest {
+        transaction: None,
+        account_keys: Some(
+            account_keys
+                .iter()
+                .map(|pubkey| bs58::encode(pubkey).into_string())
+                .collect(),
+        ),
+        options: Some(GetPriorityFeeEstimateOptions {
+            include_all_priority_fee_levels: None,
+            recommended: Some(true),
+            include_vote: None,
+            lookback_slots: None,
+            priority_level: None,
+            transaction_encoding: None,
+        }),
+    };
+
+    let rpc_request = RpcRequest::new(
+        "getPriorityFeeEstimate".to_string(),
+        serde_json::json!({
+            "get_priority_fee_estimate_request": priority_fee_request
+        }),
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(url.clone())
+        .header("Content-Type", "application/json")
+        .json(&rpc_request)
+        .send()
+        .await?;
+
+    let response_text = response.text().await?;
+
+    let response: RpcResponse<GetPriorityFeeEstimateResponse> =
+        serde_json::from_str(&response_text)?;
+
+    response
+        .result
+        .priority_fee_estimate
+        .map(|estimate| estimate as u64)
+        .ok_or(
+            ForesterError::General {
+                error: "Priority fee estimate not available".to_string(),
+            }
+            .into(),
+        )
+}
+
+/// Get capped priority fee for transaction between min and max.
+pub fn get_capped_priority_fee(cap_config: CapConfig) -> u64 {
+    if cap_config.max_fee_lamports < cap_config.min_fee_lamports {
+        panic!("Max fee is less than min fee");
+    }
+
+    let priority_fee_max =
+        calculate_compute_unit_price(cap_config.max_fee_lamports, cap_config.compute_unit_limit);
+    let priority_fee_min =
+        calculate_compute_unit_price(cap_config.min_fee_lamports, cap_config.compute_unit_limit);
+    let capped_fee = std::cmp::min(cap_config.rec_fee_microlamports_per_cu, priority_fee_max);
+    std::cmp::max(capped_fee, priority_fee_min)
 }

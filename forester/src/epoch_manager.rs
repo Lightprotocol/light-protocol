@@ -851,6 +851,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 )
                 .await?;
 
+                // light slot length in s
                 let light_slot_timeout = {
                     let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
                         .map_err(|_| ConfigurationError::SlotLengthOverflow {
@@ -907,14 +908,21 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         }
                     }
                 } else {
-                    // TODO: measure accuracy
-                    // Optional replace with shutdown signal for all child processes
+                    // TODO: measure accuracy Optional replace with shutdown
+                    // signal for all child processes
+                    //
+                    // Note: as of now, this executes all batches sequentially:
+                    // a single batch must fully complete before the next batch
+                    // is sent. We can either limit num_batches to 1 and
+                    // increase batch_size (quick fix) and require another
+                    // rate-limiting mechanism (with more control). Or rework
+                    // the send logic to not await confirmations.
                     let batched_tx_config = SendBatchedTransactionsConfig {
                         num_batches: 10,
                         build_transaction_batch_config: BuildTransactionBatchConfig {
                             batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
-                            compute_unit_price: None, // Make dynamic based on queue usage
-                            compute_unit_limit: Some(1_000_000),
+                            compute_unit_price: Some(10_000), // Is dynamic. Sets max.
+                            compute_unit_limit: Some(180_000),
                         },
                         queue_config: self.config.queue_config,
                         retry_config: RetryConfig {
@@ -932,6 +940,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     };
 
                     debug!("Sending transactions...");
+                    // sequential
                     let start_time = Instant::now();
                     let batch_tx_future = send_batched_transactions(
                         &self.config.payer_keypair,
