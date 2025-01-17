@@ -76,48 +76,6 @@ impl BatchedQueueMetadata {
     }
 }
 
-impl BatchMetadata {
-    pub fn init(
-        &mut self,
-        num_batches: u64,
-        batch_size: u64,
-        zkp_batch_size: u64,
-    ) -> Result<(), BatchedMerkleTreeError> {
-        self.num_batches = num_batches;
-        self.batch_size = batch_size;
-        // Check that batch size is divisible by zkp_batch_size.
-        if batch_size % zkp_batch_size != 0 {
-            return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
-        }
-        self.zkp_batch_size = zkp_batch_size;
-        Ok(())
-    }
-
-    pub fn get_size_parameters(
-        &self,
-        queue_type: u64,
-    ) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
-        let num_batches = self.num_batches as usize;
-        // Input queues don't store values
-        let num_value_stores = if queue_type == QueueType::BatchedOutput as u64 {
-            num_batches
-        } else if queue_type == QueueType::BatchedInput as u64 {
-            0
-        } else {
-            return Err(MerkleTreeMetadataError::InvalidQueueType);
-        };
-        // Output queues don't use bloom filters.
-        let num_stores = if queue_type == QueueType::BatchedInput as u64 {
-            num_batches
-        } else if queue_type == QueueType::BatchedOutput as u64 && self.bloom_filter_capacity == 0 {
-            0
-        } else {
-            return Err(MerkleTreeMetadataError::InvalidQueueType);
-        };
-        Ok((num_value_stores, num_stores, num_batches))
-    }
-}
-
 pub fn queue_account_size(
     batch_metadata: &BatchMetadata,
     queue_type: u64,
@@ -148,9 +106,8 @@ pub fn queue_account_size(
         + hashchain_store_size;
     Ok(size)
 }
-/// Batched output queue
-#[repr(C)]
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq)]
 pub struct BatchedQueueAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
     pub batches: ZeroCopySliceMutU64<'a, Batch>,
@@ -199,24 +156,17 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     #[cfg(not(target_os = "solana"))]
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
-    #[cfg(not(target_os = "solana"))]
-    pub fn from_bytes<const QUEUE_TYPE: u64>(
-        account_data: &'a mut [u8],
-    ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::internal_from_bytes::<QUEUE_TYPE>(account_data)
-    }
-
-    fn internal_from_bytes<const QUEUE_TYPE: u64>(
+    fn from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
@@ -307,7 +257,7 @@ impl<'a> BatchedQueueAccount<'a> {
 
     pub fn insert_into_current_batch(
         &mut self,
-        value: &[u8; 32],
+        hash_chain_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
         let current_index = self.next_index;
 
@@ -318,7 +268,7 @@ impl<'a> BatchedQueueAccount<'a> {
             &mut self.value_vecs,
             self.bloom_filter_stores.as_mut_slice(),
             &mut self.hashchain_store,
-            value,
+            hash_chain_value,
             None,
             Some(current_index),
         )?;
@@ -330,16 +280,16 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn prove_inclusion_by_index(
         &mut self,
         leaf_index: u64,
-        value: &[u8; 32],
+        hash_chain_value: &[u8; 32],
     ) -> Result<bool, BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batches.iter().enumerate() {
-            if batch.value_is_inserted_in_batch(leaf_index)? {
+            if batch.leaf_index_could_exist_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
                     .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
 
-                if element == value {
+                if element == hash_chain_value {
                     return Ok(true);
                 } else {
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
@@ -354,7 +304,7 @@ impl<'a> BatchedQueueAccount<'a> {
         leaf_index: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         for batch in self.batches.iter() {
-            let res = batch.value_is_inserted_in_batch(leaf_index)?;
+            let res = batch.leaf_index_could_exist_in_batch(leaf_index)?;
             if res {
                 return Ok(());
             }
@@ -363,21 +313,21 @@ impl<'a> BatchedQueueAccount<'a> {
     }
 
     // TODO: add unit tests
-    /// Zero out a leaf by index if it exists in the queues value vec. If
+    /// Zero out a leaf by index if it exists in the queues hash_chain_value vec. If
     /// checked fail if leaf is not found.
     pub fn prove_inclusion_by_index_and_zero_out_leaf(
         &mut self,
         leaf_index: u64,
-        value: &[u8; 32],
+        hash_chain_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batches.iter().enumerate() {
-            if batch.value_is_inserted_in_batch(leaf_index)? {
+            if batch.leaf_index_could_exist_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
                     .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
 
-                if element == value {
+                if element == hash_chain_value {
                     *element = [0u8; 32];
                     return Ok(());
                 } else {
@@ -388,18 +338,18 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(())
     }
 
-    pub fn get_batch_num_inserted_in_current_batch(&self) -> u64 {
+    pub fn get_num_inserted_in_current_batch(&self) -> u64 {
         let next_full_batch = self.batch_metadata.currently_processing_batch_index;
         let batch = self.batches.get(next_full_batch as usize).unwrap();
         batch.get_num_inserted() + batch.get_current_zkp_batch_index() * batch.zkp_batch_size
     }
 
-    pub fn is_associated(&self, account: &Pubkey) -> bool {
-        self.metadata.metadata.associated_merkle_tree == *account
+    pub fn is_associated(&self, pubkey: &Pubkey) -> bool {
+        self.metadata.metadata.associated_merkle_tree == *pubkey
     }
 
-    pub fn check_is_associated(&self, account: &Pubkey) -> Result<(), BatchedMerkleTreeError> {
-        if !self.is_associated(account) {
+    pub fn check_is_associated(&self, pubkey: &Pubkey) -> Result<(), BatchedMerkleTreeError> {
+        if !self.is_associated(pubkey) {
             return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
         }
         Ok(())
@@ -417,63 +367,61 @@ impl<'a> BatchedQueueAccount<'a> {
     }
 }
 
+/// Insert a value into the current batch.
+/// - Input&address queues: Insert into bloom filter & hash chain.
+/// - Output queue: Insert into value vec & hash chain.
+///
+/// Steps:
+/// 1. Check if the current batch is ready.
+///     1.1. If the current batch is inserted, clear the batch.
+/// 2. Insert value into the current batch.
+/// 3. If batch is full, increment currently_processing_batch_index.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn insert_into_current_batch(
     queue_type: u64,
-    account: &mut BatchMetadata,
+    batch_metadata: &mut BatchMetadata,
     batches: &mut ZeroCopySliceMutU64<Batch>,
     value_vecs: &mut [ZeroCopyVecU64<[u8; 32]>],
     bloom_filter_stores: &mut [ZeroCopySliceMutU64<u8>],
     hashchain_store: &mut [ZeroCopyVecU64<[u8; 32]>],
-    value: &[u8; 32],
-    leaves_hash_value: Option<&[u8; 32]>,
+    hash_chain_value: &[u8; 32],
+    bloom_filter_value: Option<&[u8; 32]>,
     current_index: Option<u64>,
 ) -> Result<(Option<u32>, Option<u64>), BatchedMerkleTreeError> {
-    let len = batches.len();
     let mut root_index = None;
     let mut sequence_number = None;
-    let currently_processing_batch_index = account.currently_processing_batch_index as usize;
-    // Insert value into current batch.
+    let batch_index = batch_metadata.currently_processing_batch_index as usize;
+    let mut value_store = value_vecs.get_mut(batch_index);
+    let mut hashchain_store = hashchain_store.get_mut(batch_index);
+    let current_batch = batches
+        .get_mut(batch_index)
+        .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
+    // 1. Check that the current batch is ready.
+    //      1.1. If the current batch is inserted, clear the batch.
     {
-        let mut bloom_filter_stores = bloom_filter_stores.get_mut(currently_processing_batch_index);
-        let mut value_store = value_vecs.get_mut(currently_processing_batch_index);
-        let mut hashchain_store = hashchain_store.get_mut(currently_processing_batch_index);
+        let clear_batch = current_batch.get_state() == BatchState::Inserted;
+        if current_batch.get_state() == BatchState::Fill {
+            // Do nothing, checking most often case first.
+        } else if clear_batch {
+            current_batch.advance_state_to_fill()?;
+            msg!("clear_batch");
 
-        let current_batch = batches
-            .get_mut(currently_processing_batch_index)
-            .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
-        let mut wipe = false;
-        if current_batch.get_state() == BatchState::Inserted {
-            current_batch.advance_state_to_can_be_filled()?;
-            if let Some(current_index) = current_index {
-                current_batch.start_index = current_index;
-            }
-            wipe = true;
-        }
-
-        // We expect to insert into the current batch.
-        if current_batch.get_state() == BatchState::Full {
-            for batch in batches.iter_mut() {
-                msg!("batch {:?}", batch);
-            }
-            return Err(BatchedMerkleTreeError::BatchNotReady);
-        }
-        if wipe {
-            msg!("wipe");
-            if let Some(blomfilter_stores) = bloom_filter_stores.as_mut() {
-                if !current_batch.bloom_filter_is_wiped() {
+            if let Some(blomfilter_stores) = bloom_filter_stores.get_mut(batch_index) {
+                // Bloom filters should by default be zeroed by foresters
+                // because zeroing bytes is CU intensive.
+                // This is a safeguard to ensure queue lifeness
+                // in case foresters are behind.
+                if !current_batch.bloom_filter_is_zeroed() {
                     (*blomfilter_stores).iter_mut().for_each(|x| *x = 0);
                     // Saving sequence number and root index for the batch.
-                    // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
+                    // When the batch is cleared check that sequence number
+                    // is greater or equal than self.sequence_number
                     // if not advance current root index to root index
-                    if current_batch.sequence_number != 0 {
-                        root_index = Some(current_batch.root_index);
-                        sequence_number = Some(current_batch.sequence_number);
-                    }
-                } else {
-                    current_batch.set_bloom_filter_is_not_wiped();
+                    root_index = Some(current_batch.root_index);
+                    sequence_number = Some(current_batch.sequence_number);
                 }
+                current_batch.set_bloom_filter_to_not_zeroed();
                 current_batch.sequence_number = 0;
             }
             if let Some(value_store) = value_store.as_mut() {
@@ -482,41 +430,39 @@ pub fn insert_into_current_batch(
             if let Some(hashchain_store) = hashchain_store.as_mut() {
                 (*hashchain_store).clear();
             }
-        }
-
-        let queue_type = QueueType::from(queue_type);
-        match queue_type {
-            QueueType::BatchedInput | QueueType::BatchedAddress => current_batch.insert(
-                value,
-                leaves_hash_value.unwrap(),
-                bloom_filter_stores.unwrap().as_mut_slice(),
-                hashchain_store.as_mut().unwrap(),
-            ),
-            QueueType::BatchedOutput => current_batch.store_and_hash_value(
-                value,
-                value_store.unwrap(),
-                hashchain_store.unwrap(),
-            ),
-            _ => Err(MerkleTreeMetadataError::InvalidQueueType.into()),
-        }?;
-    }
-
-    // If queue has bloom_filters check non-inclusion of value in bloom_filters of
-    // other batches. (Current batch is already checked by insertion.)
-    if !bloom_filter_stores.is_empty() {
-        for index in currently_processing_batch_index + 1..(len + currently_processing_batch_index)
-        {
-            let index = index % len;
-            let bloom_filter_stores = bloom_filter_stores.get_mut(index).unwrap().as_mut_slice();
-            let current_batch = batches.get_mut(index).unwrap();
-            current_batch.check_non_inclusion(value, bloom_filter_stores)?;
+            if let Some(current_index) = current_index {
+                current_batch.start_index = current_index;
+            }
+        } else {
+            // We expect to insert into the current batch.
+            for batch in batches.iter_mut() {
+                msg!("batch {:?}", batch);
+            }
+            return Err(BatchedMerkleTreeError::BatchNotReady);
         }
     }
 
-    if batches[account.currently_processing_batch_index as usize].get_state() == BatchState::Full {
-        account.currently_processing_batch_index += 1;
-        account.currently_processing_batch_index %= len as u64;
-    }
+    // 2. Insert value into the current batch.
+    let queue_type = QueueType::from(queue_type);
+    match queue_type {
+        QueueType::BatchedInput | QueueType::BatchedAddress => current_batch.insert(
+            bloom_filter_value.unwrap(),
+            hash_chain_value,
+            bloom_filter_stores,
+            hashchain_store.as_mut().unwrap(),
+            batch_index,
+        ),
+        QueueType::BatchedOutput => current_batch.store_and_hash_value(
+            hash_chain_value,
+            value_store.unwrap(),
+            hashchain_store.unwrap(),
+        ),
+        _ => Err(MerkleTreeMetadataError::InvalidQueueType.into()),
+    }?;
+
+    // 3. If batch is full, increment currently_processing_batch_index.
+    batch_metadata.increment_currently_processing_batch_index_if_full(current_batch.get_state());
+
     Ok((root_index, sequence_number))
 }
 
@@ -546,8 +492,8 @@ pub fn output_queue_from_bytes(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn input_queue_bytes<'a>(
-    account: &BatchMetadata,
+pub fn input_queue_from_bytes<'a>(
+    batch_metadata: &BatchMetadata,
     account_data: &'a mut [u8],
     queue_type: u64,
 ) -> Result<
@@ -560,7 +506,7 @@ pub fn input_queue_bytes<'a>(
     BatchedMerkleTreeError,
 > {
     let (num_value_stores, num_stores, hashchain_store_capacity) =
-        account.get_size_parameters(queue_type)?;
+        batch_metadata.get_size_parameters(queue_type)?;
 
     let (batches, account_data) = ZeroCopySliceMutU64::from_bytes_at(account_data)?;
     let (value_vecs, account_data) =
@@ -576,7 +522,7 @@ pub fn input_queue_bytes<'a>(
 
 #[allow(clippy::type_complexity)]
 pub fn init_queue<'a>(
-    account: &BatchMetadata,
+    batch_metadata: &BatchMetadata,
     queue_type: u64,
     account_data: &'a mut [u8],
     num_iters: u64,
@@ -592,32 +538,32 @@ pub fn init_queue<'a>(
     BatchedMerkleTreeError,
 > {
     let (num_value_stores, num_stores, num_hashchain_stores) =
-        account.get_size_parameters(queue_type)?;
+        batch_metadata.get_size_parameters(queue_type)?;
 
     let (mut batches, account_data) =
-        ZeroCopySliceMutU64::new_at(account.num_batches, account_data)?;
+        ZeroCopySliceMutU64::new_at(batch_metadata.num_batches, account_data)?;
 
-    for i in 0..account.num_batches {
+    for i in 0..batch_metadata.num_batches {
         batches[i as usize] = Batch::new(
             num_iters,
             bloom_filter_capacity,
-            account.batch_size,
-            account.zkp_batch_size,
-            account.batch_size * i + batch_start_index,
+            batch_metadata.batch_size,
+            batch_metadata.zkp_batch_size,
+            batch_metadata.batch_size * i + batch_start_index,
         );
     }
     let (value_vecs, account_data) =
-        ZeroCopyVecU64::new_at_multiple(num_value_stores, account.batch_size, account_data)?;
+        ZeroCopyVecU64::new_at_multiple(num_value_stores, batch_metadata.batch_size, account_data)?;
 
     let (bloom_filter_stores, account_data) = ZeroCopySliceMutU64::new_at_multiple(
         num_stores,
-        account.bloom_filter_capacity / 8,
+        batch_metadata.bloom_filter_capacity / 8,
         account_data,
     )?;
 
     let (hashchain_store, _) = ZeroCopyVecU64::new_at_multiple(
         num_hashchain_stores,
-        account.get_num_zkp_batches(),
+        batch_metadata.get_num_zkp_batches(),
         account_data,
     )?;
 
@@ -625,7 +571,7 @@ pub fn init_queue<'a>(
 }
 
 pub fn get_output_queue_account_size_default() -> usize {
-    let account = BatchedQueueMetadata {
+    let batch_metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
@@ -636,13 +582,17 @@ pub fn get_output_queue_account_size_default() -> usize {
         },
         ..Default::default()
     };
-    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
+    queue_account_size(
+        &batch_metadata.batch_metadata,
+        QueueType::BatchedOutput as u64,
+    )
+    .unwrap()
 }
 
 pub fn get_output_queue_account_size_from_params(
     ix_data: InitStateTreeAccountsInstructionData,
 ) -> usize {
-    let account = BatchedQueueMetadata {
+    let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
@@ -653,7 +603,7 @@ pub fn get_output_queue_account_size_from_params(
         },
         ..Default::default()
     };
-    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
+    queue_account_size(&metadata.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
 
 pub fn get_output_queue_account_size(
@@ -661,7 +611,7 @@ pub fn get_output_queue_account_size(
     zkp_batch_size: u64,
     num_batches: u64,
 ) -> usize {
-    let account = BatchedQueueMetadata {
+    let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
@@ -672,7 +622,7 @@ pub fn get_output_queue_account_size(
         },
         ..Default::default()
     };
-    queue_account_size(&account.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
+    queue_account_size(&metadata.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
 }
 
 #[allow(clippy::too_many_arguments)]

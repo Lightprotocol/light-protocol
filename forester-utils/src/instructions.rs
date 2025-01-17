@@ -1,8 +1,8 @@
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::{
-        AppendBatchProofInputsIx, BatchProofInputsIx, BatchedMerkleTreeAccount,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+        BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs,
     },
     queue::BatchedQueueAccount,
 };
@@ -58,12 +58,11 @@ where
         })?
         .unwrap();
 
-    let (old_root_index, leaves_hashchain, start_index, current_root, batch_size, full_batch_index) = {
+    let (leaves_hashchain, start_index, current_root, batch_size, full_batch_index) = {
         let merkle_tree =
             BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
                 .unwrap();
 
-        let old_root_index = merkle_tree.root_history.last_index();
         let full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
         let batch = &merkle_tree.batches[full_batch_index as usize];
         let zkp_batch_index = batch.get_num_inserted_zkps();
@@ -74,7 +73,6 @@ where
         let batch_size = batch.zkp_batch_size as usize;
 
         (
-            old_root_index,
             leaves_hashchain,
             start_index,
             current_root,
@@ -175,7 +173,7 @@ where
         })?;
 
     let client = Client::new();
-    let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
+    let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
 
     let response_result = client
@@ -192,10 +190,7 @@ where
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
         let instruction_data = InstructionDataBatchNullifyInputs {
-            public_inputs: BatchProofInputsIx {
-                new_root: circuit_inputs_new_root,
-                old_root_index: old_root_index as u16,
-            },
+            new_root,
             compressed_proof: CompressedProof {
                 a: proof_a,
                 b: proof_b,
@@ -330,7 +325,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     };
 
     Ok(InstructionDataBatchAppendInputs {
-        public_inputs: AppendBatchProofInputsIx { new_root },
+        new_root,
         compressed_proof: proof,
     })
 }
@@ -340,7 +335,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    let (zkp_batch_size, old_root, old_root_index, leaves_hashchain) = {
+    let (zkp_batch_size, old_root, leaves_hashchain) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree =
             BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
@@ -349,9 +344,8 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let batch = &merkle_tree.batches[batch_idx];
         let zkp_idx = batch.get_num_inserted_zkps();
         let hashchain = merkle_tree.hashchain_store[batch_idx][zkp_idx as usize];
-        let root_idx = merkle_tree.root_history.last_index();
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size, root, root_idx, hashchain)
+        (zkp_size, root, hashchain)
     };
 
     let leaf_indices_tx_hashes =
@@ -434,10 +428,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     };
 
     Ok(InstructionDataBatchNullifyInputs {
-        public_inputs: BatchProofInputsIx {
-            new_root,
-            old_root_index: old_root_index as u16,
-        },
+        new_root,
         compressed_proof: proof,
     })
 }

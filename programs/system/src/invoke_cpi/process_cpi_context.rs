@@ -94,7 +94,7 @@ pub fn set_cpi_context(
 ) -> Result<()> {
     // SAFETY Assumptions:
     // -  previous data in cpi_context_account
-    //   -> we require the account to be wiped in the beginning of a
+    //   -> we require the account to be cleared in the beginning of a
     //   transaction
     // - leaf over data: There cannot be any leftover data in the
     //   account since if the transaction fails the account doesn't change.

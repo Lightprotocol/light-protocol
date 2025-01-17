@@ -25,7 +25,7 @@ pub fn rollover_batched_address_tree<'a>(
     new_mt_pubkey: Pubkey,
     network_fee: Option<u64>,
 ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-    // Check that old merkle tree is ready for rollover.
+    // 1. Check that old merkle tree is ready for rollover.
     batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
     // Rollover the old merkle tree.

@@ -337,11 +337,13 @@ async fn test_state_batched() {
 
         let expected_sequence_number =
             initial_sequence_number + (num_zkp_batches * UPDATES_PER_BATCH);
-        let expected_root_history_len = (expected_sequence_number + 1) as usize;
 
         assert_eq!(final_metadata.sequence_number, expected_sequence_number);
 
-        assert_eq!(merkle_tree.root_history.len(), expected_root_history_len);
+        assert_eq!(
+            merkle_tree.root_history.last_index(),
+            expected_sequence_number as usize
+        );
 
         assert_ne!(
             pre_root,
