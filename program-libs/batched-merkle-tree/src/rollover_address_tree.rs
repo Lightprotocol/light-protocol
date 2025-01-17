@@ -10,14 +10,22 @@ use crate::{
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
 
-/// Checks:
-/// 1. Merkle tree is ready to be rolled over
-/// 2. Merkle tree is not already rolled over
-/// 3. Rollover threshold is configured, if not tree cannot be rolled over
+/// Rollover an almost full batched address tree,
+/// ie create a new batched Merkle tree account
+/// with the same parameters, and mark the old account as rolled over.
+/// The old tree can be used until it is completely full.
 ///
-/// Actions:
-/// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and nullifier queue with the same parameters
+/// Steps:
+/// 1. Check that Merkle tree is ready to be rolled over:
+///     1.1. rollover threshold is configured
+///     1.2. next index is greater than rollover threshold
+///     1.3. the network fee is not set if the current fee is zero
+/// 2. Rollover the old Merkle tree and check:
+///     2.2. Rollover is configured.
+///     2.3. Tree is not already rolled over.
+///     2.4. Mark as rolled over in this slot.
+/// 3. Initialize new batched address Merkle tree account
+///     with the same parameters as the old account.
 pub fn rollover_batched_address_tree<'a>(
     old_merkle_tree: &mut BatchedMerkleTreeAccount<'a>,
     new_mt_data: &'a mut [u8],
@@ -28,12 +36,12 @@ pub fn rollover_batched_address_tree<'a>(
     // 1. Check that old merkle tree is ready for rollover.
     batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
-    // Rollover the old merkle tree.
+    // 2. Rollover the old merkle tree.
     old_merkle_tree
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)?;
 
-    // Initialize the new address merkle tree.
+    // 3. Initialize the new address merkle tree.
     let params = create_batched_address_tree_init_params(old_merkle_tree, network_fee);
     let owner = old_merkle_tree.metadata.access_metadata.owner;
     init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent)
@@ -79,9 +87,9 @@ fn create_batched_address_tree_init_params(
 #[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_roll_over(
     mut old_mt_account_data: Vec<u8>,
-    mut old_ref_mt_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
+    mut old_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     mut new_mt_account_data: Vec<u8>,
-    new_ref_mt_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
+    new_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     new_mt_pubkey: Pubkey,
     bloom_filter_num_iters: u64,
 ) {

@@ -18,9 +18,10 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{
         assert_batch_append_event_event, assert_nullify_event,
-        get_merkle_tree_account_size_default, BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata,
+        get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
+    merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
         get_output_queue_account_size_default, get_output_queue_account_size_from_params,
         BatchedQueueAccount, BatchedQueueMetadata,

@@ -13,7 +13,7 @@ pub enum BatchState {
     Fill,
     /// Batch has been inserted into the tree.
     Inserted,
-    /// Batch is full, and insertion is in progress.
+    /// Batch is full.
     Full,
 }
 
@@ -34,6 +34,14 @@ impl From<BatchState> for u64 {
     }
 }
 
+/// Batch structure that holds
+/// the metadata and state of a batch.
+///
+/// A batch:
+/// - has a size and a number of zkp batches.
+/// - size must be divisible by zkp batch size.
+/// - is part of a queue, by default a queue has two batches.
+/// - is inserted into the tree by zkp batch.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, KnownLayout, Immutable, IntoBytes, FromBytes)]
 pub struct Batch {
@@ -203,15 +211,6 @@ impl Batch {
             .ok_or(BatchedMerkleTreeError::LeafIndexNotInBatch)
     }
 
-    pub fn store_value(
-        &mut self,
-        value: &[u8; 32],
-        value_store: &mut ZeroCopyVecU64<[u8; 32]>,
-    ) -> Result<(), BatchedMerkleTreeError> {
-        value_store.push(*value)?;
-        Ok(())
-    }
-
     /// Stores the value in a value store,
     /// and adds the value to the current hash chain.
     pub fn store_and_hash_value(
@@ -221,12 +220,16 @@ impl Batch {
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.add_to_hash_chain(value, hashchain_store)?;
-        self.store_value(value, value_store)
+        value_store.push(*value)?;
+        Ok(())
     }
 
-    /// Inserts into the bloom filter and
+    /// Insert into the bloom filter and
     /// add value a the current hash chain.
     /// (used by nullifier & address queues)
+    /// 1. Add value to hash chain.
+    /// 2. Insert value into the bloom filter at bloom_filter_index.
+    /// 3. Check that value is not in any other bloom filter.
     pub fn insert(
         &mut self,
         bloom_filter_value: &[u8; 32],
@@ -235,35 +238,52 @@ impl Batch {
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
         bloom_filter_index: usize,
     ) -> Result<(), BatchedMerkleTreeError> {
+        // 1. add value to hash chain
         self.add_to_hash_chain(hashchain_value, hashchain_store)?;
+        // insert into bloom filter & check non inclusion
+        {
+            let (before, after) = bloom_filter_stores.split_at_mut(bloom_filter_index);
+            let (bloom_filter, after) = after
+                .split_first_mut()
+                .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
 
-        for (i, bloom_filter) in bloom_filter_stores.iter_mut().enumerate() {
-            if i == bloom_filter_index {
-                let mut bloom_filter = BloomFilter::new(
-                    self.num_iters as usize,
-                    self.bloom_filter_capacity,
-                    bloom_filter.as_mut_slice(),
-                )?;
-                bloom_filter.insert(bloom_filter_value)?;
-            } else {
-                self.check_non_inclusion(bloom_filter_value, bloom_filter.as_mut_slice())?;
+            // 2. Insert value into the bloom filter at bloom_filter_index.
+            BloomFilter::new(
+                self.num_iters as usize,
+                self.bloom_filter_capacity,
+                bloom_filter.as_mut_slice(),
+            )?
+            .insert(bloom_filter_value)?;
+
+            // 3. Check that value is not in any other bloom filter.
+            for bf_store in before.iter_mut().chain(after.iter_mut()) {
+                self.check_non_inclusion(bloom_filter_value, bf_store.as_mut_slice())?;
             }
         }
         Ok(())
     }
 
+    /// Add a value to the current hash chain, and advance batch state.
+    /// 1. Check that the batch is ready.
+    /// 2. If the zkp batch is empty, start a new hash chain.
+    /// 3. If the zkp batch is not empty, add value to last hash chain.
+    /// 4. If the zkp batch is full, increment the zkp batch index.
+    /// 5. If all zkp batches are full, set batch state to full.
     pub fn add_to_hash_chain(
         &mut self,
         value: &[u8; 32],
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
     ) -> Result<(), BatchedMerkleTreeError> {
+        // 1. Check that the batch is ready.
         if self.get_state() != BatchState::Fill {
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }
         let start_new_hash_chain = self.num_inserted == 0;
         if start_new_hash_chain {
+            // 2. Start a new hash chain.
             hashchain_store.push(*value)?;
         } else if let Some(last_hashchain) = hashchain_store.last() {
+            // 3. Add value to last hash chain.
             let hashchain = Poseidon::hashv(&[last_hashchain, value.as_slice()])?;
             *hashchain_store.last_mut().unwrap() = hashchain;
         } else {
@@ -272,11 +292,13 @@ impl Batch {
         }
         self.num_inserted += 1;
 
+        // 4. If the zkp batch is full, increment the zkp batch index.
         let zkp_batch_is_full = self.num_inserted == self.zkp_batch_size;
         if zkp_batch_is_full {
             self.current_zkp_batch_index += 1;
             self.num_inserted = 0;
 
+            // 5. If all zkp batches are full, set batch state to full.
             let batch_is_full = self.current_zkp_batch_index == self.get_num_zkp_batches();
             if batch_is_full {
                 self.advance_state_to_full()?;
@@ -295,9 +317,7 @@ impl Batch {
         let mut bloom_filter =
             BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)?;
         if bloom_filter.contains(value) {
-            #[cfg(target_os = "solana")]
-            msg!("Value already exists in the bloom filter.");
-            return Err(BatchedMerkleTreeError::BatchInsertFailed);
+            return Err(BatchedMerkleTreeError::NonInclusionCheckFailed);
         }
         Ok(())
     }

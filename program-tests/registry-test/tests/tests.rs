@@ -15,7 +15,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::{
         assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams},
+    merkle_tree::BatchedMerkleTreeAccount,
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::BatchedQueueAccount,
 };
 use light_client::indexer::Indexer;

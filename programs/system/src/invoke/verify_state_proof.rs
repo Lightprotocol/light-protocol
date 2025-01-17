@@ -162,7 +162,7 @@ pub fn verify_input_accounts_proof_by_index(
                 &mut BatchedQueueAccount::output_from_account_info(output_queue_account_info)
                     .map_err(ProgramError::from)?;
             output_queue
-                .leaf_index_could_exist_in_batches(account.merkle_context.leaf_index as u64)
+                .check_leaf_index_could_exist_in_batches(account.merkle_context.leaf_index as u64)
                 .map_err(ProgramError::from)?;
         }
     }

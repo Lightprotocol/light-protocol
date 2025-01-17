@@ -760,8 +760,8 @@ async fn only_test_create_pda() {
         assert_rpc_error(
             result,
             0,
-            UtilsError::AccountNotMutable.into(),
-            // AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            // UtilsError::AccountNotMutable.into(),
+            UtilsError::InvalidDiscriminator.into(),
         )
         .unwrap();
 

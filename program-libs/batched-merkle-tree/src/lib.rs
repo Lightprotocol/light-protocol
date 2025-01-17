@@ -7,6 +7,7 @@ pub mod event;
 pub mod initialize_address_tree;
 pub mod initialize_state_tree;
 pub mod merkle_tree;
+pub mod merkle_tree_metadata;
 pub mod queue;
 pub mod rollover_address_tree;
 pub mod rollover_state_tree;

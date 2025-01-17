@@ -5,10 +5,8 @@ use light_batched_merkle_tree::{
         init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
         InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{
-        get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeMetadata, CreateTreeParams,
-    },
+    merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size,
         get_output_queue_account_size_default, BatchedQueueMetadata,
