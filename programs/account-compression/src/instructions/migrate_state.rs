@@ -137,7 +137,7 @@ fn migrate_state(
 mod migrate_state_test {
     use light_batched_merkle_tree::{
         batch_metadata::BatchMetadata,
-        queue::{queue_account_size, BatchedQueueAccount, BatchedQueueMetadata},
+        queue::{BatchedQueueAccount, BatchedQueueMetadata},
     };
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
@@ -180,11 +180,13 @@ mod migrate_state_test {
             },
             tree_capacity: 2u64.pow(32),
         };
-        let account_data: Vec<u8> =
-            vec![
-                0;
-                queue_account_size(&account.batch_metadata, account.metadata.queue_type).unwrap()
-            ];
+        let account_data: Vec<u8> = vec![
+            0;
+            account
+                .batch_metadata
+                .queue_account_size(account.metadata.queue_type)
+                .unwrap()
+        ];
         let mut mock_account = MockQueueAccount {
             account_data,
             account: None,

@@ -7,7 +7,7 @@ use light_merkle_tree_metadata::{
     queue::{QueueMetadata, QueueType},
 };
 use light_utils::{
-    account::{check_account_info_mut, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
+    account::{check_account_info, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
     pubkey::Pubkey,
 };
 use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
@@ -51,10 +51,6 @@ pub struct BatchedQueueMetadata {
     pub tree_capacity: u64,
 }
 
-impl Discriminator for BatchedQueueAccount<'_> {
-    const DISCRIMINATOR: [u8; 8] = *b"queueacc";
-}
-
 impl BatchedQueueMetadata {
     pub fn get_size_parameters(&self) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
         self.batch_metadata
@@ -76,81 +72,82 @@ impl BatchedQueueMetadata {
     }
 }
 
-pub fn queue_account_size(
-    batch_metadata: &BatchMetadata,
-    queue_type: u64,
-) -> Result<usize, BatchedMerkleTreeError> {
-    let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
-        batch_metadata.get_size_parameters(queue_type)?;
-    let account_size = if queue_type != QueueType::BatchedOutput as u64 {
-        0
-    } else {
-        BatchedQueueMetadata::LEN
-    };
-    let batches_size =
-        ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(batch_metadata.num_batches);
-    let value_vecs_size =
-        ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch_metadata.batch_size)
-            * num_value_vec;
-    // Bloomfilter capacity is in bits.
-    let bloom_filter_stores_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
-        batch_metadata.bloom_filter_capacity / 8,
-    ) * num_bloom_filter_stores;
-    let hashchain_store_size = ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-        batch_metadata.get_num_zkp_batches(),
-    ) * num_hashchain_store;
-    let size = account_size
-        + batches_size
-        + value_vecs_size
-        + bloom_filter_stores_size
-        + hashchain_store_size;
-    Ok(size)
-}
-
+/// Batched queue zero copy account.
+/// Used for output queues in light protocol.
+/// Output queues store compressed account hashes,
+/// to be appended to a batched Merkle tree
+/// in batches with a zero-knowledge proof (zkp),
+/// ie. it stores hashes and commits these to hash chains.
+/// Each hash chain is used as public input for
+/// a batch append zkp.
+///
+/// An output queue is configured with:
+/// 1. N batches
+/// 2. N value vecs (one for each batch)
+///     value vec length = batch size
+/// 3. N hashchain stores (one for each batch)
+///     hashchain store length = batch size /zkp batch size
+///
+/// Default config:
+/// - 2 batches
+/// - 50,000 batch size
+/// - 500 zkp batch size
+///
+/// Initialization:
+/// - an output queue is initialized
+///     in combination with a state Merkle tree
+/// - `init_batched_state_merkle_tree_from_account_info`
+///
+/// For deserialization use:
+/// - in program:   `output_from_account_info`
+/// - in client:    `output_from_bytes`
+///
+/// To insert a value use:
+/// - `insert_into_current_batch`
+///
+/// A compressed account can be spent or read
+/// while in the output queue.
+///
+/// To spend use:
+/// - check_leaf_index_could_exist_in_batches in combination with
+///     `prove_inclusion_by_index_and_zero_out_leaf`
+///
+/// To read use:
+/// - `prove_inclusion_by_index`
 #[derive(Debug, PartialEq)]
 pub struct BatchedQueueAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
     pub batches: ZeroCopySliceMutU64<'a, Batch>,
     pub value_vecs: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
     pub bloom_filter_stores: Vec<ZeroCopySliceMutU64<'a, u8>>,
-    /// hashchain_store_capacity = batch_capacity / zkp_batch_size
     pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
 }
 
-impl Deref for BatchedQueueAccount<'_> {
-    type Target = BatchedQueueMetadata;
-
-    fn deref(&self) -> &Self::Target {
-        &self.metadata
-    }
-}
-
-impl DerefMut for BatchedQueueAccount<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.metadata
-    }
+impl Discriminator for BatchedQueueAccount<'_> {
+    const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
 
 impl<'a> BatchedQueueAccount<'a> {
-    pub fn get_metadata(&self) -> &BatchedQueueMetadata {
-        &self.metadata
-    }
-
-    pub fn get_metadata_mut(&mut self) -> &mut BatchedQueueMetadata {
-        &mut self.metadata
-    }
-
+    /// Deserialize an output BatchedQueueAccount from account info.
+    /// Should be used in solana programs.
+    /// Checks that:
+    /// 1. the program owner is the light account compression program,
+    /// 2. discriminator,
+    /// 3. queue type is output queue type.
     pub fn output_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info::<OUTPUT_QUEUE_TYPE>(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)
     }
 
-    pub fn from_account_info<const QUEUE_TYPE: u64>(
+    /// Deserialize a BatchedQueueAccount from account info.
+    /// Should be used in solana programs.
+    /// Checks the program owner, discriminator and queue type.
+    fn from_account_info<const QUEUE_TYPE: u64>(
         program_id: &solana_program::pubkey::Pubkey,
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info_mut::<Self>(program_id, account_info)?;
+        check_account_info::<Self>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
         // Necessary to convince the borrow checker.
         let account_data: &'a mut [u8] = unsafe {
@@ -159,6 +156,9 @@ impl<'a> BatchedQueueAccount<'a> {
         Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
+    /// Deserialize a BatchedQueueAccount from bytes.
+    /// Should only be used in client.
+    /// Checks the discriminator and queue type.
     #[cfg(not(target_os = "solana"))]
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
@@ -222,18 +222,16 @@ impl<'a> BatchedQueueAccount<'a> {
             bloom_filter_capacity,
         )?;
         if account_data_len
-            != queue_account_size(
-                &account_metadata.batch_metadata,
-                account_metadata.metadata.queue_type,
-            )?
+            != account_metadata
+                .batch_metadata
+                .queue_account_size(account_metadata.metadata.queue_type)?
         {
             msg!("account_data.len() {:?}", account_data_len);
             msg!(
                 "queue_account_size {:?}",
-                queue_account_size(
-                    &account_metadata.batch_metadata,
-                    account_metadata.metadata.queue_type
-                )?
+                account_metadata
+                    .batch_metadata
+                    .queue_account_size(account_metadata.metadata.queue_type)?
             );
             return Err(ZeroCopyError::InvalidAccountSize.into());
         }
@@ -255,6 +253,10 @@ impl<'a> BatchedQueueAccount<'a> {
         })
     }
 
+    /// Insert a value into the current batch
+    /// of this output queue account.
+    /// 1. insert value into a value vec and hash chain store.
+    /// 2. Increment next_index.
     pub fn insert_into_current_batch(
         &mut self,
         hash_chain_value: &[u8; 32],
@@ -277,6 +279,15 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(())
     }
 
+    /// Proves inclusion of leaf index if it exists in one of the batches.
+    /// 1. Iterate over all batches
+    /// 2. Check if leaf index could exist in the batch.
+    ///     2.1 If yes, check whether value at index is equal to hash_chain_value.
+    ///         Throw error if not.
+    /// 3. Return true if leaf index exists in one of the batches.
+    ///
+    /// Note, this method does not fail but returns `false`
+    ///     if the leaf index is out of range for any batch.
     pub fn prove_inclusion_by_index(
         &mut self,
         leaf_index: u64,
@@ -299,7 +310,12 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(false)
     }
 
-    pub fn leaf_index_could_exist_in_batches(
+    /// Check that leaf index could exist in one of the batches.
+    /// Returns Ok(()) if value of leaf index could exist in batch.
+    ///     This doesn't mean that the value exists in the batch,
+    ///     just that it is plausible. The value might already be spent
+    ///     or never inserted in case an invalid index was provided.
+    pub fn check_leaf_index_could_exist_in_batches(
         &mut self,
         leaf_index: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
@@ -338,16 +354,26 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(())
     }
 
-    pub fn get_num_inserted_in_current_batch(&self) -> u64 {
-        let next_full_batch = self.batch_metadata.currently_processing_batch_index;
-        let batch = self.batches.get(next_full_batch as usize).unwrap();
-        batch.get_num_inserted() + batch.get_current_zkp_batch_index() * batch.zkp_batch_size
+    pub fn get_metadata(&self) -> &BatchedQueueMetadata {
+        &self.metadata
     }
 
+    pub fn get_metadata_mut(&mut self) -> &mut BatchedQueueMetadata {
+        &mut self.metadata
+    }
+
+    /// Returns the number of elements inserted in the current batch.
+    pub fn get_num_inserted_in_current_batch(&self) -> u64 {
+        let next_full_batch = self.batch_metadata.currently_processing_batch_index as usize;
+        self.batches[next_full_batch].get_num_inserted_elements()
+    }
+
+    /// Returns true if the pubkey is the associated Merkle tree of the queue.
     pub fn is_associated(&self, pubkey: &Pubkey) -> bool {
         self.metadata.metadata.associated_merkle_tree == *pubkey
     }
 
+    /// Check if the pubkey is the associated Merkle tree of the queue.
     pub fn check_is_associated(&self, pubkey: &Pubkey) -> Result<(), BatchedMerkleTreeError> {
         if !self.is_associated(pubkey) {
             return Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated.into());
@@ -355,15 +381,31 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(())
     }
 
+    /// Returns true if the tree is full.
+    pub fn tree_is_full(&self) -> bool {
+        self.tree_capacity == self.next_index
+    }
+
+    /// Check if the tree is full.
     pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
         if self.tree_is_full() {
             return Err(BatchedMerkleTreeError::TreeIsFull);
         }
         Ok(())
     }
+}
 
-    pub fn tree_is_full(&self) -> bool {
-        self.tree_capacity == self.next_index
+impl Deref for BatchedQueueAccount<'_> {
+    type Target = BatchedQueueMetadata;
+
+    fn deref(&self) -> &Self::Target {
+        &self.metadata
+    }
+}
+
+impl DerefMut for BatchedQueueAccount<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.metadata
     }
 }
 
@@ -378,7 +420,7 @@ impl<'a> BatchedQueueAccount<'a> {
 /// 3. If batch is full, increment currently_processing_batch_index.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-pub fn insert_into_current_batch(
+pub(crate) fn insert_into_current_batch(
     queue_type: u64,
     batch_metadata: &mut BatchMetadata,
     batches: &mut ZeroCopySliceMutU64<Batch>,
@@ -467,7 +509,7 @@ pub fn insert_into_current_batch(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn output_queue_from_bytes(
+pub(crate) fn output_queue_from_bytes(
     num_value_stores: usize,
     num_stores: usize,
     num_hashchain_stores: usize,
@@ -492,7 +534,7 @@ pub fn output_queue_from_bytes(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn input_queue_from_bytes<'a>(
+pub(crate) fn input_queue_from_bytes<'a>(
     batch_metadata: &BatchMetadata,
     account_data: &'a mut [u8],
     queue_type: u64,
@@ -521,7 +563,7 @@ pub fn input_queue_from_bytes<'a>(
 }
 
 #[allow(clippy::type_complexity)]
-pub fn init_queue<'a>(
+pub(crate) fn init_queue<'a>(
     batch_metadata: &BatchMetadata,
     queue_type: u64,
     account_data: &'a mut [u8],
@@ -582,11 +624,10 @@ pub fn get_output_queue_account_size_default() -> usize {
         },
         ..Default::default()
     };
-    queue_account_size(
-        &batch_metadata.batch_metadata,
-        QueueType::BatchedOutput as u64,
-    )
-    .unwrap()
+    batch_metadata
+        .batch_metadata
+        .queue_account_size(QueueType::BatchedOutput as u64)
+        .unwrap()
 }
 
 pub fn get_output_queue_account_size_from_params(
@@ -603,7 +644,10 @@ pub fn get_output_queue_account_size_from_params(
         },
         ..Default::default()
     };
-    queue_account_size(&metadata.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
+    metadata
+        .batch_metadata
+        .queue_account_size(QueueType::BatchedOutput as u64)
+        .unwrap()
 }
 
 pub fn get_output_queue_account_size(
@@ -622,9 +666,13 @@ pub fn get_output_queue_account_size(
         },
         ..Default::default()
     };
-    queue_account_size(&metadata.batch_metadata, QueueType::BatchedOutput as u64).unwrap()
+    metadata
+        .batch_metadata
+        .queue_account_size(QueueType::BatchedOutput as u64)
+        .unwrap()
 }
 
+#[cfg(not(target_os = "solana"))]
 #[allow(clippy::too_many_arguments)]
 pub fn assert_queue_inited(
     batch_metadata: BatchMetadata,

@@ -311,7 +311,7 @@ pub fn get_state_merkle_tree_account_size_from_params(
 #[cfg(not(target_os = "solana"))]
 pub fn assert_state_mt_zero_copy_inited(
     account_data: &mut [u8],
-    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
+    ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
     let account = BatchedMerkleTreeAccount::state_from_bytes(account_data)
@@ -327,7 +327,7 @@ pub fn assert_state_mt_zero_copy_inited(
 #[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_zero_copy_inited(
     account_data: &mut [u8],
-    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
+    ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     num_iters: u64,
 ) {
     use crate::{constants::BATCHED_ADDRESS_TREE_TYPE, merkle_tree::BatchedMerkleTreeAccount};
@@ -345,7 +345,7 @@ pub fn assert_address_mt_zero_copy_inited(
 #[cfg(not(target_os = "solana"))]
 fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
     mut account: BatchedMerkleTreeAccount,
-    ref_account: crate::merkle_tree::BatchedMerkleTreeMetadata,
+    ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     num_iters: u64,
     tree_type: u64,
 ) {

@@ -7,8 +7,9 @@ use light_batched_merkle_tree::{
     },
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
+        BatchedMerkleTreeAccount,
     },
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size,
         get_output_queue_account_size_default, BatchedQueueAccount,

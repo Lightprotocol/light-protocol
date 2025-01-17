@@ -7,7 +7,8 @@ use crate::{
     initialize_state_tree::{
         init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata},
+    merkle_tree::BatchedMerkleTreeAccount,
+    merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{BatchedQueueAccount, BatchedQueueMetadata},
 };
 
@@ -28,29 +29,39 @@ pub struct RolloverBatchStateTreeParams<'a> {
     pub network_fee: Option<u64>,
 }
 
-/// Checks:
-/// 1. Merkle tree is ready to be rolled over
-/// 2. Merkle tree is not already rolled over
-/// 3. Rollover threshold is configured, if not tree cannot be rolled over
+/// Rollover an almost full batched state tree,
+/// ie create a new batched Merkle tree and output queue
+/// with the same parameters, and mark the old accounts as rolled over.
+/// The old tree and queue can be used until these are completely full.
 ///
-/// Actions:
-/// 1. mark Merkle tree as rolled over in this slot
-/// 2. initialize new Merkle tree and output queue with the same parameters
+/// Steps:
+/// 1. Check that Merkle tree is ready to be rolled over:
+///     1.1. rollover threshold is configured
+///     1.2. next index is greater than rollover threshold
+///     1.3. the network fee is not set if the current fee is zero
+/// 2. Rollover Merkle tree and check:
+///     2.1. Merkle tree and queue are associated.
+///     2.2. Rollover is configured.
+///     2.3. Tree is not already rolled over.
+///     2.4. Mark as rolled over in this slot.
+/// 3. Rollover output queue and check:
+///     3.1. Merkle tree and queue are associated.
+///     3.2. Rollover is configured.
+///     3.3. Tree is not already rolled over.
+///     3.4. Mark as rolled over in this slot.
+/// 4. Initialize new Merkle tree and output queue
+///     with the same parameters as old accounts.
 pub fn rollover_batched_state_tree(
     params: RolloverBatchStateTreeParams,
 ) -> Result<(), BatchedMerkleTreeError> {
-    params
-        .old_output_queue
-        .check_is_associated(&params.old_mt_pubkey)?;
-
-    // Check that old merkle tree is ready for rollover.
+    // 1. Check that old merkle tree is ready for rollover.
     batched_tree_is_ready_for_rollover(params.old_merkle_tree, &params.network_fee)?;
-    // Rollover the old merkle tree.
+    // 2. Rollover the old merkle tree.
     params
         .old_merkle_tree
         .metadata
         .rollover(params.old_queue_pubkey, params.new_mt_pubkey)?;
-    // Rollover the old output queue.
+    // 3. Rollover the old output queue.
     params
         .old_output_queue
         .metadata
@@ -58,7 +69,7 @@ pub fn rollover_batched_state_tree(
     let init_params = InitStateTreeAccountsInstructionData::from(&params);
     let owner = params.old_merkle_tree.metadata.access_metadata.owner;
 
-    // Initialize the new merkle tree and output queue.
+    // 4. Initialize the new merkle tree and output queue.
     init_batched_state_merkle_tree_accounts(
         owner,
         init_params,
@@ -123,6 +134,10 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
 }
 
 // TODO: add unit test
+/// Check that:
+/// 1. rollover threshold is configured
+/// 2. next index is greater than rollover threshold
+/// 3. the network fee is not set if the current fee is zero
 pub fn batched_tree_is_ready_for_rollover(
     metadata: &BatchedMerkleTreeAccount<'_>,
     network_fee: &Option<u64>,
