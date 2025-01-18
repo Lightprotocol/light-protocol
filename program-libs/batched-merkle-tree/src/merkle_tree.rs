@@ -7,7 +7,7 @@ use light_merkle_tree_metadata::{
     queue::QueueType,
 };
 use light_utils::{
-    account::{check_account_info, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
+    account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
     hashchain::create_hash_chain_from_array,
     pubkey::Pubkey,
 };
@@ -140,6 +140,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     pub fn state_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+        use light_utils::account::check_discriminator;
+        check_discriminator::<Self>(&account_data[0..DISCRIMINATOR_LEN])?;
         Self::from_bytes::<BATCHED_STATE_TREE_TYPE>(account_data)
     }
 
@@ -185,8 +187,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
-        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
-        check_discriminator::<Self>(discriminator)?;
+        // Discriminator is already checked in check_account_info.
+        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;

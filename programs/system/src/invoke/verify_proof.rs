@@ -38,7 +38,7 @@ const IS_NOT_STATE: bool = false;
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_input_state_roots<'a>(
+pub fn read_input_state_roots<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
     input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     read_only_accounts: &'a [PackedReadOnlyCompressedAccount],
@@ -55,7 +55,7 @@ pub fn fetch_input_state_roots<'a>(
         {
             continue;
         }
-        let internal_height = fetch_root::<IS_NOT_READ_ONLY, IS_STATE>(
+        let internal_height = read_root::<IS_NOT_READ_ONLY, IS_STATE>(
             &remaining_accounts[input_compressed_account_with_context
                 .merkle_context
                 .merkle_tree_pubkey_index as usize],
@@ -77,7 +77,7 @@ pub fn fetch_input_state_roots<'a>(
         if readonly_input_account.merkle_context.queue_index.is_some() {
             continue;
         }
-        let internal_height = fetch_root::<IS_READ_ONLY, IS_STATE>(
+        let internal_height = read_root::<IS_READ_ONLY, IS_STATE>(
             &remaining_accounts[readonly_input_account
                 .merkle_context
                 .merkle_tree_pubkey_index as usize],
@@ -100,7 +100,7 @@ pub fn fetch_input_state_roots<'a>(
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_address_roots<'a>(
+pub fn read_address_roots<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
     new_address_params: &'a [NewAddressParamsPacked],
     read_only_addresses: &'a [PackedReadOnlyAddress],
@@ -108,7 +108,7 @@ pub fn fetch_address_roots<'a>(
 ) -> Result<u8> {
     let mut address_tree_height = 0;
     for new_address_param in new_address_params.iter() {
-        let internal_height = fetch_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
+        let internal_height = read_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
             &remaining_accounts[new_address_param.address_merkle_tree_account_index as usize],
             new_address_param.address_merkle_tree_root_index,
             address_roots,
@@ -125,7 +125,7 @@ pub fn fetch_address_roots<'a>(
         }
     }
     for read_only_address in read_only_addresses.iter() {
-        let internal_height = fetch_root::<IS_READ_ONLY, IS_NOT_STATE>(
+        let internal_height = read_root::<IS_READ_ONLY, IS_NOT_STATE>(
             &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize],
             read_only_address.address_merkle_tree_root_index,
             address_roots,
@@ -169,7 +169,7 @@ pub fn verify_input_accounts_proof_by_index(
     Ok(())
 }
 
-fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
+fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account_info: &AccountInfo<'_>,
     root_index: u16,
     roots: &mut Vec<[u8; 32]>,
@@ -216,11 +216,13 @@ fn fetch_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
                     AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
                 );
             }
+
             let merkle_tree = &mut merkle_tree_account_info.try_borrow_mut_data()?;
             let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
                 &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
             )
             .map_err(ProgramError::from)?;
+
             let fetched_roots = &merkle_tree.roots;
 
             (*roots).push(fetched_roots[root_index as usize]);
@@ -305,12 +307,21 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
     read_only_addresses: &'a [PackedReadOnlyAddress],
 ) -> Result<()> {
+    if read_only_addresses.is_empty() {
+        return Ok(());
+    }
+    let mut index = read_only_addresses[0].address_merkle_tree_account_index;
+    let mut merkle_tree =
+        BatchedMerkleTreeAccount::address_from_account_info(&remaining_accounts[index as usize])
+            .map_err(ProgramError::from)?;
     for read_only_address in read_only_addresses.iter() {
-        let merkle_tree_account_info =
-            &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize];
-        let merkle_tree =
-            &mut BatchedMerkleTreeAccount::address_from_account_info(merkle_tree_account_info)
-                .map_err(ProgramError::from)?;
+        if index != read_only_address.address_merkle_tree_account_index {
+            index = read_only_address.address_merkle_tree_account_index;
+            merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(
+                &remaining_accounts[index as usize],
+            )
+            .map_err(ProgramError::from)?;
+        }
         merkle_tree
             .check_input_queue_non_inclusion(&read_only_address.address)
             .map_err(|_| SystemProgramError::ReadOnlyAddressAlreadyExists)?;
@@ -432,7 +443,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 
 #[allow(clippy::too_many_arguments)]
 #[heap_neutral]
-pub fn verify_state_proof(
+pub fn verify_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],
     address_roots: &[[u8; 32]],
