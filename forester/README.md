@@ -1,44 +1,94 @@
-# Light Forester
+# Forester
 
 ## Description
 
-Forester is a service for nullifying the state and address merkle trees.
+Forester is a service for nullifying the state and address merkle trees. 
 It subscribes to the nullifier queue and nullifies merkle tree leaves.
 
-## Configuration
+## Commands
 
-Forester requires a configuration file, `forester.toml`, specifying necessary keys:
+The Forester service can be controlled using the following syntax:
 
-- `STATE_MERKLE_TREE_PUBKEY`: Address of the State Merkle tree.
-- `NULLIFIER_QUEUE_PUBKEY`: Address of the State Nullifier queue.
-- `ADDRESS_MERKLE_TREE_PUBKEY`: Address of the Address Merkle tree.
-- `ADDRESS_MERKLE_TREE_QUEUE_PUBKEY`: Address of the Address queue.
-- `REGISTRY_PUBKEY`: Address of the Registry program.
+```bash
+forester <COMMAND>
+```
 
-To setup your environment properly, copy `.env.example` to `.env`
-and update the `FORESTER_PAYER` field with your appropriate key.
+Available commands:
 
-Alternatively, if you prefer to use a terminal profile file,
-add the key to your `~/.zshrc` (zsh) or `~/.bashrc` (bash)
-by including this line: `export FORESTER_PAYER=your_value_here`.
-Substitute `your_value_here` with your actual key.
+- `start` - Start the Forester service
+- `status` - Check the status of various components
+- `help` - Print help information for commands
 
-Remember to restart your terminal or source your terminal profile for the changes to take effect.
+## Starting the Service
 
-## Usage
+To start Forester, use:
 
-1. Run the service:
-   To subscribe to nullify the state merkle tree, use the following command:
-   `cargo run -- subscribe`
-2. To manually nullify state merkle tree leaves, use the following command:
-   `cargo run -- nullify-state`
-3. To manually nullify address merkle tree leaves, use the following command:
-   `cargo run -- nullify-addresses`
-4. To manually nullify state _and_ address merkle tree leaves, use the following command:
-   `cargo run -- nullify`
+```bash
+forester start [OPTIONS]
+```
 
-## TODO
+### Configuration Options
 
-1. Add indexer URL to the configuration file.
-2. Add address merkle tree support.
-3. Add multiple merkle trees support.
+The start command supports the following configuration options, which can be set via command-line arguments or environment variables:
+
+#### Required Options:
+
+- `--rpc-url` - RPC URL [env: FORESTER_RPC_URL]
+- `--ws-rpc-url` - WebSocket RPC URL [env: FORESTER_WS_RPC_URL]
+- `--indexer-url` - Indexer URL [env: FORESTER_INDEXER_URL]
+- `--prover-url` - Prover URL [env: FORESTER_PROVER_URL]
+- `--payer` - Payer configuration [env: FORESTER_PAYER]
+- `--derivation` - Derivation public key [env: FORESTER_DERIVATION_PUBKEY]
+
+#### Optional Settings:
+
+- `--push-gateway-url` - Monitoring gateway URL [env: FORESTER_PUSH_GATEWAY_URL]
+- `--pagerduty-routing-key` - PagerDuty integration key [env: FORESTER_PAGERDUTY_ROUTING_KEY]
+- `--photon-api-key` - Photon API key [env: FORESTER_PHOTON_API_KEY]
+
+#### Performance Tuning:
+
+- `--indexer-batch-size` - Size of indexer batches [default: 50]
+- `--indexer-max-concurrent-batches` - Maximum concurrent indexer batches [default: 10]
+- `--transaction-batch-size` - Size of transaction batches [default: 1]
+- `--transaction-max-concurrent-batches` - Maximum concurrent transaction batches [default: 20]
+- `--cu-limit` - Compute unit limit [default: 1000000]
+- `--rpc-pool-size` - RPC connection pool size [default: 20]
+
+#### Timing Configuration:
+
+- `--slot-update-interval-seconds` - Interval for slot updates [default: 10]
+- `--tree-discovery-interval-seconds` - Interval for tree discovery [default: 5]
+- `--retry-delay` - Delay between retries in milliseconds [default: 1000]
+- `--retry-timeout` - Timeout for retries in milliseconds [default: 30000]
+
+#### Queue Configuration:
+
+- `--state-queue-start-index` - Starting index for state queue [default: 0]
+- `--state-queue-processing-length` - Processing length for state queue [default: 28807]
+- `--address-queue-start-index` - Starting index for address queue [default: 0]
+- `--address-queue-processing-length` - Processing length for address queue [default: 28807]
+
+## Checking Status
+
+To check the status of Forester:
+
+```bash
+forester status [OPTIONS] --rpc-url <RPC_URL>
+```
+
+### Status Options:
+
+- `--full` - Run comprehensive status checks including compressed token program tests
+- `--protocol-config` - Check protocol configuration
+- `--queue` - Check queue status
+- `--push-gateway-url` - Monitoring push gateway URL [env: FORESTER_PUSH_GATEWAY_URL]
+- `--pagerduty-routing-key` - PagerDuty integration key [env: FORESTER_PAGERDUTY_ROUTING_KEY]
+
+## Environment Variables
+
+All configuration options can be set using environment variables with the `FORESTER_` prefix. For example:
+
+```bash
+export FORESTER_RPC_URL="your-rpc-url-here"
+```
