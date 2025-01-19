@@ -6,8 +6,9 @@ use light_batched_merkle_tree::{
     initialize_state_tree::assert_address_mt_zero_copy_inited,
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata, CreateTreeParams,
+        BatchedMerkleTreeAccount,
     },
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;

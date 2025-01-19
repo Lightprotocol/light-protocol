@@ -14,10 +14,11 @@ use crate::{
         nullify_state::insert_nullifiers,
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
-        verify_state_proof::{
-            fetch_address_roots, fetch_input_state_roots, hash_input_compressed_accounts,
-            verify_input_accounts_proof_by_index, verify_read_only_account_inclusion_by_index,
-            verify_read_only_address_queue_non_inclusion, verify_state_proof,
+        verify_proof::{
+            hash_input_compressed_accounts, read_address_roots, read_input_state_roots,
+            verify_input_accounts_proof_by_index, verify_proof,
+            verify_read_only_account_inclusion_by_index,
+            verify_read_only_address_queue_non_inclusion,
         },
     },
     sdk::{
@@ -47,13 +48,79 @@ impl Default for CompressedProof {
     }
 }
 
+/// Inputs:
+/// (Note this is a high level overview and not in order.
+///  See Steps for checks in implementation order.)
+/// 1. Writable Compressed accounts
+///     `inputs.input_compressed_accounts_with_merkle_context`
+///     1.1. Sum check lamports
+///         Check that sum of lamports of in and
+///         output compressed accounts add up +- (de)compression.
+///     1.2. Compress or decompress lamports
+///     1.3. Hash input compressed accounts
+///     1.4. Insert Output compressed accounts
+///         1.4.1. hash output compressed accounts
+///         1.4.2. Validate Tree is writable by signer
+///         1.4.3. Check that only existing addresses are used.
+///         1.4.4. Enforce that Merkle tree indices are in order
+///         1.4.5. Cpi account compression program to insert into output queue or v1 state tree
+///     1.5. Insert nullifiers
+///         1.5.1. Validate Tree is writable by signer.
+///         1.5.2. Cpi account compression program to insert into nullifier queue.
+///     1.6. Verify inclusion
+///         1.5.1 by index
+///         1.5.2 by zkp
+/// 2. Read-only compressed accounts
+///     `read_only_accounts`
+///     - is already hashed we only verify inclusion
+///        2.1. Verify inclusion
+///         2.1.1 by index
+///         2.1.2 by zkp
+/// 3. New addresses
+///     `inputs.new_address_params`
+///    3.1. Derive addresses from seed
+///    3.2. Insert addresses into address Merkle tree queue
+///    3.3. Verify non-inclusion
+/// 4. Read-only addresses
+///    `read_only_addresses`
+///     4.1. Verify non-inclusion in queue
+///     4.2. Verify inclusion by zkp
+///
 /// Steps:
 /// 1. Sum check
+///     1.1. Count num_prove_by_index_input_accounts
 /// 2. Compression lamports
-/// 3. Verify state inclusion & address non-inclusion proof
-/// 4. Insert nullifiers
-/// 5. Insert output compressed accounts into state Merkle tree
-/// 6. Emit state transition event
+/// 3. Allocate heap memory
+/// 4. Hash input compressed accounts
+///     4.1. Collect addresses that exist in input accounts
+/// 5. Create new & verify read-only addresses
+///     5.1. Verify read only address non-inclusion in bloom filters
+///     5.2. Derive new addresses from seed and invoking program
+///     5.3. cpi ACP to Insert new addresses into address merkle tree queue
+/// 6. Verify read-only account inclusion by index
+/// 7. Insert leaves (output compressed account hashes)
+///     8.1. Validate Tree is writable by signer
+///     8.2. Check that only existing addresses are used.
+///     8.3. Enforce that Merkle tree indices are in order
+///     8.4. Compute output compressed hashes
+///     8.5. cpi ACP to insert output compressed accounts
+///         into state Merkle tree v1 or output queue
+/// 8. Insert nullifiers (input compressed account hashes)
+///     8.1. Verify that all instances of queue_index.is_some() are plausible.
+///     8.2. Create a tx hash
+///     8.3. check_program_owner_state_merkle_tree (in sub fn)
+///     8.4. Cpi ACP to insert nullifiers
+/// 9. Transfer network fee.
+/// 10. Read Address and State tree roots
+///     - For state roots get roots prior to modifying the tree (for v1 trees).
+///     - For v2 and address trees (v1 & v2) the tree isn't modified
+///         -> it doesn't matter when we fetch the roots.
+///       10.1 Read address roots from accounts
+///       10.2 Read state roots from accounts
+/// 11. Verify Inclusion & Non-inclusion Proof
+///     11.1. Add read only addresses to new addresses vec
+///     11.2. filter_for_accounts_not_proven_by_index
+/// 12. Emit state transition event
 pub fn process<
     'a,
     'b,
@@ -71,7 +138,7 @@ pub fn process<
     if inputs.relay_fee.is_some() {
         unimplemented!("Relay fee is not implemented yet.");
     }
-    // Sum check ---------------------------------------------------
+    // 1. Sum check ---------------------------------------------------
     bench_sbf_start!("cpda_sum_check");
     let num_prove_by_index_input_accounts = sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
@@ -81,7 +148,7 @@ pub fn process<
         &inputs.is_compress,
     )?;
     bench_sbf_end!("cpda_sum_check");
-    // Compress or decompress lamports ---------------------------------------------------
+    // 2. Compress or decompress lamports ---------------------------------------------------
     bench_sbf_start!("cpda_process_compression");
     if inputs.compress_or_decompress_lamports.is_some() {
         if inputs.is_compress && ctx.accounts.get_decompression_recipient().is_some() {
@@ -96,13 +163,13 @@ pub fn process<
     bench_sbf_end!("cpda_process_compression");
     let read_only_accounts = read_only_accounts.unwrap_or_default();
 
-    // Allocate heap memory here so that we can free memory after function invocations.
+    // 3. Allocate heap memory here so that we can free memory after function invocations.
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
     let num_read_only_accounts = read_only_accounts.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-    let mut input_compressed_account_hashes = Vec::with_capacity(num_input_compressed_accounts);
 
+    let mut input_compressed_account_hashes = Vec::with_capacity(num_input_compressed_accounts);
     let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
         vec![None; num_input_compressed_accounts + num_new_addresses];
     let mut output_compressed_account_indices = vec![0u32; num_output_compressed_accounts];
@@ -114,13 +181,8 @@ pub fn process<
         1 + ctx.remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
     let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
-    // Verify state and or address proof ---------------------------------------------------
-    let read_only_addresses = read_only_addresses.unwrap_or_default();
-    let num_of_read_only_addresses = read_only_addresses.len();
-    let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
-    let mut new_addresses = Vec::with_capacity(num_non_inclusion_proof_inputs);
-
-    // hash input compressed accounts ---------------------------------------------------
+    // 4. hash input compressed accounts ---------------------------------------------------
+    // 4.1. collects addresses that exist in input accounts
     bench_sbf_start!("cpda_hash_input_compressed_accounts");
     if !inputs
         .input_compressed_accounts_with_merkle_context
@@ -137,31 +199,20 @@ pub fn process<
         // This error should never be triggered.
         check_vec_capacity(hashed_pubkeys_capacity, &hashed_pubkeys, "hashed_pubkeys")?;
     }
-
     bench_sbf_end!("cpda_hash_input_compressed_accounts");
 
-    // Verify read only address non-inclusion in bloom filters
-    // prior to inserting new addresses.
+    // 5. Create new & verify read-only addresses ---------------------------------------------------
+    let read_only_addresses = read_only_addresses.unwrap_or_default();
+    let num_of_read_only_addresses = read_only_addresses.len();
+    let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
+    let mut new_addresses = Vec::with_capacity(num_non_inclusion_proof_inputs);
+
+    // 5.1. Verify read only address non-inclusion in bloom filters
+    // Execute prior to inserting new addresses.
     verify_read_only_address_queue_non_inclusion(ctx.remaining_accounts, &read_only_addresses)?;
 
-    let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
-    // Record state of the address merkle tree queue before inserting new addresses.
-    let address_tree_height = fetch_address_roots(
-        ctx.remaining_accounts,
-        &inputs.new_address_params,
-        &read_only_addresses,
-        &mut new_address_roots,
-    )?;
-    // # Safety this is a safeguard for memory safety.
-    // This error should never be triggered.
-    check_vec_capacity(
-        num_non_inclusion_proof_inputs,
-        &new_address_roots,
-        "new_address_roots",
-    )?;
-
-    // Insert addresses into address merkle tree queue ---------------------------------------------------
     let address_network_fee_bundle = if num_new_addresses != 0 {
+        // 5.2. Derive new addresses from seed and invoking program
         derive_new_addresses(
             &invoking_program,
             &inputs.new_address_params,
@@ -170,6 +221,7 @@ pub fn process<
             &mut compressed_account_addresses,
             &mut new_addresses,
         )?;
+        // 5.3. Insert new addresses into address merkle tree queue ---------------------------------------------------
         insert_addresses_into_address_merkle_tree_queue(
             &ctx,
             &new_addresses,
@@ -180,12 +232,24 @@ pub fn process<
         None
     };
 
+    // 6. Verify read-only account inclusion by index ---------------------------------------------------
+    // Verify prior to creating new state in output queues so that
+    // reading an account is successful even when it is modified in the same transaction.
+    let num_prove_read_only_accounts_prove_by_index =
+        verify_read_only_account_inclusion_by_index(ctx.remaining_accounts, &read_only_accounts)?;
+
+    let num_read_only_accounts_proof =
+        num_read_only_accounts - num_prove_read_only_accounts_prove_by_index;
+    let num_writable_accounts_proof =
+        num_input_compressed_accounts - num_prove_by_index_input_accounts;
+    let num_inclusion_proof_inputs = num_writable_accounts_proof + num_read_only_accounts_proof;
+
     // Allocate space for sequence numbers with remaining account length as a
     // proxy. We cannot allocate heap memory in
     // insert_output_compressed_accounts_into_state_merkle_tree because it is
     // heap neutral.
     let mut sequence_numbers = Vec::with_capacity(ctx.remaining_accounts.len());
-    // Insert leaves (output compressed account hashes) ---------------------------------------------------
+    // 7. Insert leaves (output compressed account hashes) ---------------------------------------------------
     let output_network_fee_bundle = if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
         let network_fee_bundle = insert_output_compressed_accounts_into_state_merkle_tree(
@@ -210,30 +274,7 @@ pub fn process<
     // Reduce the capacity of the sequence numbers vector.
     sequence_numbers.shrink_to_fit();
 
-    // Verify read only account inclusion ---------------------------------------------------
-    // Verify before proving inclusion by index in output queues so that
-    // reading an account is successful even when it is modified in the same transaction.
-    let num_prove_read_only_accounts_prove_by_index =
-        verify_read_only_account_inclusion_by_index(ctx.remaining_accounts, &read_only_accounts)?;
-    let num_inclusion_proof_inputs =
-        num_input_compressed_accounts - num_prove_by_index_input_accounts + num_read_only_accounts
-            - num_prove_read_only_accounts_prove_by_index;
-    let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
-    let state_tree_height = fetch_input_state_roots(
-        ctx.remaining_accounts,
-        &inputs.input_compressed_accounts_with_merkle_context,
-        &read_only_accounts,
-        &mut input_compressed_account_roots,
-    )?;
-    // # Safety this is a safeguard for memory safety.
-    // This error should never be triggered.
-    check_vec_capacity(
-        num_inclusion_proof_inputs,
-        &input_compressed_account_roots,
-        "input_compressed_account_roots",
-    )?;
-
-    // insert nullifiers (input compressed account hashes)---------------------------------------------------
+    // 8. insert nullifiers (input compressed account hashes)---------------------------------------------------
     // Nullifiers need to be inserted befor proof verification because the
     // in certain cases we zero out roots in batched input queues.
     // These roots need to be zero prior to proof verification.
@@ -242,11 +283,13 @@ pub fn process<
         .input_compressed_accounts_with_merkle_context
         .is_empty()
     {
-        // Verify that all instances of queue_index.is_some() are plausible.
+        // 8.1. Verify that all instances of queue_index.is_some() are plausible.
         // Protects against the attack of marking an account as proof by index
         // with queue_index.is_some() but the accounts index is not in the
         // current value vec.
-        // (The account compression program does not throw an error in this case.)
+        // (The account compression program verifies inclusion and zeroes out a value
+        //  if it is found but does not throw an error in the case
+        //  that the leaf index cannot possibly be in the value vec.)
         if num_prove_by_index_input_accounts != 0 {
             verify_input_accounts_proof_by_index(
                 ctx.remaining_accounts,
@@ -254,15 +297,15 @@ pub fn process<
             )?;
         }
 
-        // Access the current slot
         let current_slot = Clock::get()?.slot;
+        // 8.2. Create a tx hash
         let tx_hash = create_tx_hash(
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
         )
         .map_err(ProgramError::from)?;
-        // Insert nullifiers for compressed input account hashes into nullifier
+        // 8.3. Insert nullifiers for compressed input account hashes into nullifier
         // queue.
         insert_nullifiers(
             &inputs.input_compressed_accounts_with_merkle_context,
@@ -276,7 +319,7 @@ pub fn process<
     };
     bench_sbf_end!("cpda_nullifiers");
 
-    // Transfer network fee
+    // 9. Transfer network fee
     transfer_network_fee(
         &ctx,
         input_network_fee_bundle,
@@ -284,22 +327,51 @@ pub fn process<
         output_network_fee_bundle,
     )?;
 
-    // Proof inputs order:
-    // 1. input compressed accounts
-    // 2. read only compressed accounts
-    // 3. new addresses
-    // 4. read only addresses
+    // 10. Read Address and State tree roots ---------------------------------------------------
+    let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
+    // 10.1 Read address roots ---------------------------------------------------
+    let address_tree_height = read_address_roots(
+        ctx.remaining_accounts,
+        &inputs.new_address_params,
+        &read_only_addresses,
+        &mut new_address_roots,
+    )?;
+    // # Safety this is a safeguard for memory safety.
+    // This error should never be triggered.
+    check_vec_capacity(
+        num_non_inclusion_proof_inputs,
+        &new_address_roots,
+        "new_address_roots",
+    )?;
+    // 10.2. Read state roots ---------------------------------------------------
+    let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
+    let state_tree_height = read_input_state_roots(
+        ctx.remaining_accounts,
+        &inputs.input_compressed_accounts_with_merkle_context,
+        &read_only_accounts,
+        &mut input_compressed_account_roots,
+    )?;
+    // # Safety this is a safeguard for memory safety.
+    // This error should never be triggered.
+    check_vec_capacity(
+        num_inclusion_proof_inputs,
+        &input_compressed_account_roots,
+        "input_compressed_account_roots",
+    )?;
+
+    // 11. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
     if num_inclusion_proof_inputs > 0 || num_non_inclusion_proof_inputs > 0 {
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
-            // Add read only addresses to new addresses before proof verification.
+
+            // 11.1. Add read only addresses to new addresses vec before proof verification.
             // We don't add read only addresses before since
-            // read-only addresses must not be used in compressed accounts.
+            // read-only addresses must not be used in output compressed accounts.
             for read_only_address in read_only_addresses.iter() {
                 new_addresses.push(read_only_address.address);
             }
 
-            // Select accounts account hashes for ZKP.
+            // 11.2. Select accounts account hashes for ZKP.
             // We need to filter out accounts that are proven by index.
             let mut proof_input_compressed_account_hashes =
                 Vec::with_capacity(num_inclusion_proof_inputs);
@@ -320,7 +392,13 @@ pub fn process<
                 b: proof.b,
                 c: proof.c,
             };
-            match verify_state_proof(
+            // 11.3. Verify proof
+            // Proof inputs order:
+            // 1. input compressed accounts
+            // 2. read-only compressed accounts
+            // 3. new addresses
+            // 4. read-only addresses
+            match verify_proof(
                 &input_compressed_account_roots,
                 &proof_input_compressed_account_hashes,
                 &new_address_roots,
@@ -363,7 +441,7 @@ pub fn process<
         return err!(SystemProgramError::EmptyInputs);
     }
 
-    // Emit state transition event ---------------------------------------------------
+    // 12. Emit state transition event ---------------------------------------------------
     bench_sbf_start!("emit_state_transition_event");
     emit_state_transition_event(
         inputs,
@@ -378,6 +456,7 @@ pub fn process<
     Ok(())
 }
 
+#[inline(always)]
 fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
     if vec.capacity() != expected_capacity {
         msg!(
@@ -391,6 +470,7 @@ fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str)
     Ok(())
 }
 
+#[inline(always)]
 fn filter_for_accounts_not_proven_by_index(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     read_only_accounts: &[PackedReadOnlyCompressedAccount],

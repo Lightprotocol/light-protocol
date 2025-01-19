@@ -1,17 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
-use aligned_sized::aligned_sized;
 use light_hasher::{Discriminator, Hasher, Poseidon};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
     errors::MerkleTreeMetadataError,
     merkle_tree::{MerkleTreeMetadata, TreeType},
     queue::QueueType,
-    rollover::RolloverMetadata,
 };
 use light_utils::{
-    account::{check_account_info_mut, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
-    fee::compute_rollover_fee,
+    account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
     hashchain::create_hash_chain_from_array,
     pubkey::Pubkey,
 };
@@ -24,241 +20,25 @@ use light_zero_copy::{
     vec::ZeroCopyVecU64,
 };
 use solana_program::{account_info::AccountInfo, msg};
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
+use zerocopy::Ref;
 
 use super::{
     batch::Batch,
-    queue::{init_queue, input_queue_from_bytes, insert_into_current_batch, queue_account_size},
+    queue::{init_queue, input_queue_from_bytes, insert_into_current_batch},
 };
 use crate::{
     batch::BatchState,
     batch_metadata::BatchMetadata,
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, BATCHED_ADDRESS_TREE_TYPE,
-        BATCHED_STATE_TREE_TYPE, DEFAULT_BATCH_STATE_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE,
+        BATCHED_STATE_TREE_TYPE,
     },
     errors::BatchedMerkleTreeError,
     event::{BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent},
-    initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
+    merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::BatchedQueueAccount,
     BorshDeserialize, BorshSerialize,
 };
-
-#[repr(C)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Debug,
-    PartialEq,
-    Clone,
-    Copy,
-    FromBytes,
-    IntoBytes,
-    KnownLayout,
-    Immutable,
-)]
-#[aligned_sized(anchor)]
-pub struct BatchedMerkleTreeMetadata {
-    pub metadata: MerkleTreeMetadata,
-    pub sequence_number: u64,
-    pub tree_type: u64,
-    pub next_index: u64,
-    pub height: u32,
-    pub root_history_capacity: u32,
-    pub capacity: u64,
-    pub queue_metadata: BatchMetadata,
-}
-
-// TODO: make anchor consistent
-impl Discriminator for BatchedMerkleTreeAccount<'_> {
-    const DISCRIMINATOR: [u8; 8] = *b"BatchMka";
-}
-
-impl Default for BatchedMerkleTreeMetadata {
-    fn default() -> Self {
-        BatchedMerkleTreeMetadata {
-            metadata: MerkleTreeMetadata::default(),
-            next_index: 0,
-            sequence_number: 0,
-            tree_type: TreeType::BatchedState as u64,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-            root_history_capacity: 20,
-            capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
-            queue_metadata: BatchMetadata {
-                currently_processing_batch_index: 0,
-                num_batches: 2,
-                batch_size: TEST_DEFAULT_BATCH_SIZE,
-                bloom_filter_capacity: 20_000 * 8,
-                zkp_batch_size: 10,
-                ..Default::default()
-            },
-        }
-    }
-}
-
-#[repr(C)]
-pub struct CreateTreeParams {
-    pub owner: Pubkey,
-    pub program_owner: Option<Pubkey>,
-    pub forester: Option<Pubkey>,
-    pub rollover_threshold: Option<u64>,
-    pub index: u64,
-    pub network_fee: u64,
-    pub batch_size: u64,
-    pub zkp_batch_size: u64,
-    pub bloom_filter_capacity: u64,
-    pub root_history_capacity: u32,
-    pub height: u32,
-    pub num_batches: u64,
-}
-impl CreateTreeParams {
-    pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
-        CreateTreeParams {
-            owner,
-            program_owner: data.program_owner,
-            forester: data.forester,
-            rollover_threshold: data.rollover_threshold,
-            index: data.index,
-            network_fee: data.network_fee.unwrap_or(0),
-            batch_size: data.input_queue_batch_size,
-            zkp_batch_size: data.input_queue_zkp_batch_size,
-            bloom_filter_capacity: data.bloom_filter_capacity,
-            root_history_capacity: data.root_history_capacity,
-            height: data.height,
-            num_batches: data.input_queue_num_batches,
-        }
-    }
-
-    pub fn from_address_ix_params(
-        data: InitAddressTreeAccountsInstructionData,
-        owner: Pubkey,
-    ) -> Self {
-        CreateTreeParams {
-            owner,
-            program_owner: data.program_owner,
-            forester: data.forester,
-            rollover_threshold: data.rollover_threshold,
-            index: data.index,
-            network_fee: data.network_fee.unwrap_or(0),
-            batch_size: data.input_queue_batch_size,
-            zkp_batch_size: data.input_queue_zkp_batch_size,
-            bloom_filter_capacity: data.bloom_filter_capacity,
-            root_history_capacity: data.root_history_capacity,
-            height: data.height,
-            num_batches: data.input_queue_num_batches,
-        }
-    }
-}
-
-impl BatchedMerkleTreeMetadata {
-    pub fn get_account_size(&self) -> Result<usize, BatchedMerkleTreeError> {
-        let account_size = Self::LEN;
-        let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
-            self.root_history_capacity as u64,
-        );
-        let size = account_size
-            + root_history_size
-            + queue_account_size(&self.queue_metadata, QueueType::BatchedInput as u64)?;
-        Ok(size)
-    }
-
-    pub fn new_state_tree(params: CreateTreeParams, associated_queue: Pubkey) -> Self {
-        Self::new_tree(TreeType::BatchedState, params, associated_queue, 0)
-    }
-
-    pub fn new_address_tree(params: CreateTreeParams, rent: u64) -> Self {
-        let rollover_fee = match params.rollover_threshold {
-            Some(rollover_threshold) => {
-                compute_rollover_fee(rollover_threshold, params.height, rent).unwrap()
-            }
-            None => 0,
-        };
-        let mut tree = Self::new_tree(
-            TreeType::BatchedAddress,
-            params,
-            Pubkey::default(),
-            rollover_fee,
-        );
-        // inited address tree contains two elements.
-        tree.next_index = 2;
-        tree
-    }
-
-    fn new_tree(
-        tree_type: TreeType,
-        params: CreateTreeParams,
-        associated_queue: Pubkey,
-        rollover_fee: u64,
-    ) -> Self {
-        let CreateTreeParams {
-            owner,
-            program_owner,
-            forester,
-            rollover_threshold,
-            index,
-            network_fee,
-            batch_size,
-            zkp_batch_size,
-            bloom_filter_capacity,
-            root_history_capacity,
-            height,
-            num_batches,
-        } = params;
-        Self {
-            metadata: MerkleTreeMetadata {
-                next_merkle_tree: Pubkey::default(),
-                access_metadata: AccessMetadata::new(owner, program_owner, forester),
-                rollover_metadata: RolloverMetadata::new(
-                    index,
-                    rollover_fee,
-                    rollover_threshold,
-                    network_fee,
-                    None,
-                    None,
-                ),
-                associated_queue,
-            },
-            sequence_number: 0,
-            tree_type: tree_type as u64,
-            next_index: 0,
-            height,
-            root_history_capacity,
-            queue_metadata: BatchMetadata::new_input_queue(
-                batch_size,
-                bloom_filter_capacity,
-                zkp_batch_size,
-                num_batches,
-            )
-            .unwrap(),
-            capacity: 2u64.pow(height),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct BatchedMerkleTreeAccount<'a> {
-    metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
-    pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
-    pub batches: ZeroCopySliceMutU64<'a, Batch>,
-    pub value_vecs: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-    pub bloom_filter_stores: Vec<ZeroCopySliceMutU64<'a, u8>>,
-    pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-}
-
-impl Deref for BatchedMerkleTreeAccount<'_> {
-    type Target = BatchedMerkleTreeMetadata;
-
-    fn deref(&self) -> &Self::Target {
-        &self.metadata
-    }
-}
-
-impl DerefMut for BatchedMerkleTreeAccount<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.metadata
-    }
-}
 
 /// Public inputs:
 /// 1. old root (last root in root history)
@@ -290,16 +70,60 @@ pub struct InstructionDataBatchAppendInputs {
     pub compressed_proof: CompressedProof,
 }
 
+/// Batched Merkle tree zero copy account.
+/// The account is used to batched state
+/// and address Merkle trees, plus the input and address queues,
+/// in the  Light Protocol account compression program.
+///
+/// Tree roots can be used in zk proofs
+/// outside of Light Protocol programs.
+///
+/// To access a tree root by index use:
+/// - get_state_root_by_index
+/// - get_address_root_by_index
+#[derive(Debug, PartialEq)]
+pub struct BatchedMerkleTreeAccount<'a> {
+    metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
+    pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
+    pub batches: ZeroCopySliceMutU64<'a, Batch>,
+    pub value_vecs: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
+    pub bloom_filter_stores: Vec<ZeroCopySliceMutU64<'a, u8>>,
+    pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
+}
+
+impl Discriminator for BatchedMerkleTreeAccount<'_> {
+    const DISCRIMINATOR: [u8; 8] = *b"BatchMta";
+}
+
 impl<'a> BatchedMerkleTreeAccount<'a> {
-    pub fn get_metadata(&self) -> &BatchedMerkleTreeMetadata {
-        &self.metadata
+    /// Checks state Merkle tree account and returns the root.
+    pub fn get_state_root_by_index(
+        account_info: &AccountInfo<'a>,
+        index: usize,
+    ) -> Result<[u8; 32], BatchedMerkleTreeError> {
+        let tree = Self::state_from_account_info(account_info)?;
+        Ok(*tree
+            .get_root_by_index(index)
+            .ok_or(BatchedMerkleTreeError::InvalidIndex)?)
     }
 
-    pub fn get_metadata_mut(&mut self) -> &mut BatchedMerkleTreeMetadata {
-        &mut self.metadata
+    /// Checks address Merkle tree account and returns the root.
+    pub fn get_address_root_by_index(
+        account_info: &AccountInfo<'a>,
+        index: usize,
+    ) -> Result<[u8; 32], BatchedMerkleTreeError> {
+        let tree = Self::address_from_account_info(account_info)?;
+        Ok(*tree
+            .get_root_by_index(index)
+            .ok_or(BatchedMerkleTreeError::InvalidIndex)?)
     }
 
-    // // TODO: add unit test
+    /// Deserialize a batched state Merkle tree from account info.
+    /// Should be used in solana programs.
+    /// Checks that:
+    /// 1. the program owner is the light account compression program,
+    /// 2. discriminator,
+    /// 3. tree type is batched state tree type.
     pub fn state_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
@@ -309,14 +133,24 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         )
     }
 
-    // TODO: add failing test
+    /// Deserialize a state BatchedMerkleTreeAccount from bytes.
+    /// Should only be used in client.
+    /// Checks the discriminator and tree type.
     #[cfg(not(target_os = "solana"))]
     pub fn state_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+        use light_utils::account::check_discriminator;
+        check_discriminator::<Self>(&account_data[0..DISCRIMINATOR_LEN])?;
         Self::from_bytes::<BATCHED_STATE_TREE_TYPE>(account_data)
     }
 
+    /// Deserialize a batched address Merkle tree from account info.
+    /// Should be used in solana programs.
+    /// Checks that:
+    /// 1. the program owner is the light account compression program,
+    /// 2. discriminator,
+    /// 3. tree type is batched address tree type.
     pub fn address_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
@@ -326,11 +160,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         )
     }
 
-    pub fn from_account_info<const TREE_TYPE: u64>(
+    fn from_account_info<const TREE_TYPE: u64>(
         program_id: &solana_program::pubkey::Pubkey,
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info_mut::<Self>(program_id, account_info)?;
+        check_account_info::<Self>(program_id, account_info)?;
         let mut data = account_info.try_borrow_mut_data()?;
 
         // Necessary to convince the borrow checker.
@@ -339,6 +173,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Self::from_bytes::<TREE_TYPE>(data_slice)
     }
 
+    /// Deserialize a state BatchedMerkleTreeAccount from bytes.
+    /// Should only be used in client.
+    /// Checks the discriminator and tree type.
     #[cfg(not(target_os = "solana"))]
     pub fn address_from_bytes(
         account_data: &'a mut [u8],
@@ -350,8 +187,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
-        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
-        check_discriminator::<Self>(discriminator)?;
+        // Discriminator is already checked in check_account_info.
+        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
@@ -424,7 +261,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_metadata.root_history_capacity as u64,
             account_data,
         )?;
-        // fill root history with zero bytes
+
+        // Initialize root history with zero bytes to enable
+        // unified logic to zero out roots.
+        // An unitialized root history vector
+        // would be an edge case.
         for _ in 0..root_history.capacity() {
             root_history.push([0u8; 32]);
         }
@@ -838,7 +679,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    /// Zero out roots corresponding to sequence numbers < sequence_number.
+    /// Zero out roots corresponding to batch.sequence numbers > tree.sequence_number.
+    /// batch.sequence_number marks the sequence number all roots are overwritten
+    /// which can prove inclusion of a value inserted in the queue.
     /// 1. Check whether overlapping roots exist.
     /// 2. If yes:
     ///     2.1 Get, first safe root index.
@@ -847,8 +690,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // 1. Check whether overlapping roots exist.
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
-            // let root_index = root_index as usize;
-
             let mut oldest_root_index = self.root_history.first_index();
             // 2.1. Get, num of remaining roots.
             //    Remaining roots have not been updated since
@@ -899,7 +740,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///    3.1 zero out bloom filter
     ///    3.2 mark bloom filter as zeroed
     ///    3.3 zero out roots if needed
-    pub fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
+    fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
         let current_batch = self.queue_metadata.next_full_batch_index as usize;
         let batch_size = self.queue_metadata.batch_size;
         let previous_full_batch_index = current_batch.saturating_sub(1);
@@ -968,8 +809,21 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     pub fn get_root_index(&self) -> u32 {
         self.root_history.last_index() as u32
     }
+
     pub fn get_root(&self) -> Option<[u8; 32]> {
         self.root_history.last().copied()
+    }
+
+    pub fn get_root_by_index(&self, index: usize) -> Option<&[u8; 32]> {
+        self.root_history.get(index)
+    }
+
+    pub fn get_metadata(&self) -> &BatchedMerkleTreeMetadata {
+        &self.metadata
+    }
+
+    pub fn get_metadata_mut(&mut self) -> &mut BatchedMerkleTreeMetadata {
+        &mut self.metadata
     }
 
     // TODO: add unit test
@@ -990,21 +844,35 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
+    pub fn tree_is_full(&self) -> bool {
+        self.next_index == self.capacity
+    }
+
     pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
         if self.tree_is_full() {
             return Err(BatchedMerkleTreeError::TreeIsFull);
         }
         Ok(())
     }
-
-    pub fn tree_is_full(&self) -> bool {
-        self.next_index == self.capacity
-    }
 }
 
 pub fn get_merkle_tree_account_size_default() -> usize {
     let mt_account = BatchedMerkleTreeMetadata::default();
     mt_account.get_account_size().unwrap()
+}
+
+impl Deref for BatchedMerkleTreeAccount<'_> {
+    type Target = BatchedMerkleTreeMetadata;
+
+    fn deref(&self) -> &Self::Target {
+        &self.metadata
+    }
+}
+
+impl DerefMut for BatchedMerkleTreeAccount<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.metadata
+    }
 }
 
 pub fn get_merkle_tree_account_size(

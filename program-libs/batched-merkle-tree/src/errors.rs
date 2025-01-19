@@ -45,6 +45,8 @@ pub enum BatchedMerkleTreeError {
     InvalidIndex,
     #[error("Batched Merkle tree is full.")]
     TreeIsFull,
+    #[error("Value already exists in bloom filter.")]
+    NonInclusionCheckFailed,
 }
 
 #[cfg(feature = "solana")]
@@ -62,6 +64,7 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::InvalidBatchIndex => 14309,
             BatchedMerkleTreeError::InvalidIndex => 14310,
             BatchedMerkleTreeError::TreeIsFull => 14311,
+            BatchedMerkleTreeError::NonInclusionCheckFailed => 14312,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),

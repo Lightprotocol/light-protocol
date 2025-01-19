@@ -13,9 +13,10 @@ use light_batched_merkle_tree::{
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
-        get_merkle_tree_account_size, BatchedMerkleTreeAccount, BatchedMerkleTreeMetadata,
-        CreateTreeParams, InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+        get_merkle_tree_account_size, BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs,
     },
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
         assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
         BatchedQueueMetadata,

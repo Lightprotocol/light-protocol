@@ -7,5 +7,5 @@ pub mod nullify_state;
 pub mod processor;
 pub mod sol_compression;
 pub mod sum_check;
+pub mod verify_proof;
 pub mod verify_signer;
-pub mod verify_state_proof;

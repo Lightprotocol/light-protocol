@@ -1,7 +1,13 @@
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_zero_copy::{slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::{batch::BatchState, errors::BatchedMerkleTreeError, BorshDeserialize, BorshSerialize};
+use crate::{
+    batch::{Batch, BatchState},
+    errors::BatchedMerkleTreeError,
+    queue::BatchedQueueMetadata,
+    BorshDeserialize, BorshSerialize,
+};
 
 #[repr(C)]
 #[derive(
@@ -135,6 +141,33 @@ impl BatchMetadata {
             return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         Ok((num_value_stores, num_stores, num_batches))
+    }
+
+    pub fn queue_account_size(&self, queue_type: u64) -> Result<usize, BatchedMerkleTreeError> {
+        let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
+            self.get_size_parameters(queue_type)?;
+        let account_size = if queue_type != QueueType::BatchedOutput as u64 {
+            0
+        } else {
+            BatchedQueueMetadata::LEN
+        };
+        let batches_size =
+            ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(self.num_batches);
+        let value_vecs_size =
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(self.batch_size) * num_value_vec;
+        // Bloomfilter capacity is in bits.
+        let bloom_filter_stores_size =
+            ZeroCopySliceMutU64::<u8>::required_size_for_capacity(self.bloom_filter_capacity / 8)
+                * num_bloom_filter_stores;
+        let hashchain_store_size =
+            ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(self.get_num_zkp_batches())
+                * num_hashchain_store;
+        let size = account_size
+            + batches_size
+            + value_vecs_size
+            + bloom_filter_stores_size
+            + hashchain_store_size;
+        Ok(size)
     }
 }
 

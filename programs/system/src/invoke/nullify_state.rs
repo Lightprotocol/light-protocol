@@ -67,6 +67,7 @@ pub fn insert_nullifiers<
             is_writable: true,
         });
         account_infos.push(account_info.clone());
+        // 1. Check invoking signer is eligible to write to the nullifier queue.
         let (_, network_fee, _, _) = check_program_owner_state_merkle_tree::<true>(
             &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
             invoking_program,

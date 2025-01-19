@@ -1,10 +1,7 @@
 use light_batched_merkle_tree::{
     batch_metadata::BatchMetadata,
     errors::BatchedMerkleTreeError,
-    queue::{
-        assert_queue_zero_copy_inited, queue_account_size, BatchedQueueAccount,
-        BatchedQueueMetadata,
-    },
+    queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
 };
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
@@ -40,8 +37,13 @@ pub fn get_test_account_and_account_data(
         },
         ..Default::default()
     };
-    let account_data: Vec<u8> =
-        vec![0; queue_account_size(&account.batch_metadata, account.metadata.queue_type).unwrap()];
+    let account_data: Vec<u8> = vec![
+        0;
+        account
+            .batch_metadata
+            .queue_account_size(account.metadata.queue_type)
+            .unwrap()
+    ];
     (account, account_data)
 }
 

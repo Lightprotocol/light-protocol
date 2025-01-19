@@ -25,11 +25,9 @@ pub fn derive_new_addresses(
     compressed_account_addresses: &mut [Option<[u8; 32]>],
     new_addresses: &mut Vec<[u8; 32]>,
 ) -> Result<()> {
-    let invoking_program_id_bytes = if let Some(invoking_program_id) = invoking_program_id {
-        invoking_program_id.to_bytes()
-    } else {
-        [0u8; 32]
-    };
+    let invoking_program_id_bytes = invoking_program_id
+        .as_ref()
+        .map(|invoking_program_id| invoking_program_id.to_bytes());
 
     new_address_params
         .iter()
@@ -49,16 +47,19 @@ pub fn derive_new_addresses(
                 )
                 .map_err(ProgramError::from)?,
                 BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                    if invoking_program_id.is_none() {
-                        return err!(SystemProgramError::DeriveAddressError);
-                    }
+                    let invoking_program_id_bytes =
+                        if let Some(bytes) = invoking_program_id_bytes.as_ref() {
+                            Ok(bytes)
+                        } else {
+                            err!(SystemProgramError::DeriveAddressError)
+                        }?;
                     derive_address(
                         &new_address_params.seed,
                         &remaining_accounts
                             [new_address_params.address_merkle_tree_account_index as usize]
                             .key()
                             .to_bytes(),
-                        &invoking_program_id_bytes,
+                        invoking_program_id_bytes,
                     )
                 }
                 _ => {

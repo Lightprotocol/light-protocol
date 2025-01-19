@@ -4,10 +4,8 @@ use light_batched_merkle_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
     initialize_state_tree::assert_address_mt_zero_copy_inited,
-    merkle_tree::{
-        get_merkle_tree_account_size, get_merkle_tree_account_size_default,
-        BatchedMerkleTreeMetadata, CreateTreeParams,
-    },
+    merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
+    merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
 };
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::{
