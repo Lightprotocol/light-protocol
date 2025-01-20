@@ -35,7 +35,10 @@ pub fn get_test_account_and_account_data(
             next_full_batch_index: 0,
             bloom_filter_capacity,
             zkp_batch_size: 10,
-            batches: [Batch::default(); 2],
+            batches: [
+                Batch::new(0, 0, batch_size, 10, 0),
+                Batch::new(0, 0, batch_size, 10, batch_size),
+            ],
         },
         ..Default::default()
     };
@@ -73,7 +76,6 @@ fn test_output_queue_account() {
         let mut account = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
         let value = [1u8; 32];
         account.insert_into_current_batch(&value).unwrap();
-        // assert!(account.insert_into_current_batch(&value).is_ok());
         if queue_type != QueueType::BatchedOutput {
             assert!(account.insert_into_current_batch(&value).is_err());
         }

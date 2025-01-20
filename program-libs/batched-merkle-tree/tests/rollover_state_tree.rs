@@ -22,7 +22,10 @@ use light_batched_merkle_tree::{
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::errors::ZeroCopyError;
-use rand::{rngs::StdRng, Rng};
+use rand::{
+    rngs::{StdRng, ThreadRng},
+    Rng,
+};
 
 /// Test rollover of state tree
 /// 1. failing: not ready for rollover
@@ -448,8 +451,10 @@ fn test_rollover() {
 #[test]
 fn test_rnd_rollover() {
     use rand::SeedableRng;
-    let mut rng = StdRng::seed_from_u64(0);
-    for _ in 0..1000 {
+    let seed = ThreadRng::default().gen();
+    println!("seed {}", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
+    for _ in 0..100 {
         println!("next iter ------------------------------------");
         let owner = Pubkey::new_unique();
 

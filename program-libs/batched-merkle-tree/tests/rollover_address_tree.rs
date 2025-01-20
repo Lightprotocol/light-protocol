@@ -1,5 +1,4 @@
 use light_batched_merkle_tree::{
-    batch::Batch,
     constants::NUM_BATCHES,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
@@ -14,9 +13,7 @@ use light_batched_merkle_tree::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
-use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
-};
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::thread_rng;
 
 /// Test rollover of address tree
@@ -177,11 +174,8 @@ fn test_rnd_rollover() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = NUM_BATCHES;
-            let batch_size =
-                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
-            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
-                (params.bloom_filter_capacity / 8) as u64,
-            ) * num_batches;
+
+            let bloom_filter_size = (params.bloom_filter_capacity / 8) as usize * num_batches;
             let hash_chain_store_size =
                 ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
                     * num_batches;
@@ -193,7 +187,6 @@ fn test_rnd_rollover() {
                 // metadata
                 BatchedMerkleTreeMetadata::LEN
                 + root_history_size
-                + batch_size
                 + bloom_filter_size
                 // 2 hash chain stores
                 + hash_chain_store_size;
