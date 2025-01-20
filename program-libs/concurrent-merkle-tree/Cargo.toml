@@ -25,7 +25,7 @@ thiserror = "1.0"
 
 [dev-dependencies]
 ark-bn254 = "0.4"
-ark-ff = "0.4"
+ark-ff = "0.5"
 light-merkle-tree-reference = { workspace = true}
 light-hash-set = { workspace = true, features = ["solana"] }
 rand = "0.8"

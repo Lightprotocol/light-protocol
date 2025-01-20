@@ -14,7 +14,7 @@ devenv = []
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 anyhow = "1.0"
-ark-ff = "0.4"
+ark-ff = "0.5"
 light-hash-set = { workspace=true }
 num-bigint = "0.4"
 num-traits = "0.2"

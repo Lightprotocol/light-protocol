@@ -12,7 +12,7 @@ anchor = ["anchor-lang"]
 
 [dependencies]
 anyhow = "1.0"
-ark-ff = "0.4"
+ark-ff = "0.5"
 light-hasher = { workspace = true }
 num-bigint = { version = "0.4", features = ["rand"] }
 thiserror = "1.0"

@@ -7,7 +7,7 @@ edition = "2021"
 account-compression = { workspace = true }
 anyhow = "1.0"
 ark-bn254 = "0.4"
-ark-ff = "0.4"
+ark-ff = "0.5"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
 light-concurrent-merkle-tree = { workspace = true }
