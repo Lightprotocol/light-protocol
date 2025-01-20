@@ -451,10 +451,10 @@ fn test_rollover() {
 #[test]
 fn test_rnd_rollover() {
     use rand::SeedableRng;
-    let seed = ThreadRng::default().gen();
+    let seed: u64 = ThreadRng::default().gen();
     println!("seed {}", seed);
     let mut rng = StdRng::seed_from_u64(seed);
-    for _ in 0..100 {
+    for _ in 0..1000 {
         println!("next iter ------------------------------------");
         let owner = Pubkey::new_unique();
 
@@ -471,11 +471,12 @@ fn test_rnd_rollover() {
         let input_queue_zkp_batch_size = rng.gen_range(1..1000);
         let output_queue_zkp_batch_size = rng.gen_range(1..1000);
         let network_fee = if rng.gen_bool(0.5) && forester.is_some() {
-            Some(rng.gen_range(0..1000))
-        } else {
             None
+        } else {
+            Some(rng.gen_range(1..1000))
         };
-
+        println!("forester {:?}", forester);
+        println!("network_fee {:?}", network_fee);
         let params = InitStateTreeAccountsInstructionData {
             index: rng.gen_range(0..1000),
             program_owner,
@@ -557,6 +558,7 @@ fn test_rnd_rollover() {
             &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
         let height = merkle_tree.get_metadata().height;
         merkle_tree.get_metadata_mut().next_index = 1 << height;
+        println!("params {:?}", params);
         let rollover_batch_state_tree_params = RolloverBatchStateTreeParams {
             old_merkle_tree: merkle_tree,
             old_mt_pubkey: mt_pubkey,
@@ -575,6 +577,7 @@ fn test_rnd_rollover() {
             additional_bytes,
             network_fee: params.network_fee,
         };
+
         rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
         let mut ref_rolledover_mt = ref_mt_account;

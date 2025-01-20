@@ -12,6 +12,7 @@ use crate::{
     queue::{BatchedQueueAccount, BatchedQueueMetadata},
 };
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct RolloverBatchStateTreeParams<'a> {
     pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount<'a>,

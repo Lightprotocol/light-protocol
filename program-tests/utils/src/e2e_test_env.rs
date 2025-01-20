@@ -542,7 +542,7 @@ where
                             println!(
                                 "output batch_state {:?}, {}, batch index {}",
                                 batch_state,
-                                batch.get_num_inserted()
+                                batch.get_num_inserted_zkp_batch()
                                     + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
                                 next_full_batch_index
                             );
@@ -592,7 +592,7 @@ where
                             println!(
                                 "output batch_state {:?}, {}, batch index {}",
                                 batch_state,
-                                batch.get_num_inserted()
+                                batch.get_num_inserted_zkp_batch()
                                     + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
                                 next_full_batch_index
                             );

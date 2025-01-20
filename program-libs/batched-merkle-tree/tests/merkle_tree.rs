@@ -552,7 +552,7 @@ async fn test_simulate_transactions() {
                 BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
             println!(
                 "input queue: {:?}",
-                merkle_tree_account.queue_metadata.batches[0].get_num_inserted()
+                merkle_tree_account.queue_metadata.batches[0].get_num_inserted_zkp_batch()
             );
 
             let mut pre_mt_data = mt_account_data.clone();
@@ -1694,7 +1694,10 @@ async fn test_fill_queues_completely() {
         for i in 0..num_updates {
             println!("input update ----------------------------- {}", i);
             perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
-            if i >= 7 {
+            // after 5 updates the first batch is completely inserted
+            // As soon as we switch to inserting the second batch we zero out the first batch since
+            // the second batch is completely full. 
+            if i >= 5 {
                 let merkle_tree_account =
                     &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
                 let batch = merkle_tree_account.queue_metadata.batches.first().unwrap();
@@ -1756,7 +1759,7 @@ async fn test_fill_queues_completely() {
             {
                 let post_batch = *merkle_tree_account.queue_metadata.batches.first().unwrap();
                 assert_eq!(post_batch.get_state(), BatchState::Fill);
-                assert_eq!(post_batch.get_num_inserted(), 1);
+                assert_eq!(post_batch.get_num_inserted_zkp_batch(), 1);
                 let bloom_filter_store =
                     merkle_tree_account.bloom_filter_stores.get_mut(0).unwrap();
                 let mut bloom_filter = BloomFilter::new(
@@ -1932,7 +1935,10 @@ async fn test_fill_address_tree_completely() {
             let batch_one = merkle_tree_account.queue_metadata.batches.get(1).unwrap();
             assert!(!batch_one.bloom_filter_is_zeroed());
 
-            if i >= 7 {
+            // after 5 updates the first batch is completely inserted
+            // As soon as we switch to inserting the second batch we zero out the first batch since
+            // the second batch is completely full. 
+            if i >= 5 {
                 assert!(batch.bloom_filter_is_zeroed());
             } else {
                 assert!(!batch.bloom_filter_is_zeroed());

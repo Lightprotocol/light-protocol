@@ -32,7 +32,7 @@ pub struct BatchMetadata {
     /// Number of elements in a ZKP batch.
     /// A batch has one or more ZKP batches.
     pub zkp_batch_size: u64,
-    /// Bloom filter capacity.
+    /// Bloom filter capacity in bits.
     pub bloom_filter_capacity: u64,
     /// Batch elements are currently inserted in.
     pub currently_processing_batch_index: u64,
@@ -53,6 +53,11 @@ impl BatchMetadata {
 
     pub fn get_current_batch_mut(&mut self) -> &mut Batch {
         &mut self.batches[self.currently_processing_batch_index as usize]
+    }
+
+    /// Returns the size of the bloom filter in bytes.
+    pub fn get_bloomfilter_size_bytes(&self) -> usize {
+        (self.bloom_filter_capacity / 8) as usize
     }
 
     /// Validates that the batch size is properly divisible by the ZKP batch size.
@@ -164,12 +169,10 @@ impl BatchMetadata {
             return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         // Output queues don't use bloom filters.
-        let num_stores = if queue_type == QueueType::BatchedInput as u64 {
-            num_batches
-        } else if queue_type == QueueType::BatchedOutput as u64 && self.bloom_filter_capacity == 0 {
+        let num_stores = if queue_type == QueueType::BatchedOutput as u64 {
             0
         } else {
-            return Err(MerkleTreeMetadataError::InvalidQueueType);
+            num_batches
         };
         Ok((num_value_stores, num_stores, num_batches))
     }
@@ -177,9 +180,11 @@ impl BatchMetadata {
     pub fn queue_account_size(&self, queue_type: u64) -> Result<usize, BatchedMerkleTreeError> {
         let (num_value_vec, num_bloom_filter_stores, num_hashchain_store) =
             self.get_size_parameters(queue_type)?;
-        let account_size = if queue_type != QueueType::BatchedOutput as u64 {
+        let account_size = if queue_type == QueueType::BatchedInput as u64 {
+            // Input queue is part of the Merkle tree account.
             0
         } else {
+            // Output queue is a separate account.
             BatchedQueueMetadata::LEN
         };
         let value_vecs_size =
@@ -247,6 +252,12 @@ fn test_increment_currently_processing_batch_index_if_full() {
 }
 
 #[test]
+fn test_validate_batch_sizes() {
+    assert!(BatchMetadata::validate_batch_sizes(10, 3).is_err());
+    assert!(BatchMetadata::validate_batch_sizes(10, 2).is_ok());
+}
+
+#[test]
 fn test_batch_size_validation() {
     // Test invalid batch size
     assert!(BatchMetadata::new_input_queue(10, 10, 3, 3, 0).is_err());
@@ -255,4 +266,89 @@ fn test_batch_size_validation() {
     // Test valid batch size
     assert!(BatchMetadata::new_input_queue(9, 10, 3, 3, 0).is_ok());
     assert!(BatchMetadata::new_output_queue(9, 3).is_ok());
+}
+
+#[test]
+fn test_output_queue_account_size() {
+    let metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
+    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2;
+    assert_eq!(
+        metadata
+            .queue_account_size(QueueType::BatchedOutput as u64)
+            .unwrap(),
+        queue_size
+    );
+}
+
+#[test]
+fn test_imput_queue_account_size() {
+    let metadata = BatchMetadata::new_input_queue(10, 20000 * 8, 2, 3, 0).unwrap();
+    let queue_size = 20000 * 2 + (16 + 5 * 32) * 2;
+    assert_eq!(
+        metadata
+            .queue_account_size(QueueType::BatchedInput as u64)
+            .unwrap(),
+        queue_size
+    );
+    assert_eq!(
+        metadata.queue_account_size(4).unwrap_err(),
+        MerkleTreeMetadataError::InvalidQueueType.into()
+    );
+}
+
+#[test]
+fn test_get_size_parameters() {
+    let metadata = BatchMetadata::new_input_queue(10, 10, 2, 1, 0).unwrap();
+    assert_eq!(
+        metadata
+            .get_size_parameters(QueueType::BatchedInput as u64)
+            .unwrap(),
+        (0, 2, 2)
+    );
+    assert_eq!(
+        metadata
+            .get_size_parameters(QueueType::BatchedOutput as u64)
+            .unwrap(),
+        (2, 0, 2)
+    );
+    assert_eq!(
+        metadata
+            .get_size_parameters(QueueType::NullifierQueue as u64)
+            .unwrap_err(),
+        MerkleTreeMetadataError::InvalidQueueType
+    );
+}
+
+#[test]
+fn test_init() {
+    let mut metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
+    assert!(metadata.init(12, 5).is_err());
+    assert!(metadata.init(10, 2).is_ok());
+    assert_eq!(metadata.batch_size, 10);
+    assert_eq!(metadata.zkp_batch_size, 2);
+}
+
+#[test]
+fn test_get_num_zkp_batches() {
+    let metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
+    assert_eq!(metadata.get_num_zkp_batches(), 5);
+}
+
+#[test]
+fn test_get_current_batch() {
+    let mut metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
+    assert_eq!(metadata.get_current_batch().get_state(), BatchState::Fill);
+    metadata
+        .get_current_batch_mut()
+        .advance_state_to_full()
+        .unwrap();
+    assert_eq!(metadata.get_current_batch().get_state(), BatchState::Full);
+    metadata
+        .get_current_batch_mut()
+        .advance_state_to_inserted()
+        .unwrap();
+    assert_eq!(
+        metadata.get_current_batch().get_state(),
+        BatchState::Inserted
+    );
 }

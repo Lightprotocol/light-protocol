@@ -188,17 +188,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
-                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
+                .map_err(|e| ZeroCopyError::from(e))?;
         if metadata.tree_type != TREE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
 
         let (root_history, account_data) = ZeroCopyCyclicVecU64::from_bytes_at(account_data)?;
-        let (value_vecs, bloom_filter_stores, hashchain_store) = input_queue_from_bytes(
-            &metadata.queue_metadata,
-            account_data,
-            QueueType::BatchedInput as u64,
-        )?;
+        let (value_vecs, bloom_filter_stores, hashchain_store) =
+            input_queue_from_bytes(&metadata.queue_metadata, account_data)?;
 
         Ok(BatchedMerkleTreeAccount {
             metadata,
@@ -227,7 +224,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
-                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
+                .map_err(|e| ZeroCopyError::from(e))?;
         account_metadata.metadata = metadata;
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;
@@ -955,4 +952,30 @@ pub fn assert_batch_append_event_event(
             + old_output_queue_account.batch_metadata.zkp_batch_size,
     };
     assert_eq!(event, ref_event);
+}
+
+#[test]
+fn test_from_bytes_invalid_tree_type() {
+    let mut account_data = vec![0u8; get_merkle_tree_account_size_default()];
+    let account = BatchedMerkleTreeAccount::from_bytes::<6>(&mut account_data);
+    assert_eq!(
+        account.unwrap_err(),
+        MerkleTreeMetadataError::InvalidTreeType.into()
+    );
+}
+
+#[test]
+fn test_from_bytes_invalid_account_size() {
+    let mut account_data = vec![0u8; 200];
+    let account =
+        BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(&mut account_data);
+    assert_eq!(account.unwrap_err(), ZeroCopyError::Size.into());
+}
+
+#[test]
+fn test_init_invalid_account_size() {
+    let mut account_data = vec![0u8; 200];
+    let account =
+        BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(&mut account_data);
+    assert_eq!(account.unwrap_err(), ZeroCopyError::Size.into());
 }

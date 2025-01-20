@@ -54,10 +54,6 @@ pub struct BatchedQueueMetadata {
 }
 
 impl BatchedQueueMetadata {
-    pub fn get_size_parameters(&self) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
-        self.batch_metadata
-            .get_size_parameters(self.metadata.queue_type)
-    }
     pub fn init(
         &mut self,
         meta_data: QueueMetadata,
@@ -183,16 +179,14 @@ impl<'a> BatchedQueueAccount<'a> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
-                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
+                .map_err(|e| ZeroCopyError::from(e))?;
 
         if metadata.metadata.queue_type != QUEUE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
-        let (num_value_stores, _num_stores, num_hashchain_stores) =
-            metadata.get_size_parameters()?;
 
         let (value_vecs, hashchain_store) =
-            output_queue_from_bytes(num_value_stores, num_hashchain_stores, account_data)?;
+            output_queue_from_bytes(metadata.batch_metadata.num_batches as usize, account_data)?;
         Ok(BatchedQueueAccount {
             metadata,
             value_vecs,
@@ -214,7 +208,7 @@ impl<'a> BatchedQueueAccount<'a> {
 
         let (mut account_metadata, account_data) =
             Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
-                .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
+                .map_err(|e| ZeroCopyError::from(e))?;
 
         account_metadata.init(
             metadata,
@@ -505,8 +499,7 @@ pub(crate) fn insert_into_current_batch(
 #[inline(always)]
 #[allow(clippy::type_complexity)]
 pub(crate) fn output_queue_from_bytes(
-    num_value_stores: usize,
-    num_hashchain_stores: usize,
+    num_stores: usize,
     account_data: &mut [u8],
 ) -> Result<
     (
@@ -516,9 +509,8 @@ pub(crate) fn output_queue_from_bytes(
     BatchedMerkleTreeError,
 > {
     let (value_vecs, account_data) =
-        ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
-    let (hashchain_store, _) =
-        ZeroCopyVecU64::from_bytes_at_multiple(num_hashchain_stores, account_data)?;
+        ZeroCopyVecU64::from_bytes_at_multiple(num_stores, account_data)?;
+    let (hashchain_store, _) = ZeroCopyVecU64::from_bytes_at_multiple(num_stores, account_data)?;
     Ok((value_vecs, hashchain_store))
 }
 
@@ -527,7 +519,6 @@ pub(crate) fn output_queue_from_bytes(
 pub(crate) fn input_queue_from_bytes<'a>(
     batch_metadata: &BatchMetadata,
     account_data: &'a mut [u8],
-    queue_type: u64,
 ) -> Result<
     (
         Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
@@ -536,18 +527,13 @@ pub(crate) fn input_queue_from_bytes<'a>(
     ),
     BatchedMerkleTreeError,
 > {
-    let (num_value_stores, _, hashchain_store_capacity) =
-        batch_metadata.get_size_parameters(queue_type)?;
+    let (value_vecs, account_data) = ZeroCopyVecU64::from_bytes_at_multiple(0, account_data)?;
 
-    let (value_vecs, account_data) =
-        ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
+    let (bloom_filter_stores, account_data) =
+        deserialize_bloom_filter_stores(batch_metadata.get_bloomfilter_size_bytes(), account_data);
 
-    let (bloom_filter_stores, account_data) = deserialize_bloom_filter_stores(
-        (batch_metadata.bloom_filter_capacity / 8) as usize,
-        account_data,
-    );
     let (hashchain_store, _) =
-        ZeroCopyVecU64::from_bytes_at_multiple(hashchain_store_capacity, account_data)?;
+        ZeroCopyVecU64::from_bytes_at_multiple(batch_metadata.num_batches as usize, account_data)?;
     Ok((value_vecs, bloom_filter_stores, hashchain_store))
 }
 
@@ -565,18 +551,22 @@ pub(crate) fn init_queue<'a>(
     ),
     BatchedMerkleTreeError,
 > {
-    let (num_value_stores, _num_stores, num_hashchain_stores) =
-        batch_metadata.get_size_parameters(queue_type)?;
+    let num_value_stores = if queue_type == QueueType::BatchedOutput as u64 {
+        batch_metadata.num_batches as usize
+    } else if queue_type == QueueType::BatchedInput as u64 {
+        0
+    } else {
+        return Err(MerkleTreeMetadataError::InvalidQueueType.into());
+    };
 
     let (value_vecs, account_data) =
         ZeroCopyVecU64::new_at_multiple(num_value_stores, batch_metadata.batch_size, account_data)?;
 
-    let (bloom_filter_stores, account_data) = deserialize_bloom_filter_stores(
-        (batch_metadata.bloom_filter_capacity / 8) as usize,
-        account_data,
-    );
+    let (bloom_filter_stores, account_data) =
+        deserialize_bloom_filter_stores(batch_metadata.get_bloomfilter_size_bytes(), account_data);
+
     let (hashchain_store, account_data) = ZeroCopyVecU64::new_at_multiple(
-        num_hashchain_stores,
+        batch_metadata.num_batches as usize,
         batch_metadata.get_num_zkp_batches(),
         account_data,
     )?;

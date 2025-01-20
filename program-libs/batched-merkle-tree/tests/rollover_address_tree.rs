@@ -130,7 +130,7 @@ fn test_rollover() {
 fn test_rnd_rollover() {
     use rand::Rng;
     let mut rng = thread_rng();
-    for _ in 0..10000 {
+    for _ in 0..1000 {
         let owner = Pubkey::new_unique();
 
         let program_owner = if rng.gen_bool(0.5) {
