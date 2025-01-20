@@ -1,4 +1,5 @@
 use light_batched_merkle_tree::{
+    batch::Batch,
     batch_metadata::BatchMetadata,
     errors::BatchedMerkleTreeError,
     queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
@@ -34,6 +35,7 @@ pub fn get_test_account_and_account_data(
             next_full_batch_index: 0,
             bloom_filter_capacity,
             zkp_batch_size: 10,
+            batches: [Batch::default(); 2],
         },
         ..Default::default()
     };
@@ -73,7 +75,7 @@ fn test_output_queue_account() {
         )
         .unwrap();
 
-        assert_queue_zero_copy_inited(&mut account_data, ref_account, bloom_filter_num_iters);
+        assert_queue_zero_copy_inited(&mut account_data, ref_account);
         let mut account = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
         let value = [1u8; 32];
         account.insert_into_current_batch(&value).unwrap();

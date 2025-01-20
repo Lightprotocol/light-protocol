@@ -65,7 +65,7 @@ fn create_batched_address_tree_init_params(
         input_queue_batch_size: old_merkle_tree.queue_metadata.batch_size,
         input_queue_zkp_batch_size: old_merkle_tree.queue_metadata.zkp_batch_size,
         bloom_filter_capacity: old_merkle_tree.queue_metadata.bloom_filter_capacity,
-        bloom_filter_num_iters: old_merkle_tree.batches[0].num_iters,
+        bloom_filter_num_iters: old_merkle_tree.queue_metadata.batches[0].num_iters,
         root_history_capacity: old_merkle_tree.root_history_capacity,
         network_fee,
         rollover_threshold: if_equals_none(
@@ -91,7 +91,6 @@ pub fn assert_address_mt_roll_over(
     mut new_mt_account_data: Vec<u8>,
     new_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     new_mt_pubkey: Pubkey,
-    bloom_filter_num_iters: u64,
 ) {
     old_ref_mt_account
         .metadata
@@ -104,6 +103,5 @@ pub fn assert_address_mt_roll_over(
     crate::initialize_state_tree::assert_address_mt_zero_copy_inited(
         &mut new_mt_account_data,
         new_ref_mt_account,
-        bloom_filter_num_iters,
     );
 }

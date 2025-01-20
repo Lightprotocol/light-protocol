@@ -105,7 +105,7 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
             input_queue_batch_size: params.old_merkle_tree.queue_metadata.batch_size,
             input_queue_zkp_batch_size: params.old_merkle_tree.queue_metadata.zkp_batch_size,
             bloom_filter_capacity: params.old_merkle_tree.queue_metadata.bloom_filter_capacity,
-            bloom_filter_num_iters: params.old_merkle_tree.batches[0].num_iters,
+            bloom_filter_num_iters: params.old_merkle_tree.queue_metadata.batches[0].num_iters,
             root_history_capacity: params.old_merkle_tree.root_history_capacity,
             network_fee: params.network_fee,
             rollover_threshold: if_equals_none(
@@ -128,7 +128,7 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
             additional_bytes: params.additional_bytes,
             output_queue_batch_size: params.old_output_queue.batch_metadata.batch_size,
             output_queue_zkp_batch_size: params.old_output_queue.batch_metadata.zkp_batch_size,
-            output_queue_num_batches: params.old_output_queue.batches.len() as u64,
+            output_queue_num_batches: params.old_output_queue.batch_metadata.batches.len() as u64,
         }
     }
 }
@@ -164,7 +164,6 @@ pub struct StateMtRollOverAssertParams {
     pub new_mt_account_data: Vec<u8>,
     pub old_mt_pubkey: Pubkey,
     pub new_mt_pubkey: Pubkey,
-    pub bloom_filter_num_iters: u64,
     pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
     pub queue_account_data: Vec<u8>,
     pub ref_queue_account: BatchedQueueMetadata,
@@ -183,7 +182,7 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         new_mt_account_data,
         old_mt_pubkey,
         new_mt_pubkey,
-        bloom_filter_num_iters,
+
         ref_rolledover_mt,
         mut queue_account_data,
         ref_queue_account,
@@ -203,7 +202,7 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         .rollover_metadata
         .rolledover_slot = slot;
 
-    crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account, 0);
+    crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account);
 
     let zero_copy_queue = BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
     assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
@@ -212,7 +211,6 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         ref_mt_account,
         new_mt_account_data,
         new_mt_pubkey,
-        bloom_filter_num_iters,
         ref_rolledover_mt,
         old_queue_pubkey,
         slot,
@@ -228,7 +226,6 @@ pub struct MtRollOverAssertParams {
     pub ref_mt_account: BatchedMerkleTreeMetadata,
     pub new_mt_account_data: Vec<u8>,
     pub new_mt_pubkey: Pubkey,
-    pub bloom_filter_num_iters: u64,
     pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
     pub old_queue_pubkey: Pubkey,
     pub slot: u64,
@@ -241,7 +238,6 @@ pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
         ref_mt_account,
         mut new_mt_account_data,
         new_mt_pubkey,
-        bloom_filter_num_iters,
         mut ref_rolledover_mt,
         old_queue_pubkey,
         slot,
@@ -258,6 +254,5 @@ pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
     crate::initialize_state_tree::assert_state_mt_zero_copy_inited(
         &mut new_mt_account_data,
         ref_mt_account,
-        bloom_filter_num_iters,
     );
 }

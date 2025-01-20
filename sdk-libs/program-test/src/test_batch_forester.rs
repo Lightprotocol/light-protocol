@@ -120,7 +120,8 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
 
     let leaves = bundle.output_queue_elements.to_vec();
 
-    let num_inserted_zkps = output_queue.batches[full_batch_index as usize].get_num_inserted_zkps();
+    let num_inserted_zkps =
+        output_queue.batch_metadata.batches[full_batch_index as usize].get_num_inserted_zkps();
     let leaves_hashchain =
         output_queue.hashchain_store[full_batch_index as usize][num_inserted_zkps as usize];
     let (proof, new_root) = {
@@ -274,7 +275,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
             .unwrap();
     let zkp_batch_size = merkle_tree.queue_metadata.zkp_batch_size;
     let full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
-    let full_batch = &merkle_tree.batches[full_batch_index as usize];
+    let full_batch = &merkle_tree.queue_metadata.batches[full_batch_index as usize];
     let zkp_batch_index = full_batch.get_num_inserted_zkps();
     let leaves_hashchain =
         merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
@@ -498,11 +499,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
-    assert_state_mt_zero_copy_inited(
-        merkle_tree.account.data.as_mut_slice(),
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_state_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
 
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
@@ -538,11 +535,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
     );
     let ref_output_queue_account = create_output_queue_account(queue_params);
 
-    assert_queue_zero_copy_inited(
-        queue.account.data.as_mut_slice(),
-        ref_output_queue_account,
-        0, // output queue doesn't have a bloom filter hence no iterations
-    );
+    assert_queue_zero_copy_inited(queue.account.data.as_mut_slice(), ref_output_queue_account);
     Ok(())
 }
 #[allow(clippy::too_many_arguments)]
@@ -562,8 +555,8 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
         BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_merkle_tree.batches[0];
-    let num_batches = old_merkle_tree.batches.len();
+    let num_batches = old_merkle_tree.queue_metadata.batches.len();
+    let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
         batch_zero.bloom_filter_capacity,
@@ -581,7 +574,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_output_queue_pubkey).await?.unwrap();
     let old_queue_account =
         BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_queue_account.batches[0];
+    let batch_zero = &old_queue_account.batch_metadata.batches[0];
     let queue_account_size = get_output_queue_account_size(
         batch_zero.batch_size,
         batch_zero.zkp_batch_size,
@@ -706,7 +699,6 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
         new_mt_account_data: new_state_merkle_tree.data.to_vec(),
         old_mt_pubkey: old_state_merkle_tree_pubkey.into(),
         new_mt_pubkey: new_state_merkle_tree_pubkey.into(),
-        bloom_filter_num_iters: params.bloom_filter_num_iters,
         ref_mt_account: new_ref_mt_account,
         queue_account_data: old_queue_account_data.to_vec(),
         ref_rolledover_queue: ref_queue_account,
@@ -780,11 +772,7 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
         .unwrap();
     let mt_params = CreateTreeParams::from_address_ix_params(params, payer_pubkey.into());
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
-    assert_address_mt_zero_copy_inited(
-        merkle_tree.account.data.as_mut_slice(),
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_address_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
 
     Ok(())
 }
@@ -802,7 +790,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
             .unwrap();
     let full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
-    let batch = &merkle_tree.batches[full_batch_index as usize];
+    let batch = &merkle_tree.queue_metadata.batches[full_batch_index as usize];
     let zkp_batch_index = batch.get_num_inserted_zkps();
     let leaves_hashchain =
         merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
@@ -916,8 +904,8 @@ pub async fn perform_rollover_batch_address_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
         BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_merkle_tree.batches[0];
-    let num_batches = old_merkle_tree.batches.len();
+    let num_batches = old_merkle_tree.queue_metadata.batches.len();
+    let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
         batch_zero.bloom_filter_capacity,

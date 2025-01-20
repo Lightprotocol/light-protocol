@@ -10,7 +10,7 @@ use light_utils::{
     account::{check_account_info, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
     pubkey::Pubkey,
 };
-use light_zero_copy::{errors::ZeroCopyError, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
+use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
@@ -63,11 +63,21 @@ impl BatchedQueueMetadata {
         batch_size: u64,
         zkp_batch_size: u64,
         bloom_filter_capacity: u64,
+        num_iters: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.metadata = meta_data;
         self.batch_metadata
             .init(num_batches, batch_size, zkp_batch_size)?;
         self.batch_metadata.bloom_filter_capacity = bloom_filter_capacity;
+        for (i, batches) in self.batch_metadata.batches.iter_mut().enumerate() {
+            *batches = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                batch_size * (i as u64),
+            );
+        }
         Ok(())
     }
 }
@@ -117,9 +127,7 @@ impl BatchedQueueMetadata {
 #[derive(Debug, PartialEq)]
 pub struct BatchedQueueAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
-    pub batches: ZeroCopySliceMutU64<'a, Batch>,
     pub value_vecs: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-    pub bloom_filter_stores: Vec<ZeroCopySliceMutU64<'a, u8>>,
     pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
 }
 
@@ -163,15 +171,14 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
+        check_discriminator::<BatchedQueueAccount>(&account_data[..DISCRIMINATOR_LEN])?;
         Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
     fn from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
-        check_discriminator::<BatchedQueueAccount>(discriminator)?;
-
+        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(|e| BatchedMerkleTreeError::ZeroCopyCastError(e.to_string()))?;
@@ -179,20 +186,14 @@ impl<'a> BatchedQueueAccount<'a> {
         if metadata.metadata.queue_type != QUEUE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
-        let (num_value_stores, num_stores, num_hashchain_stores) =
+        let (num_value_stores, _num_stores, num_hashchain_stores) =
             metadata.get_size_parameters()?;
 
-        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = output_queue_from_bytes(
-            num_value_stores,
-            num_stores,
-            num_hashchain_stores,
-            account_data,
-        )?;
+        let (value_vecs, hashchain_store) =
+            output_queue_from_bytes(num_value_stores, num_hashchain_stores, account_data)?;
         Ok(BatchedQueueAccount {
             metadata,
-            batches,
             value_vecs,
-            bloom_filter_stores,
             hashchain_store,
         })
     }
@@ -220,7 +221,9 @@ impl<'a> BatchedQueueAccount<'a> {
             output_queue_batch_size,
             output_queue_zkp_batch_size,
             bloom_filter_capacity,
+            num_iters,
         )?;
+
         if account_data_len
             != account_metadata
                 .batch_metadata
@@ -236,19 +239,14 @@ impl<'a> BatchedQueueAccount<'a> {
             return Err(ZeroCopyError::InvalidAccountSize.into());
         }
 
-        let (batches, value_vecs, bloom_filter_stores, hashchain_store) = init_queue(
+        let (value_vecs, _bloom_filter_stores, hashchain_store, _) = init_queue(
             &account_metadata.batch_metadata,
             account_metadata.metadata.queue_type,
             account_data,
-            num_iters,
-            bloom_filter_capacity,
-            0,
         )?;
         Ok(BatchedQueueAccount {
             metadata: account_metadata,
-            batches,
             value_vecs,
-            bloom_filter_stores,
             hashchain_store,
         })
     }
@@ -266,9 +264,8 @@ impl<'a> BatchedQueueAccount<'a> {
         insert_into_current_batch(
             self.metadata.metadata.queue_type,
             &mut self.metadata.batch_metadata,
-            &mut self.batches,
             &mut self.value_vecs,
-            self.bloom_filter_stores.as_mut_slice(),
+            &mut [],
             &mut self.hashchain_store,
             hash_chain_value,
             None,
@@ -293,7 +290,7 @@ impl<'a> BatchedQueueAccount<'a> {
         leaf_index: u64,
         hash_chain_value: &[u8; 32],
     ) -> Result<bool, BatchedMerkleTreeError> {
-        for (batch_index, batch) in self.batches.iter().enumerate() {
+        for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
             if batch.leaf_index_could_exist_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
@@ -319,7 +316,7 @@ impl<'a> BatchedQueueAccount<'a> {
         &mut self,
         leaf_index: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
-        for batch in self.batches.iter() {
+        for batch in self.batch_metadata.batches.iter() {
             let res = batch.leaf_index_could_exist_in_batch(leaf_index)?;
             if res {
                 return Ok(());
@@ -336,7 +333,7 @@ impl<'a> BatchedQueueAccount<'a> {
         leaf_index: u64,
         hash_chain_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        for (batch_index, batch) in self.batches.iter().enumerate() {
+        for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
             if batch.leaf_index_could_exist_in_batch(leaf_index)? {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
@@ -365,7 +362,7 @@ impl<'a> BatchedQueueAccount<'a> {
     /// Returns the number of elements inserted in the current batch.
     pub fn get_num_inserted_in_current_batch(&self) -> u64 {
         let next_full_batch = self.batch_metadata.currently_processing_batch_index as usize;
-        self.batches[next_full_batch].get_num_inserted_elements()
+        self.batch_metadata.batches[next_full_batch].get_num_inserted_elements()
     }
 
     /// Returns true if the pubkey is the associated Merkle tree of the queue.
@@ -423,9 +420,8 @@ impl DerefMut for BatchedQueueAccount<'_> {
 pub(crate) fn insert_into_current_batch(
     queue_type: u64,
     batch_metadata: &mut BatchMetadata,
-    batches: &mut ZeroCopySliceMutU64<Batch>,
     value_vecs: &mut [ZeroCopyVecU64<[u8; 32]>],
-    bloom_filter_stores: &mut [ZeroCopySliceMutU64<u8>],
+    bloom_filter_stores: &mut [&mut [u8]],
     hashchain_store: &mut [ZeroCopyVecU64<[u8; 32]>],
     hash_chain_value: &[u8; 32],
     bloom_filter_value: Option<&[u8; 32]>,
@@ -436,9 +432,7 @@ pub(crate) fn insert_into_current_batch(
     let batch_index = batch_metadata.currently_processing_batch_index as usize;
     let mut value_store = value_vecs.get_mut(batch_index);
     let mut hashchain_store = hashchain_store.get_mut(batch_index);
-    let current_batch = batches
-        .get_mut(batch_index)
-        .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
+    let current_batch = batch_metadata.get_current_batch_mut();
     // 1. Check that the current batch is ready.
     //      1.1. If the current batch is inserted, clear the batch.
     {
@@ -477,7 +471,7 @@ pub(crate) fn insert_into_current_batch(
             }
         } else {
             // We expect to insert into the current batch.
-            for batch in batches.iter_mut() {
+            for batch in batch_metadata.batches.iter() {
                 msg!("batch {:?}", batch);
             }
             return Err(BatchedMerkleTreeError::BatchNotReady);
@@ -503,36 +497,32 @@ pub(crate) fn insert_into_current_batch(
     }?;
 
     // 3. If batch is full, increment currently_processing_batch_index.
-    batch_metadata.increment_currently_processing_batch_index_if_full(current_batch.get_state());
+    batch_metadata.increment_currently_processing_batch_index_if_full();
 
     Ok((root_index, sequence_number))
 }
 
+#[inline(always)]
 #[allow(clippy::type_complexity)]
 pub(crate) fn output_queue_from_bytes(
     num_value_stores: usize,
-    num_stores: usize,
     num_hashchain_stores: usize,
     account_data: &mut [u8],
 ) -> Result<
     (
-        ZeroCopySliceMutU64<'_, Batch>,
         Vec<ZeroCopyVecU64<'_, [u8; 32]>>,
-        Vec<ZeroCopySliceMutU64<'_, u8>>,
         Vec<ZeroCopyVecU64<'_, [u8; 32]>>,
     ),
     BatchedMerkleTreeError,
 > {
-    let (batches, account_data) = ZeroCopySliceMutU64::from_bytes_at(account_data)?;
     let (value_vecs, account_data) =
         ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
-    let (bloom_filter_stores, account_data) =
-        ZeroCopySliceMutU64::from_bytes_at_multiple(num_stores, account_data)?;
     let (hashchain_store, _) =
         ZeroCopyVecU64::from_bytes_at_multiple(num_hashchain_stores, account_data)?;
-    Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
+    Ok((value_vecs, hashchain_store))
 }
 
+#[inline(always)]
 #[allow(clippy::type_complexity)]
 pub(crate) fn input_queue_from_bytes<'a>(
     batch_metadata: &BatchMetadata,
@@ -540,26 +530,25 @@ pub(crate) fn input_queue_from_bytes<'a>(
     queue_type: u64,
 ) -> Result<
     (
-        ZeroCopySliceMutU64<'a, Batch>,
         Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-        Vec<ZeroCopySliceMutU64<'a, u8>>,
+        Vec<&'a mut [u8]>,
         Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
     ),
     BatchedMerkleTreeError,
 > {
-    let (num_value_stores, num_stores, hashchain_store_capacity) =
+    let (num_value_stores, _, hashchain_store_capacity) =
         batch_metadata.get_size_parameters(queue_type)?;
 
-    let (batches, account_data) = ZeroCopySliceMutU64::from_bytes_at(account_data)?;
     let (value_vecs, account_data) =
         ZeroCopyVecU64::from_bytes_at_multiple(num_value_stores, account_data)?;
-    let (bloom_filter_stores, account_data) =
-        ZeroCopySliceMutU64::from_bytes_at_multiple(num_stores, account_data)?;
 
+    let (bloom_filter_stores, account_data) = deserialize_bloom_filter_stores(
+        (batch_metadata.bloom_filter_capacity / 8) as usize,
+        account_data,
+    );
     let (hashchain_store, _) =
         ZeroCopyVecU64::from_bytes_at_multiple(hashchain_store_capacity, account_data)?;
-
-    Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
+    Ok((value_vecs, bloom_filter_stores, hashchain_store))
 }
 
 #[allow(clippy::type_complexity)]
@@ -567,49 +556,51 @@ pub(crate) fn init_queue<'a>(
     batch_metadata: &BatchMetadata,
     queue_type: u64,
     account_data: &'a mut [u8],
-    num_iters: u64,
-    bloom_filter_capacity: u64,
-    batch_start_index: u64,
 ) -> Result<
     (
-        ZeroCopySliceMutU64<'a, Batch>,
         Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-        Vec<ZeroCopySliceMutU64<'a, u8>>,
+        Vec<&'a mut [u8]>,
         Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
+        &'a mut [u8],
     ),
     BatchedMerkleTreeError,
 > {
-    let (num_value_stores, num_stores, num_hashchain_stores) =
+    let (num_value_stores, _num_stores, num_hashchain_stores) =
         batch_metadata.get_size_parameters(queue_type)?;
 
-    let (mut batches, account_data) =
-        ZeroCopySliceMutU64::new_at(batch_metadata.num_batches, account_data)?;
-
-    for i in 0..batch_metadata.num_batches {
-        batches[i as usize] = Batch::new(
-            num_iters,
-            bloom_filter_capacity,
-            batch_metadata.batch_size,
-            batch_metadata.zkp_batch_size,
-            batch_metadata.batch_size * i + batch_start_index,
-        );
-    }
     let (value_vecs, account_data) =
         ZeroCopyVecU64::new_at_multiple(num_value_stores, batch_metadata.batch_size, account_data)?;
 
-    let (bloom_filter_stores, account_data) = ZeroCopySliceMutU64::new_at_multiple(
-        num_stores,
-        batch_metadata.bloom_filter_capacity / 8,
+    let (bloom_filter_stores, account_data) = deserialize_bloom_filter_stores(
+        (batch_metadata.bloom_filter_capacity / 8) as usize,
         account_data,
-    )?;
-
-    let (hashchain_store, _) = ZeroCopyVecU64::new_at_multiple(
+    );
+    let (hashchain_store, account_data) = ZeroCopyVecU64::new_at_multiple(
         num_hashchain_stores,
         batch_metadata.get_num_zkp_batches(),
         account_data,
     )?;
 
-    Ok((batches, value_vecs, bloom_filter_stores, hashchain_store))
+    Ok((
+        value_vecs,
+        bloom_filter_stores,
+        hashchain_store,
+        account_data,
+    ))
+}
+
+#[inline(always)]
+fn deserialize_bloom_filter_stores(
+    bloom_filter_capacity: usize,
+    mut account_data: &mut [u8],
+) -> (Vec<&mut [u8]>, &mut [u8]) {
+    let mut bloom_filter_stores = Vec::with_capacity(2);
+    for _ in 0..2 {
+        let (slice, _bytes) = account_data.split_at_mut(bloom_filter_capacity);
+        account_data = _bytes;
+        bloom_filter_stores.push(slice);
+    }
+    (bloom_filter_stores, account_data)
 }
 
 pub fn get_output_queue_account_size_default() -> usize {
@@ -679,28 +670,12 @@ pub fn assert_queue_inited(
     ref_batch_metadata: BatchMetadata,
     queue_type: u64,
     value_vecs: &mut Vec<ZeroCopyVecU64<'_, [u8; 32]>>,
-    bloom_filter_stores: &mut Vec<ZeroCopySliceMutU64<'_, u8>>,
-    batches: &mut ZeroCopySliceMutU64<'_, Batch>,
     num_batches: usize,
-    num_iters: u64,
-    start_index: u64,
 ) {
     assert_eq!(
         batch_metadata, ref_batch_metadata,
         "batch_metadata mismatch"
     );
-    assert_eq!(batches.len(), num_batches, "batches mismatch");
-    for (i, batch) in batches.iter().enumerate() {
-        let ref_batch = Batch::new(
-            num_iters,
-            ref_batch_metadata.bloom_filter_capacity,
-            ref_batch_metadata.batch_size,
-            ref_batch_metadata.zkp_batch_size,
-            ref_batch_metadata.batch_size * i as u64 + start_index,
-        );
-
-        assert_eq!(batch, &ref_batch, "batch mismatch");
-    }
 
     if queue_type == QueueType::BatchedOutput as u64 {
         assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
@@ -708,33 +683,6 @@ pub fn assert_queue_inited(
     } else {
         assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
         assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
-    }
-
-    if queue_type == QueueType::BatchedOutput as u64 {
-        assert_eq!(
-            bloom_filter_stores.capacity(),
-            0,
-            "bloom_filter_stores mismatch"
-        );
-    } else {
-        assert_eq!(
-            bloom_filter_stores.capacity(),
-            num_batches,
-            "bloom_filter_stores mismatch"
-        );
-        assert_eq!(
-            bloom_filter_stores.len(),
-            num_batches,
-            "bloom_filter_stores mismatch"
-        );
-    }
-
-    for vec in bloom_filter_stores {
-        assert_eq!(
-            vec.len() * 8,
-            batch_metadata.bloom_filter_capacity as usize,
-            "bloom_filter_capacity mismatch"
-        );
     }
 
     for vec in value_vecs.iter() {
@@ -748,17 +696,12 @@ pub fn assert_queue_inited(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub fn assert_queue_zero_copy_inited(
-    account_data: &mut [u8],
-    ref_account: BatchedQueueMetadata,
-    num_iters: u64,
-) {
+pub fn assert_queue_zero_copy_inited(account_data: &mut [u8], ref_account: BatchedQueueMetadata) {
     let mut account = BatchedQueueAccount::output_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
     let num_batches = ref_account.batch_metadata.num_batches as usize;
     let batch_metadata = account.batch_metadata;
     let queue_type = account.metadata.metadata.queue_type;
-    let next_index = account.next_index;
     assert_eq!(
         account.metadata.metadata, ref_account.metadata,
         "metadata mismatch"
@@ -768,10 +711,6 @@ pub fn assert_queue_zero_copy_inited(
         ref_account.batch_metadata,
         queue_type,
         &mut account.value_vecs,
-        &mut account.bloom_filter_stores,
-        &mut account.batches,
         num_batches,
-        num_iters,
-        next_index,
     );
 }

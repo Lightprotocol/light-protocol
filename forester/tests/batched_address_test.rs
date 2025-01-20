@@ -268,8 +268,8 @@ async fn test_address_batched() {
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
-        for batch_idx in 0..merkle_tree.batches.len() {
-            let batch = merkle_tree.batches.get(batch_idx).unwrap();
+        for batch_idx in 0..merkle_tree.queue_metadata.batches.len() {
+            let batch = merkle_tree.queue_metadata.batches.get(batch_idx).unwrap();
             if batch.get_state() == BatchState::Inserted {
                 completed_items += batch_size;
             }

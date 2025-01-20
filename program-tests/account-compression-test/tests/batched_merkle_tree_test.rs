@@ -172,7 +172,6 @@ async fn test_batch_state_merkle_tree() {
         assert_state_mt_zero_copy_inited(
             &mut merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
-            params.bloom_filter_num_iters,
         );
         let output_queue_params = CreateOutputQueueParams::from(
             params,
@@ -184,7 +183,6 @@ async fn test_batch_state_merkle_tree() {
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
             ref_output_queue_account,
-            0,
         );
     }
     let mut mock_indexer = MockBatchedForester::<32>::default();
@@ -743,6 +741,7 @@ pub async fn create_append_batch_ix_data(
         .batch_metadata
         .next_full_batch_index;
     let batch = output_zero_copy_account
+        .batch_metadata
         .batches
         .get(next_full_batch as usize)
         .unwrap();
@@ -779,13 +778,14 @@ pub async fn create_nullify_batch_ix_data(
 ) -> InstructionDataBatchNullifyInputs {
     let zero_copy_account: BatchedMerkleTreeAccount =
         BatchedMerkleTreeAccount::state_from_bytes(account_data).unwrap();
-    println!("batches {:?}", zero_copy_account.batches);
+    println!("batches {:?}", zero_copy_account.queue_metadata.batches);
 
     let next_full_batch = zero_copy_account
         .get_metadata()
         .queue_metadata
         .next_full_batch_index;
     let batch = zero_copy_account
+        .queue_metadata
         .batches
         .get(next_full_batch as usize)
         .unwrap();
@@ -876,11 +876,7 @@ async fn test_init_batch_state_merkle_trees() {
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_state_mt_zero_copy_inited(
-            &mut tree_data.as_mut_slice(),
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_state_mt_zero_copy_inited(&mut tree_data.as_mut_slice(), ref_mt_account);
         let output_queue_params = CreateOutputQueueParams::from(
             *params,
             owner.into(),
@@ -892,7 +888,6 @@ async fn test_init_batch_state_merkle_trees() {
         assert_queue_zero_copy_inited(
             &mut queue.account.data.as_mut_slice(),
             ref_output_queue_account,
-            0,
         );
     }
 }
@@ -1204,8 +1199,8 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
         BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_merkle_tree.batches[0];
-    let num_batches = old_merkle_tree.batches.len();
+    let num_batches = old_merkle_tree.queue_metadata.batches.len();
+    let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
     let old_merkle_tree = old_merkle_tree.get_metadata();
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
@@ -1224,7 +1219,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_output_queue_pubkey).await?.unwrap();
     let old_queue_account =
         BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_queue_account.batches[0];
+    let batch_zero = &old_queue_account.batch_metadata.batches[0];
     let queue_account_size = get_output_queue_account_size(
         batch_zero.batch_size,
         batch_zero.zkp_batch_size,
@@ -1412,11 +1407,7 @@ async fn test_init_batch_address_merkle_trees() {
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_address_mt_zero_copy_inited(
-            &mut tree_data.as_mut_slice(),
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_address_mt_zero_copy_inited(&mut tree_data.as_mut_slice(), ref_mt_account);
     }
 }
 pub async fn perform_init_batch_address_merkle_tree(
@@ -1888,6 +1879,7 @@ pub async fn update_batch_address_tree(
         .next_full_batch_index;
 
     let batch = zero_copy_account
+        .queue_metadata
         .batches
         .get(next_full_batch as usize)
         .unwrap();

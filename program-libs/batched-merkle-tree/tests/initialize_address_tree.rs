@@ -1,5 +1,4 @@
 use light_batched_merkle_tree::{
-    batch::Batch,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
@@ -8,9 +7,7 @@ use light_batched_merkle_tree::{
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
 };
 use light_utils::pubkey::Pubkey;
-use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
-};
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::{rngs::StdRng, Rng};
 
 #[test]
@@ -27,11 +24,7 @@ fn test_account_init() {
     init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
         .unwrap();
 
-    assert_address_mt_zero_copy_inited(
-        &mut mt_account_data,
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 }
 
 #[test]
@@ -67,7 +60,7 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
+            input_queue_num_batches: 2,
             height: rng.gen_range(1..32),
         };
 
@@ -82,11 +75,7 @@ fn test_rnd_account_init() {
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
             let num_batches = params.input_queue_num_batches as usize;
-            let batch_size =
-                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
-            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
-                params.bloom_filter_capacity / 8,
-            ) * num_batches;
+            let bloom_filter_size = ((params.bloom_filter_capacity / 8) * 2u64) as usize;
             let hash_chain_store_size =
                 ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
                     * num_batches;
@@ -96,7 +85,6 @@ fn test_rnd_account_init() {
             // Output queue
             let ref_account_size = BatchedMerkleTreeMetadata::LEN
                     + root_history_size
-                    + batch_size
                     + bloom_filter_size
                     // 2 hash chain stores
                     + hash_chain_store_size;
@@ -116,10 +104,6 @@ fn test_rnd_account_init() {
         let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
     }
 }

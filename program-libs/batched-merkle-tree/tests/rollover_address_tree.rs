@@ -41,11 +41,7 @@ fn test_rollover() {
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-    assert_address_mt_zero_copy_inited(
-        &mut mt_account_data,
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 
     let mut new_mt_account_data = vec![0; mt_account_size];
     let new_mt_pubkey = Pubkey::new_unique();
@@ -111,7 +107,6 @@ fn test_rollover() {
             new_mt_account_data.to_vec(),
             new_ref_mt_account,
             new_mt_pubkey,
-            params.bloom_filter_num_iters,
         );
     }
     // 4. Failing: already rolled over
@@ -220,11 +215,7 @@ fn test_rnd_rollover() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
         let mut new_mt_data = vec![0; mt_account_size];
         let new_mt_rent = merkle_tree_rent;
         let network_fee = params.network_fee;
@@ -250,7 +241,6 @@ fn test_rnd_rollover() {
             new_mt_data,
             new_ref_mt_account,
             new_mt_pubkey,
-            params.bloom_filter_num_iters,
         );
     }
 }

@@ -120,6 +120,7 @@ impl BatchedMerkleTreeMetadata {
             root_history_capacity,
             height,
             num_batches,
+            num_iters,
         } = params;
         Self {
             metadata: MerkleTreeMetadata {
@@ -145,6 +146,12 @@ impl BatchedMerkleTreeMetadata {
                 bloom_filter_capacity,
                 zkp_batch_size,
                 num_batches,
+                num_iters,
+                if tree_type == TreeType::BatchedAddress {
+                    2
+                } else {
+                    0
+                },
             )
             .unwrap(),
             capacity: 2u64.pow(height),
@@ -166,6 +173,7 @@ pub struct CreateTreeParams {
     pub root_history_capacity: u32,
     pub height: u32,
     pub num_batches: u64,
+    pub num_iters: u64,
 }
 impl CreateTreeParams {
     pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
@@ -182,6 +190,7 @@ impl CreateTreeParams {
             root_history_capacity: data.root_history_capacity,
             height: data.height,
             num_batches: data.input_queue_num_batches,
+            num_iters: data.bloom_filter_num_iters,
         }
     }
 
@@ -202,6 +211,7 @@ impl CreateTreeParams {
             root_history_capacity: data.root_history_capacity,
             height: data.height,
             num_batches: data.input_queue_num_batches,
+            num_iters: data.bloom_filter_num_iters,
         }
     }
 }

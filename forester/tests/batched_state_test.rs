@@ -286,8 +286,8 @@ async fn test_state_batched() {
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
-        for batch_idx in 0..output_queue.batches.len() {
-            let batch = output_queue.batches.get(batch_idx).unwrap();
+        for batch_idx in 0..output_queue.batch_metadata.batches.len() {
+            let batch = output_queue.batch_metadata.batches.get(batch_idx).unwrap();
             if batch.get_state() == BatchState::Inserted {
                 completed_items += batch_size;
             }
