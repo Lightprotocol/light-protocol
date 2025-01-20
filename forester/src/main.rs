@@ -41,44 +41,6 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            // let indexer_rpc =
-            //     SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
-            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-            //     config.external_services.indexer_url.clone().unwrap(),
-            //     config.external_services.photon_api_key.clone(),
-            //     indexer_rpc,
-            // )));
-
-            // let indexer_rpc = MetricsRpcConnection::<SolanaRpcConnection>::new(
-            //     config.external_services.rpc_url.clone(), 
-            //     None
-            // );
-            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-            //     config.external_services.indexer_url.clone().unwrap(),
-            //     config.external_services.photon_api_key.clone(),
-            //     indexer_rpc,
-            // )));
-
-            // run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
-
-            // let indexer_rpc = SolanaRpcConnection::new(
-            //     config.external_services.rpc_url.clone(), 
-            //     None
-            // );
-            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-            //     config.external_services.indexer_url.clone().unwrap(),
-            //     config.external_services.photon_api_key.clone(),
-            //     indexer_rpc,
-            // )));
-            
-            // run_pipeline::<SolanaRpcConnection, PhotonIndexer<SolanaRpcConnection>>(
-            //     config,
-            //     indexer,
-            //     shutdown_receiver,
-            //     work_report_sender,
-            // ).await?
-
-
             let indexer_rpc = MetricsRpcConnection::new(
                 config.external_services.rpc_url.clone(),
                 None
