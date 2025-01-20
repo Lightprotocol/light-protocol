@@ -92,7 +92,6 @@ async fn test_batch_state_merkle_tree() {
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
-        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
@@ -100,7 +99,6 @@ async fn test_batch_state_merkle_tree() {
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     let queue_rent = context
         .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -906,7 +904,6 @@ pub async fn perform_init_batch_state_merkle_tree(
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
-        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
@@ -914,7 +911,6 @@ pub async fn perform_init_batch_state_merkle_tree(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     let queue_rent = context
         .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -1199,7 +1195,6 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
     let old_merkle_tree =
         BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
-    let num_batches = old_merkle_tree.queue_metadata.batches.len();
     let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
     let old_merkle_tree = old_merkle_tree.get_metadata();
     let mt_account_size = get_merkle_tree_account_size(
@@ -1208,7 +1203,6 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         batch_zero.zkp_batch_size,
         old_merkle_tree.root_history_capacity,
         old_merkle_tree.height,
-        num_batches as u64,
     );
 
     let mt_rent = rpc
@@ -1220,11 +1214,8 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     let old_queue_account =
         BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()).unwrap();
     let batch_zero = &old_queue_account.batch_metadata.batches[0];
-    let queue_account_size = get_output_queue_account_size(
-        batch_zero.batch_size,
-        batch_zero.zkp_batch_size,
-        num_batches as u64,
-    );
+    let queue_account_size =
+        get_output_queue_account_size(batch_zero.batch_size, batch_zero.zkp_batch_size);
     let queue_rent = rpc
         .get_minimum_balance_for_rent_exemption(queue_account_size)
         .await
@@ -1307,7 +1298,6 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
         params.output_queue_zkp_batch_size,
-        params.output_queue_num_batches,
     );
     let mt_account_size = get_merkle_tree_account_size(
         params.input_queue_batch_size,
@@ -1315,7 +1305,6 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     let queue_rent = context
         .get_minimum_balance_for_rent_exemption(queue_account_size)
@@ -1425,7 +1414,6 @@ pub async fn perform_init_batch_address_merkle_tree(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     let mt_rent = context
         .get_minimum_balance_for_rent_exemption(mt_account_size)
@@ -1793,7 +1781,6 @@ pub async fn rollover_batched_address_merkle_tree(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     if mode == RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeSmall {
         mt_account_size -= 1;

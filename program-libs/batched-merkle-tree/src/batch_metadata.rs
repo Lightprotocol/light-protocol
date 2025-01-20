@@ -4,6 +4,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
     batch::{Batch, BatchState},
+    constants::NUM_BATCHES,
     errors::BatchedMerkleTreeError,
     queue::BatchedQueueMetadata,
     BorshDeserialize, BorshSerialize,
@@ -68,11 +69,10 @@ impl BatchMetadata {
     pub fn new_output_queue(
         batch_size: u64,
         zkp_batch_size: u64,
-        num_batches: u64,
     ) -> Result<Self, BatchedMerkleTreeError> {
         Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
         Ok(BatchMetadata {
-            num_batches,
+            num_batches: NUM_BATCHES as u64,
             zkp_batch_size,
             batch_size,
             currently_processing_batch_index: 0,
@@ -90,14 +90,13 @@ impl BatchMetadata {
         batch_size: u64,
         bloom_filter_capacity: u64,
         zkp_batch_size: u64,
-        num_batches: u64,
         num_iters: u64,
         start_index: u64,
     ) -> Result<Self, BatchedMerkleTreeError> {
         Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
 
         Ok(BatchMetadata {
-            num_batches,
+            num_batches: NUM_BATCHES as u64,
             zkp_batch_size,
             batch_size,
             currently_processing_batch_index: 0,
@@ -140,13 +139,12 @@ impl BatchMetadata {
 
     pub fn init(
         &mut self,
-        num_batches: u64,
         batch_size: u64,
         zkp_batch_size: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         // Check that batch size is divisible by zkp_batch_size.
         Self::validate_batch_sizes(batch_size, zkp_batch_size)?;
-        self.num_batches = num_batches;
+        self.num_batches = NUM_BATCHES as u64;
         self.batch_size = batch_size;
         self.zkp_batch_size = zkp_batch_size;
         Ok(())
@@ -199,7 +197,7 @@ impl BatchMetadata {
 
 #[test]
 fn test_increment_next_full_batch_index_if_inserted() {
-    let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 2, 3, 0).unwrap();
+    let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 3, 0).unwrap();
     assert_eq!(metadata.next_full_batch_index, 0);
     // increment next full batch index
     metadata.increment_next_full_batch_index_if_inserted(BatchState::Inserted);
@@ -216,7 +214,7 @@ fn test_increment_next_full_batch_index_if_inserted() {
 
 #[test]
 fn test_increment_currently_processing_batch_index_if_full() {
-    let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 2, 3, 0).unwrap();
+    let mut metadata = BatchMetadata::new_input_queue(10, 10, 10, 3, 0).unwrap();
     assert_eq!(metadata.currently_processing_batch_index, 0);
     metadata
         .get_current_batch_mut()
@@ -251,10 +249,10 @@ fn test_increment_currently_processing_batch_index_if_full() {
 #[test]
 fn test_batch_size_validation() {
     // Test invalid batch size
-    assert!(BatchMetadata::new_input_queue(10, 10, 3, 2, 3, 0).is_err());
-    assert!(BatchMetadata::new_output_queue(10, 3, 2).is_err());
+    assert!(BatchMetadata::new_input_queue(10, 10, 3, 3, 0).is_err());
+    assert!(BatchMetadata::new_output_queue(10, 3).is_err());
 
     // Test valid batch size
-    assert!(BatchMetadata::new_input_queue(9, 10, 3, 2, 3, 0).is_ok());
-    assert!(BatchMetadata::new_output_queue(9, 3, 2).is_ok());
+    assert!(BatchMetadata::new_input_queue(9, 10, 3, 3, 0).is_ok());
+    assert!(BatchMetadata::new_output_queue(9, 3).is_ok());
 }

@@ -63,7 +63,7 @@ pub struct Batch {
     num_inserted: u64,
     state: u64,
     current_zkp_batch_index: u64,
-    pub num_inserted_zkps: u64,
+    num_inserted_zkps: u64,
     /// Number of iterations for the bloom_filter.
     pub num_iters: u64,
     /// Theoretical capacity of the bloom_filter. We want to make it much larger

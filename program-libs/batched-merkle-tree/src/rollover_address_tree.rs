@@ -79,7 +79,6 @@ fn create_batched_address_tree_init_params(
             old_merkle_tree.metadata.rollover_metadata.close_threshold,
             u64::MAX,
         ),
-        input_queue_num_batches: old_merkle_tree.queue_metadata.num_batches,
     }
 }
 

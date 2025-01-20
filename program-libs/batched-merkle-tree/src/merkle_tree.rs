@@ -30,7 +30,7 @@ use crate::{
     batch_metadata::BatchMetadata,
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, BATCHED_ADDRESS_TREE_TYPE,
-        BATCHED_STATE_TREE_TYPE,
+        BATCHED_STATE_TREE_TYPE, NUM_BATCHES,
     },
     errors::BatchedMerkleTreeError,
     event::{BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent},
@@ -214,7 +214,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         metadata: MerkleTreeMetadata,
         root_history_capacity: u32,
-        num_batches_input_queue: u64,
         input_queue_batch_size: u64,
         input_queue_zkp_batch_size: u64,
         height: u32,
@@ -234,11 +233,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_metadata.height = height;
         account_metadata.tree_type = tree_type as u64;
         account_metadata.capacity = 2u64.pow(height);
-        account_metadata.queue_metadata.init(
-            num_batches_input_queue,
-            input_queue_batch_size,
-            input_queue_zkp_batch_size,
-        )?;
+        account_metadata
+            .queue_metadata
+            .init(input_queue_batch_size, input_queue_zkp_batch_size)?;
 
         account_metadata.queue_metadata.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
@@ -886,7 +883,6 @@ pub fn get_merkle_tree_account_size(
     zkp_batch_size: u64,
     root_history_capacity: u32,
     height: u32,
-    num_batches: u64,
 ) -> usize {
     let mt_account = BatchedMerkleTreeMetadata {
         metadata: MerkleTreeMetadata::default(),
@@ -896,7 +892,7 @@ pub fn get_merkle_tree_account_size(
         height,
         root_history_capacity,
         queue_metadata: BatchMetadata {
-            num_batches,
+            num_batches: NUM_BATCHES as u64,
             batch_size,
             bloom_filter_capacity,
             zkp_batch_size,

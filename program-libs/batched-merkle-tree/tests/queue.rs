@@ -1,6 +1,7 @@
 use light_batched_merkle_tree::{
     batch::Batch,
     batch_metadata::BatchMetadata,
+    constants::NUM_BATCHES,
     errors::BatchedMerkleTreeError,
     queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
 };
@@ -13,7 +14,6 @@ use light_utils::pubkey::Pubkey;
 
 pub fn get_test_account_and_account_data(
     batch_size: u64,
-    num_batches: u64,
     queue_type: QueueType,
     bloom_filter_capacity: u64,
 ) -> (BatchedQueueMetadata, Vec<u8>) {
@@ -30,7 +30,7 @@ pub fn get_test_account_and_account_data(
         next_index: 0,
         batch_metadata: BatchMetadata {
             batch_size,
-            num_batches,
+            num_batches: NUM_BATCHES as u64,
             currently_processing_batch_index: 0,
             next_full_batch_index: 0,
             bloom_filter_capacity,
@@ -53,21 +53,15 @@ pub fn get_test_account_and_account_data(
 fn test_output_queue_account() {
     let batch_size = 100;
     // 1 batch in progress, 1 batch ready to be processed
-    let num_batches = 2;
     let bloom_filter_capacity = 0;
     let bloom_filter_num_iters = 0;
     {
         let queue_type = QueueType::BatchedOutput;
-        let (ref_account, mut account_data) = get_test_account_and_account_data(
-            batch_size,
-            num_batches,
-            queue_type,
-            bloom_filter_capacity,
-        );
+        let (ref_account, mut account_data) =
+            get_test_account_and_account_data(batch_size, queue_type, bloom_filter_capacity);
         BatchedQueueAccount::init(
             &mut account_data,
             ref_account.metadata,
-            num_batches,
             batch_size,
             10,
             bloom_filter_num_iters,
@@ -89,9 +83,9 @@ fn test_output_queue_account() {
 #[test]
 fn test_value_exists_in_value_vec_present() {
     let (account, mut account_data) =
-        get_test_account_and_account_data(100, 2, QueueType::BatchedOutput, 0);
+        get_test_account_and_account_data(100, QueueType::BatchedOutput, 0);
     let mut account =
-        BatchedQueueAccount::init(&mut account_data, account.metadata, 2, 100, 10, 0, 0).unwrap();
+        BatchedQueueAccount::init(&mut account_data, account.metadata, 100, 10, 0, 0).unwrap();
 
     let value = [1u8; 32];
     let value2 = [2u8; 32];

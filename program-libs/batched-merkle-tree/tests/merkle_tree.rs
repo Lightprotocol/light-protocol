@@ -5,7 +5,7 @@ use light_batched_merkle_tree::{
     batch::BatchState,
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-        DEFAULT_BATCH_STATE_TREE_HEIGHT,
+        DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES,
     },
     errors::BatchedMerkleTreeError,
     initialize_address_tree::{
@@ -1468,7 +1468,7 @@ async fn test_fill_queues_completely() {
         use rand::SeedableRng;
         let mut rng = StdRng::seed_from_u64(0);
 
-        let num_tx = params.output_queue_num_batches * params.output_queue_batch_size;
+        let num_tx = NUM_BATCHES as u64 * params.output_queue_batch_size;
 
         for _ in 0..num_tx {
             // Output queue
@@ -1588,7 +1588,7 @@ async fn test_fill_queues_completely() {
             mt_account_data = pre_mt_account_data;
         }
 
-        let num_tx = params.input_queue_num_batches * params.input_queue_batch_size;
+        let num_tx = NUM_BATCHES as u64 * params.input_queue_batch_size;
         let mut first_value = [0u8; 32];
         for tx in 0..num_tx {
             println!("Input insert -----------------------------");
@@ -1689,8 +1689,8 @@ async fn test_fill_queues_completely() {
         }
         // Root of the final batch of first input queue batch
         let mut first_input_batch_update_root_value = [0u8; 32];
-        let num_updates = params.input_queue_batch_size / params.input_queue_zkp_batch_size
-            * params.input_queue_num_batches;
+        let num_updates =
+            params.input_queue_batch_size / params.input_queue_zkp_batch_size * NUM_BATCHES as u64;
         for i in 0..num_updates {
             println!("input update ----------------------------- {}", i);
             perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
@@ -1841,7 +1841,7 @@ async fn test_fill_address_tree_completely() {
         use rand::SeedableRng;
         let mut rng = StdRng::seed_from_u64(0);
 
-        let num_tx = params.input_queue_num_batches * params.input_queue_batch_size;
+        let num_tx = NUM_BATCHES * params.input_queue_batch_size as usize;
         let mut first_value = [0u8; 32];
         for tx in 0..num_tx {
             println!("Input insert -----------------------------");

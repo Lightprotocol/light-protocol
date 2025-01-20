@@ -487,15 +487,12 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
-            output_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
 
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
-            params.output_queue_num_batches,
         );
 
         let mut output_queue_account_data = vec![0; queue_account_size];
@@ -507,7 +504,6 @@ fn test_rnd_rollover() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
 
         let mut mt_account_data = vec![0; mt_account_size];

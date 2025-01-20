@@ -1,5 +1,6 @@
 use light_batched_merkle_tree::{
     batch::Batch,
+    constants::NUM_BATCHES,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
@@ -160,7 +161,6 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
         if forester.is_some() {
@@ -173,11 +173,10 @@ fn test_rnd_rollover() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
-            let num_batches = params.input_queue_num_batches as usize;
+            let num_batches = NUM_BATCHES;
             let batch_size =
                 ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
             let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(

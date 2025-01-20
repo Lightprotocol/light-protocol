@@ -1,4 +1,5 @@
 use light_batched_merkle_tree::{
+    constants::NUM_BATCHES,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
@@ -60,7 +61,6 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: 2,
             height: rng.gen_range(1..32),
         };
 
@@ -70,11 +70,10 @@ fn test_rnd_account_init() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
-            let num_batches = params.input_queue_num_batches as usize;
+            let num_batches = NUM_BATCHES;
             let bloom_filter_size = ((params.bloom_filter_capacity / 8) * 2u64) as usize;
             let hash_chain_store_size =
                 ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)

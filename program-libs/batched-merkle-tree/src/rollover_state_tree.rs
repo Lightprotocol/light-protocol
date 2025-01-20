@@ -124,11 +124,9 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
                     .close_threshold,
                 u64::MAX,
             ),
-            input_queue_num_batches: params.old_merkle_tree.queue_metadata.num_batches,
             additional_bytes: params.additional_bytes,
             output_queue_batch_size: params.old_output_queue.batch_metadata.batch_size,
             output_queue_zkp_batch_size: params.old_output_queue.batch_metadata.zkp_batch_size,
-            output_queue_num_batches: params.old_output_queue.batch_metadata.batches.len() as u64,
         }
     }
 }

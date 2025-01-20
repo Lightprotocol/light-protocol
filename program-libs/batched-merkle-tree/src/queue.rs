@@ -18,7 +18,9 @@ use super::batch::BatchState;
 use crate::{
     batch::Batch,
     batch_metadata::BatchMetadata,
-    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, OUTPUT_QUEUE_TYPE, TEST_DEFAULT_BATCH_SIZE},
+    constants::{
+        ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES, OUTPUT_QUEUE_TYPE, TEST_DEFAULT_BATCH_SIZE,
+    },
     errors::BatchedMerkleTreeError,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     BorshDeserialize, BorshSerialize,
@@ -59,15 +61,13 @@ impl BatchedQueueMetadata {
     pub fn init(
         &mut self,
         meta_data: QueueMetadata,
-        num_batches: u64,
         batch_size: u64,
         zkp_batch_size: u64,
         bloom_filter_capacity: u64,
         num_iters: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.metadata = meta_data;
-        self.batch_metadata
-            .init(num_batches, batch_size, zkp_batch_size)?;
+        self.batch_metadata.init(batch_size, zkp_batch_size)?;
         self.batch_metadata.bloom_filter_capacity = bloom_filter_capacity;
         for (i, batches) in self.batch_metadata.batches.iter_mut().enumerate() {
             *batches = Batch::new(
@@ -201,7 +201,6 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn init(
         account_data: &'a mut [u8],
         metadata: QueueMetadata,
-        num_batches_output_queue: u64,
         output_queue_batch_size: u64,
         output_queue_zkp_batch_size: u64,
         num_iters: u64,
@@ -217,7 +216,6 @@ impl<'a> BatchedQueueAccount<'a> {
 
         account_metadata.init(
             metadata,
-            num_batches_output_queue,
             output_queue_batch_size,
             output_queue_zkp_batch_size,
             bloom_filter_capacity,
@@ -608,7 +606,7 @@ pub fn get_output_queue_account_size_default() -> usize {
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
-            num_batches: 2,
+            num_batches: NUM_BATCHES as u64,
             batch_size: TEST_DEFAULT_BATCH_SIZE,
             zkp_batch_size: 10,
             ..Default::default()
@@ -628,7 +626,7 @@ pub fn get_output_queue_account_size_from_params(
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
-            num_batches: ix_data.output_queue_num_batches,
+            num_batches: NUM_BATCHES as u64,
             batch_size: ix_data.output_queue_batch_size,
             zkp_batch_size: ix_data.output_queue_zkp_batch_size,
             ..Default::default()
@@ -641,16 +639,12 @@ pub fn get_output_queue_account_size_from_params(
         .unwrap()
 }
 
-pub fn get_output_queue_account_size(
-    batch_size: u64,
-    zkp_batch_size: u64,
-    num_batches: u64,
-) -> usize {
+pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> usize {
     let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
         next_index: 0,
         batch_metadata: BatchMetadata {
-            num_batches,
+            num_batches: NUM_BATCHES as u64,
             batch_size,
             zkp_batch_size,
             ..Default::default()
@@ -670,7 +664,6 @@ pub fn assert_queue_inited(
     ref_batch_metadata: BatchMetadata,
     queue_type: u64,
     value_vecs: &mut Vec<ZeroCopyVecU64<'_, [u8; 32]>>,
-    num_batches: usize,
 ) {
     assert_eq!(
         batch_metadata, ref_batch_metadata,
@@ -678,8 +671,8 @@ pub fn assert_queue_inited(
     );
 
     if queue_type == QueueType::BatchedOutput as u64 {
-        assert_eq!(value_vecs.capacity(), num_batches, "value_vecs mismatch");
-        assert_eq!(value_vecs.len(), num_batches, "value_vecs mismatch");
+        assert_eq!(value_vecs.capacity(), NUM_BATCHES, "value_vecs mismatch");
+        assert_eq!(value_vecs.len(), NUM_BATCHES, "value_vecs mismatch");
     } else {
         assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
         assert_eq!(value_vecs.capacity(), 0, "value_vecs mismatch");
@@ -699,7 +692,6 @@ pub fn assert_queue_inited(
 pub fn assert_queue_zero_copy_inited(account_data: &mut [u8], ref_account: BatchedQueueMetadata) {
     let mut account = BatchedQueueAccount::output_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    let num_batches = ref_account.batch_metadata.num_batches as usize;
     let batch_metadata = account.batch_metadata;
     let queue_type = account.metadata.metadata.queue_type;
     assert_eq!(
@@ -711,6 +703,5 @@ pub fn assert_queue_zero_copy_inited(account_data: &mut [u8], ref_account: Batch
         ref_account.batch_metadata,
         queue_type,
         &mut account.value_vecs,
-        num_batches,
     );
 }

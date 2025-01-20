@@ -29,3 +29,4 @@ pub const ACCOUNT_COMPRESSION_PROGRAM_ID: solana_program::pubkey::Pubkey =
 pub const BATCHED_STATE_TREE_TYPE: u64 = 3;
 pub const BATCHED_ADDRESS_TREE_TYPE: u64 = 4;
 pub const OUTPUT_QUEUE_TYPE: u64 = 5;
+pub const NUM_BATCHES: usize = 2;

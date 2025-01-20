@@ -205,7 +205,6 @@ mod migrate_state_test {
         let output_queue = BatchedQueueAccount::init(
             data,
             metadata,
-            account.batch_metadata.num_batches,
             account.batch_metadata.batch_size,
             account.batch_metadata.zkp_batch_size,
             3,
