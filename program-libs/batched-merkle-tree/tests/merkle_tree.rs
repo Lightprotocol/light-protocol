@@ -1417,7 +1417,7 @@ pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
 #[tokio::test]
 async fn test_fill_queues_completely() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![
