@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use anchor_lang::{AccountDeserialize, Discriminator};
 use forester_utils::forester_epoch::TreeType;
+use itertools::Itertools;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
@@ -9,7 +10,7 @@ use tracing::{debug, warn};
 
 use crate::{
     cli::StatusArgs,
-    metrics::{push_metrics, register_metrics},
+    metrics::{push_metrics, register_metrics, update_registered_foresters},
     rollover::get_tree_fullness,
     run_queue_info,
     tree_data_sync::fetch_trees,
@@ -70,12 +71,28 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
         current_registration_epoch
     );
 
-    println!(
-        "Forester registered for latest epoch: {:?}",
-        forester_epoch_pdas
-            .iter()
-            .any(|pda| pda.epoch == current_registration_epoch)
-    );
+    println!("Forester registrations by epoch:");
+
+    let grouped = forester_epoch_pdas
+        .clone()
+        .into_iter()
+        .chunk_by(|pda| pda.epoch);
+
+    for (epoch, group) in &grouped {
+        if epoch == current_active_epoch {
+            println!("Active Epoch:");
+        } else if epoch == current_registration_epoch {
+            println!("Registration Epoch:");
+        }
+        let foresters: Vec<_> = group.collect();
+        for (idx, forester) in foresters.iter().enumerate() {
+            if (epoch == current_active_epoch) || (epoch == current_registration_epoch) {
+                println!("  {}: {}", idx, forester.authority);
+            }
+            update_registered_foresters(epoch, &forester.authority.to_string());
+        }
+    }
+
     println!(
         "Forester registered for active epoch: {:?}",
         forester_epoch_pdas
