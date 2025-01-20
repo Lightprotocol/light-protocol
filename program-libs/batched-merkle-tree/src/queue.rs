@@ -7,7 +7,7 @@ use light_merkle_tree_metadata::{
     queue::{QueueMetadata, QueueType},
 };
 use light_utils::{
-    account::{check_account_info, check_discriminator, set_discriminator, DISCRIMINATOR_LEN},
+    account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
     pubkey::Pubkey,
 };
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
@@ -171,7 +171,9 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        check_discriminator::<BatchedQueueAccount>(&account_data[..DISCRIMINATOR_LEN])?;
+        light_utils::account::check_discriminator::<BatchedQueueAccount>(
+            &account_data[..DISCRIMINATOR_LEN],
+        )?;
         Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
     }
 
