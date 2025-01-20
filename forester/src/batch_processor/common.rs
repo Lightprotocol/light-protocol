@@ -6,24 +6,26 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
     queue::BatchedQueueAccount,
 };
-use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
 use tracing::info;
+use light_client::rpc_pool::RpcPool;
 
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
 
 #[derive(Debug)]
-pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
-    pub rpc_pool: Arc<SolanaRpcPool<R>>,
+pub struct BatchContext<R: RpcConnection, I: Indexer<R>, P: RpcPool<R>> {
+    pub rpc_pool: Arc<P>,
     pub indexer: Arc<Mutex<I>>,
     pub authority: Keypair,
     pub derivation: Pubkey,
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
+    pub phantom: std::marker::PhantomData<R>,
 }
 
 #[derive(Debug)]
@@ -34,13 +36,13 @@ pub enum BatchReadyState {
 }
 
 #[derive(Debug)]
-pub struct BatchProcessor<R: RpcConnection, I: Indexer<R> + IndexerType<R>> {
-    context: BatchContext<R, I>,
+pub struct BatchProcessor<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>> {
+    context: BatchContext<R, I, P>,
     tree_type: TreeType,
 }
 
-impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
-    pub fn new(context: BatchContext<R, I>, tree_type: TreeType) -> Self {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>> BatchProcessor<R, I, P> {
+    pub fn new(context: BatchContext<R, I, P>, tree_type: TreeType) -> Self {
         Self { context, tree_type }
     }
 

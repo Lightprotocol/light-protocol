@@ -1,22 +1,20 @@
 use std::{
-    collections::HashMap,
-    sync::{
+    collections::HashMap, marker::PhantomData, sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
-    },
-    time::Duration,
+    }, time::Duration
 };
 
 use anyhow::Context;
 use dashmap::DashMap;
-use forester_utils::forester_epoch::{
+use forester_utils::{forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-};
+}, metrics::helpers::{push_metrics, queue_metric_update, update_forester_sol_balance}};
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::RpcPool,
 };
 use light_registry::{
     protocol_config::state::ProtocolConfig,
@@ -34,24 +32,13 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
-    batch_processor::{process_batched_operations, BatchContext},
-    errors::{
+    batch_processor::{process_batched_operations, BatchContext}, errors::{
         ChannelError, ConfigurationError, ForesterError, InitializationError, RegistrationError,
         WorkReportError,
-    },
-    indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
-    metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
-    pagerduty::send_pagerduty_alert,
-    queue_helpers::QueueItemData,
-    rollover::is_tree_ready_for_rollover,
-    send_transaction::{
+    }, indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType}, pagerduty::send_pagerduty_alert, queue_helpers::QueueItemData, rollover::is_tree_ready_for_rollover, send_transaction::{
         send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
         SendBatchedTransactionsConfig,
-    },
-    slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
-    tree_data_sync::fetch_trees,
-    tree_finder::TreeFinder,
-    ForesterConfig, ForesterEpochInfo, Result,
+    }, slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker}, tree_data_sync::fetch_trees, tree_finder::TreeFinder, ForesterConfig, ForesterEpochInfo, Result
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -83,10 +70,10 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
+pub struct EpochManager<R: RpcConnection, I: Indexer<R>, P: RpcPool<R>> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
-    rpc_pool: Arc<SolanaRpcPool<R>>,
+    rpc_pool: Arc<P>,
     indexer: Arc<Mutex<I>>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
@@ -94,9 +81,10 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
     new_tree_sender: broadcast::Sender<TreeAccounts>,
+    _phantom: PhantomData<R>,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer<R>, P: RpcPool<R>> Clone for EpochManager<R, I, P> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
@@ -109,16 +97,17 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
             new_tree_sender: self.new_tree_sender.clone(),
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>> EpochManager<R, I, P> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
         protocol_config: Arc<ProtocolConfig>,
-        rpc_pool: Arc<SolanaRpcPool<R>>,
+        rpc_pool: Arc<P>,
         indexer: Arc<Mutex<I>>,
         work_report_sender: mpsc::Sender<WorkReport>,
         trees: Vec<TreeAccounts>,
@@ -136,6 +125,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
+            _phantom: PhantomData
         })
     }
 
@@ -878,6 +868,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         epoch: epoch_info.epoch,
                         merkle_tree: tree.tree_accounts.merkle_tree,
                         output_queue: tree.tree_accounts.queue,
+                        phantom: std::marker::PhantomData::<R>,
                     };
 
                     let start_time = Instant::now();
@@ -1160,10 +1151,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     skip(config, protocol_config, rpc_pool, indexer, shutdown, work_report_sender, slot_tracker),
     fields(forester = %config.payer_keypair.pubkey())
 )]
-pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
-    rpc_pool: Arc<SolanaRpcPool<R>>,
+    rpc_pool: Arc<P>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
@@ -1214,7 +1205,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                 .await
                 {
                     Ok(epoch_manager) => {
-                        let epoch_manager: Arc<EpochManager<R, I>> = Arc::new(epoch_manager);
+                        let epoch_manager: Arc<EpochManager<R, I, P>> = Arc::new(epoch_manager);
                         debug!(
                             "Successfully created EpochManager after {} attempts",
                             retry_count + 1

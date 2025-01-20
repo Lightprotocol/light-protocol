@@ -51,7 +51,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(T, Signature, Slot)>, RpcError>
     where
-        T: BorshDeserialize + Send + Debug;
+        T: BorshDeserialize + Send + Debug  + 'static;
 
     async fn create_and_send_transaction<'a>(
         &'a mut self,
@@ -75,7 +75,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn airdrop_lamports(&mut self, to: &Pubkey, lamports: u64)
         -> Result<Signature, RpcError>;
 
-    async fn get_anchor_account<T: BorshDeserialize>(
+    async fn get_anchor_account<T: BorshDeserialize + Send + 'static>(
         &mut self,
         pubkey: &Pubkey,
     ) -> Result<Option<T>, RpcError> {

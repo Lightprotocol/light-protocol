@@ -75,7 +75,7 @@ impl Default for RetryConfig {
 pub struct SolanaRpcConnection {
     pub client: RpcClient,
     pub payer: Keypair,
-    retry_config: RetryConfig,
+    pub retry_config: RetryConfig,
 }
 
 impl Debug for SolanaRpcConnection {
@@ -105,7 +105,7 @@ impl SolanaRpcConnection {
         }
     }
 
-    async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
+    pub async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<T, RpcError>>,
@@ -135,7 +135,7 @@ impl SolanaRpcConnection {
 
 impl SolanaRpcConnection {
     #[allow(clippy::result_large_err)]
-    fn parse_inner_instructions<T: BorshDeserialize>(
+    pub fn parse_inner_instructions<T: BorshDeserialize>(
         &self,
         signature: Signature,
     ) -> Result<T, RpcError> {

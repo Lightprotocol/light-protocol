@@ -10,7 +10,7 @@ use futures::future::join_all;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::RpcPool,
 };
 use light_registry::{
     account_compression_cpi::sdk::{
@@ -106,10 +106,10 @@ pub fn calculate_compute_unit_price(target_lamports: u64, compute_units: u64) ->
 ///   end of slot
 /// - consider dynamic batch size based on the number of transactions in the
 ///   queue
-pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
+pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection, P: RpcPool<R>>(
     payer: &Keypair,
     derivation: &Pubkey,
-    pool: Arc<SolanaRpcPool<R>>,
+    pool: Arc<P>,
     config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
     transaction_builder: &T,

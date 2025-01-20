@@ -18,6 +18,7 @@ pub mod address_merkle_tree_config;
 pub mod forester_epoch;
 pub mod instructions;
 pub mod registry;
+pub mod metrics;
 
 pub fn create_account_instruction(
     payer: &Pubkey,

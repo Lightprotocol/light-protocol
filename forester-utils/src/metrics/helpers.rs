@@ -1,15 +1,14 @@
 use std::{
     sync::Once,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use lazy_static::lazy_static;
-use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
+use prometheus::{Encoder, GaugeVec, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
 use reqwest::Client;
 use tokio::sync::Mutex;
 use tracing::{debug, error};
-
-use crate::Result;
+use anyhow::Result;
 
 lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
@@ -55,11 +54,71 @@ lazy_static! {
         &["pubkey"]
     )
     .expect("metric can be created");
+
     pub static ref REGISTERED_FORESTERS: GaugeVec = GaugeVec::new(
         prometheus::opts!("registered_foresters", "Foresters registered per epoch"),
         &["epoch", "authority"]
     )
     .expect("metric can be created");
+    
+    pub static ref RPC_REQUESTS_TOTAL: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "solana_rpc_requests_total",
+            "Total number of RPC requests made"
+        ),
+        &["method", "status"]
+    ).expect("metric can be created");
+
+    pub static ref RPC_REQUEST_DURATION: HistogramVec = {
+        let opts = HistogramOpts::new(
+            "solana_rpc_request_duration_seconds",
+            "RPC request latency by method"
+        ).buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]);
+        
+        HistogramVec::new(opts, &["method"]).expect("metric can be created")
+    };
+
+    pub static ref RPC_POOL_CONNECTIONS: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!(
+            "solana_rpc_pool_connections",
+            "Number of connections in the RPC pool"
+        ),
+        &["state"]  // "active", "idle"
+    ).expect("metric can be created");
+
+    pub static ref RPC_REQUEST_ERRORS: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "solana_rpc_request_errors_total",
+            "Total number of RPC request errors"
+        ),
+        &["method", "error_type"]
+    ).expect("metric can be created");
+
+    pub static ref RPC_POOL_WAIT_DURATION: HistogramVec = {
+        let opts = HistogramOpts::new(
+            "solana_rpc_pool_wait_duration_seconds",
+            "Time spent waiting for an RPC connection from the pool"
+        ).buckets(vec![0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0]);
+        
+        HistogramVec::new(opts, &["pool_id"]).expect("metric can be created")
+    };
+
+    pub static ref RPC_POOL_ACQUISITION_TOTAL: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "solana_rpc_pool_acquisitions_total",
+            "Total number of RPC connection acquisitions"
+        ),
+        &["pool_id", "status"]  // status: success, timeout, error
+    ).expect("metric can be created");
+
+    pub static ref RPC_POOL_TIMEOUTS: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "solana_rpc_pool_timeouts_total",
+            "Total number of RPC pool timeouts"
+        ),
+        &["pool_id"]
+    ).expect("metric can be created");
+
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -88,6 +147,20 @@ pub fn register_metrics() {
         REGISTRY
             .register(Box::new(REGISTERED_FORESTERS.clone()))
             .expect("collector can be registered");
+        REGISTRY.register(Box::new(RPC_REQUESTS_TOTAL.clone())).expect("collector can be registered");
+        REGISTRY.register(Box::new(RPC_REQUEST_DURATION.clone())).expect("collector can be registered");
+        REGISTRY.register(Box::new(RPC_POOL_CONNECTIONS.clone())).expect("collector can be registered");
+        REGISTRY.register(Box::new(RPC_REQUEST_ERRORS.clone())).expect("collector can be registered");  
+
+         REGISTRY
+            .register(Box::new(RPC_POOL_WAIT_DURATION.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(RPC_POOL_ACQUISITION_TOTAL.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(RPC_POOL_TIMEOUTS.clone()))
+            .expect("collector can be registered");  
     });
 }
 
@@ -213,4 +286,27 @@ pub async fn metrics_handler() -> Result<impl warp::Reply> {
 
     res.push_str(&res_prometheus);
     Ok(res)
+}
+
+pub fn track_rpc_request(method: &str, start_time: Instant, result: &Result<()>) {
+    let duration = start_time.elapsed().as_secs_f64();
+    
+    match result {
+        Ok(_) => {
+            RPC_REQUESTS_TOTAL.with_label_values(&[method, "success"]).inc();
+        }
+        Err(e) => {
+            RPC_REQUESTS_TOTAL.with_label_values(&[method, "error"]).inc();
+            RPC_REQUEST_ERRORS
+                .with_label_values(&[method, &e.to_string()])
+                .inc();
+        }
+    }
+    
+    RPC_REQUEST_DURATION.with_label_values(&[method]).observe(duration);
+}
+
+pub fn update_rpc_pool_connections(active: i64, idle: i64) {
+    RPC_POOL_CONNECTIONS.with_label_values(&["active"]).set(active);
+    RPC_POOL_CONNECTIONS.with_label_values(&["idle"]).set(idle);
 }
