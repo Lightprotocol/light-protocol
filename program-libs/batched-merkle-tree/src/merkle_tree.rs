@@ -835,7 +835,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         &mut self,
         value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        for i in 0..2 {
+        for i in 0..(self.queue_metadata.num_batches as usize) {
             Batch::check_non_inclusion(
                 self.queue_metadata.batches[i].num_iters as usize,
                 self.queue_metadata.batches[i].bloom_filter_capacity,
