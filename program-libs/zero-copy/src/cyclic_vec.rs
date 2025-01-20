@@ -1,10 +1,11 @@
-use core::fmt;
-use std::{
-    fmt::Debug,
+use core::{
+    fmt::{self, Debug},
     marker::PhantomData,
     mem::size_of,
     ops::{Index, IndexMut},
 };
+#[cfg(feature = "std")]
+use std::vec::Vec;
 
 use zerocopy::Ref;
 
@@ -37,8 +38,7 @@ where
 
     pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
         let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
-        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
-            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)?;
         if u64::from(*current_index) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
@@ -47,6 +47,7 @@ where
         Ok((Self { current_index, vec }, bytes))
     }
 
+    #[cfg(feature = "std")]
     pub fn new_at_multiple(
         num: usize,
         capacity: L,
@@ -67,12 +68,12 @@ where
 
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
         let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
-        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
-            .map_err(|e| ZeroCopyError::CastError(e.to_string()))?;
+        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)?;
         let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(bytes)?;
         Ok((Self { current_index, vec }, bytes))
     }
 
+    #[cfg(feature = "std")]
     pub fn from_bytes_at_multiple(
         num: usize,
         mut bytes: &'a mut [u8],
@@ -235,6 +236,7 @@ where
         self.vec.try_into_array()
     }
 
+    #[cfg(feature = "std")]
     #[inline]
     pub fn to_vec(&self) -> Vec<T> {
         self.vec.to_vec()
@@ -325,6 +327,6 @@ where
 {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.to_vec())
+        write!(f, "{:?}", self.as_slice())
     }
 }
