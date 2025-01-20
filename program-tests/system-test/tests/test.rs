@@ -1696,11 +1696,19 @@ async fn regenerate_accounts() {
         InitAddressTreeAccountsInstructionData::test_default(),
     )
     .await;
+    let keypairs = EnvAccountKeypairs::for_regenerate_accounts();
 
     // List of public keys to fetch and export
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.merkle_tree_pubkey),
         ("nullifier_queue_pubkey", env.nullifier_queue_pubkey),
+        ("cpi_context", env.cpi_context_account_pubkey),
+        ("merkle_tree_pubkey", keypairs.state_merkle_tree_2.pubkey()),
+        (
+            "nullifier_queue_pubkey",
+            keypairs.nullifier_queue_2.pubkey(),
+        ),
+        ("cpi_context", keypairs.cpi_context_2.pubkey()),
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
         ("registered_program_pda", env.registered_program_pda),
@@ -1709,7 +1717,6 @@ async fn regenerate_accounts() {
             "address_merkle_tree_queue",
             env.address_merkle_tree_queue_pubkey,
         ),
-        ("cpi_context", env.cpi_context_account_pubkey),
         (
             "registered_registry_program_pda",
             env.registered_registry_program_pda,

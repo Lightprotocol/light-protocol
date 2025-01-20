@@ -197,6 +197,9 @@ pub struct EnvAccountKeypairs {
     pub batched_output_queue: Keypair,
     pub batched_cpi_context: Keypair,
     pub batch_address_merkle_tree: Keypair,
+    pub state_merkle_tree_2: Keypair,
+    pub nullifier_queue_2: Keypair,
+    pub cpi_context_2: Keypair,
 }
 
 impl EnvAccountKeypairs {
@@ -220,6 +223,9 @@ impl EnvAccountKeypairs {
                 &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
             )
             .unwrap(),
+            state_merkle_tree_2: Keypair::new(),
+            nullifier_queue_2: Keypair::new(),
+            cpi_context_2: Keypair::new(),
         }
     }
 
@@ -264,6 +270,22 @@ impl EnvAccountKeypairs {
             prefix
         ))
         .unwrap();
+        let state_merkle_tree_2 = read_keypair_file(format!(
+            "{}smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho.json",
+            prefix
+        ))
+        .unwrap();
+        let nullifier_queue_2 = read_keypair_file(format!(
+            "{}nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X.json",
+            prefix
+        ))
+        .unwrap();
+        let cpi_context_2 = read_keypair_file(format!(
+            "{}cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK.json",
+            prefix
+        ))
+        .unwrap();
+
         EnvAccountKeypairs {
             state_merkle_tree,
             nullifier_queue,
@@ -282,6 +304,9 @@ impl EnvAccountKeypairs {
                 &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
             )
             .unwrap(),
+            state_merkle_tree_2,
+            nullifier_queue_2,
+            cpi_context_2,
         }
     }
 
@@ -347,6 +372,9 @@ impl EnvAccountKeypairs {
                 &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
             )
             .unwrap(),
+            state_merkle_tree_2: Keypair::new(),
+            nullifier_queue_2: Keypair::new(),
+            cpi_context_2: Keypair::new(),
         }
     }
 }
@@ -712,7 +740,21 @@ pub async fn initialize_accounts<R: RpcConnection>(
     )
     .await
     .unwrap();
-
+    create_state_merkle_tree_and_queue_account(
+        &keypairs.governance_authority,
+        true,
+        context,
+        &keypairs.state_merkle_tree_2,
+        &keypairs.nullifier_queue_2,
+        Some(&keypairs.cpi_context_2),
+        None,
+        None,
+        2,
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(
         batched_tree_init_params.additional_bytes,
         ProtocolConfig::default().cpi_context_size
