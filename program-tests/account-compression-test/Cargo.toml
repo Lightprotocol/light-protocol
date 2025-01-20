@@ -20,7 +20,7 @@ default = ["custom-heap"]
 [dependencies]
 
 [dev-dependencies]
-ark-bn254 = "0.4.0"
+ark-bn254 = "0.5.0"
 ark-ff = "0.4.0"
 solana-program-test =  { workspace = true}
 light-test-utils = { workspace = true, features=["devenv"] }

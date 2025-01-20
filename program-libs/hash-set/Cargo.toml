@@ -19,6 +19,6 @@ thiserror = "1.0"
 light-heap = { workspace = true }
 
 [dev-dependencies]
-ark-bn254 = "0.4"
+ark-bn254 = "0.5"
 ark-ff = "0.4"
 rand = "0.8"

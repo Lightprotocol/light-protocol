@@ -17,7 +17,7 @@ light-hasher = { workspace = true }
 num-bigint = { version = "0.4", features = ["rand"] }
 thiserror = "1.0"
 solana-program = { workspace = true }
-ark-bn254 = "0.4.0"
+ark-bn254 = "0.5.0"
 rand = "0.8"
 zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
