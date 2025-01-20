@@ -48,6 +48,7 @@ warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
 anyhow = "1.0.94"
+itertools = "0.14.0"
 
 [dev-dependencies]
 serial_test = "3.2.0"

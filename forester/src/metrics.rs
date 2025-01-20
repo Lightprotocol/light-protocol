@@ -55,6 +55,11 @@ lazy_static! {
         &["pubkey"]
     )
     .expect("metric can be created");
+    pub static ref REGISTERED_FORESTERS: GaugeVec = GaugeVec::new(
+        prometheus::opts!("registered_foresters", "Foresters registered per epoch"),
+        &["epoch", "authority"]
+    )
+    .expect("metric can be created");
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -79,6 +84,9 @@ pub fn register_metrics() {
             .expect("collector can be registered");
         REGISTRY
             .register(Box::new(FORESTER_SOL_BALANCE.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(REGISTERED_FORESTERS.clone()))
             .expect("collector can be registered");
     });
 }
@@ -135,6 +143,12 @@ pub fn update_forester_sol_balance(pubkey: &str, balance: f64) {
         "Updated SOL balance for forester {}: {} SOL",
         pubkey, balance
     );
+}
+
+pub fn update_registered_foresters(epoch: u64, authority: &str) {
+    REGISTERED_FORESTERS
+        .with_label_values(&[&epoch.to_string(), authority])
+        .set(1.0);
 }
 
 pub async fn push_metrics(url: &Option<String>) -> Result<()> {
