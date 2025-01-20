@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
-    rpc::RpcConnection,
+    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
 };
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
@@ -74,8 +74,7 @@ pub trait IndexerType<R: RpcConnection>: sealed::Sealed {
 }
 
 #[async_trait]
-impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerType<R>
-    for TestIndexer<R>
+impl<R: RpcConnection + MerkleTreeExt> IndexerType<R> for TestIndexer<R>
 {
     fn handle_state_bundle(
         indexer: &mut impl Indexer<R>,

@@ -80,9 +80,9 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct TestIndexer<R>
+pub struct TestIndexer<C>
 where
-    R: RpcConnection + MerkleTreeExt,
+    C: RpcConnection + MerkleTreeExt,
 {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle>,
@@ -94,13 +94,13 @@ where
     pub token_nullified_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub prover_config: Option<ProverConfig>,
-    phantom: PhantomData<R>,
+    phantom: PhantomData<C>,
 }
 
 #[async_trait]
-impl<R> Indexer<R> for TestIndexer<R>
+impl<C> Indexer<C> for TestIndexer<C>
 where
-    R: RpcConnection + MerkleTreeExt,
+    C: RpcConnection + MerkleTreeExt,
 {
     async fn get_queue_elements(
         &self,
@@ -158,7 +158,7 @@ where
         state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
+        rpc: &mut C,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
@@ -429,9 +429,9 @@ where
 }
 
 #[async_trait]
-impl<R> TestIndexerExtensions<R> for TestIndexer<R>
+impl<C> TestIndexerExtensions<C> for TestIndexer<C>
 where
-    R: RpcConnection + MerkleTreeExt,
+    C: RpcConnection + MerkleTreeExt,
 {
     fn get_address_merkle_tree(
         &self,
@@ -547,7 +547,7 @@ where
         state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        rpc: &mut R,
+        rpc: &mut C,
     ) -> BatchedTreeProofRpcResult {
         let mut indices_to_remove = Vec::new();
 
@@ -745,7 +745,7 @@ where
 
     async fn update_test_indexer_after_append(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_pubkey: Pubkey,
         output_queue_pubkey: Pubkey,
         num_inserted_zkps: u64,
@@ -820,7 +820,7 @@ where
 
     async fn update_test_indexer_after_nullification(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_pubkey: Pubkey,
         batch_index: usize,
     ) {
@@ -859,7 +859,7 @@ where
 
     async fn finalize_batched_address_tree_update(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_pubkey: Pubkey,
     ) {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
@@ -895,9 +895,9 @@ where
     }
 }
 
-impl<R> TestIndexer<R>
+impl<C> TestIndexer<C>
 where
-    R: RpcConnection + MerkleTreeExt,
+    C: RpcConnection + MerkleTreeExt,
 {
     pub async fn init_from_env(
         payer: &Keypair,
@@ -1024,7 +1024,7 @@ where
 
     async fn add_address_merkle_tree_v1(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_keypair: &Keypair,
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
@@ -1048,7 +1048,7 @@ where
 
     async fn add_address_merkle_tree_v2(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_keypair: &Keypair,
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
@@ -1077,7 +1077,7 @@ where
 
     pub async fn add_address_merkle_tree(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_keypair: &Keypair,
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
@@ -1110,7 +1110,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub async fn add_state_merkle_tree(
         &mut self,
-        rpc: &mut R,
+        rpc: &mut C,
         merkle_tree_keypair: &Keypair,
         queue_keypair: &Keypair,
         cpi_context_keypair: &Keypair,
@@ -1184,7 +1184,7 @@ where
         &self,
         merkle_tree_pubkeys: &[Pubkey],
         accounts: &[[u8; 32]],
-        rpc: &mut R,
+        rpc: &mut C,
     ) -> (
         Option<BatchInclusionJsonStruct>,
         Option<BatchInclusionJsonStructLegacy>,
@@ -1240,7 +1240,7 @@ where
 
             let (root_index, root) = if version == 1 {
                 let fetched_merkle_tree =
-                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                    get_concurrent_merkle_tree::<StateMerkleTreeAccount, C, Poseidon, 26>(
                         rpc, pubkey,
                     )
                     .await;
@@ -1295,7 +1295,7 @@ where
         &self,
         address_merkle_tree_pubkeys: &[Pubkey],
         addresses: &[[u8; 32]],
-        rpc: &mut R,
+        rpc: &mut C,
     ) -> (
         Option<BatchNonInclusionJsonStruct>,
         Option<BatchNonInclusionJsonStructLegacy>,
@@ -1351,7 +1351,7 @@ where
             } else {
                 let fetched_address_merkle_tree = get_indexed_merkle_tree::<
                     AddressMerkleTreeAccount,
-                    R,
+                    C,
                     Poseidon,
                     usize,
                     26,

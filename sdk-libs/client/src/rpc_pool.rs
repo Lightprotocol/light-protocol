@@ -5,8 +5,22 @@ use bb8::{Pool, PooledConnection};
 use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
-
+use std::fmt::Debug;
 use crate::rpc::{RpcConnection, RpcError};
+
+
+#[async_trait]
+pub trait RpcPool<R: RpcConnection>: Send + Sync + std::fmt::Debug + 'static {
+    type Connection<'a>: std::ops::Deref<Target = R> + std::ops::DerefMut + Send + 'a where Self: 'a;
+    
+    async fn get_connection<'a>(&'a self) -> Result<Self::Connection<'a>, PoolError>;
+    async fn get_connection_with_retry<'a>(
+        &'a self,
+        max_retries: u32,
+        delay: Duration,
+    ) -> Result<Self::Connection<'a>, PoolError>;
+}
+
 
 #[derive(Error, Debug)]
 pub enum PoolError {
@@ -74,21 +88,24 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
 
         Ok(Self { pool })
     }
+}
 
-    pub async fn get_connection(
-        &self,
-    ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
+#[async_trait]
+impl<R: RpcConnection> RpcPool<R> for SolanaRpcPool<R> {
+    type Connection<'a> = PooledConnection<'a, SolanaConnectionManager<R>>;
+
+    async fn get_connection<'a>(&'a self) -> Result<Self::Connection<'a>, PoolError> {
         self.pool
             .get()
             .await
             .map_err(|e| PoolError::Pool(e.to_string()))
     }
 
-    pub async fn get_connection_with_retry(
-        &self,
+    async fn get_connection_with_retry<'a>(
+        &'a self,
         max_retries: u32,
         delay: Duration,
-    ) -> Result<PooledConnection<'_, SolanaConnectionManager<R>>, PoolError> {
+    ) -> Result<Self::Connection<'a>, PoolError> {
         let mut retries = 0;
         loop {
             match self.pool.get().await {

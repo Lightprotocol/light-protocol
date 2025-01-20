@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use forester_utils::instructions::{create_append_batch_ix_data, create_nullify_batch_ix_data};
 use light_batched_merkle_tree::event::{BatchAppendEvent, BatchNullifyEvent};
-use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::RpcPool};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
@@ -15,8 +15,8 @@ use crate::{
     },
 };
 
-pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>>(
+    context: &BatchContext<R, I, P>,
     rpc: &mut R,
     num_inserted_zkps: u64,
 ) -> Result<()> {
@@ -61,8 +61,8 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     Ok(())
 }
 
-pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>>(
+    context: &BatchContext<R, I, P>,
     rpc: &mut R,
 ) -> Result<()> {
     let batch_index = get_batch_index(context, rpc).await?;
@@ -102,8 +102,8 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
     Ok(())
 }
 
-async fn get_batch_index<R: RpcConnection, I: Indexer<R>>(
-    context: &BatchContext<R, I>,
+async fn get_batch_index<R: RpcConnection, I: Indexer<R>, P: RpcPool<R>>(
+    context: &BatchContext<R, I, P>,
     rpc: &mut R,
 ) -> Result<usize> {
     let mut account = rpc.get_account(context.merkle_tree).await?.unwrap();

@@ -21,6 +21,7 @@ light-system-program = { workspace = true, features = ["cpi"] }
 light-utils = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-verifier = { workspace = true }
+light-sdk = { workspace = true }
 photon-api = { workspace = true }
 light-client = { workspace = true }
 
@@ -51,4 +52,12 @@ num-traits = { workspace = true }
 
 # HTTP client
 reqwest = "0.11.26"
+bb8 = { workspace = true }
 
+# Metrics
+prometheus = "0.13"
+warp = "0.3"
+lazy_static = "1.4"
+anyhow = "1.0.94"
+borsh = "0.10.3"
+tracing = "0.1.40"

@@ -1,8 +1,8 @@
 // adapted from https://github.com/helius-labs/helius-rust-sdk/blob/dev/src/optimized_transaction.rs
 // optimized for forester client
-use std::time::{Duration, Instant};
+use std::{ops::{Deref, DerefMut}, time::{Duration, Instant}};
 
-use light_client::{rpc::RpcConnection, rpc_pool::SolanaConnectionManager};
+use light_client::rpc::RpcConnection;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,
@@ -31,8 +31,8 @@ pub struct CreateSmartTransactionConfig {
 ///
 /// # Returns
 /// The confirmed transaction signature or an error if the confirmation times out
-pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
-    connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
+pub async fn poll_transaction_confirmation<'a, R: RpcConnection, C: Deref<Target = R> + DerefMut>(
+    connection: &mut C,
     txt_sig: Signature,
     abort_timeout: Duration,
 ) -> Result<Signature, light_client::rpc::RpcError> {
@@ -78,8 +78,8 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
 }
 
 // Sends a transaction and handles its confirmation. Retries until timeout or last_valid_block_height is reached.
-pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
-    connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
+pub async fn send_and_confirm_transaction<'a, R: RpcConnection, C: Deref<Target = R> + DerefMut>(
+    connection: &mut C,
     transaction: &Transaction,
     send_transaction_config: RpcSendTransactionConfig,
     last_valid_block_height: u64,

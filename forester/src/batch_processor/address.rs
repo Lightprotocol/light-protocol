@@ -5,7 +5,7 @@ use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
-
+use light_client::rpc_pool::RpcPool;
 use super::common::BatchContext;
 use crate::{
     batch_processor::error::{BatchProcessError, Result},
@@ -13,8 +13,8 @@ use crate::{
 };
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
-    context: &BatchContext<R, I>,
+pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>, P: RpcPool<R>>(
+    context: &BatchContext<R, I, P>,
 ) -> Result<usize> {
     info!("Processing address batch operation");
     let mut rpc = context.rpc_pool.get_connection().await?;

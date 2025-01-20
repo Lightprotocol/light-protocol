@@ -2,14 +2,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use forester::{
-    cli::{Cli, Commands},
-    errors::ForesterError,
-    forester_status,
-    metrics::register_metrics,
-    photon_indexer::PhotonIndexer,
-    run_pipeline,
-    telemetry::setup_telemetry,
-    ForesterConfig,
+    cli::{Cli, Commands}, errors::ForesterError, forester_status, metrics::register_metrics, metrics_rpc_connection::MetricsRpcConnection, photon_indexer::PhotonIndexer, run_pipeline, telemetry::setup_telemetry, ForesterConfig
 };
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use tokio::{
@@ -48,15 +41,61 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            let indexer_rpc =
-                SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+            // let indexer_rpc =
+            //     SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+            //     config.external_services.indexer_url.clone().unwrap(),
+            //     config.external_services.photon_api_key.clone(),
+            //     indexer_rpc,
+            // )));
+
+            // let indexer_rpc = MetricsRpcConnection::<SolanaRpcConnection>::new(
+            //     config.external_services.rpc_url.clone(), 
+            //     None
+            // );
+            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+            //     config.external_services.indexer_url.clone().unwrap(),
+            //     config.external_services.photon_api_key.clone(),
+            //     indexer_rpc,
+            // )));
+
+            // run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
+
+            // let indexer_rpc = SolanaRpcConnection::new(
+            //     config.external_services.rpc_url.clone(), 
+            //     None
+            // );
+            // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+            //     config.external_services.indexer_url.clone().unwrap(),
+            //     config.external_services.photon_api_key.clone(),
+            //     indexer_rpc,
+            // )));
+            
+            // run_pipeline::<SolanaRpcConnection, PhotonIndexer<SolanaRpcConnection>>(
+            //     config,
+            //     indexer,
+            //     shutdown_receiver,
+            //     work_report_sender,
+            // ).await?
+
+
+            let indexer_rpc = MetricsRpcConnection::new(
+                config.external_services.rpc_url.clone(),
+                None
+            );
+            
             let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
                 config.external_services.indexer_url.clone().unwrap(),
                 config.external_services.photon_api_key.clone(),
                 indexer_rpc,
             )));
 
-            run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
+            run_pipeline::<MetricsRpcConnection<SolanaRpcConnection>, PhotonIndexer<MetricsRpcConnection<SolanaRpcConnection>>>(
+                config,
+                indexer,
+                shutdown_receiver,
+                work_report_sender,
+            ).await?
         }
         Commands::Status(args) => {
             forester_status::fetch_forester_status(args).await;

@@ -11,6 +11,7 @@ solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
 account-compression = { workspace = true }
+light-client = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-system-program = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
@@ -19,7 +20,6 @@ light-merkle-tree-reference = { workspace = true }
 light-registry = { workspace = true}
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
-light-client = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true }
 light-program-test = { workspace = true}
@@ -35,18 +35,15 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "blocking"]  }
 futures = "0.3.31"
 thiserror = "1"
-borsh = "0.10.3"
 bs58 = "0.5.1"
 env_logger = "0.11"
 async-trait = "0.1.81"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 tracing-appender = "0.2.3"
-prometheus = "0.13"
-lazy_static = "1.4"
-warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
+borsh = "0.10.3"
 anyhow = "1.0.94"
 
 [dev-dependencies]
