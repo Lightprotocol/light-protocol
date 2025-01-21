@@ -7,13 +7,17 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["std"]
 solana = ["solana-program"]
+std = []
 
 [dependencies]
 solana-program = { workspace = true, optional = true }
-thiserror = { workspace = true }
-zerocopy = {version="0.8.14", features=["derive"]}
+thiserror = {version="2.0", default-features = false}
+num-traits = { version = "0.2" }
+zerocopy = {version="0.8.14"}
 
 [dev-dependencies]
-rand = { workspace = true }
+rand = "0.8"
+num-traits.workspace = true
+zerocopy = {version="0.8.14", features=["derive"]}

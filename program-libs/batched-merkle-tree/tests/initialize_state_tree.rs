@@ -219,9 +219,9 @@ fn test_rnd_account_init() {
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
 
-        let merkle_tree_rent = rng.gen_range(0..10000000);
-        let queue_rent = rng.gen_range(0..10000000);
-        let additional_bytes_rent = rng.gen_range(0..10000000);
+        let merkle_tree_rent = rng.gen_range(1..10000000);
+        let queue_rent = rng.gen_range(1..10000000);
+        let additional_bytes_rent = rng.gen_range(1..10000000);
         init_batched_state_merkle_tree_accounts(
             owner,
             params,

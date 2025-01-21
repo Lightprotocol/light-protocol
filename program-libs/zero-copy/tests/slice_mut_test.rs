@@ -174,7 +174,7 @@ fn test_unaligned() {
         let mut data =
             vec![0; ZeroCopySliceMut::<u8, TestStruct, false>::required_size_for_capacity(1)];
         let result = ZeroCopySliceMut::<u8, TestStruct, false>::new(1, &mut data);
-        assert!(matches!(result, Err(ZeroCopyError::CastError(_))),);
+        assert!(matches!(result, Err(ZeroCopyError::UnalignedPointer)),);
     }
     {
         let mut data =
@@ -255,6 +255,7 @@ fn test_empty() {
         "Expected no elements"
     );
     assert_eq!(zero_copy_slice.as_mut_slice(), &[]);
+
     assert_eq!(zero_copy_slice.to_vec(), vec![]);
 }
 
@@ -493,6 +494,10 @@ fn test_failing_new() {
         vec,
         Err(ZeroCopyError::InsufficientMemoryAllocated(_, _))
     ));
+
+    let mut data = vec![1; ZeroCopySliceMutU64::<U32>::required_size_for_capacity(capacity)];
+    let vec = ZeroCopySliceMutU64::<U32>::new(capacity, &mut data);
+    assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
 }
 
 #[test]
@@ -510,4 +515,94 @@ fn test_failing_from_bytes_at() {
         vec,
         Err(ZeroCopyError::InsufficientMemoryAllocated(_, _))
     ));
+}
+
+#[test]
+fn test_data_as_ptr_and_data_as_mut_ptr() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+    let required_size = ZeroCopySliceMut::<u64, u32, true>::required_size_for_capacity(length);
+    assert!(buffer.len() >= required_size);
+    let (mut slice, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopySliceMut");
+    slice.as_mut_slice().copy_from_slice(&values);
+    let data_ptr = slice.data_as_ptr();
+    unsafe {
+        for (i, value) in values.iter().enumerate() {
+            assert_eq!(*data_ptr.add(i), *value);
+        }
+    }
+    let data_mut_ptr = slice.data_as_mut_ptr();
+    unsafe {
+        for i in 0..length as usize {
+            *data_mut_ptr.add(i) += 1;
+        }
+    }
+    let expected_values = [2u32, 3, 4, 5];
+    assert_eq!(slice.as_slice(), &expected_values);
+}
+
+#[test]
+fn test_into_iter_immutable() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+    let (mut slice, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopySliceMut");
+    slice.as_mut_slice().copy_from_slice(&values);
+    let mut iter = slice.into_iter();
+    assert_eq!(iter.next(), Some(&1));
+    assert_eq!(iter.next(), Some(&2));
+    assert_eq!(iter.next(), Some(&3));
+    assert_eq!(iter.next(), Some(&4));
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn test_into_iter_mutable() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+    let (mut slice, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopySliceMut");
+    slice.as_mut_slice().copy_from_slice(&values);
+    for x in &mut slice {
+        *x += 10;
+    }
+    assert_eq!(slice.as_slice(), &[11, 12, 13, 14]);
+}
+
+#[test]
+fn test_partial_eq() {
+    let mut buffer1 = vec![0u8; 32];
+    let mut buffer2 = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice1, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer1)
+        .expect("Failed to create ZeroCopySliceMut");
+    let (mut slice2, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer2)
+        .expect("Failed to create ZeroCopySliceMut");
+
+    slice1.as_mut_slice().copy_from_slice(&values);
+    slice2.as_mut_slice().copy_from_slice(&values);
+
+    assert_eq!(slice1, slice2);
+
+    slice2.as_mut_slice()[0] = 10;
+    assert_ne!(slice1, slice2);
+}
+
+#[test]
+fn test_debug_fmt() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice, _) = ZeroCopySliceMut::<u64, u32, true>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopySliceMut");
+    slice.as_mut_slice().copy_from_slice(&values);
+
+    assert_eq!(format!("{:?}", slice), "[1, 2, 3, 4]");
 }

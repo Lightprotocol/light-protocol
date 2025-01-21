@@ -3278,7 +3278,7 @@ version = "0.1.0"
 dependencies = [
  "rand 0.8.5",
  "solana-program",
- "thiserror 1.0.64",
+ "thiserror 2.0.11",
  "zerocopy 0.8.14",
 ]
 

@@ -183,7 +183,7 @@ fn test_rollover() {
                 network_fee: params.network_fee,
             };
             let result = rollover_batched_state_tree(params);
-            assert_eq!(result, Err(ZeroCopyError::InvalidAccountSize.into()));
+            assert_eq!(result, Err(ZeroCopyError::Size.into()));
         }
         // 4. Failing: invalid queue size
         {
@@ -214,7 +214,7 @@ fn test_rollover() {
                 network_fee: params.network_fee,
             };
             let result = rollover_batched_state_tree(params);
-            assert_eq!(result, Err(ZeroCopyError::InvalidAccountSize.into()));
+            assert_eq!(result, Err(ZeroCopyError::Size.into()));
         }
         // 5. Functional: rollover address tree
         {

@@ -687,3 +687,49 @@ fn test_partial_eq() {
     }
     assert_eq!(vec, vec2);
 }
+
+#[test]
+fn test_new_memory_not_zeroed() {
+    let capacity = 5;
+    let mut data = vec![1; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(capacity)];
+    let vec = ZeroCopyCyclicVecU64::<u64>::new(capacity, &mut data);
+    assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
+}
+
+#[test]
+fn test_index() {
+    let length: u64 = 4;
+
+    let mut buffer = vec![0u8; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(length)];
+    let values = [1u32, 2, 3, 4];
+    let (mut slice, _) = ZeroCopyCyclicVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in &values {
+        slice.push(*value);
+    }
+    assert_eq!(slice[0], 1);
+    assert_eq!(slice[1], 2);
+    assert_eq!(slice[2], 3);
+    assert_eq!(slice[3], 4);
+    slice[0] = 10;
+    assert_eq!(slice[0], 10);
+    assert_eq!(slice[1], 2);
+    assert_eq!(slice[2], 3);
+    assert_eq!(slice[3], 4);
+    assert_eq!(slice.as_slice(), &[10, 2, 3, 4]);
+}
+
+#[test]
+fn test_debug_fmt() {
+    let length: u64 = 4;
+    let mut buffer = vec![0u8; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(length)];
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice, _) = ZeroCopyCyclicVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in values.iter() {
+        slice.push(*value);
+    }
+
+    assert_eq!(format!("{:?}", slice), "[1, 2, 3, 4]");
+}
