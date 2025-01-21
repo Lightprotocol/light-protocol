@@ -3276,6 +3276,7 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
+ "num-traits",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.11",

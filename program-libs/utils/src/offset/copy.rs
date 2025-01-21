@@ -1,6 +1,8 @@
 use std::{mem, ptr};
 
-use light_bounded_vec::{BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata};
+use light_bounded_vec::{
+    BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata,
+};
 
 /// Creates a copy of value of type `T` based on the provided `bytes` buffer.
 ///
@@ -92,10 +94,10 @@ where
 mod test {
     use std::slice;
 
-    use super::*;
-
     use bytemuck::{Pod, Zeroable};
     use memoffset::offset_of;
+
+    use super::*;
 
     #[test]
     fn test_value_at() {
