@@ -67,10 +67,12 @@ where
         Ok((value_vecs, bytes))
     }
 
+    #[inline]
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
     }
 
+    #[inline]
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
         let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
         let (length, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)
@@ -79,6 +81,7 @@ where
         Ok((Self { length, slice }, bytes))
     }
 
+    #[inline]
     pub fn from_bytes_at_multiple(
         num: usize,
         mut bytes: &'a mut [u8],

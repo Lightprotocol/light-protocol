@@ -75,10 +75,12 @@ where
         Ok((slices, bytes))
     }
 
+    #[inline]
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
     }
 
+    #[inline]
     pub fn from_bytes_at(
         bytes: &'a mut [u8],
     ) -> Result<(ZeroCopySliceMut<'a, L, T, PAD>, &'a mut [u8]), ZeroCopyError> {
@@ -108,6 +110,7 @@ where
         Ok((ZeroCopySliceMut { length, bytes }, remaining_bytes))
     }
 
+    #[inline]
     pub fn from_bytes_at_multiple(
         num_slices: usize,
         mut bytes: &'a mut [u8],

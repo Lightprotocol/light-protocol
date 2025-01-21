@@ -102,22 +102,23 @@ jobs:
             if [[ -n "$pkg" ]]; then  # Skip empty lines
               echo "::group::Testing ${pkg}"
               start=$(date +%s)
-              
+              echo "${name}" 
+              echo "${{ matrix.group.name }}" 
+
 
               if [ "${pkg}" == "light-batched-merkle-tree" ]; then
-                if [ "${name}" == "sdk-libs" ]; then
+                if [ "${{ matrix.group.name }}" == "sdk-libs" ]; then
                   # execute simulate transactions test
-                  cargo test -p "${pkg}" -- --test test_simulate_transactions || exit 1
-                elif [ "${name}" == "program-libs" ]; then
+                  cargo test -p "${pkg}" -- --skip test_simulate_transactions --skip test_e2e || exit 1
+                elif [ "${{ matrix.group.name }}" == "program-libs" ]; then
                   # execute e2e test
                   cargo test -p "${pkg}" -- --test test_e2e || exit 1
                 else
                   # execute all tests except test_simulate_transactions and test_e2e
-                  cargo test -p "${pkg}" -- --skip test_simulate_transactions --skip test_e2e || exit 1
+                  cargo test -p "${pkg}" -- --test test_simulate_transactions || exit 1
                 fi
-              else {
+              else 
                 cargo test -p "${pkg}" || exit 1
-                }
               fi
                             
               end=$(date +%s)

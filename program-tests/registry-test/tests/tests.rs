@@ -2040,7 +2040,7 @@ async fn test_rollover_batch_address_tree() {
     let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda.into());
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
-    assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account, 3);
+    assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account);
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)
         .await

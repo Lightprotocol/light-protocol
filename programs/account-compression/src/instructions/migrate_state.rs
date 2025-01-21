@@ -136,6 +136,7 @@ fn migrate_state(
 #[cfg(test)]
 mod migrate_state_test {
     use light_batched_merkle_tree::{
+        batch::Batch,
         batch_metadata::BatchMetadata,
         queue::{BatchedQueueAccount, BatchedQueueMetadata},
     };
@@ -166,17 +167,21 @@ mod migrate_state_test {
             queue_type: QueueType::BatchedOutput as u64,
             associated_merkle_tree: Pubkey::new_unique().into(),
         };
-
+        let batch_size = 1000;
         let account = BatchedQueueMetadata {
             metadata,
             next_index: 0,
             batch_metadata: BatchMetadata {
-                batch_size: 1000,
+                batch_size,
                 num_batches: 2,
                 currently_processing_batch_index: 0,
                 next_full_batch_index: 0,
                 bloom_filter_capacity: 0,
                 zkp_batch_size: 10,
+                batches: [
+                    Batch::new(0, 0, batch_size, 10, 0),
+                    Batch::new(0, 0, batch_size, 10, batch_size),
+                ],
             },
             tree_capacity: 2u64.pow(32),
         };
@@ -200,7 +205,6 @@ mod migrate_state_test {
         let output_queue = BatchedQueueAccount::init(
             data,
             metadata,
-            account.batch_metadata.num_batches,
             account.batch_metadata.batch_size,
             account.batch_metadata.zkp_batch_size,
             3,

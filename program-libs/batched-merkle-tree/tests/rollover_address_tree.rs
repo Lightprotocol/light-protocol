@@ -1,5 +1,5 @@
 use light_batched_merkle_tree::{
-    batch::Batch,
+    constants::NUM_BATCHES,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
@@ -13,9 +13,7 @@ use light_batched_merkle_tree::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
-use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
-};
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::thread_rng;
 
 /// Test rollover of address tree
@@ -41,11 +39,7 @@ fn test_rollover() {
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-    assert_address_mt_zero_copy_inited(
-        &mut mt_account_data,
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 
     let mut new_mt_account_data = vec![0; mt_account_size];
     let new_mt_pubkey = Pubkey::new_unique();
@@ -111,7 +105,6 @@ fn test_rollover() {
             new_mt_account_data.to_vec(),
             new_ref_mt_account,
             new_mt_pubkey,
-            params.bloom_filter_num_iters,
         );
     }
     // 4. Failing: already rolled over
@@ -165,7 +158,6 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
         if forester.is_some() {
@@ -178,16 +170,12 @@ fn test_rnd_rollover() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
-            let num_batches = params.input_queue_num_batches as usize;
-            let batch_size =
-                ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches as u64);
-            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
-                (params.bloom_filter_capacity / 8) as u64,
-            ) * num_batches;
+            let num_batches = NUM_BATCHES;
+
+            let bloom_filter_size = (params.bloom_filter_capacity / 8) as usize * num_batches;
             let hash_chain_store_size =
                 ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
                     * num_batches;
@@ -199,7 +187,6 @@ fn test_rnd_rollover() {
                 // metadata
                 BatchedMerkleTreeMetadata::LEN
                 + root_history_size
-                + batch_size
                 + bloom_filter_size
                 // 2 hash chain stores
                 + hash_chain_store_size;
@@ -220,11 +207,7 @@ fn test_rnd_rollover() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
         let mut new_mt_data = vec![0; mt_account_size];
         let new_mt_rent = merkle_tree_rent;
         let network_fee = params.network_fee;
@@ -250,7 +233,6 @@ fn test_rnd_rollover() {
             new_mt_data,
             new_ref_mt_account,
             new_mt_pubkey,
-            params.bloom_filter_num_iters,
         );
     }
 }

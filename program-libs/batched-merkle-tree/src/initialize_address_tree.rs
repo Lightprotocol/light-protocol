@@ -34,7 +34,6 @@ pub struct InitAddressTreeAccountsInstructionData {
     pub network_fee: Option<u64>,
     pub rollover_threshold: Option<u64>,
     pub close_threshold: Option<u64>,
-    pub input_queue_num_batches: u64,
     pub height: u32,
 }
 
@@ -47,7 +46,6 @@ impl InitAddressTreeAccountsInstructionData {
             bloom_filter_num_iters: 3,
             input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            input_queue_num_batches: 2,
             height: 40,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
@@ -65,7 +63,6 @@ impl InitAddressTreeAccountsInstructionData {
             bloom_filter_num_iters: 3,
             input_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            input_queue_num_batches: 2,
             height: 40,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
@@ -85,7 +82,6 @@ impl Default for InitAddressTreeAccountsInstructionData {
             bloom_filter_num_iters: 3,
             input_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
-            input_queue_num_batches: 2,
             height: 40,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
@@ -111,7 +107,6 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     );
     let merkle_tree_rent = check_account_balance_is_rent_exempt(mt_account_info, mt_account_size)?;
 
@@ -129,7 +124,6 @@ pub fn init_batched_address_merkle_tree_account(
     mt_account_data: &mut [u8],
     merkle_tree_rent: u64,
 ) -> Result<BatchedMerkleTreeAccount<'_>, BatchedMerkleTreeError> {
-    let num_batches_input_queue = params.input_queue_num_batches;
     let height = params.height;
 
     let rollover_fee = match params.rollover_threshold {
@@ -159,7 +153,6 @@ pub fn init_batched_address_merkle_tree_account(
         mt_account_data,
         metadata,
         params.root_history_capacity,
-        num_batches_input_queue,
         params.input_queue_batch_size,
         params.input_queue_zkp_batch_size,
         height,
@@ -191,7 +184,6 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     assert!(params.bloom_filter_capacity > 0);
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
-    assert_eq!(params.input_queue_num_batches, 2);
     assert_eq!(params.close_threshold, None);
     assert_eq!(params.height, 40);
 }
@@ -205,6 +197,5 @@ pub fn get_address_merkle_tree_account_size_from_params(
         params.input_queue_zkp_batch_size,
         params.root_history_capacity,
         params.height,
-        params.input_queue_num_batches,
     )
 }

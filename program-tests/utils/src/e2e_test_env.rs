@@ -534,6 +534,7 @@ where
                             let next_full_batch_index =
                                 merkle_tree.queue_metadata.next_full_batch_index;
                             let batch = merkle_tree
+                                .queue_metadata
                                 .batches
                                 .get(next_full_batch_index as usize)
                                 .unwrap();
@@ -583,6 +584,7 @@ where
                             let next_full_batch_index =
                                 output_queue.batch_metadata.next_full_batch_index;
                             let batch = output_queue
+                                .batch_metadata
                                 .batches
                                 .get(next_full_batch_index as usize)
                                 .unwrap();

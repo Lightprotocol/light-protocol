@@ -835,7 +835,7 @@ where
             BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
                 .unwrap();
 
-        let batch = &merkle_tree.batches[batch_index];
+        let batch = &merkle_tree.queue_metadata.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
             let batch_size = batch.zkp_batch_size;
             let leaf_indices_tx_hashes =

@@ -2,7 +2,7 @@ use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
+    batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
 };
 use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts},
@@ -154,14 +154,15 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account_data)
                         .unwrap();
-                let mut batches = merkle_tree.batches;
+                let mut batches = merkle_tree.queue_metadata.batches;
                 batches.iter_mut().enumerate().any(|(i, batch)| {
-                    batch
-                        .check_non_inclusion(
-                            hash,
-                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
-                        )
-                        .is_err()
+                    Batch::check_non_inclusion(
+                        batch.num_iters as usize,
+                        batch.bloom_filter_capacity,
+                        hash,
+                        merkle_tree.bloom_filter_stores[i],
+                    )
+                    .is_err()
                 });
             }
             _ => {
@@ -190,24 +191,26 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut account_data).unwrap();
-                let mut batches = merkle_tree.batches;
+                let mut batches = merkle_tree.queue_metadata.batches;
                 // Must be included in one batch
                 batches.iter_mut().enumerate().any(|(i, batch)| {
-                    batch
-                        .check_non_inclusion(
-                            address,
-                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
-                        )
-                        .is_err()
+                    Batch::check_non_inclusion(
+                        batch.num_iters as usize,
+                        batch.bloom_filter_capacity,
+                        address,
+                        merkle_tree.bloom_filter_stores[i],
+                    )
+                    .is_err()
                 });
                 // must not be included in any other batch
                 batches.iter_mut().enumerate().any(|(i, batch)| {
-                    batch
-                        .check_non_inclusion(
-                            address,
-                            merkle_tree.bloom_filter_stores[i].as_mut_slice(),
-                        )
-                        .is_ok()
+                    Batch::check_non_inclusion(
+                        batch.num_iters as usize,
+                        batch.bloom_filter_capacity,
+                        address,
+                        merkle_tree.bloom_filter_stores[i],
+                    )
+                    .is_ok()
                 });
             }
             _ => {

@@ -11,7 +11,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
     batch_metadata::BatchMetadata,
-    constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE},
+    constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE},
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -55,7 +55,7 @@ impl Default for BatchedMerkleTreeMetadata {
             capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
             queue_metadata: BatchMetadata {
                 currently_processing_batch_index: 0,
-                num_batches: 2,
+                num_batches: NUM_BATCHES as u64,
                 batch_size: TEST_DEFAULT_BATCH_SIZE,
                 bloom_filter_capacity: 20_000 * 8,
                 zkp_batch_size: 10,
@@ -119,7 +119,7 @@ impl BatchedMerkleTreeMetadata {
             bloom_filter_capacity,
             root_history_capacity,
             height,
-            num_batches,
+            num_iters,
         } = params;
         Self {
             metadata: MerkleTreeMetadata {
@@ -144,7 +144,12 @@ impl BatchedMerkleTreeMetadata {
                 batch_size,
                 bloom_filter_capacity,
                 zkp_batch_size,
-                num_batches,
+                num_iters,
+                if tree_type == TreeType::BatchedAddress {
+                    2
+                } else {
+                    0
+                },
             )
             .unwrap(),
             capacity: 2u64.pow(height),
@@ -165,7 +170,7 @@ pub struct CreateTreeParams {
     pub bloom_filter_capacity: u64,
     pub root_history_capacity: u32,
     pub height: u32,
-    pub num_batches: u64,
+    pub num_iters: u64,
 }
 impl CreateTreeParams {
     pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
@@ -181,7 +186,7 @@ impl CreateTreeParams {
             bloom_filter_capacity: data.bloom_filter_capacity,
             root_history_capacity: data.root_history_capacity,
             height: data.height,
-            num_batches: data.input_queue_num_batches,
+            num_iters: data.bloom_filter_num_iters,
         }
     }
 
@@ -201,7 +206,7 @@ impl CreateTreeParams {
             bloom_filter_capacity: data.bloom_filter_capacity,
             root_history_capacity: data.root_history_capacity,
             height: data.height,
-            num_batches: data.input_queue_num_batches,
+            num_iters: data.bloom_filter_num_iters,
         }
     }
 }

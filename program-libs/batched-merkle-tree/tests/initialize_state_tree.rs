@@ -1,5 +1,5 @@
 use light_batched_merkle_tree::{
-    batch::Batch,
+    constants::NUM_BATCHES,
     initialize_state_tree::{
         assert_state_mt_zero_copy_inited, create_output_queue_account,
         init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
@@ -13,9 +13,7 @@ use light_batched_merkle_tree::{
     },
 };
 use light_utils::pubkey::Pubkey;
-use light_zero_copy::{
-    cyclic_vec::ZeroCopyCyclicVecU64, slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64,
-};
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::{rngs::StdRng, Rng};
 #[test]
 fn test_different_parameters() {
@@ -28,7 +26,6 @@ fn test_different_parameters() {
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
-            params.output_queue_num_batches,
         );
 
         let mut output_queue_account_data = vec![0; queue_account_size];
@@ -40,7 +37,6 @@ fn test_different_parameters() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
@@ -70,16 +66,11 @@ fn test_different_parameters() {
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
-            0,
         );
         let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
     }
 }
 
@@ -123,15 +114,10 @@ fn test_account_init() {
     assert_queue_zero_copy_inited(
         output_queue_account_data.as_mut_slice(),
         ref_output_queue_account,
-        0,
     );
     let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-    assert_state_mt_zero_copy_inited(
-        &mut mt_account_data,
-        ref_mt_account,
-        params.bloom_filter_num_iters,
-    );
+    assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 }
 
 #[test]
@@ -171,23 +157,17 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
-            output_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
-            params.output_queue_num_batches,
         );
 
         {
-            let num_batches = params.output_queue_num_batches as usize;
+            let num_batches = NUM_BATCHES;
             let num_zkp_batches =
                 params.output_queue_batch_size / params.output_queue_zkp_batch_size;
-            let batch_size = ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(
-                params.output_queue_num_batches,
-            );
             let value_vec_size = ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
                 params.output_queue_batch_size,
             ) * num_batches;
@@ -198,7 +178,6 @@ fn test_rnd_account_init() {
             let ref_queue_account_size =
                     // metadata
                     BatchedQueueMetadata::LEN
-                    + batch_size
                     // 2 value vecs
                     + value_vec_size
                     // 2 hash chain stores
@@ -216,18 +195,14 @@ fn test_rnd_account_init() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
         {
             let num_zkp_batches = params.input_queue_batch_size / params.input_queue_zkp_batch_size;
-            let num_batches = params.input_queue_num_batches;
-            let batch_size = ZeroCopySliceMutU64::<Batch>::required_size_for_capacity(num_batches);
-            let bloom_filter_size = ZeroCopySliceMutU64::<u8>::required_size_for_capacity(
-                params.bloom_filter_capacity / 8,
-            ) * num_batches as usize;
+            let num_batches = NUM_BATCHES;
+            let bloom_filter_size = (params.bloom_filter_capacity / 8) as usize * num_batches;
             let hash_chain_store_size =
                 ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(num_zkp_batches)
-                    * num_batches as usize;
+                    * num_batches;
             let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
                 params.root_history_capacity as u64,
             );
@@ -236,7 +211,6 @@ fn test_rnd_account_init() {
                     // metadata
                     BatchedMerkleTreeMetadata::LEN
                     + root_history_size
-                    + batch_size
                     + bloom_filter_size
                     // 2 hash chain stores
                     + hash_chain_store_size;
@@ -270,16 +244,11 @@ fn test_rnd_account_init() {
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
-            0,
         );
         let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
     }
 }

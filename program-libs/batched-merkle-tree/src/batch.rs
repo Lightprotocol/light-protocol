@@ -1,6 +1,7 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
-use light_zero_copy::{slice_mut::ZeroCopySliceMutU64, vec::ZeroCopyVecU64};
+use light_zero_copy::vec::ZeroCopyVecU64;
 use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -43,7 +44,20 @@ impl From<BatchState> for u64 {
 /// - is part of a queue, by default a queue has two batches.
 /// - is inserted into the tree by zkp batch.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, KnownLayout, Immutable, IntoBytes, FromBytes)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    KnownLayout,
+    Immutable,
+    IntoBytes,
+    FromBytes,
+    Default,
+    BorshSerialize,
+    BorshDeserialize,
+)]
 pub struct Batch {
     /// Number of inserted elements in the zkp batch.
     num_inserted: u64,
@@ -234,7 +248,7 @@ impl Batch {
         &mut self,
         bloom_filter_value: &[u8; 32],
         hashchain_value: &[u8; 32],
-        bloom_filter_stores: &mut [ZeroCopySliceMutU64<u8>],
+        bloom_filter_stores: &mut [&mut [u8]],
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
         bloom_filter_index: usize,
     ) -> Result<(), BatchedMerkleTreeError> {
@@ -251,13 +265,18 @@ impl Batch {
             BloomFilter::new(
                 self.num_iters as usize,
                 self.bloom_filter_capacity,
-                bloom_filter.as_mut_slice(),
+                bloom_filter,
             )?
             .insert(bloom_filter_value)?;
 
             // 3. Check that value is not in any other bloom filter.
             for bf_store in before.iter_mut().chain(after.iter_mut()) {
-                self.check_non_inclusion(bloom_filter_value, bf_store.as_mut_slice())?;
+                Self::check_non_inclusion(
+                    self.num_iters as usize,
+                    self.bloom_filter_capacity,
+                    bloom_filter_value,
+                    bf_store,
+                )?;
             }
         }
         Ok(())
@@ -310,12 +329,12 @@ impl Batch {
 
     /// Checks that value is not in the bloom filter.
     pub fn check_non_inclusion(
-        &self,
+        num_iters: usize,
+        bloom_filter_capacity: u64,
         value: &[u8; 32],
         store: &mut [u8],
     ) -> Result<(), BatchedMerkleTreeError> {
-        let mut bloom_filter =
-            BloomFilter::new(self.num_iters as usize, self.bloom_filter_capacity, store)?;
+        let mut bloom_filter = BloomFilter::new(num_iters, bloom_filter_capacity, store)?;
         if bloom_filter.contains(value) {
             return Err(BatchedMerkleTreeError::NonInclusionCheckFailed);
         }
@@ -475,10 +494,10 @@ mod tests {
     fn test_insert() {
         // Behavior Input queue
         let mut batch = get_test_batch();
-        let mut stores = vec![vec![0u8; 20_008]; 2];
+        let mut stores = vec![vec![0u8; 20_000]; 2];
         let mut bloom_filter_stores = stores
             .iter_mut()
-            .map(|store| ZeroCopySliceMutU64::new(20_000, store).unwrap())
+            .map(|store| &mut store[..])
             .collect::<Vec<_>>();
         let mut hashchain_store_bytes = vec![
             0u8;
@@ -541,19 +560,24 @@ mod tests {
                 let mut bloom_filter = BloomFilter {
                     num_iters: batch.num_iters as usize,
                     capacity: batch.bloom_filter_capacity,
-                    store: bloom_filter_stores[processing_index].as_mut_slice(),
+                    store: bloom_filter_stores[processing_index],
                 };
                 assert!(bloom_filter.contains(&value));
                 let other_index = if processing_index == 0 { 1 } else { 0 };
-                batch
-                    .check_non_inclusion(&value, bloom_filter_stores[other_index].as_mut_slice())
-                    .unwrap();
-                batch
-                    .check_non_inclusion(
-                        &value,
-                        bloom_filter_stores[processing_index].as_mut_slice(),
-                    )
-                    .unwrap_err();
+                Batch::check_non_inclusion(
+                    batch.num_iters as usize,
+                    batch.bloom_filter_capacity,
+                    &value,
+                    bloom_filter_stores[other_index],
+                )
+                .unwrap();
+                Batch::check_non_inclusion(
+                    batch.num_iters as usize,
+                    batch.bloom_filter_capacity,
+                    &value,
+                    bloom_filter_stores[processing_index],
+                )
+                .unwrap_err();
 
                 ref_batch.num_inserted += 1;
                 if ref_batch.num_inserted == ref_batch.zkp_batch_size {
@@ -611,10 +635,10 @@ mod tests {
             let mut batch = get_test_batch();
 
             let value = [1u8; 32];
-            let mut stores = vec![vec![0u8; 20_008]; 2];
+            let mut stores = vec![vec![0u8; 20_000]; 2];
             let mut bloom_filter_stores = stores
                 .iter_mut()
-                .map(|store| ZeroCopySliceMutU64::new(20_000, store).unwrap())
+                .map(|store| &mut store[..])
                 .collect::<Vec<_>>();
             let mut hashchain_store_bytes = vec![
             0u8;
@@ -628,9 +652,15 @@ mod tests {
             )
             .unwrap();
 
-            assert!(batch
-                .check_non_inclusion(&value, bloom_filter_stores[processing_index].as_mut_slice())
-                .is_ok());
+            assert_eq!(
+                Batch::check_non_inclusion(
+                    batch.num_iters as usize,
+                    batch.bloom_filter_capacity,
+                    &value,
+                    bloom_filter_stores[processing_index]
+                ),
+                Ok(())
+            );
             let ref_batch = get_test_batch();
             assert_eq!(batch, ref_batch);
             batch
@@ -642,14 +672,22 @@ mod tests {
                     processing_index,
                 )
                 .unwrap();
-            assert!(batch
-                .check_non_inclusion(&value, bloom_filter_stores[processing_index].as_mut_slice())
-                .is_err());
+            assert!(Batch::check_non_inclusion(
+                batch.num_iters as usize,
+                batch.bloom_filter_capacity,
+                &value,
+                bloom_filter_stores[processing_index]
+            )
+            .is_err());
 
             let other_index = if processing_index == 0 { 1 } else { 0 };
-            assert!(batch
-                .check_non_inclusion(&value, bloom_filter_stores[other_index].as_mut_slice())
-                .is_ok());
+            assert!(Batch::check_non_inclusion(
+                batch.num_iters as usize,
+                batch.bloom_filter_capacity,
+                &value,
+                bloom_filter_stores[other_index]
+            )
+            .is_ok());
         }
     }
 

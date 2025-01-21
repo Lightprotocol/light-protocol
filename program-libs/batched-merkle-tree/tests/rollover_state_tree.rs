@@ -22,7 +22,10 @@ use light_batched_merkle_tree::{
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::errors::ZeroCopyError;
-use rand::{rngs::StdRng, Rng};
+use rand::{
+    rngs::{StdRng, ThreadRng},
+    Rng,
+};
 
 /// Test rollover of state tree
 /// 1. failing: not ready for rollover
@@ -69,20 +72,12 @@ fn test_rollover() {
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
-        assert_state_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
         let total_rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
         let output_queue_params =
             CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey);
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
-        assert_queue_zero_copy_inited(
-            queue_account_data.as_mut_slice(),
-            ref_output_queue_account,
-            0,
-        );
+        assert_queue_zero_copy_inited(queue_account_data.as_mut_slice(), ref_output_queue_account);
         let mut new_mt_account_data = vec![0; mt_account_size];
         let new_mt_pubkey = Pubkey::new_unique();
 
@@ -265,7 +260,6 @@ fn test_rollover() {
                 new_mt_account_data: new_mt_account_data.to_vec(),
                 old_mt_pubkey: mt_pubkey,
                 new_mt_pubkey,
-                bloom_filter_num_iters: params.bloom_filter_num_iters,
                 ref_rolledover_mt,
                 queue_account_data: queue_account_data.to_vec(),
                 ref_queue_account: new_ref_output_queue_account,
@@ -393,11 +387,7 @@ fn test_rollover() {
             .rollover_metadata
             .network_fee = 0;
         ref_output_queue_account.metadata.access_metadata.forester = forester;
-        assert_queue_zero_copy_inited(
-            queue_account_data.as_mut_slice(),
-            ref_output_queue_account,
-            0,
-        );
+        assert_queue_zero_copy_inited(queue_account_data.as_mut_slice(), ref_output_queue_account);
         // 8. Functional: rollover address tree with network fee 0 additional bytes 0
         {
             let merkle_tree =
@@ -443,7 +433,6 @@ fn test_rollover() {
                 new_mt_account_data: new_mt_account_data.to_vec(),
                 old_mt_pubkey: mt_pubkey,
                 new_mt_pubkey,
-                bloom_filter_num_iters: params.bloom_filter_num_iters,
                 ref_rolledover_mt,
                 queue_account_data: queue_account_data.to_vec(),
                 ref_queue_account: new_ref_output_queue_account,
@@ -462,8 +451,10 @@ fn test_rollover() {
 #[test]
 fn test_rnd_rollover() {
     use rand::SeedableRng;
-    let mut rng = StdRng::seed_from_u64(0);
-    for _ in 0..1000 {
+    let seed = ThreadRng::default().gen();
+    println!("seed {}", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
+    for _ in 0..100 {
         println!("next iter ------------------------------------");
         let owner = Pubkey::new_unique();
 
@@ -501,15 +492,12 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            input_queue_num_batches: rng.gen_range(1..4),
-            output_queue_num_batches: rng.gen_range(1..4),
             height: rng.gen_range(1..32),
         };
 
         let queue_account_size = get_output_queue_account_size(
             params.output_queue_batch_size,
             params.output_queue_zkp_batch_size,
-            params.output_queue_num_batches,
         );
 
         let mut output_queue_account_data = vec![0; queue_account_size];
@@ -521,7 +509,6 @@ fn test_rnd_rollover() {
             params.input_queue_zkp_batch_size,
             params.root_history_capacity,
             params.height,
-            params.input_queue_num_batches,
         );
 
         let mut mt_account_data = vec![0; mt_account_size];
@@ -553,17 +540,12 @@ fn test_rnd_rollover() {
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
-            0,
         );
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(
-            &mut mt_account_data,
-            ref_mt_account,
-            params.bloom_filter_num_iters,
-        );
+        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 
         let mut new_mt_account_data = vec![0; mt_account_size];
         let new_mt_pubkey = Pubkey::new_unique();
@@ -612,7 +594,6 @@ fn test_rnd_rollover() {
             new_mt_account_data: new_mt_account_data.to_vec(),
             old_mt_pubkey: mt_pubkey,
             new_mt_pubkey,
-            bloom_filter_num_iters: params.bloom_filter_num_iters,
             ref_rolledover_mt,
             queue_account_data: output_queue_account_data.to_vec(),
             ref_queue_account: new_ref_output_queue_account,

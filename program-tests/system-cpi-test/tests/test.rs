@@ -757,13 +757,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyMerkleTree,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            // UtilsError::AccountNotMutable.into(),
-            UtilsError::InvalidDiscriminator.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,
