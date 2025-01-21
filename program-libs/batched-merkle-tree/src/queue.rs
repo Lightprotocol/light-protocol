@@ -236,7 +236,7 @@ impl<'a> BatchedQueueAccount<'a> {
                     .batch_metadata
                     .queue_account_size(account_metadata.metadata.queue_type)?
             );
-            return Err(ZeroCopyError::InvalidAccountSize.into());
+            return Err(ZeroCopyError::Size.into());
         }
 
         let (value_vecs, _bloom_filter_stores, hashchain_store, _) = init_queue(

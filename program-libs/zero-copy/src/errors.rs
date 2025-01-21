@@ -1,3 +1,5 @@
+use core::convert::Infallible;
+
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -10,16 +12,16 @@ pub enum ZeroCopyError {
     IterFromOutOfBounds,
     #[error("Memory allocated {0}, Memory required {0}")]
     InsufficientMemoryAllocated(usize, usize),
-    #[error("Invalid Account size.")]
-    InvalidAccountSize,
     #[error("Unaligned pointer.")]
     UnalignedPointer,
     #[error("Memory not zeroed.")]
     MemoryNotZeroed,
     #[error("InvalidConversion.")]
     InvalidConversion,
-    #[error("Zero copy cast error {0}")]
-    CastError(String),
+    #[error("Invalid data {0}.")]
+    InvalidData(Infallible),
+    #[error("Invalid size.")]
+    Size,
 }
 
 #[cfg(feature = "solana")]
@@ -30,11 +32,11 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::ArraySize(_, _) => 15002,
             ZeroCopyError::IterFromOutOfBounds => 15003,
             ZeroCopyError::InsufficientMemoryAllocated(_, _) => 15004,
-            ZeroCopyError::InvalidAccountSize => 15005,
             ZeroCopyError::UnalignedPointer => 15006,
             ZeroCopyError::MemoryNotZeroed => 15007,
             ZeroCopyError::InvalidConversion => 15008,
-            ZeroCopyError::CastError(_) => 15009,
+            ZeroCopyError::InvalidData(_) => 15009,
+            ZeroCopyError::Size => 15010,
         }
     }
 }
@@ -43,5 +45,29 @@ impl From<ZeroCopyError> for u32 {
 impl From<ZeroCopyError> for solana_program::program_error::ProgramError {
     fn from(e: ZeroCopyError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+impl<Src, Dst: ?Sized>
+    From<
+        zerocopy::ConvertError<
+            zerocopy::AlignmentError<Src, Dst>,
+            zerocopy::SizeError<Src, Dst>,
+            core::convert::Infallible,
+        >,
+    > for ZeroCopyError
+{
+    fn from(
+        err: zerocopy::ConvertError<
+            zerocopy::AlignmentError<Src, Dst>,
+            zerocopy::SizeError<Src, Dst>,
+            core::convert::Infallible,
+        >,
+    ) -> Self {
+        match err {
+            zerocopy::ConvertError::Alignment(_) => ZeroCopyError::UnalignedPointer,
+            zerocopy::ConvertError::Size(_) => ZeroCopyError::Size,
+            zerocopy::ConvertError::Validity(i) => ZeroCopyError::InvalidData(i),
+        }
     }
 }

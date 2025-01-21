@@ -345,6 +345,7 @@ fn assert_empty_vec<CAPACITY, T>(
     assert_eq!(vec.as_slice(), reference_vec.as_slice());
     // 11. vector as_mut_slice returns correct slice
     assert_eq!(vec.as_mut_slice(), reference_vec.as_mut_slice());
+
     // 12. vector to_vec returns correct vector
     assert_eq!(vec.to_vec(), reference_vec);
     // 13. (iter) iterating over vector returns correct elements
@@ -532,4 +533,74 @@ fn test_partial_eq() {
     assert_eq!(vec, vec2);
     vec.clear();
     assert_ne!(vec, vec2);
+}
+
+#[test]
+fn test_new_memory_not_zeroed() {
+    let capacity = 5;
+    let mut data = vec![1; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
+    let vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data);
+    assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
+}
+
+#[should_panic = "Capacity overflow. Cannot copy slice into ZeroCopyVec."]
+#[test]
+fn test_extend_from_slice_over_capacity() {
+    let capacity = 5;
+    let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
+    let slice = [1, 2, 3, 4, 5, 6];
+    vec.extend_from_slice(&slice);
+}
+
+#[should_panic = "Capacity overflow. Cannot copy slice into ZeroCopyVec."]
+#[test]
+fn test_extend_from_slice_over_capacity_2() {
+    let capacity = 5;
+    let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
+    let slice = [1, 2, 3, 4, 5];
+    vec.extend_from_slice(&slice);
+    let slice = [1];
+    vec.extend_from_slice(&slice);
+}
+
+#[test]
+fn test_extend_from_slice() {
+    let capacity = 5;
+    let mut data = vec![0; ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity)];
+    let mut vec = ZeroCopyVecU64::<u64>::new(capacity, &mut data).unwrap();
+    let slice = [1, 2, 3, 4, 5];
+    vec.extend_from_slice(&slice);
+}
+
+#[test]
+fn test_into_iter_mutable() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+    let (mut slice, _) = ZeroCopyVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in &values {
+        slice.push(*value).expect("Failed to push value");
+    }
+    for x in &mut slice {
+        *x += 10;
+    }
+    assert_eq!(slice.as_slice(), &[11, 12, 13, 14]);
+}
+
+#[test]
+fn test_debug_fmt() {
+    let mut buffer = vec![0u8; 32];
+    let length: u64 = 4;
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice, _) = ZeroCopyVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in &values {
+        slice.push(*value).expect("Failed to push value");
+    }
+
+    assert_eq!(format!("{:?}", slice), "[1, 2, 3, 4]");
 }
