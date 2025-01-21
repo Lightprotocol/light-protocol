@@ -45,3 +45,20 @@ impl AccessMetadata {
         }
     }
 }
+
+#[test]
+fn test_new() {
+    let owner = Pubkey::new_unique();
+    let program_owner = Pubkey::new_unique();
+    let forester = Pubkey::new_unique();
+    let access_metadata = AccessMetadata::new(owner, Some(program_owner), Some(forester));
+    assert_eq!(access_metadata.owner, owner);
+    assert_eq!(access_metadata.program_owner, program_owner);
+    assert_eq!(access_metadata.forester, forester);
+
+    // With no program owner and forester
+    let access_metadata = AccessMetadata::new(owner, None, None);
+    assert_eq!(access_metadata.owner, owner);
+    assert_eq!(access_metadata.program_owner, Pubkey::default());
+    assert_eq!(access_metadata.forester, Pubkey::default());
+}

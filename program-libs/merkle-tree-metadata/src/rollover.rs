@@ -85,6 +85,7 @@ impl RolloverMetadata {
         Ok(())
     }
 }
+
 pub fn check_rollover_fee_sufficient(
     rollover_fee: u64,
     queue_rent: u64,
@@ -92,9 +93,11 @@ pub fn check_rollover_fee_sufficient(
     rollover_threshold: u64,
     height: u32,
 ) -> Result<(), MerkleTreeMetadataError> {
-    if rollover_fee != queue_rent + merkle_tree_rent
-        && (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
-            < queue_rent + merkle_tree_rent
+    if rollover_threshold == 0 && rollover_fee >= queue_rent + merkle_tree_rent {
+        return Ok(());
+    }
+    if (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
+        < queue_rent + merkle_tree_rent
     {
         msg!("rollover_fee: {}", rollover_fee);
         msg!("rollover_threshold: {}", rollover_threshold);
@@ -113,6 +116,8 @@ pub fn check_rollover_fee_sufficient(
 
 #[cfg(test)]
 mod tests {
+    use light_utils::fee::compute_rollover_fee;
+
     use super::*;
 
     #[test]
@@ -146,5 +151,78 @@ mod tests {
             metadata.rollover(),
             Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver)
         );
+    }
+
+    #[test]
+    fn test_check_rollover_fee_sufficient() {
+        let queue_rent = 1_000_000_000;
+        let merkle_tree_rent = 1_000_000_000;
+        let rollover_threshold = 95;
+        let tree_height = 20;
+        let total_rent = queue_rent + merkle_tree_rent;
+        let rollover_fee =
+            compute_rollover_fee(rollover_threshold, tree_height, total_rent).unwrap();
+        println!("rollover_fee: {}", rollover_fee);
+        assert!(check_rollover_fee_sufficient(
+            rollover_fee,
+            queue_rent,
+            merkle_tree_rent,
+            rollover_threshold,
+            tree_height
+        )
+        .is_ok());
+
+        {
+            let invalid_height = 19;
+            assert_eq!(
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    queue_rent,
+                    merkle_tree_rent,
+                    rollover_threshold,
+                    invalid_height
+                ),
+                Err(MerkleTreeMetadataError::InsufficientRolloverFee)
+            );
+        }
+        {
+            let invalid_threshold = 90;
+            assert_eq!(
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    queue_rent,
+                    merkle_tree_rent,
+                    invalid_threshold,
+                    tree_height
+                ),
+                Err(MerkleTreeMetadataError::InsufficientRolloverFee)
+            );
+        }
+        {
+            let invalid_queue_rent = queue_rent + 1_000_000_000;
+            assert_eq!(
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    invalid_queue_rent,
+                    merkle_tree_rent,
+                    rollover_threshold,
+                    tree_height
+                ),
+                Err(MerkleTreeMetadataError::InsufficientRolloverFee)
+            );
+        }
+        {
+            let rollover_fee = rollover_fee - 1;
+            assert_eq!(
+                check_rollover_fee_sufficient(
+                    rollover_fee,
+                    queue_rent,
+                    merkle_tree_rent,
+                    rollover_threshold,
+                    tree_height
+                ),
+                Err(MerkleTreeMetadataError::InsufficientRolloverFee)
+            );
+        }
     }
 }

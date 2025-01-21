@@ -16,3 +16,15 @@ where
         Some(value)
     }
 }
+
+#[test]
+fn test_if_equals_zero_u64() {
+    assert_eq!(if_equals_zero_u64(0), None);
+    assert_eq!(if_equals_zero_u64(1), Some(1));
+}
+
+#[test]
+fn test_if_equals_none() {
+    assert_eq!(if_equals_none(0, 0), None);
+    assert_eq!(if_equals_none(1, 0), Some(1));
+}
