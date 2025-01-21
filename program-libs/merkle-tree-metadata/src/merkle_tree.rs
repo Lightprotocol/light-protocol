@@ -68,3 +68,46 @@ impl MerkleTreeMetadata {
         Ok(())
     }
 }
+
+#[test]
+fn test() {
+    let owner = Pubkey::new_unique();
+    let program_owner = Some(Pubkey::new_unique());
+    let forester = Some(Pubkey::new_unique());
+    let access_metadata = AccessMetadata::new(owner, program_owner, forester);
+    let rollover_metadata = RolloverMetadata::new(1, 2, Some(95), 100, Some(1000), Some(1));
+    let associated_queue = Pubkey::new_unique();
+    let mut merkle_tree_metadata = MerkleTreeMetadata::default();
+    // 1. Functional - init
+    {
+        merkle_tree_metadata.init(access_metadata, rollover_metadata, associated_queue);
+        assert_eq!(merkle_tree_metadata.access_metadata, access_metadata);
+        assert_eq!(merkle_tree_metadata.rollover_metadata, rollover_metadata);
+    }
+    let next_merkle_tree = Pubkey::new_unique();
+    // 2. Failing - rollover with invalid associated queue
+    {
+        let invalid_associated_queue = Pubkey::new_unique();
+        let result = merkle_tree_metadata.rollover(invalid_associated_queue, next_merkle_tree);
+        assert_eq!(
+            result,
+            Err(MerkleTreeMetadataError::MerkleTreeAndQueueNotAssociated)
+        );
+    }
+    // 3. Functional - rollover
+    {
+        merkle_tree_metadata
+            .rollover(associated_queue, next_merkle_tree)
+            .unwrap();
+        assert_eq!(merkle_tree_metadata.next_merkle_tree, next_merkle_tree);
+        assert_eq!(merkle_tree_metadata.rollover_metadata.rolledover_slot, 1);
+    }
+    // 4. Failing - rollover with invalid associated queue
+    {
+        let result = merkle_tree_metadata.rollover(associated_queue, next_merkle_tree);
+        assert_eq!(
+            result,
+            Err(MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver)
+        );
+    }
+}
