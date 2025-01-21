@@ -12,8 +12,8 @@ anchor = ["anchor-lang", "solana"]
 solana = []
 
 [dependencies]
-thiserror = "1.0"
-borsh = "0.10.0"
+thiserror = { workspace = true}
+borsh = { workspace = true }
 bytemuck = "1.17"
 solana-program = { workspace = true }
 anchor-lang = { workspace = true , optional = true }

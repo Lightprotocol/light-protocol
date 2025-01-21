@@ -36,7 +36,7 @@ light-client = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
-light-prover-client = { workspace = true, version = "1.2.0" }
+light-prover-client = { workspace = true }
 anchor-spl = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

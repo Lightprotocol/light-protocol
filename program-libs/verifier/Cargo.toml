@@ -11,8 +11,8 @@ solana = ["solana-program"]
 
 [dependencies]
 groth16-solana = "0.0.3"
-thiserror = "1.0"
-borsh = "0.10"
+thiserror = { workspace = true }
+borsh = { workspace = true }
 solana-program = { workspace = true, optional = true }
 light-utils = { workspace = true }
 
@@ -20,7 +20,7 @@ light-utils = { workspace = true }
 tokio = { workspace = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"]  }
 light-prover-client = { workspace = true }
-serial_test = "3.2.0"
+serial_test = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

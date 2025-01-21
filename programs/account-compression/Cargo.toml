@@ -34,11 +34,8 @@ light-heap = { workspace = true, optional = true }
 light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-utils = { workspace = true, features = ["anchor"] }
-light-bloom-filter = { workspace = true, features = ["solana"] }
 num-bigint = "0.4"
-num-traits = "0.2.19"
 solana-security-txt = "1.1.0"
-light-verifier = { workspace = true, features = ["solana"] }
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
 light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
 
@@ -46,8 +43,5 @@ light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-rand = "0.8.5"
-light-prover-client = { workspace = true, features = ["gnark"] }
+rand = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-tokio = { version = "1.16.1" }
-serial_test = "3.1.1"

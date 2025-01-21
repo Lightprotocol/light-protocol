@@ -16,6 +16,7 @@ pub mod account;
 pub mod bigint;
 pub mod fee;
 pub mod hashchain;
+pub mod offset;
 pub mod prime;
 pub mod pubkey;
 pub mod rand;

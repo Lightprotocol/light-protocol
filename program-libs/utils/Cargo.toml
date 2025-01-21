@@ -11,19 +11,21 @@ default = []
 anchor = ["anchor-lang"]
 
 [dependencies]
-anyhow = "1.0"
-ark-ff = "0.4"
+anyhow = { workspace = true }
+ark-ff = { workspace = true }
+ark-bn254 = { workspace = true }
 light-hasher = { workspace = true }
-num-bigint = { version = "0.4", features = ["rand"] }
-thiserror = "1.0"
+num-bigint = { workspace = true, features = ["rand"] }
+thiserror = { workspace = true }
 solana-program = { workspace = true }
-ark-bn254 = "0.4.0"
-rand = "0.8"
+rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
+light-bounded-vec = { workspace = true }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }
 borsh = { workspace = true }
+memoffset = "0.9"

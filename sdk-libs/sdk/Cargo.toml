@@ -28,7 +28,7 @@ legacy = ["account-compression", "light-system-program"]
 solana-program = { workspace = true }
 anchor-lang = { workspace = true }
 num-bigint = { workspace = true }
-borsh = "0.10.0"
+borsh = { workspace = true }
 
 light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
@@ -44,4 +44,4 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 light-indexed-merkle-tree = { workspace = true }
-num-bigint = "0.4.6"
+num-bigint = { workspace = true }
