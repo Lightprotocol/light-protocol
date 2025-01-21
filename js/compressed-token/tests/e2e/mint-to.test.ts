@@ -109,7 +109,7 @@ describe('mintTo', () => {
 
         /// wrong authority
         await expect(
-            mintTo(rpc, payer, mint, bob.publicKey, payer, amount),
+            mintTo(rpc, payer, mint, bob.publicKey, Keypair.generate(), amount),
         ).rejects.toThrowError(/custom program error: 0x1782/);
 
         /// with output state merkle tree defined
