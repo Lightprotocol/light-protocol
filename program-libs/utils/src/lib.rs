@@ -19,6 +19,7 @@ pub mod hashchain;
 pub mod prime;
 pub mod pubkey;
 pub mod rand;
+pub mod offset;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum UtilsError {
