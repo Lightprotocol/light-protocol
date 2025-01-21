@@ -411,7 +411,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             Err(e) => {
                 warn!("Failed to recover registration info: {:?}", e);
                 // If recovery fails, attempt to register
-                self.register_for_epoch_with_retry(epoch, 20, Duration::from_millis(1000))
+                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
                     .await?
             }
         };
@@ -459,7 +459,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let mut rpc =
+            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
