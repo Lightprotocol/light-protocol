@@ -40,5 +40,5 @@ light-program-test = { workspace = true }
 light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
 spl-token = { workspace = true }
-rand = "0.8.5"
+rand = { workspace = true }
 light-utils = { workspace = true }

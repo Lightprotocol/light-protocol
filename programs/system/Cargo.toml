@@ -31,7 +31,6 @@ light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 account-compression = { workspace =  true }
 light-utils = { workspace = true , features = ["anchor"]}
-groth16-solana = "0.0.3"
 light-verifier = { workspace = true, features = ["solana"] }
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
@@ -40,7 +39,7 @@ light-batched-merkle-tree = {workspace = true, features = ["solana"] }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }
 
 
 [lints.rust.unexpected_cfgs]

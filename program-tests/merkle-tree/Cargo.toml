@@ -9,9 +9,5 @@ edition = "2021"
 [dependencies]
 light-bounded-vec = { workspace = true }
 light-hasher = { workspace = true }
-thiserror = "1.0"
-log = "0.4.20"
-num-bigint = "0.4"
-
-[dev-dependencies]
-hex = "0.4"
+thiserror = { workspace = true }
+num-bigint = { workspace = true }

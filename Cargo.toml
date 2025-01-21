@@ -78,9 +78,18 @@ bb8 = "0.8.6"
 
 # Logging
 log = "0.4"
+env_logger = "0.11"
 
 # Error handling
 thiserror = "1.0"
+anyhow = "1.0"
+
+# Arkworks
+ark-ff = "0.4"
+ark-bn254 = "0.4"
+ark-serialize = "0.4"
+ark-std = "0.4"
+
 
 # Light Protocol
 light-hash-set = { version = "1.2.0", path = "program-libs/hash-set" }
@@ -120,10 +129,13 @@ num-traits = "0.2.19"
 zerocopy = { version = "0.8.14"}
 
 # HTTP client
-reqwest = "0.11.26"
+reqwest = "0.11"
 
 # Testing
-serial_test = "3.1.1"
+serial_test = "3.2.0"
+
+# Random
+rand = "0.8.5"
 
 [patch.crates-io]
 "solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }

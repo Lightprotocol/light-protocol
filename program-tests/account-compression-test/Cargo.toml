@@ -20,15 +20,15 @@ default = ["custom-heap"]
 [dependencies]
 
 [dev-dependencies]
-ark-bn254 = "0.4.0"
-ark-ff = "0.4.0"
+ark-bn254 = { workspace = true }
+ark-ff = { workspace = true }
 solana-program-test =  { workspace = true}
 light-test-utils = { workspace = true, features=["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
 tokio = { workspace = true }
 light-prover-client = {workspace = true }
-num-bigint = "0.4.6"
+num-bigint = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
 account-compression = { workspace = true }
@@ -40,9 +40,9 @@ light-merkle-tree-reference = {workspace = true}
 light-bounded-vec = {workspace = true}
 light-utils = {workspace = true}
 light-verifier = {workspace = true}
-rand = "0.8"
+rand = { workspace = true }
 solana-sdk = { workspace = true }
-serial_test = "3.1.1"
+serial_test = { workspace = true }
 light-bloom-filter = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }

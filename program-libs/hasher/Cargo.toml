@@ -12,10 +12,10 @@ solana = []
 [dependencies]
 light-poseidon = "0.2.0"
 solana-program = { workspace = true }
-thiserror = "1.0"
+thiserror = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-ark-bn254 = "0.4.0"
+ark-bn254 = { workspace = true }
 sha2 = "0.10"
 sha3 = "0.10"
 

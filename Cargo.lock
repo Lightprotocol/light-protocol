@@ -20,7 +20,6 @@ dependencies = [
  "anchor-lang",
  "bytemuck",
  "light-batched-merkle-tree",
- "light-bloom-filter",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -29,16 +28,11 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
- "light-prover-client",
- "light-utils 1.1.0",
- "light-verifier",
+ "light-utils",
  "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
- "serial_test",
  "solana-sdk",
  "solana-security-txt",
- "tokio",
 ]
 
 [[package]]
@@ -63,7 +57,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "num-bigint 0.4.6",
  "rand 0.8.5",
@@ -1340,7 +1334,7 @@ dependencies = [
  "anchor-lang",
  "light-hasher",
  "light-system-program",
- "light-utils 1.1.0",
+ "light-utils",
 ]
 
 [[package]]
@@ -1684,31 +1678,13 @@ checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
 name = "e2e-test"
 version = "1.1.0"
 dependencies = [
- "account-compression",
- "anchor-lang",
- "anchor-spl",
  "light-batched-merkle-tree",
- "light-compressed-token",
- "light-concurrent-merkle-tree",
- "light-hasher",
- "light-indexed-merkle-tree",
- "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",
  "light-registry",
- "light-system-program",
  "light-test-utils",
- "light-utils 1.1.0",
- "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "rand 0.8.5",
- "reqwest",
  "solana-client",
- "solana-program-test",
  "solana-sdk",
- "spl-concurrent-merkle-tree",
- "spl-token",
  "tokio",
 ]
 
@@ -1956,7 +1932,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bb8",
- "bincode",
  "borsh 0.10.3",
  "bs58 0.5.1",
  "clap 4.5.23",
@@ -1993,7 +1968,6 @@ dependencies = [
  "solana-transaction-status",
  "thiserror 1.0.64",
  "tokio",
- "tokio-tungstenite 0.16.1",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
@@ -2007,33 +1981,22 @@ version = "1.2.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl",
- "async-trait",
  "light-batched-merkle-tree",
  "light-client",
- "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
- "light-merkle-tree-reference",
  "light-prover-client",
  "light-registry",
  "light-system-program",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "log",
- "num-bigint 0.4.6",
  "num-traits",
- "photon-api",
  "reqwest",
- "solana-client",
- "solana-program-test",
  "solana-sdk",
- "solana-transaction-status",
- "spl-token",
  "thiserror 1.0.64",
- "tokio",
 ]
 
 [[package]]
@@ -2904,7 +2867,7 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-prover-client",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "light-zero-copy",
  "rand 0.8.5",
@@ -2921,9 +2884,8 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "fastmurmur3",
- "light-utils 1.1.0",
+ "light-utils",
  "num-bigint 0.4.6",
- "num-traits",
  "rand 0.8.5",
  "solana-program",
  "thiserror 1.0.64",
@@ -2958,7 +2920,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -2980,13 +2942,12 @@ name = "light-compressed-token"
 version = "1.2.0"
 dependencies = [
  "account-compression",
- "aligned-sized",
  "anchor-lang",
  "anchor-spl",
  "light-hasher",
  "light-heap",
  "light-system-program",
- "light-utils 1.1.0",
+ "light-utils",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
@@ -3005,7 +2966,7 @@ dependencies = [
  "light-hash-set",
  "light-hasher",
  "light-merkle-tree-reference",
- "light-utils 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "light-utils",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3023,7 +2984,7 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "light-heap",
- "light-utils 1.1.0",
+ "light-utils",
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
@@ -3054,20 +3015,15 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
- "borsh 0.10.3",
- "hex",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
  "light-merkle-tree-reference",
- "light-utils 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "memoffset 0.9.1",
+ "light-utils",
  "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
- "serde",
- "serde_json",
  "solana-program",
  "thiserror 1.0.64",
 ]
@@ -3077,8 +3033,6 @@ name = "light-macros"
 version = "1.1.0"
 dependencies = [
  "bs58 0.5.1",
- "light-hasher",
- "light-utils 1.1.0",
  "proc-macro2",
  "quote",
  "syn 2.0.96",
@@ -3091,7 +3045,7 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.3",
  "bytemuck",
- "light-utils 1.1.0",
+ "light-utils",
  "solana-program",
  "thiserror 1.0.64",
  "zerocopy 0.8.14",
@@ -3101,10 +3055,8 @@ dependencies = [
 name = "light-merkle-tree-reference"
 version = "1.1.0"
 dependencies = [
- "hex",
  "light-bounded-vec",
  "light-hasher",
- "log",
  "num-bigint 0.4.6",
  "thiserror 1.0.64",
 ]
@@ -3141,7 +3093,7 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-system-program",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "log",
  "num-bigint 0.4.6",
@@ -3170,7 +3122,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
- "light-utils 1.1.0",
+ "light-utils",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3213,7 +3165,7 @@ dependencies = [
  "light-macros",
  "light-sdk-macros",
  "light-system-program",
- "light-utils 1.1.0",
+ "light-utils",
  "num-bigint 0.4.6",
  "solana-program",
  "solana-sdk",
@@ -3223,9 +3175,8 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
- "bs58 0.5.1",
  "light-hasher",
- "light-utils 1.1.0",
+ "light-utils",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -3239,14 +3190,13 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
- "groth16-solana",
  "light-batched-merkle-tree",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "rand 0.8.5",
  "solana-sdk",
@@ -3260,19 +3210,14 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
- "anyhow",
- "ark-ff",
- "async-trait",
  "create-address-test-program",
  "forester-utils",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
- "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
- "light-macros",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-program-test",
@@ -3280,24 +3225,16 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-system-program",
- "light-utils 1.1.0",
- "light-verifier",
+ "light-utils",
  "log",
- "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "num-traits",
- "photon-api",
  "rand 0.8.5",
- "reqwest",
- "serde",
- "solana-client",
  "solana-program-test",
  "solana-sdk",
- "solana-transaction-status",
  "spl-token",
  "spl-token-2022 3.0.5",
  "thiserror 1.0.64",
- "tokio",
 ]
 
 [[package]]
@@ -3320,29 +3257,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-utils"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e2b5a4959cb0456b483a20b4f3930920949137c00e76b5d0f9bf8d701a3c6a"
-dependencies = [
- "anyhow",
- "ark-bn254",
- "ark-ff",
- "light-bounded-vec",
- "num-bigint 0.4.6",
- "rand 0.8.5",
- "solana-program",
- "thiserror 1.0.64",
-]
-
-[[package]]
 name = "light-verifier"
 version = "1.1.0"
 dependencies = [
  "borsh 0.10.3",
  "groth16-solana",
  "light-prover-client",
- "light-utils 1.1.0",
+ "light-utils",
  "reqwest",
  "serial_test",
  "solana-program",
@@ -3354,7 +3275,6 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
- "num-traits",
  "rand 0.8.5",
  "solana-program",
  "thiserror 1.0.64",
@@ -4055,7 +3975,6 @@ dependencies = [
  "serde_json",
  "serde_with 3.9.0",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -4580,7 +4499,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "serial_test",
  "solana-sdk",
  "tokio",
@@ -5051,19 +4970,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
-]
-
-[[package]]
-name = "sha-1"
-version = "0.9.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99cd6713db3cf16b6c84e06321e049a9b9f699826e16096d23bbcc44d15d51a6"
-dependencies = [
- "block-buffer 0.9.0",
- "cfg-if",
- "cpufeatures",
- "digest 0.9.0",
- "opaque-debug",
 ]
 
 [[package]]
@@ -6969,15 +6875,10 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
- "num-bigint 0.4.6",
- "num-traits",
- "reqwest",
  "serial_test",
- "solana-program-test",
  "solana-sdk",
- "spl-token",
  "tokio",
 ]
 
@@ -6997,7 +6898,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "light-verifier",
  "quote",
  "serde_json",
@@ -7381,18 +7282,6 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e80b39df6afcc12cdf752398ade96a6b9e99c903dfdc36e53ad10b9c366bca72"
-dependencies = [
- "futures-util",
- "log",
- "tokio",
- "tungstenite 0.16.0",
-]
-
-[[package]]
-name = "tokio-tungstenite"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
@@ -7597,25 +7486,6 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "tungstenite"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad3713a14ae247f22a728a0456a545df14acf3867f905adff84be99e23b3ad1"
-dependencies = [
- "base64 0.13.1",
- "byteorder",
- "bytes",
- "http 0.2.12",
- "httparse",
- "log",
- "rand 0.8.5",
- "sha-1",
- "thiserror 1.0.64",
- "url",
- "utf-8",
-]
-
-[[package]]
-name = "tungstenite"
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e3dac10fd62eaf6617d3a904ae222845979aec67c615d1c842b4002c7666fb9"
@@ -7789,16 +7659,6 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
-
-[[package]]
-name = "uuid"
-version = "1.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
-dependencies = [
- "getrandom 0.2.15",
- "serde",
-]
 
 [[package]]
 name = "valuable"
@@ -8319,7 +8179,7 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-program-test",
  "light-test-utils",
- "light-utils 1.1.0",
+ "light-utils",
  "num-bigint 0.4.6",
  "quote",
  "rand 0.8.5",
