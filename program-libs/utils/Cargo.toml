@@ -28,3 +28,4 @@ light-bounded-vec = { workspace = true }
 [dev-dependencies]
 light-poseidon = { workspace = true }
 borsh = { workspace = true }
+memoffset = "0.9"
