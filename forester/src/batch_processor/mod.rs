@@ -5,8 +5,8 @@ mod state;
 
 use common::BatchProcessor;
 use error::Result;
-use forester_utils::forester_epoch::TreeType;
-use light_client::{rpc::RpcConnection, rpc_pool::RpcPool};
+use forester_utils::{forester_epoch::TreeType, rpc_pool::RpcPool};
+use light_client::rpc::RpcConnection;
 use tracing::{info, instrument};
 
 #[instrument(

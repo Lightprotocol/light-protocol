@@ -1,5 +1,4 @@
-use forester_utils::forester_epoch::TreeType;
-use light_client::rpc_pool::PoolError;
+use forester_utils::{forester_epoch::TreeType, rpc_pool::PoolError};
 use solana_client::rpc_request::RpcError;
 use thiserror::Error;
 

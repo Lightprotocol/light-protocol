@@ -1,11 +1,11 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig},
-    metrics::register_metrics,
     photon_indexer::PhotonIndexer,
     telemetry::setup_telemetry,
     ForesterConfig,
 };
+use forester_utils::metrics::helpers::register_metrics;
 use light_client::{
     indexer::{Indexer, IndexerError, NewAddressProofWithContext},
     rpc::RpcConnection,

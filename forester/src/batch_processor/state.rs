@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
-use forester_utils::instructions::{create_append_batch_ix_data, create_nullify_batch_ix_data};
+use forester_utils::{instructions::{create_append_batch_ix_data, create_nullify_batch_ix_data}, rpc_pool::RpcPool};
 use light_batched_merkle_tree::event::{BatchAppendEvent, BatchNullifyEvent};
-use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::RpcPool};
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };

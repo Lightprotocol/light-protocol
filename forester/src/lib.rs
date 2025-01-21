@@ -25,12 +25,12 @@ use std::{sync::Arc, time::Duration};
 
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use forester_utils::{forester_epoch::{TreeAccounts, TreeType}, metrics::{helpers::QUEUE_LENGTH, metrics_rpc_pool::MetricsRpcPool}};
+use forester_utils::{forester_epoch::{TreeAccounts, TreeType}, metrics::helpers::QUEUE_LENGTH, rpc_pool::{RpcPool, SolanaRpcPool}};
 use light_client::{
     indexer::Indexer,
-    rpc::{RpcConnection, SolanaRpcConnection},    
+    rpc::RpcConnection
 };
-use light_client::rpc_pool::RpcPool;
+use forester_utils::solana_rpc::SolanaRpcConnection;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
@@ -90,7 +90,7 @@ where
     R: RpcConnection,
     I: Indexer<R> + IndexerType<R>,
 {
-     let rpc_pool = MetricsRpcPool::<R>::new(
+     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,

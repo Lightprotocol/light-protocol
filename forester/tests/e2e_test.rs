@@ -5,12 +5,9 @@ use account_compression::{
     AddressMerkleTreeAccount,
 };
 use forester::{queue_helpers::fetch_queue_item_data, run_pipeline, utils::get_protocol_config};
-use forester_utils::registry::register_test_forester;
-use light_client::{
-    indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
-};
+use forester_utils::{registry::register_test_forester, rpc_pool::{RpcPool, SolanaRpcPool}, solana_rpc::SolanaRpcUrl, SolanaRpcConnection};
+use light_client::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts};
+use light_client::rpc::{RpcConnection, RpcError};
 use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::{
     spawn_prover, LightValidatorConfig, ProverConfig, ProverMode,
@@ -69,7 +66,7 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     .await
     .unwrap();
 
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    let mut rpc = SolanaRpcConnection::new_with_retry(SolanaRpcUrl::Localnet, None, None);
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)

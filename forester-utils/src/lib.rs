@@ -19,6 +19,9 @@ pub mod forester_epoch;
 pub mod instructions;
 pub mod registry;
 pub mod metrics;
+pub mod rpc_pool;
+pub mod solana_rpc;
+pub use solana_rpc::{RetryConfig, SolanaRpcConnection};
 
 pub fn create_account_instruction(
     payer: &Pubkey,

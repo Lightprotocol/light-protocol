@@ -43,7 +43,7 @@ pub use forester_utils::{
 };
 pub use light_client::{
     rpc::{
-        assert_rpc_error, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection,
+        assert_rpc_error, RpcConnection, RpcError,
     },
     transaction_params::{FeeConfig, TransactionParams},
 };

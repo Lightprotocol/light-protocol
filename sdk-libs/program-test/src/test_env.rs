@@ -18,9 +18,9 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{
-    errors::RpcError, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
-};
+use light_client::rpc::{errors::RpcError, RpcConnection};
+use forester_utils::solana_rpc::{SolanaRpcUrl, SolanaRpcConnection};
+
 use light_registry::{
     account_compression_cpi::sdk::get_registered_program_pda,
     protocol_config::state::ProtocolConfig,

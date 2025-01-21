@@ -26,9 +26,15 @@ use solana_transaction_status::{
 };
 use tokio::time::{sleep, Instant};
 
-use crate::{
+use light_client::{
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
-    transaction_params::TransactionParams,
+    transaction_params::TransactionParams
+};
+    
+use crate::metrics::{
+    RPC_REQUESTS_TOTAL,
+    RPC_REQUEST_DURATION,
+    RPC_REQUEST_ERRORS,
 };
 
 pub enum SolanaRpcUrl {
@@ -89,6 +95,64 @@ impl Debug for SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
+    // Add helper method for measuring requests
+    async fn measure_request<T, F, Fut>(&self, method: &str, f: F) -> Result<T, RpcError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = Result<T, RpcError>>,
+    {
+        let start = Instant::now();
+        let result = f().await;
+        let duration = start.elapsed().as_secs_f64();
+
+        match &result {
+            Ok(_) => {
+                RPC_REQUESTS_TOTAL.with_label_values(&[method, "success"]).inc();
+            }
+            Err(e) => {
+                RPC_REQUESTS_TOTAL.with_label_values(&[method, "error"]).inc();
+                RPC_REQUEST_ERRORS
+                    .with_label_values(&[method, &e.to_string()])
+                    .inc();
+            }
+        }
+        RPC_REQUEST_DURATION.with_label_values(&[method]).observe(duration);
+        
+        result
+    }
+
+    // Modify retry logic to use measured requests
+    pub async fn retry<F, Fut, T>(&self, method: &str, operation: F) -> Result<T, RpcError>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<T, RpcError>>,
+    {
+        let mut attempts = 0;
+        let start_time = Instant::now();
+        
+        loop {
+            match self.measure_request(method, &operation).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    attempts += 1;
+                    if attempts >= self.retry_config.max_retries 
+                        || start_time.elapsed() >= self.retry_config.timeout 
+                    {
+                        return Err(e);
+                    }
+                    warn!(
+                        "Operation {} failed, retrying in {:?} (attempt {}/{}): {:?}",
+                        method, self.retry_config.retry_delay, attempts, 
+                        self.retry_config.max_retries, e
+                    );
+                    sleep(self.retry_config.retry_delay).await;
+                }
+            }
+        }
+    }
+}
+
+impl SolanaRpcConnection {
     pub fn new_with_retry<U: ToString>(
         url: U,
         commitment_config: Option<CommitmentConfig>,
@@ -102,33 +166,6 @@ impl SolanaRpcConnection {
             client,
             payer,
             retry_config,
-        }
-    }
-
-    pub async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
-    where
-        F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<T, RpcError>>,
-    {
-        let mut attempts = 0;
-        let start_time = Instant::now();
-        loop {
-            match operation().await {
-                Ok(result) => return Ok(result),
-                Err(e) => {
-                    attempts += 1;
-                    if attempts >= self.retry_config.max_retries
-                        || start_time.elapsed() >= self.retry_config.timeout
-                    {
-                        return Err(e);
-                    }
-                    warn!(
-                        "Operation failed, retrying in {:?} (attempt {}/{}): {:?}",
-                        self.retry_config.retry_delay, attempts, self.retry_config.max_retries, e
-                    );
-                    sleep(self.retry_config.retry_delay).await;
-                }
-            }
         }
     }
 }
@@ -217,17 +254,17 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn health(&self) -> Result<(), RpcError> {
-        self.retry(|| async { self.client.get_health().map_err(RpcError::from) })
+        self.retry("health", || async { self.client.get_health().map_err(RpcError::from) })
             .await
     }
 
     async fn get_block_time(&self, slot: u64) -> Result<UnixTimestamp, RpcError> {
-        self.retry(|| async { self.client.get_block_time(slot).map_err(RpcError::from) })
+        self.retry("get_block_time", || async { self.client.get_block_time(slot).map_err(RpcError::from) })
             .await
     }
 
     async fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
-        self.retry(|| async { self.client.get_epoch_info().map_err(RpcError::from) })
+        self.retry("get_epoch_info", || async { self.client.get_epoch_info().map_err(RpcError::from) })
             .await
     }
 
@@ -235,7 +272,7 @@ impl RpcConnection for SolanaRpcConnection {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
-        self.retry(|| async {
+        self.retry("get_program_accounts", || async {
             self.client
                 .get_program_accounts(program_id)
                 .map_err(RpcError::from)
@@ -247,7 +284,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry("process_transaction", || async {
             self.client
                 .send_and_confirm_transaction(&transaction)
                 .map_err(RpcError::from)
@@ -259,7 +296,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
-        self.retry(|| async {
+        self.retry("process_transaction_with_context", || async {
             let signature = self.client.send_and_confirm_transaction(&transaction)?;
             let sig_info = self.client.get_signature_statuses(&[signature])?;
             let slot = sig_info
@@ -356,7 +393,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
-        self.retry(|| async {
+        self.retry("confirm_transaction", || async {
             self.client
                 .confirm_transaction(&signature)
                 .map_err(RpcError::from)
@@ -365,7 +402,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        self.retry(|| async {
+        self.retry("get_account", || async {
             self.client
                 .get_account_with_commitment(&address, self.client.commitment())
                 .map(|response| response.value)
@@ -382,7 +419,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         data_len: usize,
     ) -> Result<u64, RpcError> {
-        self.retry(|| async {
+        self.retry("get_minimum_balance_for_rent_exemption", || async {
             self.client
                 .get_minimum_balance_for_rent_exemption(data_len)
                 .map_err(RpcError::from)
@@ -395,12 +432,12 @@ impl RpcConnection for SolanaRpcConnection {
         to: &Pubkey,
         lamports: u64,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry("request_airdrop", || async {
             let signature = self
                 .client
                 .request_airdrop(to, lamports)
                 .map_err(RpcError::ClientError)?;
-            self.retry(|| async {
+            self.retry("confirm_transaction_with_commitment", || async {
                 if self
                     .client
                     .confirm_transaction_with_commitment(&signature, self.client.commitment())?
@@ -419,26 +456,29 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_balance(pubkey).map_err(RpcError::from) })
-            .await
+        self.retry("get_balance", || async {
+            self.client.get_balance(pubkey).map_err(RpcError::from)
+        }).await
     }
 
+
     async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.retry(|| async {
+        self.retry("get_latest_blockhash", || async {
             self.client
                 // Confirmed commitments land more reliably than finalized
                 // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
                 .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
                 .map(|response| response.0)
                 .map_err(RpcError::from)
-        })
-        .await
+        }).await
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
-            .await
+        self.retry("get_slot", || async { 
+            self.client.get_slot().map_err(RpcError::from)
+        }).await
     }
+
 
     async fn warp_to_slot(&mut self, _slot: Slot) -> Result<(), RpcError> {
         Err(RpcError::CustomError(
@@ -447,7 +487,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry("send_transaction", || async {
             self.client
                 .send_transaction_with_config(
                     transaction,
@@ -466,7 +506,7 @@ impl RpcConnection for SolanaRpcConnection {
         transaction: &Transaction,
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry("send_transaction_with_config", || async {
             self.client
                 .send_transaction_with_config(transaction, config)
                 .map_err(RpcError::from)
@@ -475,7 +515,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
-        self.retry(|| async {
+        self.retry("get_transaction_slot", || async {
             Ok(self
                 .client
                 .get_transaction_with_config(
@@ -492,7 +532,7 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
     async fn get_block_height(&mut self) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
+        self.retry("get_block_height", || async { self.client.get_block_height().map_err(RpcError::from) })
             .await
     }
 }

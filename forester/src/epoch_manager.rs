@@ -9,12 +9,11 @@ use anyhow::Context;
 use dashmap::DashMap;
 use forester_utils::{forester_epoch::{
     get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-}, metrics::helpers::{push_metrics, queue_metric_update, update_forester_sol_balance}};
+}, metrics::helpers::{push_metrics, queue_metric_update, update_forester_sol_balance}, rpc_pool::RpcPool, RetryConfig, SolanaRpcConnection};
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
-    rpc_pool::RpcPool,
+    rpc::{RpcConnection, RpcError},
 };
 use light_registry::{
     protocol_config::state::ProtocolConfig,

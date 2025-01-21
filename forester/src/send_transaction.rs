@@ -5,13 +5,13 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::{forester_epoch::{TreeAccounts, TreeType}, rpc_pool::RpcPool};
 use futures::future::join_all;
 use light_client::{
     indexer::Indexer,
-    rpc::{RetryConfig, RpcConnection},
-    rpc_pool::RpcPool,
+    rpc::RpcConnection,
 };
+use forester_utils::solana_rpc::RetryConfig;
 use light_registry::{
     account_compression_cpi::sdk::{
         create_nullify_instruction, create_update_address_merkle_tree_instruction,

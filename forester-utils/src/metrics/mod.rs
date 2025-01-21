@@ -1,6 +1,4 @@
 pub mod helpers;
-pub mod metrics_rpc_connection;
-pub mod metrics_rpc_pool;
 
 pub use helpers::{
     RPC_REQUESTS_TOTAL,

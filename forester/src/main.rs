@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use clap::Parser;
 use forester::{
-    cli::{Cli, Commands}, errors::ForesterError, forester_status, metrics::register_metrics, metrics_rpc_connection::MetricsRpcConnection, photon_indexer::PhotonIndexer, run_pipeline, telemetry::setup_telemetry, ForesterConfig
+    cli::{Cli, Commands}, errors::ForesterError, forester_status, photon_indexer::PhotonIndexer, run_pipeline, telemetry::setup_telemetry, ForesterConfig
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use forester_utils::{metrics::helpers::register_metrics, SolanaRpcConnection};
 use tokio::{
     signal::ctrl_c,
     sync::{mpsc, oneshot},
@@ -41,9 +41,10 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            let indexer_rpc = MetricsRpcConnection::new(
+            let indexer_rpc = SolanaRpcConnection::new_with_retry(
                 config.external_services.rpc_url.clone(),
-                None
+                None,
+                None,
             );
             
             let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
@@ -52,7 +53,7 @@ async fn main() -> Result<(), ForesterError> {
                 indexer_rpc,
             )));
 
-            run_pipeline::<MetricsRpcConnection<SolanaRpcConnection>, PhotonIndexer<MetricsRpcConnection<SolanaRpcConnection>>>(
+            run_pipeline::<SolanaRpcConnection, PhotonIndexer<SolanaRpcConnection>>(
                 config,
                 indexer,
                 shutdown_receiver,

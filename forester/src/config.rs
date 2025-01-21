@@ -6,9 +6,9 @@ use account_compression::{
 };
 use anchor_lang::Id;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
-use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
 use solana_sdk::signature::Keypair;
+use forester_utils::RetryConfig;
 
 use crate::{
     cli::{StartArgs, StatusArgs},

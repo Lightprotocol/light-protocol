@@ -1,11 +1,10 @@
 use borsh::BorshSerialize;
-use forester_utils::instructions::create_batch_update_address_tree_instruction_data;
+use forester_utils::{instructions::create_batch_update_address_tree_instruction_data, rpc_pool::RpcPool};
 use light_batched_merkle_tree::event::BatchNullifyEvent;
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
-use light_client::rpc_pool::RpcPool;
 use super::common::BatchContext;
 use crate::{
     batch_processor::error::{BatchProcessError, Result},

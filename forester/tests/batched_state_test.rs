@@ -1,15 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester_utils::{registry::{register_test_forester, update_test_forester}, rpc_pool::{RpcPool, SolanaRpcPool}, solana_rpc::SolanaRpcUrl, SolanaRpcConnection};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_client::{
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
-};
+use light_client::rpc::RpcConnection;
 use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::LightValidatorConfig;
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
