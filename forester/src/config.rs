@@ -13,6 +13,7 @@ use solana_sdk::signature::Keypair;
 use crate::{
     cli::{StartArgs, StatusArgs},
     errors::ConfigError,
+    send_transaction::TransactionMode,
     Result,
 };
 
@@ -61,6 +62,7 @@ pub struct TransactionConfig {
     pub batch_size: usize,
     pub max_concurrent_batches: usize,
     pub cu_limit: u32,
+    pub mode: TransactionMode,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +99,7 @@ impl Default for TransactionConfig {
             batch_size: 1,
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
+            mode: Default::default(),
         }
     }
 }
@@ -142,6 +145,9 @@ impl ForesterConfig {
             .clone()
             .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
 
+        let transaction_mode = TransactionMode::from_str(&args.transaction_mode)
+            .map_err(|reason| ConfigError::InvalidTransactionMode { reason })?;
+
         Ok(Self {
             external_services: ExternalServicesConfig {
                 rpc_url,
@@ -171,6 +177,7 @@ impl ForesterConfig {
                 batch_size: args.transaction_batch_size,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
                 cu_limit: args.cu_limit,
+                mode: transaction_mode,
             },
             general_config: GeneralConfig {
                 rpc_pool_size: args.rpc_pool_size,

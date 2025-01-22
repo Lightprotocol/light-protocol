@@ -345,16 +345,6 @@ impl RpcConnection for SolanaRpcConnection {
         let result = parsed_event.map(|e| (e, signature, slot));
         Ok(result)
     }
-    async fn get_signature_statuses(
-        &self,
-        signatures: &[Signature],
-    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
-        self.client
-            .get_signature_statuses(signatures)
-            .map(|response| response.value)
-            .map_err(RpcError::from)
-    }
-
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
         self.retry(|| async {
             self.client
@@ -435,6 +425,18 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
 
+    async fn get_latest_blockheight(&mut self) -> Result<u64, RpcError> {
+        self.retry(|| async {
+            self.client
+                // Confirmed commitments land more reliably than finalized
+                // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
+                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+                .map(|response| response.1)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
         self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
             .await
@@ -461,6 +463,7 @@ impl RpcConnection for SolanaRpcConnection {
         })
         .await
     }
+
     async fn send_transaction_with_config(
         &self,
         transaction: &Transaction,
@@ -473,7 +476,6 @@ impl RpcConnection for SolanaRpcConnection {
         })
         .await
     }
-
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
         self.retry(|| async {
             Ok(self
@@ -491,9 +493,23 @@ impl RpcConnection for SolanaRpcConnection {
         })
         .await
     }
+
+    async fn get_signature_statuses(
+        &self,
+        signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
+        self.client
+            .get_signature_statuses(signatures)
+            .map(|response| response.value)
+            .map_err(RpcError::from)
+    }
     async fn get_block_height(&mut self) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
-            .await
+        self.retry(|| async {
+            self.client
+                .get_block_height_with_commitment(CommitmentConfig::confirmed())
+                .map_err(RpcError::from)
+        })
+        .await
     }
 }
 

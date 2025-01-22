@@ -292,6 +292,10 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 
+    async fn get_latest_blockheight(&mut self) -> Result<u64, RpcError> {
+        unimplemented!("get_latest_blockheight is unimplemented for ProgramTestRpcConnection")
+    }
+
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
         self.context
             .banks_client

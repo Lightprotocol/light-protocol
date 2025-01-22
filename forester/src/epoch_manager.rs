@@ -717,7 +717,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
         let slot = rpc.get_slot().await?;
         let trees = self.trees.lock().await;
-        info!("Adding schedule for trees: {:?}", *trees);
         epoch_info.add_trees_with_schedule(&trees, slot);
         info!("Finished waiting for active phase");
         Ok(epoch_info)
@@ -748,10 +747,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
-        info!(
-            "Creating threads for tree processing. Trees: {:?}",
-            epoch_info.trees
-        );
         for tree in epoch_info.trees.iter() {
             info!(
                 "Creating thread for tree {}",
@@ -816,7 +811,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         mut tree: TreeForesterSchedule,
     ) -> Result<()> {
         info!("enter process_queue");
-        info!("Tree schedule slots: {:?}", tree.slots);
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
@@ -931,6 +925,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         },
 
                         light_slot_length: epoch_pda.protocol_config.slot_length,
+                        transaction_mode: self.config.transaction_config.mode,
                     };
 
                     let transaction_builder = EpochManagerTransactions {
@@ -1182,7 +1177,6 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                 let rpc = rpc_pool.get_connection().await?;
                 fetch_trees(&*rpc).await?
             };
-            info!("Fetched initial trees: {:?}", trees);
 
             let (new_tree_sender, _) = broadcast::channel(100);
 

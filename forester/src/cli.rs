@@ -66,7 +66,7 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
-    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "20")]
+    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "60")]
     pub rpc_pool_size: usize,
 
     #[arg(
@@ -111,6 +111,9 @@ pub struct StartArgs {
         default_value = "28807"
     )]
     pub address_queue_processing_length: u16,
+
+    #[arg(long, env = "FORESTER_TRANSACTION_MODE", default_value = "simple")]
+    pub transaction_mode: String, // Can be "simple" or "smart"
 }
 
 #[derive(Parser, Clone, Debug)]

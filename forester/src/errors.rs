@@ -108,6 +108,9 @@ pub enum ConfigError {
     #[error("Invalid derivation: {reason}")]
     InvalidDerivation { reason: String },
 
+    #[error("Invalid transaction mode: {reason}")]
+    InvalidTransactionMode { reason: String },
+
     #[error("JSON parsing error: {field} - {error}")]
     JsonParse { field: &'static str, error: String },
 }
