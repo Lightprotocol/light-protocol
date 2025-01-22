@@ -46,9 +46,7 @@ use crate::{
         GetPriorityFeeEstimateResponse, RpcRequest, RpcResponse,
     },
     queue_helpers::fetch_queue_item_data,
-    smart_transaction::{
-        create_smart_transaction, send_and_confirm_transaction, CreateSmartTransactionConfig,
-    },
+    smart_transaction::{create_smart_transaction, CreateSmartTransactionConfig},
     Result,
 };
 #[async_trait]
@@ -254,42 +252,34 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 preflight_commitment: Some(CommitmentLevel::Confirmed),
                 ..Default::default()
             };
-            // Send and confirm all transactions in the batch non-blocking.
-            let send_futures: Vec<_> = transactions
-                .into_iter()
-                .map(|tx| {
-                    let pool_clone = Arc::clone(&pool);
-                    async move {
-                        match pool_clone.get_connection().await {
-                            Ok(mut rpc) => {
-                                send_and_confirm_transaction(
-                                    &mut rpc,
-                                    &tx,
-                                    send_transaction_config,
-                                    last_valid_block_height,
-                                    config.retry_config.timeout,
-                                )
-                                .await
-                            }
-                            Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
-                                "Failed to get RPC connection: {}",
-                                e
-                            ))),
+            // Asynchronously send all transactions in the batch
+            let pool_clone = Arc::clone(&pool);
+            let send_futures = transactions.into_iter().map(move |tx| {
+                let pool_clone = Arc::clone(&pool_clone);
+                tokio::spawn(async move {
+                    match pool_clone.get_connection().await {
+                        Ok(mut rpc) => {
+                            let result = rpc
+                                .process_transaction_with_config(tx, send_transaction_config)
+                                .await;
+                            println!("tx result: {:?}", result);
+                            result
                         }
+                        Err(e) => Err(light_client::rpc::RpcError::CustomError(format!(
+                            "Failed to get RPC connection: {}",
+                            e
+                        ))),
                     }
                 })
-                .collect();
-
+            });
             let results = join_all(send_futures).await;
 
-            // Evaluate results
+            // Process results
             for result in results {
                 match result {
-                    Ok(signature) => {
-                        num_sent_transactions += 1;
-                        println!("Transaction sent: {:?}", signature);
-                    }
-                    Err(e) => warn!("Transaction failed: {:?}", e),
+                    Ok(Ok(_)) => num_sent_transactions += 1,
+                    Ok(Err(e)) => warn!("Transaction failed: {:?}", e),
+                    Err(e) => warn!("Task failed: {:?}", e),
                 }
             }
 

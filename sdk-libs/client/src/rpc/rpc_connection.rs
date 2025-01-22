@@ -43,6 +43,12 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError>;
 
+    async fn process_transaction_with_config(
+        &mut self,
+        transaction: Transaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError>;
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],
