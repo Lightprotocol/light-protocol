@@ -4,6 +4,7 @@ use account_compression::utils::constants::{
     ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG, ADDRESS_QUEUE_VALUES,
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
+use anyhow::anyhow;
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use futures::future::join_all;
@@ -35,7 +36,7 @@ use tokio::{
     sync::Mutex,
     time::{sleep, Instant},
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 use url::Url;
 
 use crate::{
@@ -205,50 +206,12 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         // 4. Fetch recent confirmed blockhash.
         // A blockhash is valid for 150 blocks.
         let recent_blockhash = rpc.get_latest_blockhash().await?;
-        // let current_block_height = rpc.get_latest_blockheight().await?;
-        // let last_valid_block_height = current_block_height + 150;
-        // info!(
-        //     "Current block height: {}, last valid block height: {}",
-        //     current_block_height, last_valid_block_height
-        // );
-
         let current_slot = rpc.get_slot().await?;
         let last_valid_slot = current_slot + 150; // 150 slots validity window
         info!(
             "Current slot: {}, last valid slot: {}",
             current_slot, last_valid_slot
         );
-
-        // let forester_epoch_pda_pubkey =
-        //     get_forester_epoch_pda_from_authority(derivation, transaction_builder.epoch()).0;
-        // // Get the priority fee estimate based on write-locked accounts
-        // let account_keys = vec![
-        //     payer.pubkey(),
-        //     forester_epoch_pda_pubkey,
-        //     tree_accounts.queue,
-        //     tree_accounts.merkle_tree,
-        // ];
-        // let url = Url::parse(&rpc.get_url()).expect("Failed to parse URL");
-        // let priority_fee_recommendation: u64 =
-        //     request_priority_fee_estimate(&url, account_keys).await?;
-        //
-        // // Cap the priority fee and CU usage with buffer.
-        // let cap_config = CapConfig {
-        //     rec_fee_microlamports_per_cu: priority_fee_recommendation,
-        //     min_fee_lamports: config
-        //         .build_transaction_batch_config
-        //         .compute_unit_price
-        //         .unwrap_or(10_000),
-        //     max_fee_lamports: config
-        //         .build_transaction_batch_config
-        //         .compute_unit_price
-        //         .unwrap_or(100_000),
-        //     compute_unit_limit: config
-        //         .build_transaction_batch_config
-        //         .compute_unit_limit
-        //         .unwrap_or(200_000) as u64,
-        // };
-        // let priority_fee = get_capped_priority_fee(cap_config);
 
         // 5. Iterate over work items in chunks of batch size.
         for work_items in
@@ -690,7 +653,8 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
 /// Request priority fee estimate from Helius RPC endpoint
 pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>) -> Result<u64> {
-    if url.host_str() == Some("localhost") {
+    if !url.host_str().map_or(false, |h| h.contains("mainnet")) {
+        debug!("Using default priority fee for non-mainnet environment");
         return Ok(10_000);
     }
 
@@ -719,6 +683,11 @@ pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>)
         }),
     );
 
+    debug!(
+        "Sending RPC request: {}",
+        serde_json::to_string_pretty(&rpc_request)?
+    );
+
     let client = reqwest::Client::new();
     let response = client
         .post(url.clone())
@@ -728,20 +697,25 @@ pub async fn request_priority_fee_estimate(url: &Url, account_keys: Vec<Pubkey>)
         .await?;
 
     let response_text = response.text().await?;
+    debug!("Received response: {}", response_text);
 
-    let response: RpcResponse<GetPriorityFeeEstimateResponse> =
-        serde_json::from_str(&response_text)?;
-
-    response
-        .result
-        .priority_fee_estimate
-        .map(|estimate| estimate as u64)
-        .ok_or(
-            ForesterError::General {
-                error: "Priority fee estimate not available".to_string(),
-            }
-            .into(),
-        )
+    match serde_json::from_str::<RpcResponse<GetPriorityFeeEstimateResponse>>(&response_text) {
+        Ok(parsed_response) => parsed_response
+            .result
+            .priority_fee_estimate
+            .map(|estimate| estimate as u64)
+            .ok_or_else(|| {
+                ForesterError::General {
+                    error: "Priority fee estimate not available".to_string(),
+                }
+                .into()
+            }),
+        Err(e) => {
+            error!("Failed to parse response: {}", e);
+            error!("Response text was: {}", response_text);
+            Err(anyhow!("Failed to parse response: {}", e))
+        }
+    }
 }
 
 /// Get capped priority fee for transaction between min and max.
