@@ -30,7 +30,7 @@ describe('rpc-multi-trees', () => {
             await rpc.getCachedActiveStateTreeInfo(),
         );
 
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
+        payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
