@@ -30,7 +30,6 @@ export type PackCompressedTokenAccountsParams = {
     tokenTransferOutputs: TokenTransferOutputData[];
 };
 
-// TODO: include owner and lamports in packing.
 /**
  * Packs Compressed Token Accounts.
  */

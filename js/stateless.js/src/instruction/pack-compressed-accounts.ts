@@ -6,7 +6,6 @@ import {
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
-import { defaultTestStateTreeAccounts } from '../constants';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not
@@ -26,7 +25,22 @@ export function getIndexOrAdd(
     return index;
 }
 
-/** @internal */
+/**
+ * @internal
+ * Pads output state trees with the 0th state tree of the input state.
+ *
+ * @param outputStateMerkleTrees            Optional output state trees to be
+ *                                          inserted into the output state.
+ *                                          Defaults to the 0th state tree of
+ *                                          the input state. Gets padded to the
+ *                                          length of outputCompressedAccounts.
+ * @param numberOfOutputCompressedAccounts  The number of output compressed
+ *                                          accounts.
+ * @param inputCompressedAccountsWithMerkleContext The input compressed accounts
+ *                                          with merkle context.
+ *
+ * @returns Padded output state trees.
+ */
 export function padOutputStateMerkleTrees(
     outputStateMerkleTrees: PublicKey[] | PublicKey | undefined,
     numberOfOutputCompressedAccounts: number,
@@ -39,8 +53,8 @@ export function padOutputStateMerkleTrees(
     /// Default: use the 0th state tree of input state for all output accounts
     if (outputStateMerkleTrees === undefined) {
         if (inputCompressedAccountsWithMerkleContext.length === 0) {
-            return new Array(numberOfOutputCompressedAccounts).fill(
-                defaultTestStateTreeAccounts().merkleTree,
+            throw new Error(
+                'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
             );
         }
         return new Array(numberOfOutputCompressedAccounts).fill(
@@ -73,11 +87,11 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
     );
 }
 
-// TODO: include owner and lamports in packing.
 /**
  * Packs Compressed Accounts.
  *
  * Replaces PublicKey with index pointer to remaining accounts.
+ *
  *
  * @param inputCompressedAccounts           Ix input state to be consumed
  * @param inputStateRootIndices             The recent state root indices of the
@@ -142,6 +156,14 @@ export function packCompressedAccounts(
         });
     });
 
+    if (
+        outputStateMerkleTrees === undefined &&
+        inputCompressedAccounts.length === 0
+    ) {
+        throw new Error(
+            'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
+        );
+    }
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         outputStateMerkleTrees,

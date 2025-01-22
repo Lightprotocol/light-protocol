@@ -14,14 +14,14 @@ import {
     decodePublicTransactionEvent,
     invokeAccountsLayout,
 } from '../../src/programs/layout';
-import { InstructionDataInvoke, PublicTransactionEvent } from '../../src/state';
-import { Buffer } from 'buffer';
+import { PublicTransactionEvent } from '../../src/state';
+
 import {
     defaultStaticAccountsStruct,
     IDL,
-    LightSystemProgram,
     LightSystemProgramIDL,
 } from '../../src';
+import { LightSystemProgram } from '../../src/programs/system';
 
 const getTestProgram = (): Program<LightSystemProgramIDL> => {
     const mockKeypair = Keypair.generate();
@@ -273,6 +273,7 @@ describe('layout', () => {
             defaultStaticAccountsStruct().accountCompressionAuthority;
         const accountCompressionProgram =
             defaultStaticAccountsStruct().accountCompressionProgram;
+
         const solPoolPda = LightSystemProgram.deriveCompressedSolPda();
         const decompressionRecipient =
             LightSystemProgram.deriveCompressedSolPda();

@@ -95,7 +95,15 @@ describe('decompress', () => {
             charlie.publicKey,
         );
 
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(1000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
     });
 
     const LOOP = 10;

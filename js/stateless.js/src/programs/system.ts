@@ -316,6 +316,7 @@ export class LightSystemProgram {
             lamports,
             inputCompressedAccounts,
         );
+
         /// Pack accounts
         const {
             packedInputCompressedAccounts,
@@ -470,7 +471,7 @@ export class LightSystemProgram {
             ...defaultStaticAccountsStruct(),
             feePayer: payer,
             authority: payer,
-            solPoolPda: this.deriveCompressedSolPda(),
+            solPoolPda: LightSystemProgram.deriveCompressedSolPda(),
             decompressionRecipient: null,
             systemProgram: SystemProgram.programId,
         });
@@ -532,7 +533,7 @@ export class LightSystemProgram {
             ...defaultStaticAccountsStruct(),
             feePayer: payer,
             authority: payer,
-            solPoolPda: this.deriveCompressedSolPda(),
+            solPoolPda: LightSystemProgram.deriveCompressedSolPda(),
             decompressionRecipient: toAddress,
             systemProgram: SystemProgram.programId,
         });

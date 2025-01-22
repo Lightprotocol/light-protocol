@@ -1,6 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
+import { ActiveTreeBundle, TreeType } from './state/types';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -49,6 +50,71 @@ export const defaultStaticAccountsStruct = () => {
     };
 };
 
+export type StateTreeLUTPair = {
+    stateTreeLookupTable: PublicKey;
+    nullifyTable: PublicKey;
+};
+
+/**
+ * Returns the Default Public State Tree LUTs for Devnet and Mainnet-Beta.
+ */
+export const defaultStateTreeLookupTables = (): {
+    mainnet: StateTreeLUTPair[];
+    devnet: StateTreeLUTPair[];
+} => {
+    return {
+        mainnet: [
+            {
+                stateTreeLookupTable: new PublicKey(
+                    stateTreeLookupTableMainnet,
+                ),
+                nullifyTable: new PublicKey(
+                    nullifiedStateTreeLookupTableMainnet,
+                ),
+            },
+        ],
+        devnet: [
+            {
+                stateTreeLookupTable: new PublicKey(stateTreeLookupTableDevnet),
+                nullifyTable: new PublicKey(
+                    nullifiedStateTreeLookupTableDevnet,
+                ),
+            },
+        ],
+    };
+};
+
+/**
+ * @internal
+ */
+export const isLocalTest = (url: string) => {
+    return url.includes('localhost') || url.includes('127.0.0.1');
+};
+
+/**
+ * @internal
+ */
+export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+    return [
+        {
+            tree: new PublicKey(merkletreePubkey),
+            queue: new PublicKey(nullifierQueuePubkey),
+            cpiContext: new PublicKey(cpiContextPubkey),
+            treeType: TreeType.State,
+        },
+        {
+            tree: new PublicKey(merkleTree2Pubkey),
+            queue: new PublicKey(nullifierQueue2Pubkey),
+            cpiContext: new PublicKey(cpiContext2Pubkey),
+            treeType: TreeType.State,
+        },
+    ];
+};
+
+/**
+ * Use only with Localnet testing.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getLightStateTreeInfo}.
+ */
 export const defaultTestStateTreeAccounts = () => {
     return {
         nullifierQueue: new PublicKey(nullifierQueuePubkey),
@@ -59,12 +125,38 @@ export const defaultTestStateTreeAccounts = () => {
     };
 };
 
+/**
+ * @internal testing only
+ */
+export const defaultTestStateTreeAccounts2 = () => {
+    return {
+        nullifierQueue2: new PublicKey(nullifierQueue2Pubkey),
+        merkleTree2: new PublicKey(merkleTree2Pubkey),
+    };
+};
+
+export const stateTreeLookupTableMainnet =
+    '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
+export const nullifiedStateTreeLookupTableMainnet =
+    'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
+
+export const stateTreeLookupTableDevnet =
+    '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
+export const nullifiedStateTreeLookupTableDevnet =
+    '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
+
 export const nullifierQueuePubkey =
     'nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148';
+export const cpiContextPubkey = 'cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4';
 
 export const merkletreePubkey = 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT';
 export const addressTree = 'amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2';
 export const addressQueue = 'aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F';
+
+export const merkleTree2Pubkey = 'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
+export const nullifierQueue2Pubkey =
+    'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
+export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

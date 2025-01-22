@@ -3,6 +3,32 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { NewAddressParamsPacked } from '../utils';
 
+export enum TreeType {
+    /**
+     * v1 state merkle tree
+     */
+    State = 0,
+    /**
+     * v1 address merkle tree
+     */
+    Address = 1,
+    /**
+     * v2 state merkle tree
+     */
+    BatchedState = 2,
+    /**
+     * v2 address merkle tree
+     */
+    BatchedAddress = 3,
+}
+
+export type ActiveTreeBundle = {
+    tree: PublicKey;
+    queue: PublicKey | null;
+    cpiContext: PublicKey | null;
+    treeType: TreeType;
+};
+
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
     merkleContext: PackedMerkleContext;

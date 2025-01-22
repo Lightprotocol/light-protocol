@@ -9,7 +9,7 @@ import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
-import { Rpc } from '../rpc';
+import { pickRandomTreeAndQueue, Rpc } from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -55,6 +55,12 @@ export async function createAccount(
 
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, addressTree);
+
+    if (!outputStateTree) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
+        outputStateTree = tree;
+    }
 
     const proof = await rpc.getValidityProofV0(undefined, [
         {
@@ -133,6 +139,12 @@ export async function createAccountWithLamports(
         compressedAccounts.items,
         lamports,
     );
+
+    if (!outputStateTree) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
+        outputStateTree = tree;
+    }
 
     const { blockhash } = await rpc.getLatestBlockhash();
 

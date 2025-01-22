@@ -27,7 +27,11 @@ import {
  * @param decimals        Location of the decimal place
  * @param keypair         Optional keypair, defaulting to a new random one
  * @param confirmOptions  Options for confirming the transaction
- * @param isToken22       Whether to create a Token 2022 mint. Defaults to false.
+ * @param tokenProgramId  Program ID for the token. Defaults to
+ *                        TOKEN_PROGRAM_ID. You can pass in a boolean to
+ *                        automatically resolve to TOKEN_2022_PROGRAM_ID if
+ *                        true, or TOKEN_PROGRAM_ID if false.
+ * @param freezeAuthority Account that will control freeze and thaw. Defaults to null.
  *
  * @return Address of the new mint and the transaction signature
  */
@@ -38,21 +42,28 @@ export async function createMint(
     decimals: number,
     keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
-    isToken22 = false,
+    tokenProgramId?: PublicKey | boolean,
+    freezeAuthority?: PublicKey,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
 
-    const tokenProgramId = isToken22 ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
+    // If true, uses TOKEN_2022_PROGRAM_ID.
+    // If false or undefined, defaults to TOKEN_PROGRAM_ID.
+    // Otherwise, uses the provided tokenProgramId.
+    const resolvedTokenProgramId =
+        tokenProgramId === true
+            ? TOKEN_2022_PROGRAM_ID
+            : tokenProgramId || TOKEN_PROGRAM_ID;
 
     const ixs = await CompressedTokenProgram.createMint({
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,
         authority: mintAuthority,
-        freezeAuthority: null, // TODO: add feature
+        freezeAuthority: freezeAuthority || null,
         rentExemptBalance,
-        tokenProgramId,
+        tokenProgramId: resolvedTokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

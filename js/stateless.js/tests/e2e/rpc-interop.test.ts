@@ -1,6 +1,6 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
-import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
@@ -34,7 +34,13 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        await compress(
+            rpc,
+            payer,
+            1e9,
+            payer.publicKey,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
         executedTxs++;
     });
 
@@ -164,6 +170,9 @@ describe('rpc-interop', () => {
             payer,
             newAddressSeedsTest,
             LightSystemProgram.programId,
+            undefined,
+            undefined,
+            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
 
@@ -174,6 +183,9 @@ describe('rpc-interop', () => {
             payer,
             newAddressSeeds,
             LightSystemProgram.programId,
+            undefined,
+            undefined,
+            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
     });
@@ -302,6 +314,9 @@ describe('rpc-interop', () => {
             ],
             0,
             LightSystemProgram.programId,
+            undefined,
+            undefined,
+            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
     });
@@ -521,7 +536,13 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        await compress(
+            rpc,
+            payer,
+            1e9,
+            payer.publicKey,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -639,7 +660,15 @@ describe('rpc-interop', () => {
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const address = deriveAddress(seed, addressTree);
 
-        await createAccount(rpc, payer, seeds, LightSystemProgram.programId);
+        await createAccount(
+            rpc,
+            payer,
+            seeds,
+            LightSystemProgram.programId,
+            undefined,
+            undefined,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
@@ -672,6 +701,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             addressTree,
             addressQueue,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         // fetch the owners latest account

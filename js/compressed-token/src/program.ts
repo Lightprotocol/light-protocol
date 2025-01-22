@@ -656,6 +656,7 @@ export class CompressedTokenProgram {
                 'Amount and toPubkey arrays must have the same length',
             );
         }
+
         const keys = mintToAccountsLayout({
             mint,
             feePayer,

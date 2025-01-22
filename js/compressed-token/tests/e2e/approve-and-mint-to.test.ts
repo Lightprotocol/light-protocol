@@ -15,6 +15,7 @@ import {
     newAccountWithLamports,
     sendAndConfirmTx,
     getTestRpc,
+    defaultTestStateTreeAccounts,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
@@ -90,6 +91,7 @@ describe('approveAndMintTo', () => {
             bob,
             mintAuthority,
             1000000000,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
@@ -123,6 +125,7 @@ describe('approveAndMintTo', () => {
             bob,
             token22MintAuthority,
             1000000000,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);

@@ -123,7 +123,15 @@ describe('compress', () => {
             bob.publicKey,
         );
 
-        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(10000));
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(10000),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
 
@@ -151,7 +159,7 @@ describe('compress', () => {
             bob,
             bobAta,
             charlie.publicKey,
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
         await assertCompress(
             rpc,
@@ -188,7 +196,7 @@ describe('compress', () => {
             bob,
             bobAta,
             recipients.slice(0, 11),
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         for (let i = 0; i < recipients.length; i++) {
@@ -224,7 +232,7 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients.slice(0, 11),
-                merkleTree,
+                defaultTestStateTreeAccounts().merkleTree,
             ),
         ).rejects.toThrow(
             'Amount and toAddress arrays must have the same length',
@@ -239,7 +247,7 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients,
-                merkleTree,
+                defaultTestStateTreeAccounts().merkleTree,
             ),
         ).rejects.toThrow(
             'Both amount and toAddress must be arrays or both must be single values',
@@ -259,7 +267,7 @@ describe('compress', () => {
             toAddress: recipients,
             amount: amounts,
             mint,
-            outputStateTree: merkleTree,
+            outputStateTree: defaultTestStateTreeAccounts().merkleTree,
         });
 
         const { blockhash } = await rpc.getLatestBlockhash();
@@ -316,6 +324,7 @@ describe('compress', () => {
             bob.publicKey,
             mintAuthority,
             bn(10000),
+            defaultTestStateTreeAccounts().merkleTree,
         );
 
         await decompress(
@@ -341,7 +350,7 @@ describe('compress', () => {
             bob,
             bobToken2022Ata,
             charlie.publicKey,
-            merkleTree,
+            defaultTestStateTreeAccounts().merkleTree,
         );
         await assertCompress(
             rpc,

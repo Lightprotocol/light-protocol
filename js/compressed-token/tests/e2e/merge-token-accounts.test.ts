@@ -48,6 +48,7 @@ describe('mergeTokenAccounts', () => {
                 owner.publicKey,
                 mintAuthority,
                 bn(100),
+                defaultTestStateTreeAccounts().merkleTree,
             );
         }
     });
@@ -59,7 +60,13 @@ describe('mergeTokenAccounts', () => {
         );
         expect(preAccounts.items.length).to.be.greaterThan(1);
 
-        await mergeTokenAccounts(rpc, payer, mint, owner, merkleTree);
+        await mergeTokenAccounts(
+            rpc,
+            payer,
+            mint,
+            owner,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
 
         const postAccounts = await rpc.getCompressedTokenAccountsByOwner(
             owner.publicKey,
@@ -93,7 +100,13 @@ describe('mergeTokenAccounts', () => {
 
         // Second merge attempt
         try {
-            await mergeTokenAccounts(rpc, payer, mint, owner, merkleTree);
+            await mergeTokenAccounts(
+                rpc,
+                payer,
+                mint,
+                owner,
+                defaultTestStateTreeAccounts().merkleTree,
+            );
             console.log('Second merge succeeded');
         } catch (error) {
             console.error('Second merge failed:', error);
