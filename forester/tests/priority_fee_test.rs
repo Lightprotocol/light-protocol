@@ -6,7 +6,7 @@ use forester::{
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signer};
 use url::Url;
-
+use forester::send_transaction::TransactionMode;
 use crate::test_utils::init;
 mod test_utils;
 
@@ -59,6 +59,7 @@ async fn test_priority_fee_request() {
         state_queue_processing_length: 28807,
         address_queue_start_index: 0,
         address_queue_processing_length: 28807,
+        transaction_mode: "smart".to_string(),
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
