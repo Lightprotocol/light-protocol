@@ -225,10 +225,10 @@ importers:
         version: 22.10.7
       '@types/react':
         specifier: ^19
-        version: 19.0.1
+        version: 19.0.7
       '@types/react-dom':
         specifier: ^19
-        version: 19.0.2(@types/react@19.0.1)
+        version: 19.0.2(@types/react@19.0.7)
       eslint:
         specifier: 9.17.0
         version: 9.17.0
@@ -3101,8 +3101,8 @@ packages:
     peerDependencies:
       '@types/react': ^19.0.0
 
-  '@types/react@19.0.1':
-    resolution: {integrity: sha512-YW6614BDhqbpR5KtUYzTA+zlA7nayzJRA9ljz9CQoxthR0sDisYZLuvSMsil36t4EH/uAt8T52Xb4sVw17G+SQ==}
+  '@types/react@19.0.7':
+    resolution: {integrity: sha512-MoFsEJKkAtZCrC1r6CM8U22GzhG7u2Wir8ons/aCKH6MBdD1ibV24zOSSkdZVUKqN5i396zG5VKLYZ3yaUZdLA==}
 
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
@@ -4088,8 +4088,8 @@ packages:
     resolution: {integrity: sha512-lyAZ0EMyjDkVvz8WOeVnuCPvKVBXcMv1l5SVqO1yC7PzTwrD/pPje/BIRbWhMoPe436U+Y2nD7f5bFx0kt+Sbg==}
     engines: {node: '>=8'}
 
-  csstype@3.1.2:
-    resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+  csstype@3.1.3:
+    resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
 
   damerau-levenshtein@1.0.8:
     resolution: {integrity: sha512-sdQSFB7+llfUcQHUQO3+B8ERRj0Oa4w9POWMI/puGtuf7gFywGmkaLCElnudfTiKZV+NvHqL0ifzdrI8Ro7ESA==}
@@ -4303,8 +4303,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.83:
-    resolution: {integrity: sha512-LcUDPqSt+V0QmI47XLzZrz5OqILSMGsPFkDYus22rIbgorSvBYEFqq854ltTmUdHkY92FSdAAvsh4jWEULMdfQ==}
+  electron-to-chromium@1.5.84:
+    resolution: {integrity: sha512-I+DQ8xgafao9Ha6y0qjHHvpZ9OfyA1qKlkHkjywxzniORU2awxyz7f/iVJcULmrF2yrM3nHQf+iDjJtbbexd/g==}
 
   elliptic@6.5.4:
     resolution: {integrity: sha512-iLhC6ULemrljPZb+QutR5TQGB+pdW6KGD5RSegS+8sorOZT+rdQFbsQFJgvN3eRqNALqJer4oQ16YvJHlU8hzQ==}
@@ -11418,13 +11418,13 @@ snapshots:
 
   '@types/normalize-package-data@2.4.2': {}
 
-  '@types/react-dom@19.0.2(@types/react@19.0.1)':
+  '@types/react-dom@19.0.2(@types/react@19.0.7)':
     dependencies:
-      '@types/react': 19.0.1
+      '@types/react': 19.0.7
 
-  '@types/react@19.0.1':
+  '@types/react@19.0.7':
     dependencies:
-      csstype: 3.1.2
+      csstype: 3.1.3
 
   '@types/resolve@1.20.2': {}
 
@@ -12369,7 +12369,7 @@ snapshots:
   browserslist@4.24.4:
     dependencies:
       caniuse-lite: 1.0.30001695
-      electron-to-chromium: 1.5.83
+      electron-to-chromium: 1.5.84
       node-releases: 2.0.19
       update-browserslist-db: 1.1.2(browserslist@4.24.4)
 
@@ -12804,7 +12804,7 @@ snapshots:
 
   crypto-hash@1.3.0: {}
 
-  csstype@3.1.2: {}
+  csstype@3.1.3: {}
 
   damerau-levenshtein@1.0.8: {}
 
@@ -12979,7 +12979,7 @@ snapshots:
     dependencies:
       jake: 10.8.7
 
-  electron-to-chromium@1.5.83: {}
+  electron-to-chromium@1.5.84: {}
 
   elliptic@6.5.4:
     dependencies:
