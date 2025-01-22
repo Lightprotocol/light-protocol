@@ -11,6 +11,10 @@
     -   stateTreeLookupTableDevnet = '8n8rH2bFRVA6cSGNDpgqcKHCndbFCT1bXxAQG89ejVsh';
     -   nullifiedStateTreeLookupTableDevnet = '5dhaJLBjnVBQFErr8oiCJmcVsx3Zj6xDekGB2zULPsnP';
 
+### Changed
+
+-   `createRpc` can now also be called with only the `rpcEndpoint` parameter. In this case, `compressionApiEndpoint` and `proverEndpoint` will default to the same value. If no parameters are provided, default localnet values are used.
+
 ## [0.19.0] - 2025-01-20
 
 ### Breaking Changes
