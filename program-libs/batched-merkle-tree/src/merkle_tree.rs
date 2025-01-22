@@ -21,10 +21,7 @@ use light_zero_copy::{
 use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::Ref;
 
-use super::{
-    batch::Batch,
-    queue::{init_queue, input_queue_from_bytes, insert_into_current_batch},
-};
+use super::{batch::Batch, queue::insert_into_current_batch};
 use crate::{
     batch::BatchState,
     batch_metadata::BatchMetadata,
@@ -35,7 +32,7 @@ use crate::{
     errors::BatchedMerkleTreeError,
     event::{BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent},
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
-    queue::BatchedQueueAccount,
+    queue::{deserialize_bloom_filter_stores, BatchedQueueAccount},
     BorshDeserialize, BorshSerialize,
 };
 
@@ -84,9 +81,8 @@ pub struct InstructionDataBatchAppendInputs {
 pub struct BatchedMerkleTreeAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
-    pub value_vecs: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
-    pub bloom_filter_stores: Vec<&'a mut [u8]>,
-    pub hashchain_store: Vec<ZeroCopyVecU64<'a, [u8; 32]>>,
+    pub bloom_filter_stores: [&'a mut [u8]; 2],
+    pub hashchain_store: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
 impl Discriminator for BatchedMerkleTreeAccount<'_> {
@@ -188,21 +184,25 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
-                .map_err(|e| ZeroCopyError::from(e))?;
+                .map_err(ZeroCopyError::from)?;
         if metadata.tree_type != TREE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
 
         let (root_history, account_data) = ZeroCopyCyclicVecU64::from_bytes_at(account_data)?;
-        let (value_vecs, bloom_filter_stores, hashchain_store) =
-            input_queue_from_bytes(&metadata.queue_metadata, account_data)?;
 
+        let (bloom_filter_stores, account_data) = deserialize_bloom_filter_stores(
+            metadata.queue_metadata.get_bloomfilter_size_bytes(),
+            account_data,
+        );
+
+        let (vec_1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
+        let (vec_2, _) = ZeroCopyVecU64::from_bytes_at(account_data)?;
         Ok(BatchedMerkleTreeAccount {
             metadata,
             root_history,
-            value_vecs,
             bloom_filter_stores,
-            hashchain_store,
+            hashchain_store: [vec_1, vec_2],
         })
     }
 
@@ -224,7 +224,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
-                .map_err(|e| ZeroCopyError::from(e))?;
+                .map_err(ZeroCopyError::from)?;
         account_metadata.metadata = metadata;
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;
@@ -282,17 +282,23 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             );
         }
 
-        let (value_vecs, bloom_filter_stores, hashchain_store, _) = init_queue(
-            &account_metadata.queue_metadata,
-            QueueType::BatchedInput as u64,
+        let (bloom_filter_stores, account_data) = crate::queue::deserialize_bloom_filter_stores(
+            account_metadata.queue_metadata.get_bloomfilter_size_bytes(),
+            account_data,
+        );
+        let (vec_1, account_data) = ZeroCopyVecU64::new_at(
+            account_metadata.queue_metadata.get_num_zkp_batches(),
+            account_data,
+        )?;
+        let (vec_2, _account_data) = ZeroCopyVecU64::new_at(
+            account_metadata.queue_metadata.get_num_zkp_batches(),
             account_data,
         )?;
         Ok(BatchedMerkleTreeAccount {
             metadata: account_metadata,
             root_history,
-            value_vecs,
             bloom_filter_stores,
-            hashchain_store,
+            hashchain_store: [vec_1, vec_2],
         })
     }
 
@@ -384,10 +390,19 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                     root_index,
                     self.root_history_capacity,
                 )?;
+            msg!("full_batch_state: {:?}", full_batch_state);
+            msg!(
+                "next_full_batch_index: {:?}",
+                queue_account.batch_metadata.next_full_batch_index
+            );
             // 4. Increment next full batch index if inserted.
             queue_account
                 .batch_metadata
                 .increment_next_full_batch_index_if_inserted(full_batch_state);
+            msg!(
+                "next_full_batch_index: {:?}",
+                queue_account.batch_metadata.next_full_batch_index
+            );
         }
         // 5. Return the batch append event.
         Ok(BatchAppendEvent {
@@ -622,7 +637,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (root_index, sequence_number) = insert_into_current_batch(
             QueueType::BatchedInput as u64,
             &mut self.metadata.queue_metadata,
-            &mut self.value_vecs,
+            &mut [],
             &mut self.bloom_filter_stores,
             &mut self.hashchain_store,
             leaves_hash_value,
@@ -979,3 +994,32 @@ fn test_init_invalid_account_size() {
         BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(&mut account_data);
     assert_eq!(account.unwrap_err(), ZeroCopyError::Size.into());
 }
+
+// /// 1. Case:
+// /// - No overlapping roots exist -> no roots are zeroed out.
+// /// 2. Case:
+// /// - 1 remaining root (there always must be at least 1)
+// /// 3. Case:
+// /// - is already zeroed
+// /// 4. Case:
+// /// - batch is not half full yet
+// /// 5. Case:
+// /// - batch is exactly half full
+// /// 6. Case:
+// #[test]
+// fn test_zero_out() {
+//     let mut account_data = vec![0u8; 200];
+
+//     let account = BatchedMerkleTreeAccount::init(
+//         &mut account_data,
+//         MerkleTreeMetadata::default(),
+//         1,
+//         1,
+//         1,
+//         1,
+//         1,
+//         1,
+//         TreeType::BatchedState,
+//     )
+//     .unwrap();
+// }

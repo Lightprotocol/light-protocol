@@ -43,9 +43,9 @@ use serial_test::serial;
 #[allow(clippy::too_many_arguments)]
 pub fn assert_nullifier_queue_insert(
     pre_account: BatchedMerkleTreeMetadata,
-    pre_value_vecs: &mut Vec<ZeroCopyVecU64<[u8; 32]>>,
+    pre_value_vecs: &mut [ZeroCopyVecU64<[u8; 32]>],
     pre_roots: Vec<[u8; 32]>,
-    pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
+    pre_hashchains: [ZeroCopyVecU64<[u8; 32]>; 2],
     merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_indices: Vec<u64>,
@@ -78,9 +78,9 @@ pub fn assert_nullifier_queue_insert(
 #[allow(clippy::too_many_arguments)]
 pub fn assert_input_queue_insert(
     mut pre_account: BatchedMerkleTreeMetadata,
-    pre_value_vecs: &mut Vec<ZeroCopyVecU64<[u8; 32]>>,
+    pre_value_vecs: &mut [ZeroCopyVecU64<[u8; 32]>],
     pre_roots: Vec<[u8; 32]>,
-    mut pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
+    mut pre_hashchains: [ZeroCopyVecU64<[u8; 32]>; 2],
     mut merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
     leaf_hashchain_insert_values: Vec<[u8; 32]>,
@@ -155,9 +155,7 @@ pub fn assert_input_queue_insert(
         if expected_batch.get_state() == BatchState::Inserted {
             println!("assert input queue batch update: clearing batch");
             pre_hashchains[inserted_batch_index].clear();
-            expected_batch.sequence_number = 0;
-            expected_batch.advance_state_to_fill().unwrap();
-            expected_batch.set_bloom_filter_to_not_zeroed();
+            expected_batch.advance_state_to_fill(None).unwrap();
         }
         println!(
             "assert input queue batch update: inserted_batch_index: {}",
@@ -243,7 +241,7 @@ pub fn assert_input_queue_insert(
         pre_account.queue_metadata.batches[other_batch]
     );
     assert_eq!(
-        merkle_tree_account.hashchain_store, *pre_hashchains,
+        merkle_tree_account.hashchain_store, pre_hashchains,
         "Hashchain store inconsistent."
     );
     Ok(())
@@ -256,8 +254,8 @@ pub fn assert_input_queue_insert(
 pub fn assert_output_queue_insert(
     mut pre_account: BatchedQueueMetadata,
     // mut pre_batches: Vec<Batch>,
-    mut pre_value_store: Vec<ZeroCopyVecU64<[u8; 32]>>,
-    mut pre_hashchains: Vec<ZeroCopyVecU64<[u8; 32]>>,
+    mut pre_value_store: [ZeroCopyVecU64<[u8; 32]>; 2],
+    mut pre_hashchains: [ZeroCopyVecU64<[u8; 32]>; 2],
     mut output_account: BatchedQueueAccount,
     insert_values: Vec<[u8; 32]>,
 ) -> Result<(), BatchedMerkleTreeError> {
@@ -278,10 +276,11 @@ pub fn assert_output_queue_insert(
         let pre_value_store = pre_value_store.get_mut(inserted_batch_index).unwrap();
         let pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
         if expected_batch.get_state() == BatchState::Inserted {
-            expected_batch.advance_state_to_fill().unwrap();
+            expected_batch
+                .advance_state_to_fill(Some(pre_account.next_index))
+                .unwrap();
             pre_value_store.clear();
             pre_hashchain.clear();
-            expected_batch.start_index = pre_account.next_index;
         }
         pre_account.next_index += 1;
         expected_batch.store_and_hash_value(insert_value, pre_value_store, pre_hashchain)?;
@@ -989,7 +988,7 @@ async fn test_e2e() {
                         BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
                     assert_nullifier_queue_insert(
                         pre_account,
-                        &mut vec![],
+                        &mut [],
                         pre_roots,
                         pre_hashchains,
                         merkle_tree_account,
@@ -1627,7 +1626,7 @@ async fn test_fill_queues_completely() {
                 .unwrap();
             assert_nullifier_queue_insert(
                 pre_account,
-                &mut vec![],
+                &mut [],
                 pre_roots,
                 pre_hashchains,
                 merkle_tree_account,
@@ -1696,7 +1695,7 @@ async fn test_fill_queues_completely() {
             perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
-            // the second batch is completely full. 
+            // the second batch is completely full.
             if i >= 5 {
                 let merkle_tree_account =
                     &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
@@ -1868,7 +1867,7 @@ async fn test_fill_address_tree_completely() {
                 .unwrap();
             assert_input_queue_insert(
                 pre_account,
-                &mut vec![],
+                &mut [],
                 pre_roots,
                 pre_hashchains,
                 merkle_tree_account,
@@ -1937,7 +1936,7 @@ async fn test_fill_address_tree_completely() {
 
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
-            // the second batch is completely full. 
+            // the second batch is completely full.
             if i >= 5 {
                 assert!(batch.bloom_filter_is_zeroed());
             } else {

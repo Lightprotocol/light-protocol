@@ -129,6 +129,7 @@ impl BatchMetadata {
     /// Increment the next full batch index if current state is BatchState::Inserted.
     pub fn increment_next_full_batch_index_if_inserted(&mut self, state: BatchState) {
         if state == BatchState::Inserted {
+            solana_program::msg!("Incrementing next full batch index");
             self.next_full_batch_index = (self.next_full_batch_index + 1) % self.num_batches;
         }
     }
@@ -245,7 +246,7 @@ fn test_increment_currently_processing_batch_index_if_full() {
     assert_eq!(metadata.currently_processing_batch_index, 0);
     metadata
         .get_current_batch_mut()
-        .advance_state_to_fill()
+        .advance_state_to_fill(None)
         .unwrap();
     metadata.increment_currently_processing_batch_index_if_full();
     assert_eq!(metadata.currently_processing_batch_index, 0);

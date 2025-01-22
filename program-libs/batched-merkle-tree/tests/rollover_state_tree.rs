@@ -475,8 +475,7 @@ fn test_rnd_rollover() {
         } else {
             Some(rng.gen_range(1..1000))
         };
-        println!("forester {:?}", forester);
-        println!("network_fee {:?}", network_fee);
+
         let params = InitStateTreeAccountsInstructionData {
             index: rng.gen_range(0..1000),
             program_owner,
@@ -558,7 +557,6 @@ fn test_rnd_rollover() {
             &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
         let height = merkle_tree.get_metadata().height;
         merkle_tree.get_metadata_mut().next_index = 1 << height;
-        println!("params {:?}", params);
         let rollover_batch_state_tree_params = RolloverBatchStateTreeParams {
             old_merkle_tree: merkle_tree,
             old_mt_pubkey: mt_pubkey,

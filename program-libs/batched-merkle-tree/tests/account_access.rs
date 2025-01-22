@@ -324,10 +324,13 @@ fn test_merkle_tree_getters() {
         let account_info = merkle_tree_account.get_account_info();
         let tree = BatchedMerkleTreeAccount::address_from_account_info(&account_info).unwrap();
         assert_eq!(tree.get_root().unwrap(), ADDRESS_TREE_INIT_ROOT_40);
-        assert_eq!(tree.get_root_index(),0);
-        assert_eq!(*tree.get_root_by_index(0).unwrap(),ADDRESS_TREE_INIT_ROOT_40);
+        assert_eq!(tree.get_root_index(), 0);
+        assert_eq!(
+            *tree.get_root_by_index(0).unwrap(),
+            ADDRESS_TREE_INIT_ROOT_40
+        );
         for i in 1..params.root_history_capacity {
-            assert_eq!(*tree.get_root_by_index(i as usize).unwrap(),[0u8; 32]);
+            assert_eq!(*tree.get_root_by_index(i as usize).unwrap(), [0u8; 32]);
         }
     }
 }

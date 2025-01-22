@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use light_zero_copy::{
     add_padding,
     errors::ZeroCopyError,
-    slice_mut::ZeroCopyTraits,
     vec::{ZeroCopyVec, ZeroCopyVecU64},
+    ZeroCopyTraits,
 };
 use rand::{
     distributions::{Distribution, Standard},
@@ -124,13 +124,20 @@ where
         assert_empty_vec(capacity, reference_vec, vec);
         {
             let data = data.clone();
-            let mut metadata_size = size_of::<CAPACITY>();
-            let length = data[0..metadata_size].to_vec();
-
-            assert_eq!(length, vec![0; metadata_size]);
+            let len_size = size_of::<CAPACITY>();
+            let length = data[0..len_size].to_vec();
+            // set capacity
+            assert_eq!(length[0], 0);
+            let capacity_size = size_of::<CAPACITY>();
+            let mut length = data[len_size..capacity_size + len_size].to_vec();
+            while length.len() < 8 {
+                length.push(0);
+            }
+            assert_eq!(length, u64::from(capacity).to_le_bytes().as_ref().to_vec());
+            let mut metadata_size = size_of::<[CAPACITY; 2]>();
 
             let padding_start = metadata_size;
-            add_padding::<CAPACITY, T>(&mut metadata_size);
+            add_padding::<[CAPACITY; 2], T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
             // Padding should be zeroed
@@ -206,15 +213,22 @@ where
             }
             {
                 let cloned_data: Vec<u8> = data.clone();
-                let mut metadata_size = size_of::<CAPACITY>();
-                let mut length = cloned_data[0..metadata_size].to_vec();
+                let len_size = size_of::<CAPACITY>();
+                let mut length = cloned_data[0..len_size].to_vec();
                 while length.len() < 8 {
                     length.push(0);
                 }
                 assert_eq!(length, ((i as u64 + 1).to_ne_bytes().as_ref().to_vec()));
+                let capacity_size = size_of::<CAPACITY>();
+                let mut length = data[len_size..capacity_size + len_size].to_vec();
+                while length.len() < 8 {
+                    length.push(0);
+                }
+                assert_eq!(length, u64::from(capacity).to_le_bytes().as_ref().to_vec());
+                let mut metadata_size = size_of::<[CAPACITY; 2]>();
 
                 let padding_start = metadata_size;
-                add_padding::<CAPACITY, T>(&mut metadata_size);
+                add_padding::<[CAPACITY; 2], T>(&mut metadata_size);
                 let padding_end = metadata_size;
                 let cloned_data = cloned_data[padding_start..padding_end].to_vec();
                 // Padding should be zeroed
@@ -250,8 +264,8 @@ where
         assert_empty_vec(capacity, reference_vec, vec);
         {
             let data = data.clone();
-            let mut metadata_size = size_of::<CAPACITY>();
-            let mut length = data[0..metadata_size].to_vec();
+            let len_size = size_of::<CAPACITY>();
+            let mut length = data[0..len_size].to_vec();
             let ref_length: CAPACITY = 0u64
                 .try_into()
                 .map_err(|_| ZeroCopyError::InvalidConversion)
@@ -264,8 +278,17 @@ where
                 u64::from(ref_length).to_le_bytes().as_ref().to_vec()
             );
 
+            let capacity_size = size_of::<CAPACITY>();
+            let mut length = data[len_size..capacity_size + len_size].to_vec();
+            while length.len() < 8 {
+                length.push(0);
+            }
+            assert_eq!(length, u64::from(capacity).to_le_bytes().as_ref().to_vec());
+
+            let mut metadata_size = size_of::<[CAPACITY; 2]>();
+
             let padding_start = metadata_size;
-            add_padding::<CAPACITY, T>(&mut metadata_size);
+            add_padding::<[CAPACITY; 2], T>(&mut metadata_size);
             let padding_end = metadata_size;
             let data = data[padding_start..padding_end].to_vec();
             // Padding should be zeroed
@@ -471,30 +494,30 @@ fn test_init_multiple_pass() {
 
 #[test]
 fn test_metadata_size() {
-    assert_eq!(ZeroCopyVec::<u8, u8>::metadata_size(), 1);
-    assert_eq!(ZeroCopyVec::<u16, u8>::metadata_size(), 2);
-    assert_eq!(ZeroCopyVec::<u32, u8>::metadata_size(), 4);
-    assert_eq!(ZeroCopyVec::<u64, u8>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u8, u8>::metadata_size(), 2);
+    assert_eq!(ZeroCopyVec::<u16, u8>::metadata_size(), 4);
+    assert_eq!(ZeroCopyVec::<u32, u8>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u64, u8>::metadata_size(), 16);
 
     assert_eq!(ZeroCopyVec::<u8, u16>::metadata_size(), 2);
-    assert_eq!(ZeroCopyVec::<u16, u16>::metadata_size(), 2);
-    assert_eq!(ZeroCopyVec::<u32, u16>::metadata_size(), 4);
-    assert_eq!(ZeroCopyVec::<u64, u16>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u16, u16>::metadata_size(), 4);
+    assert_eq!(ZeroCopyVec::<u32, u16>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u64, u16>::metadata_size(), 16);
 
     assert_eq!(ZeroCopyVec::<u8, u32>::metadata_size(), 4);
     assert_eq!(ZeroCopyVec::<u16, u32>::metadata_size(), 4);
-    assert_eq!(ZeroCopyVec::<u32, u32>::metadata_size(), 4);
-    assert_eq!(ZeroCopyVec::<u64, u32>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u32, u32>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u64, u32>::metadata_size(), 16);
 
     assert_eq!(ZeroCopyVec::<u8, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyVec::<u16, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyVec::<u32, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopyVec::<u64, u64>::metadata_size(), 8);
+    assert_eq!(ZeroCopyVec::<u64, u64>::metadata_size(), 16);
 }
 
 #[test]
 fn test_data_size() {
-    assert_eq!(ZeroCopyVec::<u8, u8>::data_size(64), 65);
+    assert_eq!(ZeroCopyVec::<u8, u8>::data_size(64), 64);
 }
 
 #[test]
@@ -603,4 +626,47 @@ fn test_debug_fmt() {
     }
 
     assert_eq!(format!("{:?}", slice), "[1, 2, 3, 4]");
+}
+
+#[test]
+fn test_from_bytes_at_failing() {
+    let buffer_len = ZeroCopyVecU64::<u32>::required_size_for_capacity(4);
+    let metadata_len = ZeroCopyVecU64::<u32>::metadata_size();
+    let data_len = ZeroCopyVecU64::<u32>::data_size(4);
+
+    let mut buffer = vec![0u8; buffer_len];
+    let length: u64 = 4;
+
+    ZeroCopyVecU64::<u32>::new_at(length, &mut buffer).expect("Failed to create ZeroCopyVeceMut");
+
+    let result = ZeroCopyVecU64::<u32>::from_bytes_at(&mut buffer[..metadata_len - 1]);
+    assert_eq!(
+        result,
+        Err(ZeroCopyError::InsufficientMemoryAllocated(
+            metadata_len - 1,
+            metadata_len,
+        ))
+    );
+
+    let result = ZeroCopyVecU64::<u32>::from_bytes_at(&mut buffer[..buffer_len - 1]);
+    assert_eq!(
+        result,
+        Err(ZeroCopyError::InsufficientMemoryAllocated(
+            data_len - 1,
+            data_len,
+        ))
+    );
+}
+
+#[test]
+fn test_private_getters() {
+    let mut backing_store = [0u8; 64];
+    let mut zcv = ZeroCopyVec::<u16, u16>::new(5, &mut backing_store).unwrap();
+    zcv.push(10).unwrap();
+    zcv.push(20).unwrap();
+    zcv.push(30).unwrap();
+    zcv[1] = 99;
+    assert_eq!(zcv[0], 10);
+    assert_eq!(zcv[1], 99);
+    assert_eq!(zcv[2], 30);
 }

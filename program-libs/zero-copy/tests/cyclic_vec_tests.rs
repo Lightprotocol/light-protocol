@@ -622,30 +622,30 @@ fn test_init_multiple_pass() {
 
 #[test]
 fn test_metadata_size() {
-    assert_eq!(ZeroCopyCyclicVec::<u8, u8>::metadata_size(), 1);
-    assert_eq!(ZeroCopyCyclicVec::<u16, u8>::metadata_size(), 2);
-    assert_eq!(ZeroCopyCyclicVec::<u32, u8>::metadata_size(), 4);
-    assert_eq!(ZeroCopyCyclicVec::<u64, u8>::metadata_size(), 8);
+    assert_eq!(ZeroCopyCyclicVec::<u8, u8>::metadata_size(), 3);
+    assert_eq!(ZeroCopyCyclicVec::<u16, u8>::metadata_size(), 6);
+    assert_eq!(ZeroCopyCyclicVec::<u32, u8>::metadata_size(), 12);
+    assert_eq!(ZeroCopyCyclicVec::<u64, u8>::metadata_size(), 24);
 
-    assert_eq!(ZeroCopyCyclicVec::<u8, u16>::metadata_size(), 2);
-    assert_eq!(ZeroCopyCyclicVec::<u16, u16>::metadata_size(), 2);
-    assert_eq!(ZeroCopyCyclicVec::<u32, u16>::metadata_size(), 4);
-    assert_eq!(ZeroCopyCyclicVec::<u64, u16>::metadata_size(), 8);
+    assert_eq!(ZeroCopyCyclicVec::<u8, u16>::metadata_size(), 3);
+    assert_eq!(ZeroCopyCyclicVec::<u16, u16>::metadata_size(), 6);
+    assert_eq!(ZeroCopyCyclicVec::<u32, u16>::metadata_size(), 12);
+    assert_eq!(ZeroCopyCyclicVec::<u64, u16>::metadata_size(), 24);
 
     assert_eq!(ZeroCopyCyclicVec::<u8, u32>::metadata_size(), 4);
-    assert_eq!(ZeroCopyCyclicVec::<u16, u32>::metadata_size(), 4);
-    assert_eq!(ZeroCopyCyclicVec::<u32, u32>::metadata_size(), 4);
-    assert_eq!(ZeroCopyCyclicVec::<u64, u32>::metadata_size(), 8);
+    assert_eq!(ZeroCopyCyclicVec::<u16, u32>::metadata_size(), 6);
+    assert_eq!(ZeroCopyCyclicVec::<u32, u32>::metadata_size(), 12);
+    assert_eq!(ZeroCopyCyclicVec::<u64, u32>::metadata_size(), 24);
 
     assert_eq!(ZeroCopyCyclicVec::<u8, u64>::metadata_size(), 8);
     assert_eq!(ZeroCopyCyclicVec::<u16, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<u32, u64>::metadata_size(), 8);
-    assert_eq!(ZeroCopyCyclicVec::<u64, u64>::metadata_size(), 8);
+    assert_eq!(ZeroCopyCyclicVec::<u32, u64>::metadata_size(), 12);
+    assert_eq!(ZeroCopyCyclicVec::<u64, u64>::metadata_size(), 24);
 }
 
 #[test]
 fn test_data_size() {
-    assert_eq!(ZeroCopyCyclicVec::<u8, u8>::data_size(64), 66);
+    assert_eq!(ZeroCopyCyclicVec::<u8, u8>::data_size(64), 64);
 }
 
 #[test]
@@ -732,4 +732,35 @@ fn test_debug_fmt() {
     }
 
     assert_eq!(format!("{:?}", slice), "[1, 2, 3, 4]");
+}
+
+#[test]
+fn test_from_bytes_at_failing() {
+    let buffer_len = ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(4);
+    let metadata_len = ZeroCopyCyclicVecU64::<u32>::metadata_size();
+    let data_len = ZeroCopyCyclicVecU64::<u32>::data_size(4);
+
+    let mut buffer = vec![0u8; buffer_len];
+    let length: u64 = 4;
+
+    ZeroCopyCyclicVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+
+    let result = ZeroCopyCyclicVecU64::<u32>::from_bytes_at(&mut buffer[..metadata_len - 1]);
+    assert_eq!(
+        result,
+        Err(ZeroCopyError::InsufficientMemoryAllocated(
+            metadata_len - 1,
+            metadata_len,
+        ))
+    );
+
+    let result = ZeroCopyCyclicVecU64::<u32>::from_bytes_at(&mut buffer[..buffer_len - 1]);
+    assert_eq!(
+        result,
+        Err(ZeroCopyError::InsufficientMemoryAllocated(
+            data_len - 1,
+            data_len,
+        ))
+    );
 }

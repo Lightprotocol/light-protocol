@@ -7,18 +7,14 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
+use zerocopy::Ref;
 
-use crate::{add_padding, errors::ZeroCopyError};
+use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
 pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
 pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
-
-pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
-
-impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
 
 pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
 where
