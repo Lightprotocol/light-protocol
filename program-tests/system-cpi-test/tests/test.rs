@@ -85,7 +85,7 @@ use system_cpi_test::{
 ///     merkle_tree_pubkey_index: u8, // tested in 13
 ///     nullifier_queue_pubkey_index: u8, // tested in 6
 ///     leaf_index: u32, // tested in 15 (not used with zkp)
-///     queue_index: Option<QueueIndex>, // tested in 14
+///     queue_index: bool, // tested in 14
 ///}
 ///
 #[serial]

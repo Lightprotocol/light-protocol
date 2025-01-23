@@ -8,8 +8,7 @@ use solana_sdk::{
 };
 
 use super::compressed_account::{
-    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
-    PackedMerkleContext, QueueIndex,
+    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
@@ -120,11 +119,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         } else {
             None
         };
-        let queue_index = if root_index.is_none() {
-            Some(QueueIndex::default())
-        } else {
-            None
-        };
+        let queue_index = root_index.is_none();
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_context: PackedMerkleContext {
@@ -274,13 +269,13 @@ mod test {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
-                queue_index: None,
+                queue_index: false,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
-                queue_index: None,
+                queue_index: false,
             },
         ];
 

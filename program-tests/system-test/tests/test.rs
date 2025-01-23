@@ -21,7 +21,6 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig, ProverMode};
 use light_registry::protocol_config::state::ProtocolConfig;
-use light_sdk::merkle_context::QueueIndex as SdkQueueIndex;
 use light_system_program::{
     errors::SystemProgramError,
     invoke::processor::CompressedProof,
@@ -29,7 +28,7 @@ use light_system_program::{
         address::{derive_address, derive_address_legacy},
         compressed_account::{
             CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-            MerkleContext, QueueIndex,
+            MerkleContext,
         },
         invoke::{
             create_invoke_instruction, create_invoke_instruction_data_and_remaining_accounts,
@@ -1949,10 +1948,7 @@ async fn batch_invoke_test() {
                 leaf_index: compressed_account_with_context.merkle_context.leaf_index,
                 nullifier_queue_pubkey: output_queue_pubkey,
                 // Values are not used, it only has to be Some
-                queue_index: Some(QueueIndex {
-                    index: 123,
-                    queue_id: 200,
-                }),
+                queue_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2002,10 +1998,7 @@ async fn batch_invoke_test() {
                 merkle_tree_pubkey,
                 leaf_index: 0,
                 nullifier_queue_pubkey: output_queue_pubkey,
-                queue_index: Some(QueueIndex {
-                    index: 123,
-                    queue_id: 200,
-                }),
+                queue_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2052,10 +2045,7 @@ async fn batch_invoke_test() {
                 merkle_tree_pubkey,
                 leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
                 nullifier_queue_pubkey: output_queue_pubkey,
-                queue_index: Some(QueueIndex {
-                    index: 123,
-                    queue_id: 200,
-                }),
+                queue_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2386,7 +2376,7 @@ async fn batch_invoke_test() {
             .await;
         let mut merkle_context =
             sdk_to_program_merkle_context(compressed_account_with_context_1.merkle_context);
-        merkle_context.queue_index = Some(QueueIndex::default());
+        merkle_context.queue_index = true;
         let mut proof = None;
         if let Some(proof_rpc) = proof_rpc_result.proof {
             proof = Some(sdk_to_program_compressed_proof(proof_rpc));
@@ -2436,7 +2426,7 @@ async fn batch_invoke_test() {
             .clone();
 
         let mut merkle_context = compressed_account_with_context_1.merkle_context;
-        merkle_context.queue_index = Some(SdkQueueIndex::default());
+        merkle_context.queue_index = true;
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2524,10 +2514,7 @@ pub async fn double_spend_compressed_account<
 
     {
         let mut merkle_context = merkle_context_1;
-        merkle_context.queue_index = Some(QueueIndex {
-            queue_id: 1,
-            index: 0,
-        });
+        merkle_context.queue_index = true;
         let instruction = create_invoke_instruction(
             &payer.pubkey(),
             &payer.pubkey(),

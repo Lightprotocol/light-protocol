@@ -580,7 +580,7 @@ pub async fn compressed_transfer_22_test<
                 .merkle_context
                 .nullifier_queue_pubkey,
             leaf_index,
-            queue_index: None,
+            queue_index: false,
         });
     }
     let output_lamports = lamports

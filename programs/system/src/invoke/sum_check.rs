@@ -18,11 +18,7 @@ pub fn sum_check(
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
-        if compressed_account_with_context
-            .merkle_context
-            .queue_index
-            .is_some()
-        {
+        if compressed_account_with_context.merkle_context.queue_index {
             num_prove_by_index_accounts += 1;
         }
         // Readonly accounts are only supported as separate inputs.
@@ -77,7 +73,7 @@ mod test {
     use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext, QueueIndex};
+    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
     #[test]
     fn test_sum_check() {
@@ -155,11 +151,7 @@ mod test {
     ) -> Result<()> {
         let mut inputs = Vec::new();
         for (index, i) in input_amounts.iter().enumerate() {
-            let queue_index = if index < num_by_index {
-                Some(QueueIndex::default())
-            } else {
-                None
-            };
+            let queue_index = index < num_by_index;
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Keypair::new().pubkey(),
