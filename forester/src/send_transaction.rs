@@ -6,7 +6,6 @@ use account_compression::utils::constants::{
 };
 use async_trait::async_trait;
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
-use futures::future::join_all;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
@@ -34,8 +33,7 @@ use tokio::{
     sync::Mutex,
     time::{sleep, Instant},
 };
-use tracing::log::info;
-use tracing::{debug, warn};
+use tracing::{debug, log::info, warn};
 use url::Url;
 
 use crate::{
@@ -254,7 +252,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 ..Default::default()
             };
 
-            let (tx_sender, mut tx_receiver) = tokio::sync::mpsc::channel(120); 
+            let (tx_sender, mut tx_receiver) = tokio::sync::mpsc::channel(120);
             for tx in transactions {
                 let tx_sender = tx_sender.clone();
                 let pool_clone = Arc::clone(&pool);
@@ -273,7 +271,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 });
             }
             drop(tx_sender);
-            
+
             while let Some(result) = tx_receiver.recv().await {
                 match result {
                     Ok(signature) => {
@@ -304,7 +302,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 debug!("Reached max number of batches");
                 break;
             }
-            
+
             // 9. Check if we reached max number of batches.
             if num_batches >= config.num_batches {
                 debug!("Reached max number of batches");
