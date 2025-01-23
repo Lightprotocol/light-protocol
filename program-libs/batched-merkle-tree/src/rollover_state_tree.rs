@@ -55,20 +55,20 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
 ) -> Result<u64, BatchedMerkleTreeError> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let old_merkle_tree_account =
-        &mut BatchedMerkleTreeAccount::state_from_account_info(&old_state_merkle_tree)?;
+        &mut BatchedMerkleTreeAccount::state_from_account_info(old_state_merkle_tree)?;
 
     // 2. Check Queue account discriminator, and program ownership.
     let old_output_queue_account =
-        &mut BatchedQueueAccount::output_from_account_info(&old_output_queue)?;
+        &mut BatchedQueueAccount::output_from_account_info(old_output_queue)?;
 
     // 3. Check that new Merkle tree account is exactly rent exempt.
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
-        &new_state_merkle_tree,
+        new_state_merkle_tree,
         old_state_merkle_tree.data_len(),
     )?;
     // 4. Check that new Queue account is exactly rent exempt.
     let queue_rent =
-        check_account_balance_is_rent_exempt(&new_output_queue, old_output_queue.data_len())?;
+        check_account_balance_is_rent_exempt(new_output_queue, old_output_queue.data_len())?;
 
     use solana_program::sysvar::Sysvar;
     let additional_bytes_rent = solana_program::rent::Rent::get()?.minimum_balance(

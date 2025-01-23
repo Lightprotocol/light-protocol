@@ -16,7 +16,7 @@ pub fn rollover_batched_address_tree_from_account_info<'a>(
     new_account: &AccountInfo<'a>,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
-    let new_mt_rent = check_account_balance_is_rent_exempt(&new_account, old_account.data_len())?;
+    let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
     let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
     let mut new_mt_data = new_account.try_borrow_mut_data()?;
     rollover_batched_address_tree(
