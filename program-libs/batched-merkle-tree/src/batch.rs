@@ -378,21 +378,14 @@ impl Batch {
 
         // 2. increments the number of inserted zkps.
         self.num_inserted_zkps += 1;
-        msg!("num_inserted_zkps: {}", self.num_inserted_zkps);
         // 3. If all zkps are inserted, sets the state to inserted.
         let batch_is_completly_inserted = self.num_inserted_zkps == num_zkp_batches;
         if batch_is_completly_inserted {
-            msg!("Setting state to inserted");
             self.advance_state_to_inserted()?;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
             self.sequence_number = sequence_number + root_history_length as u64;
-            msg!("root_history_length as u64: {}", root_history_length as u64);
-            msg!("sequence_number: {}", sequence_number);
-            msg!("recorded sequence_number: {}", self.sequence_number);
-            msg!("current root index {}", root_index);
-
             self.root_index = root_index;
         }
 

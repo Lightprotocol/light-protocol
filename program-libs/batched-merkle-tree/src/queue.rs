@@ -437,13 +437,7 @@ pub(crate) fn insert_into_current_batch(
         if current_batch.get_state() == BatchState::Fill {
             // Do nothing, checking most often case first.
         } else if clear_batch {
-            msg!("clear_batch");
-
             if let Some(blomfilter_stores) = bloom_filter_stores.get_mut(batch_index) {
-                println!(
-                    "current_batch.bloom_filter_is_zeroed() {:?}",
-                    current_batch.bloom_filter_is_zeroed()
-                );
                 // Bloom filters should by default be zeroed by foresters
                 // because zeroing bytes is CU intensive.
                 // This is a safeguard to ensure queue lifeness

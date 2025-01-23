@@ -382,7 +382,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // Update metadata and batch.
         {
-            println!("pre mark_as_inserted_in_merkle_tree -------------------------------");
             // 3. Mark zkp batch as inserted in the merkle tree.
             let full_batch_state = queue_account.batch_metadata.batches[full_batch_index]
                 .mark_as_inserted_in_merkle_tree(
@@ -390,19 +389,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                     root_index,
                     self.root_history_capacity,
                 )?;
-            msg!("full_batch_state: {:?}", full_batch_state);
-            msg!(
-                "next_full_batch_index: {:?}",
-                queue_account.batch_metadata.next_full_batch_index
-            );
             // 4. Increment next full batch index if inserted.
             queue_account
                 .batch_metadata
                 .increment_next_full_batch_index_if_inserted(full_batch_state);
-            msg!(
-                "next_full_batch_index: {:?}",
-                queue_account.batch_metadata.next_full_batch_index
-            );
         }
         // 5. Return the batch append event.
         Ok(BatchAppendEvent {
@@ -840,12 +830,17 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
+    /// Return whether the tree is full.
+    /// For address trees it is based on the queue next index.
+    /// For state trees it is based on the tree next index.
     pub fn tree_is_full(&self) -> bool {
-        println!(
-            "self.next_index: {} self.capacity: {}",
-            self.next_index, self.capacity
-        );
-        self.queue_metadata.next_index == self.capacity
+        if self.tree_type == TreeType::BatchedState as u64 {
+            self.next_index == self.capacity
+        } else if self.tree_type == TreeType::BatchedAddress as u64 {
+            self.queue_metadata.next_index == self.capacity
+        } else {
+            unreachable!("Invalid tree type.")
+        }
     }
 
     pub fn check_tree_is_full(&self) -> Result<(), BatchedMerkleTreeError> {
