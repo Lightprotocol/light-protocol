@@ -62,7 +62,7 @@ pub struct Batch {
     /// Number of inserted elements in the zkp batch.
     num_inserted: u64,
     state: u64,
-    current_zkp_batch_index: u64,
+    pub(crate) current_zkp_batch_index: u64,
     num_inserted_zkps: u64,
     /// Number of iterations for the bloom_filter.
     pub num_iters: u64,
