@@ -273,6 +273,15 @@ impl RpcConnection for SolanaRpcConnection {
         .await
     }
 
+    async fn process_transaction_with_config(
+        &mut self,
+        transaction: Transaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        self.send_transaction_with_config(&transaction, RpcSendTransactionConfig { ..config })
+            .await
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instructions: &[Instruction],

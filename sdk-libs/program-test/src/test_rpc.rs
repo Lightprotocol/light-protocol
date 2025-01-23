@@ -100,6 +100,22 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok((sig, slot))
     }
 
+    async fn process_transaction_with_config(
+        &mut self,
+        transaction: Transaction,
+        _config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        Ok(sig)
+    }
+
     async fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
