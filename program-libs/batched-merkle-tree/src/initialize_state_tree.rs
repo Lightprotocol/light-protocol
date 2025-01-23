@@ -353,7 +353,7 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
         );
     }
     assert_eq!(
-        account.hashchain_store[0].capacity(),
+        account.hash_chain_stores[0].capacity(),
         ref_account.queue_metadata.get_num_zkp_batches() as usize,
         "hashchain_store mismatch"
     );

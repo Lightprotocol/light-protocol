@@ -379,8 +379,8 @@ impl Batch {
         // 2. increments the number of inserted zkps.
         self.num_inserted_zkps += 1;
         // 3. If all zkps are inserted, sets the state to inserted.
-        let batch_is_completly_inserted = self.num_inserted_zkps == num_zkp_batches;
-        if batch_is_completly_inserted {
+        let batch_is_completely_inserted = self.num_inserted_zkps == num_zkp_batches;
+        if batch_is_completely_inserted {
             self.advance_state_to_inserted()?;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
@@ -895,7 +895,7 @@ mod tests {
     }
 
     // Moved BatchedQueueAccount test to this file
-    // to modify privated Batch variables for assertions.
+    // to modify private Batch variables for assertions.
     #[test]
     fn test_get_num_inserted() {
         let mut account_data = vec![0u8; 920];
@@ -1006,7 +1006,7 @@ mod tests {
             assert_eq!(account.value_vecs[0].as_slice(), [[1u8; 32]].as_slice());
             assert_eq!(account.value_vecs[1].as_slice(), ref_value_array.as_slice());
             assert_eq!(
-                account.hashchain_store[0].as_slice(),
+                account.hash_chain_stores[0].as_slice(),
                 [[1u8; 32]].as_slice()
             );
             assert_eq!(

@@ -120,7 +120,7 @@ impl BatchedQueueMetadata {
 pub struct BatchedQueueAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
     pub value_vecs: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
-    pub hashchain_store: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+    pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
 impl Discriminator for BatchedQueueAccount<'_> {
@@ -190,7 +190,7 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(BatchedQueueAccount {
             metadata,
             value_vecs: [value_vec1, value_vec2],
-            hashchain_store: [hashchain_store1, hashchain_store2],
+            hash_chain_stores: [hashchain_store1, hashchain_store2],
         })
     }
 
@@ -244,7 +244,7 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(BatchedQueueAccount {
             metadata: account_metadata,
             value_vecs: [value_vecs_1, value_vecs_2],
-            hashchain_store: [vec_1, vec_2],
+            hash_chain_stores: [vec_1, vec_2],
         })
     }
 
@@ -263,7 +263,7 @@ impl<'a> BatchedQueueAccount<'a> {
             &mut self.metadata.batch_metadata,
             &mut self.value_vecs,
             &mut [],
-            &mut self.hashchain_store,
+            &mut self.hash_chain_stores,
             hash_chain_value,
             None,
             Some(current_index),
@@ -419,7 +419,7 @@ pub(crate) fn insert_into_current_batch(
     batch_metadata: &mut BatchMetadata,
     value_vecs: &mut [ZeroCopyVecU64<[u8; 32]>],
     bloom_filter_stores: &mut [&mut [u8]],
-    hashchain_store: &mut [ZeroCopyVecU64<[u8; 32]>],
+    hash_chain_stores: &mut [ZeroCopyVecU64<[u8; 32]>],
     hash_chain_value: &[u8; 32],
     bloom_filter_value: Option<&[u8; 32]>,
     current_index: Option<u64>,
@@ -428,7 +428,7 @@ pub(crate) fn insert_into_current_batch(
     let mut sequence_number = None;
     let batch_index = batch_metadata.currently_processing_batch_index as usize;
     let mut value_store = value_vecs.get_mut(batch_index);
-    let mut hashchain_store = hashchain_store.get_mut(batch_index);
+    let mut hash_chain_stores = hash_chain_stores.get_mut(batch_index);
     let current_batch = batch_metadata.get_current_batch_mut();
     // 1. Check that the current batch is ready.
     //      1.1. If the current batch is inserted, clear the batch.
@@ -455,8 +455,8 @@ pub(crate) fn insert_into_current_batch(
             if let Some(value_store) = value_store.as_mut() {
                 (*value_store).clear();
             }
-            if let Some(hashchain_store) = hashchain_store.as_mut() {
-                (*hashchain_store).clear();
+            if let Some(hash_chain_stores) = hash_chain_stores.as_mut() {
+                (*hash_chain_stores).clear();
             }
             // Advance the state to fill and reset the number of inserted elements.
             // If Some(current_index) set it as start index.
@@ -478,13 +478,13 @@ pub(crate) fn insert_into_current_batch(
             bloom_filter_value.unwrap(),
             hash_chain_value,
             bloom_filter_stores,
-            hashchain_store.as_mut().unwrap(),
+            hash_chain_stores.as_mut().unwrap(),
             batch_index,
         ),
         QueueType::BatchedOutput => current_batch.store_and_hash_value(
             hash_chain_value,
             value_store.unwrap(),
-            hashchain_store.unwrap(),
+            hash_chain_stores.unwrap(),
         ),
         _ => Err(MerkleTreeMetadataError::InvalidQueueType.into()),
     }?;

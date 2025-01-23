@@ -82,7 +82,7 @@ pub struct BatchedMerkleTreeAccount<'a> {
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
     pub bloom_filter_stores: [&'a mut [u8]; 2],
-    pub hashchain_store: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+    pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
 impl Discriminator for BatchedMerkleTreeAccount<'_> {
@@ -202,7 +202,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             metadata,
             root_history,
             bloom_filter_stores,
-            hashchain_store: [vec_1, vec_2],
+            hash_chain_stores: [vec_1, vec_2],
         })
     }
 
@@ -298,7 +298,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             metadata: account_metadata,
             root_history,
             bloom_filter_stores,
-            hashchain_store: [vec_1, vec_2],
+            hash_chain_stores: [vec_1, vec_2],
         })
     }
 
@@ -355,7 +355,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // 1. Create public inputs hash.
         let public_input_hash = {
             let leaves_hashchain =
-                queue_account.hashchain_store[full_batch_index][num_zkps as usize];
+                queue_account.hash_chain_stores[full_batch_index][num_zkps as usize];
             let old_root = self
                 .root_history
                 .last()
@@ -458,7 +458,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // 1. Create public inputs hash.
         let public_input_hash = {
-            let leaves_hashchain = self.hashchain_store[full_batch_index][num_zkps as usize];
+            let leaves_hashchain = self.hash_chain_stores[full_batch_index][num_zkps as usize];
             let old_root = self
                 .root_history
                 .last()
@@ -631,7 +631,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             &mut self.metadata.queue_metadata,
             &mut [],
             &mut self.bloom_filter_stores,
-            &mut self.hashchain_store,
+            &mut self.hash_chain_stores,
             leaves_hash_value,
             Some(bloom_filter_value),
             None,
