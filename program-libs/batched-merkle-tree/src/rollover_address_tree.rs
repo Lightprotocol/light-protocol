@@ -1,5 +1,6 @@
 use light_merkle_tree_metadata::utils::if_equals_none;
-use light_utils::pubkey::Pubkey;
+use light_utils::{account::check_account_balance_is_rent_exempt, pubkey::Pubkey};
+use solana_program::account_info::AccountInfo;
 
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -9,6 +10,24 @@ use crate::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
+
+pub fn rollover_batched_address_tree_from_account_info<'a>(
+    old_account: &AccountInfo<'a>,
+    new_account: &AccountInfo<'a>,
+    network_fee: Option<u64>,
+) -> Result<u64, BatchedMerkleTreeError> {
+    let new_mt_rent = check_account_balance_is_rent_exempt(&new_account, old_account.data_len())?;
+    let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
+    let mut new_mt_data = new_account.try_borrow_mut_data()?;
+    rollover_batched_address_tree(
+        &mut old_merkle_tree,
+        &mut new_mt_data,
+        new_mt_rent,
+        (*new_account.key).into(),
+        network_fee,
+    )?;
+    Ok(new_mt_rent)
+}
 
 /// Rollover an almost full batched address tree,
 /// ie create a new batched Merkle tree account
