@@ -29,6 +29,7 @@ use light_batched_merkle_tree::{
 };
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
@@ -131,6 +132,11 @@ pub fn assert_input_queue_insert(
             .batches
             .get_mut(inserted_batch_index)
             .unwrap();
+        // Address queue insertions append state, input queue insertions only nullify existing state
+        if pre_account.tree_type == TreeType::BatchedAddress as u64 {
+            pre_account.queue_metadata.next_index += 1;
+        }
+
         println!(
             "assert input queue batch update: expected_batch: {:?}",
             expected_batch
@@ -277,12 +283,12 @@ pub fn assert_output_queue_insert(
         let pre_hashchain = pre_hashchains.get_mut(inserted_batch_index).unwrap();
         if expected_batch.get_state() == BatchState::Inserted {
             expected_batch
-                .advance_state_to_fill(Some(pre_account.next_index))
+                .advance_state_to_fill(Some(pre_account.batch_metadata.next_index))
                 .unwrap();
             pre_value_store.clear();
             pre_hashchain.clear();
         }
-        pre_account.next_index += 1;
+        pre_account.batch_metadata.next_index += 1;
         expected_batch.store_and_hash_value(insert_value, pre_value_store, pre_hashchain)?;
 
         let other_batch = if inserted_batch_index == 0 { 1 } else { 0 };
@@ -399,7 +405,7 @@ pub fn simulate_transaction(
     }
 
     for output in instruction_data.outputs.iter() {
-        let leaf_index = output_account.get_metadata().next_index;
+        let leaf_index = output_account.batch_metadata.next_index;
         println!(
             "sim tx output: \n  {:?} \nleaf index : {:?}",
             output, leaf_index

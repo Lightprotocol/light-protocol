@@ -44,10 +44,6 @@ use crate::{
 pub struct BatchedQueueMetadata {
     pub metadata: QueueMetadata,
     pub batch_metadata: BatchMetadata,
-    /// Output queue requires next index to derive compressed account hashes.
-    /// next_index in queue is ahead or equal to next index in the associated
-    /// batched Merkle tree account.
-    pub next_index: u64,
     /// Maximum number of leaves that can fit in the tree, calculated as 2^height.
     /// For example, a tree with height 3 can hold up to 8 leaves.
     pub tree_capacity: u64,
@@ -260,7 +256,7 @@ impl<'a> BatchedQueueAccount<'a> {
         &mut self,
         hash_chain_value: &[u8; 32],
     ) -> Result<(), BatchedMerkleTreeError> {
-        let current_index = self.next_index;
+        let current_index = self.batch_metadata.next_index;
 
         insert_into_current_batch(
             self.metadata.metadata.queue_type,
@@ -272,7 +268,7 @@ impl<'a> BatchedQueueAccount<'a> {
             None,
             Some(current_index),
         )?;
-        self.metadata.next_index += 1;
+        self.metadata.batch_metadata.next_index += 1;
 
         Ok(())
     }
@@ -326,7 +322,6 @@ impl<'a> BatchedQueueAccount<'a> {
         Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
     }
 
-    // TODO: add unit tests
     /// Zero out a leaf by index if it exists in the queues hash_chain_value vec. If
     /// checked fail if leaf is not found.
     pub fn prove_inclusion_by_index_and_zero_out_leaf(
@@ -382,7 +377,7 @@ impl<'a> BatchedQueueAccount<'a> {
 
     /// Returns true if the tree is full.
     pub fn tree_is_full(&self) -> bool {
-        self.tree_capacity == self.next_index
+        self.tree_capacity == self.batch_metadata.next_index
     }
 
     /// Check if the tree is full.
@@ -445,6 +440,10 @@ pub(crate) fn insert_into_current_batch(
             msg!("clear_batch");
 
             if let Some(blomfilter_stores) = bloom_filter_stores.get_mut(batch_index) {
+                println!(
+                    "current_batch.bloom_filter_is_zeroed() {:?}",
+                    current_batch.bloom_filter_is_zeroed()
+                );
                 // Bloom filters should by default be zeroed by foresters
                 // because zeroing bytes is CU intensive.
                 // This is a safeguard to ensure queue lifeness
@@ -515,7 +514,6 @@ pub(crate) fn deserialize_bloom_filter_stores(
 pub fn get_output_queue_account_size_default() -> usize {
     let batch_metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
-        next_index: 0,
         batch_metadata: BatchMetadata {
             num_batches: NUM_BATCHES as u64,
             batch_size: TEST_DEFAULT_BATCH_SIZE,
@@ -535,7 +533,6 @@ pub fn get_output_queue_account_size_from_params(
 ) -> usize {
     let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
-        next_index: 0,
         batch_metadata: BatchMetadata {
             num_batches: NUM_BATCHES as u64,
             batch_size: ix_data.output_queue_batch_size,
@@ -553,7 +550,6 @@ pub fn get_output_queue_account_size_from_params(
 pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> usize {
     let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
-        next_index: 0,
         batch_metadata: BatchMetadata {
             num_batches: NUM_BATCHES as u64,
             batch_size,

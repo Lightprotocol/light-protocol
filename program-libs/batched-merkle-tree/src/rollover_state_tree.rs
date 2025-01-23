@@ -132,7 +132,6 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
     }
 }
 
-// TODO: add unit test
 /// Check that:
 /// 1. rollover threshold is configured
 /// 2. next index is greater than rollover threshold
@@ -144,6 +143,16 @@ pub fn batched_tree_is_ready_for_rollover(
     if metadata.metadata.rollover_metadata.rollover_threshold == u64::MAX {
         return Err(MerkleTreeMetadataError::RolloverNotConfigured.into());
     }
+    println!("metadata.next_index: {}", metadata.next_index);
+    println!("metadata.height: {}", metadata.height);
+    println!(
+        "metadata.metadata.rollover_metadata.rollover_threshold: {}",
+        metadata.metadata.rollover_metadata.rollover_threshold
+    );
+    println!(
+        "threshold: {}",
+        (1 << metadata.height) * metadata.metadata.rollover_metadata.rollover_threshold / 100
+    );
     if metadata.next_index
         < ((1 << metadata.height) * metadata.metadata.rollover_metadata.rollover_threshold / 100)
     {

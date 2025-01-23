@@ -438,7 +438,6 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
     BatchedQueueMetadata {
         metadata,
         batch_metadata,
-        next_index: 0,
         tree_capacity: 2u64.pow(params.height),
     }
 }

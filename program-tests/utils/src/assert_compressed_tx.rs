@@ -479,7 +479,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                 snapshots.push(MerkleTreeTestSnapShot {
                     accounts: *account_bundle,
                     root,
-                    next_index: output_queue.deserialized().next_index as usize,
+                    next_index: output_queue.deserialized().batch_metadata.next_index as usize,
                     num_added_accounts: accounts
                         .iter()
                         .filter(|x| x.merkle_tree == account_bundle.merkle_tree)

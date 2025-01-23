@@ -170,7 +170,6 @@ mod migrate_state_test {
         let batch_size = 1000;
         let account = BatchedQueueMetadata {
             metadata,
-            next_index: 0,
             batch_metadata: BatchMetadata {
                 batch_size,
                 num_batches: 2,
@@ -178,6 +177,7 @@ mod migrate_state_test {
                 next_full_batch_index: 0,
                 bloom_filter_capacity: 0,
                 zkp_batch_size: 10,
+                next_index: 0,
                 batches: [
                     Batch::new(0, 0, batch_size, 10, 0),
                     Batch::new(0, 0, batch_size, 10, batch_size),

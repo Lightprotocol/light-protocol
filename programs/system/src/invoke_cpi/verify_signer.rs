@@ -184,7 +184,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
                         .map_err(ProgramError::from)?;
                 let seq = u64::MAX;
-                let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
+                let next_index: u32 = merkle_tree.batch_metadata.next_index.try_into().unwrap();
                 (
                     seq,
                     next_index,

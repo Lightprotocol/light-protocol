@@ -1,5 +1,6 @@
 use light_batched_merkle_tree::{
     constants::NUM_BATCHES,
+    errors::BatchedMerkleTreeError,
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
@@ -10,8 +11,13 @@ use light_batched_merkle_tree::{
     },
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
+    rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
-use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
+use light_merkle_tree_metadata::{
+    errors::MerkleTreeMetadataError,
+    merkle_tree::{MerkleTreeMetadata, TreeType},
+    rollover::RolloverMetadata,
+};
 use light_utils::pubkey::Pubkey;
 use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::thread_rng;
@@ -235,4 +241,92 @@ fn test_rnd_rollover() {
             new_mt_pubkey,
         );
     }
+}
+
+/// Test if the tree is ready for rollover
+/// 1. failing: empty tree is not ready for rollover
+/// 2. failing: not ready for rollover next_index == rollover_threshold - 1
+/// 3. functional: ready for rollover next_index == rollover_threshold
+/// 4. functional: ready for rollover next_index >= rollover_threshold
+/// 5. failing: network fee must not be set if it was 0 before
+/// 6. failing: rollower threshold not set
+#[test]
+fn test_batched_tree_is_ready_for_rollover() {
+    let mut account_data = vec![0u8; 6072];
+    let batch_size = 50;
+    let zkp_batch_size = 1;
+    let root_history_len = 10;
+    let num_iter = 1;
+    let bloom_filter_capacity = 8000;
+    let height = 4;
+    let metadata = MerkleTreeMetadata {
+        rollover_metadata: RolloverMetadata {
+            rollover_threshold: 75,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let mut account = BatchedMerkleTreeAccount::init(
+        &mut account_data,
+        metadata,
+        root_history_len,
+        batch_size,
+        zkp_batch_size,
+        height,
+        num_iter,
+        bloom_filter_capacity,
+        TreeType::BatchedAddress,
+    )
+    .unwrap();
+
+    // 1. Failing: empty tree is not ready for rollover
+    assert_eq!(
+        batched_tree_is_ready_for_rollover(&account, &None),
+        Err(MerkleTreeMetadataError::NotReadyForRollover.into())
+    );
+
+    let tree_capacity = 2u64.pow(height);
+    let start_index = 2;
+    let rollover_threshold =
+        tree_capacity * metadata.rollover_metadata.rollover_threshold / 100 - start_index;
+    // fill tree almost to the rollover threshold
+    for _ in 0..rollover_threshold - 1 {
+        account.next_index += 1;
+    }
+
+    // 2. Failing: not ready for rollover next_index == rollover_threshold - 1
+    assert_eq!(
+        batched_tree_is_ready_for_rollover(&account, &None),
+        Err(MerkleTreeMetadataError::NotReadyForRollover.into())
+    );
+
+    // 3. Functional: ready for rollover next_index == rollover_threshold
+    {
+        account.next_index += 1;
+        assert!(batched_tree_is_ready_for_rollover(&account, &None).is_ok());
+    }
+
+    // 4. Functional: ready for rollover next_index >= rollover_threshold
+    for _ in 0..tree_capacity - rollover_threshold - 1 {
+        account.next_index += 1;
+        assert!(batched_tree_is_ready_for_rollover(&account, &None).is_ok());
+    }
+
+    // 5. Failing: network fee must not be set if it was 0 before
+    assert_eq!(
+        batched_tree_is_ready_for_rollover(&account, &Some(1)),
+        Err(BatchedMerkleTreeError::InvalidNetworkFee)
+    );
+
+    // 6. Failing: rollower threshold not set
+    account
+        .get_metadata_mut()
+        .metadata
+        .rollover_metadata
+        .rollover_threshold = u64::MAX;
+    assert_eq!(
+        batched_tree_is_ready_for_rollover(&account, &None),
+        Err(MerkleTreeMetadataError::RolloverNotConfigured.into())
+    );
 }

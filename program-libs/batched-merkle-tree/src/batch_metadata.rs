@@ -38,6 +38,11 @@ pub struct BatchMetadata {
     pub currently_processing_batch_index: u64,
     /// Next batch to be inserted into the tree.
     pub next_full_batch_index: u64,
+    /// Output queues require next index to derive compressed account hashes.
+    /// Output & Address queues append state hence need to check tree capacity.
+    /// next_index in queue is ahead or equal to next index in the associated
+    /// batched Merkle tree account.
+    pub next_index: u64,
     pub batches: [Batch; 2],
 }
 
@@ -84,6 +89,7 @@ impl BatchMetadata {
             next_full_batch_index: 0,
             // Output queues don't use bloom filters.
             bloom_filter_capacity: 0,
+            next_index: 0,
             batches: [
                 Batch::new(0, 0, batch_size, zkp_batch_size, 0),
                 Batch::new(0, 0, batch_size, zkp_batch_size, batch_size),
@@ -107,6 +113,7 @@ impl BatchMetadata {
             currently_processing_batch_index: 0,
             next_full_batch_index: 0,
             bloom_filter_capacity,
+            next_index: 0,
             batches: [
                 Batch::new(
                     num_iters,

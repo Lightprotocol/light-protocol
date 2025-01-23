@@ -1057,7 +1057,7 @@ mod tests {
                 account.batch_metadata.batches[1]
             );
         }
-        assert_eq!(account.next_index, 12);
+        assert_eq!(account.batch_metadata.next_index, 12);
         // Mark second batch as inserted
         account
             .batch_metadata
@@ -1084,7 +1084,7 @@ mod tests {
             expected_batch.advance_state_to_full().unwrap();
             assert_eq!(account.batch_metadata.batches[1], expected_batch);
         }
-        assert_eq!(account.next_index, 16);
+        assert_eq!(account.batch_metadata.next_index, 16);
         assert!(account.tree_is_full());
         assert_eq!(
             account.check_tree_is_full(),

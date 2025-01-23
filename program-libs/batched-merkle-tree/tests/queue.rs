@@ -27,7 +27,6 @@ pub fn get_test_account_and_account_data(
 
     let account = BatchedQueueMetadata {
         metadata,
-        next_index: 0,
         batch_metadata: BatchMetadata {
             batch_size,
             num_batches: NUM_BATCHES as u64,
@@ -35,6 +34,7 @@ pub fn get_test_account_and_account_data(
             next_full_batch_index: 0,
             bloom_filter_capacity,
             zkp_batch_size: 10,
+            next_index: 0,
             batches: [
                 Batch::new(0, 0, batch_size, 10, 0),
                 Batch::new(0, 0, batch_size, 10, batch_size),
