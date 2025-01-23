@@ -1,6 +1,6 @@
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use light_utils::pubkey::Pubkey;
-use solana_program::msg;
+use light_utils::{account::check_account_balance_is_rent_exempt, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, msg};
 
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -28,6 +28,77 @@ pub struct RolloverBatchStateTreeParams<'a> {
     pub additional_bytes_rent: u64,
     pub additional_bytes: u64,
     pub network_fee: Option<u64>,
+}
+
+/// Rollover an almost full batched state tree,
+/// ie create a new batched Merkle tree and output queue
+/// with the same parameters, and mark the old accounts as rolled over.
+/// The old tree and queue can be used until these are completely full.
+///
+/// 1. Check Merkle tree account discriminator, tree type, and program ownership.
+/// 2. Check Queue account discriminator, and program ownership.
+/// 3. Check that new Merkle tree account is exactly rent exempt.
+/// 4. Check that new Queue account is exactly rent exempt.
+/// 5. Rollover the old Merkle tree and queue to new Merkle tree and queue.
+///
+/// Note, reimbursed rent for additional bytes is calculated from old Merkle tree accounts
+/// additional bytes since those are the basis for the old trees rollover fee.
+/// If new additional_bytes is greater than old additional_bytes additional
+/// rent reimbursements need to be calculated outside of this function.
+pub fn rollover_batched_state_tree_from_account_info<'a>(
+    old_state_merkle_tree: &AccountInfo<'a>,
+    new_state_merkle_tree: &AccountInfo<'a>,
+    old_output_queue: &AccountInfo<'a>,
+    new_output_queue: &AccountInfo<'a>,
+    additional_bytes: u64,
+    network_fee: Option<u64>,
+) -> Result<u64, BatchedMerkleTreeError> {
+    // 1. Check Merkle tree account discriminator, tree type, and program ownership.
+    let old_merkle_tree_account =
+        &mut BatchedMerkleTreeAccount::state_from_account_info(old_state_merkle_tree)?;
+
+    // 2. Check Queue account discriminator, and program ownership.
+    let old_output_queue_account =
+        &mut BatchedQueueAccount::output_from_account_info(old_output_queue)?;
+
+    // 3. Check that new Merkle tree account is exactly rent exempt.
+    let merkle_tree_rent = check_account_balance_is_rent_exempt(
+        new_state_merkle_tree,
+        old_state_merkle_tree.data_len(),
+    )?;
+    // 4. Check that new Queue account is exactly rent exempt.
+    let queue_rent =
+        check_account_balance_is_rent_exempt(new_output_queue, old_output_queue.data_len())?;
+
+    use solana_program::sysvar::Sysvar;
+    let additional_bytes_rent = solana_program::rent::Rent::get()?.minimum_balance(
+        old_output_queue_account
+            .metadata
+            .rollover_metadata
+            .additional_bytes as usize,
+    );
+
+    let new_mt_data = &mut new_state_merkle_tree.try_borrow_mut_data()?;
+    let params = RolloverBatchStateTreeParams {
+        old_merkle_tree: old_merkle_tree_account,
+        old_mt_pubkey: (*old_state_merkle_tree.key).into(),
+        new_mt_data,
+        new_mt_rent: merkle_tree_rent,
+        new_mt_pubkey: (*new_state_merkle_tree.key).into(),
+        old_output_queue: old_output_queue_account,
+        old_queue_pubkey: (*old_output_queue.key).into(),
+        new_output_queue_data: &mut new_output_queue.try_borrow_mut_data()?,
+        new_output_queue_rent: queue_rent,
+        new_output_queue_pubkey: (*new_output_queue.key).into(),
+        additional_bytes_rent,
+        additional_bytes,
+        network_fee,
+    };
+
+    // 5. Rollover the old Merkle tree and queue to new Merkle tree and queue.
+    rollover_batched_state_tree(params)?;
+    let rent = merkle_tree_rent + queue_rent + additional_bytes_rent;
+    Ok(rent)
 }
 
 /// Rollover an almost full batched state tree,

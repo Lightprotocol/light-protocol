@@ -1,10 +1,8 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
-    queue::BatchedQueueAccount,
-    rollover_state_tree::{rollover_batched_state_tree, RolloverBatchStateTreeParams},
+    rollover_state_tree::rollover_batched_state_tree_from_account_info,
 };
-use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     utils::{
@@ -49,12 +47,9 @@ impl<'info> GroupAccounts<'info> for RolloverBatchedStateMerkleTree<'info> {
 /// Rollover the old state Merkle tree and output queue to
 /// new state Merkle tree and output queue.
 /// 1. Check Merkle tree account discriminator, tree type, and program ownership.
-/// 2. Check Queue account discriminator, and program ownership.
-/// 3. Check that signer is registered or authority.
-/// 4. Check that new Merkle tree account is exactly rent exempt.
-/// 5. Check that new Queue account is exactly rent exempt.
-/// 6. Rollover the old Merkle tree and queue to new Merkle tree and queue.
-/// 7. Transfer rent exemption for new accounts
+/// 2. Check that signer is registered or authority.
+/// 3. Rollover the old Merkle tree and queue to new Merkle tree and queue.
+/// 4. Transfer rent exemption for new accounts
 ///     from old output queue to fee payer.
 pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedStateMerkleTree<'info>>,
@@ -66,59 +61,29 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         &mut BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
             .map_err(ProgramError::from)?;
 
-    // 2. Check Queue account discriminator, and program ownership.
-    let old_output_queue =
-        &mut BatchedQueueAccount::output_from_account_info(&ctx.accounts.old_output_queue)
-            .map_err(ProgramError::from)?;
-
-    // 3. Check that signer is registered or authority.
+    // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<
         RolloverBatchedStateMerkleTree,
         BatchedMerkleTreeAccount,
     >(&ctx, old_merkle_tree_account)?;
 
-    // 4. Check that new Merkle tree account is exactly rent exempt.
-    let merkle_tree_rent = check_account_balance_is_rent_exempt(
-        &ctx.accounts.new_state_merkle_tree.to_account_info(),
-        ctx.accounts
-            .old_state_merkle_tree
-            .to_account_info()
-            .data_len(),
-    )
-    .map_err(ProgramError::from)?;
-    // 5. Check that new Queue account is exactly rent exempt.
-    let queue_rent = check_account_balance_is_rent_exempt(
-        &ctx.accounts.new_output_queue.to_account_info(),
-        ctx.accounts.old_output_queue.to_account_info().data_len(),
-    )
-    .map_err(ProgramError::from)?;
-    let additional_bytes_rent = Rent::get()?.minimum_balance(additional_bytes as usize);
-    let new_mt_data = &mut ctx.accounts.new_state_merkle_tree.try_borrow_mut_data()?;
-    let params = RolloverBatchStateTreeParams {
-        old_merkle_tree: old_merkle_tree_account,
-        old_mt_pubkey: ctx.accounts.old_state_merkle_tree.key().into(),
-        new_mt_data,
-        new_mt_rent: merkle_tree_rent,
-        new_mt_pubkey: ctx.accounts.new_state_merkle_tree.key().into(),
-        old_output_queue,
-        old_queue_pubkey: ctx.accounts.old_output_queue.key().into(),
-        new_output_queue_data: &mut ctx.accounts.new_output_queue.try_borrow_mut_data()?,
-        new_output_queue_rent: queue_rent,
-        new_output_queue_pubkey: ctx.accounts.new_output_queue.key().into(),
-        additional_bytes_rent,
+    // 3. Rollover the old Merkle tree and queue to new Merkle tree and queue.
+    let rent = rollover_batched_state_tree_from_account_info(
+        &ctx.accounts.old_state_merkle_tree,
+        &ctx.accounts.new_state_merkle_tree,
+        &ctx.accounts.old_output_queue,
+        &ctx.accounts.new_output_queue,
         additional_bytes,
         network_fee,
-    };
+    )
+    .map_err(ProgramError::from)?;
 
-    // 6. Rollover the old Merkle tree and queue to new Merkle tree and queue.
-    rollover_batched_state_tree(params).map_err(ProgramError::from)?;
-
-    // 7. Transfer rent exemption for new accounts
+    // 4. Transfer rent exemption for new accounts
     //     from old output queue to fee payer.
     transfer_lamports(
         &ctx.accounts.old_output_queue.to_account_info(),
         &ctx.accounts.fee_payer.to_account_info(),
-        merkle_tree_rent + queue_rent + additional_bytes_rent,
+        rent,
     )?;
 
     Ok(())
