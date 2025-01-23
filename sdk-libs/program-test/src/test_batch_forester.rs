@@ -123,7 +123,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let num_inserted_zkps =
         output_queue.batch_metadata.batches[full_batch_index as usize].get_num_inserted_zkps();
     let leaves_hashchain =
-        output_queue.hashchain_store[full_batch_index as usize][num_inserted_zkps as usize];
+        output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
     let (proof, new_root) = {
         let start = num_inserted_zkps as usize * zkp_batch_size as usize;
         let end = start + zkp_batch_size as usize;
@@ -278,7 +278,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     let full_batch = &merkle_tree.queue_metadata.batches[full_batch_index as usize];
     let zkp_batch_index = full_batch.get_num_inserted_zkps();
     let leaves_hashchain =
-        merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
+        merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
     let mut merkle_proofs = vec![];
     let leaf_indices_tx_hashes = bundle.input_leaf_indices[..zkp_batch_size as usize].to_vec();
     let mut leaves = Vec::new();
@@ -782,7 +782,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let batch = &merkle_tree.queue_metadata.batches[full_batch_index as usize];
     let zkp_batch_index = batch.get_num_inserted_zkps();
     let leaves_hashchain =
-        merkle_tree.hashchain_store[full_batch_index as usize][zkp_batch_index as usize];
+        merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
     let batch_start_index = indexer
         .get_address_merkle_trees()
         .iter()

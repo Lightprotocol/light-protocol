@@ -451,10 +451,10 @@ fn test_rollover() {
 #[test]
 fn test_rnd_rollover() {
     use rand::SeedableRng;
-    let seed = ThreadRng::default().gen();
+    let seed: u64 = ThreadRng::default().gen();
     println!("seed {}", seed);
     let mut rng = StdRng::seed_from_u64(seed);
-    for _ in 0..100 {
+    for _ in 0..1000 {
         println!("next iter ------------------------------------");
         let owner = Pubkey::new_unique();
 
@@ -471,9 +471,9 @@ fn test_rnd_rollover() {
         let input_queue_zkp_batch_size = rng.gen_range(1..1000);
         let output_queue_zkp_batch_size = rng.gen_range(1..1000);
         let network_fee = if rng.gen_bool(0.5) && forester.is_some() {
-            Some(rng.gen_range(0..1000))
-        } else {
             None
+        } else {
+            Some(rng.gen_range(1..1000))
         };
 
         let params = InitStateTreeAccountsInstructionData {
@@ -575,6 +575,7 @@ fn test_rnd_rollover() {
             additional_bytes,
             network_fee: params.network_fee,
         };
+
         rollover_batched_state_tree(rollover_batch_state_tree_params).unwrap();
 
         let mut ref_rolledover_mt = ref_mt_account;

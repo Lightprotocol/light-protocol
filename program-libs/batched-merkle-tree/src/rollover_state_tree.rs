@@ -12,6 +12,7 @@ use crate::{
     queue::{BatchedQueueAccount, BatchedQueueMetadata},
 };
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct RolloverBatchStateTreeParams<'a> {
     pub old_merkle_tree: &'a mut BatchedMerkleTreeAccount<'a>,
@@ -131,7 +132,6 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
     }
 }
 
-// TODO: add unit test
 /// Check that:
 /// 1. rollover threshold is configured
 /// 2. next index is greater than rollover threshold

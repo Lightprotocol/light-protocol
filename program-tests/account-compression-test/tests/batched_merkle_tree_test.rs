@@ -744,7 +744,7 @@ pub async fn create_append_batch_ix_data(
         .get(next_full_batch as usize)
         .unwrap();
     let leaves_hashchain = output_zero_copy_account
-        .hashchain_store
+        .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
         .get(batch.get_num_inserted_zkps() as usize)
@@ -789,19 +789,19 @@ pub async fn create_nullify_batch_ix_data(
         .unwrap();
     println!(
         "zero_copy_account
-                        .hashchain_store {:?}",
-        zero_copy_account.hashchain_store
+                        .hash_chain_stores {:?}",
+        zero_copy_account.hash_chain_stores
     );
     println!(
         "hashchain store len {:?}",
-        zero_copy_account.hashchain_store.len()
+        zero_copy_account.hash_chain_stores.len()
     );
     println!(
         "batch.get_num_inserted_zkps() as usize {:?}",
         batch.get_num_inserted_zkps() as usize
     );
     let leaves_hashchain = zero_copy_account
-        .hashchain_store
+        .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
         .get(batch.get_num_inserted_zkps() as usize)
@@ -1872,7 +1872,7 @@ pub async fn update_batch_address_tree(
         .unwrap();
     let batch_start_index = batch.start_index;
     let leaves_hashchain = zero_copy_account
-        .hashchain_store
+        .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
         .get(batch.get_num_inserted_zkps() as usize)

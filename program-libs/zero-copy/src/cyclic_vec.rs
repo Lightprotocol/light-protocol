@@ -9,7 +9,7 @@ use std::vec::Vec;
 
 use zerocopy::Ref;
 
-use crate::{add_padding, errors::ZeroCopyError, slice_mut::ZeroCopyTraits, vec::ZeroCopyVec};
+use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
 pub type ZeroCopyCyclicVecU32<'a, T> = ZeroCopyCyclicVec<'a, u32, T>;
 pub type ZeroCopyCyclicVecU64<'a, T> = ZeroCopyCyclicVec<'a, u64, T>;
@@ -22,9 +22,14 @@ where
     T: ZeroCopyTraits,
     u64: From<L> + TryInto<L>,
 {
-    current_index: Ref<&'a mut [u8], L>,
-    vec: ZeroCopyVec<'a, L, T, PAD>,
+    /// [current_index, length, capacity]
+    metadata: Ref<&'a mut [u8], [L; 3]>,
+    slice: Ref<&'a mut [u8], [T]>,
 }
+
+const CURRENT_INDEX_INDEX: usize = 0;
+const LENGTH_INDEX: usize = 1;
+const CAPACITY_INDEX: usize = 2;
 
 impl<'a, L, T, const PAD: bool> ZeroCopyCyclicVec<'a, L, T, PAD>
 where
@@ -38,13 +43,17 @@ where
 
     pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
         let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
-        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)?;
-        if u64::from(*current_index) != 0 {
+
+        let (mut metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
+        if u64::from(metadata[LENGTH_INDEX]) != 0 || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
+        metadata[CAPACITY_INDEX] = capacity;
+        let capacity_usize: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
 
-        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::new_at(capacity, bytes)?;
-        Ok((Self { current_index, vec }, bytes))
+        let (slice, remaining_bytes) =
+            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, capacity_usize)?;
+        Ok((Self { metadata, slice }, remaining_bytes))
     }
 
     #[cfg(feature = "std")]
@@ -66,11 +75,29 @@ where
         Ok(Self::from_bytes_at(bytes)?.0)
     }
 
+    #[inline]
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
-        let (current_index, _padding) = Ref::<&mut [u8], L>::from_prefix(meta_data)?;
-        let (vec, bytes) = ZeroCopyVec::<'a, L, T, PAD>::from_bytes_at(bytes)?;
-        Ok((Self { current_index, vec }, bytes))
+        let meta_data_size = Self::metadata_size();
+        if bytes.len() < meta_data_size {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                bytes.len(),
+                meta_data_size,
+            ));
+        }
+
+        let (meta_data, bytes) = bytes.split_at_mut(meta_data_size);
+        let (metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
+        let usize_len: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
+        let full_vector_size = Self::data_size(metadata[CAPACITY_INDEX]);
+        if bytes.len() < full_vector_size {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                bytes.len(),
+                full_vector_size,
+            ));
+        }
+        let (slice, remaining_bytes) =
+            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
+        Ok((Self { metadata, slice }, remaining_bytes))
     }
 
     #[cfg(feature = "std")]
@@ -87,16 +114,51 @@ where
         Ok((value_vecs, bytes))
     }
 
+    /// Convenience method to get the current index of the vector.
+    #[inline]
+    fn get_current_index(&self) -> L {
+        self.metadata[CURRENT_INDEX_INDEX]
+    }
+
+    /// Convenience method to get the current index of the vector.
+    #[inline]
+    fn get_current_index_mut(&mut self) -> &mut L {
+        &mut self.metadata[CURRENT_INDEX_INDEX]
+    }
+
+    /// Convenience method to get the length of the vector.
+    #[inline]
+    fn get_len(&self) -> L {
+        self.metadata[LENGTH_INDEX]
+    }
+
+    /// Convenience method to get the length of the vector.
+    #[inline]
+    fn get_len_mut(&mut self) -> &mut L {
+        &mut self.metadata[LENGTH_INDEX]
+    }
+
+    /// Convenience method to get the capacity of the vector.
+    #[inline]
+    fn get_capacity(&self) -> L {
+        self.metadata[CAPACITY_INDEX]
+    }
+
     #[inline]
     pub fn push(&mut self, value: T) {
-        if self.vec.len() < self.vec.capacity() {
-            self.vec.push(value).unwrap();
+        if self.len() < self.capacity() {
+            let len = self.len();
+            self.slice[len] = value;
+            *self.get_len_mut() = (len as u64 + 1u64)
+                .try_into()
+                .map_err(|_| ZeroCopyError::InvalidConversion)
+                .unwrap();
         } else {
             let current_index = self.current_index();
-            self.vec[current_index] = value;
+            self.slice[current_index] = value;
         }
-        let new_index = (self.current_index() + 1) % self.vec.capacity();
-        *self.current_index = (new_index as u64)
+        let new_index = (self.current_index() + 1) % self.capacity();
+        *self.get_current_index_mut() = (new_index as u64)
             .try_into()
             .map_err(|_| ZeroCopyError::InvalidConversion)
             .unwrap();
@@ -104,54 +166,57 @@ where
 
     #[inline]
     pub fn clear(&mut self) {
-        *self.current_index = 0
+        *self.get_current_index_mut() = 0
             .try_into()
             .map_err(|_| ZeroCopyError::InvalidConversion)
             .unwrap();
-        self.vec.clear();
+        *self.get_len_mut() = 0
+            .try_into()
+            .map_err(|_| ZeroCopyError::InvalidConversion)
+            .unwrap();
     }
 
     #[inline]
     pub fn first(&self) -> Option<&T> {
-        self.vec.get(self.first_index())
+        self.get(self.first_index())
     }
 
     #[inline]
     pub fn first_mut(&mut self) -> Option<&mut T> {
-        self.vec.get_mut(self.first_index())
+        self.get_mut(self.first_index())
     }
 
     #[inline]
     pub fn last(&self) -> Option<&T> {
-        self.vec.get(self.last_index())
+        self.get(self.last_index())
     }
 
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        self.vec.get_mut(self.last_index())
+        self.get_mut(self.last_index())
     }
 
     #[inline]
     fn current_index(&self) -> usize {
-        u64::from(*self.current_index) as usize
+        u64::from(self.get_current_index()) as usize
     }
 
     /// First index is the next index after the last index mod capacity.
     #[inline]
     pub fn first_index(&self) -> usize {
-        if self.len() < self.vec.capacity() || self.last_index() == self.vec.capacity() {
+        if self.len() < self.capacity() || self.last_index() == self.capacity() {
             0
         } else {
-            self.last_index().saturating_add(1) % (self.vec.capacity())
+            self.last_index().saturating_add(1) % (self.capacity())
         }
     }
 
     #[inline]
     pub fn last_index(&self) -> usize {
-        if self.current_index() == 0 && self.vec.len() == self.vec.capacity() {
-            self.vec.capacity().saturating_sub(1)
+        if self.current_index() == 0 && self.len() == self.capacity() {
+            self.capacity().saturating_sub(1)
         } else {
-            self.current_index().saturating_sub(1) % self.vec.capacity()
+            self.current_index().saturating_sub(1) % self.capacity()
         }
     }
 
@@ -181,16 +246,19 @@ where
         })
     }
 
+    #[inline]
     pub fn metadata_size() -> usize {
-        let mut size = size_of::<L>();
+        let mut size = size_of::<[L; 3]>();
         if PAD {
-            add_padding::<L, T>(&mut size);
+            add_padding::<[L; 3], T>(&mut size);
         }
         size
     }
 
-    pub fn data_size(length: L) -> usize {
-        ZeroCopyVec::<L, T>::required_size_for_capacity(length)
+    #[inline]
+    pub fn data_size(capacity: L) -> usize {
+        let usize_len: usize = u64::from(capacity) as usize;
+        usize_len * size_of::<T>()
     }
 
     pub fn required_size_for_capacity(capacity: L) -> usize {
@@ -199,47 +267,57 @@ where
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.vec.len()
+        u64::from(self.get_len()) as usize
     }
 
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.vec.capacity()
+        u64::from(self.get_capacity()) as usize
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.vec.is_empty()
+        self.len() == 0
     }
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.vec.get(index)
+        if index >= self.len() {
+            return None;
+        }
+        Some(&self.slice[index])
     }
 
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.vec.get_mut(index)
+        if index >= self.len() {
+            return None;
+        }
+        Some(&mut self.slice[index])
     }
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.vec.as_slice()
+        &self.slice[..self.len()]
     }
 
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        self.vec.as_mut_slice()
+        let len = self.len();
+        &mut self.slice[..len]
     }
 
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
-        self.vec.try_into_array()
+        if self.len() != N {
+            return Err(ZeroCopyError::ArraySize(N, self.len()));
+        }
+        Ok(core::array::from_fn(|i| *self.get(i).unwrap()))
     }
 
     #[cfg(feature = "std")]
     #[inline]
     pub fn to_vec(&self) -> Vec<T> {
-        self.vec.to_vec()
+        self.as_slice().to_vec()
     }
 }
 
@@ -315,7 +393,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.vec == other.vec && *self.current_index == *other.current_index
+        self.as_slice() == other.as_slice() && self.get_current_index() == other.get_current_index()
     }
 }
 
@@ -328,5 +406,18 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.as_slice())
+    }
+}
+
+#[test]
+fn test_private_getters() {
+    let mut backing_store = [0u8; 64];
+    let mut zcv = ZeroCopyCyclicVecU16::<u16>::new(5, &mut backing_store).unwrap();
+    assert_eq!(zcv.get_len(), 0);
+    assert_eq!(zcv.get_capacity(), 5);
+    for i in 0..5 {
+        zcv.push(i);
+        assert_eq!(zcv.get_len(), i + 1);
+        assert_eq!(zcv.get_len_mut(), &mut (i + 1));
     }
 }

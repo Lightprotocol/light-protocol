@@ -126,9 +126,19 @@ impl Batch {
     }
 
     /// fill -> full -> inserted -> fill
-    pub fn advance_state_to_fill(&mut self) -> Result<(), BatchedMerkleTreeError> {
+    pub fn advance_state_to_fill(
+        &mut self,
+        start_index: Option<u64>,
+    ) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Inserted {
             self.state = BatchState::Fill.into();
+            self.set_bloom_filter_to_not_zeroed();
+            self.sequence_number = 0;
+            self.root_index = 0;
+            self.num_inserted_zkps = 0;
+            if let Some(start_index) = start_index {
+                self.start_index = start_index;
+            }
         } else {
             msg!(
                 "Batch is in incorrect state {} expected Inserted 3",
@@ -143,6 +153,7 @@ impl Batch {
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Full {
             self.state = BatchState::Inserted.into();
+            self.current_zkp_batch_index = 0;
         } else {
             msg!(
                 "Batch is in incorrect state {} expected ReadyToUpdateTree 2",
@@ -183,28 +194,36 @@ impl Batch {
 
     /// Returns the number of zkp batch updates
     /// that are ready to be inserted into the tree.
-    pub fn num_ready_zkp_updates(&self) -> u64 {
+    pub fn get_num_ready_zkp_updates(&self) -> u64 {
         self.current_zkp_batch_index
             .saturating_sub(self.num_inserted_zkps)
     }
 
     /// Returns the number of inserted elements
     /// in the current zkp batch.
-    pub fn get_num_inserted(&self) -> u64 {
+    pub fn get_num_inserted_zkp_batch(&self) -> u64 {
         self.num_inserted
     }
 
+    /// Returns the current zkp batch index.
+    /// New values are inserted into the current zkp batch.
     pub fn get_current_zkp_batch_index(&self) -> u64 {
         self.current_zkp_batch_index
     }
 
+    /// Returns the number of inserted zkps.
     pub fn get_num_inserted_zkps(&self) -> u64 {
         self.num_inserted_zkps
     }
 
+    /// Returns the number of elements inserted into the tree.
+    pub fn get_num_elements_inserted_into_tree(&self) -> u64 {
+        self.num_inserted_zkps * self.zkp_batch_size
+    }
+
     /// Returns the number of inserted elements in the batch.
     pub fn get_num_inserted_elements(&self) -> u64 {
-        self.num_inserted_zkps * self.zkp_batch_size + self.num_inserted
+        self.current_zkp_batch_index * self.zkp_batch_size + self.num_inserted
     }
 
     /// Returns the number of zkp batches in the batch.
@@ -212,8 +231,9 @@ impl Batch {
         self.batch_size / self.zkp_batch_size
     }
 
-    pub fn get_hashchain_store_len(&self) -> usize {
-        self.batch_size as usize / self.zkp_batch_size as usize
+    /// Returns the number of the hashchain stores.
+    pub fn get_num_hashchain_store(&self) -> usize {
+        self.get_num_zkp_batches() as usize
     }
 
     /// Returns the index of a value by leaf index in the value store,
@@ -306,8 +326,7 @@ impl Batch {
             let hashchain = Poseidon::hashv(&[last_hashchain, value.as_slice()])?;
             *hashchain_store.last_mut().unwrap() = hashchain;
         } else {
-            // This state should never be reached.
-            return Err(BatchedMerkleTreeError::BatchNotReady);
+            unreachable!();
         }
         self.num_inserted += 1;
 
@@ -359,23 +378,14 @@ impl Batch {
 
         // 2. increments the number of inserted zkps.
         self.num_inserted_zkps += 1;
-        println!("num_inserted_zkps: {}", self.num_inserted_zkps);
         // 3. If all zkps are inserted, sets the state to inserted.
-        let batch_is_completly_inserted = self.num_inserted_zkps == num_zkp_batches;
-        if batch_is_completly_inserted {
-            println!("Setting state to inserted");
-            self.num_inserted_zkps = 0;
-            self.current_zkp_batch_index = 0;
+        let batch_is_completely_inserted = self.num_inserted_zkps == num_zkp_batches;
+        if batch_is_completely_inserted {
             self.advance_state_to_inserted()?;
             // Saving sequence number and root index for the batch.
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
             self.sequence_number = sequence_number + root_history_length as u64;
-            println!("root_history_length as u64: {}", root_history_length as u64);
-            println!("sequence_number: {}", sequence_number);
-            println!("recorded sequence_number: {}", self.sequence_number);
-            println!("current root index {}", root_index);
-
             self.root_index = root_index;
         }
 
@@ -400,7 +410,11 @@ impl Batch {
 #[cfg(test)]
 mod tests {
 
+    use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
+    use light_utils::pubkey::Pubkey;
+
     use super::*;
+    use crate::queue::BatchedQueueAccount;
 
     fn get_test_batch() -> Batch {
         Batch::new(3, 160_000, 500, 100, 0)
@@ -419,22 +433,27 @@ mod tests {
                 .unwrap();
             if i != batch.get_num_zkp_batches() - 1 {
                 assert_eq!(batch.get_state(), BatchState::Full);
-                assert_eq!(batch.get_num_inserted(), 0);
+                assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
                 assert_eq!(batch.get_current_zkp_batch_index(), 5);
                 assert_eq!(batch.get_num_inserted_zkps(), i + 1);
             } else {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
-                assert_eq!(batch.get_num_inserted(), 0);
+                assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
                 assert_eq!(batch.get_current_zkp_batch_index(), 0);
-                assert_eq!(batch.get_num_inserted_zkps(), 0);
+                assert_eq!(batch.get_num_inserted_zkps(), i + 1);
             }
         }
         assert_eq!(batch.get_state(), BatchState::Inserted);
-        assert_eq!(batch.get_num_inserted(), 0);
+        assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
         let mut ref_batch = get_test_batch();
         ref_batch.state = BatchState::Inserted.into();
         ref_batch.root_index = root_index;
         ref_batch.sequence_number = sequence_number + root_history_length as u64;
+        ref_batch.num_inserted_zkps = 5;
+        assert_eq!(batch, ref_batch);
+        batch.advance_state_to_fill(Some(1)).unwrap();
+        let mut ref_batch = get_test_batch();
+        ref_batch.start_index = 1;
         assert_eq!(batch, ref_batch);
     }
 
@@ -449,11 +468,11 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len() as u64
+                batch.get_num_hashchain_store() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::new(
-            batch.get_hashchain_store_len() as u64,
+            batch.get_num_hashchain_store() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -482,7 +501,7 @@ mod tests {
         let result = batch.store_and_hash_value(&[1u8; 32], &mut value_store, &mut hashchain_store);
         assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
         assert_eq!(batch.get_state(), BatchState::Full);
-        assert_eq!(batch.get_num_inserted(), 0);
+        assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 5);
         assert_eq!(batch.get_num_zkp_batches(), 5);
         assert_eq!(batch.get_num_inserted_zkps(), 0);
@@ -502,11 +521,11 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len() as u64
+                batch.get_num_hashchain_store() as u64
             )
         ];
         ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_hashchain_store_len() as u64,
+            batch.get_num_hashchain_store() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -600,11 +619,11 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len() as u64
+                batch.get_num_hashchain_store() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_hashchain_store_len() as u64,
+            batch.get_num_hashchain_store() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -643,11 +662,11 @@ mod tests {
             let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len() as u64
+                batch.get_num_hashchain_store() as u64
             )
         ];
             let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-                batch.get_hashchain_store_len() as u64,
+                batch.get_num_hashchain_store() as u64,
                 hashchain_store_bytes.as_mut_slice(),
             )
             .unwrap();
@@ -695,9 +714,9 @@ mod tests {
     fn test_getters() {
         let mut batch = get_test_batch();
         assert_eq!(batch.get_num_zkp_batches(), 5);
-        assert_eq!(batch.get_hashchain_store_len(), 5);
+        assert_eq!(batch.get_num_hashchain_store(), 5);
         assert_eq!(batch.get_state(), BatchState::Fill);
-        assert_eq!(batch.get_num_inserted(), 0);
+        assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 0);
         assert_eq!(batch.get_num_inserted_zkps(), 0);
         batch.advance_state_to_full().unwrap();
@@ -755,11 +774,11 @@ mod tests {
         let mut hashchain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_hashchain_store_len() as u64
+                batch.get_num_hashchain_store() as u64
             )
         ];
         let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_hashchain_store_len() as u64,
+            batch.get_num_hashchain_store() as u64,
             hashchain_store_bytes.as_mut_slice(),
         )
         .unwrap();
@@ -790,5 +809,279 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_get_state() {
+        let mut batch = get_test_batch();
+        assert_eq!(batch.get_state(), BatchState::Fill);
+        {
+            let result = batch.advance_state_to_inserted();
+            assert_eq!(result, Err(BatchedMerkleTreeError::BatchNotReady));
+            let result = batch.advance_state_to_fill(None);
+            assert_eq!(result, Err(BatchedMerkleTreeError::BatchNotReady));
+        }
+        batch.advance_state_to_full().unwrap();
+        assert_eq!(batch.get_state(), BatchState::Full);
+        {
+            let result = batch.advance_state_to_full();
+            assert_eq!(result, Err(BatchedMerkleTreeError::BatchNotReady));
+            let result = batch.advance_state_to_fill(None);
+            assert_eq!(result, Err(BatchedMerkleTreeError::BatchNotReady));
+        }
+        batch.advance_state_to_inserted().unwrap();
+        assert_eq!(batch.get_state(), BatchState::Inserted);
+    }
+
+    #[test]
+    fn test_bloom_filter_is_zeroed() {
+        let mut batch = get_test_batch();
+        assert!(!batch.bloom_filter_is_zeroed());
+        batch.set_bloom_filter_to_zeroed();
+        assert!(batch.bloom_filter_is_zeroed());
+        batch.set_bloom_filter_to_not_zeroed();
+        assert!(!batch.bloom_filter_is_zeroed());
+    }
+
+    #[test]
+    fn test_num_ready_zkp_updates() {
+        let mut batch = get_test_batch();
+        assert_eq!(batch.get_num_ready_zkp_updates(), 0);
+        batch.current_zkp_batch_index = 1;
+        assert_eq!(batch.get_num_ready_zkp_updates(), 1);
+        batch.num_inserted_zkps = 1;
+        assert_eq!(batch.get_num_ready_zkp_updates(), 0);
+        batch.current_zkp_batch_index = 2;
+        assert_eq!(batch.get_num_ready_zkp_updates(), 1);
+    }
+
+    #[test]
+    fn test_get_num_inserted_elements() {
+        let mut batch = get_test_batch();
+        assert_eq!(batch.get_num_inserted_elements(), 0);
+        let mut hash_chain_bytes = vec![0u8; 32 * batch.batch_size as usize];
+        let mut hash_chain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_num_zkp_batches(),
+            hash_chain_bytes.as_mut_slice(),
+        )
+        .unwrap();
+
+        for i in 0..batch.batch_size {
+            let mut value = [0u8; 32];
+            value[24..].copy_from_slice(&i.to_be_bytes());
+            batch
+                .add_to_hash_chain(&value, &mut hash_chain_store)
+                .unwrap();
+            assert_eq!(batch.get_num_inserted_elements(), i + 1);
+        }
+    }
+
+    #[test]
+    fn test_get_num_elements_inserted_into_tree() {
+        let mut batch = get_test_batch();
+        assert_eq!(batch.get_num_elements_inserted_into_tree(), 0);
+        for i in 0..batch.get_num_zkp_batches() {
+            if i % batch.zkp_batch_size == 0 {
+                batch.current_zkp_batch_index += 1;
+                batch
+                    .mark_as_inserted_in_merkle_tree(i, i as u32, 0)
+                    .unwrap();
+                assert_eq!(
+                    batch.get_num_elements_inserted_into_tree(),
+                    (i + 1) * batch.zkp_batch_size
+                );
+            }
+        }
+    }
+
+    // Moved BatchedQueueAccount test to this file
+    // to modify private Batch variables for assertions.
+    #[test]
+    fn test_get_num_inserted() {
+        let mut account_data = vec![0u8; 920];
+        let mut queue_metadata = QueueMetadata::default();
+        let associated_merkle_tree = Pubkey::new_unique();
+        queue_metadata.associated_merkle_tree = associated_merkle_tree;
+        queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+        let batch_size = 4;
+        let zkp_batch_size = 2;
+        let bloom_filter_capacity = 0;
+        let num_iters = 0;
+        let mut account = BatchedQueueAccount::init(
+            &mut account_data,
+            queue_metadata,
+            batch_size,
+            zkp_batch_size,
+            num_iters,
+            bloom_filter_capacity,
+        )
+        .unwrap();
+        // Tree height 4 -> capacity 16
+        account.tree_capacity = 16;
+        assert_eq!(account.get_num_inserted_in_current_batch(), 0);
+        // Fill first batch
+        for i in 1..=batch_size {
+            account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            if i == batch_size {
+                // Current batch is batch[1] now since batch[0] is full
+                assert_eq!(account.get_num_inserted_in_current_batch(), 0);
+                assert_eq!(
+                    account.batch_metadata.batches[0].get_num_inserted_elements(),
+                    i
+                );
+            } else {
+                assert_eq!(account.get_num_inserted_in_current_batch(), i);
+            }
+        }
+        println!("full batch 0 {:?}", account.batch_metadata.batches[0]);
+
+        // Fill second batch
+        for i in 1..=batch_size {
+            account.insert_into_current_batch(&[2u8; 32]).unwrap();
+            if i == batch_size {
+                // Current batch is batch[0] and it is still full
+                assert_eq!(account.get_num_inserted_in_current_batch(), 4);
+                assert_eq!(
+                    account.batch_metadata.batches[1].get_num_inserted_elements(),
+                    i
+                );
+            } else {
+                assert_eq!(account.get_num_inserted_in_current_batch(), i);
+            }
+        }
+        println!("account {:?}", account.batch_metadata);
+        println!("account {:?}", account.batch_metadata.batches[0]);
+        println!("account {:?}", account.batch_metadata.batches[1]);
+        assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
+        assert_eq!(
+            account.insert_into_current_batch(&[1u8; 32]),
+            Err(BatchedMerkleTreeError::BatchNotReady)
+        );
+        let ref_value_array = vec![[1u8; 32]; 4];
+        assert_eq!(account.value_vecs[0].as_slice(), ref_value_array.as_slice());
+        let ref_value_array = vec![[2u8; 32]; 4];
+        assert_eq!(account.value_vecs[1].as_slice(), ref_value_array.as_slice());
+        assert_eq!(account.batch_metadata.get_current_batch().start_index, 0);
+        {
+            let batch_1 = account.batch_metadata.batches[0];
+            let mut expected_batch = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                0,
+            );
+            expected_batch.current_zkp_batch_index = 2;
+            expected_batch.advance_state_to_full().unwrap();
+            assert_eq!(batch_1, expected_batch);
+        }
+        {
+            let batch_2 = account.batch_metadata.batches[1];
+            let mut expected_batch = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                batch_size,
+            );
+            expected_batch.current_zkp_batch_index = 2;
+
+            expected_batch.advance_state_to_full().unwrap();
+            assert_eq!(batch_2, expected_batch);
+        }
+        // Mark first batch as inserted
+        {
+            account.batch_metadata.batches[0]
+                .advance_state_to_inserted()
+                .unwrap();
+            assert_eq!(account.get_num_inserted_in_current_batch(), 0);
+        }
+        // Check that batch is cleared properly.
+        {
+            assert_eq!(
+                account.batch_metadata.get_current_batch().get_state(),
+                BatchState::Inserted
+            );
+            account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            assert_eq!(account.value_vecs[0].as_slice(), [[1u8; 32]].as_slice());
+            assert_eq!(account.value_vecs[1].as_slice(), ref_value_array.as_slice());
+            assert_eq!(
+                account.hash_chain_stores[0].as_slice(),
+                [[1u8; 32]].as_slice()
+            );
+            assert_eq!(
+                account.batch_metadata.get_current_batch().get_state(),
+                BatchState::Fill
+            );
+            let mut expected_batch = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                batch_size * 2,
+            );
+
+            assert_ne!(*account.batch_metadata.get_current_batch(), expected_batch);
+            expected_batch.num_inserted = 1;
+            assert_eq!(*account.batch_metadata.get_current_batch(), expected_batch);
+
+            assert_eq!(account.batch_metadata.get_current_batch().start_index, 8);
+        }
+        // Fill cleared batch
+        {
+            for i in 1..batch_size {
+                assert_eq!(account.get_num_inserted_in_current_batch(), i);
+                account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            }
+            assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
+            let mut expected_batch = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                batch_size * 2,
+            );
+            expected_batch.current_zkp_batch_index = 2;
+            expected_batch.advance_state_to_full().unwrap();
+            assert_eq!(account.batch_metadata.batches[0], expected_batch);
+            assert_ne!(*account.batch_metadata.get_current_batch(), expected_batch);
+            assert_eq!(
+                *account.batch_metadata.get_current_batch(),
+                account.batch_metadata.batches[1]
+            );
+        }
+        assert_eq!(account.batch_metadata.next_index, 12);
+        // Mark second batch as inserted
+        account
+            .batch_metadata
+            .get_current_batch_mut()
+            .advance_state_to_inserted()
+            .unwrap();
+
+        {
+            for i in 0..batch_size {
+                assert!(!account.tree_is_full());
+                assert!(account.check_tree_is_full().is_ok());
+                assert_eq!(account.get_num_inserted_in_current_batch(), i);
+                account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            }
+            assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
+            let mut expected_batch = Batch::new(
+                num_iters,
+                bloom_filter_capacity,
+                batch_size,
+                zkp_batch_size,
+                batch_size * 3,
+            );
+            expected_batch.current_zkp_batch_index = 2;
+            expected_batch.advance_state_to_full().unwrap();
+            assert_eq!(account.batch_metadata.batches[1], expected_batch);
+        }
+        assert_eq!(account.batch_metadata.next_index, 16);
+        assert!(account.tree_is_full());
+        assert_eq!(
+            account.check_tree_is_full(),
+            Err(BatchedMerkleTreeError::TreeIsFull)
+        );
     }
 }

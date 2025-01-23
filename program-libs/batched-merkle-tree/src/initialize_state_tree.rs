@@ -323,7 +323,7 @@ pub fn assert_address_mt_zero_copy_inited(
 
 #[cfg(not(target_os = "solana"))]
 fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
-    mut account: BatchedMerkleTreeAccount,
+    account: BatchedMerkleTreeAccount,
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     tree_type: u64,
 ) {
@@ -353,7 +353,7 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
         );
     }
     assert_eq!(
-        account.hashchain_store[0].capacity(),
+        account.hash_chain_stores[0].capacity(),
         ref_account.queue_metadata.get_num_zkp_batches() as usize,
         "hashchain_store mismatch"
     );
@@ -363,7 +363,7 @@ fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
     } else {
         QueueType::BatchedAddress as u64
     };
-    crate::queue::assert_queue_inited(queue, ref_queue, queue_type, &mut account.value_vecs);
+    crate::queue::assert_queue_inited(queue, ref_queue, queue_type, &mut []);
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -438,7 +438,6 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
     BatchedQueueMetadata {
         metadata,
         batch_metadata,
-        next_index: 0,
         tree_capacity: 2u64.pow(params.height),
     }
 }
