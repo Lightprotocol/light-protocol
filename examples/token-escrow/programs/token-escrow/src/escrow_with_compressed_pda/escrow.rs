@@ -9,7 +9,8 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
+    legacy::create_cpi_inputs_for_new_account, light_system_accounts, utils::get_cpi_authority_pda,
+    verify::verify, LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -105,7 +106,7 @@ fn cpi_compressed_pda_transfer<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
+    let bump = get_cpi_authority_pda(&crate::ID).1;
     let bump = [bump];
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;

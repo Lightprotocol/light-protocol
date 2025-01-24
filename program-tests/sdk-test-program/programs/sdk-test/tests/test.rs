@@ -68,7 +68,7 @@ async fn test_sdk_test() {
         &sdk_test::ID,
     );
 
-    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
+    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM).0;
     let registered_program_pda = Pubkey::find_program_address(
         &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
         &PROGRAM_ID_ACCOUNT_COMPRESSION,

@@ -4,6 +4,7 @@ use solana_program::account_info::AccountInfo;
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
 
+/// Parameters for deriving and creating a PDA address.
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct NewAddressParams {
     pub seed: [u8; 32],
@@ -12,6 +13,9 @@ pub struct NewAddressParams {
     pub address_merkle_tree_root_index: u16,
 }
 
+/// Packed representation of `NewAddressParams`.
+///
+/// Stores pubkey pointers to remaining accounts.
 #[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
 pub struct PackedNewAddressParams {
     pub seed: [u8; 32],
@@ -25,6 +29,9 @@ pub struct AddressWithMerkleContext {
     pub address_merkle_context: AddressMerkleContext,
 }
 
+/// Packs multiple `NewAddressParams` into a vector of `PackedNewAddressParams`.
+///
+/// Stores pubkey pointers to the remaining accounts.
 pub fn pack_new_addresses_params(
     addresses_params: &[NewAddressParams],
     remaining_accounts: &mut RemainingAccounts,
@@ -53,6 +60,8 @@ pub fn pack_new_address_params(
     pack_new_addresses_params(&[address_params], remaining_accounts)[0]
 }
 
+/// Unpacks a single `PackedNewAddressParams` into a `NewAddressParams` by
+/// looking up the respective pubkey pointers in remaining accounts.
 pub fn unpack_new_address_params(
     address_params: &PackedNewAddressParams,
     remaining_accounts: &[AccountInfo],

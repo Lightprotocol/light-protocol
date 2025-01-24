@@ -10,19 +10,22 @@ use crate::{
     PROGRAM_ID_ACCOUNT_COMPRESSION,
 };
 
-pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
+/// Get the PDA for a given program that is registered in the Light Protocol's
+/// Account Compression Program. Examples include the Light System Program.
+pub fn get_registered_program_pda(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[program_id.to_bytes().as_slice()],
         &PROGRAM_ID_ACCOUNT_COMPRESSION,
     )
-    .0
 }
 
-pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[b"cpi_authority"], program_id).0
+/// Get the PDA and derivation bump for a given program's CPI authority.
+/// The Program signs a CPI with this PDA.
+pub fn get_cpi_authority_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[b"cpi_authority"], program_id)
 }
 
-/// Helper function to create data for creating a single PDA.
+/// Create CPI inputs for a new compressed PDA account.
 pub fn create_cpi_inputs_for_new_account(
     proof: CompressedProof,
     new_address_params: PackedNewAddressParams,
@@ -40,7 +43,16 @@ pub fn create_cpi_inputs_for_new_account(
         cpi_context,
     }
 }
-
+/// Constructs CPI inputs for updating a compressed PDA account.
+///
+/// # Arguments
+/// * `proof` - ValidityProof for the old_compressed_pda state.
+/// * `old_compressed_pda` - Existing compressed PDA account with Merkle context.
+/// * `new_compressed_pda` - New compressed PDA account to be updated.
+/// * `cpi_context` - Optional context for the CPI operation.
+///
+/// # Returns
+/// An `InstructionDataInvokeCpi` struct containing the necessary inputs for the update.
 pub fn create_cpi_inputs_for_account_update(
     proof: CompressedProof,
     old_compressed_pda: PackedCompressedAccountWithMerkleContext,
@@ -49,7 +61,7 @@ pub fn create_cpi_inputs_for_account_update(
 ) -> InstructionDataInvokeCpi {
     InstructionDataInvokeCpi {
         proof: Some(proof),
-        new_address_params: vec![],
+        new_address_params: Vec::new(),
         input_compressed_accounts_with_merkle_context: vec![old_compressed_pda],
         output_compressed_accounts: vec![new_compressed_pda],
         relay_fee: None,
@@ -59,6 +71,7 @@ pub fn create_cpi_inputs_for_account_update(
     }
 }
 
+/// Create CPI inputs for deleting a compressed PDA account.
 pub fn create_cpi_inputs_for_account_deletion(
     proof: CompressedProof,
     compressed_pda: PackedCompressedAccountWithMerkleContext,

@@ -73,6 +73,9 @@ pub struct PackedMerkleContext {
     pub prove_by_index: bool,
 }
 
+/// Packs multiple `MerkleContext` into a vector of `PackedMerkleContext`.
+///
+/// Stores pubkey pointers to the remaining accounts.
 pub fn pack_merkle_contexts<'a, I>(
     merkle_contexts: I,
     remaining_accounts: &'a mut RemainingAccounts,
@@ -83,6 +86,9 @@ where
     merkle_contexts.map(|x| pack_merkle_context(x, remaining_accounts))
 }
 
+/// Packs a single `MerkleContext` into a `PackedMerkleContext`.
+///
+/// Stores pubkey pointers to the remaining accounts.
 pub fn pack_merkle_context(
     merkle_context: &MerkleContext,
     remaining_accounts: &mut RemainingAccounts,
@@ -104,20 +110,25 @@ pub fn pack_merkle_context(
     }
 }
 
+/// Pubkeys of the Merkle tree and queue that an address is stored in.
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,
 }
 
+/// Packed representation of `AddressMerkleContext`.
+///
+/// Pubkey pointers to the remaining accounts.
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,
 }
 
-/// Returns an iterator of [`PackedAddressMerkleContext`] and fills up
-/// `remaining_accounts` based on the given `merkle_contexts`.
+/// Packs multiple `AddressMerkleContext` into a vector of `PackedAddressMerkleContext`.
+///
+/// Stores pubkey pointers to the remaining accounts.
 pub fn pack_address_merkle_contexts<'a, I>(
     address_merkle_contexts: I,
     remaining_accounts: &'a mut RemainingAccounts,
@@ -128,8 +139,9 @@ where
     address_merkle_contexts.map(|x| pack_address_merkle_context(x, remaining_accounts))
 }
 
-/// Returns a [`PackedAddressMerkleContext`] and fills up `remaining_accounts`
-/// based on the given `merkle_context`.
+/// Packs a single `AddressMerkleContext` into a `PackedAddressMerkleContext`.
+///
+/// Stores pubkey pointers to the remaining accounts.
 pub fn pack_address_merkle_context(
     address_merkle_context: &AddressMerkleContext,
     remaining_accounts: &mut RemainingAccounts,

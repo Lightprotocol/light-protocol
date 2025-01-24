@@ -6,6 +6,10 @@ use crate::merkle_context::{
     pack_merkle_context, MerkleContext, PackedMerkleContext, RemainingAccounts,
 };
 
+/// Compressed account.
+///
+/// Compressed representation of a regular Solana account state. In contrast to
+/// regular Solana accounts, PDA addresses are optional.
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CompressedAccount {
     pub owner: Pubkey,
@@ -116,8 +120,8 @@ pub struct OutputCompressedAccountWithPackedContext {
 
 /// Hashes a compressed account.
 ///
-/// This function should be used for input accounts, where including only a
-/// hash is sufficient.
+/// Use this function for input accounts, as they only need to provide the hash
+/// to the Light System Program.
 pub fn hash_input_account<T>(account: &T) -> Result<CompressedAccountData>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
@@ -134,7 +138,7 @@ where
 /// Serializes and hashes a compressed account.
 ///
 /// This function should be used for output accounts, where data has to be
-/// included for system-program to log in the ledger.
+/// included in the call data to the Light System Program to log in the ledger.
 pub fn serialize_and_hash_output_account<T>(account: &T) -> Result<CompressedAccountData>
 where
     T: AnchorSerialize + DataHasher + Discriminator,
@@ -148,6 +152,10 @@ where
     })
 }
 
+/// Pack output compressed accounts into a vector of
+/// `PackedCompressedAccountWithMerkleContext`.
+///
+/// Stores Merkle context pubkeys as pointers to the remaining accounts.
 pub fn pack_compressed_accounts(
     compressed_accounts: &[CompressedAccountWithMerkleContext],
     root_indices: &[u16],
@@ -165,6 +173,9 @@ pub fn pack_compressed_accounts(
         .collect::<Vec<_>>()
 }
 
+/// Packs a single output compressed account with Merkle context.
+///
+/// Stores Merkle context pubkeys as pointers to the remaining accounts.
 pub fn pack_compressed_account(
     compressed_account: CompressedAccountWithMerkleContext,
     root_index: u16,

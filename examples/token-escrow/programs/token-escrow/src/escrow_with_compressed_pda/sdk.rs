@@ -2,7 +2,6 @@
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_token::process_transfer::{
-    get_cpi_authority_pda,
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
 };
@@ -94,10 +93,11 @@ pub fn create_escrow_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda =
+        light_sdk::utils::get_cpi_authority_pda(&light_compressed_token::ID).0;
     let account_compression_authority =
-        light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-    let cpi_authority_pda = light_sdk::utils::get_cpi_authority_pda(&crate::ID);
+        light_sdk::utils::get_cpi_authority_pda(&light_system_program::ID).0;
+    let cpi_authority_pda = light_sdk::utils::get_cpi_authority_pda(&crate::ID).0;
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
@@ -221,7 +221,8 @@ pub fn create_withdrawal_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda =
+        light_sdk::utils::get_cpi_authority_pda(&light_compressed_token::ID).0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let cpi_authority_pda = light_system_program::utils::get_cpi_authority_pda(&crate::ID);
