@@ -5,6 +5,7 @@ use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
 use super::address::pack_account;
+use crate::OutputCompressedAccountWithPackedContext;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
@@ -115,22 +116,66 @@ pub struct QueueIndex {
     pub index: u16,
 }
 
+pub fn pack_compressed_accounts(
+    compressed_accounts: &[CompressedAccountWithMerkleContext],
+    root_indices: &[Option<u16>],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedCompressedAccountWithMerkleContext> {
+    compressed_accounts
+        .iter()
+        .zip(root_indices.iter())
+        .map(|(x, root_index)| {
+            let mut merkle_context = x.merkle_context;
+            let root_index = if let Some(root) = root_index {
+                *root
+            } else {
+                merkle_context.queue_index = Some(QueueIndex::default());
+                0
+            };
+
+            PackedCompressedAccountWithMerkleContext {
+                compressed_account: x.compressed_account.clone(),
+                merkle_context: pack_merkle_context(&[merkle_context], remaining_accounts)[0],
+                root_index,
+                read_only: false,
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn pack_output_compressed_accounts(
+    compressed_accounts: &[CompressedAccount],
+    merkle_trees: &[Pubkey],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<OutputCompressedAccountWithPackedContext> {
+    compressed_accounts
+        .iter()
+        .zip(merkle_trees.iter())
+        .map(|(x, tree)| OutputCompressedAccountWithPackedContext {
+            compressed_account: x.clone(),
+            merkle_tree_index: pack_account(tree, remaining_accounts),
+        })
+        .collect::<Vec<_>>()
+}
 pub fn pack_merkle_context(
     merkle_context: &[MerkleContext],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
 ) -> Vec<PackedMerkleContext> {
     merkle_context
         .iter()
-        .map(|x| PackedMerkleContext {
-            leaf_index: x.leaf_index,
-            merkle_tree_pubkey_index: pack_account(&x.merkle_tree_pubkey, remaining_accounts),
-            nullifier_queue_pubkey_index: pack_account(
-                &x.nullifier_queue_pubkey,
+        .map(|merkle_context| PackedMerkleContext {
+            leaf_index: merkle_context.leaf_index,
+            merkle_tree_pubkey_index: pack_account(
+                &merkle_context.merkle_tree_pubkey,
                 remaining_accounts,
             ),
-            queue_index: x.queue_index,
+            nullifier_queue_pubkey_index: pack_account(
+                &merkle_context.nullifier_queue_pubkey,
+                remaining_accounts,
+            ),
+            queue_index: merkle_context.queue_index,
         })
-        .collect::<Vec<PackedMerkleContext>>()
+        .collect::<Vec<_>>()
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

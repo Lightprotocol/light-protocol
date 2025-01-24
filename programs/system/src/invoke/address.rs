@@ -53,6 +53,15 @@ pub fn derive_new_addresses(
                         } else {
                             err!(SystemProgramError::DeriveAddressError)
                         }?;
+                    msg!("invoking_program_id_bytes: {:?}", invoking_program_id_bytes);
+                    msg!("new_address_params.seed: {:?}", new_address_params.seed);
+                    msg!(
+                        "merkle tree: {:?}",
+                        remaining_accounts
+                            [new_address_params.address_merkle_tree_account_index as usize]
+                            .key()
+                            .to_bytes()
+                    );
                     derive_address(
                         &new_address_params.seed,
                         &remaining_accounts

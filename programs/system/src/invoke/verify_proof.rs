@@ -3,7 +3,7 @@ use std::mem;
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Discriminator};
+use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::BatchedMerkleTreeAccount,
@@ -197,11 +197,9 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             if IS_STATE {
                 msg!("state_from_account_info");
-                sol_log_compute_units();
                 let merkle_tree =
                     BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_account_info)
                         .map_err(ProgramError::from)?;
-                sol_log_compute_units();
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
                 height = merkle_tree.height as u8;
             } else {
@@ -445,7 +443,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[allow(clippy::too_many_arguments)]
-#[heap_neutral]
+// #[heap_neutral]
 pub fn verify_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],

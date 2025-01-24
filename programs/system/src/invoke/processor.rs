@@ -437,6 +437,8 @@ pub fn process<
         .is_empty()
         && inputs.new_address_params.is_empty()
         && inputs.output_compressed_accounts.is_empty()
+        && read_only_accounts.is_empty()
+        && read_only_addresses.is_empty()
     {
         return err!(SystemProgramError::EmptyInputs);
     }
