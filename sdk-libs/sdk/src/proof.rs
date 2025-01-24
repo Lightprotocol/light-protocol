@@ -45,7 +45,12 @@ impl Default for CompressedProof {
     }
 }
 
-#[derive(Debug, AnchorDeserialize, AnchorSerialize)]
+/// Result of a validity proof RPC call.
+///
+/// proof - validity proof
+/// root_indices - Indices of the root accounts.
+/// address_root_indices - Indices of the address root accounts.
+#[derive(Debug, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<Option<u16>>,
