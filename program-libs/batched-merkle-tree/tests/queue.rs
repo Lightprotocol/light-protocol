@@ -100,11 +100,11 @@ fn test_value_exists_in_value_vec_present() {
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value),
+            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, false),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, false),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert!(account.prove_inclusion_by_index(0, &value).is_ok());
@@ -113,13 +113,17 @@ fn test_value_exists_in_value_vec_present() {
             .prove_inclusion_by_index(100000, &[0u8; 32])
             .unwrap());
         assert!(account
-            .prove_inclusion_by_index_and_zero_out_leaf(0, &value)
+            .prove_inclusion_by_index_and_zero_out_leaf(0, &value, false)
             .is_ok());
     }
     // 2. Functional does not succeed on second invocation
     {
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value),
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value, false),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value, true),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert_eq!(
@@ -128,22 +132,27 @@ fn test_value_exists_in_value_vec_present() {
         );
     }
 
-    // 3. Functional for 2 values
+    // 3. Functional for value 2 with proof by index enforced
     {
         account.insert_into_current_batch(&value2).unwrap();
 
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2),
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, false),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert!(account
-            .prove_inclusion_by_index_and_zero_out_leaf(1, &value2)
+            .prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true)
             .is_ok());
     }
     // 4. Functional does not succeed on second invocation
+    // regardless whether it is marked as proof by index
     {
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2),
+            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2, false),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
     }

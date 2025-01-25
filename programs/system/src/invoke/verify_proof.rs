@@ -145,30 +145,6 @@ pub fn read_address_roots<'a>(
     Ok(address_tree_height)
 }
 
-/// For each input account which is marked to be proven by index
-/// 1. check that it can exist in the output queue
-/// - note the output queue checks whether the value acutally exists in the queue
-/// - the purpose of this check is to catch marked input accounts which shouldn't be proven by index
-#[inline(always)]
-pub fn verify_input_accounts_proof_by_index(
-    remaining_accounts: &[AccountInfo<'_>],
-    input_accounts: &[PackedCompressedAccountWithMerkleContext],
-) -> Result<()> {
-    for account in input_accounts.iter() {
-        if account.merkle_context.queue_index.is_some() {
-            let output_queue_account_info =
-                &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-            let output_queue =
-                &mut BatchedQueueAccount::output_from_account_info(output_queue_account_info)
-                    .map_err(ProgramError::from)?;
-            output_queue
-                .check_leaf_index_could_exist_in_batches(account.merkle_context.leaf_index as u64)
-                .map_err(ProgramError::from)?;
-        }
-    }
-    Ok(())
-}
-
 fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account_info: &AccountInfo<'_>,
     root_index: u16,
@@ -443,7 +419,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[allow(clippy::too_many_arguments)]
-// #[heap_neutral]
+#[heap_neutral]
 pub fn verify_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],

@@ -250,13 +250,22 @@ where
         let result = vec.push(rng.gen());
         assert_eq!(result, Err(ZeroCopyError::Full));
     }
+
     // clear
     {
         let mut vec = ZeroCopyVec::<CAPACITY, T>::from_bytes(&mut data).unwrap();
+        let third = vec[3];
         vec.clear();
         assert_eq!(vec.len(), 0);
         assert_eq!(vec.capacity(), capacity_usize);
         assert!(vec.is_empty());
+        assert_eq!(vec.as_slice(), &[]);
+        assert_eq!(vec.as_mut_slice(), &mut []);
+        if vec.iter().next().is_some() {
+            panic!("Should not iterate over empty vector");
+        }
+        let index = vec.iter().position(|x| *x == third);
+        assert_eq!(index, None);
         assert_ne!(vec.as_slice(), reference_vec.as_slice());
         assert_ne!(vec.as_mut_slice(), reference_vec.as_mut_slice());
         assert_ne!(vec.to_vec(), reference_vec);
@@ -290,6 +299,10 @@ where
             let padding_start = metadata_size;
             add_padding::<[CAPACITY; 2], T>(&mut metadata_size);
             let padding_end = metadata_size;
+            assert_eq!(
+                data[..size_of::<CAPACITY>()].to_vec(),
+                vec![0; size_of::<CAPACITY>()]
+            );
             let data = data[padding_start..padding_end].to_vec();
             // Padding should be zeroed
             assert_eq!(data, vec![0; padding_end - padding_start]);

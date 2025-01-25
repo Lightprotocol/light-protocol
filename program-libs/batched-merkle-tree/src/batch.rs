@@ -239,10 +239,11 @@ impl Batch {
     /// Returns the index of a value by leaf index in the value store,
     /// provided it could exist in the batch.
     pub fn get_value_index_in_batch(&self, leaf_index: u64) -> Result<u64, BatchedMerkleTreeError> {
-        self.leaf_index_could_exist_in_batch(leaf_index)?;
-        leaf_index
+        self.check_leaf_index_exists(leaf_index)?;
+        let index = leaf_index
             .checked_sub(self.start_index)
-            .ok_or(BatchedMerkleTreeError::LeafIndexNotInBatch)
+            .ok_or(BatchedMerkleTreeError::LeafIndexNotInBatch)?;
+        Ok(index)
     }
 
     /// Stores the value in a value store,
@@ -392,18 +393,22 @@ impl Batch {
         Ok(self.get_state())
     }
 
+    pub fn check_leaf_index_exists(&self, leaf_index: u64) -> Result<(), BatchedMerkleTreeError> {
+        if !self.leaf_index_exists(leaf_index) {
+            return Err(BatchedMerkleTreeError::LeafIndexNotInBatch);
+        }
+        Ok(())
+    }
+
     /// Returns true if value of leaf index could exist in batch.
     /// `True` doesn't mean that the value exists in the batch,
     /// just that it is plausible. The value might already be spent
     /// or never inserted in case an invalid index was provided.
-    pub fn leaf_index_could_exist_in_batch(
-        &self,
-        leaf_index: u64,
-    ) -> Result<bool, BatchedMerkleTreeError> {
+    pub fn leaf_index_exists(&self, leaf_index: u64) -> bool {
         let max_batch_leaf_index =
             self.get_num_zkp_batches() * self.zkp_batch_size + self.start_index;
         let min_batch_leaf_index = self.start_index;
-        Ok(leaf_index < max_batch_leaf_index && leaf_index >= min_batch_leaf_index)
+        leaf_index < max_batch_leaf_index && leaf_index >= min_batch_leaf_index
     }
 }
 
@@ -740,21 +745,13 @@ mod tests {
         let highest_eligible_value =
             batch.start_index + batch.get_num_zkp_batches() * batch.zkp_batch_size - 1;
         // 1. Failing test lowest value in eligble range - 1
-        assert!(!batch
-            .leaf_index_could_exist_in_batch(lowest_eligible_value - 1)
-            .unwrap());
+        assert!(!batch.leaf_index_exists(lowest_eligible_value - 1));
         // 2. Functional test lowest value in eligble range
-        assert!(batch
-            .leaf_index_could_exist_in_batch(lowest_eligible_value)
-            .unwrap());
+        assert!(batch.leaf_index_exists(lowest_eligible_value));
         // 3. Functional test highest value in eligble range
-        assert!(batch
-            .leaf_index_could_exist_in_batch(highest_eligible_value)
-            .unwrap());
+        assert!(batch.leaf_index_exists(highest_eligible_value));
         // 4. Failing test eligble range + 1
-        assert!(!batch
-            .leaf_index_could_exist_in_batch(highest_eligible_value + 1)
-            .unwrap());
+        assert!(!batch.leaf_index_exists(highest_eligible_value + 1));
     }
 
     /// 1. Failing: empty batch

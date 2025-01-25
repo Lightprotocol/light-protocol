@@ -20,6 +20,7 @@ pub struct QueueBundle<'a, 'info> {
     pub accounts: Vec<&'info AccountInfo<'info>>,
     pub elements: Vec<&'a [u8; 32]>,
     pub indices: Vec<u32>,
+    pub proof_by_index: Vec<bool>,
 }
 
 impl<'info> QueueBundle<'_, 'info> {
@@ -29,6 +30,7 @@ impl<'info> QueueBundle<'_, 'info> {
             accounts,
             elements: Vec::new(),
             indices: Vec::new(),
+            proof_by_index: Vec::new(),
         }
     }
 }

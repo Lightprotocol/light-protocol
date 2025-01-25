@@ -1893,8 +1893,16 @@ async fn test_batch_address_tree() {
             )
             .await
             .unwrap();
+            let mut account = rpc
+                .get_account(env.batch_address_merkle_tree)
+                .await
+                .unwrap()
+                .unwrap();
             test_indexer
-                .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+                .finalize_batched_address_tree_update(
+                    env.batch_address_merkle_tree,
+                    account.data.as_mut_slice(),
+                )
                 .await;
         }
     }
@@ -1913,8 +1921,16 @@ async fn test_batch_address_tree() {
             .await
             .unwrap();
         }
+        let mut account = rpc
+            .get_account(env.batch_address_merkle_tree)
+            .await
+            .unwrap()
+            .unwrap();
         test_indexer
-            .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+            .finalize_batched_address_tree_update(
+                env.batch_address_merkle_tree,
+                account.data.as_mut_slice(),
+            )
             .await;
     }
 
@@ -1953,8 +1969,16 @@ async fn test_batch_address_tree() {
         .await
         .unwrap();
     }
+    let mut account = rpc
+        .get_account(env.batch_address_merkle_tree)
+        .await
+        .unwrap()
+        .unwrap();
     test_indexer
-        .finalize_batched_address_tree_update(&mut rpc, env.batch_address_merkle_tree)
+        .finalize_batched_address_tree_update(
+            env.batch_address_merkle_tree,
+            account.data.as_mut_slice(),
+        )
         .await;
 }
 

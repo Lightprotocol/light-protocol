@@ -132,8 +132,8 @@ async fn test_read_only_accounts() {
             params.output_queue_zkp_batch_size
         );
         println!("inserted two batches");
-        // insert one batch
-        for i in 0..5 {
+        // insert one batch and one proof for batch 2 to zero out the bloom filter of batch 1
+        for i in 0..6 {
             println!("inserting batch {}", i);
             perform_batch_append(
                 &mut e2e_env.rpc,
@@ -171,11 +171,17 @@ async fn test_read_only_accounts() {
                 )
                 .await
                 .unwrap();
+            let mut account = e2e_env
+                .rpc
+                .get_account(env.batch_address_merkle_tree)
+                .await
+                .unwrap()
+                .unwrap();
             e2e_env
                 .indexer
                 .finalize_batched_address_tree_update(
-                    &mut e2e_env.rpc,
                     env.batch_address_merkle_tree,
+                    account.data.as_mut_slice(),
                 )
                 .await;
         }

@@ -62,4 +62,5 @@ pub enum AccountCompressionErrorCode {
     StateMerkleTreeAccountDiscriminatorMismatch,
     RegistryProgramIsNone,
     EmptyLeaf,
+    V1AccountMarkedAsProofByIndex,
 }

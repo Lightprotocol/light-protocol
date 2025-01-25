@@ -80,7 +80,9 @@ use forester_utils::{
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
-    batch::BatchState, constants::TEST_DEFAULT_BATCH_SIZE, merkle_tree::BatchedMerkleTreeAccount,
+    batch::BatchState,
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE},
+    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
     queue::BatchedQueueAccount,
 };
 use light_client::{
@@ -106,8 +108,17 @@ use light_program_test::{
     test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
+use light_prover_client::{
+    batch_address_append::get_batch_address_append_circuit_inputs,
+    gnark::{
+        batch_address_append_json_formatter::to_json,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{ProofType, ProverConfig},
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+};
 use light_registry::{
+    account_compression_cpi::sdk::create_batch_update_address_tree_instruction,
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     sdk::create_finalize_registration_instruction,
     utils::get_protocol_config_pda_address,
@@ -140,6 +151,7 @@ use rand::{
     rngs::{StdRng, ThreadRng},
     Rng, RngCore, SeedableRng,
 };
+use reqwest::Client;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature},
@@ -663,17 +675,222 @@ where
                     println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
                     println!("epoch {}", self.epoch);
                     println!("forester {}", payer.pubkey());
-                    // TODO: add newly addeded trees to foresters
-                    empty_address_queue_test(
-                        &payer,
-                        &mut self.rpc,
-                        address_merkle_tree_bundle,
-                        false,
-                        self.epoch,
-                        false,
+                    if address_merkle_tree_bundle.accounts.queue
+                        != address_merkle_tree_bundle.accounts.merkle_tree
+                    {
+                        // TODO: add newly addeded trees to foresters
+                        empty_address_queue_test(
+                            &payer,
+                            &mut self.rpc,
+                            address_merkle_tree_bundle,
+                            false,
+                            self.epoch,
+                            false,
+                        )
+                        .await
+                        .unwrap();
+                    }
+                }
+            }
+            let pubkeys = self
+                .indexer
+                .get_address_merkle_trees_mut()
+                .iter_mut()
+                .filter(|x| x.accounts.merkle_tree == x.accounts.queue)
+                .map(|x| x.accounts.merkle_tree)
+                .collect::<Vec<_>>();
+            for merkle_tree_pubkey in pubkeys {
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &merkle_tree_pubkey,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("epoch {}", self.epoch);
+                    println!("forester {}", payer.pubkey());
+
+                    let mut merkle_tree_account_data = self
+                        .rpc
+                        .get_account(merkle_tree_pubkey)
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .data;
+                    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                        merkle_tree_account_data.as_mut_slice(),
                     )
-                    .await
                     .unwrap();
+                    let next_full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
+                    let batch = merkle_tree
+                        .queue_metadata
+                        .batches
+                        .get(next_full_batch_index as usize)
+                        .unwrap();
+                    let batch_state = batch.get_state();
+                    println!(
+                        "output batch_state {:?}, {}, batch index {}",
+                        batch_state,
+                        batch.get_num_inserted_zkp_batch()
+                            + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
+                        next_full_batch_index
+                    );
+                    println!("input batch_state {:?}", batch_state);
+                    if batch_state == BatchState::Full {
+                        println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES batched (v2)\n --------------------------------------------------");
+                        for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                            let instruction_data = {
+                                let mut merkle_tree_account = self
+                                    .rpc
+                                    .get_account(merkle_tree_pubkey)
+                                    .await
+                                    .unwrap()
+                                    .unwrap();
+                                let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                                    merkle_tree_account.data.as_mut_slice(),
+                                )
+                                .unwrap();
+                                let full_batch_index =
+                                    merkle_tree.queue_metadata.next_full_batch_index;
+                                let batch =
+                                    &merkle_tree.queue_metadata.batches[full_batch_index as usize];
+                                let zkp_batch_index = batch.get_num_inserted_zkps();
+                                let leaves_hashchain = merkle_tree.hash_chain_stores
+                                    [full_batch_index as usize]
+                                    [zkp_batch_index as usize];
+                                let batch_start_index = merkle_tree.next_index as usize;
+
+                                let addresses = self
+                                    .indexer
+                                    .get_queue_elements(
+                                        merkle_tree_pubkey.to_bytes(),
+                                        full_batch_index,
+                                        0,
+                                        batch.batch_size,
+                                    )
+                                    .await
+                                    .unwrap();
+                                // // local_leaves_hashchain is only used for a test assertion.
+                                // let local_nullifier_hashchain = create_hash_chain_from_array(&addresses);
+                                // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
+                                let start_index = merkle_tree.next_index as usize;
+                                assert!(
+                                    start_index >= 2,
+                                    "start index should be greater than 2 else tree is not inited"
+                                );
+                                let current_root = *merkle_tree.root_history.last().unwrap();
+                                let mut low_element_values = Vec::new();
+                                let mut low_element_indices = Vec::new();
+                                let mut low_element_next_indices = Vec::new();
+                                let mut low_element_next_values = Vec::new();
+                                let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+                                let non_inclusion_proofs = self
+                                    .indexer
+                                    .get_multiple_new_address_proofs_h40(
+                                        merkle_tree_pubkey.to_bytes(),
+                                        addresses.clone(),
+                                    )
+                                    .await
+                                    .unwrap();
+                                for non_inclusion_proof in &non_inclusion_proofs {
+                                    low_element_values.push(non_inclusion_proof.low_address_value);
+                                    low_element_indices
+                                        .push(non_inclusion_proof.low_address_index as usize);
+                                    low_element_next_indices
+                                        .push(non_inclusion_proof.low_address_next_index as usize);
+                                    low_element_next_values
+                                        .push(non_inclusion_proof.low_address_next_value);
+
+                                    low_element_proofs
+                                        .push(non_inclusion_proof.low_address_proof.to_vec());
+                                }
+                                let inputs = get_batch_address_append_circuit_inputs::<
+                                    { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+                                >(
+                                    start_index,
+                                    current_root,
+                                    low_element_values,
+                                    low_element_next_values,
+                                    low_element_indices,
+                                    low_element_next_indices,
+                                    low_element_proofs,
+                                    addresses,
+                                    self.indexer
+                                        .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .unwrap()
+                                        .try_into()
+                                        .unwrap(),
+                                    leaves_hashchain,
+                                    batch_start_index,
+                                    batch.zkp_batch_size as usize,
+                                )
+                                .unwrap();
+                                let client = Client::new();
+                                let circuit_inputs_new_root =
+                                    bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
+                                let inputs = to_json(&inputs);
+
+                                let response_result = client
+                                    .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                                    .header("Content-Type", "text/plain; charset=utf-8")
+                                    .body(inputs)
+                                    .send()
+                                    .await
+                                    .expect("Failed to execute request.");
+
+                                if response_result.status().is_success() {
+                                    let body = response_result.text().await.unwrap();
+                                    let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                                    let (proof_a, proof_b, proof_c) =
+                                        proof_from_json_struct(proof_json);
+                                    let (proof_a, proof_b, proof_c) =
+                                        compress_proof(&proof_a, &proof_b, &proof_c);
+                                    let instruction_data = InstructionDataBatchNullifyInputs {
+                                        new_root: circuit_inputs_new_root,
+                                        compressed_proof: light_verifier::CompressedProof {
+                                            a: proof_a,
+                                            b: proof_b,
+                                            c: proof_c,
+                                        },
+                                    };
+                                    Ok(instruction_data)
+                                } else {
+                                    Err(RpcError::CustomError(
+                                        "Prover failed to generate proof".to_string(),
+                                    ))
+                                }
+                            }
+                            .unwrap();
+
+                            let instruction = create_batch_update_address_tree_instruction(
+                                payer.pubkey(),
+                                payer.pubkey(),
+                                merkle_tree_pubkey,
+                                self.epoch,
+                                instruction_data.try_to_vec().unwrap(),
+                            );
+                            self.rpc
+                                .create_and_send_transaction(
+                                    &[instruction],
+                                    &payer.pubkey(),
+                                    &[&payer],
+                                )
+                                .await
+                                .unwrap();
+                        }
+                        let mut account = self
+                            .rpc
+                            .get_account(merkle_tree_pubkey)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                        self.indexer
+                            .finalize_batched_address_tree_update(
+                                merkle_tree_pubkey,
+                                account.data.as_mut_slice(),
+                            )
+                            .await;
+                    }
                 } else {
                     println!("No forester found for address queue");
                 };

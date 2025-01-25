@@ -550,7 +550,6 @@ where
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
         let mut indices_to_remove = Vec::new();
-
         // for all accounts in batched trees, check whether values are in tree or queue
         let (compressed_accounts, state_merkle_tree_pubkeys) =
             if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
@@ -565,18 +564,24 @@ where
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
                     });
                     if let Some(accounts) = accounts {
-                        let output_queue_pubkey = accounts.accounts.nullifier_queue;
-                        let mut queue =
-                            AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey)
-                                .await;
-                        let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
-                            queue.account.data.as_mut_slice(),
-                        )
-                        .unwrap();
-                        for value_array in queue_zero_copy.value_vecs.iter() {
-                            let index = value_array.iter().position(|x| *x == *compressed_account);
-                            if index.is_some() {
-                                indices_to_remove.push(i);
+                        let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
+                        if leaf_index.is_none() {
+                            let output_queue_pubkey = accounts.accounts.nullifier_queue;
+                            let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
+                                rpc,
+                                output_queue_pubkey,
+                            )
+                            .await;
+                            let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
+                                queue.account.data.as_mut_slice(),
+                            )
+                            .unwrap();
+                            for value_array in queue_zero_copy.value_vecs.iter() {
+                                let index =
+                                    value_array.iter().position(|x| *x == *compressed_account);
+                                if index.is_some() {
+                                    indices_to_remove.push(i);
+                                }
                             }
                         }
                     }
@@ -634,6 +639,7 @@ where
             }
             root_indices
         };
+        println!("root_indices {:?}", root_indices);
         BatchedTreeProofRpcResult {
             proof: rpc_result.map(|x| x.proof),
             root_indices,
@@ -859,12 +865,10 @@ where
 
     async fn finalize_batched_address_tree_update(
         &mut self,
-        rpc: &mut R,
         merkle_tree_pubkey: Pubkey,
+        account_data: &mut [u8],
     ) {
-        let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-        let onchain_account =
-            BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice()).unwrap();
+        let onchain_account = BatchedMerkleTreeAccount::address_from_bytes(account_data).unwrap();
         let address_tree = self
             .address_merkle_trees
             .iter_mut()

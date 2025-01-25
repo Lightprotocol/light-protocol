@@ -288,13 +288,13 @@ impl<'a> BatchedQueueAccount<'a> {
         hash_chain_value: &[u8; 32],
     ) -> Result<bool, BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
-            if batch.leaf_index_could_exist_in_batch(leaf_index)? {
+            if batch.leaf_index_exists(leaf_index) {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
-                    .get_mut(index as usize)
+                    .get(index as usize)
                     .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
 
-                if element == hash_chain_value {
+                if *element == *hash_chain_value {
                     return Ok(true);
                 } else {
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
@@ -304,33 +304,16 @@ impl<'a> BatchedQueueAccount<'a> {
         Ok(false)
     }
 
-    /// Check that leaf index could exist in one of the batches.
-    /// Returns Ok(()) if value of leaf index could exist in batch.
-    ///     This doesn't mean that the value exists in the batch,
-    ///     just that it is plausible. The value might already be spent
-    ///     or never inserted in case an invalid index was provided.
-    pub fn check_leaf_index_could_exist_in_batches(
-        &mut self,
-        leaf_index: u64,
-    ) -> Result<(), BatchedMerkleTreeError> {
-        for batch in self.batch_metadata.batches.iter() {
-            let res = batch.leaf_index_could_exist_in_batch(leaf_index)?;
-            if res {
-                return Ok(());
-            }
-        }
-        Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
-    }
-
     /// Zero out a leaf by index if it exists in the queues hash_chain_value vec. If
     /// checked fail if leaf is not found.
     pub fn prove_inclusion_by_index_and_zero_out_leaf(
         &mut self,
         leaf_index: u64,
         hash_chain_value: &[u8; 32],
+        proof_by_index: bool,
     ) -> Result<(), BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
-            if batch.leaf_index_could_exist_in_batch(leaf_index)? {
+            if batch.leaf_index_exists(leaf_index) {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
@@ -344,7 +327,13 @@ impl<'a> BatchedQueueAccount<'a> {
                 }
             }
         }
-        Ok(())
+        // Always check and zero out an existing value.
+        // If no value is found and a check is not enforced return ok.
+        if proof_by_index {
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn get_metadata(&self) -> &BatchedQueueMetadata {
@@ -423,9 +412,7 @@ pub(crate) fn insert_into_current_batch(
     hash_chain_value: &[u8; 32],
     bloom_filter_value: Option<&[u8; 32]>,
     current_index: Option<u64>,
-) -> Result<(Option<u32>, Option<u64>), BatchedMerkleTreeError> {
-    let mut root_index = None;
-    let mut sequence_number = None;
+) -> Result<(), BatchedMerkleTreeError> {
     let batch_index = batch_metadata.currently_processing_batch_index as usize;
     let mut value_store = value_vecs.get_mut(batch_index);
     let mut hash_chain_stores = hash_chain_stores.get_mut(batch_index);
@@ -437,20 +424,11 @@ pub(crate) fn insert_into_current_batch(
         if current_batch.get_state() == BatchState::Fill {
             // Do nothing, checking most often case first.
         } else if clear_batch {
-            if let Some(blomfilter_stores) = bloom_filter_stores.get_mut(batch_index) {
-                // Bloom filters should by default be zeroed by foresters
-                // because zeroing bytes is CU intensive.
-                // This is a safeguard to ensure queue lifeness
-                // in case foresters are behind.
-                if !current_batch.bloom_filter_is_zeroed() {
-                    (*blomfilter_stores).iter_mut().for_each(|x| *x = 0);
-                    // Saving sequence number and root index for the batch.
-                    // When the batch is cleared check that sequence number
-                    // is greater or equal than self.sequence_number
-                    // if not advance current root index to root index
-                    root_index = Some(current_batch.root_index);
-                    sequence_number = Some(current_batch.sequence_number);
-                }
+            // Clear the batch if it is inserted.
+
+            // If a batch contains a bloom filter it must be zeroed by a forester.
+            if !bloom_filter_stores.is_empty() && !current_batch.bloom_filter_is_zeroed() {
+                return Err(BatchedMerkleTreeError::BloomFilterNotZeroed);
             }
             if let Some(value_store) = value_store.as_mut() {
                 (*value_store).clear();
@@ -492,7 +470,7 @@ pub(crate) fn insert_into_current_batch(
     // 3. If batch is full, increment currently_processing_batch_index.
     batch_metadata.increment_currently_processing_batch_index_if_full();
 
-    Ok((root_index, sequence_number))
+    Ok(())
 }
 
 #[inline(always)]
@@ -643,39 +621,6 @@ fn test_batched_queue_metadata_init() {
         assert_eq!(batch.batch_size, batch_size);
         assert_eq!(batch.zkp_batch_size, zkp_batch_size);
         assert_eq!(batch.start_index, batch_size * (i as u64));
-    }
-}
-
-#[test]
-fn test_check_leaf_index_could_exist_in_batches() {
-    let mut account_data = vec![0u8; 920];
-    let queue_metadata = QueueMetadata {
-        queue_type: QueueType::BatchedOutput as u64,
-        ..Default::default()
-    };
-    let batch_size = 4;
-    let zkp_batch_size = 2;
-    let bloom_filter_capacity = 0;
-    let num_iters = 0;
-    let mut account = BatchedQueueAccount::init(
-        &mut account_data,
-        queue_metadata,
-        batch_size,
-        zkp_batch_size,
-        num_iters,
-        bloom_filter_capacity,
-    )
-    .unwrap();
-    // Contains two batches of size 4. -> leaves of indices 0..8
-    for i in 0..8 {
-        account.check_leaf_index_could_exist_in_batches(i).unwrap();
-    }
-    // Index 8 and above is out of range.
-    for i in 8..20 {
-        assert_eq!(
-            account.check_leaf_index_could_exist_in_batches(i),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
-        );
     }
 }
 

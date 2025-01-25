@@ -136,7 +136,7 @@ async fn test_batched_only() {
             config,
             general_config,
             0,
-            Some(0),
+            None,
         )
         .await;
     // remove concurrent Merkle trees

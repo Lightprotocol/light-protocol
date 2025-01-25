@@ -2420,7 +2420,7 @@ async fn batch_invoke_test() {
         )
         .unwrap();
     }
-    // 13. failing - spend account v1 by zkp  but mark as spent by index
+    // 13. failing - spend account v1 by zkp but mark as spent by index
     // v1 accounts cannot be spent by index
     {
         // Selecting compressed account in v1 Merkle tree
@@ -2457,7 +2457,12 @@ async fn batch_invoke_test() {
             .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
             .await;
         // Should fail because it tries to deserialize an output queue account from a nullifier queue account
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::V1AccountMarkedAsProofByIndex.into(),
+        )
+        .unwrap();
     }
 }
 
