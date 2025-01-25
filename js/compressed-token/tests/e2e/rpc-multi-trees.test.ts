@@ -7,6 +7,8 @@ import {
     createRpc,
     getTestRpc,
     pickRandomTreeAndQueue,
+    defaultTestStateTreeAccounts,
+    defaultTestStateTreeAccounts2,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -95,41 +97,52 @@ describe('rpc-multi-trees', () => {
         ).toBe(treeAndQueue.queue.toBase58());
     });
 
-    it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints', async () => {
-        // additional mint
-        const mint2 = (
-            await createMint(
-                rpc,
-                payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-            )
-        ).mint;
+    it('should return both compressed token accounts in different trees', async () => {
+        const tree1 = defaultTestStateTreeAccounts().merkleTree;
+        const tree2 = defaultTestStateTreeAccounts2().merkleTree2;
+        const queue1 = defaultTestStateTreeAccounts().nullifierQueue;
+        const queue2 = defaultTestStateTreeAccounts2().nullifierQueue2;
 
-        await mintTo(rpc, payer, mint2, bob.publicKey, mintAuthority, bn(1000));
+        const previousTree = treeAndQueue.tree;
+
+        let otherTree: PublicKey;
+        let otherQueue: PublicKey;
+        if (previousTree.toBase58() === tree1.toBase58()) {
+            otherTree = tree2;
+            otherQueue = queue2;
+        } else {
+            otherTree = tree1;
+            otherQueue = queue1;
+        }
+
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            bn(1042),
+            otherTree,
+        );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
+            { mint },
+        );
+        const previousAccount = senderAccounts.items.find(
+            account =>
+                account.compressedAccount.merkleTree.toBase58() ===
+                previousTree.toBase58(),
         );
 
-        // check that mint and mint2 exist in list of senderaccounts at least once
-        assert.isTrue(
-            senderAccounts.items.some(
-                account => account.parsed.mint.toBase58() === mint.toBase58(),
-            ),
-        );
-        assert.isTrue(
-            senderAccounts.items.some(
-                account => account.parsed.mint.toBase58() === mint2.toBase58(),
-            ),
+        const newlyMintedAccount = senderAccounts.items.find(
+            account =>
+                account.compressedAccount.merkleTree.toBase58() ===
+                otherTree.toBase58(),
         );
 
-        // consistent tree and queue
-        expect(
-            senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
-        expect(
-            senderAccounts.items[0].compressedAccount.nullifierQueue.toBase58(),
-        ).toBe(treeAndQueue.queue.toBase58());
+        expect(previousAccount).toBeDefined();
+        expect(newlyMintedAccount).toBeDefined();
+        expect(newlyMintedAccount!.parsed.amount.toNumber()).toBe(1042);
     });
 });
