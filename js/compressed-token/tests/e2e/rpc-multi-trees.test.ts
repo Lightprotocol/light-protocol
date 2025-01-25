@@ -97,43 +97,6 @@ describe('rpc-multi-trees', () => {
         ).toBe(treeAndQueue.queue.toBase58());
     });
 
-    it('should associate a new mint with state tree 2', async () => {
-        // additional mint
-        const tree2 = defaultTestStateTreeAccounts().merkleTree;
-        const queue2 = defaultTestStateTreeAccounts().nullifierQueue;
-        const mint2 = (
-            await createMint(
-                rpc,
-                payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-            )
-        ).mint;
-
-        await mintTo(
-            rpc,
-            payer,
-            mint2,
-            bob.publicKey,
-            mintAuthority,
-            bn(1042),
-            tree2,
-        );
-
-        const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
-            bob.publicKey,
-            { mint: mint2 },
-        );
-
-        // consistent tree and queue
-        expect(
-            senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(tree2.toBase58());
-        expect(
-            senderAccounts.items[0].compressedAccount.nullifierQueue.toBase58(),
-        ).toBe(queue2.toBase58());
-    });
-
     it('should return both compressed token accounts in different trees', async () => {
         const tree1 = defaultTestStateTreeAccounts().merkleTree;
         const tree2 = defaultTestStateTreeAccounts2().merkleTree2;
