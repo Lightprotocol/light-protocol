@@ -7,6 +7,7 @@ import {
     createRpc,
     getTestRpc,
     pickRandomTreeAndQueue,
+    defaultTestStateTreeAccounts,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -95,8 +96,10 @@ describe('rpc-multi-trees', () => {
         ).toBe(treeAndQueue.queue.toBase58());
     });
 
-    it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints', async () => {
+    it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints in different trees', async () => {
         // additional mint
+        const otherTree = defaultTestStateTreeAccounts().merkleTree;
+        const otherQueue = defaultTestStateTreeAccounts().nullifierQueue;
         const mint2 = (
             await createMint(
                 rpc,
@@ -106,7 +109,15 @@ describe('rpc-multi-trees', () => {
             )
         ).mint;
 
-        await mintTo(rpc, payer, mint2, bob.publicKey, mintAuthority, bn(1000));
+        await mintTo(
+            rpc,
+            payer,
+            mint2,
+            bob.publicKey,
+            mintAuthority,
+            bn(1042),
+            otherTree,
+        );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
@@ -124,12 +135,15 @@ describe('rpc-multi-trees', () => {
             ),
         );
 
+        const newlyMintedAccount = senderAccounts.items.find(
+            account => account.parsed.mint.toBase58() === mint2.toBase58(),
+        );
         // consistent tree and queue
         expect(
-            senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
+            newlyMintedAccount!.compressedAccount.merkleTree.toBase58(),
+        ).toBe(otherTree.toBase58());
         expect(
-            senderAccounts.items[0].compressedAccount.nullifierQueue.toBase58(),
-        ).toBe(treeAndQueue.queue.toBase58());
+            newlyMintedAccount!.compressedAccount.nullifierQueue.toBase58(),
+        ).toBe(otherQueue.toBase58());
     });
 });
