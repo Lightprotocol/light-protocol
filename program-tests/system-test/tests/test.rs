@@ -51,7 +51,7 @@ use light_test_utils::{
     },
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_utils::{hash_to_bn254_field_size_be, UtilsError};
+use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::VerifierError;
 use quote::format_ident;
 use serial_test::serial;

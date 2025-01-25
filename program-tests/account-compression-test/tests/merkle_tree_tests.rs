@@ -1344,7 +1344,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         nullifiers: elements.to_vec(),
         leaf_indices: Vec::new(),
         tx_hash: [0u8; 32],
-        proof_by_index: vec![false],
+        proof_by_index: vec![false; elements.len()],
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1391,7 +1391,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         nullifiers: elements.to_vec(),
         leaf_indices: Vec::new(),
         tx_hash: [0u8; 32],
-        proof_by_index: vec![false],
+        proof_by_index: vec![false; elements.len()],
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),

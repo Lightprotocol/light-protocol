@@ -878,7 +878,7 @@ where
         let onchain_next_index = onchain_account.next_index;
         let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
         let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
-
+        println!("diff_onchain_indexer {:?}", diff_onchain_indexer);
         for _ in 0..diff_onchain_indexer {
             address_tree.queue_elements.remove(0);
         }

@@ -274,6 +274,11 @@ pub fn process<
     sequence_numbers.shrink_to_fit();
 
     // 8. insert nullifiers (input compressed account hashes)---------------------------------------------------
+    // Note: It would make sense to nullify prior to appending new state.
+    //      Since output compressed account hashes are inputs
+    //      for the tx hash on which the nullifier depends
+    //      and the logic to compute output hashes is higly optimized
+    //      and entangled with the cpi we leave it as is for now.
     bench_sbf_start!("cpda_nullifiers");
     let input_network_fee_bundle = if !inputs
         .input_compressed_accounts_with_merkle_context
@@ -342,7 +347,7 @@ pub fn process<
     )?;
 
     // 11. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
-    if num_inclusion_proof_inputs > 0 || num_non_inclusion_proof_inputs > 0 {
+    if num_inclusion_proof_inputs != 0 || num_non_inclusion_proof_inputs != 0 {
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
 

@@ -75,7 +75,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         match current_account_discriminator {
             // V1 nullifier or address queue.
             QueueAccount::DISCRIMINATOR => {
-                if proof_by_index.as_ref().unwrap()[index] {
+                if queue_type == QueueType::NullifierQueue
+                    && proof_by_index.as_ref().unwrap()[index]
+                {
                     return err!(AccountCompressionErrorCode::V1AccountMarkedAsProofByIndex);
                 }
 

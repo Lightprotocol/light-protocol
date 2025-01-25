@@ -631,7 +631,7 @@ where
                                 next_full_batch_index
                             );
                             if batch_state == BatchState::Full {
-                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                                for _ in 0..output_queue.batch_metadata.get_num_zkp_batches() {
                                     perform_batch_append(
                                         &mut self.rpc,
                                         state_tree_bundle,
@@ -737,19 +737,19 @@ where
                     );
                     println!("input batch_state {:?}", batch_state);
                     if batch_state == BatchState::Full {
-                        println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES batched (v2)\n --------------------------------------------------");
-                        for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                        println!("\n --------------------------------------------------\n\t\t Empty Address Queue (v2)\n --------------------------------------------------");
+                        let mut merkle_tree_account = self
+                            .rpc
+                            .get_account(merkle_tree_pubkey)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                            merkle_tree_account.data.as_mut_slice(),
+                        )
+                        .unwrap();
+                        for _ in 0..merkle_tree.queue_metadata.get_num_zkp_batches() {
                             let instruction_data = {
-                                let mut merkle_tree_account = self
-                                    .rpc
-                                    .get_account(merkle_tree_pubkey)
-                                    .await
-                                    .unwrap()
-                                    .unwrap();
-                                let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
-                                    merkle_tree_account.data.as_mut_slice(),
-                                )
-                                .unwrap();
                                 let full_batch_index =
                                     merkle_tree.queue_metadata.next_full_batch_index;
                                 let batch =
@@ -2794,6 +2794,15 @@ where
                 "invoke_cpi_test No event".to_string(),
             ))?;
         self.indexer.add_event_and_compressed_accounts(slot, &event);
+        let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
+        println!(
+            "tree_bundle queue_elements: {:?}",
+            tree_bundle.queue_elements
+        );
+        println!(
+            "new addresses proof_input_addresses: {:?}",
+            proof_input_addresses
+        );
         Ok(())
     }
 
