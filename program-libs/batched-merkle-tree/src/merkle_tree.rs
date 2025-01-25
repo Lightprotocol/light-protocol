@@ -501,18 +501,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                     root_index,
                     root_history_capacity,
                 )?;
-
-            // 4. Zero out previous batch bloom filter
-            //     if current batch is 50% inserted.
-            // Needs to be executed prior to
-            // incrementing next full batch index,
-            // but post mark_as_inserted_in_merkle_tree.
-            self.zero_out_previous_batch_bloom_filter()?;
-
-            // 5. Increment next full batch index if inserted.
+            // 4. Increment next full batch index if inserted.
             self.metadata
                 .queue_metadata
                 .increment_next_full_batch_index_if_inserted(full_batch_state);
+            // 5. Zero out previous batch bloom filter
+            //     if current batch is 50% inserted.
+            // Needs to be executed post mark_as_inserted_in_merkle_tree.
+            self.zero_out_previous_batch_bloom_filter()?;
         }
 
         // 6. Return the batch nullify/address append event.
@@ -709,8 +705,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 oldest_root_index += 1;
                 oldest_root_index %= self.root_history.len();
             }
+            // Defensive assert, it should never be triggered.
             assert_eq!(
-                oldest_root_index as u32, first_safe_root_index,
+                oldest_root_index, first_safe_root_index as usize,
                 "Zeroing out roots failed."
             );
         }
@@ -738,11 +735,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
         let current_batch = self.queue_metadata.next_full_batch_index as usize;
         let batch_size = self.queue_metadata.batch_size;
-        let previous_full_batch_index = current_batch.saturating_sub(1);
-        let previous_full_batch_index = if previous_full_batch_index == current_batch {
-            self.queue_metadata.num_batches as usize - 1
-        } else {
-            previous_full_batch_index
+        let previous_full_batch_index = {
+            let previous_full_batch_index = current_batch.saturating_sub(1);
+            if previous_full_batch_index == current_batch {
+                self.queue_metadata.num_batches as usize - 1
+            } else {
+                previous_full_batch_index
+            }
         };
         let current_batch_is_half_full = {
             let num_inserted_elements =
