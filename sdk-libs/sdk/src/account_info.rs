@@ -14,7 +14,7 @@ use crate::{
     merkle_context::PackedMerkleContext,
 };
 
-/// Information about compressed account which is being initialized.
+/// Information about existing compressed account.
 #[derive(Debug)]
 pub struct LightInputAccountInfo<'a> {
     /// Lamports.
@@ -42,17 +42,19 @@ pub struct LightAccountInfo<'a> {
     pub owner: &'a Pubkey,
     /// Lamports.
     pub lamports: Option<u64>,
-    /// Discriminator.
+    /// Account discriminator.
     pub discriminator: Option<[u8; 8]>,
     /// Account data.
     pub data: Option<Rc<RefCell<Vec<u8>>>>,
     /// Data hash.
     pub data_hash: Option<[u8; 32]>,
-    /// Address.
+    /// Optional address, present only if initialized. Ensures account
+    /// uniqueness within address merkle trees.
     pub address: Option<[u8; 32]>,
-    /// New Merkle tree index. Set `None` for `close` account infos.
+    /// Pubkey pointer to remaining_accounts for Merkle tree that the new
+    /// account state is stored in. Set `None` for `close` account infos.
     pub output_merkle_tree_index: Option<u8>,
-    /// New address parameters.
+    /// New address parameters. Set to init a PDA.
     pub new_address_params: Option<PackedNewAddressParams>,
 }
 

@@ -46,6 +46,7 @@ pub mod sdk_test {
 
         my_compressed_account.name = name;
 
+
         verify_light_accounts(
             &ctx,
             inputs.proof,
