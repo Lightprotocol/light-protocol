@@ -59,6 +59,7 @@ pub struct LightAccountInfo<'a> {
 }
 
 impl<'a> LightAccountInfo<'a> {
+    // TODO: check if we can remove in favor of from_meta_init_without_output_data
     pub fn from_meta_init(
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
