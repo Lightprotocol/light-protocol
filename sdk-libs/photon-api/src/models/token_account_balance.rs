@@ -13,11 +13,11 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenAccountBalance {
     #[serde(rename = "amount")]
-    pub amount: i32,
+    pub amount: u64,
 }
 
 impl TokenAccountBalance {
-    pub fn new(amount: i32) -> TokenAccountBalance {
+    pub fn new(amount: u64) -> TokenAccountBalance {
         TokenAccountBalance { amount }
     }
 }

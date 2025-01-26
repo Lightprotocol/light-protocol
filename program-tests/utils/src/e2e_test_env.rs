@@ -2965,7 +2965,11 @@ where
         delegate: Option<Pubkey>,
         frozen: bool,
     ) -> (Pubkey, Vec<TokenDataWithMerkleContext>) {
-        let user_token_accounts = &mut self.indexer.get_compressed_token_accounts_by_owner(user);
+        let user_token_accounts = &mut self
+            .indexer
+            .get_compressed_token_accounts_by_owner(user, None)
+            .await
+            .unwrap();
         // clean up dust so that we don't run into issues that account balances are too low
         user_token_accounts.retain(|t| t.token_data.amount > 1000);
         let mut token_accounts_with_mint;
@@ -2997,7 +3001,9 @@ where
             // filter for token accounts with the same version and mint
             token_accounts_with_mint = self
                 .indexer
-                .get_compressed_token_accounts_by_owner(user)
+                .get_compressed_token_accounts_by_owner(user, None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|token_account| {
                     let version = self

@@ -6,7 +6,10 @@ use forester::{
     ForesterConfig,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerError, NewAddressProofWithContext},
+    indexer::{
+        photon_indexer::PhotonIndexer, Base58Conversions, Hash, Indexer, IndexerError,
+        NewAddressProofWithContext,
+    },
     rpc::RpcConnection,
 };
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
@@ -225,14 +228,14 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, IndexerError> =
+    let accs: Result<Vec<Hash>, IndexerError> =
         indexer.get_compressed_accounts_by_owner(user_pubkey).await;
     for account_hash in accs.unwrap() {
         let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account_hash.to_base58()])
             .await;
         let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account_hash.to_base58()])
             .await;
 
         if photon_result.is_err() {
@@ -247,7 +250,9 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
         let test_indexer_result = test_indexer_result.unwrap();
         debug!(
             "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
-            account_hash, photon_result, test_indexer_result
+            account_hash.to_base58(),
+            photon_result,
+            test_indexer_result
         );
 
         assert_eq!(photon_result.len(), test_indexer_result.len());

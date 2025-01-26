@@ -13,14 +13,14 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenBalance {
     #[serde(rename = "balance")]
-    pub balance: i32,
+    pub balance: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint")]
     pub mint: String,
 }
 
 impl TokenBalance {
-    pub fn new(balance: i32, mint: String) -> TokenBalance {
+    pub fn new(balance: u64, mint: String) -> TokenBalance {
         TokenBalance { balance, mint }
     }
 }

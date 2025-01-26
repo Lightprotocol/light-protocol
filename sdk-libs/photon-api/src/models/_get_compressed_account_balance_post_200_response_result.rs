@@ -15,13 +15,13 @@ pub struct GetCompressedAccountBalancePost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: i32,
+    pub value: u64,
 }
 
 impl GetCompressedAccountBalancePost200ResponseResult {
     pub fn new(
         context: models::Context,
-        value: i32,
+        value: u64,
     ) -> GetCompressedAccountBalancePost200ResponseResult {
         GetCompressedAccountBalancePost200ResponseResult {
             context: Box::new(context),

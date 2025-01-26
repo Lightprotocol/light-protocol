@@ -702,6 +702,12 @@ dependencies = [
 
 [[package]]
 name = "base64"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2015e3793554aa5b6007e3a72959e84c1070039e74f13dde08fa64afe1ddd892"
+
+[[package]]
+name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
@@ -1955,6 +1961,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "log",
  "photon-api",
  "prometheus",
  "reqwest",
@@ -2936,6 +2943,7 @@ name = "light-client"
 version = "0.9.1"
 dependencies = [
  "async-trait",
+ "base64 0.13.1",
  "bb8",
  "borsh 0.10.3",
  "governor",
@@ -3109,6 +3117,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "async-trait",
+ "base64 0.2.1",
  "borsh 0.10.3",
  "forester-utils",
  "light-batched-merkle-tree",
@@ -3127,6 +3136,7 @@ dependencies = [
  "log",
  "num-bigint 0.4.6",
  "num-traits",
+ "photon-api",
  "reqwest",
  "solana-banks-client",
  "solana-program-test",
