@@ -8,7 +8,7 @@ pub use light_system_program::{
     sdk::{
         compressed_account::{
             CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-            PackedCompressedAccountWithMerkleContext, PackedMerkleContext, QueueIndex,
+            PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         },
         CompressedCpiContext,
     },

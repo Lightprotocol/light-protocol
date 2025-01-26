@@ -20,8 +20,7 @@ pub fn sum_check(
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         if compressed_account_with_context
             .merkle_context
-            .queue_index
-            .is_some()
+            .prove_by_index
         {
             num_prove_by_index_accounts += 1;
         }
@@ -77,7 +76,7 @@ mod test {
     use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext, QueueIndex};
+    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
     #[test]
     fn test_sum_check() {
@@ -155,11 +154,7 @@ mod test {
     ) -> Result<()> {
         let mut inputs = Vec::new();
         for (index, i) in input_amounts.iter().enumerate() {
-            let queue_index = if index < num_by_index {
-                Some(QueueIndex::default())
-            } else {
-                None
-            };
+            let prove_by_index = index < num_by_index;
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Keypair::new().pubkey(),
@@ -171,7 +166,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
-                    queue_index,
+                    prove_by_index,
                 },
                 root_index: 1,
                 read_only: false,

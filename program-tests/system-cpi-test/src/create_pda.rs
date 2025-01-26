@@ -13,7 +13,7 @@ use light_system_program::{
         address::{derive_address, derive_address_legacy},
         compressed_account::{
             CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-            PackedReadOnlyCompressedAccount, QueueIndex,
+            PackedReadOnlyCompressedAccount,
         },
         CompressedCpiContext,
     },
@@ -353,10 +353,10 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                         read_only_account[0].merkle_context.merkle_tree_pubkey_index;
                 }
                 CreatePdaMode::AccountNotInValueVecMarkedProofByIndex => {
-                    if read_only_account[0].merkle_context.queue_index.is_some() {
+                    if read_only_account[0].merkle_context.prove_by_index {
                         panic!("Queue index shouldn't be set for mode AccountNotInValueVecMarkedProofByIndex");
                     }
-                    read_only_account[0].merkle_context.queue_index = Some(QueueIndex::default());
+                    read_only_account[0].merkle_context.prove_by_index = true;
                 }
                 CreatePdaMode::InvalidLeafIndex => {
                     read_only_account[0].merkle_context.leaf_index += 1;

@@ -61,11 +61,7 @@ pub fn insert_nullifiers<
     for account in input_compressed_accounts_with_merkle_context.iter() {
         leaf_indices.push(account.merkle_context.leaf_index);
 
-        if account.merkle_context.queue_index.is_some() {
-            proof_by_index.push(true);
-        } else {
-            proof_by_index.push(false);
-        }
+        proof_by_index.push(account.merkle_context.prove_by_index);
 
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];

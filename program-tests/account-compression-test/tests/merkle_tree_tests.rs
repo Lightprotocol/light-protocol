@@ -1145,7 +1145,7 @@ async fn test_nullify_leaves(
 
     // 3. nullify with invalid leaf queue index
     let valid_element_index = 1;
-    let invalid_leaf_queue_index = 0;
+    let invalid_leaf_prove_by_index = 0;
     let result = nullify(
         &mut context,
         &merkle_tree_pubkey,
@@ -1154,7 +1154,7 @@ async fn test_nullify_leaves(
         &mut reference_merkle_tree,
         &elements[1].1,
         valid_changelog_index,
-        invalid_leaf_queue_index,
+        invalid_leaf_prove_by_index,
         valid_element_index,
     )
     .await;

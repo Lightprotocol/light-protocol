@@ -496,7 +496,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1),
@@ -510,7 +510,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: None,
@@ -602,7 +602,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
@@ -616,7 +616,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
@@ -661,7 +661,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
@@ -675,7 +675,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified

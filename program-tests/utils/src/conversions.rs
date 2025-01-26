@@ -12,7 +12,7 @@ use light_system_program::{
             CompressedAccount as ProgramCompressedAccount,
             CompressedAccountData as ProgramCompressedAccountData,
             CompressedAccountWithMerkleContext as ProgramCompressedAccountWithMerkleContext,
-            MerkleContext as ProgramMerkleContext, QueueIndex as ProgramQueueIndex,
+            MerkleContext as ProgramMerkleContext,
         },
         event::{
             MerkleTreeSequenceNumber as ProgramMerkleTreeSequenceNumber,
@@ -21,24 +21,6 @@ use light_system_program::{
     },
 };
 
-pub fn sdk_to_program_queue_index(
-    sdk_queue_index: sdk::merkle_context::QueueIndex,
-) -> ProgramQueueIndex {
-    ProgramQueueIndex {
-        queue_id: sdk_queue_index.queue_id,
-        index: sdk_queue_index.index,
-    }
-}
-
-pub fn program_to_sdk_queue_index(
-    program_queue_index: ProgramQueueIndex,
-) -> sdk::merkle_context::QueueIndex {
-    sdk::merkle_context::QueueIndex {
-        queue_id: program_queue_index.queue_id,
-        index: program_queue_index.index,
-    }
-}
-
 pub fn sdk_to_program_merkle_context(
     sdk_merkle_context: sdk::merkle_context::MerkleContext,
 ) -> ProgramMerkleContext {
@@ -46,9 +28,7 @@ pub fn sdk_to_program_merkle_context(
         merkle_tree_pubkey: sdk_merkle_context.merkle_tree_pubkey,
         nullifier_queue_pubkey: sdk_merkle_context.nullifier_queue_pubkey,
         leaf_index: sdk_merkle_context.leaf_index,
-        queue_index: sdk_merkle_context
-            .queue_index
-            .map(sdk_to_program_queue_index),
+        prove_by_index: sdk_merkle_context.prove_by_index,
     }
 }
 
@@ -59,9 +39,7 @@ pub fn program_to_sdk_merkle_context(
         merkle_tree_pubkey: program_merkle_context.merkle_tree_pubkey,
         nullifier_queue_pubkey: program_merkle_context.nullifier_queue_pubkey,
         leaf_index: program_merkle_context.leaf_index,
-        queue_index: program_merkle_context
-            .queue_index
-            .map(program_to_sdk_queue_index),
+        prove_by_index: program_merkle_context.prove_by_index,
     }
 }
 pub fn sdk_to_program_compressed_account_data(

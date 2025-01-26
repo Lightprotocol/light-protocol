@@ -596,9 +596,7 @@ pub mod transfer_sdk {
     use anchor_spl::{token::Token, token_2022::Token2022};
     use light_system_program::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{
-            CompressedAccount, MerkleContext, PackedMerkleContext, QueueIndex,
-        },
+        sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -890,11 +888,8 @@ pub mod transfer_sdk {
                 None
             };
             // Potential footgun queue index is set in merkle tree but its not used here
-            let queue_index = if root_indices[i].is_none() {
-                Some(QueueIndex::default())
-            } else {
-                None
-            };
+            let prove_by_index = root_indices[i].is_none();
+
             let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
                 delegate_index,
@@ -904,7 +899,7 @@ pub mod transfer_sdk {
                         .unwrap() as u8,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
-                    queue_index,
+                    prove_by_index,
                 },
                 root_index: root_indices[i].unwrap_or_default(),
                 lamports,

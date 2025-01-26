@@ -54,21 +54,13 @@ impl RemainingAccounts {
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
-pub struct QueueIndex {
-    /// Id of queue in queue account.
-    pub queue_id: u8,
-    /// Index of compressed account hash in queue.
-    pub index: u16,
-}
-
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
-    pub queue_index: Option<QueueIndex>,
+    pub prove_by_index: bool,
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
@@ -78,7 +70,7 @@ pub struct PackedMerkleContext {
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
-    pub queue_index: Option<QueueIndex>,
+    pub prove_by_index: bool,
 }
 
 pub fn pack_merkle_contexts<'a, I>(
@@ -99,7 +91,7 @@ pub fn pack_merkle_context(
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         leaf_index,
-        queue_index,
+        prove_by_index,
     } = merkle_context;
     let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
     let nullifier_queue_pubkey_index = remaining_accounts.insert_or_get(*nullifier_queue_pubkey);
@@ -108,7 +100,7 @@ pub fn pack_merkle_context(
         merkle_tree_pubkey_index,
         nullifier_queue_pubkey_index,
         leaf_index: *leaf_index,
-        queue_index: *queue_index,
+        prove_by_index: *prove_by_index,
     }
 }
 
@@ -261,7 +253,7 @@ mod test {
             merkle_tree_pubkey,
             nullifier_queue_pubkey,
             leaf_index: 69,
-            queue_index: None,
+            prove_by_index: false,
         };
 
         let packed_merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
@@ -271,7 +263,7 @@ mod test {
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
                 leaf_index: 69,
-                queue_index: None,
+                prove_by_index: false,
             }
         )
     }
@@ -285,22 +277,19 @@ mod test {
                 merkle_tree_pubkey: Pubkey::new_unique(),
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 10,
-                queue_index: None,
+                prove_by_index: false,
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 11,
-                queue_index: Some(QueueIndex {
-                    queue_id: 69,
-                    index: 420,
-                }),
+                prove_by_index: true,
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 12,
-                queue_index: None,
+                prove_by_index: false,
             },
         ];
 
@@ -313,22 +302,19 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 10,
-                    queue_index: None
+                    prove_by_index: false
                 },
                 PackedMerkleContext {
                     merkle_tree_pubkey_index: 2,
                     nullifier_queue_pubkey_index: 3,
                     leaf_index: 11,
-                    queue_index: Some(QueueIndex {
-                        queue_id: 69,
-                        index: 420
-                    })
+                    prove_by_index: true
                 },
                 PackedMerkleContext {
                     merkle_tree_pubkey_index: 4,
                     nullifier_queue_pubkey_index: 5,
                     leaf_index: 12,
-                    queue_index: None,
+                    prove_by_index: false,
                 }
             ]
         );

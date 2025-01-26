@@ -1572,7 +1572,7 @@ where
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
                                         nullifier_queue_pubkey,
-                                        queue_index: None,
+                                        prove_by_index: false,
                                     },
                                 },
                             };
@@ -1586,7 +1586,7 @@ where
                                 leaf_index: event.output_leaf_indices[i],
                                 merkle_tree_pubkey,
                                 nullifier_queue_pubkey,
-                                queue_index: None,
+                                prove_by_index: false,
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -1600,7 +1600,7 @@ where
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
                             nullifier_queue_pubkey,
-                            queue_index: None,
+                            prove_by_index: false,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());

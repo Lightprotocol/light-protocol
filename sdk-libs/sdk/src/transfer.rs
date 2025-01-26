@@ -55,7 +55,7 @@ mod tests {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
             }),

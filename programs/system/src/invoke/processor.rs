@@ -105,10 +105,9 @@ impl Default for CompressedProof {
 ///     8.5. cpi ACP to insert output compressed accounts
 ///         into state Merkle tree v1 or output queue
 /// 8. Insert nullifiers (input compressed account hashes)
-///     8.1. Verify that all instances of queue_index.is_some() are plausible.
-///     8.2. Create a tx hash
-///     8.3. check_program_owner_state_merkle_tree (in sub fn)
-///     8.4. Cpi ACP to insert nullifiers
+///     8.1. Create a tx hash
+///     8.2. check_program_owner_state_merkle_tree (in sub fn)
+///     8.3. Cpi ACP to insert nullifiers
 /// 9. Transfer network fee.
 /// 10. Read Address and State tree roots
 ///     - For state roots get roots prior to modifying the tree (for v1 trees).
@@ -470,13 +469,13 @@ fn filter_for_accounts_not_proven_by_index(
         .iter()
         .zip(input_compressed_accounts_with_merkle_context.iter())
     {
-        if input_account.merkle_context.queue_index.is_none() {
+        if !input_account.merkle_context.prove_by_index {
             proof_input_compressed_account_hashes.push(*hash);
         }
     }
     for read_only_account in read_only_accounts.iter() {
         // only push read only account hashes which are not marked as proof by index
-        if read_only_account.merkle_context.queue_index.is_none() {
+        if !read_only_account.merkle_context.prove_by_index {
             proof_input_compressed_account_hashes.push(read_only_account.account_hash);
         }
     }
