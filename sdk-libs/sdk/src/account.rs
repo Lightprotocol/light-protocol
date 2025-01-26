@@ -5,8 +5,8 @@ use light_hasher::{DataHasher, Discriminator, Poseidon};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    account_info::LightAccountInfo,
-    account_meta::LightAccountMeta,
+    account_info::PackedLightAccountInfo,
+    account_meta::PackedLightAccountMeta,
     address::PackedNewAddressParams,
     compressed_account::{
         CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub trait LightAccounts<'a>: Sized {
-    fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
+    fn try_light_accounts(accounts: &'a [PackedLightAccountInfo]) -> Result<Self>;
 }
 
 // TODO(vadorovsky): Implment `LightAccountLoader`.
@@ -30,7 +30,7 @@ where
     /// the program code.
     account_state: T,
     /// Account information.
-    account_info: LightAccountInfo<'info>,
+    account_info: PackedLightAccountInfo<'info>,
 }
 
 impl<'info, T> LightAccount<'info, T>
@@ -38,14 +38,14 @@ where
     T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
 {
     pub fn from_meta_init(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let account_state = T::default();
-        let account_info = LightAccountInfo::from_meta_init_without_output_data(
+        let account_info = PackedLightAccountInfo::from_meta_init_without_output_data(
             meta,
             discriminator,
             new_address,
@@ -59,12 +59,12 @@ where
     }
 
     pub fn from_meta_mut(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let mut account_info =
-            LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
+            PackedLightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
             meta.data
                 .as_ref()
@@ -87,12 +87,12 @@ where
     }
 
     pub fn from_meta_close(
-        meta: &'info LightAccountMeta,
+        meta: &'info PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'info Pubkey,
     ) -> Result<Self> {
         let mut account_info =
-            LightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
+            PackedLightAccountInfo::from_meta_without_output_data(meta, discriminator, owner)?;
         let account_state = T::try_from_slice(
             meta.data
                 .as_ref()

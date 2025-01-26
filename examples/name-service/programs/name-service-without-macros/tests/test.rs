@@ -13,7 +13,7 @@ use light_program_test::{
     test_rpc::ProgramTestRpcConnection,
 };
 use light_sdk::{
-    account_meta::LightAccountMeta,
+    account_meta::PackedLightAccountMeta,
     address::derive_address,
     compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
@@ -304,7 +304,7 @@ where
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
-    let account = LightAccountMeta::new_init(
+    let account = PackedLightAccountMeta::new_init(
         &env.merkle_tree_pubkey,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
@@ -380,7 +380,7 @@ where
         )
         .await;
 
-    let compressed_account = LightAccountMeta::new_mut(
+    let compressed_account = PackedLightAccountMeta::new_mut(
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
@@ -453,7 +453,7 @@ where
         )
         .await;
 
-    let compressed_account = LightAccountMeta::new_close(
+    let compressed_account = PackedLightAccountMeta::new_close(
         compressed_account,
         rpc_result.root_indices[0],
         remaining_accounts,

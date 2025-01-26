@@ -4,7 +4,7 @@ use anchor_lang::{context::Context, Bumps, Result};
 
 use crate::{
     account::LightAccounts,
-    account_info::LightAccountInfo,
+    account_info::PackedLightAccountInfo,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -71,7 +71,7 @@ where
 {
     pub fn new(
         anchor_context: Context<'a, 'b, 'c, 'info, T>,
-        account_infos: &'a mut [LightAccountInfo],
+        account_infos: &'a mut [PackedLightAccountInfo],
     ) -> Result<Self> {
         let light_accounts = U::try_light_accounts(account_infos)?;
         Ok(Self {

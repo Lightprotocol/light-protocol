@@ -4,7 +4,7 @@ use anchor_lang::prelude::Result;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    account_meta::LightAccountMeta,
+    account_meta::PackedLightAccountMeta,
     address::PackedNewAddressParams,
     compressed_account::{
         CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
@@ -16,7 +16,7 @@ use crate::{
 
 /// Information about existing compressed account.
 #[derive(Debug)]
-pub struct LightInputAccountInfo<'a> {
+pub struct PackedLightInputAccountInfo<'a> {
     /// Lamports.
     pub lamports: Option<u64>,
     /// Address.
@@ -33,9 +33,9 @@ pub struct LightInputAccountInfo<'a> {
 
 /// Information about compressed account which is being mutated.
 #[derive(Debug)]
-pub struct LightAccountInfo<'a> {
+pub struct PackedLightAccountInfo<'a> {
     /// Input account.
-    pub(crate) input: Option<LightInputAccountInfo<'a>>,
+    pub(crate) input: Option<PackedLightInputAccountInfo<'a>>,
     /// Owner of the account.
     ///
     /// Defaults to the program ID.
@@ -58,10 +58,10 @@ pub struct LightAccountInfo<'a> {
     pub new_address_params: Option<PackedNewAddressParams>,
 }
 
-impl<'a> LightAccountInfo<'a> {
+impl<'a> PackedLightAccountInfo<'a> {
     // TODO: check if we can remove in favor of from_meta_init_without_output_data
     pub fn from_meta_init(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
@@ -89,7 +89,7 @@ impl<'a> LightAccountInfo<'a> {
         };
         let data = Some(Rc::new(RefCell::new(data)));
 
-        let account_info = LightAccountInfo {
+        let account_info = PackedLightAccountInfo {
             input: None,
             owner,
             // Needs to be assigned by the program.
@@ -107,11 +107,11 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub fn from_meta_mut(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self> {
-        let input = LightInputAccountInfo {
+        let input = PackedLightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
             data: meta.data.as_deref(),
@@ -125,7 +125,7 @@ impl<'a> LightAccountInfo<'a> {
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
 
-        let account_info = LightAccountInfo {
+        let account_info = PackedLightAccountInfo {
             input: Some(input),
             owner,
             // Needs to be assigned by the program.
@@ -133,7 +133,7 @@ impl<'a> LightAccountInfo<'a> {
             // Needs to be assigned by the program.
             discriminator: Some(discriminator),
             // NOTE(vadorovsky): A `clone()` here is unavoidable.
-            // What we have here is an immutable reference to `LightAccountMeta`,
+            // What we have here is an immutable reference to `PackedLightAccountMeta`,
             // from which we can take an immutable reference to `data`.
             //
             // - That immutable reference can be used in the input account,
@@ -164,11 +164,11 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub fn from_meta_close(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self> {
-        let input = LightInputAccountInfo {
+        let input = PackedLightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
             data: meta.data.as_deref(),
@@ -182,7 +182,7 @@ impl<'a> LightAccountInfo<'a> {
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
 
-        let account_info = LightAccountInfo {
+        let account_info = PackedLightAccountInfo {
             input: Some(input),
             owner,
             // Needs to be assigned by the program.
@@ -200,7 +200,7 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     pub(crate) fn from_meta_init_without_output_data(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         new_address: [u8; 32],
         new_address_seed: [u8; 32],
@@ -221,7 +221,7 @@ impl<'a> LightAccountInfo<'a> {
                 .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
         };
 
-        let account_info = LightAccountInfo {
+        let account_info = PackedLightAccountInfo {
             input: None,
             owner,
             // Needs to be assigned by the program.
@@ -238,16 +238,16 @@ impl<'a> LightAccountInfo<'a> {
     }
 
     /// Converts [`LightAcccountMeta`], representing either a `mut` or `close`
-    /// account, to a `LightAccountInfo` without output data set.
+    /// account, to a `PackedLightAccountInfo` without output data set.
     ///
     /// Not intended for external use, intended for building upper abstraction
     /// layers which handle data serialization on their own.
     pub(crate) fn from_meta_without_output_data(
-        meta: &'a LightAccountMeta,
+        meta: &'a PackedLightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
     ) -> Result<Self> {
-        let input = LightInputAccountInfo {
+        let input = PackedLightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
             data: meta.data.as_deref(),
@@ -261,7 +261,7 @@ impl<'a> LightAccountInfo<'a> {
                 .ok_or(LightSdkError::ExpectedRootIndex)?,
         };
 
-        let account_info = LightAccountInfo {
+        let account_info = PackedLightAccountInfo {
             input: Some(input),
             owner,
             // Needs to be assigned by the program.
@@ -287,7 +287,7 @@ impl<'a> LightAccountInfo<'a> {
         self.input.as_ref().and_then(|input| input.data)
     }
 
-    /// Converts the given [LightAccountInfo] into a
+    /// Converts the given [PackedLightAccountInfo] into a
     /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
     /// light-system program.
     pub fn input_compressed_account(

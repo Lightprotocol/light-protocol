@@ -73,7 +73,7 @@ pub mod name_service {
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
-        // Convert `LightAccountMeta` to `LightAccount`.
+        // Convert `PackedLightAccountMeta` to `LightAccount`.
         let mut record: LightAccount<'_, NameRecord> =
             LightAccount::from_meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 

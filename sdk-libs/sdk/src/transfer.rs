@@ -1,6 +1,6 @@
 use anchor_lang::Result;
 
-use crate::{account_info::LightAccountInfo, error::LightSdkError};
+use crate::{account_info::PackedLightAccountInfo, error::LightSdkError};
 
 /// Transfers a specified amount of lamports from one account to another.
 ///
@@ -8,8 +8,8 @@ use crate::{account_info::LightAccountInfo, error::LightSdkError};
 /// account. It will update the lamport balances of both accounts if the
 /// transfer is successful.
 pub fn transfer_compressed_sol(
-    from: &mut LightAccountInfo,
-    to: &mut LightAccountInfo,
+    from: &mut PackedLightAccountInfo,
+    to: &mut PackedLightAccountInfo,
     lamports: u64,
 ) -> Result<()> {
     let output_from = from
@@ -39,12 +39,12 @@ mod tests {
     use solana_program::pubkey::Pubkey;
 
     use super::*;
-    use crate::{account_info::LightInputAccountInfo, merkle_context::PackedMerkleContext};
+    use crate::{account_info::PackedLightInputAccountInfo, merkle_context::PackedMerkleContext};
 
     /// Creates a mock account with the given input lamports.
-    fn mock_account(owner: &Pubkey, lamports: Option<u64>) -> LightAccountInfo<'_> {
-        LightAccountInfo {
-            input: Some(LightInputAccountInfo {
+    fn mock_account(owner: &Pubkey, lamports: Option<u64>) -> PackedLightAccountInfo<'_> {
+        PackedLightAccountInfo {
+            input: Some(PackedLightInputAccountInfo {
                 lamports,
 
                 // None of the following values matter.
@@ -72,8 +72,8 @@ mod tests {
     }
 
     /// Creates a mock account without input.
-    fn mock_account_without_input(owner: &Pubkey) -> LightAccountInfo<'_> {
-        LightAccountInfo {
+    fn mock_account_without_input(owner: &Pubkey) -> PackedLightAccountInfo<'_> {
+        PackedLightAccountInfo {
             input: None,
             owner,
             // None of the following values matter.

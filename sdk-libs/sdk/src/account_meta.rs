@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
-pub struct LightAccountMeta {
+pub struct PackedLightAccountMeta {
     /// Lamports.
     pub lamports: Option<u64>,
     /// Address of the account (the address can change).
@@ -36,7 +36,7 @@ pub struct LightAccountMeta {
     pub read_only: bool,
 }
 
-impl LightAccountMeta {
+impl PackedLightAccountMeta {
     #[allow(clippy::too_many_arguments)]
     pub fn new_init(
         output_merkle_tree: &Pubkey,
