@@ -63,6 +63,7 @@ pub mod account_compression {
             Vec::new(),
             QueueType::AddressQueue,
             None,
+            None,
         )
     }
 
@@ -189,14 +190,16 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         nullifiers: Vec<[u8; 32]>,
         leaf_indices: Vec<u32>,
-        tx_hash: Option<[u8; 32]>,
+        proof_by_index: Vec<bool>,
+        tx_hash: [u8; 32],
     ) -> Result<()> {
         process_insert_into_queues(
             ctx,
             &nullifiers,
             leaf_indices,
             QueueType::NullifierQueue,
-            tx_hash,
+            Some(proof_by_index),
+            Some(tx_hash),
         )
     }
 

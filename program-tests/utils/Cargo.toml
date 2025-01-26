@@ -39,3 +39,5 @@ create-address-test-program = { workspace = true }
 spl-token-2022 = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
+light-verifier = { workspace = true }
+reqwest = { workspace = true }

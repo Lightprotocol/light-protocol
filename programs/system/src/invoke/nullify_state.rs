@@ -49,6 +49,8 @@ pub fn insert_nullifiers<
     ];
 
     let mut leaf_indices = Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
+    let mut proof_by_index =
+        Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
     // If the transaction contains at least one input compressed account a
     // network fee is paid. This network fee is paid in addition to the address
     // network fee. The network fee is paid once per transaction, defined in the
@@ -58,6 +60,12 @@ pub fn insert_nullifiers<
     let mut network_fee_bundle = None;
     for account in input_compressed_accounts_with_merkle_context.iter() {
         leaf_indices.push(account.merkle_context.leaf_index);
+
+        if account.merkle_context.queue_index.is_some() {
+            proof_by_index.push(true);
+        } else {
+            proof_by_index.push(false);
+        }
 
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
@@ -94,7 +102,8 @@ pub fn insert_nullifiers<
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: nullifiers.to_vec(),
         leaf_indices,
-        tx_hash: Some(tx_hash),
+        proof_by_index,
+        tx_hash,
     };
 
     let data = instruction_data.data();

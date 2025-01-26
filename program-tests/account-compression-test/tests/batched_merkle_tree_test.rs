@@ -331,6 +331,7 @@ async fn test_batch_state_merkle_tree() {
             &mut mock_indexer,
             &mut 0,
             10,
+            vec![false; 10],
             output_queue_pubkey,
             merkle_tree_pubkey,
             &invalid_payer,
@@ -398,6 +399,7 @@ async fn test_batch_state_merkle_tree() {
             &mut mock_indexer,
             &mut 0,
             10,
+            vec![false; 10],
             output_queue_pubkey,
             invalid_merkle_tree.pubkey(),
             &payer,
@@ -416,6 +418,7 @@ async fn test_batch_state_merkle_tree() {
             &mut mock_indexer,
             &mut 0,
             10,
+            vec![false; 10],
             invalid_output_queue.pubkey(),
             merkle_tree_pubkey,
             &payer,
@@ -438,6 +441,7 @@ async fn test_batch_state_merkle_tree() {
             &mut mock_indexer,
             &mut counter,
             num_of_leaves,
+            vec![false; num_of_leaves as usize],
             output_queue_pubkey,
             merkle_tree_pubkey,
             &payer,
@@ -664,10 +668,19 @@ pub async fn perform_insert_into_input_queue(
     mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
+    proof_by_index: Vec<bool>,
     output_queue_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
+    if proof_by_index.len() != num_of_leaves as usize {
+        return Err(RpcError::CustomError(format!(
+            "Proof by index len {}!= num of leaves {}",
+            proof_by_index.len(),
+            num_of_leaves
+        ))
+        .into());
+    }
     let mut leaves = vec![];
     let leaf_indices = (counter.clone()..counter.clone() + num_of_leaves).collect::<Vec<u32>>();
     for _ in 0..num_of_leaves {
@@ -691,7 +704,8 @@ pub async fn perform_insert_into_input_queue(
     let instruction = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: leaves,
         leaf_indices,
-        tx_hash: Some(tx_hash),
+        tx_hash,
+        proof_by_index,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),

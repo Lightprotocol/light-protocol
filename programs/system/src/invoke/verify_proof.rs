@@ -3,7 +3,7 @@ use std::mem;
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Discriminator};
+use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::BatchedMerkleTreeAccount,
@@ -145,30 +145,6 @@ pub fn read_address_roots<'a>(
     Ok(address_tree_height)
 }
 
-/// For each input account which is marked to be proven by index
-/// 1. check that it can exist in the output queue
-/// - note the output queue checks whether the value acutally exists in the queue
-/// - the purpose of this check is to catch marked input accounts which shouldn't be proven by index
-#[inline(always)]
-pub fn verify_input_accounts_proof_by_index(
-    remaining_accounts: &[AccountInfo<'_>],
-    input_accounts: &[PackedCompressedAccountWithMerkleContext],
-) -> Result<()> {
-    for account in input_accounts.iter() {
-        if account.merkle_context.queue_index.is_some() {
-            let output_queue_account_info =
-                &remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-            let output_queue =
-                &mut BatchedQueueAccount::output_from_account_info(output_queue_account_info)
-                    .map_err(ProgramError::from)?;
-            output_queue
-                .check_leaf_index_could_exist_in_batches(account.merkle_context.leaf_index as u64)
-                .map_err(ProgramError::from)?;
-        }
-    }
-    Ok(())
-}
-
 fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account_info: &AccountInfo<'_>,
     root_index: u16,
@@ -197,11 +173,9 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             if IS_STATE {
                 msg!("state_from_account_info");
-                sol_log_compute_units();
                 let merkle_tree =
                     BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_account_info)
                         .map_err(ProgramError::from)?;
-                sol_log_compute_units();
                 (*roots).push(merkle_tree.root_history[root_index as usize]);
                 height = merkle_tree.height as u8;
             } else {

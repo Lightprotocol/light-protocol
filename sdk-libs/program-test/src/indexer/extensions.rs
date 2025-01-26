@@ -104,7 +104,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
 
     async fn finalize_batched_address_tree_update(
         &mut self,
-        rpc: &mut R,
         merkle_tree_pubkey: Pubkey,
+        account_data: &mut [u8],
     );
 }

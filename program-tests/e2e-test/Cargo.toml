@@ -30,3 +30,4 @@ light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = {workspace = true }
 light-batched-merkle-tree = { workspace = true }
+serial_test = { workspace = true }

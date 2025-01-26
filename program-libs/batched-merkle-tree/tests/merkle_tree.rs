@@ -1420,7 +1420,7 @@ pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
 
 #[serial]
 #[tokio::test]
-async fn test_fill_queues_completely() {
+async fn test_fill_state_queues_completely() {
     spawn_prover(
         true,
         ProverConfig {
@@ -1702,7 +1702,7 @@ async fn test_fill_queues_completely() {
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
             // the second batch is completely full.
-            if i >= 5 {
+            if i >= 4 {
                 let merkle_tree_account =
                     &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
                 let batch = merkle_tree_account.queue_metadata.batches.first().unwrap();
@@ -1943,7 +1943,7 @@ async fn test_fill_address_tree_completely() {
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
             // the second batch is completely full.
-            if i >= 5 {
+            if i >= 4 {
                 assert!(batch.bloom_filter_is_zeroed());
             } else {
                 assert!(!batch.bloom_filter_is_zeroed());

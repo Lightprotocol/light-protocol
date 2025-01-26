@@ -63,11 +63,15 @@
 // second pr
 // refactor sol tests to functions that can be reused
 
+use std::collections::HashMap;
+
 use account_compression::{
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
     SAFETY_MARGIN,
 };
+use anchor_lang::AnchorSerialize;
+use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     airdrop_lamports,
@@ -76,7 +80,9 @@ use forester_utils::{
     AccountZeroCopy,
 };
 use light_batched_merkle_tree::{
-    batch::BatchState, constants::TEST_DEFAULT_BATCH_SIZE, merkle_tree::BatchedMerkleTreeAccount,
+    batch::BatchState,
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, TEST_DEFAULT_BATCH_SIZE},
+    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
     queue::BatchedQueueAccount,
 };
 use light_client::{
@@ -87,6 +93,7 @@ use light_client::{
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::{FeeConfig, TransactionParams},
 };
+use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
@@ -101,15 +108,39 @@ use light_program_test::{
     test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
+use light_prover_client::{
+    batch_address_append::get_batch_address_append_circuit_inputs,
+    gnark::{
+        batch_address_append_json_formatter::to_json,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::{ProofType, ProverConfig},
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+};
 use light_registry::{
+    account_compression_cpi::sdk::create_batch_update_address_tree_instruction,
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     sdk::create_finalize_registration_instruction,
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
+use light_sdk::{
+    event::PublicTransactionEvent,
+    token::{AccountState, TokenDataWithMerkleContext},
+};
+use light_system_program::{
+    sdk::{
+        address::{
+            derive_address, pack_new_address_params, pack_read_only_accounts,
+            pack_read_only_address_params,
+        },
+        compressed_account::{
+            pack_compressed_accounts, pack_output_compressed_accounts,
+            CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
+        },
+    },
+    InstructionDataInvokeCpiWithReadOnly, ReadOnlyAddress,
+};
 use light_utils::{bigint::bigint_to_be_bytes_array, rand::gen_prime};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
@@ -120,6 +151,7 @@ use rand::{
     rngs::{StdRng, ThreadRng},
     Rng, RngCore, SeedableRng,
 };
+use reqwest::Client;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature},
@@ -136,7 +168,9 @@ use crate::{
     assert_epoch::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
     },
-    conversions::sdk_to_program_compressed_account_with_merkle_context,
+    conversions::{
+        sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof,
+    },
     create_address_merkle_tree_and_queue_account_with_assert,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
@@ -597,7 +631,7 @@ where
                                 next_full_batch_index
                             );
                             if batch_state == BatchState::Full {
-                                for _ in 0..TEST_DEFAULT_BATCH_SIZE {
+                                for _ in 0..output_queue.batch_metadata.get_num_zkp_batches() {
                                     perform_batch_append(
                                         &mut self.rpc,
                                         state_tree_bundle,
@@ -641,17 +675,222 @@ where
                     println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
                     println!("epoch {}", self.epoch);
                     println!("forester {}", payer.pubkey());
-                    // TODO: add newly addeded trees to foresters
-                    empty_address_queue_test(
-                        &payer,
-                        &mut self.rpc,
-                        address_merkle_tree_bundle,
-                        false,
-                        self.epoch,
-                        false,
+                    if address_merkle_tree_bundle.accounts.queue
+                        != address_merkle_tree_bundle.accounts.merkle_tree
+                    {
+                        // TODO: add newly addeded trees to foresters
+                        empty_address_queue_test(
+                            &payer,
+                            &mut self.rpc,
+                            address_merkle_tree_bundle,
+                            false,
+                            self.epoch,
+                            false,
+                        )
+                        .await
+                        .unwrap();
+                    }
+                }
+            }
+            let pubkeys = self
+                .indexer
+                .get_address_merkle_trees_mut()
+                .iter_mut()
+                .filter(|x| x.accounts.merkle_tree == x.accounts.queue)
+                .map(|x| x.accounts.merkle_tree)
+                .collect::<Vec<_>>();
+            for merkle_tree_pubkey in pubkeys {
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &merkle_tree_pubkey,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("epoch {}", self.epoch);
+                    println!("forester {}", payer.pubkey());
+
+                    let mut merkle_tree_account_data = self
+                        .rpc
+                        .get_account(merkle_tree_pubkey)
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .data;
+                    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                        merkle_tree_account_data.as_mut_slice(),
                     )
-                    .await
                     .unwrap();
+                    let next_full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
+                    let batch = merkle_tree
+                        .queue_metadata
+                        .batches
+                        .get(next_full_batch_index as usize)
+                        .unwrap();
+                    let batch_state = batch.get_state();
+                    println!(
+                        "output batch_state {:?}, {}, batch index {}",
+                        batch_state,
+                        batch.get_num_inserted_zkp_batch()
+                            + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
+                        next_full_batch_index
+                    );
+                    println!("input batch_state {:?}", batch_state);
+                    if batch_state == BatchState::Full {
+                        println!("\n --------------------------------------------------\n\t\t Empty Address Queue (v2)\n --------------------------------------------------");
+                        let mut merkle_tree_account = self
+                            .rpc
+                            .get_account(merkle_tree_pubkey)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                            merkle_tree_account.data.as_mut_slice(),
+                        )
+                        .unwrap();
+                        for _ in 0..merkle_tree.queue_metadata.get_num_zkp_batches() {
+                            let instruction_data = {
+                                let full_batch_index =
+                                    merkle_tree.queue_metadata.next_full_batch_index;
+                                let batch =
+                                    &merkle_tree.queue_metadata.batches[full_batch_index as usize];
+                                let zkp_batch_index = batch.get_num_inserted_zkps();
+                                let leaves_hashchain = merkle_tree.hash_chain_stores
+                                    [full_batch_index as usize]
+                                    [zkp_batch_index as usize];
+                                let batch_start_index = merkle_tree.next_index as usize;
+
+                                let addresses = self
+                                    .indexer
+                                    .get_queue_elements(
+                                        merkle_tree_pubkey.to_bytes(),
+                                        full_batch_index,
+                                        0,
+                                        batch.batch_size,
+                                    )
+                                    .await
+                                    .unwrap();
+                                // // local_leaves_hashchain is only used for a test assertion.
+                                // let local_nullifier_hashchain = create_hash_chain_from_array(&addresses);
+                                // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
+                                let start_index = merkle_tree.next_index as usize;
+                                assert!(
+                                    start_index >= 2,
+                                    "start index should be greater than 2 else tree is not inited"
+                                );
+                                let current_root = *merkle_tree.root_history.last().unwrap();
+                                let mut low_element_values = Vec::new();
+                                let mut low_element_indices = Vec::new();
+                                let mut low_element_next_indices = Vec::new();
+                                let mut low_element_next_values = Vec::new();
+                                let mut low_element_proofs: Vec<Vec<[u8; 32]>> = Vec::new();
+                                let non_inclusion_proofs = self
+                                    .indexer
+                                    .get_multiple_new_address_proofs_h40(
+                                        merkle_tree_pubkey.to_bytes(),
+                                        addresses.clone(),
+                                    )
+                                    .await
+                                    .unwrap();
+                                for non_inclusion_proof in &non_inclusion_proofs {
+                                    low_element_values.push(non_inclusion_proof.low_address_value);
+                                    low_element_indices
+                                        .push(non_inclusion_proof.low_address_index as usize);
+                                    low_element_next_indices
+                                        .push(non_inclusion_proof.low_address_next_index as usize);
+                                    low_element_next_values
+                                        .push(non_inclusion_proof.low_address_next_value);
+
+                                    low_element_proofs
+                                        .push(non_inclusion_proof.low_address_proof.to_vec());
+                                }
+                                let inputs = get_batch_address_append_circuit_inputs::<
+                                    { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+                                >(
+                                    start_index,
+                                    current_root,
+                                    low_element_values,
+                                    low_element_next_values,
+                                    low_element_indices,
+                                    low_element_next_indices,
+                                    low_element_proofs,
+                                    addresses,
+                                    self.indexer
+                                        .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .unwrap()
+                                        .try_into()
+                                        .unwrap(),
+                                    leaves_hashchain,
+                                    batch_start_index,
+                                    batch.zkp_batch_size as usize,
+                                )
+                                .unwrap();
+                                let client = Client::new();
+                                let circuit_inputs_new_root =
+                                    bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
+                                let inputs = to_json(&inputs);
+
+                                let response_result = client
+                                    .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                                    .header("Content-Type", "text/plain; charset=utf-8")
+                                    .body(inputs)
+                                    .send()
+                                    .await
+                                    .expect("Failed to execute request.");
+
+                                if response_result.status().is_success() {
+                                    let body = response_result.text().await.unwrap();
+                                    let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                                    let (proof_a, proof_b, proof_c) =
+                                        proof_from_json_struct(proof_json);
+                                    let (proof_a, proof_b, proof_c) =
+                                        compress_proof(&proof_a, &proof_b, &proof_c);
+                                    let instruction_data = InstructionDataBatchNullifyInputs {
+                                        new_root: circuit_inputs_new_root,
+                                        compressed_proof: light_verifier::CompressedProof {
+                                            a: proof_a,
+                                            b: proof_b,
+                                            c: proof_c,
+                                        },
+                                    };
+                                    Ok(instruction_data)
+                                } else {
+                                    Err(RpcError::CustomError(
+                                        "Prover failed to generate proof".to_string(),
+                                    ))
+                                }
+                            }
+                            .unwrap();
+
+                            let instruction = create_batch_update_address_tree_instruction(
+                                payer.pubkey(),
+                                payer.pubkey(),
+                                merkle_tree_pubkey,
+                                self.epoch,
+                                instruction_data.try_to_vec().unwrap(),
+                            );
+                            self.rpc
+                                .create_and_send_transaction(
+                                    &[instruction],
+                                    &payer.pubkey(),
+                                    &[&payer],
+                                )
+                                .await
+                                .unwrap();
+                        }
+                        let mut account = self
+                            .rpc
+                            .get_account(merkle_tree_pubkey)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                        self.indexer
+                            .finalize_batched_address_tree_update(
+                                merkle_tree_pubkey,
+                                account.data.as_mut_slice(),
+                            )
+                            .await;
+                    }
                 } else {
                     println!("No forester found for address queue");
                 };
@@ -1564,7 +1803,7 @@ where
                 )
             } else {
                 // select random address Merkle tree(s)
-                self.get_address_merkle_tree_pubkeys(num_addresses)
+                self.get_address_merkle_tree_pubkeys(num_addresses, false)
             };
         let mut address_seeds = Vec::new();
         let mut created_addresses = Vec::new();
@@ -2201,6 +2440,372 @@ where
         Ok(())
     }
 
+    pub async fn invoke_cpi_test(&mut self, user_index: usize) -> Result<(), RpcError> {
+        // addresses that can be used in output accounts
+        let mut addresses = vec![];
+
+        let mut proof_input_accounts = vec![];
+        // TODO: filter for Merkle tree type to enable mixed tree tests
+        let input_accounts = {
+            let mut program_accounts = self
+                .indexer
+                .get_compressed_accounts_with_merkle_context_by_owner(
+                    &create_address_test_program::ID,
+                )
+                .clone();
+            let num_accounts = program_accounts.len();
+            let max_num = std::cmp::min(num_accounts, 1);
+            let select_num_accounts = Self::safe_gen_range(&mut self.rng, 0..=max_num, 0);
+            let mut accounts = vec![];
+            for _ in 0..select_num_accounts {
+                let num_accounts = program_accounts.len();
+                let index = Self::safe_gen_range(&mut self.rng, 0..num_accounts, 0);
+                accounts.push(program_accounts.remove(index));
+            }
+
+            accounts.iter().for_each(|account| {
+                let hash = account.hash().unwrap();
+                println!("spending account hash {:?}", hash);
+                proof_input_accounts.push((hash, account.merkle_context.merkle_tree_pubkey));
+            });
+
+            accounts
+        };
+        let input_accounts = input_accounts
+            .iter()
+            .map(|x| sdk_to_program_compressed_account_with_merkle_context(x.clone()))
+            .collect::<Vec<_>>();
+
+        let mut read_only_accounts = {
+            let program_accounts = self
+                .indexer
+                .get_compressed_accounts_with_merkle_context_by_owner(
+                    &create_address_test_program::ID,
+                );
+            let num_accounts = program_accounts.len();
+
+            let max_num = std::cmp::min(num_accounts, 4 - input_accounts.len());
+
+            let select_num_accounts = Self::safe_gen_range(&mut self.rng, 0..max_num, 0);
+            let mut accounts = vec![];
+            for _ in 0..select_num_accounts {
+                let index = Self::safe_gen_range(&mut self.rng, 0..num_accounts, 0);
+                let account = program_accounts[index].clone();
+                accounts.push(account);
+            }
+            accounts
+                .iter()
+                .map(|account| {
+                    let account_hash = account.hash().unwrap();
+                    proof_input_accounts
+                        .push((account_hash, account.merkle_context.merkle_tree_pubkey));
+
+                    ReadOnlyCompressedAccount {
+                        account_hash,
+                        merkle_context: sdk_to_program_compressed_account_with_merkle_context(
+                            account.clone(),
+                        )
+                        .merkle_context,
+                        root_index: 0, // set after proof generation
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut proof_input_addresses = vec![];
+        let mut new_address_params = {
+            let num_addresses = Self::safe_gen_range(&mut self.rng, 0..=1, 0);
+            let (address_merkle_tree, queues) =
+                self.get_address_merkle_tree_pubkeys(num_addresses, true);
+
+            let seeds = (0..num_addresses)
+                .map(|_| {
+                    let seed: [u8; 32] =
+                        bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
+                    seed
+                })
+                .collect::<Vec<_>>();
+            seeds.iter().enumerate().for_each(|(index, seed)| {
+                println!("seed {:?}", seed);
+                println!(
+                    "address_merkle_tree {:?}",
+                    address_merkle_tree[index].to_bytes()
+                );
+                println!(
+                    "create_address_test_program::ID {:?}",
+                    create_address_test_program::ID.to_bytes()
+                );
+                let address = derive_address(
+                    seed,
+                    &address_merkle_tree[index].to_bytes(),
+                    &create_address_test_program::ID.to_bytes(),
+                );
+                addresses.push(address);
+                proof_input_addresses.push((address, address_merkle_tree[index]));
+            });
+            seeds
+                .iter()
+                .enumerate()
+                .map(|(index, seed)| {
+                    light_system_program::NewAddressParams {
+                        address_merkle_tree_pubkey: address_merkle_tree[index],
+                        address_queue_pubkey: queues[index],
+                        seed: *seed,
+                        address_merkle_tree_root_index: 0, // set after proof generation
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut read_only_addresses = {
+            let num_addresses = Self::safe_gen_range(&mut self.rng, 0..=1, 0);
+            let seeds = (0..num_addresses)
+                .map(|_| {
+                    let seed: [u8; 32] =
+                        bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
+                    seed
+                })
+                .collect::<Vec<_>>();
+            let address_merkle_tree = self.get_address_merkle_tree_pubkeys(num_addresses, true).0;
+            seeds
+                .iter()
+                .enumerate()
+                .map(|(index, seed)| {
+                    let address = derive_address(
+                        seed,
+                        &address_merkle_tree[index].to_bytes(),
+                        &create_address_test_program::ID.to_bytes(),
+                    );
+                    proof_input_addresses.push((address, address_merkle_tree[index]));
+                    ReadOnlyAddress {
+                        address_merkle_tree_pubkey: address_merkle_tree[index],
+                        address,
+                        address_merkle_tree_root_index: 0, // set after proof generation
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let (output_accounts, output_merkle_trees) = {
+            let num_output_accounts = Self::safe_gen_range(&mut self.rng, 0..=8, 0);
+            let mut accounts = vec![];
+
+            for _ in 0..num_output_accounts {
+                let rnd_data: [u8; 32] = self.rng.gen();
+                let mut data_hash = rnd_data;
+                // truncate else 0x1 error
+                data_hash[1] = 0;
+                data_hash[0] = 0;
+                let select_address: bool = self.rng.gen_bool(0.5);
+                let num_addresses = addresses.len();
+
+                let address = if select_address && num_addresses > 0 {
+                    Some(addresses.remove(Self::safe_gen_range(&mut self.rng, 0..num_addresses, 0)))
+                } else {
+                    None
+                };
+                let account = light_system_program::sdk::compressed_account::CompressedAccount {
+                    owner: create_address_test_program::ID,
+                    data: Some(
+                        light_system_program::sdk::compressed_account::CompressedAccountData {
+                            data: rnd_data.to_vec(),
+                            discriminator: [1; 8],
+                            data_hash,
+                        },
+                    ),
+                    address,
+                    lamports: 0,
+                };
+                accounts.push(account);
+            }
+            let merkle_trees = self.get_merkle_tree_pubkeys(num_output_accounts as u64);
+            (accounts, merkle_trees)
+        };
+        let mut root_indices = Vec::new();
+        let mut proof = None;
+        if !proof_input_accounts.is_empty() || !proof_input_addresses.is_empty() {
+            let address_vec;
+            let created_addresses = if proof_input_addresses.is_empty() {
+                None
+            } else {
+                address_vec = proof_input_addresses
+                    .iter()
+                    .map(|x| x.0)
+                    .collect::<Vec<_>>();
+
+                Some(&address_vec[..])
+            };
+            let address_merkle_tree_pubkeys = if proof_input_addresses.is_empty() {
+                None
+            } else {
+                Some(
+                    proof_input_addresses
+                        .iter()
+                        .map(|x| x.1)
+                        .collect::<Vec<_>>(),
+                )
+            };
+            let compressed_account_input_hashes = if proof_input_accounts.is_empty() {
+                None
+            } else {
+                Some(proof_input_accounts.iter().map(|x| x.0).collect::<Vec<_>>())
+            };
+            let state_merkle_trees = if proof_input_accounts.is_empty() {
+                None
+            } else {
+                Some(proof_input_accounts.iter().map(|x| x.1).collect::<Vec<_>>())
+            };
+            let proof_rpc_res = self
+                .indexer
+                .create_proof_for_compressed_accounts2(
+                    compressed_account_input_hashes,
+                    state_merkle_trees,
+                    created_addresses,
+                    address_merkle_tree_pubkeys,
+                    &mut self.rpc,
+                )
+                .await;
+
+            root_indices = proof_rpc_res.root_indices.clone();
+
+            if let Some(proof_rpc_res) = proof_rpc_res.proof {
+                proof = Some(sdk_to_program_compressed_proof(proof_rpc_res));
+            }
+
+            if !new_address_params.is_empty() {
+                for (i, input_address) in new_address_params.iter_mut().enumerate() {
+                    input_address.address_merkle_tree_root_index =
+                        proof_rpc_res.address_root_indices[i];
+                }
+            }
+            if !read_only_addresses.is_empty() {
+                for (i, input_address) in read_only_addresses.iter_mut().enumerate() {
+                    input_address.address_merkle_tree_root_index =
+                        proof_rpc_res.address_root_indices[i + new_address_params.len()];
+                }
+            }
+
+            // if !input_accounts.is_empty() {
+            //     for (i, input_account) in input_accounts.iter_mut().enumerate() {
+            //         if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
+            //             // input_account.root_index = root_index;
+            //         } else {
+            //             input_account.merkle_context.queue_index = Some(QueueIndex::default());
+            //         }
+            //     }
+            // }
+            if !read_only_accounts.is_empty() {
+                for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
+                    if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
+                        input_account.root_index = root_index;
+                    } else {
+                        input_account.merkle_context.queue_index = Some(
+                            light_system_program::sdk::compressed_account::QueueIndex::default(),
+                        );
+                    }
+                }
+            }
+        }
+        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+
+        let packed_new_address_params =
+            pack_new_address_params(new_address_params.as_slice(), &mut remaining_accounts);
+
+        let packed_inputs = pack_compressed_accounts(
+            input_accounts.as_slice(),
+            root_indices.as_slice(),
+            &mut remaining_accounts,
+        );
+        let output_compressed_accounts = pack_output_compressed_accounts(
+            output_accounts.as_slice(),
+            output_merkle_trees.as_slice(),
+            &mut remaining_accounts,
+        );
+        println!(
+            "output_compressed_accounts: {:?}",
+            output_compressed_accounts
+        );
+        println!(
+            "remaining_accounts: {:?}",
+            remaining_accounts.clone().into_iter().collect::<Vec<_>>()
+        );
+        let invoke_cpi = light_system_program::InstructionDataInvokeCpi {
+            proof,
+            new_address_params: packed_new_address_params,
+            input_compressed_accounts_with_merkle_context: packed_inputs,
+            output_compressed_accounts,
+            relay_fee: None,
+            compress_or_decompress_lamports: None,
+            is_compress: false,
+            cpi_context: None,
+        };
+        let read_only_accounts = if read_only_accounts.is_empty() {
+            None
+        } else {
+            Some(pack_read_only_accounts(
+                read_only_accounts.as_slice(),
+                &mut remaining_accounts,
+            ))
+        };
+        let read_only_addresses = if read_only_addresses.is_empty() {
+            None
+        } else {
+            Some(pack_read_only_address_params(
+                read_only_addresses.as_slice(),
+                &mut remaining_accounts,
+            ))
+        };
+
+        let ix_data: InstructionDataInvokeCpiWithReadOnly = InstructionDataInvokeCpiWithReadOnly {
+            invoke_cpi,
+            read_only_accounts,
+            read_only_addresses,
+        };
+        println!("ix_data: {:?}", ix_data);
+        if ix_data.read_only_accounts.is_none()
+            && ix_data.read_only_addresses.is_none()
+            && ix_data
+                .invoke_cpi
+                .input_compressed_accounts_with_merkle_context
+                .is_empty()
+            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
+        {
+            return Ok(());
+        }
+        let user = &self.users[user_index].keypair;
+        let remaining_accounts = to_account_metas(remaining_accounts);
+
+        let instruction = create_invoke_cpi_instruction(
+            user.pubkey(),
+            ix_data.try_to_vec().unwrap(),
+            remaining_accounts,
+        );
+
+        let (event, _, slot) = self
+            .rpc
+            .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+                &[instruction],
+                &user.pubkey(),
+                &[user],
+                None,
+            )
+            .await?
+            .ok_or(RpcError::CustomError(
+                "invoke_cpi_test No event".to_string(),
+            ))?;
+        self.indexer.add_event_and_compressed_accounts(slot, &event);
+        let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
+        println!(
+            "tree_bundle queue_elements: {:?}",
+            tree_bundle.queue_elements
+        );
+        println!(
+            "new addresses proof_input_addresses: {:?}",
+            proof_input_addresses
+        );
+        Ok(())
+    }
+
     pub fn get_random_compressed_sol_accounts(
         &mut self,
         user_index: usize,
@@ -2281,7 +2886,11 @@ where
         pubkeys
     }
 
-    pub fn get_address_merkle_tree_pubkeys(&mut self, num: u64) -> (Vec<Pubkey>, Vec<Pubkey>) {
+    pub fn get_address_merkle_tree_pubkeys(
+        &mut self,
+        num: u64,
+        batched: bool,
+    ) -> (Vec<Pubkey>, Vec<Pubkey>) {
         let mut pubkeys = vec![];
         let mut queue_pubkeys = vec![];
         let mut version = 0;
@@ -2297,13 +2906,23 @@ where
                     .len(),
                 0,
             );
-            let accounts = &self
-                .indexer
-                .get_address_merkle_trees()
-                .iter()
-                .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
-                .collect::<Vec<_>>()[index]
-                .accounts;
+            let accounts = if !batched {
+                &self
+                    .indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree != x.accounts.queue)
+                    .collect::<Vec<_>>()[index]
+                    .accounts
+            } else {
+                &self
+                    .indexer
+                    .get_address_merkle_trees()
+                    .iter()
+                    .filter(|x| x.accounts.merkle_tree == x.accounts.queue)
+                    .collect::<Vec<_>>()[index]
+                    .accounts
+            };
             let local_version = if accounts.merkle_tree == accounts.queue {
                 2
             } else {

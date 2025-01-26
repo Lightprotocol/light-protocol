@@ -16,8 +16,7 @@ use crate::{
         sum_check::sum_check,
         verify_proof::{
             hash_input_compressed_accounts, read_address_roots, read_input_state_roots,
-            verify_input_accounts_proof_by_index, verify_proof,
-            verify_read_only_account_inclusion_by_index,
+            verify_proof, verify_read_only_account_inclusion_by_index,
             verify_read_only_address_queue_non_inclusion,
         },
     },
@@ -275,37 +274,25 @@ pub fn process<
     sequence_numbers.shrink_to_fit();
 
     // 8. insert nullifiers (input compressed account hashes)---------------------------------------------------
-    // Nullifiers need to be inserted befor proof verification because the
-    // in certain cases we zero out roots in batched input queues.
-    // These roots need to be zero prior to proof verification.
+    // Note: It would make sense to nullify prior to appending new state.
+    //      Since output compressed account hashes are inputs
+    //      for the tx hash on which the nullifier depends
+    //      and the logic to compute output hashes is higly optimized
+    //      and entangled with the cpi we leave it as is for now.
     bench_sbf_start!("cpda_nullifiers");
     let input_network_fee_bundle = if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
     {
-        // 8.1. Verify that all instances of queue_index.is_some() are plausible.
-        // Protects against the attack of marking an account as proof by index
-        // with queue_index.is_some() but the accounts index is not in the
-        // current value vec.
-        // (The account compression program verifies inclusion and zeroes out a value
-        //  if it is found but does not throw an error in the case
-        //  that the leaf index cannot possibly be in the value vec.)
-        if num_prove_by_index_input_accounts != 0 {
-            verify_input_accounts_proof_by_index(
-                ctx.remaining_accounts,
-                &inputs.input_compressed_accounts_with_merkle_context,
-            )?;
-        }
-
         let current_slot = Clock::get()?.slot;
-        // 8.2. Create a tx hash
+        // 8.1. Create a tx hash
         let tx_hash = create_tx_hash(
             &input_compressed_account_hashes,
             &output_compressed_account_hashes,
             current_slot,
         )
         .map_err(ProgramError::from)?;
-        // 8.3. Insert nullifiers for compressed input account hashes into nullifier
+        // 8.2. Insert nullifiers for compressed input account hashes into nullifier
         // queue.
         insert_nullifiers(
             &inputs.input_compressed_accounts_with_merkle_context,
@@ -360,7 +347,7 @@ pub fn process<
     )?;
 
     // 11. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
-    if num_inclusion_proof_inputs > 0 || num_non_inclusion_proof_inputs > 0 {
+    if num_inclusion_proof_inputs != 0 || num_non_inclusion_proof_inputs != 0 {
         if let Some(proof) = inputs.proof.as_ref() {
             bench_sbf_start!("cpda_verify_state_proof");
 
@@ -437,6 +424,8 @@ pub fn process<
         .is_empty()
         && inputs.new_address_params.is_empty()
         && inputs.output_compressed_accounts.is_empty()
+        && read_only_accounts.is_empty()
+        && read_only_addresses.is_empty()
     {
         return err!(SystemProgramError::EmptyInputs);
     }

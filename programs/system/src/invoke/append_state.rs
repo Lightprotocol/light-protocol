@@ -61,6 +61,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
+
     let (instruction_data, network_fee_bundle) = create_cpi_accounts_and_instruction_data(
         output_compressed_accounts,
         output_compressed_account_indices,

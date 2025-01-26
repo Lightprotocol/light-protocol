@@ -1,8 +1,4 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::{log::sol_log_compute_units, pubkey::Pubkey},
-    Discriminator,
-};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
 use light_batched_merkle_tree::queue::{BatchedQueueAccount, BatchedQueueMetadata};
 use light_hasher::Discriminator as HasherDiscriminator;
 
@@ -192,12 +188,8 @@ fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
     batch_size: usize,
     leaves: &[(u8, [u8; 32])],
 ) -> Result<u64> {
-    msg!("output_queue_zero_copy");
-    sol_log_compute_units();
     let output_queue = &mut BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
         .map_err(ProgramError::from)?;
-    sol_log_compute_units();
-    sol_log_compute_units();
     check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueMetadata>(
         ctx,
         output_queue,

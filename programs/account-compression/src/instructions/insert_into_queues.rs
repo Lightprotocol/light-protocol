@@ -48,6 +48,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     elements: &'a [[u8; 32]],
     indices: Vec<u32>,
     queue_type: QueueType,
+    proof_by_index: Option<Vec<bool>>,
     tx_hash: Option<[u8; 32]>,
 ) -> Result<()> {
     if elements.is_empty() {
@@ -73,13 +74,21 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         //       based on the account discriminator.
         match current_account_discriminator {
             // V1 nullifier or address queue.
-            QueueAccount::DISCRIMINATOR => add_queue_bundle_v1(
-                &mut current_index,
-                queue_type,
-                &mut queue_map,
-                element,
-                ctx.remaining_accounts,
-            )?,
+            QueueAccount::DISCRIMINATOR => {
+                if queue_type == QueueType::NullifierQueue
+                    && proof_by_index.as_ref().unwrap()[index]
+                {
+                    return err!(AccountCompressionErrorCode::V1AccountMarkedAsProofByIndex);
+                }
+
+                add_queue_bundle_v1(
+                    &mut current_index,
+                    queue_type,
+                    &mut queue_map,
+                    element,
+                    ctx.remaining_accounts,
+                )?
+            }
             // V2 nullifier (input state) queue
             BatchedQueueAccount::DISCRIMINATOR => add_nullifier_queue_bundle_v2(
                 &mut current_index,
@@ -87,6 +96,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
                 &mut queue_map,
                 element,
                 indices[index],
+                proof_by_index.as_ref().unwrap()[index],
                 ctx.remaining_accounts,
             )?,
             // V2 Address queue is part of the address Merkle tree account.
@@ -250,18 +260,24 @@ fn process_nullifier_queue_bundle_v2<'info>(
         merkle_tree,
     )?;
 
-    for (element, leaf_index) in queue_bundle
+    for ((element, leaf_index), proof_by_index) in queue_bundle
         .elements
         .iter()
         .zip(queue_bundle.indices.iter())
+        .zip(queue_bundle.proof_by_index.iter())
     {
         let tx_hash = tx_hash.ok_or(AccountCompressionErrorCode::TxHashUndefined)?;
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
         // 4. check for every account whether the value is still in the queue and zero it out.
         //      If checked fail if the value is not in the queue.
         output_queue
-            .prove_inclusion_by_index_and_zero_out_leaf(*leaf_index as u64, element)
+            .prove_inclusion_by_index_and_zero_out_leaf(
+                *leaf_index as u64,
+                element,
+                *proof_by_index,
+            )
             .map_err(ProgramError::from)?;
+
         // 5. Insert the nullifiers into the current input queue batch.
         merkle_tree
             .insert_nullifier_into_current_batch(element, *leaf_index as u64, &tx_hash)
@@ -338,6 +354,7 @@ fn add_nullifier_queue_bundle_v2<'a, 'info>(
     queue_map: &mut HashMap<Pubkey, QueueBundle<'a, 'info>>,
     element: &'a [u8; 32],
     index: u32,
+    proof_by_index: bool,
     remaining_accounts: &'info [AccountInfo<'info>],
 ) -> Result<()> {
     // 1. Check that the queue type is a nullifier queue.
@@ -360,10 +377,11 @@ fn add_nullifier_queue_bundle_v2<'a, 'info>(
         })
         .elements
         .push(element);
-    // 4. Add the index to the queue bundle.
-    queue_map
-        .entry(merkle_tree.key())
-        .and_modify(|x| x.indices.push(index));
+    // 4. Add the index and proof by index to the queue bundle.
+    queue_map.entry(merkle_tree.key()).and_modify(|x| {
+        x.indices.push(index);
+        x.proof_by_index.push(proof_by_index);
+    });
     *remaining_accounts_index += 2;
 
     Ok(())
