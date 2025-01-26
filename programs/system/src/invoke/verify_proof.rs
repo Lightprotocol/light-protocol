@@ -50,7 +50,7 @@ pub fn read_input_state_roots<'a>(
     {
         if input_compressed_account_with_context
             .merkle_context
-            .queue_index
+            .prove_by_index
         {
             continue;
         }
@@ -73,7 +73,7 @@ pub fn read_input_state_roots<'a>(
         }
     }
     for readonly_input_account in read_only_accounts.iter() {
-        if readonly_input_account.merkle_context.queue_index {
+        if readonly_input_account.merkle_context.prove_by_index {
             continue;
         }
         let internal_height = read_root::<IS_READ_ONLY, IS_STATE>(
@@ -253,13 +253,13 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
                 &read_only_account.account_hash,
             )
             .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
-        if read_only_account.merkle_context.queue_index {
+        if read_only_account.merkle_context.prove_by_index {
             num_prove_read_only_accounts_prove_by_index += 1;
         }
         // If a read-only account is marked as proven by index
         // inclusion proof by index has to be successful
         // -> proved_inclusion == true.
-        if !proved_inclusion && read_only_account.merkle_context.queue_index {
+        if !proved_inclusion && read_only_account.merkle_context.prove_by_index {
             msg!("Expected read-only account in the output queue but account does not exist.");
             return err!(SystemProgramError::ReadOnlyAccountDoesNotExist);
         }

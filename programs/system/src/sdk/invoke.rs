@@ -119,7 +119,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         } else {
             None
         };
-        let queue_index = root_index.is_none();
+        let prove_by_index = root_index.is_none();
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_context: PackedMerkleContext {
@@ -128,7 +128,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                     .unwrap() as u8,
                 nullifier_queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
-                queue_index,
+                prove_by_index,
             },
             read_only: false,
             root_index: root_index.unwrap_or_default(),
@@ -269,13 +269,13 @@ mod test {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
-                queue_index: false,
+                prove_by_index: false,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
-                queue_index: false,
+                prove_by_index: false,
             },
         ];
 

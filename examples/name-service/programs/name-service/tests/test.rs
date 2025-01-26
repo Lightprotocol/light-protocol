@@ -66,7 +66,7 @@ async fn test_name_service() {
         merkle_tree_pubkey: env.merkle_tree_pubkey,
         nullifier_queue_pubkey: env.nullifier_queue_pubkey,
         leaf_index: 0,
-        queue_index: None,
+        prove_by_index: false,
     };
     let merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
 

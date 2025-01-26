@@ -28,7 +28,7 @@ pub fn sdk_to_program_merkle_context(
         merkle_tree_pubkey: sdk_merkle_context.merkle_tree_pubkey,
         nullifier_queue_pubkey: sdk_merkle_context.nullifier_queue_pubkey,
         leaf_index: sdk_merkle_context.leaf_index,
-        queue_index: sdk_merkle_context.queue_index,
+        prove_by_index: sdk_merkle_context.prove_by_index,
     }
 }
 
@@ -39,7 +39,7 @@ pub fn program_to_sdk_merkle_context(
         merkle_tree_pubkey: program_merkle_context.merkle_tree_pubkey,
         nullifier_queue_pubkey: program_merkle_context.nullifier_queue_pubkey,
         leaf_index: program_merkle_context.leaf_index,
-        queue_index: program_merkle_context.queue_index,
+        prove_by_index: program_merkle_context.prove_by_index,
     }
 }
 pub fn sdk_to_program_compressed_account_data(

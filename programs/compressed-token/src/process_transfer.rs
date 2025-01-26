@@ -888,7 +888,7 @@ pub mod transfer_sdk {
                 None
             };
             // Potential footgun queue index is set in merkle tree but its not used here
-            let queue_index = root_indices[i].is_none();
+            let prove_by_index = root_indices[i].is_none();
 
             let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
@@ -899,7 +899,7 @@ pub mod transfer_sdk {
                         .unwrap() as u8,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
-                    queue_index,
+                    prove_by_index,
                 },
                 root_index: root_indices[i].unwrap_or_default(),
                 lamports,

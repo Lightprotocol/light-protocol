@@ -36,7 +36,7 @@ impl CompressedAccountWithMerkleContext {
         let account_hash = self.hash()?;
         let merkle_context = if root_index.is_none() {
             let mut merkle_context = self.merkle_context;
-            merkle_context.queue_index = true;
+            merkle_context.prove_by_index = true;
             merkle_context
         } else {
             self.merkle_context
@@ -65,7 +65,7 @@ impl CompressedAccountWithMerkleContext {
                     remaining_accounts,
                 ),
                 leaf_index: self.merkle_context.leaf_index,
-                queue_index: root_index.is_none(),
+                prove_by_index: root_index.is_none(),
             },
             root_index: root_index.unwrap_or_default(),
             read_only: false,
@@ -93,7 +93,7 @@ pub struct MerkleContext {
     pub leaf_index: u32,
     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
     /// currently unimplemented.
-    pub queue_index: bool,
+    pub prove_by_index: bool,
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
@@ -101,7 +101,7 @@ pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
-    pub queue_index: bool,
+    pub prove_by_index: bool,
 }
 
 pub fn pack_compressed_accounts(
@@ -117,7 +117,7 @@ pub fn pack_compressed_accounts(
             let root_index = if let Some(root) = root_index {
                 *root
             } else {
-                merkle_context.queue_index = true;
+                merkle_context.prove_by_index = true;
                 0
             };
 
@@ -161,7 +161,7 @@ pub fn pack_merkle_context(
                 &merkle_context.nullifier_queue_pubkey,
                 remaining_accounts,
             ),
-            queue_index: merkle_context.queue_index,
+            prove_by_index: merkle_context.prove_by_index,
         })
         .collect::<Vec<_>>()
 }

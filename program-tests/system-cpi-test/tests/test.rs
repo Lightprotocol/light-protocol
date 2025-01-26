@@ -85,7 +85,7 @@ use system_cpi_test::{
 ///     merkle_tree_pubkey_index: u8, // tested in 13
 ///     nullifier_queue_pubkey_index: u8, // tested in 6
 ///     leaf_index: u32, // tested in 15 (not used with zkp)
-///     queue_index: bool, // tested in 14
+///     prove_by_index: bool, // tested in 14
 ///}
 ///
 #[serial]
@@ -1933,7 +1933,7 @@ pub async fn perform_with_input_accounts<
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
                     Some(token_account.compressed_account.compressed_account.lamports)
@@ -1963,7 +1963,7 @@ pub async fn perform_with_input_accounts<
                 leaf_index: compressed_account.merkle_context.leaf_index,
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
-                queue_index: None,
+                prove_by_index: false,
             },
             root_index: rpc_result.root_indices[0].unwrap(),
             read_only: false,

@@ -984,7 +984,7 @@ async fn invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1018,7 +1018,7 @@ async fn invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1072,7 +1072,7 @@ async fn invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1121,7 +1121,7 @@ async fn invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1152,7 +1152,7 @@ async fn invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 1,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1610,7 +1610,7 @@ async fn test_with_compression() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: nullifier_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1862,7 +1862,7 @@ async fn batch_invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: output_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[output_queue_pubkey],
         &[Some(0u16)],
@@ -1896,7 +1896,7 @@ async fn batch_invoke_test() {
             merkle_tree_pubkey,
             leaf_index: 0,
             nullifier_queue_pubkey: output_queue_pubkey,
-            queue_index: None,
+            prove_by_index: false,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1948,7 +1948,7 @@ async fn batch_invoke_test() {
                 leaf_index: compressed_account_with_context.merkle_context.leaf_index,
                 nullifier_queue_pubkey: output_queue_pubkey,
                 // Values are not used, it only has to be Some
-                queue_index: true,
+                prove_by_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -1998,7 +1998,7 @@ async fn batch_invoke_test() {
                 merkle_tree_pubkey,
                 leaf_index: 0,
                 nullifier_queue_pubkey: output_queue_pubkey,
-                queue_index: true,
+                prove_by_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2045,7 +2045,7 @@ async fn batch_invoke_test() {
                 merkle_tree_pubkey,
                 leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
                 nullifier_queue_pubkey: output_queue_pubkey,
-                queue_index: true,
+                prove_by_index: true,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2376,7 +2376,7 @@ async fn batch_invoke_test() {
             .await;
         let mut merkle_context =
             sdk_to_program_merkle_context(compressed_account_with_context_1.merkle_context);
-        merkle_context.queue_index = true;
+        merkle_context.prove_by_index = true;
         let mut proof = None;
         if let Some(proof_rpc) = proof_rpc_result.proof {
             proof = Some(sdk_to_program_compressed_proof(proof_rpc));
@@ -2426,7 +2426,7 @@ async fn batch_invoke_test() {
             .clone();
 
         let mut merkle_context = compressed_account_with_context_1.merkle_context;
-        merkle_context.queue_index = true;
+        merkle_context.prove_by_index = true;
         let instruction = create_invoke_instruction(
             &payer_pubkey,
             &payer_pubkey,
@@ -2514,7 +2514,7 @@ pub async fn double_spend_compressed_account<
 
     {
         let mut merkle_context = merkle_context_1;
-        merkle_context.queue_index = true;
+        merkle_context.prove_by_index = true;
         let instruction = create_invoke_instruction(
             &payer.pubkey(),
             &payer.pubkey(),

@@ -2690,7 +2690,7 @@ where
             //         if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
             //             // input_account.root_index = root_index;
             //         } else {
-            //             input_account.merkle_context.queue_index = true;
+            //             input_account.merkle_context.prove_by_index = true;
             //         }
             //     }
             // }
@@ -2699,7 +2699,7 @@ where
                     if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
                         input_account.root_index = root_index;
                     } else {
-                        input_account.merkle_context.queue_index = true;
+                        input_account.merkle_context.prove_by_index = true;
                     }
                 }
             }

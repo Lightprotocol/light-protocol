@@ -18,7 +18,10 @@ pub fn sum_check(
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
-        if compressed_account_with_context.merkle_context.queue_index {
+        if compressed_account_with_context
+            .merkle_context
+            .prove_by_index
+        {
             num_prove_by_index_accounts += 1;
         }
         // Readonly accounts are only supported as separate inputs.
@@ -151,7 +154,7 @@ mod test {
     ) -> Result<()> {
         let mut inputs = Vec::new();
         for (index, i) in input_amounts.iter().enumerate() {
-            let queue_index = index < num_by_index;
+            let prove_by_index = index < num_by_index;
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Keypair::new().pubkey(),
@@ -163,7 +166,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
-                    queue_index,
+                    prove_by_index,
                 },
                 root_index: 1,
                 read_only: false,

@@ -469,13 +469,13 @@ fn filter_for_accounts_not_proven_by_index(
         .iter()
         .zip(input_compressed_accounts_with_merkle_context.iter())
     {
-        if !input_account.merkle_context.queue_index {
+        if !input_account.merkle_context.prove_by_index {
             proof_input_compressed_account_hashes.push(*hash);
         }
     }
     for read_only_account in read_only_accounts.iter() {
         // only push read only account hashes which are not marked as proof by index
-        if !read_only_account.merkle_context.queue_index {
+        if !read_only_account.merkle_context.prove_by_index {
             proof_input_compressed_account_hashes.push(read_only_account.account_hash);
         }
     }
