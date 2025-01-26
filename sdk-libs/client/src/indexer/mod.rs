@@ -348,7 +348,7 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
             merkle_tree_pubkey: Pubkey::from_str(&account.tree)?,
             nullifier_queue_pubkey: Default::default(),
             leaf_index: account.leaf_index,
-            queue_index: None,
+            prove_by_index: false,
         };
 
         let mut compressed_account = CompressedAccount {
