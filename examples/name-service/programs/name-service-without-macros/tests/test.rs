@@ -304,12 +304,11 @@ where
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
-    let account = PackedLightAccountMeta::new_init(
+    let account = LightAccountMeta::new_init(
         &env.merkle_tree_pubkey,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
-        remaining_accounts,
-    )
+    ).pack(remaining_accounts)
     .unwrap();
 
     let inputs = LightInstructionData {
@@ -380,12 +379,11 @@ where
         )
         .await;
 
-    let compressed_account = PackedLightAccountMeta::new_mut(
+    let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
         rpc_result.root_indices[0],
         &merkle_tree_pubkey,
-        remaining_accounts,
-    );
+    ).pack(remaining_accounts).unwrap();
 
     let inputs = LightInstructionData {
         proof: Some(rpc_result),
@@ -453,11 +451,12 @@ where
         )
         .await;
 
-    let compressed_account = PackedLightAccountMeta::new_close(
+    let compressed_account = LightAccountMeta::new_close(
         compressed_account,
         rpc_result.root_indices[0],
-        remaining_accounts,
-    );
+    )
+    .pack(remaining_accounts)
+    .unwrap();
 
     let inputs = LightInstructionData {
         proof: Some(rpc_result),

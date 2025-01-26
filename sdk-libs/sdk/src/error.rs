@@ -30,4 +30,6 @@ pub enum LightSdkError {
     TransferFromInsufficientLamports,
     #[msg("Integer overflow resulting from too large resulting amount")]
     TransferIntegerOverflow,
+    #[msg("Expected read_only to be false")]
+    ExpectedReadOnly,
 }

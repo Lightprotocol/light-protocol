@@ -7,10 +7,123 @@ use crate::{
     compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
     merkle_context::{
-        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
+        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, MerkleContext,
         PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
     },
 };
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+pub struct LightAccountMeta {
+    /// Lamports.
+    pub lamports: Option<u64>,
+    /// Address of the account (the address can change).
+    pub address: Option<[u8; 32]>,
+    /// Data of the account.
+    pub data: Option<Vec<u8>>,
+    /// Merkle tree.
+    pub merkle_context: Option<MerkleContext>,
+    /// Merkle tree root index.
+    pub merkle_tree_root_index: Option<u16>,
+    /// Output Merkle tree.
+    pub output_merkle_tree: Option<Pubkey>,
+    /// Address Merkle tree. Set only when adding or updating the address.
+    pub address_merkle_context: Option<AddressMerkleContext>,
+    /// Address Merkle tree root index. Set only when adding or updating the
+    /// address.
+    pub address_merkle_tree_root_index: Option<u16>,
+    /// Account is read only.
+    /// (not used for now, just a placeholder)
+    pub read_only: bool,
+}
+
+impl LightAccountMeta {
+    pub fn new_init(
+        output_merkle_tree: &Pubkey,
+        address_merkle_context: Option<&AddressMerkleContext>,
+        address_merkle_tree_root_index: Option<u16>,
+    ) -> Self {
+        Self {
+            output_merkle_tree: Some(*output_merkle_tree),
+            address_merkle_context: address_merkle_context.cloned(),
+            address_merkle_tree_root_index,
+            ..Default::default()
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_mut(
+        compressed_account: &CompressedAccountWithMerkleContext,
+        merkle_tree_root_index: u16,
+        output_merkle_tree: &Pubkey,
+    ) -> Self {
+        Self {
+            lamports: Some(compressed_account.compressed_account.lamports),
+            address: compressed_account.compressed_account.address,
+            data: compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .map(|data| data.data.clone()),
+            merkle_context: Some(compressed_account.merkle_context.clone()),
+            merkle_tree_root_index: Some(merkle_tree_root_index),
+            output_merkle_tree: Some(*output_merkle_tree),
+            ..Default::default()
+        }
+    }
+
+    pub fn new_close(
+        compressed_account: &CompressedAccountWithMerkleContext,
+        merkle_tree_root_index: u16,
+    ) -> Self {
+        Self {
+            lamports: Some(compressed_account.compressed_account.lamports),
+            address: compressed_account.compressed_account.address,
+            data: compressed_account
+                .compressed_account
+                .data
+                .as_ref()
+                .map(|data| data.data.clone()),
+            merkle_context: Some(compressed_account.merkle_context.clone()),
+            merkle_tree_root_index: Some(merkle_tree_root_index),
+            ..Default::default()
+        }
+    }
+    pub fn pack(
+        self,
+        remaining_accounts: &mut RemainingAccounts,
+    ) -> Result<PackedLightAccountMeta, LightSdkError> {
+        let output_merkle_tree_index = match self.output_merkle_tree {
+            Some(tree) => Some(remaining_accounts.insert_or_get(tree)),
+            // new_close doesn't have output_merkle_tree
+            None => None,
+        };
+
+        let packed_merkle_context = self
+            .merkle_context
+            .map(|ctx| pack_merkle_context(&ctx, remaining_accounts));
+
+        let packed_address_merkle_context = self
+            .address_merkle_context
+            .map(|ctx| pack_address_merkle_context(&ctx, remaining_accounts));
+
+        // Currently, read_only is not used for anything.
+        if self.read_only {
+            return Err(LightSdkError::ExpectedReadOnly);
+        }
+
+        Ok(PackedLightAccountMeta {
+            lamports: self.lamports,
+            address: self.address,
+            data: self.data,
+            merkle_context: packed_merkle_context,
+            merkle_tree_root_index: self.merkle_tree_root_index,
+            output_merkle_tree_index,
+            address_merkle_context: packed_address_merkle_context,
+            address_merkle_tree_root_index: self.address_merkle_tree_root_index,
+            read_only: false,
+        })
+    }
+}
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedLightAccountMeta {
