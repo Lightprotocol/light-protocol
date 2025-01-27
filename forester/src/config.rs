@@ -143,11 +143,6 @@ impl ForesterConfig {
             .clone()
             .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
 
-        let mut rpc_rate_limit = None;
-        if args.rpc_rate_limit_enabled {
-            rpc_rate_limit = Some(args.rpc_rate_limit);
-        }
-
         Ok(Self {
             external_services: ExternalServicesConfig {
                 rpc_url,
@@ -157,7 +152,7 @@ impl ForesterConfig {
                 photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
-                rpc_rate_limit,
+                rpc_rate_limit: args.rpc_rate_limit,
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -217,7 +212,7 @@ impl ForesterConfig {
             indexer_config: IndexerConfig::default(),
             transaction_config: TransactionConfig::default(),
             general_config: GeneralConfig {
-                rpc_pool_size: 1,
+                rpc_pool_size: 10,
                 slot_update_interval_seconds: 10,
                 tree_discovery_interval_seconds: 5,
                 enable_metrics: args.enable_metrics(),

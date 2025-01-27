@@ -919,9 +919,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     // rate-limiting mechanism (with more control). Or rework
                     // the send logic to not await confirmations.
                     let batched_tx_config = SendBatchedTransactionsConfig {
-                        num_batches: 10,
+                        num_batches: 2,
                         build_transaction_batch_config: BuildTransactionBatchConfig {
-                            batch_size: 50, // TODO: make batch size configurable and or dynamic based on queue usage
+                            batch_size: 60, // TODO: make batch size configurable and or dynamic based on queue usage
                             compute_unit_price: Some(10_000), // Is dynamic. Sets max.
                             compute_unit_limit: Some(180_000),
                         },
