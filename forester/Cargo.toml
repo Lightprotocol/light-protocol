@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anchor-lang = { workspace = true }
-clap = {version = "4.5.23", features = ["derive", "env"]}
+clap = {version = "4.5.27", features = ["derive", "env"]}
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
