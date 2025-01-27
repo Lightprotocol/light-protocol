@@ -572,7 +572,8 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection {
         context,
-        rate_limiter: None,
+        rpc_rate_limiter: None,
+        send_tx_rate_limiter: None,
     };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
@@ -607,7 +608,8 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection {
         context,
-        rate_limiter: None,
+        rpc_rate_limiter: None,
+        send_tx_rate_limiter: None,
     };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(

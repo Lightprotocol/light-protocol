@@ -24,7 +24,8 @@ pub enum PoolError {
 pub struct SolanaConnectionManager<R: RpcConnection> {
     url: String,
     commitment: CommitmentConfig,
-    rate_limiter: Option<RateLimiter>,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
     _phantom: std::marker::PhantomData<R>,
 }
 
@@ -32,12 +33,14 @@ impl<R: RpcConnection> SolanaConnectionManager<R> {
     pub fn new(
         url: String,
         commitment: CommitmentConfig,
-        rate_limiter: Option<RateLimiter>,
+        rpc_rate_limiter: Option<RateLimiter>,
+        send_tx_rate_limiter: Option<RateLimiter>,
     ) -> Self {
         Self {
             url,
             commitment,
-            rate_limiter,
+            rpc_rate_limiter,
+            send_tx_rate_limiter,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -50,8 +53,11 @@ impl<R: RpcConnection> bb8::ManageConnection for SolanaConnectionManager<R> {
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         let mut conn = R::new(&self.url, Some(self.commitment));
-        if let Some(limiter) = &self.rate_limiter {
-            conn.set_rate_limiter(limiter.clone());
+        if let Some(limiter) = &self.rpc_rate_limiter {
+            conn.set_rpc_rate_limiter(limiter.clone());
+        }
+        if let Some(limiter) = &self.send_tx_rate_limiter {
+            conn.set_send_tx_rate_limiter(limiter.clone());
         }
         Ok(conn)
     }
@@ -75,9 +81,11 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
         url: String,
         commitment: CommitmentConfig,
         max_size: u32,
-        rate_limiter: Option<RateLimiter>,
+        rpc_rate_limiter: Option<RateLimiter>,
+        send_tx_rate_limiter: Option<RateLimiter>,
     ) -> Result<Self, PoolError> {
-        let manager = SolanaConnectionManager::new(url, commitment, rate_limiter);
+        let manager =
+            SolanaConnectionManager::new(url, commitment, rpc_rate_limiter, send_tx_rate_limiter);
         let pool = Pool::builder()
             .max_size(max_size)
             .connection_timeout(Duration::from_secs(15))

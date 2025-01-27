@@ -61,6 +61,8 @@ async fn test_priority_fee_request() {
         address_queue_start_index: 0,
         address_queue_processing_length: 28807,
         rpc_rate_limit: None,
+        photon_rate_limit: None,
+        send_tx_rate_limit: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

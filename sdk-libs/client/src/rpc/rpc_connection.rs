@@ -25,11 +25,20 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     where
         Self: Sized;
 
-    fn set_rate_limiter(&mut self, rate_limiter: RateLimiter);
-    fn rate_limiter(&self) -> Option<&RateLimiter>;
+    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter);
+    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter);
 
-    async fn check_rate_limit(&self) {
-        if let Some(limiter) = self.rate_limiter() {
+    fn rpc_rate_limiter(&self) -> Option<&RateLimiter>;
+    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter>;
+
+    async fn check_rpc_rate_limit(&self) {
+        if let Some(limiter) = self.rpc_rate_limiter() {
+            limiter.acquire_with_wait().await;
+        }
+    }
+
+    async fn check_send_tx_rrate_limit(&self) {
+        if let Some(limiter) = self.send_tx_rate_limiter() {
             limiter.acquire_with_wait().await;
         }
     }

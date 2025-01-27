@@ -58,6 +58,7 @@ async fn test_state_batched() {
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
         None,
+        None,
     )
     .await
     .unwrap();
@@ -204,6 +205,7 @@ async fn test_state_batched() {
 
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
+        None,
         None,
         Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,

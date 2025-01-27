@@ -84,7 +84,8 @@ pub async fn run_queue_info(
 
 pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
-    rate_limiter: Option<RateLimiter>,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
@@ -93,7 +94,8 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,
-        rate_limiter.clone(),
+        rpc_rate_limiter.clone(),
+        send_tx_rate_limiter.clone(),
     )
     .await?;
 
