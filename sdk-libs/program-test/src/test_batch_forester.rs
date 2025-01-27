@@ -387,6 +387,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
+use light_merkle_tree_metadata::queue::QueueType;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -841,7 +842,12 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .rightmost_index;
 
     let addresses = indexer
-        .get_queue_elements(merkle_tree_pubkey.to_bytes(), batch.zkp_batch_size, None)
+        .get_queue_elements(
+            merkle_tree_pubkey.to_bytes(),
+            QueueType::BatchedAddress,
+            batch.zkp_batch_size,
+            None,
+        )
         .await
         .unwrap();
     let addresses = addresses
@@ -886,6 +892,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             addresses,
             indexer
                 .get_subtrees(merkle_tree_pubkey.to_bytes())
+                .await
                 .unwrap()
                 .try_into()
                 .unwrap(),

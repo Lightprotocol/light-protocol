@@ -1,6 +1,7 @@
 use light_bounded_vec::BoundedVec;
 use light_compressed_account::hash_chain::create_hash_chain_from_array;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use log::info;
 use num_bigint::{BigInt, Sign};
 use serde::Serialize;
 
@@ -53,8 +54,10 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         .zip(leaves.iter().zip(merkle_proofs.iter()))
         .enumerate()
     {
-        let mut bounded_vec_merkle_proof = BoundedVec::from_slice(merkle_proof.as_slice());
         let current_index = start_index as usize + i;
+        info!("Updating root with leaf index: {}", current_index);
+        info!("Merkle proof: {:?}", merkle_proof);
+        let mut bounded_vec_merkle_proof = BoundedVec::from_slice(merkle_proof.as_slice());
         // Apply previous changes to keep proofs consistent.
         if i > 0 {
             for change_log_entry in changelog.iter() {
@@ -63,9 +66,9 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
                     .unwrap();
             }
         }
-
+        info!("Bounded vec merkle proof: {:?}", bounded_vec_merkle_proof);
         let merkle_proof_array = bounded_vec_merkle_proof.to_array().unwrap();
-
+        info!("Merkle proof array: {:?}", merkle_proof_array);
         // Determine if we use the old or new leaf based on whether the old leaf is nullified (zeroed).
         let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
         let final_leaf = if is_old_leaf_zero {
@@ -78,7 +81,7 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         let (updated_root, changelog_entry) =
             compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
         new_root = updated_root;
-
+        println!("New root: {:?}", new_root);
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(
             merkle_proof_array

@@ -48,11 +48,20 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         match self.verify_batch_ready().await {
             BatchReadyState::ReadyForAppend => match self.tree_type {
                 TreeType::BatchedAddress => address::process_batch(&self.context).await,
-                TreeType::BatchedState => self.process_state_append().await,
+                TreeType::BatchedState => {
+                    println!("process_state_append");
+                    self.process_state_append().await
+                }
                 _ => Err(BatchProcessError::UnsupportedTreeType(self.tree_type)),
             },
-            BatchReadyState::ReadyForNullify => self.process_state_nullify().await,
-            BatchReadyState::NotReady => Ok(0),
+            BatchReadyState::ReadyForNullify => {
+                println!("process_state_nullify");
+                self.process_state_nullify().await
+            }
+            BatchReadyState::NotReady => {
+                println!("BatchReadyState::NotReady");
+                Ok(0)
+            }
         }
     }
 
@@ -68,6 +77,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         } else {
             false
         };
+
+        println!(
+            "self.tree_type: {}, input_ready: {}, output_ready: {}",
+            self.tree_type, input_ready, output_ready
+        );
 
         if self.tree_type == TreeType::BatchedAddress {
             return if input_ready {
@@ -89,12 +103,14 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                     "Input queue fill: {:.2}, Output queue fill: {:.2}",
                     input_fill, output_fill
                 );
+                // TODO: restore
                 // Prioritize the queue that is more full
                 if input_fill > output_fill {
                     BatchReadyState::ReadyForNullify
                 } else {
                     BatchReadyState::ReadyForAppend
                 }
+                // BatchReadyState::ReadyForAppend
             }
             (true, false) => BatchReadyState::ReadyForNullify,
             (false, true) => BatchReadyState::ReadyForAppend,

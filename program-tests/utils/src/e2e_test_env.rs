@@ -118,6 +118,7 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
+use light_merkle_tree_metadata::queue::QueueType;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
@@ -762,6 +763,7 @@ where
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
+                                        QueueType::BatchedAddress,
                                         batch.batch_size,
                                         None,
                                     )
@@ -816,6 +818,7 @@ where
                                     addresses,
                                     self.indexer
                                         .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .await
                                         .unwrap()
                                         .try_into()
                                         .unwrap(),

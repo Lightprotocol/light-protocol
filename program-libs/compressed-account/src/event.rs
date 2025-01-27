@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
 
@@ -44,6 +45,8 @@ pub struct BatchPublicTransactionEvent {
     pub input_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub address_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub nullifier_queue_indices: Vec<u64>,
+    pub tx_hash: [u8; 32],
+    pub nullifiers: Vec<[u8; 32]>,
 }
 
 /// We piece the event together from 2 instructions:
@@ -107,6 +110,8 @@ pub fn event_from_light_transaction(
     let mut new_addresses = Vec::new();
     let mut input_sequence_numbers = Vec::new();
     let mut address_sequence_numbers = Vec::new();
+    let mut tx_hash = [0u8; 32];
+    let mut nullifiers = vec![];
     let mut pos = None;
     for (i, instruction) in instructions.iter().enumerate() {
         if remaining_accounts[i].len() < 3 {
@@ -119,6 +124,8 @@ pub fn event_from_light_transaction(
             &mut input_sequence_numbers,
             &mut address_sequence_numbers,
             &remaining_accounts[i][2..],
+            &mut tx_hash,
+            &mut nullifiers,
         )?;
         if res {
             pos = Some(i);
@@ -161,6 +168,8 @@ pub fn event_from_light_transaction(
             new_addresses,
             input_sequence_numbers,
             address_sequence_numbers,
+            tx_hash,
+            nullifiers,
             nullifier_queue_indices,
         }))
     } else {
@@ -168,6 +177,7 @@ pub fn event_from_light_transaction(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn match_account_compression_program_instruction(
     instruction: &[u8],
     event: &mut PublicTransactionEvent,
@@ -175,6 +185,8 @@ pub fn match_account_compression_program_instruction(
     input_sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
     address_sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
     accounts: &[Pubkey],
+    tx_hash: &mut [u8; 32],
+    nullifiers: &mut Vec<[u8; 32]>,
 ) -> Result<bool, ZeroCopyError> {
     if instruction.len() < 8 {
         return Ok(false);
@@ -234,6 +246,19 @@ pub fn match_account_compression_program_instruction(
                     });
                 }
             });
+            *tx_hash = data.tx_hash;
+
+            data.nullifiers.iter().for_each(|n| {
+                let nullifier = {
+                    let mut leaf_index_bytes = [0u8; 32];
+                    leaf_index_bytes[28..]
+                        .copy_from_slice(u32::from(n.leaf_index).to_be_bytes().as_slice());
+                    // Inclusion of the tx_hash enables zk proofs of how a value was spent.
+                    Poseidon::hashv(&[n.account_hash.as_slice(), &leaf_index_bytes, tx_hash])
+                        .unwrap()
+                };
+                nullifiers.push(nullifier);
+            });
             Ok(true)
         }
         _ => Ok(false),
@@ -266,7 +291,7 @@ pub fn match_system_program_instruction(
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
             // We are only interested in remaining account which start after 9 static accounts.
-            let remaining_accounts = accounts.split_at(8).1;
+            let remaining_accounts = accounts.split_at(9).1;
             data.input_compressed_accounts_with_merkle_context
                 .iter()
                 .for_each(|x| {

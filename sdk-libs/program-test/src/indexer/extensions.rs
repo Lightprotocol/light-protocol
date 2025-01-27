@@ -2,8 +2,8 @@ use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
 use light_client::{
     indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext,
-        ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, MerkleProof,
+        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::RpcConnection,
 };
@@ -80,7 +80,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         Vec<TokenDataWithMerkleContext>,
     );
 
-    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf;
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
 
     async fn update_test_indexer_after_append(
         &mut self,

@@ -1,4 +1,4 @@
-# TokenAcccount
+# TokenAccount
 
 ## Properties
 

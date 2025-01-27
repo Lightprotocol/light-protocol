@@ -42,13 +42,15 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
         })?,
     );
 
-    rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
-        &[instruction],
-        &context.authority.pubkey(),
-        &[&context.authority],
-        None,
-    )
-    .await?;
+    let tx = rpc
+        .create_and_send_transaction_with_event::<BatchNullifyEvent>(
+            &[instruction],
+            &context.authority.pubkey(),
+            &[&context.authority],
+            None,
+        )
+        .await?;
+    println!("tx address BatchNullifyEvent: {:?}", tx);
 
     finalize_batch_address_tree_update(&mut *rpc, context.indexer.clone(), context.merkle_tree)
         .await

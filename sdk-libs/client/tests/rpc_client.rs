@@ -1,5 +1,5 @@
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
+    photon_rpc::{AddressWithTree, Base58Conversions, Hash, PhotonClient},
     rpc::SolanaRpcConnection,
 };
 use light_compressed_account::{
@@ -223,6 +223,22 @@ async fn test_all_endpoints() {
 
     let token_accounts = &indexer
         .get_compressed_token_accounts_by_owner(&pubkey, None)
+        .await
+        .unwrap()[0];
+    assert_eq!(token_account.token_data.mint, mint.pubkey());
+    assert_eq!(token_account.token_data.owner, payer_pubkey);
+
+    let balance = indexer
+        .get_compressed_token_account_balance(
+            None,
+            Some(
+                token_account
+                    .compressed_account
+                    .compressed_account
+                    .hash
+                    .unwrap(),
+            ),
+        )
         .await
         .unwrap();
 

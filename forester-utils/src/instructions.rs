@@ -11,6 +11,7 @@ use light_compressed_account::{
     bigint::bigint_to_be_bytes_array, instruction_data::compressed_proof::CompressedProof,
 };
 use light_hasher::{Hasher, Poseidon};
+use light_merkle_tree_metadata::queue::QueueType;
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
@@ -23,7 +24,7 @@ use light_prover_client::{
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
-use log::{error, info};
+use log::error;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
@@ -90,6 +91,7 @@ where
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
+            QueueType::BatchedAddress,
             batch_size as u64,
             None
         )
@@ -135,6 +137,7 @@ where
 
     let subtrees = indexer
         .get_subtrees(merkle_tree_pubkey.to_bytes())
+        .await
         .map_err(|e| {
             error!(
                 "create_batch_update_address_tree_instruction_data: failed to get subtrees from indexer: {:?}",
@@ -218,6 +221,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             &merkle_tree_pubkey.into(),
         )
         .unwrap();
+
         (
             merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
@@ -238,16 +242,19 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
-
         (zkp_batch_size, leaves_hash_chain)
     };
 
     let indexer_response = indexer
-        .get_queue_elements(output_queue_pubkey.to_bytes(), zkp_batch_size, None)
+        .get_queue_elements(
+            merkle_tree_pubkey.to_bytes(),
+            QueueType::BatchedOutput,
+            zkp_batch_size,
+            None,
+        )
         .await
         .unwrap();
 
-    println!("indexer_response: {:?}", indexer_response);
     let old_leaves = indexer_response
         .iter()
         .map(|x| x.leaf)
@@ -260,8 +267,6 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .map(|x| x.proof.clone())
         .collect::<Vec<Vec<[u8; 32]>>>();
-
-    info!("Old leaves: {:?}", old_leaves);
 
     let (proof, new_root) = {
         let circuit_inputs =
@@ -340,10 +345,14 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     };
 
     let leaf_indices_tx_hashes = indexer
-        .get_queue_elements(merkle_tree_pubkey.to_bytes(), zkp_batch_size, None)
+        .get_queue_elements(
+            merkle_tree_pubkey.to_bytes(),
+            QueueType::BatchedInput,
+            zkp_batch_size,
+            None,
+        )
         .await
         .unwrap();
-    println!("leaf_indices_tx_hashes {:?}", leaf_indices_tx_hashes);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -383,10 +392,13 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
 
     let client = Client::new();
+
+    let json_str = update_inputs_string(&inputs);
+
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(update_inputs_string(&inputs))
+        .body(json_str)
         .send()
         .await
         .map_err(|e| {
