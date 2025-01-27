@@ -15,7 +15,7 @@ light-hasher = { workspace = true }
 
 [dev-dependencies]
 light-utils = { workspace = true }
-prettyplease = "0.2.25"
+prettyplease = "0.2.29"
 
 [lib]
 proc-macro = true
