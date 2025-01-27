@@ -172,7 +172,7 @@ mod tests {
 
         let elapsed = start_time.elapsed();
         println!("Elapsed time: {:?}", elapsed);
-        
+
         assert!(
             elapsed >= Duration::from_millis(1400),
             "Should take close to 1.5 seconds to process all requests, took {:?}",
