@@ -134,7 +134,10 @@ where
         ))
     }
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
@@ -568,29 +571,29 @@ where
         todo!()
     }
 
-    fn get_proofs_by_indices(
+    async fn get_proofs_by_indices(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Vec<ProofOfLeaf> {
-        indices
+    ) -> Result<Vec<ProofOfLeaf>, IndexerError> {
+        Ok(indices
             .iter()
             .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
-            .collect()
+            .collect())
     }
 
-    fn get_leaf_indices_tx_hashes(
+    async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo> {
+    ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
-        state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec()
+        Ok(state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec())
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
@@ -1785,14 +1788,12 @@ where
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-
             let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
                 x.accounts.merkle_tree
                     == event.pubkey_array
                         [event.output_compressed_accounts[i].merkle_tree_index as usize]
             });
             let is_batched = merkle_tree.is_none();
-
             println!("Output is batched {:?}", is_batched);
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();

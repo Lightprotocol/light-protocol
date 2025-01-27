@@ -887,6 +887,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             addresses,
             indexer
                 .get_subtrees(merkle_tree_pubkey.to_bytes())
+                .await
                 .unwrap()
                 .try_into()
                 .unwrap(),

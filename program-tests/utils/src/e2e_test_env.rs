@@ -815,6 +815,7 @@ where
                                     addresses,
                                     self.indexer
                                         .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .await
                                         .unwrap()
                                         .try_into()
                                         .unwrap(),

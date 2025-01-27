@@ -142,6 +142,7 @@ where
 
     let subtrees = indexer
         .get_subtrees(merkle_tree_pubkey.to_bytes())
+        .await
         .map_err(|e| {
             error!(
                 "create_batch_update_address_tree_instruction_data: failed to get subtrees from indexer: {:?}",
@@ -269,7 +270,10 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let mut merkle_proofs = vec![];
         let indices =
             (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
-        let proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices);
+        let proofs = indexer
+            .get_proofs_by_indices(merkle_tree_pubkey, &indices)
+            .await
+            .unwrap();
         proofs.iter().for_each(|proof| {
             old_leaves.push(proof.leaf);
             merkle_proofs.push(proof.proof.clone());
@@ -356,8 +360,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (zkp_size, root, hash_chain)
     };
 
-    let leaf_indices_tx_hashes =
-        indexer.get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size as usize);
+    let leaf_indices_tx_hashes = indexer
+        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size as usize)
+        .await
+        .unwrap();
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -366,13 +372,16 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let mut merkle_proofs = Vec::new();
     let mut nullifiers = Vec::new();
 
-    let proofs = indexer.get_proofs_by_indices(
-        merkle_tree_pubkey,
-        &leaf_indices_tx_hashes
-            .iter()
-            .map(|leaf_info| leaf_info.leaf_index as u64)
-            .collect::<Vec<_>>(),
-    );
+    let proofs = indexer
+        .get_proofs_by_indices(
+            merkle_tree_pubkey,
+            &leaf_indices_tx_hashes
+                .iter()
+                .map(|leaf_info| leaf_info.leaf_index as u64)
+                .collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
 
     for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
         path_indices.push(leaf_info.leaf_index);

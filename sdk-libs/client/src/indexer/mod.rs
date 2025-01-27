@@ -169,7 +169,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         end_offset: u64,
     ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError>;
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
     async fn create_proof_for_compressed_accounts(
         &mut self,
@@ -249,17 +252,17 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContext, IndexerError>;
 
-    fn get_proofs_by_indices(
+    async fn get_proofs_by_indices(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Vec<ProofOfLeaf>;
+    ) -> Result<Vec<ProofOfLeaf>, IndexerError>;
 
-    fn get_leaf_indices_tx_hashes(
+    async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo>;
+    ) -> Result<Vec<LeafIndexInfo>, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }

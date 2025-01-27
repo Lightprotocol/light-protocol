@@ -1,6 +1,6 @@
 [package]
 name = "photon-api"
-version = "0.45.0"
+version = "0.50.0"
 authors = ["OpenAPI Generator team and contributors"]
 description = "Solana indexer for general compression"
 license = "Apache-2.0"
@@ -9,9 +9,10 @@ edition = "2018"
 [dependencies]
 serde = "^1.0"
 serde_derive = "^1.0"
-serde_with = "^3.12"
+serde_with = "^2.0"
 serde_json = "^1.0"
-url = "^2.5"
+url = "^2.2"
+uuid = { version = "^1.0", features = ["serde", "v4"] }
 [dependencies.reqwest]
 version = "^0.11"
 features = ["json", "multipart"]
