@@ -1,7 +1,8 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_system_program::{program::LightSystemProgram, OutputCompressedAccountWithPackedContext};
+use light_system_program::program::LightSystemProgram;
+use light_utils::instruction::instruction_data::OutputCompressedAccountWithPackedContext;
 #[cfg(target_os = "solana")]
 use {
     crate::process_transfer::create_output_compressed_accounts,
@@ -354,7 +355,7 @@ pub struct MintToInstruction<'info> {
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-    use light_system_program::sdk::invoke::get_sol_pool_pda;
+    use light_system_program::utils::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{
@@ -488,9 +489,10 @@ pub mod mint_sdk {
 #[cfg(test)]
 mod test {
     use light_hasher::Poseidon;
-    use light_system_program::{
-        sdk::compressed_account::{CompressedAccount, CompressedAccountData},
-        OutputCompressedAccountWithPackedContext,
+    use light_utils::instruction::{
+        compressed_account::{CompressedAccount, CompressedAccountData},
+        instruction_data::OutputCompressedAccountWithPackedContext,
+        invoke_cpi::InstructionDataInvokeCpi,
     };
 
     use super::*;
@@ -520,7 +522,7 @@ mod test {
             token_data.serialize(&mut token_data_bytes).unwrap();
             use light_hasher::DataHasher;
 
-            let data: CompressedAccountData = CompressedAccountData {
+            let data = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: token_data_bytes,
                 data_hash: token_data.hash::<Poseidon>().unwrap(),
@@ -540,7 +542,7 @@ mod test {
 
         let mut inputs = Vec::<u8>::new();
         serialize_mint_to_cpi_instruction_data(&mut inputs, &output_compressed_accounts);
-        let inputs_struct = light_system_program::InstructionDataInvokeCpi {
+        let inputs_struct = InstructionDataInvokeCpi {
             relay_fee: None,
             input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
             output_compressed_accounts: output_compressed_accounts.clone(),
@@ -586,7 +588,7 @@ mod test {
                 token_data.serialize(&mut token_data_bytes).unwrap();
                 use light_hasher::DataHasher;
 
-                let data: CompressedAccountData = CompressedAccountData {
+                let data = CompressedAccountData {
                     discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                     data: token_data_bytes,
                     data_hash: token_data.hash::<Poseidon>().unwrap(),
@@ -609,7 +611,7 @@ mod test {
                 .iter()
                 .map(|x| x.compressed_account.lamports)
                 .sum::<u64>();
-            let inputs_struct = light_system_program::InstructionDataInvokeCpi {
+            let inputs_struct = InstructionDataInvokeCpi {
                 relay_fee: None,
                 input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
                 output_compressed_accounts: output_compressed_accounts.clone(),

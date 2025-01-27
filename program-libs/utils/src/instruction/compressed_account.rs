@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use anchor_lang::prelude::*;
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
-use light_utils::hash_to_bn254_field_size_be;
+use solana_program::pubkey::Pubkey;
 
-use super::address::pack_account;
-use crate::OutputCompressedAccountWithPackedContext;
+use super::{address::pack_account, instruction_data::OutputCompressedAccountWithPackedContext};
+use crate::{hash_to_bn254_field_size_be, UtilsError};
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
@@ -23,7 +26,11 @@ pub struct CompressedAccountWithMerkleContext {
     pub merkle_context: MerkleContext,
 }
 impl CompressedAccountWithMerkleContext {
-    pub fn hash(&self) -> Result<[u8; 32]> {
+    pub fn hash(&self) -> Result<[u8; 32], UtilsError> {
+        println!(
+            "self.merkle_context.merkle_tree_pubkey {:?}",
+            self.merkle_context.merkle_tree_pubkey
+        );
         self.compressed_account.hash::<Poseidon>(
             &self.merkle_context.merkle_tree_pubkey,
             &self.merkle_context.leaf_index,
@@ -32,7 +39,10 @@ impl CompressedAccountWithMerkleContext {
 }
 
 impl CompressedAccountWithMerkleContext {
-    pub fn into_read_only(&self, root_index: Option<u16>) -> Result<ReadOnlyCompressedAccount> {
+    pub fn into_read_only(
+        &self,
+        root_index: Option<u16>,
+    ) -> Result<ReadOnlyCompressedAccount, UtilsError> {
         let account_hash = self.hash()?;
         let merkle_context = if root_index.is_none() {
             let mut merkle_context = self.merkle_context;
@@ -52,7 +62,7 @@ impl CompressedAccountWithMerkleContext {
         &self,
         root_index: Option<u16>,
         remaining_accounts: &mut HashMap<Pubkey, usize>,
-    ) -> Result<PackedCompressedAccountWithMerkleContext> {
+    ) -> Result<PackedCompressedAccountWithMerkleContext, UtilsError> {
         Ok(PackedCompressedAccountWithMerkleContext {
             compressed_account: self.compressed_account.clone(),
             merkle_context: PackedMerkleContext {
@@ -189,7 +199,7 @@ impl CompressedAccount {
         &owner_hashed: &[u8; 32],
         &merkle_tree_hashed: &[u8; 32],
         leaf_index: &u32,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<[u8; 32], UtilsError> {
         let capacity = 3
             + std::cmp::min(self.lamports, 1) as usize
             + self.address.is_some() as usize
@@ -222,7 +232,7 @@ impl CompressedAccount {
             vec.push(&discriminator_bytes);
             vec.push(&data.data_hash);
         }
-        let hash = H::hashv(&vec).map_err(ProgramError::from)?;
+        let hash = H::hashv(&vec)?;
         Ok(hash)
     }
 
@@ -230,14 +240,20 @@ impl CompressedAccount {
         &self,
         &merkle_tree_pubkey: &Pubkey,
         leaf_index: &u32,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<[u8; 32], UtilsError> {
+        println!(
+            "merkle_tree_pubkey.to_bytes() {:?}",
+            merkle_tree_pubkey.to_bytes()
+        );
+        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+            .unwrap()
+            .0;
+        println!("hashed mt {:?}", hashed_mt);
         self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()
                 .0,
-            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0,
+            &hashed_mt,
             leaf_index,
         )
     }
@@ -246,7 +262,6 @@ impl CompressedAccount {
 #[cfg(test)]
 mod tests {
     use light_hasher::Poseidon;
-    use solana_sdk::signature::{Keypair, Signer};
 
     use super::*;
     /// Tests:
@@ -258,7 +273,7 @@ mod tests {
     /// 6. no address, no data, no lamports
     #[test]
     fn test_compressed_account_hash() {
-        let owner = Keypair::new().pubkey();
+        let owner = Pubkey::new_unique();
         let address = [1u8; 32];
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
@@ -272,7 +287,7 @@ mod tests {
             address: Some(address),
             data: Some(data.clone()),
         };
-        let merkle_tree_pubkey = Keypair::new().pubkey();
+        let merkle_tree_pubkey = Pubkey::new_unique();
         let leaf_index = 1;
         let hash = compressed_account
             .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)

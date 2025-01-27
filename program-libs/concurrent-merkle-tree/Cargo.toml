@@ -18,7 +18,7 @@ solana = [
 borsh = { workspace = true }
 light-bounded-vec = { workspace = true }
 light-hasher = { workspace = true }
-light-utils = { workspace = true }
+light-utils = { workspace = true, features = ["bytemuck-des"] }
 memoffset = "0.9"
 solana-program = { workspace = true, optional = true }
 thiserror = { workspace = true}

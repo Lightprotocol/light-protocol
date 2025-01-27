@@ -11,14 +11,12 @@ use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
     legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::derive_address_legacy,
-        compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
-        CompressedCpiContext,
-    },
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+use light_utils::instruction::{
+    address::derive_address_legacy,
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
 };
 
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
@@ -91,7 +89,7 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        proof.clone(),
+        proof,
         cpi_context,
     )?;
     cpi_compressed_pda_transfer(ctx, proof, new_address_params, compressed_pda, cpi_context)?;

@@ -22,6 +22,7 @@ anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 account-compression = { workspace = true }
+light-utils = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

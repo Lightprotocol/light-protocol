@@ -1,9 +1,7 @@
-pub mod accounts;
-pub mod address;
-pub mod compressed_account;
-pub mod event;
-pub mod invoke;
-use anchor_lang::prelude::*;
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompressedCpiContext {

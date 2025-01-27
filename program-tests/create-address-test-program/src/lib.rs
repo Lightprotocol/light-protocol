@@ -6,10 +6,12 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, pubkey::Pubkey},
     InstructionData,
 };
-use light_system_program::{invoke::processor::CompressedProof, utils::get_registered_program_pda};
+use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
-use light_system_program::NewAddressParamsPacked;
+use light_utils::instruction::{
+    compressed_proof::CompressedProof, instruction_data::NewAddressParamsPacked,
+};
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 

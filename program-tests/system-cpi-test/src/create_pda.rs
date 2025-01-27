@@ -6,19 +6,19 @@ use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_hasher::{
     errors::HasherError, DataHasher, Discriminator as LightDiscriminator, Poseidon,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    program::LightSystemProgram,
-    sdk::{
-        address::{derive_address, derive_address_legacy},
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-            PackedReadOnlyCompressedAccount,
-        },
-        CompressedCpiContext,
+use light_system_program::program::LightSystemProgram;
+use light_utils::instruction::{
+    address::{derive_address, derive_address_legacy},
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedReadOnlyCompressedAccount,
     },
-    InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly, NewAddressParamsPacked,
-    OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::{
+        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+    },
+    invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]

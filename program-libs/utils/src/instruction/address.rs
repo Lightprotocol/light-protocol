@@ -1,21 +1,26 @@
 use std::collections::HashMap;
 
-use anchor_lang::{err, solana_program::pubkey::Pubkey, Result};
-use light_utils::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be};
+use solana_program::pubkey::Pubkey;
 
-use super::compressed_account::{
-    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
+use super::{
+    compressed_account::{
+        pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
+    },
+    instruction_data::{
+        NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress, ReadOnlyAddress,
+    },
 };
-use crate::{
-    errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress,
-    ReadOnlyAddress,
-};
-pub fn derive_address_legacy(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+use crate::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be, UtilsError};
+
+pub fn derive_address_legacy(
+    merkle_tree_pubkey: &Pubkey,
+    seed: &[u8; 32],
+) -> Result<[u8; 32], UtilsError> {
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
-        Some(hash) => Ok::<[u8; 32], SystemProgramError>(hash.0),
-        None => return err!(SystemProgramError::DeriveAddressError),
+        Some(hash) => Ok::<[u8; 32], UtilsError>(hash.0),
+        None => return Err(UtilsError::DeriveAddressError),
     }?;
 
     Ok(hash)
@@ -142,13 +147,12 @@ pub fn pack_read_only_accounts(
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
 
     #[test]
     fn test_derive_address_with_valid_input() {
-        let merkle_tree_pubkey = Keypair::new().pubkey();
+        let merkle_tree_pubkey = Pubkey::new_unique();
         let seeds = [1u8; 32];
         let result = derive_address_legacy(&merkle_tree_pubkey, &seeds);
         let result_2 = derive_address_legacy(&merkle_tree_pubkey, &seeds);
@@ -157,8 +161,8 @@ mod tests {
 
     #[test]
     fn test_derive_address_no_collision_same_seeds_diff_pubkey() {
-        let merkle_tree_pubkey = Keypair::new().pubkey();
-        let merkle_tree_pubkey_2 = Keypair::new().pubkey();
+        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey_2 = Pubkey::new_unique();
         let seed = [2u8; 32];
 
         let result = derive_address_legacy(&merkle_tree_pubkey, &seed);
@@ -176,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_add_and_get_remaining_account_indices_single() {
-        let pubkey = Keypair::new().pubkey();
+        let pubkey = Pubkey::new_unique();
         let pubkeys = vec![pubkey];
         let mut remaining_accounts = HashMap::new();
         let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
@@ -186,8 +190,8 @@ mod tests {
 
     #[test]
     fn test_add_and_get_remaining_account_indices_multiple() {
-        let pubkey1 = Keypair::new().pubkey();
-        let pubkey2 = Keypair::new().pubkey();
+        let pubkey1 = Pubkey::new_unique();
+        let pubkey2 = Pubkey::new_unique();
         let pubkeys = vec![pubkey1, pubkey2];
         let mut remaining_accounts = HashMap::new();
         let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
@@ -198,7 +202,7 @@ mod tests {
 
     #[test]
     fn test_add_and_get_remaining_account_indices_duplicates() {
-        let pubkey = Keypair::new().pubkey();
+        let pubkey = Pubkey::new_unique();
         let pubkeys = vec![pubkey, pubkey];
         let mut remaining_accounts = HashMap::new();
         let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
@@ -209,9 +213,9 @@ mod tests {
 
     #[test]
     fn test_add_and_get_remaining_account_indices_multiple_duplicates() {
-        let pubkey1 = Keypair::new().pubkey();
-        let pubkey2 = Keypair::new().pubkey();
-        let pubkey3 = Keypair::new().pubkey();
+        let pubkey1 = Pubkey::new_unique();
+        let pubkey2 = Pubkey::new_unique();
+        let pubkey3 = Pubkey::new_unique();
         let pubkeys = vec![pubkey1, pubkey2, pubkey1, pubkey3, pubkey2, pubkey1];
         let mut remaining_accounts = HashMap::new();
         let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);

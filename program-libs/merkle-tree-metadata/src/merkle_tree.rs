@@ -16,6 +16,20 @@ pub enum TreeType {
     BatchedState = 3,
     BatchedAddress = 4,
 }
+
+// from u64
+impl From<u64> for TreeType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => TreeType::State,
+            2 => TreeType::Address,
+            3 => TreeType::BatchedState,
+            4 => TreeType::BatchedAddress,
+            _ => panic!("Invalid TreeType"),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(
     AnchorDeserialize,

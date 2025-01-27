@@ -73,6 +73,10 @@ impl GroupAccess for BatchedMerkleTreeAccount<'_> {
     }
 
     fn get_program_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.program_owner.into()
+        self.metadata
+            .access_metadata
+            .program_owner
+            .to_bytes()
+            .into()
     }
 }

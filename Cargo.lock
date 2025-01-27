@@ -29,10 +29,12 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-utils",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -59,6 +61,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "serial_test",
@@ -1366,6 +1369,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "light-verifier",
  "rand 0.8.5",
  "serial_test",
@@ -2140,6 +2144,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "log",
  "photon-api",
  "prometheus",
@@ -3340,6 +3345,7 @@ dependencies = [
  "light-system-program",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3442,11 +3448,14 @@ dependencies = [
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-metadata",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -3498,6 +3507,7 @@ dependencies = [
  "light-bounded-vec",
  "light-hasher",
  "light-poseidon 0.3.0",
+ "light-zero-copy",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",
@@ -3514,11 +3524,13 @@ dependencies = [
  "groth16-solana",
  "light-prover-client",
  "light-utils",
+ "light-zero-copy",
  "reqwest",
  "serial_test",
  "solana-program",
  "thiserror 1.0.64",
  "tokio",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -5108,6 +5120,7 @@ dependencies = [
  "light-prover-client",
  "light-sdk",
  "light-test-utils",
+ "light-utils",
  "solana-sdk",
  "tokio",
 ]
@@ -7529,6 +7542,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "light-verifier",
  "solana-sdk",
  "tokio",

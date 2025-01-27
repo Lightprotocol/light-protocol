@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
+use light_utils::instruction::compressed_account::{MerkleContext, PackedMerkleContext};
 
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]
@@ -53,25 +54,25 @@ impl RemainingAccounts {
     }
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
-pub struct MerkleContext {
-    pub merkle_tree_pubkey: Pubkey,
-    pub nullifier_queue_pubkey: Pubkey,
-    pub leaf_index: u32,
-    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
-    /// currently unimplemented.
-    pub prove_by_index: bool,
-}
+// #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+// pub struct MerkleContext {
+//     pub merkle_tree_pubkey: Pubkey,
+//     pub nullifier_queue_pubkey: Pubkey,
+//     pub leaf_index: u32,
+//     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+//     /// currently unimplemented.
+//     pub prove_by_index: bool,
+// }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
-pub struct PackedMerkleContext {
-    pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
-    pub leaf_index: u32,
-    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
-    /// currently unimplemented.
-    pub prove_by_index: bool,
-}
+// #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+// pub struct PackedMerkleContext {
+//     pub merkle_tree_pubkey_index: u8,
+//     pub nullifier_queue_pubkey_index: u8,
+//     pub leaf_index: u32,
+//     /// Index of leaf in queue. Placeholder of batched Merkle tree updates
+//     /// currently unimplemented.
+//     pub prove_by_index: bool,
+// }
 
 pub fn pack_merkle_contexts<'a, I>(
     merkle_contexts: I,

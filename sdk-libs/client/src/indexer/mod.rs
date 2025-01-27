@@ -8,12 +8,11 @@ use light_indexed_merkle_tree::{
 };
 use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-    },
-    merkle_context::MerkleContext,
     proof::ProofRpcResult,
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
+};
+use light_utils::instruction::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
 use num_bigint::BigUint;
 use photon_api::models::{Account, CompressedProofWithContext, TokenAccountList, TokenBalanceList};

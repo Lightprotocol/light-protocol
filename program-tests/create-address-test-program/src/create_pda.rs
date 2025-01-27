@@ -1,15 +1,14 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    program::LightSystemProgram,
-    sdk::{
-        address::derive_address,
-        compressed_account::{CompressedAccount, CompressedAccountData},
-        CompressedCpiContext,
-    },
-    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+use light_system_program::program::LightSystemProgram;
+use light_utils::instruction::{
+    address::derive_address,
+    compressed_account::{CompressedAccount, CompressedAccountData},
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+    invoke_cpi::InstructionDataInvokeCpi,
 };
 
 pub fn process_create_pda<'info>(

@@ -222,6 +222,8 @@ where
     }
 
     pub fn get_leaf_index(&self, leaf: &[u8; 32]) -> Option<usize> {
+        println!("leaf: {:?}", leaf);
+        println!("layers[0]: {:?}", self.layers[0]);
         self.layers[0].iter().position(|node| node == leaf)
     }
 

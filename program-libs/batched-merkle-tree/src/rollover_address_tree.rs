@@ -1,3 +1,5 @@
+#[cfg(target_os = "solana")]
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_merkle_tree_metadata::utils::if_equals_none;
 use light_utils::{account::check_account_balance_is_rent_exempt, pubkey::Pubkey};
 use solana_program::account_info::AccountInfo;
@@ -10,13 +12,16 @@ use crate::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
-
 pub fn rollover_batched_address_tree_from_account_info<'a>(
     old_account: &AccountInfo<'a>,
     new_account: &AccountInfo<'a>,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
     let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
+    #[cfg(target_os = "solana")]
+    if old_account.lamports().checked_sub(new_mt_rent).unwrap() == 0 {
+        return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
+    }
     let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
     let mut new_mt_data = new_account.try_borrow_mut_data()?;
     rollover_batched_address_tree(
@@ -63,7 +68,7 @@ pub fn rollover_batched_address_tree<'a>(
     // 3. Initialize the new address merkle tree.
     let params = create_batched_address_tree_init_params(old_merkle_tree, network_fee);
     let owner = old_merkle_tree.metadata.access_metadata.owner;
-    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent)
+    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent, new_mt_pubkey)
 }
 
 fn create_batched_address_tree_init_params(

@@ -4,14 +4,8 @@ pub use initialize_address_merkle_tree_and_queue::*;
 pub mod update_address_merkle_tree;
 pub use update_address_merkle_tree::*;
 
-pub mod insert_into_queues;
-pub use insert_into_queues::*;
-
 pub mod initialize_state_merkle_tree_and_nullifier_queue;
 pub use initialize_state_merkle_tree_and_nullifier_queue::*;
-
-pub mod append_leaves;
-pub use append_leaves::*;
 
 pub mod nullify_leaves;
 pub use nullify_leaves::*;
@@ -57,3 +51,8 @@ pub use rollover_batched_address_merkle_tree::*;
 
 pub mod migrate_state;
 pub use migrate_state::*;
+
+pub mod insert_into_queues;
+
+pub mod generic;
+pub use generic::*;

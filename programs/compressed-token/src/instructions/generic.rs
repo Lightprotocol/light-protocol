@@ -1,8 +1,8 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_system_program::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     program::LightSystemProgram,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 use crate::program::LightCompressedToken;

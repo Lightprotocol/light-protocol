@@ -9,12 +9,10 @@ use light_compressed_token::process_transfer::{
     },
     TokenTransferOutputData,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::add_and_get_remaining_account_indices,
-        compressed_account::{CompressedAccount, MerkleContext},
-    },
+use light_utils::instruction::{
+    address::add_and_get_remaining_account_indices,
+    compressed_account::{CompressedAccount, MerkleContext},
+    compressed_proof::CompressedProof,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -70,7 +68,7 @@ pub fn create_escrow_instruction(
     let instruction_data = crate::instruction::EscrowCompressedTokensWithPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
-        proof: input_params.proof.clone().unwrap(),
+        proof: (*input_params.proof).unwrap(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
@@ -141,7 +139,7 @@ pub fn create_withdrawal_escrow_instruction(
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
         bump: token_owner_pda.1,
         withdrawal_amount,
-        proof: input_params.proof.clone().unwrap(),
+        proof: (*input_params.proof).unwrap(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,

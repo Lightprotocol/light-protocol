@@ -1,16 +1,19 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hasher::Discriminator as LightDiscriminator;
 
-pub mod invoke;
-pub use invoke::instruction::*;
+mod check_accounts;
 pub mod invoke_cpi;
+pub mod processor;
+pub use invoke::instruction::*;
 pub use invoke_cpi::{initialize::*, instruction::*};
+pub mod account_traits;
 pub mod constants;
+pub mod context;
 pub mod errors;
-pub mod sdk;
+pub mod invoke;
 pub mod utils;
+
 use errors::SystemProgramError;
-use sdk::event::PublicTransactionEvent;
 
 declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 
@@ -28,14 +31,20 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+    #[cfg(feature = "bench-sbf")]
     use light_heap::{bench_sbf_end, bench_sbf_start};
-
-    use self::{
-        invoke::{processor::process, verify_signer::input_compressed_accounts_signer_check},
-        invoke_cpi::processor::process_invoke_cpi,
+    use light_utils::instruction::instruction_data_zero_copy::{
+        ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
     };
+    use light_zero_copy::borsh::Deserialize;
+
+    use self::invoke_cpi::processor::process_invoke_cpi;
     use super::*;
+    use crate::{
+        invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
+    };
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
         // Check that Merkle tree is initialized.
@@ -60,38 +69,61 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataInvoke =
-            InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
+        sol_log_compute_units();
 
+        #[cfg(feature = "bench-sbf")]
+        bench_sbf_start!("invoke_deserialize");
+        msg!("Invoke instruction");
+        let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(inputs.as_slice()).unwrap();
+        sol_log_compute_units();
+        #[cfg(feature = "bench-sbf")]
+        bench_sbf_end!("invoke_deserialize");
         input_compressed_accounts_signer_check(
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx.accounts.authority.key(),
         )?;
-        process(inputs, None, ctx, 0, None, None)
+        process(inputs, None, ctx, 0, None, None)?;
+        sol_log_compute_units();
+        Ok(())
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        sol_log_compute_units();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
-        let inputs: InstructionDataInvokeCpi =
-            InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
+        let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(inputs.as_slice()).unwrap();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
 
-        process_invoke_cpi(ctx, inputs, None, None)
+        process_invoke_cpi(ctx, inputs, None, None)?;
+        sol_log_compute_units();
+        // 22,903 bytes heap with 33 outputs
+        #[cfg(feature = "bench-sbf")]
+        light_heap::bench_sbf_end!("total_usage");
+        Ok(())
     }
 
     pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        #[cfg(not(feature = "readonly"))]
+        {
+            msg!("Readonly feature is not enabled.");
+            return Err(SystemProgramError::InstructionNotCallable.into());
+        }
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
-        let inputs = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut inputs.as_slice())?;
+        let (inputs, _) =
+            ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(inputs.as_slice()).unwrap();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
         // disable set cpi context because cpi context account uses InvokeCpiInstruction
         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
-            if cpi_context.set_context {
+            if cpi_context.set_context() {
                 msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
                 msg!("Please use invoke_cpi instead.");
                 return Err(SystemProgramError::InstructionNotCallable.into());
@@ -105,16 +137,16 @@ pub mod light_system_program {
         )
     }
 
-    /// This function is a stub to allow Anchor to include the input types in
-    /// the IDL. It should not be included in production builds nor be called in
-    /// practice.
-    #[cfg(feature = "idl-build")]
-    pub fn stub_idl_build<'info>(
-        _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
-        _inputs1: InstructionDataInvoke,
-        _inputs2: InstructionDataInvokeCpi,
-        _inputs3: PublicTransactionEvent,
-    ) -> Result<()> {
-        Err(SystemProgramError::InstructionNotCallable.into())
-    }
+    // /// This function is a stub to allow Anchor to include the input types in
+    // /// the IDL. It should not be included in production builds nor be called in
+    // /// practice.
+    // #[cfg(feature = "idl-build")]
+    // pub fn stub_idl_build<'info>(
+    //     _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
+    //     _inputs1: InstructionDataInvoke,
+    //     _inputs2: InstructionDataInvokeCpi,
+    //     _inputs3: PublicTransactionEvent,
+    // ) -> Result<()> {
+    //     Err(SystemProgramError::InstructionNotCallable.into())
+    // }
 }

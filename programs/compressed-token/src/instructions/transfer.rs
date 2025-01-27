@@ -3,8 +3,8 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use light_system_program::{
     self,
+    account_traits::{InvokeAccounts, SignerAccounts},
     program::LightSystemProgram,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 use crate::program::LightCompressedToken;

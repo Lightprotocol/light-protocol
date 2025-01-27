@@ -2,10 +2,11 @@ use std::{fmt, marker::PhantomData, ops::Deref};
 
 use light_bounded_vec::CyclicBoundedVecMetadata;
 use light_concurrent_merkle_tree::{
-    copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
+    copy::ConcurrentMerkleTreeCopy,
+    errors::ConcurrentMerkleTreeError,
+    offset::copy::{read_cyclic_bounded_vec_at, read_value_at},
 };
 use light_hasher::Hasher;
-use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
