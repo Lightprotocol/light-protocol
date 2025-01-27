@@ -26,7 +26,7 @@ test = []
 [dependencies]
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
-bytemuck = { version = "1.17", features = ["min_const_generics"] }
+bytemuck = { version = "1.21", features = ["min_const_generics"] }
 light-bounded-vec = { workspace = true, features = ["solana"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["solana"] }
