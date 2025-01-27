@@ -1,23 +1,21 @@
 use std::fmt::Debug;
 
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
-use light_client::{
+use light_sdk::proof::ProofRpcResult;
+use photon_api::{
+    apis::configuration::{ApiKey, Configuration},
+    models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams},
+};
+use solana_program::pubkey::Pubkey;
+use solana_sdk::bs58;
+
+use crate::{
     indexer::{
         AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo, MerkleProof,
         NewAddressProofWithContext, ProofOfLeaf,
     },
     rpc::RpcConnection,
 };
-use light_sdk::proof::ProofRpcResult;
-use photon_api::{
-    apis::configuration::{ApiKey, Configuration},
-    models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams},
-};
-use solana_sdk::bs58;
-use tracing::debug;
-
-use crate::utils::decode_hash;
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
@@ -74,11 +72,11 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> ProofRpcResult {
         todo!()
     }
+
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
-        debug!("Getting proofs for {:?}", hashes);
         let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
             photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
                 params: hashes,
@@ -174,15 +172,11 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             ..Default::default()
         };
 
-        debug!("Request: {:?}", request);
-
         let result = photon_api::apis::default_api::get_multiple_new_address_proofs_v2_post(
             &self.configuration,
             request,
         )
         .await;
-
-        debug!("Response: {:?}", result);
 
         if result.is_err() {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
@@ -251,4 +245,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         todo!()
     }
+}
+
+fn decode_hash(account: &str) -> [u8; 32] {
+    let mut arr = [0u8; 32];
+    bs58::decode(account)
+        .into(&mut arr)
+        .expect("Failed to decode base58 string");
+    arr
 }

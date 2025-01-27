@@ -6,12 +6,14 @@ use forester::{
     errors::ForesterError,
     forester_status,
     metrics::register_metrics,
-    photon_indexer::PhotonIndexer,
     run_pipeline,
     telemetry::setup_telemetry,
     ForesterConfig,
 };
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::{
+    indexer::photon_indexer::PhotonIndexer,
+    rpc::{RpcConnection, SolanaRpcConnection},
+};
 use tokio::{
     signal::ctrl_c,
     sync::{mpsc, oneshot},
