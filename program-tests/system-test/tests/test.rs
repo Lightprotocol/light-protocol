@@ -1669,7 +1669,10 @@ async fn regenerate_accounts() {
     };
 
     let context = setup_test_programs(None).await;
-    let mut context = ProgramTestRpcConnection { context, rate_limiter: None };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let keypairs = EnvAccountKeypairs::for_regenerate_accounts();
 
     airdrop_lamports(
