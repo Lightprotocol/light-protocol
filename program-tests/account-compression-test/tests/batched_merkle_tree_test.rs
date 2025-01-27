@@ -85,7 +85,10 @@ async fn test_batch_state_merkle_tree() {
     let output_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
@@ -853,7 +856,10 @@ async fn test_init_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
 
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
@@ -1001,7 +1007,10 @@ async fn test_rollover_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
@@ -1385,7 +1394,10 @@ async fn test_init_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
@@ -1477,7 +1489,10 @@ async fn test_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let mut mock_indexer = mock_batched_forester::MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();

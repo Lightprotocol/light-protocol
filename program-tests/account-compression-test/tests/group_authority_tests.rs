@@ -36,7 +36,10 @@ async fn test_create_and_update_group() {
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
 
     let seed = Keypair::new();
     let group_accounts = Pubkey::find_program_address(

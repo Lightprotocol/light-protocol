@@ -68,7 +68,10 @@ async fn test_init_and_insert_into_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
+    let mut rpc = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer_pubkey = rpc.get_payer().pubkey();
     fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes(
         &mut rpc,
@@ -241,7 +244,10 @@ async fn test_full_nullifier_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
+    let mut rpc = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
@@ -442,7 +448,10 @@ async fn failing_queue(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut rpc = ProgramTestRpcConnection { context };
+    let mut rpc = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = rpc.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -623,7 +632,10 @@ async fn test_init_and_rollover_state_merkle_tree(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
@@ -882,7 +894,10 @@ async fn test_append_functional_and_failing(
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     let merkle_tree_keypair = Keypair::new();
     let queue_keypair = Keypair::new();
@@ -1012,7 +1027,10 @@ async fn test_nullify_leaves(
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let payer = context.get_payer().insecure_clone();
     let payer_pubkey = context.get_payer().pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
