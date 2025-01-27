@@ -34,6 +34,7 @@ light-utils = { workspace = true , features = ["anchor"]}
 light-verifier = { workspace = true, features = ["solana"] }
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
+light-zero-copy = {workspace = true, features = ["solana"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::Ref;
+use zerocopy::{Ref, little_endian::U32};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -15,6 +15,7 @@ pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
 pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
+pub type ZeroCopySliceMutBorsh<'a, T> = ZeroCopySliceMut<'a,U32, T>;
 
 pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
 where

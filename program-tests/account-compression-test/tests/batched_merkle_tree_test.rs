@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::{errors::AccountCompressionErrorCode, ID};
+use account_compression::{errors::AccountCompressionErrorCode, AppendLeavesInput, ID};
 use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
 };
@@ -529,7 +529,7 @@ pub async fn perform_insert_into_output_queue(
     for _ in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
         leaf[31] = *counter as u8;
-        leaves.push((0, leaf));
+        leaves.push(AppendLeavesInput { index: 0, leaf });
         mock_indexer.output_queue_leaves.push(leaf);
         mock_indexer.tx_events.push(MockTxEvent {
             tx_hash: [0u8; 32],
@@ -539,7 +539,9 @@ pub async fn perform_insert_into_output_queue(
         *counter += 1;
     }
 
-    let instruction = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
+    let mut bytes = Vec::new();
+    leaves.serialize(&mut bytes).unwrap();
+    let instruction = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),
         fee_payer: payer.pubkey(),

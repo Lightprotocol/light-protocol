@@ -29,10 +29,12 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-utils",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -3199,6 +3201,7 @@ dependencies = [
  "light-macros",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",

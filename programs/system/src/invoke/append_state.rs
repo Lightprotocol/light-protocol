@@ -1,14 +1,3 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{program::invoke_signed, pubkey::Pubkey},
-    Bumps,
-};
-use light_hasher::Poseidon;
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_macros::heap_neutral;
-use light_utils::hash_to_bn254_field_size_be;
-
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
     errors::SystemProgramError,
@@ -19,6 +8,17 @@ use crate::{
     },
     OutputCompressedAccountWithPackedContext,
 };
+use account_compression::{utils::constants::CPI_AUTHORITY_PDA_SEED, AppendLeavesInput};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, pubkey::Pubkey},
+    Bumps,
+};
+use light_hasher::Poseidon;
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_macros::heap_neutral;
+use light_utils::hash_to_bn254_field_size_be;
+use std::mem::size_of;
 
 #[allow(clippy::too_many_arguments)]
 #[heap_neutral]
@@ -119,7 +119,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     let mut mt_next_index = 0;
     let mut network_fee_bundle = None;
     let num_leaves = output_compressed_account_hashes.len();
-    let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
+    let mut instruction_data = Vec::<u8>::with_capacity(16 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
     let mut index_merkle_tree_account = 0;
     let number_of_merkle_trees =
@@ -128,6 +128,15 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
 
     // Anchor instruction signature.
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
+    // Bytes Vec length.
+    // instruction_data.extend_from_slice(&(instruction_data.capacity() as u32 - 8).to_le_bytes());
+    instruction_data.extend_from_slice(
+        &((num_leaves * size_of::<AppendLeavesInput>() + 4) as u32).to_le_bytes(),
+    );
+    msg!(
+        "size_of::<AppendLeavesInput>() {:?}",
+        size_of::<AppendLeavesInput>()
+    );
     // leaves vector length (for borsh compat)
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
 
@@ -247,19 +256,34 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
 
 #[test]
 fn test_instruction_data_borsh_compat() {
+    use account_compression::AppendLeavesInput;
+    use light_zero_copy::slice_mut::ZeroCopySliceMutU32;
     let mut vec = Vec::<u8>::new();
+    vec.extend_from_slice(&((2 * size_of::<AppendLeavesInput>() + 4) as u32).to_le_bytes());
     vec.extend_from_slice(&2u32.to_le_bytes());
     vec.push(1);
     vec.extend_from_slice(&[2u8; 32]);
     vec.push(3);
     vec.extend_from_slice(&[4u8; 32]);
 
-    let refe = vec![(1, [2u8; 32]), (3, [4u8; 32])];
+    let refe = vec![
+        AppendLeavesInput {
+            index: 1,
+            leaf: [2u8; 32],
+        },
+        AppendLeavesInput {
+            index: 3,
+            leaf: [4u8; 32],
+        },
+    ];
+    let mut bytes = Vec::new();
+    refe.serialize(&mut bytes).unwrap();
     use anchor_lang::InstructionData;
-    let instruction_data =
-        account_compression::instruction::AppendLeavesToMerkleTrees { leaves: refe };
+    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
+    println!("discriminator {:?}", instruction_data.data()[0..8].to_vec());
     let serialized = instruction_data.data()[8..].to_vec();
     assert_eq!(serialized, vec);
-    let res = Vec::<(u8, [u8; 32])>::deserialize(&mut vec.as_slice()).unwrap();
-    assert_eq!(res, vec![(1, [2u8; 32]), (3, [4u8; 32])]);
+    let res = ZeroCopySliceMutU32::<AppendLeavesInput>::from_bytes(&mut vec[4..]).unwrap();
+
+    assert_eq!(res.as_slice(), refe.as_slice());
 }

@@ -64,6 +64,27 @@ pub struct ZeroOutLeafIndex {
     pub leaf_index: u16,
 }
 
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
+
+#[repr(C)]
+#[derive(
+    KnownLayout,
+    IntoBytes,
+    Immutable,
+    Copy,
+    Clone,
+    FromBytes,
+    AnchorSerialize,
+    AnchorDeserialize,
+    PartialEq,
+    Debug,
+    Unaligned,
+)]
+pub struct AppendLeavesInput {
+    pub index: u8,
+    pub leaf: [u8; 32],
+}
+
 /// Perform batch appends to Merkle trees provided as remaining accounts. Leaves
 /// are assumed to be ordered by Merkle tree account.
 /// 1. Iterate over all remaining accounts (Merkle tree accounts)
@@ -76,7 +97,7 @@ pub struct ZeroOutLeafIndex {
 ///     return Ok(()) if all leaves are processed
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-    leaves: Vec<(u8, [u8; 32])>,
+    leaves: &[AppendLeavesInput],
 ) -> Result<()> {
     let mut leaves_processed: usize = 0;
     let len = ctx.remaining_accounts.len();
@@ -86,12 +107,12 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
         let rollover_fee: u64 = {
             // 2. get first leaves that points to current Merkle tree account
-            let start = match leaves.iter().position(|x| x.0 as usize == i) {
+            let start = match leaves.iter().position(|x| x.index as usize == i) {
                 Some(pos) => Ok(pos),
                 None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
             }?;
             // 3. get last leaf that points to current Merkle tree account
-            let end = match leaves[start..].iter().position(|x| x.0 as usize != i) {
+            let end = match leaves[start..].iter().position(|x| x.index as usize != i) {
                 Some(pos) => pos + start,
                 None => leaves.len(),
             };
@@ -111,7 +132,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
                     batch_size,
                     leaves[start..end]
                         .iter()
-                        .map(|x| &x.1)
+                        .map(|x| &x.leaf)
                         .collect::<Vec<&[u8; 32]>>()
                         .as_slice(),
                 )?,
@@ -186,7 +207,7 @@ fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     merkle_tree_acc_info: &'info AccountInfo<'info>,
     batch_size: usize,
-    leaves: &[(u8, [u8; 32])],
+    leaves: &[AppendLeavesInput],
 ) -> Result<u64> {
     let output_queue = &mut BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
         .map_err(ProgramError::from)?;
@@ -195,9 +216,9 @@ fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
         output_queue,
     )?;
 
-    for (_, leaf) in leaves {
+    for leaf in leaves {
         output_queue
-            .insert_into_current_batch(leaf)
+            .insert_into_current_batch(&leaf.leaf)
             .map_err(ProgramError::from)?;
     }
 

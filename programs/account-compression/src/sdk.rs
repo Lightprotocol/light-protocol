@@ -1,5 +1,6 @@
 #![cfg(not(target_os = "solana"))]
 
+use anchor_lang::prelude::borsh::BorshSerialize;
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -10,7 +11,8 @@ use crate::{
     instruction::{
         InitializeAddressMerkleTreeAndQueue, InitializeStateMerkleTreeAndNullifierQueue,
     },
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, AppendLeavesInput, NullifierQueueConfig,
+    StateMerkleTreeConfig,
 };
 
 pub fn create_initialize_merkle_tree_instruction(
@@ -54,7 +56,19 @@ pub fn create_insert_leaves_instruction(
     authority: Pubkey,
     merkle_tree_pubkeys: Vec<Pubkey>,
 ) -> Instruction {
-    let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { leaves };
+    let data = leaves
+        .iter()
+        .into_iter()
+        .map(|x| AppendLeavesInput {
+            index: x.0,
+            leaf: x.1,
+        })
+        .collect::<Vec<_>>();
+
+    let mut bytes = Vec::new();
+    data.serialize(&mut bytes).unwrap();
+
+    let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { bytes };
 
     let accounts = crate::accounts::AppendLeaves {
         fee_payer,

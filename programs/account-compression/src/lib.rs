@@ -30,7 +30,9 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_merkle_tree_metadata::queue::QueueType;
+    use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
 
     use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
     use super::*;
@@ -165,9 +167,16 @@ pub mod account_compression {
 
     pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-        leaves: Vec<(u8, [u8; 32])>,
+        bytes: Vec<u8>,
     ) -> Result<()> {
-        process_append_leaves_to_merkle_trees(ctx, leaves)
+        let mut bytes = bytes;
+        msg!("ZeroCopySliceMut");
+        //  Vec<(u8, [u8; 32])>,
+        sol_log_compute_units();
+        let leaves =
+            ZeroCopySliceMutBorsh::<AppendLeavesInput>::from_bytes(bytes.as_mut_slice()).unwrap();
+        sol_log_compute_units();
+        process_append_leaves_to_merkle_trees(ctx, leaves.as_slice())
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(

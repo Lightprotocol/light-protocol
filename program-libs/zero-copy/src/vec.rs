@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::Ref;
+use zerocopy::{Ref, little_endian::U32};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -15,6 +15,7 @@ pub type ZeroCopyVecU64<'a, T> = ZeroCopyVec<'a, u64, T>;
 pub type ZeroCopyVecU32<'a, T> = ZeroCopyVec<'a, u32, T>;
 pub type ZeroCopyVecU16<'a, T> = ZeroCopyVec<'a, u16, T>;
 pub type ZeroCopyVecU8<'a, T> = ZeroCopyVec<'a, u8, T>;
+pub type ZeroCopyVecBorsh<'a, T> = ZeroCopyVec<'a, U32, T>;
 
 /// `ZeroCopyVec` is a custom vector implementation which forbids
 /// post-initialization reallocations. The size is not known during compile

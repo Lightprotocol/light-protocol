@@ -26,6 +26,8 @@ declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 #[program]
 pub mod system_cpi_test {
 
+    use account_compression::AppendLeavesInput;
+
     use super::*;
 
     pub fn create_compressed_pda<'info>(
@@ -94,8 +96,13 @@ pub mod system_cpi_test {
             &seeds,
         );
         cpi_context.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
-
-        account_compression::cpi::append_leaves_to_merkle_trees(cpi_context, vec![(0, [1u8; 32])])?;
+        let data = vec![AppendLeavesInput {
+            index: 0,
+            leaf: [1u8; 32],
+        }];
+        let mut bytes = Vec::new();
+        data.serialize(&mut bytes).unwrap();
+        account_compression::cpi::append_leaves_to_merkle_trees(cpi_context, bytes)?;
 
         Ok(())
     }

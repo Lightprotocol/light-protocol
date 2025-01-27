@@ -38,6 +38,8 @@ num-bigint = "0.4"
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
 light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
+light-zero-copy = {workspace = true, features = ["solana"] }
+zerocopy = {workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
