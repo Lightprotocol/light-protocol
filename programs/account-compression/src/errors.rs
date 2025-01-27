@@ -63,4 +63,7 @@ pub enum AccountCompressionErrorCode {
     RegistryProgramIsNone,
     EmptyLeaf,
     V1AccountMarkedAsProofByIndex,
+    InvalidAccount,
+    #[msg("The maximum number of leaves is 255")]
+    TooManyLeaves,
 }

@@ -24,6 +24,7 @@ borsh = { workspace = true }
 bytemuck = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
 light-bounded-vec = { workspace = true }
+light-zero-copy = { workspace = true }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }

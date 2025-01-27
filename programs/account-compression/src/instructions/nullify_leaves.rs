@@ -12,7 +12,7 @@ use crate::{
     },
     state_merkle_tree_from_bytes_zero_copy_mut,
     utils::check_signer_is_registered_or_authority::{
-        check_signer_is_registered_or_authority, GroupAccounts,
+        check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
     },
     RegisteredProgram,
 };
@@ -28,6 +28,20 @@ pub struct NullifyLeaves<'info> {
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
     pub nullifier_queue: AccountLoader<'info, QueueAccount>,
+}
+
+impl GroupAccess for StateMerkleTreeAccount {
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.to_bytes().into()
+    }
+
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata
+            .access_metadata
+            .program_owner
+            .to_bytes()
+            .into()
+    }
 }
 
 impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {

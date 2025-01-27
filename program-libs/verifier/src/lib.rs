@@ -1,4 +1,3 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
     groth16::{Groth16Verifier, Groth16Verifyingkey},
@@ -48,23 +47,8 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
     }
 }
 
+use light_utils::instruction::compressed_proof::CompressedProof;
 use VerifierError::*;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub struct CompressedProof {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
-
-impl Default for CompressedProof {
-    fn default() -> Self {
-        Self {
-            a: [0; 32],
-            b: [0; 64],
-            c: [0; 32],
-        }
-    }
-}
 
 pub fn verify_create_addresses_proof(
     address_roots: &[[u8; 32]],
@@ -228,6 +212,7 @@ pub fn select_verifying_key<'a>(
     num_leaves: usize,
     num_addresses: usize,
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
+    #[cfg(feature = "solana")]
     solana_program::msg!(
         "select_verifying_key num_leaves: {}, num_addresses: {}",
         num_leaves,

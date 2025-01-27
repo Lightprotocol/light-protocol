@@ -9,11 +9,12 @@ use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
-use light_system_program::sdk::{
-    compressed_account::CompressedAccount, invoke::create_invoke_instruction,
-};
+use light_system_program::sdk::invoke::create_invoke_instruction;
 use light_test_utils::RpcConnection;
-use light_utils::hash_to_bn254_field_size_be;
+use light_utils::{
+    hash_to_bn254_field_size_be, instruction::compressed_account::CompressedAccount,
+};
+use num_traits::ToPrimitive;
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer, system_instruction,
     transaction::Transaction,

@@ -1,18 +1,16 @@
-#![cfg(not(target_os = "solana"))]
-
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-};
-
-use crate::{
+use account_compression::{
     instruction::{
         InitializeAddressMerkleTreeAndQueue, InitializeStateMerkleTreeAndNullifierQueue,
     },
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
+use anchor_lang::InstructionData;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_initialize_merkle_tree_instruction(
     payer: Pubkey,
     registered_program_pda: Option<Pubkey>,
@@ -34,10 +32,10 @@ pub fn create_initialize_merkle_tree_instruction(
     };
     let registered_program = match registered_program_pda {
         Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
-        None => AccountMeta::new(crate::ID, false),
+        None => AccountMeta::new(account_compression::ID, false),
     };
     Instruction {
-        program_id: crate::ID,
+        program_id: account_compression::ID,
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(merkle_tree_pubkey, false),
@@ -48,36 +46,49 @@ pub fn create_initialize_merkle_tree_instruction(
     }
 }
 
-pub fn create_insert_leaves_instruction(
-    leaves: Vec<(u8, [u8; 32])>,
-    fee_payer: Pubkey,
-    authority: Pubkey,
-    merkle_tree_pubkeys: Vec<Pubkey>,
-) -> Instruction {
-    let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { leaves };
+// pub fn create_insert_leaves_instruction(
+//     leaves: Vec<(u8, [u8; 32])>,
+//     fee_payer: Pubkey,
+//     authority: Pubkey,
+//     merkle_tree_pubkeys: Vec<Pubkey>,
+// ) -> Instruction {
+//     let data = leaves
+//         .iter()
+//         .into_iter()
+//         .map(|x| AppendLeavesInput {
+//             index: x.0,
+//             leaf: x.1,
+//         })
+//         .collect::<Vec<_>>();
 
-    let accounts = crate::accounts::AppendLeaves {
-        fee_payer,
-        authority,
-        registered_program_pda: None,
-        system_program: system_program::ID,
-    };
-    let merkle_tree_account_metas = merkle_tree_pubkeys
-        .iter()
-        .map(|pubkey| AccountMeta::new(*pubkey, false))
-        .collect::<Vec<AccountMeta>>();
+//     let mut bytes = Vec::new();
+//     data.serialize(&mut bytes).unwrap();
 
-    Instruction {
-        program_id: crate::ID,
-        accounts: [
-            accounts.to_account_metas(Some(true)),
-            merkle_tree_account_metas,
-        ]
-        .concat(),
-        data: instruction_data.data(),
-    }
-}
+//     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
 
+//     let accounts = account_compression::accounts::AppendLeaves {
+//         fee_payer,
+//         authority,
+//         registered_program_pda: None,
+//         system_program: system_program::ID,
+//     };
+//     let merkle_tree_account_metas = merkle_tree_pubkeys
+//         .iter()
+//         .map(|pubkey| AccountMeta::new(*pubkey, false))
+//         .collect::<Vec<AccountMeta>>();
+
+//     Instruction {
+//         program_id: account_compression::ID,
+//         accounts: [
+//             accounts.to_account_metas(Some(true)),
+//             merkle_tree_account_metas,
+//         ]
+//         .concat(),
+//         data: instruction_data.data(),
+//     }
+// }
+
+#[allow(clippy::too_many_arguments)]
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     index: u64,
     payer: Pubkey,
@@ -98,10 +109,10 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     };
     let registered_program = match registered_program_pda {
         Some(registered_program_pda) => AccountMeta::new(registered_program_pda, false),
-        None => AccountMeta::new(crate::ID, false),
+        None => AccountMeta::new(account_compression::ID, false),
     };
     Instruction {
-        program_id: crate::ID,
+        program_id: account_compression::ID,
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(merkle_tree_pubkey, false),

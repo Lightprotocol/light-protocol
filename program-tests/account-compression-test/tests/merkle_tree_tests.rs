@@ -8,10 +8,11 @@ use account_compression::{
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeAccount,
-    StateMerkleTreeConfig, ID, SAFETY_MARGIN,
+    AddressMerkleTreeConfig, AddressQueueConfig, AppendLeavesInput, NullifierQueueConfig,
+    StateMerkleTreeAccount, StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
+use borsh::BorshSerialize;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
@@ -1344,7 +1345,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         nullifiers: elements.to_vec(),
         leaf_indices: Vec::new(),
         tx_hash: [0u8; 32],
-        proof_by_index: vec![false; elements.len()],
+        prove_by_index: vec![false; elements.len()],
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1391,7 +1392,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         nullifiers: elements.to_vec(),
         leaf_indices: Vec::new(),
         tx_hash: [0u8; 32],
-        proof_by_index: vec![false; elements.len()],
+        prove_by_index: vec![false; elements.len()],
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1781,7 +1782,16 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
     leaves: Vec<(u8, [u8; 32])>,
     expected_error: u32,
 ) -> Result<(), RpcError> {
-    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
+    let mut bytes = Vec::new();
+    let leaves = leaves
+        .iter()
+        .map(|(i, leaf)| AppendLeavesInput {
+            index: *i,
+            leaf: *leaf,
+        })
+        .collect::<Vec<_>>();
+    leaves.serialize(&mut bytes).unwrap();
+    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
 
     let accounts = account_compression::accounts::AppendLeaves {
         fee_payer: context.get_payer().pubkey(),
@@ -1901,9 +1911,14 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     airdrop_lamports(rpc, &invalid_autority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees {
-        leaves: vec![(0, [1u8; 32])],
-    };
+    let mut bytes = Vec::new();
+    let leaves: vec![AppendLeavesInput {
+        index: 0,
+        leaf: [1; 32],
+    }];
+
+    leaves.serialize(&mut bytes).unwrap();
+    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
 
     let accounts = account_compression::accounts::AppendLeaves {
         fee_payer: rpc.get_payer().pubkey(),

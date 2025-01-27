@@ -15,10 +15,12 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap", "idl-build"]
+default = ["debug","readonly","idl-build"]
 test-sbf = []
-bench-sbf = []
+bench-sbf = ["custom-heap"]
 idl-build = ["anchor-lang/idl-build"]
+debug = []
+readonly = []
 
 
 [dependencies]
@@ -34,6 +36,9 @@ light-utils = { workspace = true , features = ["anchor"]}
 light-verifier = { workspace = true, features = ["solana"] }
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = {workspace = true, features = ["solana"] }
+light-zero-copy = {workspace = true, features = ["solana"] }
+zerocopy = {workspace = true}
+light-merkle-tree-metadata = {workspace = true}
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

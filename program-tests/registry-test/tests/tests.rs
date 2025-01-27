@@ -2056,7 +2056,11 @@ async fn test_rollover_batch_address_tree() {
         .await
         .unwrap()
         .unwrap();
-    let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda.into());
+    let mt_params = CreateTreeParams::from_address_ix_params(
+        tree_params,
+        env.group_pda.into(),
+        new_merkle_tree_keypair.pubkey().into(),
+    );
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
     assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account);

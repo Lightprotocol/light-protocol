@@ -2,19 +2,17 @@ use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
 use light_hasher::{DataHasher, Discriminator, Poseidon};
+use light_utils::instruction::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
+    instruction_data::{
+        NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
+    },
+};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
-use crate::{
-    account_info::LightAccountInfo,
-    account_meta::LightAccountMeta,
-    address::PackedNewAddressParams,
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
-        PackedCompressedAccountWithMerkleContext,
-    },
-    error::LightSdkError,
-};
-
+use crate::{account_info::LightAccountInfo, account_meta::LightAccountMeta, error::LightSdkError};
 pub trait LightAccounts<'a>: Sized {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
 }

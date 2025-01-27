@@ -16,6 +16,7 @@ pub mod account;
 pub mod bigint;
 pub mod fee;
 pub mod hashchain;
+pub mod instruction;
 pub mod offset;
 pub mod prime;
 pub mod pubkey;
@@ -53,6 +54,10 @@ pub enum UtilsError {
     InvalidAccountBalance,
     #[error("Failed to borrow rent sysvar.")]
     FailedBorrowRentSysvar,
+    #[error("Derive address error.")]
+    DeriveAddressError,
+    #[error("Invalid argument.")]
+    InvalidArgument,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -74,6 +79,8 @@ impl From<UtilsError> for u32 {
             UtilsError::AlreadyInitialized => 12012,
             UtilsError::InvalidAccountBalance => 12013,
             UtilsError::FailedBorrowRentSysvar => 12014,
+            UtilsError::DeriveAddressError => 12015,
+            UtilsError::InvalidArgument => 12016,
             UtilsError::HasherError(e) => u32::from(e),
         }
     }

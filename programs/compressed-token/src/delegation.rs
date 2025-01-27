@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
-    OutputCompressedAccountWithPackedContext,
+use light_utils::{
+    hash_to_bn254_field_size_be,
+    instruction::{
+        compressed_account::PackedCompressedAccountWithMerkleContext,
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        instruction_data::OutputCompressedAccountWithPackedContext,
+    },
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     constants::NOT_FROZEN,
@@ -261,14 +263,13 @@ pub fn create_input_and_output_accounts_revoke(
 #[cfg(not(target_os = "solana"))]
 pub mod sdk {
 
+    use std::result::Result;
+
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext},
-    };
+    use light_utils::instruction::compressed_account::{CompressedAccount, MerkleContext};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use super::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke};
+    use super::*;
     use crate::{
         process_transfer::{
             get_cpi_authority_pda,
@@ -446,7 +447,7 @@ pub mod sdk {
 #[cfg(test)]
 mod test {
     use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_system_program::sdk::compressed_account::PackedMerkleContext;
+    use light_utils::instruction::compressed_account::PackedMerkleContext;
 
     use super::*;
     use crate::{

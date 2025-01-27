@@ -20,7 +20,6 @@ use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeEr
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{test_env::NOOP_PROGRAM_ID, test_rpc::ProgramTestRpcConnection};
 use light_test_utils::{
-    address::insert_addresses,
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, perform_address_merkle_tree_roll_over,
         set_address_merkle_tree_next_index,
@@ -198,7 +197,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
     );
 
     let instruction =
-        account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+        light_program_test::acp_sdk::create_initialize_address_merkle_tree_and_queue_instruction(
             0,
             payer.pubkey(),
             None,

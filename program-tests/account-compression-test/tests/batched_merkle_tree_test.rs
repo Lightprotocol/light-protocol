@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::{errors::AccountCompressionErrorCode, ID};
+use account_compression::{errors::AccountCompressionErrorCode, AppendLeavesInput, ID};
 use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
 };
@@ -513,7 +513,7 @@ pub async fn perform_insert_into_output_queue(
     for _ in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
         leaf[31] = *counter as u8;
-        leaves.push((0, leaf));
+        leaves.push(AppendLeavesInput { index: 0, leaf });
         mock_indexer.output_queue_leaves.push(leaf);
         mock_indexer.tx_events.push(MockTxEvent {
             tx_hash: [0u8; 32],
@@ -523,7 +523,9 @@ pub async fn perform_insert_into_output_queue(
         *counter += 1;
     }
 
-    let instruction = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
+    let mut bytes = Vec::new();
+    leaves.serialize(&mut bytes).unwrap();
+    let instruction = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),
         fee_payer: payer.pubkey(),
@@ -649,15 +651,15 @@ pub async fn perform_insert_into_input_queue(
     mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
-    proof_by_index: Vec<bool>,
+    prove_by_index: Vec<bool>,
     output_queue_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    if proof_by_index.len() != num_of_leaves as usize {
+    if prove_by_index.len() != num_of_leaves as usize {
         return Err(RpcError::CustomError(format!(
             "Proof by index len {}!= num of leaves {}",
-            proof_by_index.len(),
+            prove_by_index.len(),
             num_of_leaves
         )));
     }
@@ -685,7 +687,7 @@ pub async fn perform_insert_into_input_queue(
         nullifiers: leaves,
         leaf_indices,
         tx_hash,
-        proof_by_index,
+        prove_by_index,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),

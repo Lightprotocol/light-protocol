@@ -1,4 +1,4 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
+use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
 use light_client::{
     indexer::{
@@ -7,9 +7,9 @@ use light_client::{
     },
     rpc::RpcConnection,
 };
-use light_sdk::{
+use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
+use light_utils::instruction::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext,
 };
 use solana_sdk::signature::Keypair;
 

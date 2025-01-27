@@ -9,14 +9,13 @@ use light_compressed_token::{
     },
     CompressedTokenInstructionDataBurn,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    program::LightSystemProgram,
-    sdk::{
-        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-        CompressedCpiContext,
-    },
-    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
+use light_system_program::program::LightSystemProgram;
+use light_utils::instruction::{
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::OutputCompressedAccountWithPackedContext,
+    invoke_cpi::InstructionDataInvokeCpi,
 };
 
 use crate::ID;
@@ -237,21 +236,21 @@ pub fn cpi_context_tx<'info>(
     match mode {
         WithInputAccountsMode::CpiContextFeePayerMismatch => cpi_compressed_token_transfer(
             ctx,
-            proof.clone(),
+            proof,
             token_transfer_data,
             mode.clone(),
             Some(cpi_context),
         )?,
         WithInputAccountsMode::Approve => cpi_compressed_token_approve_revoke(
             ctx,
-            proof.clone(),
+            proof,
             token_transfer_data,
             mode.clone(),
             Some(cpi_context),
         )?,
         WithInputAccountsMode::Revoke => cpi_compressed_token_approve_revoke(
             ctx,
-            proof.clone(),
+            proof,
             token_transfer_data,
             mode.clone(),
             Some(cpi_context),
@@ -259,14 +258,14 @@ pub fn cpi_context_tx<'info>(
         WithInputAccountsMode::Freeze | WithInputAccountsMode::Thaw => {
             cpi_compressed_token_freeze_or_thaw(
                 ctx,
-                proof.clone(),
+                proof,
                 token_transfer_data,
                 mode.clone(),
                 Some(cpi_context),
             )?
         }
         WithInputAccountsMode::Burn => {
-            cpi_compressed_token_burn(ctx, proof.clone(), token_transfer_data, Some(cpi_context))?
+            cpi_compressed_token_burn(ctx, proof, token_transfer_data, Some(cpi_context))?
         }
         _ => panic!("Invalid mode"),
     }

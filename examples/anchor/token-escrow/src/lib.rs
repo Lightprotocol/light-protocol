@@ -3,13 +3,15 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_compressed_token::process_transfer::{
     InputTokenDataWithContext, PackedTokenTransferOutputData,
 };
-use light_system_program::invoke::processor::CompressedProof;
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
 
 pub use escrow_with_compressed_pda::escrow::*;
 pub use escrow_with_pda::escrow::*;
-use light_system_program::{sdk::CompressedCpiContext, NewAddressParamsPacked};
+use light_utils::instruction::{
+    compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+    instruction_data::NewAddressParamsPacked,
+};
 
 #[error_code]
 pub enum EscrowError {

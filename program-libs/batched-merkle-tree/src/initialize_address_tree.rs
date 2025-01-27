@@ -114,7 +114,13 @@ pub fn init_batched_address_merkle_tree_from_account_info(
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
         .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
-    init_batched_address_merkle_tree_account(owner, params, mt_data, merkle_tree_rent)?;
+    init_batched_address_merkle_tree_account(
+        owner,
+        params,
+        mt_data,
+        merkle_tree_rent,
+        (*mt_account_info.key).into(),
+    )?;
     Ok(())
 }
 
@@ -123,6 +129,7 @@ pub fn init_batched_address_merkle_tree_account(
     params: InitAddressTreeAccountsInstructionData,
     mt_account_data: &mut [u8],
     merkle_tree_rent: u64,
+    pubkey: Pubkey,
 ) -> Result<BatchedMerkleTreeAccount<'_>, BatchedMerkleTreeError> {
     let height = params.height;
 
@@ -151,6 +158,7 @@ pub fn init_batched_address_merkle_tree_account(
     };
     BatchedMerkleTreeAccount::init(
         mt_account_data,
+        &pubkey,
         metadata,
         params.root_history_capacity,
         params.input_queue_batch_size,

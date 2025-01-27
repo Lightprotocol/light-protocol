@@ -2,25 +2,32 @@
 use std::collections::HashMap;
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_utils::instruction::{
+    compressed_account::{
+        CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
+    compressed_proof::CompressedProof,
+    instruction_data::{
+        InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
+        OutputCompressedAccountWithPackedContext,
+    },
+};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
 
-use super::compressed_account::{
-    CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
-};
 use crate::{
-    invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
+    processor::sol_compression::SOL_POOL_PDA_SEED,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
-    InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
-    OutputCompressedAccountWithPackedContext,
 };
 
 pub fn get_sol_pool_pda() -> Pubkey {
     Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
 
+// TODO: move to light-test-utils
 #[allow(clippy::too_many_arguments)]
 pub fn create_invoke_instruction(
     fee_payer: &Pubkey,
@@ -54,6 +61,7 @@ pub fn create_invoke_instruction(
             .output_compressed_accounts
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
+    println!("remaining accounts: {:?}", remaining_accounts);
     let mut inputs = Vec::new();
     println!("inputs_struct: {:?}", inputs_struct);
 
@@ -169,6 +177,10 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: output_compressed_accounts[i].clone(),
             merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
         });
+        println!(
+            "output_compressed_accounts_with_context {:?}",
+            output_compressed_accounts_with_context
+        );
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
@@ -296,7 +308,7 @@ mod test {
             &output_compressed_account_merkle_tree_pubkeys,
             &input_root_indices.clone(),
             Vec::<NewAddressParams>::new().as_slice(),
-            Some(proof.clone()),
+            Some(proof),
             Some(100),
             true,
             None,
@@ -341,18 +353,9 @@ mod test {
                 .len(),
             2
         );
-        assert_eq!(
-            deserialized_instruction_data.proof.clone().unwrap().a,
-            proof.a
-        );
-        assert_eq!(
-            deserialized_instruction_data.proof.clone().unwrap().b,
-            proof.b
-        );
-        assert_eq!(
-            deserialized_instruction_data.proof.clone().unwrap().c,
-            proof.c
-        );
+        assert_eq!(deserialized_instruction_data.proof.unwrap().a, proof.a);
+        assert_eq!(deserialized_instruction_data.proof.unwrap().b, proof.b);
+        assert_eq!(deserialized_instruction_data.proof.unwrap().c, proof.c);
         assert_eq!(
             deserialized_instruction_data
                 .compress_or_decompress_lamports

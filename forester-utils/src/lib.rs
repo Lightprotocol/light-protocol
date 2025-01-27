@@ -1,6 +1,5 @@
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::{instruction::Instruction, system_instruction};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
@@ -10,6 +9,7 @@ use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::{
     account::Account,
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };

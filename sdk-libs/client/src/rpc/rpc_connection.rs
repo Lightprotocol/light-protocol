@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
+use light_utils::instruction::event::PublicTransactionEvent;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_program::{clock::Slot, instruction::Instruction};
 use solana_sdk::{
@@ -130,4 +131,14 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         signatures: &[Signature],
     ) -> Result<Vec<Option<TransactionStatus>>, RpcError>;
     async fn get_block_height(&mut self) -> Result<u64, RpcError>;
+
+    async fn create_and_send_transaction_with_public_event(
+        &mut self,
+        _instruction: &[Instruction],
+        _payer: &Pubkey,
+        _signers: &[&Keypair],
+        _transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        unimplemented!()
+    }
 }

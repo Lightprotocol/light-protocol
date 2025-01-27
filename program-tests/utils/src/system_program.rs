@@ -5,30 +5,19 @@ use light_client::{
 };
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
-use light_system_program::{
-    sdk::{
-        address::derive_address_legacy,
-        compressed_account::{
-            CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
-        },
-        event::PublicTransactionEvent,
-        invoke::{create_invoke_instruction, get_sol_pool_pda},
-    },
-    NewAddressParams,
+use light_system_program::sdk::invoke::{create_invoke_instruction, get_sol_pool_pda};
+use light_utils::instruction::{
+    address::derive_address_legacy,
+    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext},
+    instruction_data::NewAddressParams,
 };
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
 };
 
-use crate::{
-    assert_compressed_tx::{
-        assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
-    },
-    conversions::{
-        program_to_sdk_public_transaction_event,
-        sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof,
-    },
+use crate::assert_compressed_tx::{
+    assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -367,7 +356,7 @@ pub async fn compressed_transaction_test<
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
-            proof = Some(sdk_to_program_compressed_proof(proof_rpc_res));
+            proof = Some(proof_rpc_res);
         }
 
         let input_merkle_tree_accounts = inputs
@@ -438,7 +427,7 @@ pub async fn compressed_transaction_test<
     }
     let event = inputs
         .rpc
-        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+        .create_and_send_transaction_with_public_event(
             &[instruction],
             &inputs.fee_payer.pubkey(),
             &[inputs.fee_payer, inputs.authority],
@@ -448,16 +437,9 @@ pub async fn compressed_transaction_test<
         .unwrap();
 
     let slot = inputs.rpc.get_transaction_slot(&event.1).await.unwrap();
-    let (created_output_compressed_accounts, _) =
-        inputs.test_indexer.add_event_and_compressed_accounts(
-            slot,
-            &program_to_sdk_public_transaction_event(event.0.clone()),
-        );
-
-    let created_output_compressed_accounts = created_output_compressed_accounts
-        .into_iter()
-        .map(sdk_to_program_compressed_account_with_merkle_context)
-        .collect::<Vec<_>>();
+    let (created_output_compressed_accounts, _) = inputs
+        .test_indexer
+        .add_event_and_compressed_accounts(slot, &event.0.clone());
 
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,

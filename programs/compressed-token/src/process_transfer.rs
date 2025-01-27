@@ -2,19 +2,20 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        accounts::{InvokeAccounts, SignerAccounts},
+use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use light_utils::{
+    hash_to_bn254_field_size_be,
+    instruction::{
         compressed_account::{
             CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
             PackedMerkleContext,
         },
-        CompressedCpiContext,
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        instruction_data::OutputCompressedAccountWithPackedContext,
+        invoke_cpi::InstructionDataInvokeCpi,
     },
-    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -245,7 +246,7 @@ pub fn create_output_compressed_accounts(
             &hashed_delegate,
         )
         .map_err(ProgramError::from)?;
-        let data: CompressedAccountData = CompressedAccountData {
+        let data = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
             data_hash,
@@ -355,7 +356,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
     let cpi_context_account = cpi_context.map(|cpi_context| {
         remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
-    let inputs_struct = light_system_program::invoke_cpi::instruction::InstructionDataInvokeCpi {
+    let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: output_compressed_accounts.to_vec(),
@@ -594,9 +595,9 @@ pub mod transfer_sdk {
 
     use anchor_lang::{error_code, AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::{token::Token, token_2022::Token2022};
-    use light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
+    use light_utils::instruction::{
+        compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
+        compressed_proof::CompressedProof,
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -824,7 +825,7 @@ pub mod transfer_sdk {
         };
         let inputs_struct = CompressedTokenInstructionDataTransfer {
             output_compressed_accounts: _output_compressed_accounts.to_vec(),
-            proof: proof.clone(),
+            proof: *proof,
             input_token_data_with_context,
             delegated_transfer,
             mint,

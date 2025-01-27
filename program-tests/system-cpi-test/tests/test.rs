@@ -2011,7 +2011,7 @@ pub async fn perform_with_input_accounts<
     let instruction =
         create_invalidate_not_owned_account_instruction(create_ix_inputs.clone(), mode);
     let result = rpc
-        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+        .create_and_send_transaction_with_public_event(
             &[instruction],
             &payer_pubkey,
             &[payer, invalid_fee_payer],

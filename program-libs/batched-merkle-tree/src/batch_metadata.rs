@@ -279,7 +279,7 @@ fn test_batch_size_validation() {
 #[test]
 fn test_output_queue_account_size() {
     let metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
-    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2;
+    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 64;
     assert_eq!(
         metadata
             .queue_account_size(QueueType::BatchedOutput as u64)

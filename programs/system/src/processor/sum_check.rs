@@ -1,16 +1,16 @@
 use anchor_lang::{solana_program::program_error::ProgramError, Result};
-use light_macros::heap_neutral;
-
-use crate::{
-    errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
-    OutputCompressedAccountWithPackedContext,
+use light_utils::instruction::instruction_data_zero_copy::{
+    ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
 
-#[inline(never)]
-#[heap_neutral]
+use crate::errors::SystemProgramError;
+
+#[inline(always)]
 pub fn sum_check(
-    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext<
+        '_,
+    >],
+    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'_>],
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
@@ -20,18 +20,15 @@ pub fn sum_check(
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         if compressed_account_with_context
             .merkle_context
-            .prove_by_index
+            .prove_by_index()
         {
             num_prove_by_index_accounts += 1;
         }
-        // Readonly accounts are only supported as separate inputs.
-        if compressed_account_with_context.read_only {
-            unimplemented!(
-                "Read accounts are only supported as separate inputs in the invoke_cpi_with_read_only instruction. Set read_only to false."
-            );
-        }
+
         sum = sum
-            .checked_add(compressed_account_with_context.compressed_account.lamports)
+            .checked_add(u64::from(
+                compressed_account_with_context.compressed_account.lamports,
+            ))
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
@@ -52,7 +49,7 @@ pub fn sum_check(
 
     for compressed_account in output_compressed_accounts.iter() {
         sum = sum
-            .checked_sub(compressed_account.compressed_account.lamports)
+            .checked_sub(u64::from(compressed_account.compressed_account.lamports))
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
     }
@@ -73,10 +70,19 @@ pub fn sum_check(
 
 #[cfg(test)]
 mod test {
-    use solana_sdk::{signature::Keypair, signer::Signer};
+    use anchor_lang::AnchorSerialize;
+    use light_utils::{
+        instruction::{
+            compressed_account::{
+                CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+            },
+            instruction_data::OutputCompressedAccountWithPackedContext,
+        },
+        pubkey::Pubkey,
+    };
+    use light_zero_copy::borsh::Deserialize;
 
     use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
     #[test]
     fn test_sum_check() {
@@ -152,42 +158,75 @@ mod test {
         is_compress: bool,
         num_by_index: usize,
     ) -> Result<()> {
+        let mut bytes = Vec::new();
+
         let mut inputs = Vec::new();
         for (index, i) in input_amounts.iter().enumerate() {
             let prove_by_index = index < num_by_index;
+            let merkle_context = PackedMerkleContext {
+                merkle_tree_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 0,
+                leaf_index: 0,
+                prove_by_index,
+            };
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
-                    owner: Keypair::new().pubkey(),
+                    owner: Pubkey::new_unique().to_bytes().into(),
                     lamports: *i,
                     address: None,
                     data: None,
                 },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 0,
-                    prove_by_index,
-                },
+                merkle_context,
                 root_index: 1,
                 read_only: false,
             });
+            // let mut _bytes = Vec::new();
+            inputs
+                .last()
+                .unwrap()
+                .serialize(&mut bytes)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+            // bytes.push(_bytes);
         }
+        let mut output_bytes = Vec::new();
         let mut outputs = Vec::new();
         for amount in output_amounts.iter() {
             outputs.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: Keypair::new().pubkey(),
+                    owner: Pubkey::new_unique().to_bytes().into(),
                     lamports: *amount,
                     address: None,
                     data: None,
                 },
                 merkle_tree_index: 0,
             });
+            outputs
+                .last()
+                .unwrap()
+                .serialize(&mut output_bytes)
+                .map_err(|_| ProgramError::InvalidArgument)?;
+        }
+
+        let mut slice = bytes.as_slice();
+        let mut inputs = Vec::new();
+        for _ in 0..input_amounts.len() {
+            let (input, _bytes) =
+                ZPackedCompressedAccountWithMerkleContext::zero_copy_at(slice).unwrap();
+            slice = _bytes;
+            inputs.push(input);
+        }
+        let mut slice = output_bytes.as_slice();
+        let mut outputs = Vec::new();
+        for _ in 0..output_amounts.len() {
+            let (output, _bytes) =
+                ZOutputCompressedAccountWithPackedContext::zero_copy_at(slice).unwrap();
+            slice = _bytes;
+            outputs.push(output);
         }
 
         let calc_num_prove_by_index_accounts = sum_check(
-            &inputs,
-            &outputs,
+            inputs.as_slice(),
+            outputs.as_slice(),
             &relay_fee,
             &compress_or_decompress_lamports,
             &is_compress,

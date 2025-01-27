@@ -121,9 +121,21 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         process_initialize_state_merkle_tree(
             &ctx.accounts.new_state_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
-            merkle_tree_metadata.access_metadata.owner.into(),
-            Some(merkle_tree_metadata.access_metadata.program_owner.into()),
-            Some(merkle_tree_metadata.access_metadata.forester.into()),
+            merkle_tree_metadata.access_metadata.owner.to_bytes().into(),
+            Some(
+                merkle_tree_metadata
+                    .access_metadata
+                    .program_owner
+                    .to_bytes()
+                    .into(),
+            ),
+            Some(
+                merkle_tree_metadata
+                    .access_metadata
+                    .forester
+                    .to_bytes()
+                    .into(),
+            ),
             &(merkle_tree.height as u32),
             &(merkle_tree.changelog.capacity() as u64),
             &(merkle_tree.roots.capacity() as u64),
@@ -146,9 +158,15 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             ctx.accounts.new_nullifier_queue.to_account_info(),
             &ctx.accounts.new_nullifier_queue,
             queue_metadata.rollover_metadata.index,
-            queue_metadata.access_metadata.owner.into(),
-            Some(queue_metadata.access_metadata.program_owner.into()),
-            Some(queue_metadata.access_metadata.forester.into()),
+            queue_metadata.access_metadata.owner.to_bytes().into(),
+            Some(
+                queue_metadata
+                    .access_metadata
+                    .program_owner
+                    .to_bytes()
+                    .into(),
+            ),
+            Some(queue_metadata.access_metadata.forester.to_bytes().into()),
             ctx.accounts.new_state_merkle_tree.key(),
             nullifier_queue.hash_set.get_capacity() as u16,
             nullifier_queue.hash_set.sequence_threshold as u64,

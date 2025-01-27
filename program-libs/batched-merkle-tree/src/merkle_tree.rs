@@ -8,12 +8,13 @@ use light_merkle_tree_metadata::{
 };
 use light_utils::{
     account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
+    hash_to_bn254_field_size_be,
     hashchain::create_hash_chain_from_array,
+    instruction::compressed_proof::CompressedProof,
     pubkey::Pubkey,
 };
 use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
-    CompressedProof,
 };
 use light_zero_copy::{
     cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError, vec::ZeroCopyVecU64,
@@ -79,6 +80,7 @@ pub struct InstructionDataBatchAppendInputs {
 /// - get_address_root_by_index
 #[derive(Debug, PartialEq)]
 pub struct BatchedMerkleTreeAccount<'a> {
+    pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
     pub bloom_filter_stores: [&'a mut [u8]; 2],
@@ -164,7 +166,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice)
+        let mut tree = Self::from_bytes::<TREE_TYPE>(data_slice)?;
+        tree.pubkey = (*account_info.key).into();
+        Ok(tree)
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.
@@ -199,6 +203,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (vec_1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
         let (vec_2, _) = ZeroCopyVecU64::from_bytes_at(account_data)?;
         Ok(BatchedMerkleTreeAccount {
+            pubkey: Pubkey::default(),
             metadata,
             root_history,
             bloom_filter_stores,
@@ -209,6 +214,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn init(
         account_data: &'a mut [u8],
+        pubkey: &Pubkey,
         metadata: MerkleTreeMetadata,
         root_history_capacity: u32,
         input_queue_batch_size: u64,
@@ -225,6 +231,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
+        account_metadata.hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes()).unwrap().0;
         account_metadata.metadata = metadata;
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;
@@ -295,6 +302,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_data,
         )?;
         Ok(BatchedMerkleTreeAccount {
+            pubkey: Pubkey::default(),
             metadata: account_metadata,
             root_history,
             bloom_filter_stores,
@@ -844,6 +852,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
         Ok(())
     }
+
+    pub fn get_associated_queue(&self) -> &Pubkey {
+        &self.metadata.metadata.associated_queue
+    }
+
+    pub fn pubkey(&self) -> &Pubkey {
+        &self.pubkey
+    }
 }
 
 pub fn get_merkle_tree_account_size_default() -> usize {
@@ -887,6 +903,7 @@ pub fn get_merkle_tree_account_size(
             ..Default::default()
         },
         capacity: 2u64.pow(height),
+        ..Default::default()
     };
     mt_account.get_account_size().unwrap()
 }
@@ -993,15 +1010,17 @@ mod test {
     /// 9. Batch 1 is inserted and Batch 0 is full and overlapping roots exist
     #[test]
     fn test_zero_out() {
-        let mut account_data = vec![0u8; 3128];
+        let mut account_data = vec![0u8; 3160];
         let batch_size = 4;
         let zkp_batch_size = 1;
         let num_zkp_updates = batch_size / zkp_batch_size;
         let root_history_len = 10;
         let num_iter = 1;
         let bloom_filter_capacity = 8000;
+        let pubkey = Pubkey::new_unique();
         BatchedMerkleTreeAccount::init(
             &mut account_data,
+            &pubkey,
             MerkleTreeMetadata::default(),
             root_history_len,
             batch_size,
@@ -1364,7 +1383,7 @@ mod test {
 
     #[test]
     fn test_tree_is_full() {
-        let mut account_data = vec![0u8; 15672];
+        let mut account_data = vec![0u8; 15704];
         let batch_size = 200;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1374,6 +1393,7 @@ mod test {
         let tree_capacity = 2u64.pow(height);
         let account = BatchedMerkleTreeAccount::init(
             &mut account_data,
+            &Pubkey::new_unique(),
             MerkleTreeMetadata::default(),
             root_history_len,
             batch_size,
@@ -1402,7 +1422,7 @@ mod test {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut account_data = vec![0u8; 3192];
+        let mut account_data = vec![0u8; 3224];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1411,6 +1431,7 @@ mod test {
         let height = 4;
         let mut account = BatchedMerkleTreeAccount::init(
             &mut account_data,
+            &Pubkey::new_unique(),
             MerkleTreeMetadata::default(),
             root_history_len,
             batch_size,

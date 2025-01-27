@@ -9,10 +9,7 @@ use light_merkle_tree_metadata::{
     rollover::RolloverMetadata,
 };
 
-use crate::{
-    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
-    InsertIntoQueues, RegisteredProgram,
-};
+use crate::utils::check_signer_is_registered_or_authority::GroupAccess;
 
 #[account(zero_copy)]
 #[derive(AnchorDeserialize, Debug, PartialEq)]
@@ -40,20 +37,15 @@ impl QueueAccount {
 
 impl GroupAccess for QueueAccount {
     fn get_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.owner.into()
+        self.metadata.access_metadata.owner.to_bytes().into()
     }
 
     fn get_program_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.program_owner.into()
-    }
-}
-
-impl<'info> GroupAccounts<'info> for InsertIntoQueues<'info> {
-    fn get_authority(&self) -> &Signer<'info> {
-        &self.authority
-    }
-    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
-        &self.registered_program_pda
+        self.metadata
+            .access_metadata
+            .program_owner
+            .to_bytes()
+            .into()
     }
 }
 

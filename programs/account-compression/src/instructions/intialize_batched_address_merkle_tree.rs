@@ -69,10 +69,14 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
 
 impl GroupAccess for BatchedMerkleTreeAccount<'_> {
     fn get_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.owner.into()
+        self.metadata.access_metadata.owner.to_bytes().into()
     }
 
     fn get_program_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.program_owner.into()
+        self.metadata
+            .access_metadata
+            .program_owner
+            .to_bytes()
+            .into()
     }
 }
