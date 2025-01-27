@@ -7,13 +7,6 @@ use light_registry::{
 };
 use tracing::debug;
 
-pub fn decode_hash(account: &str) -> [u8; 32] {
-    let bytes = bs58::decode(account).into_vec().unwrap();
-    let mut arr = [0u8; 32];
-    arr.copy_from_slice(&bytes);
-    arr
-}
-
 pub async fn get_protocol_config<R: RpcConnection>(rpc: &mut R) -> ProtocolConfig {
     let authority_pda = get_protocol_config_pda_address();
     let protocol_config_account = rpc

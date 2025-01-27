@@ -10,7 +10,6 @@ pub mod helius_priority_fee_types;
 mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
-pub mod photon_indexer;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;

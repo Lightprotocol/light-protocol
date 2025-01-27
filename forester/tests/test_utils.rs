@@ -2,12 +2,11 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig},
     metrics::register_metrics,
-    photon_indexer::PhotonIndexer,
     telemetry::setup_telemetry,
     ForesterConfig,
 };
 use light_client::{
-    indexer::{Indexer, IndexerError, NewAddressProofWithContext},
+    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerError, NewAddressProofWithContext},
     rpc::RpcConnection,
 };
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};

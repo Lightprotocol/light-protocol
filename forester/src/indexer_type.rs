@@ -3,7 +3,9 @@ use std::{any::Any, sync::Arc};
 use async_trait::async_trait;
 use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
-    indexer::{Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
+    indexer::{
+        photon_indexer::PhotonIndexer, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+    },
     rpc::RpcConnection,
 };
 use light_hasher::Poseidon;
@@ -17,7 +19,6 @@ use tracing::info;
 
 use crate::{
     errors::ForesterError,
-    photon_indexer::PhotonIndexer,
     rollover::{perform_address_merkle_tree_rollover, perform_state_merkle_tree_rollover_forester},
     ForesterConfig,
 };

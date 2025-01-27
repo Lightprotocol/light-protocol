@@ -14,6 +14,8 @@ use thiserror::Error;
 
 use crate::rpc::RpcConnection;
 
+pub mod photon_indexer;
+
 #[derive(Error, Debug)]
 pub enum IndexerError {
     #[error("RPC Error: {0}")]
