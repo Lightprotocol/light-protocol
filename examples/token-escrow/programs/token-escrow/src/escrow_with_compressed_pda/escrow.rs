@@ -9,8 +9,12 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    legacy::create_cpi_inputs_for_new_account, light_system_accounts, utils::get_cpi_authority_pda,
-    verify::verify, LightTraits,
+    legacy::create_cpi_inputs_for_new_account,
+    light_system_accounts,
+    system_accounts::LightCpiAccounts,
+    utils::get_cpi_authority_pda,
+    verify::{verify, verify_light_accounts},
+    LightTraits,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -118,7 +122,21 @@ fn cpi_compressed_pda_transfer<'info>(
         Some(cpi_context),
     );
 
-    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
+    let light_cpi_accounts = LightCpiAccounts::new(
+        ctx.accounts.signer.as_ref(),
+        ctx.accounts.cpi_signer.as_ref(),
+        ctx.remaining_accounts,
+    );
+
+    verify_light_accounts(
+        &light_cpi_accounts,
+        inputs.proof,
+        &[record],
+        None,
+        false,
+        Some(cpi_context),
+    )?;
+    // verify(&ctx, &inputs_struct, &[&signer_seeds])?;
 
     Ok(())
 }
