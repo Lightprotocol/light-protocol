@@ -175,7 +175,7 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
 #[tokio::test]
 async fn test_initialize_protocol_config() {
     let rpc = setup_test_programs(None).await;
-    let mut rpc = ProgramTestRpcConnection { context: rpc };
+    let mut rpc = ProgramTestRpcConnection { context: rpc, rate_limiter: None };
 
     let payer = rpc.get_payer().insecure_clone();
     let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
