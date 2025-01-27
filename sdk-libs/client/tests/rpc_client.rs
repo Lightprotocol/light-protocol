@@ -1,4 +1,7 @@
-use light_client::rpc::SolanaRpcConnection;
+use light_client::{
+    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
+    rpc::SolanaRpcConnection,
+};
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
@@ -15,8 +18,6 @@ use solana_sdk::{
     native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer, system_instruction,
     transaction::Transaction,
 };
-use light_client::indexer::{AddressWithTree, Base58Conversions, Hash, Indexer};
-use light_client::indexer::photon_indexer::PhotonIndexer;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_all_endpoints() {
@@ -48,14 +49,12 @@ async fn test_all_endpoints() {
     let env_accounts = EnvAccounts::get_local_test_validator_accounts();
     let rpc: SolanaRpcConnection =
         SolanaRpcConnection::new("http://127.0.0.1:8899".to_string(), None);
-    let mut indexer = PhotonIndexer::new(
-        "http://127.0.0.1:8784".to_string(),
-        None,
-        rpc,
-    );
+    let mut indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc);
 
     let payer_pubkey = indexer.rpc.get_payer().pubkey();
-    indexer.rpc.airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)
+    indexer
+        .rpc
+        .airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)
         .await
         .unwrap();
 
@@ -90,7 +89,9 @@ async fn test_all_endpoints() {
         &[&indexer.rpc.get_payer()],
         indexer.rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer.rpc.client
+    indexer
+        .rpc
+        .client
         .send_and_confirm_transaction(&tx_create_compressed_account)
         .unwrap();
 
@@ -99,7 +100,8 @@ async fn test_all_endpoints() {
     let mint = Keypair::new();
 
     // Setup mint and create compressed token account
-    let mint_rent = indexer.rpc
+    let mint_rent = indexer
+        .rpc
         .client
         .get_minimum_balance_for_rent_exemption(82)
         .unwrap();
@@ -129,7 +131,11 @@ async fn test_all_endpoints() {
         &[indexer.rpc.get_payer(), &mint],
         indexer.rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer.rpc.client.send_and_confirm_transaction(&tx).unwrap();
+    indexer
+        .rpc
+        .client
+        .send_and_confirm_transaction(&tx)
+        .unwrap();
 
     let amount = 1_000_000;
 
@@ -151,7 +157,11 @@ async fn test_all_endpoints() {
         &[&indexer.rpc.get_payer()],
         indexer.rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer.rpc.client.send_and_confirm_transaction(&tx).unwrap();
+    indexer
+        .rpc
+        .client
+        .send_and_confirm_transaction(&tx)
+        .unwrap();
 
     let pubkey = payer_pubkey;
     let hashes = indexer
@@ -227,10 +237,7 @@ async fn test_all_endpoints() {
         .get_compressed_token_balances_by_owner(&pubkey, None)
         .await
         .unwrap();
-    assert_eq!(
-        balances.token_balances[0].balance,
-        amount
-    );
+    assert_eq!(balances.token_balances[0].balance, amount);
 
     let hashes_str = hashes.iter().map(|h| h.to_base58()).collect();
     let proofs = indexer
