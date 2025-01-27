@@ -37,6 +37,7 @@ pub struct LightAccountMeta {
 }
 
 impl LightAccountMeta {
+    /// Create LightAccountMeta for initializing a compressed account.
     pub fn new_init(
         output_merkle_tree: &Pubkey,
         address_merkle_context: Option<&AddressMerkleContext>,
@@ -50,6 +51,7 @@ impl LightAccountMeta {
         }
     }
 
+    /// Create LightAccountMeta for mutating a compressed account.
     #[allow(clippy::too_many_arguments)]
     pub fn new_mut(
         compressed_account: &CompressedAccountWithMerkleContext,
@@ -71,6 +73,7 @@ impl LightAccountMeta {
         }
     }
 
+    /// Create LightAccountMeta for closing a compressed account.
     pub fn new_close(
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
@@ -88,6 +91,11 @@ impl LightAccountMeta {
             ..Default::default()
         }
     }
+
+    /// Pack LightAccountMeta into a PackedLightAccountMeta.
+    ///
+    /// Stores index pointers for merkle context and address merkle context
+    /// pubkeys to the remaining accounts.
     pub fn pack(
         self,
         remaining_accounts: &mut RemainingAccounts,
@@ -150,6 +158,10 @@ pub struct PackedLightAccountMeta {
 }
 
 impl PackedLightAccountMeta {
+    /// Create PackedLightAccountMeta for initializing a compressed account.
+    ///
+    /// Directly stores index pointers for merkle context and address merkle context
+    /// pubkeys to the remaining accounts.
     #[allow(clippy::too_many_arguments)]
     pub fn new_init(
         output_merkle_tree: &Pubkey,
@@ -173,6 +185,10 @@ impl PackedLightAccountMeta {
         })
     }
 
+    /// Create PackedLightAccountMeta for mutating a compressed account.
+    ///
+    /// Directly stores index pointers for merkle context and address merkle context
+    /// pubkeys to the remaining accounts.
     #[allow(clippy::too_many_arguments)]
     pub fn new_mut(
         compressed_account: &CompressedAccountWithMerkleContext,
@@ -204,6 +220,10 @@ impl PackedLightAccountMeta {
         }
     }
 
+    /// Create PackedLightAccountMeta for closing a compressed account.
+    ///
+    /// Directly stores index pointers for merkle context and address merkle context
+    /// pubkeys to the remaining accounts.
     pub fn new_close(
         compressed_account: &CompressedAccountWithMerkleContext,
         merkle_tree_root_index: u16,
