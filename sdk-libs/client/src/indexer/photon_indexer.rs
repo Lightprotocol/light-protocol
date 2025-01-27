@@ -248,8 +248,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 }
 
 fn decode_hash(account: &str) -> [u8; 32] {
-    let bytes = bs58::decode(account).into_vec().unwrap();
     let mut arr = [0u8; 32];
-    arr.copy_from_slice(&bytes);
+    bs58::decode(account)
+        .into(&mut arr)
+        .expect("Failed to decode base58 string");
     arr
 }
