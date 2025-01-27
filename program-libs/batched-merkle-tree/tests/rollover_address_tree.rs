@@ -30,6 +30,7 @@ use rand::thread_rng;
 #[test]
 fn test_rollover() {
     let owner = Pubkey::new_unique();
+    let mt_pubkey = Pubkey::new_unique();
 
     let mt_account_size = get_merkle_tree_account_size_default();
     let mut mt_account_data = vec![0; mt_account_size];
@@ -38,10 +39,16 @@ fn test_rollover() {
     let merkle_tree_rent = 1_000_000_000;
     // create first merkle tree
 
-    init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
-        .unwrap();
+    init_batched_address_merkle_tree_account(
+        owner,
+        params,
+        &mut mt_account_data,
+        merkle_tree_rent,
+        mt_pubkey,
+    )
+    .unwrap();
 
-    let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
+    let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner, mt_pubkey);
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
@@ -49,7 +56,7 @@ fn test_rollover() {
 
     let mut new_mt_account_data = vec![0; mt_account_size];
     let new_mt_pubkey = Pubkey::new_unique();
-
+    println!("pre 1");
     // 1. Failing: not ready for rollover
     {
         let mut mt_account_data = mt_account_data.clone();
@@ -65,6 +72,7 @@ fn test_rollover() {
             Err(MerkleTreeMetadataError::NotReadyForRollover.into())
         );
     }
+    println!("pre 2");
     // 2. Failing rollover threshold not set
     {
         let mut mt_account_data = mt_account_data.clone();
@@ -87,6 +95,7 @@ fn test_rollover() {
             Err(MerkleTreeMetadataError::RolloverNotConfigured.into())
         );
     }
+    println!("pre 3");
     // 3. Functional: rollover address tree
     {
         let merkle_tree =
@@ -101,8 +110,11 @@ fn test_rollover() {
             params.network_fee,
         )
         .unwrap();
-        let new_ref_mt_account = ref_mt_account;
+        let create_tree_params =
+            CreateTreeParams::from_address_ix_params(params, owner, new_mt_pubkey);
 
+        let new_ref_mt_account =
+            BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
         let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << ref_rolledover_mt.height;
         assert_address_mt_roll_over(
@@ -199,7 +211,7 @@ fn test_rnd_rollover() {
             assert_eq!(mt_account_size, ref_account_size);
         }
         let mut mt_account_data = vec![0; mt_account_size];
-
+        let mt_pubkey = Pubkey::new_unique();
         let merkle_tree_rent = rng.gen_range(0..10000000);
 
         init_batched_address_merkle_tree_account(
@@ -207,9 +219,10 @@ fn test_rnd_rollover() {
             params,
             &mut mt_account_data,
             merkle_tree_rent,
+            mt_pubkey,
         )
         .unwrap();
-        let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
+        let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner, mt_pubkey);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
@@ -229,7 +242,11 @@ fn test_rnd_rollover() {
             network_fee,
         )
         .unwrap();
-        let new_ref_mt_account = ref_mt_account;
+        let create_tree_params =
+            CreateTreeParams::from_address_ix_params(params, owner, new_mt_pubkey);
+
+        let new_ref_mt_account =
+            BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
         let mut ref_rolled_over_account = ref_mt_account;
         ref_rolled_over_account.next_index = 1 << params.height;
 
@@ -252,7 +269,7 @@ fn test_rnd_rollover() {
 /// 6. failing: rollower threshold not set
 #[test]
 fn test_batched_tree_is_ready_for_rollover() {
-    let mut account_data = vec![0u8; 6072];
+    let mut account_data = vec![0u8; 6104];
     let batch_size = 50;
     let zkp_batch_size = 1;
     let root_history_len = 10;
@@ -266,9 +283,11 @@ fn test_batched_tree_is_ready_for_rollover() {
         },
         ..Default::default()
     };
+    let mt_pubkey = Pubkey::new_unique();
 
     let mut account = BatchedMerkleTreeAccount::init(
         &mut account_data,
+        &mt_pubkey,
         metadata,
         root_history_len,
         batch_size,

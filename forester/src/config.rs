@@ -1,14 +1,11 @@
 use std::{str::FromStr, time::Duration};
 
-use account_compression::{
-    initialize_address_merkle_tree::Pubkey,
-    utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES},
-};
+use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use anchor_lang::Id;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
-use solana_sdk::signature::Keypair;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
 use crate::{
     cli::{StartArgs, StatusArgs},

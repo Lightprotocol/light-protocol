@@ -22,6 +22,7 @@ light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true }
+light-utils = { workspace = true }
 photon-api = { workspace = true }
 
 borsh = { workspace = true }

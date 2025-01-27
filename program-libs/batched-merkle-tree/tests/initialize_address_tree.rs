@@ -14,16 +14,23 @@ use rand::{rngs::StdRng, Rng};
 #[test]
 fn test_account_init() {
     let owner = Pubkey::new_unique();
+    let tree_pubkey = Pubkey::new_unique();
 
     let mt_account_size = get_merkle_tree_account_size_default();
     let mut mt_account_data = vec![0; mt_account_size];
     let merkle_tree_rent = 1_000_000_000;
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
-    let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
+    let mt_params = CreateTreeParams::from_address_ix_params(params, owner, tree_pubkey);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-    init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
-        .unwrap();
+    init_batched_address_merkle_tree_account(
+        owner,
+        params,
+        &mut mt_account_data,
+        merkle_tree_rent,
+        tree_pubkey,
+    )
+    .unwrap();
 
     assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 }
@@ -35,6 +42,7 @@ fn test_rnd_account_init() {
     for _ in 0..10000 {
         println!("next iter ------------------------------------");
         let owner = Pubkey::new_unique();
+        let tree_pubkey = Pubkey::new_unique();
 
         let program_owner = if rng.gen_bool(0.5) {
             Some(Pubkey::new_unique())
@@ -98,9 +106,10 @@ fn test_rnd_account_init() {
             params,
             &mut mt_account_data,
             merkle_tree_rent,
+            tree_pubkey,
         )
         .unwrap();
-        let mt_params = CreateTreeParams::from_address_ix_params(params, owner);
+        let mt_params = CreateTreeParams::from_address_ix_params(params, owner, tree_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
         assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);

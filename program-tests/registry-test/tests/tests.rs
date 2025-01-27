@@ -2056,7 +2056,11 @@ async fn test_rollover_batch_address_tree() {
         .await
         .unwrap()
         .unwrap();
-    let mt_params = CreateTreeParams::from_address_ix_params(tree_params, env.group_pda.into());
+    let mt_params = CreateTreeParams::from_address_ix_params(
+        tree_params,
+        env.group_pda.into(),
+        new_merkle_tree_keypair.pubkey().into(),
+    );
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
     assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account);
@@ -2103,7 +2107,9 @@ async fn test_rollover_batch_address_tree() {
         // .await;
         // assert_rpc_error(result, 1, RegistryError::NotInActivePhase.into()).unwrap();
     }
-
+    airdrop_lamports(&mut rpc, &new_merkle_tree_keypair.pubkey(), 100_000_000_000)
+        .await
+        .unwrap();
     let new_merkle_tree_keypair2 = Keypair::new();
     perform_rollover_batch_address_merkle_tree(
         &mut rpc,

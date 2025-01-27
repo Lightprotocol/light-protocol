@@ -35,8 +35,15 @@ use light_test_utils::{
     address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
     spl::create_initialize_mint_instructions, AccountZeroCopy, RpcConnection, RpcError,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_tx_hash, UtilsError};
-use light_verifier::{CompressedProof, VerifierError};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    hashchain::create_tx_hash,
+    instruction::{
+        compressed_proof::CompressedProof, insert_into_queues::AppendNullifyCreateAddressInputs,
+    },
+    UtilsError,
+};
+use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
 use serial_test::serial;
 use solana_program_test::ProgramTest;
@@ -163,7 +170,8 @@ async fn test_batch_state_merkle_tree() {
             AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
 
-        let mt_params = CreateTreeParams::from_state_ix_params(params, owner.into());
+        let mt_params =
+            CreateTreeParams::from_state_ix_params(params, owner.into(), merkle_tree_pubkey.into());
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
@@ -173,6 +181,7 @@ async fn test_batch_state_merkle_tree() {
             owner.into(),
             total_rent,
             merkle_tree_pubkey.into(),
+            output_queue_pubkey.into(),
         );
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(queue.account.data.as_mut_slice(), ref_output_queue_account);
@@ -509,11 +518,22 @@ pub async fn perform_insert_into_output_queue(
     counter: &mut u32,
     num_of_leaves: u32,
 ) -> Result<Signature, RpcError> {
-    let mut leaves = vec![];
-    for _ in 0..num_of_leaves {
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            num_of_leaves as u8,
+            0,
+            0,
+            1
+        )
+    ];
+    let mut ix_data =
+        AppendNullifyCreateAddressInputs::new(&mut bytes, num_of_leaves as u8, 0, 0, 1).unwrap();
+    ix_data.num_output_queues = 1;
+    for i in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
         leaf[31] = *counter as u8;
-        leaves.push((0, leaf));
+        ix_data.leaves[i as usize].leaf = leaf;
         mock_indexer.output_queue_leaves.push(leaf);
         mock_indexer.tx_events.push(MockTxEvent {
             tx_hash: [0u8; 32],
@@ -523,12 +543,9 @@ pub async fn perform_insert_into_output_queue(
         *counter += 1;
     }
 
-    let instruction = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
-    let accounts = account_compression::accounts::InsertIntoQueues {
+    let instruction = account_compression::instruction::InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
-        fee_payer: payer.pubkey(),
-        registered_program_pda: None,
-        system_program: Pubkey::default(),
     };
     let accounts = [
         accounts.to_account_metas(Some(true)),
@@ -649,15 +666,15 @@ pub async fn perform_insert_into_input_queue(
     mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
-    proof_by_index: Vec<bool>,
+    prove_by_index: Vec<bool>,
     output_queue_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    if proof_by_index.len() != num_of_leaves as usize {
+    if prove_by_index.len() != num_of_leaves as usize {
         return Err(RpcError::CustomError(format!(
             "Proof by index len {}!= num of leaves {}",
-            proof_by_index.len(),
+            prove_by_index.len(),
             num_of_leaves
         )));
     }
@@ -680,33 +697,43 @@ pub async fn perform_insert_into_input_queue(
         inputs: leaves.clone(),
         outputs: vec![],
     });
-
-    let instruction = account_compression::instruction::InsertIntoNullifierQueues {
-        nullifiers: leaves,
-        leaf_indices,
-        tx_hash,
-        proof_by_index,
-    };
-    let accounts = account_compression::accounts::InsertIntoQueues {
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            0,
+            num_of_leaves as u8,
+            0,
+            1
+        )
+    ];
+    let mut ix_data =
+        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, num_of_leaves as u8, 0, 1).unwrap();
+    ix_data.num_queues = 1;
+    for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
+        ix_nf.account_hash = leaves[i];
+        ix_nf.leaf_index = leaf_indices[i].into();
+        ix_nf.prove_by_index = prove_by_index[i] as u8;
+        ix_nf.queue_index = 0;
+        ix_nf.tree_index = 1;
+    }
+    ix_data.tx_hash = tx_hash;
+    let instruction = account_compression::instruction::InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
-        fee_payer: payer.pubkey(),
-        registered_program_pda: None,
-        system_program: Pubkey::default(),
     };
     let mut account_metas = Vec::new();
-    for _ in 0..num_of_leaves {
-        account_metas.push(AccountMeta {
-            pubkey: output_queue_pubkey,
-            is_signer: false,
-            is_writable: true,
-        });
-        account_metas.push(AccountMeta {
-            pubkey: merkle_tree_pubkey,
-            is_signer: false,
-            is_writable: true,
-        });
-    }
-    let accounts = [accounts.to_account_metas(Some(true)), account_metas].concat();
+    account_metas.push(AccountMeta {
+        pubkey: output_queue_pubkey,
+        is_signer: false,
+        is_writable: true,
+    });
+    account_metas.push(AccountMeta {
+        pubkey: merkle_tree_pubkey,
+        is_signer: false,
+        is_writable: true,
+    });
+
+    let accounts = vec![accounts.to_account_metas(Some(true)), account_metas].concat();
 
     let instruction = Instruction {
         program_id: ID,
@@ -861,7 +888,11 @@ async fn test_init_batch_state_merkle_trees() {
         let mut queue =
             AccountZeroCopy::<BatchedQueueMetadata>::new(&mut context, output_queue_pubkey).await;
         let owner = context.get_payer().pubkey();
-        let mt_params = CreateTreeParams::from_state_ix_params(*params, owner.into());
+        let mt_params = CreateTreeParams::from_state_ix_params(
+            *params,
+            owner.into(),
+            merkle_tree_pubkey.into(),
+        );
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
@@ -873,6 +904,7 @@ async fn test_init_batch_state_merkle_trees() {
             owner.into(),
             total_rent,
             merkle_tree_pubkey.into(),
+            output_queue_pubkey.into(),
         );
 
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
@@ -1128,6 +1160,35 @@ async fn test_rollover_batch_state_merkle_trees() {
         )
         .unwrap();
     }
+    {
+        let result = perform_rollover_batch_state_merkle_tree(
+            &mut context,
+            &payer,
+            merkle_tree_keypair.pubkey(),
+            nullifier_queue_keypair.pubkey(),
+            &new_state_merkle_tree_keypair,
+            &new_output_queue_keypair,
+            params.additional_bytes,
+            params.network_fee,
+            BatchStateMerkleTreeRollOverTestMode::Functional,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            2,
+            MerkleTreeMetadataError::NotReadyForRollover.into(),
+        )
+        .unwrap();
+    }
+    // Sent funds to nullier queue for rollover reimbursment
+    // rollover fees are now transferred in the system program.
+    airdrop_lamports(
+        &mut context,
+        &nullifier_queue_keypair.pubkey(),
+        100_000_000_000,
+    )
+    .await
+    .unwrap();
     // 7. functional
     {
         perform_rollover_batch_state_merkle_tree(
@@ -1381,7 +1442,11 @@ async fn test_init_batch_address_merkle_trees() {
         let merkle_tree =
             AccountZeroCopy::<BatchedMerkleTreeMetadata>::new(&mut context, merkle_tree_pubkey)
                 .await;
-        let mt_params = CreateTreeParams::from_address_ix_params(*params, owner.into());
+        let mt_params = CreateTreeParams::from_address_ix_params(
+            *params,
+            owner.into(),
+            merkle_tree_pubkey.into(),
+        );
 
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
@@ -1658,6 +1723,32 @@ async fn test_batch_address_merkle_trees() {
         assert_rpc_error(result, 0, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 12. functional: rollover
+    {
+        let result = rollover_batched_address_merkle_tree(
+            &mut context,
+            address_merkle_tree_pubkey,
+            &payer,
+            RolloverBatchAddressTreeTestMode::Functional,
+        )
+        .await;
+        assert_rpc_error(
+            result,
+            1,
+            MerkleTreeMetadataError::NotReadyForRollover.into(),
+        )
+        .unwrap();
+    };
+    // sent money for rollover reimbursement, rollover fee is paid in system program now.
+    let rent = context
+        .get_account(address_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    airdrop_lamports(&mut context, &address_merkle_tree_pubkey, rent)
+        .await
+        .unwrap();
+    // 12. functional: rollover
     let (_, new_address_merkle_tree) = {
         rollover_batched_address_merkle_tree(
             &mut context,
@@ -1668,10 +1759,6 @@ async fn test_batch_address_merkle_trees() {
         .await
         .unwrap()
     };
-    let invalid_authority = Keypair::new();
-    airdrop_lamports(&mut context, &invalid_authority.pubkey(), 100_000_000_000)
-        .await
-        .unwrap();
     // 13. Failing: already rolled over
     {
         let result = rollover_batched_address_merkle_tree(
@@ -1684,10 +1771,14 @@ async fn test_batch_address_merkle_trees() {
         assert_rpc_error(
             result,
             1,
-            MerkleTreeMetadataError::MerkleTreeAlreadyRolledOver.into(),
+            MerkleTreeMetadataError::NotReadyForRollover.into(),
         )
         .unwrap();
     }
+    let invalid_authority = Keypair::new();
+    airdrop_lamports(&mut context, &invalid_authority.pubkey(), 100_000_000_000)
+        .await
+        .unwrap();
     // 14. Failing: invalid authority
     {
         let result = rollover_batched_address_merkle_tree(
@@ -1737,6 +1828,15 @@ async fn test_batch_address_merkle_trees() {
         let address_merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
         perform_init_batch_address_merkle_tree(&mut context, &params, &merkle_tree_keypair)
+            .await
+            .unwrap(); // sent money for rollover reimbursement, rollover fee is paid in system program now.
+        let rent = context
+            .get_account(merkle_tree_keypair.pubkey())
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports;
+        airdrop_lamports(&mut context, &merkle_tree_keypair.pubkey(), rent)
             .await
             .unwrap();
         let result = rollover_batched_address_merkle_tree(
@@ -1798,12 +1898,13 @@ pub async fn rollover_batched_address_merkle_tree(
         registered_program_pda: None,
         fee_payer: payer_pubkey,
     };
+    println!("address_merkle_tree_pubkey {}", address_merkle_tree_pubkey);
+
     let instruction = Instruction {
         program_id: ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     };
-
     Ok((
         context
             .create_and_send_transaction(

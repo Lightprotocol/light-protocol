@@ -124,24 +124,24 @@ use light_registry::{
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
-use light_sdk::{
-    event::PublicTransactionEvent,
-    token::{AccountState, TokenDataWithMerkleContext},
-};
-use light_system_program::{
-    sdk::{
+use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    instruction::{
         address::{
             derive_address, pack_new_address_params, pack_read_only_accounts,
             pack_read_only_address_params,
         },
         compressed_account::{
-            pack_compressed_accounts, pack_output_compressed_accounts,
-            CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
+            pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
+            CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
         },
+        compressed_proof::CompressedProof,
+        instruction_data::{NewAddressParams, ReadOnlyAddress},
+        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
     },
-    InstructionDataInvokeCpiWithReadOnly, ReadOnlyAddress,
+    rand::gen_prime,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, rand::gen_prime};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -167,9 +167,6 @@ use crate::{
     },
     assert_epoch::{
         assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
-    },
-    conversions::{
-        sdk_to_program_compressed_account_with_merkle_context, sdk_to_program_compressed_proof,
     },
     create_address_merkle_tree_and_queue_account_with_assert,
     spl::{
@@ -817,6 +814,7 @@ where
                                     addresses,
                                     self.indexer
                                         .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .await
                                         .unwrap()
                                         .try_into()
                                         .unwrap(),
@@ -847,7 +845,7 @@ where
                                         compress_proof(&proof_a, &proof_b, &proof_c);
                                     let instruction_data = InstructionDataBatchNullifyInputs {
                                         new_root: circuit_inputs_new_root,
-                                        compressed_proof: light_verifier::CompressedProof {
+                                        compressed_proof: CompressedProof {
                                             a: proof_a,
                                             b: proof_b,
                                             c: proof_c,
@@ -2472,10 +2470,6 @@ where
 
             accounts
         };
-        let input_accounts = input_accounts
-            .iter()
-            .map(|x| sdk_to_program_compressed_account_with_merkle_context(x.clone()))
-            .collect::<Vec<_>>();
 
         let mut read_only_accounts = {
             let program_accounts = self
@@ -2503,10 +2497,7 @@ where
 
                     ReadOnlyCompressedAccount {
                         account_hash,
-                        merkle_context: sdk_to_program_compressed_account_with_merkle_context(
-                            account.clone(),
-                        )
-                        .merkle_context,
+                        merkle_context: account.merkle_context,
                         root_index: 0, // set after proof generation
                     }
                 })
@@ -2548,7 +2539,7 @@ where
                 .iter()
                 .enumerate()
                 .map(|(index, seed)| {
-                    light_system_program::NewAddressParams {
+                    NewAddressParams {
                         address_merkle_tree_pubkey: address_merkle_tree[index],
                         address_queue_pubkey: queues[index],
                         seed: *seed,
@@ -2605,15 +2596,13 @@ where
                 } else {
                     None
                 };
-                let account = light_system_program::sdk::compressed_account::CompressedAccount {
+                let account = CompressedAccount {
                     owner: create_address_test_program::ID,
-                    data: Some(
-                        light_system_program::sdk::compressed_account::CompressedAccountData {
-                            data: rnd_data.to_vec(),
-                            discriminator: [1; 8],
-                            data_hash,
-                        },
-                    ),
+                    data: Some(CompressedAccountData {
+                        data: rnd_data.to_vec(),
+                        discriminator: [1; 8],
+                        data_hash,
+                    }),
                     address,
                     lamports: 0,
                 };
@@ -2670,7 +2659,7 @@ where
             root_indices = proof_rpc_res.root_indices.clone();
 
             if let Some(proof_rpc_res) = proof_rpc_res.proof {
-                proof = Some(sdk_to_program_compressed_proof(proof_rpc_res));
+                proof = Some(proof_rpc_res);
             }
 
             if !new_address_params.is_empty() {
@@ -2728,7 +2717,7 @@ where
             "remaining_accounts: {:?}",
             remaining_accounts.clone().into_iter().collect::<Vec<_>>()
         );
-        let invoke_cpi = light_system_program::InstructionDataInvokeCpi {
+        let invoke_cpi: InstructionDataInvokeCpi = InstructionDataInvokeCpi {
             proof,
             new_address_params: packed_new_address_params,
             input_compressed_accounts_with_merkle_context: packed_inputs,
@@ -2771,6 +2760,7 @@ where
         {
             return Ok(());
         }
+
         let user = &self.users[user_index].keypair;
         let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -2780,28 +2770,47 @@ where
             remaining_accounts,
         );
 
-        let (event, _, slot) = self
+        let res = self
             .rpc
-            .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            .create_and_send_transaction_with_public_event(
                 &[instruction],
                 &user.pubkey(),
                 &[user],
                 None,
             )
-            .await?
-            .ok_or(RpcError::CustomError(
-                "invoke_cpi_test No event".to_string(),
+            .await?;
+        // In case that only read only accounts exist in a transaction
+        // the account compression program is not invoked -> there is no event and it is ok.
+        let tx_has_read_only =
+            ix_data.read_only_accounts.is_some() || ix_data.read_only_addresses.is_some();
+        let tx_has_no_writable = ix_data
+            .invoke_cpi
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
+            && ix_data.invoke_cpi.new_address_params.is_empty();
+        let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
+        if !tx_is_read_only {
+            let (event, _, slot) = res.ok_or(RpcError::CustomError(
+                "invoke_cpi_test: No event".to_string(),
             ))?;
-        self.indexer.add_event_and_compressed_accounts(slot, &event);
-        let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
-        println!(
-            "tree_bundle queue_elements: {:?}",
-            tree_bundle.queue_elements
-        );
-        println!(
-            "new addresses proof_input_addresses: {:?}",
-            proof_input_addresses
-        );
+
+            self.indexer.add_event_and_compressed_accounts(slot, &event);
+            let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
+            println!(
+                "tree_bundle queue_elements: {:?}",
+                tree_bundle.queue_elements
+            );
+            println!(
+                "new addresses proof_input_addresses: {:?}",
+                proof_input_addresses
+            );
+        } else if res.is_some() {
+            return Err(RpcError::CustomError(
+                "invoke_cpi_test: Read only tx created an event.".to_string(),
+            ));
+        }
+
         Ok(())
     }
 
@@ -2815,7 +2824,6 @@ where
                 &self.users[user_index].keypair.pubkey(),
             )
             .into_iter()
-            .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect::<Vec<_>>();
         if input_compressed_accounts.is_empty() {
             return vec![];
@@ -2856,7 +2864,6 @@ where
         self.indexer
             .get_compressed_accounts_with_merkle_context_by_owner(pubkey)
             .into_iter()
-            .map(sdk_to_program_compressed_account_with_merkle_context)
             .collect()
     }
 

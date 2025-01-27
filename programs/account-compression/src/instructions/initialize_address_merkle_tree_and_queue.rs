@@ -3,8 +3,10 @@ use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     errors::AccountCompressionErrorCode,
-    initialize_address_merkle_tree::process_initialize_address_merkle_tree,
-    initialize_address_queue::process_initialize_address_queue,
+    processor::{
+        initialize_address_merkle_tree::process_initialize_address_merkle_tree,
+        initialize_address_queue::process_initialize_address_queue,
+    },
     state::QueueAccount,
     utils::{
         check_signer_is_registered_or_authority::{

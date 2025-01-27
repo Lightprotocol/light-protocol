@@ -14,9 +14,15 @@ import {
     Layout,
     vecU8,
 } from '@coral-xyz/borsh';
-import { InstructionDataInvoke, PublicTransactionEvent } from '../state';
+import {
+    InstructionDataInvoke,
+    InstructionDataInvokeCpi,
+    PublicTransactionEvent,
+} from '../state';
 import { LightSystemProgram } from './system';
-import { INVOKE_DISCRIMINATOR } from '../constants';
+import { INVOKE_CPI_DISCRIMINATOR, INVOKE_DISCRIMINATOR } from '../constants';
+import { BN } from 'bn.js';
+
 export const CompressedAccountLayout = struct(
     [
         publicKey('owner'),
@@ -87,20 +93,181 @@ export function encodeInstructionDataInvoke(
     data: InstructionDataInvoke,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
-    const len = InstructionDataInvokeLayout.encode(data, buffer);
-    const dataBuffer = Buffer.from(buffer.slice(0, len));
+    console.log('--- Pre-encoding logging ---');
+    console.log('data:', data);
 
+    // Check the proof field arrays
+    if (data.proof) {
+        console.log(
+            'Proof.a:',
+            data.proof.a,
+            'Is Array:',
+            Array.isArray(data.proof.a),
+        );
+        console.log(
+            'Proof.b:',
+            data.proof.b,
+            'Is Array:',
+            Array.isArray(data.proof.b),
+        );
+        console.log(
+            'Proof.c:',
+            data.proof.c,
+            'Is Array:',
+            Array.isArray(data.proof.c),
+        );
+    } else {
+        console.log('proof is missing or null');
+    }
+
+    // Check inputCompressedAccountsWithMerkleContext array
+    console.log(
+        'inputCompressedAccountsWithMerkleContext:',
+        data.inputCompressedAccountsWithMerkleContext,
+        'Is Array:',
+        Array.isArray(data.inputCompressedAccountsWithMerkleContext),
+    );
+    data.inputCompressedAccountsWithMerkleContext.forEach((account, index) => {
+        console.log(
+            `Input account[${index}] compressedAccount:`,
+            account.compressedAccount,
+        );
+        // Check the optional data field within compressedAccount
+        if (
+            account.compressedAccount.data === null ||
+            account.compressedAccount.data === undefined
+        ) {
+            console.log(
+                `Input account[${index}] compressedAccount.data is missing or null (so inner structure is not encoded)`,
+            );
+        } else {
+            console.log(
+                `Input account[${index}] compressedAccount.data exists:`,
+                account.compressedAccount.data,
+            );
+            console.log(
+                `Input account[${index}] compressedAccount.data.data:`,
+                account.compressedAccount.data.data,
+                'Is Array:',
+                Array.isArray(account.compressedAccount.data.data),
+            );
+        }
+        console.log(
+            `Input account[${index}] merkleContext:`,
+            account.merkleContext,
+        );
+    });
+
+    // Check outputCompressedAccounts array
+    console.log(
+        'outputCompressedAccounts:',
+        data.outputCompressedAccounts,
+        'Is Array:',
+        Array.isArray(data.outputCompressedAccounts),
+    );
+    data.outputCompressedAccounts.forEach((account, index) => {
+        console.log(
+            `Output account[${index}] compressedAccount:`,
+            account.compressedAccount,
+        );
+        if (
+            account.compressedAccount.data === null ||
+            account.compressedAccount.data === undefined
+        ) {
+            console.log(
+                `Output account[${index}] compressedAccount.data is missing or null (so inner structure is not encoded)`,
+            );
+        } else {
+            console.log(
+                `Output account[${index}] compressedAccount.data exists:`,
+                account.compressedAccount.data,
+            );
+            console.log(
+                `Output account[${index}] compressedAccount.data.data:`,
+                account.compressedAccount.data.data,
+                'Is Array:',
+                Array.isArray(account.compressedAccount.data.data),
+            );
+        }
+    });
+
+    // Check newAddressParams array (if any)
+    console.log(
+        'newAddressParams:',
+        data.newAddressParams,
+        'Is Array:',
+        Array.isArray(data.newAddressParams),
+    );
+
+    // Log other fields if needed
+    console.log('relayFee:', data.relayFee);
+    console.log(
+        'compressOrDecompressLamports:',
+        data.compressOrDecompressLamports,
+    );
+    console.log('isCompress:', data.isCompress);
+
+    console.log('--- End of pre-encoding logging ---');
+
+    console.log('encoding');
+    const len = InstructionDataInvokeLayout.encode(data, buffer);
+    console.log('encoded, len', len);
+    const dataBuffer = Buffer.from(buffer.slice(0, len));
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
-
     return Buffer.concat([INVOKE_DISCRIMINATOR, lengthBuffer, dataBuffer]);
 }
+
+export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
+    struct([
+        option(
+            struct([
+                array(u8(), 32, 'a'),
+                array(u8(), 64, 'b'),
+                array(u8(), 32, 'c'),
+            ]),
+            'proof',
+        ),
+        vec(NewAddressParamsLayout, 'newAddressParams'),
+        vec(
+            struct([
+                CompressedAccountLayout,
+                MerkleContextLayout,
+                u16('rootIndex'),
+                bool('readOnly'),
+            ]),
+            'inputCompressedAccountsWithMerkleContext',
+        ),
+        vec(
+            struct([CompressedAccountLayout, u8('merkleTreeIndex')]),
+            'outputCompressedAccounts',
+        ),
+        option(u64(), 'relayFee'),
+        option(u64(), 'compressOrDecompressLamports'),
+        bool('isCompress'),
+        option(
+            struct([
+                bool('set_context'),
+                bool('first_set_context'),
+                u8('cpi_context_account_index'),
+            ]),
+            'compressedCpiContext',
+        ),
+    ]);
 
 export function decodeInstructionDataInvoke(
     buffer: Buffer,
 ): InstructionDataInvoke {
     return InstructionDataInvokeLayout.decode(
         buffer.slice(INVOKE_DISCRIMINATOR.length + 4),
+    );
+}
+
+export function decodeInstructionDataInvokeCpi(
+    buffer: Buffer,
+): InstructionDataInvokeCpi {
+    return InstructionDataInvokeCpiLayout.decode(
+        buffer.slice(INVOKE_CPI_DISCRIMINATOR.length + 4),
     );
 }
 
@@ -209,4 +376,179 @@ export function decodePublicTransactionEvent(
     buffer: Buffer,
 ): PublicTransactionEvent {
     return PublicTransactionEventLayout.decode(buffer);
+}
+
+export const AppendNullifyCreateAddressInputsMetaLayout = struct(
+    [
+        u8('is_invoked_by_program'),
+        u8('bump'),
+        u8('num_queues'),
+        u8('num_output_queues'),
+        u8('start_output_appends'),
+        u8('num_address_queues'),
+        array(u8(), 32, 'tx_hash'),
+    ],
+    'appendNullifyCreateAddressInputsMeta',
+);
+
+export const AppendLeavesInputLayout = struct(
+    [u8('index'), array(u8(), 32, 'leaf')],
+    'appendLeavesInput',
+);
+
+export const InsertNullifierInputLayout = struct(
+    [
+        array(u8(), 32, 'account_hash'),
+        u32('leaf_index'),
+        u8('prove_by_index'),
+        u8('tree_index'),
+        u8('queue_index'),
+    ],
+    'insertNullifierInput',
+);
+export const InsertAddressInputLayout = struct(
+    [array(u8(), 32, 'address'), u8('tree_index'), u8('queue_index')],
+    'insertAddressInput',
+);
+
+export const MerkleTreeSequenceNumberLayout = struct(
+    [publicKey('pubkey'), u64('seq')],
+    'merkleTreeSequenceNumber',
+);
+
+export function deserializeAppendNullifyCreateAddressInputsIndexer(
+    buffer: Buffer,
+) {
+    let offset = 0;
+    const meta = AppendNullifyCreateAddressInputsMetaLayout.decode(
+        buffer,
+        offset,
+    );
+    offset += AppendNullifyCreateAddressInputsMetaLayout.span;
+    const leavesCount = buffer.readUInt8(offset);
+    offset += 1;
+    const leaves = [];
+    for (let i = 0; i < leavesCount; i++) {
+        const leaf = AppendLeavesInputLayout.decode(buffer, offset);
+        leaves.push(leaf);
+        offset += AppendLeavesInputLayout.span;
+    }
+    const nullifiersCount = buffer.readUInt8(offset);
+    offset += 1;
+    const nullifiers = [];
+    for (let i = 0; i < nullifiersCount; i++) {
+        const nullifier = InsertNullifierInputLayout.decode(buffer, offset);
+        nullifiers.push(nullifier);
+        offset += InsertNullifierInputLayout.span;
+    }
+    const addressesCount = buffer.readUInt8(offset);
+    offset += 1;
+    const addresses = [];
+    for (let i = 0; i < addressesCount; i++) {
+        const address = InsertAddressInputLayout.decode(buffer, offset);
+        addresses.push(address);
+        offset += InsertAddressInputLayout.span;
+    }
+    const sequenceNumbersCount = buffer.readUInt8(offset);
+    offset += 1;
+    const sequence_numbers = [];
+    for (let i = 0; i < sequenceNumbersCount; i++) {
+        const seq = MerkleTreeSequenceNumberLayout.decode(buffer, offset);
+        sequence_numbers.push(seq);
+        offset += MerkleTreeSequenceNumberLayout.span;
+    }
+    const outputLeafIndicesCount = buffer.readUInt8(offset);
+    offset += 1;
+    const output_leaf_indices = [];
+    for (let i = 0; i < outputLeafIndicesCount; i++) {
+        const index = u32().decode(buffer, offset);
+        output_leaf_indices.push(index);
+        offset += 4;
+    }
+    return {
+        meta,
+        leaves,
+        nullifiers,
+        addresses,
+        sequence_numbers,
+        output_leaf_indices,
+    };
+}
+
+export function convertToPublicTransactionEvent(
+    decoded: any,
+    remainingAccounts: PublicKey[],
+    invokeData: InstructionDataInvoke,
+): PublicTransactionEvent {
+    const convertByteArray = (arr: Uint8Array | Buffer): number[] =>
+        Array.from(arr instanceof Buffer ? new Uint8Array(arr) : arr);
+
+    const result = {
+        inputCompressedAccountHashes: decoded.nullifiers.map((n: any) =>
+            convertByteArray(n.account_hash),
+        ),
+        outputCompressedAccountHashes: decoded.leaves.map((l: any) =>
+            convertByteArray(l.leaf),
+        ),
+        outputCompressedAccounts: decoded.leaves.map(
+            (leaf: any, index: number) => ({
+                compressedAccount: {
+                    owner: new PublicKey(
+                        invokeData?.outputCompressedAccounts[index]
+                            ?.compressedAccount.owner || PublicKey.default,
+                    ),
+                    lamports: new BN(
+                        invokeData?.outputCompressedAccounts[index]
+                            ?.compressedAccount.lamports || 0,
+                    ),
+                    address:
+                        invokeData?.outputCompressedAccounts[index]
+                            .compressedAccount.address,
+                    data: invokeData?.outputCompressedAccounts[index]
+                        ?.compressedAccount.data
+                        ? {
+                              discriminator: convertByteArray(
+                                  Buffer.from(
+                                      invokeData.outputCompressedAccounts[index]
+                                          .compressedAccount.data
+                                          ?.discriminator,
+                                  ),
+                              ),
+                              data:
+                                  convertByteArray(
+                                      Buffer.from(
+                                          invokeData.outputCompressedAccounts[
+                                              index
+                                          ].compressedAccount.data.data,
+                                      ),
+                                  ) ?? [],
+                              dataHash: convertByteArray(
+                                  Buffer.from(
+                                      invokeData.outputCompressedAccounts[index]
+                                          .compressedAccount.data?.dataHash,
+                                  ),
+                              ),
+                          }
+                        : null,
+                },
+                merkleTreeIndex: leaf.index,
+            }),
+        ),
+        outputLeafIndices: decoded.output_leaf_indices,
+        sequenceNumbers: decoded.sequence_numbers.map((sn: any) => ({
+            pubkey: new PublicKey(sn.pubkey),
+            seq: new BN(sn.seq),
+        })),
+        pubkeyArray: remainingAccounts
+            .slice(2)
+            .filter(pk => !pk.equals(PublicKey.default)),
+        isCompress: invokeData?.isCompress || false,
+        relayFee: invokeData?.relayFee ? new BN(invokeData.relayFee) : null,
+        compressOrDecompressLamports: invokeData?.compressOrDecompressLamports
+            ? new BN(invokeData.compressOrDecompressLamports)
+            : null,
+        message: null,
+    };
+
+    return result;
 }

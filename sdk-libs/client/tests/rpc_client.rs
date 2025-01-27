@@ -1,5 +1,5 @@
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
+    photon_rpc::{AddressWithTree, Base58Conversions, Hash, PhotonClient},
     rpc::SolanaRpcConnection,
 };
 use light_compressed_token::mint_sdk::{
@@ -9,11 +9,10 @@ use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
-use light_system_program::sdk::{
-    compressed_account::CompressedAccount, invoke::create_invoke_instruction,
+use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
+use light_utils::{
+    hash_to_bn254_field_size_be, instruction::compressed_account::CompressedAccount,
 };
-use light_test_utils::RpcConnection;
-use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer, system_instruction,
     transaction::Transaction,
@@ -224,6 +223,22 @@ async fn test_all_endpoints() {
 
     let token_accounts = &indexer
         .get_compressed_token_accounts_by_owner(&pubkey, None)
+        .await
+        .unwrap()[0];
+    assert_eq!(token_account.token_data.mint, mint.pubkey());
+    assert_eq!(token_account.token_data.owner, payer_pubkey);
+
+    let balance = indexer
+        .get_compressed_token_account_balance(
+            None,
+            Some(
+                token_account
+                    .compressed_account
+                    .compressed_account
+                    .hash
+                    .unwrap(),
+            ),
+        )
         .await
         .unwrap();
 

@@ -48,16 +48,18 @@ use light_prover_client::{
     non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
 use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext,
-    event::PublicTransactionEvent,
-    merkle_context::MerkleContext,
-    proof::{BatchedTreeProofRpcResult, CompressedProof, ProofRpcResult},
+    proof::{BatchedTreeProofRpcResult, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
     STATE_MERKLE_TREE_CANOPY_DEPTH,
 };
 use light_utils::{
     bigint::bigint_to_be_bytes_array,
     hashchain::{create_hash_chain_from_slice, create_tx_hash},
+    instruction::{
+        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+        compressed_proof::CompressedProof,
+        event::PublicTransactionEvent,
+    },
 };
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
@@ -132,7 +134,10 @@ where
         Err(IndexerError::Custom("Merkle tree not found".to_string()))
     }
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
@@ -564,29 +569,29 @@ where
         todo!()
     }
 
-    fn get_proofs_by_indices(
+    async fn get_proofs_by_indices(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Vec<ProofOfLeaf> {
-        indices
+    ) -> Result<Vec<ProofOfLeaf>, IndexerError> {
+        Ok(indices
             .iter()
             .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
-            .collect()
+            .collect())
     }
 
-    fn get_leaf_indices_tx_hashes(
+    async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo> {
+    ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
-        state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec()
+        Ok(state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec())
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
@@ -716,6 +721,8 @@ where
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
         let mut indices_to_remove = Vec::new();
+        println!("compressed account: {:?}", compressed_accounts);
+        println!("state Merkle tree pubkeys: {:?}", state_merkle_tree_pubkeys);
         // for all accounts in batched trees, check whether values are in tree or queue
         let (compressed_accounts, state_merkle_tree_pubkeys) =
             if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
@@ -729,8 +736,12 @@ where
                     let accounts = self.state_merkle_trees.iter().find(|x| {
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
                     });
+                    println!("state_merkle_tree_pubkey {:?}", state_merkle_tree_pubkey);
+                    println!("accounts {}", accounts.is_some());
                     if let Some(accounts) = accounts {
                         let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
+                        println!("leaf index {:?} ", leaf_index);
+                        println!("compressed_account {:?}", compressed_account);
                         if leaf_index.is_none() {
                             let output_queue_pubkey = accounts.accounts.nullifier_queue;
                             let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
@@ -745,6 +756,7 @@ where
                             for value_array in queue_zero_copy.value_vecs.iter() {
                                 let index =
                                     value_array.iter().position(|x| *x == *compressed_account);
+                                println!("index {:?}", index);
                                 if index.is_some() {
                                     indices_to_remove.push(i);
                                 }
@@ -1363,8 +1375,11 @@ where
                     .iter()
                     .find(|x| x.accounts.merkle_tree == pubkey)
                     .unwrap();
+                println!("merkle tree {:?}", bundle.accounts.merkle_tree);
+                println!("account {:?}", account);
                 let merkle_tree = &bundle.merkle_tree;
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
+                println!("leaf index {:?}", leaf_index);
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
                 // Convert proof to owned data that implements Send
@@ -1686,6 +1701,7 @@ where
                     new_addresses.push(address);
                 }
             }
+            println!("event {:?}", event);
 
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
@@ -1762,32 +1778,44 @@ where
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-            let seq = event
-                .sequence_numbers
-                .iter()
-                .find(|x| x.pubkey == merkle_tree_pubkey);
-            let seq = if let Some(seq) = seq {
-                seq
-            } else {
-                event
-                    .sequence_numbers
-                    .iter()
-                    .find(|x| x.pubkey == nullifier_queue_pubkey)
-                    .unwrap()
-            };
-            let is_batched = seq.seq == u64::MAX;
+            // let seq = event
+            //     .sequence_numbers
+            //     .iter()
+            //     .find(|x| x.pubkey == merkle_tree_pubkey);
+            // let seq = if let Some(seq) = seq {
+            //     seq
+            // } else {
+            //     event
+            //         .sequence_numbers
+            //         .iter()
+            //         .find(|x| x.pubkey == nullifier_queue_pubkey)
+            //         .unwrap()
+            // };
+            let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
+                x.accounts.merkle_tree
+                    == event.pubkey_array
+                        [event.output_compressed_accounts[i].merkle_tree_index as usize]
+            });
+            // // Could be batched.
+            // let merkle_tree = if merkle_tree.is_none() {
+            //     let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
+            //         x.accounts.nullifier_queue
+            //             == event.pubkey_array
+            //                 [event.output_compressed_accounts[i].merkle_tree_index as usize]
+            //     });
+            //     if let Some(merkle_tree) = merkle_tree {
+            //         merkle_tree
+            //     } else {
+            //         panic!("no mit found")
+            //     }
+            // } else {
+            //     merkle_tree.unwrap()
+            // };
+            let is_batched = merkle_tree.is_none();
 
             println!("Output is batched {:?}", is_batched);
-            if !is_batched {
-                let merkle_tree = &mut self
-                    .state_merkle_trees
-                    .iter_mut()
-                    .find(|x| {
-                        x.accounts.merkle_tree
-                            == event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize]
-                    })
-                    .unwrap();
+            if merkle_tree.is_some() {
+                let merkle_tree = merkle_tree.as_mut().unwrap();
                 merkle_tree
                     .merkle_tree
                     .append(

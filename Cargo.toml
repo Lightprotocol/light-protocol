@@ -109,7 +109,7 @@ light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
 light-utils = { path = "program-libs/utils", version = "1.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.1.0" }
-photon-api = { path = "sdk-libs/photon-api", version = "0.45.0" }
+photon-api = { path = "sdk-libs/photon-api", version = "0.50.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
 account-compression = { path = "programs/account-compression", version = "1.2.0", features = ["cpi"] }
 light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = ["cpi"] }

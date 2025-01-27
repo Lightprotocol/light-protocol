@@ -29,10 +29,12 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-utils",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -59,6 +61,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "serial_test",
@@ -725,12 +728,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
-name = "base64"
-version = "0.22.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
-
-[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1236,6 +1233,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "light-verifier",
  "rand 0.8.5",
  "serial_test",
@@ -1978,6 +1976,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "log",
  "photon-api",
  "prometheus",
@@ -2732,7 +2731,6 @@ checksum = "68b900aa2f7301e21c36462b170ee99994de34dff39a4a6a528e80e7376d07e5"
 dependencies = [
  "equivalent",
  "hashbrown 0.14.5",
- "serde",
 ]
 
 [[package]]
@@ -3148,6 +3146,7 @@ dependencies = [
  "light-system-program",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3250,11 +3249,14 @@ dependencies = [
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-metadata",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -3306,6 +3308,7 @@ dependencies = [
  "light-bounded-vec",
  "light-hasher",
  "light-poseidon",
+ "light-zero-copy",
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "rand 0.8.5",
@@ -3322,11 +3325,13 @@ dependencies = [
  "groth16-solana",
  "light-prover-client",
  "light-utils",
+ "light-zero-copy",
  "reqwest",
  "serial_test",
  "solana-program",
  "thiserror 1.0.64",
  "tokio",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
@@ -4072,14 +4077,15 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.45.0"
+version = "0.50.0"
 dependencies = [
  "reqwest",
  "serde",
  "serde_derive",
  "serde_json",
- "serde_with 3.12.0",
+ "serde_with",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -4916,6 +4922,7 @@ dependencies = [
  "light-prover-client",
  "light-sdk",
  "light-test-utils",
+ "light-utils",
  "solana-sdk",
  "tokio",
 ]
@@ -5017,25 +5024,13 @@ version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07ff71d2c147a7b57362cead5e22f772cd52f6ab31cfcd9edcd7f6aeb2a0afbe"
 dependencies = [
- "serde",
- "serde_with_macros 2.3.3",
-]
-
-[[package]]
-name = "serde_with"
-version = "3.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b6f7f2fcb69f747921f79f3926bd1e203fce4fef62c268dd3abfb6d86029aa"
-dependencies = [
- "base64 0.22.1",
+ "base64 0.13.1",
  "chrono",
  "hex",
  "indexmap 1.9.3",
- "indexmap 2.5.0",
  "serde",
- "serde_derive",
  "serde_json",
- "serde_with_macros 3.12.0",
+ "serde_with_macros",
  "time",
 ]
 
@@ -5044,18 +5039,6 @@ name = "serde_with_macros"
 version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.96",
-]
-
-[[package]]
-name = "serde_with_macros"
-version = "3.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d00caa5193a3c8362ac2b73be6b9e768aa5a4b2f721d8f4b339600c3cb51f8e"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -6070,7 +6053,7 @@ dependencies = [
  "serde_bytes",
  "serde_derive",
  "serde_json",
- "serde_with 2.3.3",
+ "serde_with",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "siphasher",
@@ -7337,6 +7320,7 @@ dependencies = [
  "light-sdk",
  "light-system-program",
  "light-test-utils",
+ "light-utils",
  "light-verifier",
  "solana-sdk",
  "tokio",
@@ -7797,6 +7781,16 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "uuid"
+version = "1.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3758f5e68192bb96cc8f9b7e2c2cfdabb435499a28499a42f8f984092adad4b"
+dependencies = [
+ "getrandom 0.2.15",
+ "serde",
+]
 
 [[package]]
 name = "valuable"

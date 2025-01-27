@@ -198,7 +198,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
     );
 
     let instruction =
-        account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+        light_program_test::acp_sdk::create_initialize_address_merkle_tree_and_queue_instruction(
             0,
             payer.pubkey(),
             None,

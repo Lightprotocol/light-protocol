@@ -35,8 +35,10 @@ use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
     mock_batched_forester::{self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
-use light_utils::{hashchain::create_hash_chain_from_slice, pubkey::Pubkey};
-use light_verifier::CompressedProof;
+use light_utils::{
+    hashchain::create_hash_chain_from_slice, instruction::compressed_proof::CompressedProof,
+    pubkey::Pubkey,
+};
 use light_zero_copy::vec::ZeroCopyVecU64;
 use rand::{rngs::StdRng, Rng};
 use serial_test::serial;
@@ -1844,6 +1846,7 @@ async fn test_fill_address_tree_completely() {
             params,
             &mut mt_account_data,
             merkle_tree_rent,
+            mt_pubkey,
         )
         .unwrap();
         use rand::SeedableRng;

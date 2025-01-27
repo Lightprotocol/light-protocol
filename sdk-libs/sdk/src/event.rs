@@ -1,8 +1,6 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
-use crate::compressed_account::OutputCompressedAccountWithPackedContext;
-
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
     pub pubkey: Pubkey,

@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::Ref;
+use zerocopy::{little_endian::U32, Ref};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -15,6 +15,7 @@ pub type ZeroCopyVecU64<'a, T> = ZeroCopyVec<'a, u64, T>;
 pub type ZeroCopyVecU32<'a, T> = ZeroCopyVec<'a, u32, T>;
 pub type ZeroCopyVecU16<'a, T> = ZeroCopyVec<'a, u16, T>;
 pub type ZeroCopyVecU8<'a, T> = ZeroCopyVec<'a, u8, T>;
+pub type ZeroCopyVecBorsh<'a, T> = ZeroCopyVec<'a, U32, T>;
 
 /// `ZeroCopyVec` is a custom vector implementation which forbids
 /// post-initialization reallocations. The size is not known during compile
@@ -58,21 +59,6 @@ where
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
-    }
-
     #[inline]
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
@@ -101,20 +87,6 @@ where
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((Self { metadata, slice }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
     }
 
     /// Convenience method to get the length of the vector.

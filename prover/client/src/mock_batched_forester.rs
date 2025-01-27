@@ -1,7 +1,10 @@
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice,
+    instruction::compressed_proof::CompressedProof,
+};
 use num_bigint::BigUint;
 use reqwest::Client;
 
@@ -224,11 +227,11 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
     }
 }
 
-pub struct CompressedProof {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
+// pub struct CompressedProof {
+//     pub a: [u8; 32],
+//     pub b: [u8; 64],
+//     pub c: [u8; 32],
+// }
 
 #[derive(Clone, Debug)]
 pub struct MockBatchedAddressForester<const HEIGHT: usize> {

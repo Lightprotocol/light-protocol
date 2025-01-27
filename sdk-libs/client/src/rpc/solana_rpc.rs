@@ -5,6 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
+use light_utils::instruction::event::{event_from_light_transaction, PublicTransactionEvent};
 use log::warn;
 use solana_client::{
     rpc_client::RpcClient,
@@ -432,6 +433,144 @@ impl RpcConnection for SolanaRpcConnection {
         let result = parsed_event.map(|e| (e, signature, slot));
         Ok(result)
     }
+
+    async fn create_and_send_transaction_with_public_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        let pre_balance = self.client.get_balance(payer)?;
+        let latest_blockhash = self.client.get_latest_blockhash()?;
+
+        let mut instructions_vec = vec![
+            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        ];
+        instructions_vec.extend_from_slice(instructions);
+
+        let transaction = Transaction::new_signed_with_payer(
+            instructions_vec.as_slice(),
+            Some(payer),
+            signers,
+            latest_blockhash,
+        );
+
+        let (signature, slot) = self
+            .process_transaction_with_context(transaction.clone())
+            .await?;
+
+        let mut vec = Vec::new();
+        let mut vec_accounts = Vec::new();
+        instructions_vec.iter().for_each(|x| {
+            vec.push(x.data.clone());
+            vec_accounts.push(x.accounts.iter().map(|x| x.pubkey).collect());
+        });
+        {
+            let rpc_transaction_config = RpcTransactionConfig {
+                encoding: Some(UiTransactionEncoding::Base64),
+                commitment: Some(self.client.commitment()),
+                ..Default::default()
+            };
+            let transaction = self
+                .client
+                .get_transaction_with_config(&signature, rpc_transaction_config)
+                .map_err(|e| RpcError::CustomError(e.to_string()))?;
+            let decoded_transaction = transaction
+                .transaction
+                .transaction
+                .decode()
+                .clone()
+                .unwrap();
+            let account_keys = decoded_transaction.message.static_account_keys();
+            let meta = transaction.transaction.meta.as_ref().ok_or_else(|| {
+                RpcError::CustomError("Transaction missing metadata information".to_string())
+            })?;
+            if meta.status.is_err() {
+                return Err(RpcError::CustomError(
+                    "Transaction status indicates an error".to_string(),
+                ));
+            }
+
+            let inner_instructions = match &meta.inner_instructions {
+                OptionSerializer::Some(i) => i,
+                OptionSerializer::None => {
+                    return Err(RpcError::CustomError(
+                        "No inner instructions found".to_string(),
+                    ));
+                }
+                OptionSerializer::Skip => {
+                    return Err(RpcError::CustomError(
+                        "No inner instructions found".to_string(),
+                    ));
+                }
+            };
+
+            for ix in inner_instructions.iter() {
+                for ui_instruction in ix.instructions.iter() {
+                    match ui_instruction {
+                        UiInstruction::Compiled(ui_compiled_instruction) => {
+                            let accounts = &ui_compiled_instruction.accounts;
+                            let data = bs58::decode(&ui_compiled_instruction.data)
+                                .into_vec()
+                                .map_err(|_| {
+                                    RpcError::CustomError(
+                                        "Failed to decode instruction data".to_string(),
+                                    )
+                                })?;
+                            vec.push(data);
+                            vec_accounts.push(
+                                accounts
+                                    .iter()
+                                    .map(|x| account_keys[(*x) as usize])
+                                    .collect(),
+                            );
+                        }
+                        UiInstruction::Parsed(_) => {
+                            println!("Parsed instructions are not implemented yet");
+                        }
+                    }
+                }
+            }
+        }
+        println!("vec: {:?}", vec);
+        println!("vec_accounts {:?}", vec_accounts);
+        let (parsed_event, _new_addresses) =
+            event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
+        println!("event: {:?}", parsed_event);
+
+        if let Some(transaction_params) = transaction_params {
+            let mut deduped_signers = signers.to_vec();
+            deduped_signers.dedup();
+            let post_balance = self.get_account(*payer).await?.unwrap().lamports;
+            // a network_fee is charged if there are input compressed accounts or new addresses
+            let mut network_fee: i64 = 0;
+            if transaction_params.num_input_compressed_accounts != 0
+                || transaction_params.num_output_compressed_accounts != 0
+            {
+                network_fee += transaction_params.fee_config.network_fee as i64;
+            }
+            if transaction_params.num_new_addresses != 0 {
+                network_fee += transaction_params.fee_config.address_network_fee as i64;
+            }
+
+            let expected_post_balance = pre_balance as i64
+                - i64::from(transaction_params.num_new_addresses)
+                    * transaction_params.fee_config.address_queue_rollover as i64
+                - i64::from(transaction_params.num_output_compressed_accounts)
+                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                - transaction_params.compress
+                - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
+                - network_fee;
+
+            if post_balance as i64 != expected_post_balance {
+                return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
+            }
+        }
+        let event = parsed_event.map(|e| (e, signature, slot));
+        Ok(event)
+    }
+
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
         self.retry(|| async {
             self.client

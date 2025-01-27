@@ -69,7 +69,7 @@ describe('mintTo', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
-        bob = getTestKeypair();
+        bob = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = payer as Keypair;
         const mintKeypair = Keypair.generate();
 

@@ -18,7 +18,7 @@ bytemuck = "1.21"
 solana-program = { workspace = true }
 anchor-lang = { workspace = true , optional = true }
 zerocopy = {workspace = true, features = ["derive"]}
-light-utils = { workspace = true }
+light-utils = { workspace = true , features = ["bytemuck-des"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

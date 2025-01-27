@@ -412,7 +412,6 @@ describe('rpc-interop', () => {
                 prePayerAccounts.items.map(account => bn(account.hash)),
             );
 
-            /// compare each proof by node and root
             assert.equal(testProofs.length, proofs.length);
             proofs.forEach((proof, index) => {
                 proof.merkleProof.forEach((elem, elemIndex) => {
@@ -623,7 +622,7 @@ describe('rpc-interop', () => {
 
         assert.isAtLeast(signatures.length, executedTxs);
 
-        /// Shoudl return 1 using limit param
+        /// Should return 1 using limit param
         const { items: signatures2, cursor } = (
             await rpc.getLatestCompressionSignatures(undefined, 1)
         ).value;
@@ -632,9 +631,9 @@ describe('rpc-interop', () => {
 
         // wait for photon to be in sync
         await sleep(3000);
-        const signatures3 = (
+        const { items: signatures3 } = (
             await rpc.getLatestCompressionSignatures(cursor!, 1)
-        ).value.items;
+        ).value;
 
         /// cursor should work
         assert.notEqual(signatures2[0].signature, signatures3[0].signature);

@@ -6,14 +6,12 @@ use light_compressed_token::process_transfer::{
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::{add_and_get_remaining_account_indices, pack_new_address_params},
-        compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
-        CompressedCpiContext,
-    },
-    NewAddressParams,
+use light_utils::instruction::{
+    address::{add_and_get_remaining_account_indices, pack_new_address_params},
+    compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -76,7 +74,7 @@ pub fn create_escrow_instruction(
     let instruction_data = crate::instruction::EscrowCompressedTokensWithCompressedPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
-        proof: input_params.proof.clone().unwrap(),
+        proof: (*input_params.proof).unwrap(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
@@ -205,7 +203,7 @@ pub fn create_withdrawal_instruction(
         root_index: input_params.root_indices[0].unwrap_or_default(),
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {
-        proof: input_params.proof.clone().unwrap(),
+        proof: (*input_params.proof).unwrap(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
