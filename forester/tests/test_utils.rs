@@ -77,6 +77,7 @@ pub fn forester_config() -> ForesterConfig {
             photon_api_key: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
+            rpc_rate_limit: None,
         },
         retry_config: Default::default(),
         queue_config: Default::default(),
