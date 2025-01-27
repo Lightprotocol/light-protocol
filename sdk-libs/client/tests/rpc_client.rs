@@ -227,7 +227,13 @@ async fn test_all_endpoints() {
     let balance = indexer
         .get_compressed_token_account_balance(
             None,
-            Some(token_account.compressed_account.hash().unwrap()),
+            Some(
+                token_account
+                    .compressed_account
+                    .compressed_account
+                    .hash
+                    .unwrap(),
+            ),
         )
         .await
         .unwrap();

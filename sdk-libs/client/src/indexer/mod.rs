@@ -355,6 +355,7 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
             address: account
                 .address
                 .map(|a| <[u8; 32]>::from_base58(&a).unwrap()),
+            hash: Some(<[u8; 32]>::from_base58(&account.hash)?),
             lamports: account.lamports,
             owner: Pubkey::from_str(&account.owner)?,
             data: None,
