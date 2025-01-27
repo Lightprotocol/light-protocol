@@ -15,8 +15,8 @@ importers:
         specifier: ^20.3.0
         version: 20.3.0
       playwright:
-        specifier: ^1.49.1
-        version: 1.49.1
+        specifier: ^1.50.0
+        version: 1.50.0
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
@@ -361,7 +361,7 @@ importers:
         version: 5.1.0(rollup@4.21.3)
       '@rollup/plugin-babel':
         specifier: ^6.0.4
-        version: 6.0.4(@babel/core@7.26.0)(rollup@4.21.3)
+        version: 6.0.4(@babel/core@7.26.7)(rollup@4.21.3)
       '@rollup/plugin-commonjs':
         specifier: ^26.0.1
         version: 26.0.1(rollup@4.21.3)
@@ -497,7 +497,7 @@ importers:
         version: 1.47.1
       '@rollup/plugin-babel':
         specifier: ^6.0.4
-        version: 6.0.4(@babel/core@7.26.0)(rollup@4.21.3)
+        version: 6.0.4(@babel/core@7.26.7)(rollup@4.21.3)
       '@rollup/plugin-commonjs':
         specifier: ^26.0.1
         version: 26.0.1(rollup@4.21.3)
@@ -548,7 +548,7 @@ importers:
         version: 14.1.1
       playwright:
         specifier: ^1.47.1
-        version: 1.47.1
+        version: 1.50.0
       prettier:
         specifier: ^3.3.3
         version: 3.3.3
@@ -811,10 +811,6 @@ packages:
 
   '@babel/compat-data@7.26.5':
     resolution: {integrity: sha512-XvcZi1KWf88RVbF9wn8MN6tYFloU5qX8KjuF3E1PVBmJ9eypXfs4GRiJwLuTZL0iSnJUKn1BFPa5BPZZJyFzPg==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/core@7.26.0':
-    resolution: {integrity: sha512-i1SLeK+DzNnQ3LL/CswPCa/E5u4lh1k6IAEphON8F+cXt0t9euTshDru0q7/IqMa1PMPz5RnHuHscF8/ZJsStg==}
     engines: {node: '>=6.9.0'}
 
   '@babel/core@7.26.7':
@@ -6677,8 +6673,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright-core@1.49.1:
-    resolution: {integrity: sha512-BzmpVcs4kE2CH15rWfzpjzVGhWERJfmnXmniSyKeRZUs9Ws65m+RGIi7mjJK/euCegfn3i7jvqWeWyHe9y3Vgg==}
+  playwright-core@1.50.0:
+    resolution: {integrity: sha512-CXkSSlr4JaZs2tZHI40DsZUN/NIwgaUPsyLuOAaIZp2CyF2sN5MM5NJsyB188lFSSozFxQ5fPT4qM+f0tH/6wQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -6687,8 +6683,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.49.1:
-    resolution: {integrity: sha512-VYL8zLoNTBxVOrJBbDuRgDWa3i+mfQgDTrL8Ah9QXZ7ax4Dsj0MSq5bYgytRnDVVe+njoKnfsYkH3HzqVj5UZA==}
+  playwright@1.50.0:
+    resolution: {integrity: sha512-+GinGfGTrd2IfX1TA4N2gNmeIksSb+IAe589ZH+FlmpV3MYTx6+buChGIuDLQwrGNCw2lWibqV50fU510N7S+w==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -8662,26 +8658,6 @@ snapshots:
 
   '@babel/compat-data@7.26.5': {}
 
-  '@babel/core@7.26.0':
-    dependencies:
-      '@ampproject/remapping': 2.3.0
-      '@babel/code-frame': 7.26.2
-      '@babel/generator': 7.26.5
-      '@babel/helper-compilation-targets': 7.26.5
-      '@babel/helper-module-transforms': 7.26.0(@babel/core@7.26.0)
-      '@babel/helpers': 7.26.7
-      '@babel/parser': 7.26.7
-      '@babel/template': 7.25.9
-      '@babel/traverse': 7.26.7
-      '@babel/types': 7.26.7
-      convert-source-map: 2.0.0
-      debug: 4.4.0
-      gensync: 1.0.0-beta.2
-      json5: 2.2.3
-      semver: 6.3.1
-    transitivePeerDependencies:
-      - supports-color
-
   '@babel/core@7.26.7':
     dependencies:
       '@ampproject/remapping': 2.3.0
@@ -8772,15 +8748,6 @@ snapshots:
     dependencies:
       '@babel/traverse': 7.26.7
       '@babel/types': 7.26.7
-    transitivePeerDependencies:
-      - supports-color
-
-  '@babel/helper-module-transforms@7.26.0(@babel/core@7.26.0)':
-    dependencies:
-      '@babel/core': 7.26.0
-      '@babel/helper-module-imports': 7.25.9
-      '@babel/helper-validator-identifier': 7.25.9
-      '@babel/traverse': 7.26.7
     transitivePeerDependencies:
       - supports-color
 
@@ -10539,9 +10506,9 @@ snapshots:
     optionalDependencies:
       rollup: 4.21.3
 
-  '@rollup/plugin-babel@6.0.4(@babel/core@7.26.0)(rollup@4.21.3)':
+  '@rollup/plugin-babel@6.0.4(@babel/core@7.26.7)(rollup@4.21.3)':
     dependencies:
-      '@babel/core': 7.26.0
+      '@babel/core': 7.26.7
       '@babel/helper-module-imports': 7.22.15
       '@rollup/pluginutils': 5.1.0(rollup@4.21.3)
     optionalDependencies:
@@ -16055,7 +16022,7 @@ snapshots:
 
   playwright-core@1.47.1: {}
 
-  playwright-core@1.49.1: {}
+  playwright-core@1.50.0: {}
 
   playwright@1.47.1:
     dependencies:
@@ -16063,9 +16030,9 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.2
 
-  playwright@1.49.1:
+  playwright@1.50.0:
     dependencies:
-      playwright-core: 1.49.1
+      playwright-core: 1.50.0
     optionalDependencies:
       fsevents: 2.3.2
 
