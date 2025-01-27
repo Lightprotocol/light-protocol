@@ -122,7 +122,7 @@ light-bounded-vec = { version = "1.1.0" }
 light-poseidon = { version = "0.2.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-bytemuck = { version = "1.17" }
+bytemuck = { version = "1.21" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
