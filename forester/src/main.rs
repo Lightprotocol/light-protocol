@@ -12,6 +12,7 @@ use forester::{
 };
 use light_client::{
     indexer::photon_indexer::PhotonIndexer,
+    rate_limiter::RateLimiter,
     rpc::{RpcConnection, SolanaRpcConnection},
 };
 use tokio::{
@@ -50,15 +51,31 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            let indexer_rpc =
+            let mut rate_limiter = None;
+            if let Some(rate_limit) = config.external_services.rpc_rate_limit {
+                rate_limiter = Some(RateLimiter::new(rate_limit));
+            }
+
+            let mut indexer_rpc =
                 SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+            if let Some(limiter) = &rate_limiter {
+                indexer_rpc.set_rate_limiter(limiter.clone());
+            }
+
             let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
                 config.external_services.indexer_url.clone().unwrap(),
                 config.external_services.photon_api_key.clone(),
                 indexer_rpc,
             )));
 
-            run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
+            run_pipeline(
+                config,
+                rate_limiter,
+                indexer,
+                shutdown_receiver,
+                work_report_sender,
+            )
+            .await?
         }
         Commands::Status(args) => {
             forester_status::fetch_forester_status(args).await;

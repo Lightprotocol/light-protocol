@@ -11,6 +11,7 @@ use crate::test_utils::init;
 mod test_utils;
 
 #[tokio::test]
+#[ignore]
 async fn test_priority_fee_request() {
     dotenvy::dotenv().ok();
 

@@ -570,7 +570,10 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     batched_address_tree_init_params: InitAddressTreeAccountsInstructionData,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,
@@ -602,7 +605,10 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection {
+        context,
+        rate_limiter: None,
+    };
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,

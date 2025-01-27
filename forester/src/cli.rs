@@ -111,6 +111,12 @@ pub struct StartArgs {
         default_value = "28807"
     )]
     pub address_queue_processing_length: u16,
+
+    #[arg(long, env = "FORESTER_ENABLE_RPC_RATE_LIMIT", default_value = "false")]
+    pub rpc_rate_limit_enabled: bool,
+
+    #[arg(long, env = "FORESTER_RPC_RATE_LIMIT", default_value = "100")]
+    pub rpc_rate_limit: u32,
 }
 
 #[derive(Parser, Clone, Debug)]

@@ -6,7 +6,10 @@ use solana_sdk::commitment_config::CommitmentConfig;
 use thiserror::Error;
 use tokio::time::sleep;
 
-use crate::rpc::{RpcConnection, RpcError};
+use crate::{
+    rate_limiter::RateLimiter,
+    rpc::{RpcConnection, RpcError},
+};
 
 #[derive(Error, Debug)]
 pub enum PoolError {
@@ -21,14 +24,20 @@ pub enum PoolError {
 pub struct SolanaConnectionManager<R: RpcConnection> {
     url: String,
     commitment: CommitmentConfig,
+    rate_limiter: Option<RateLimiter>,
     _phantom: std::marker::PhantomData<R>,
 }
 
 impl<R: RpcConnection> SolanaConnectionManager<R> {
-    pub fn new(url: String, commitment: CommitmentConfig) -> Self {
+    pub fn new(
+        url: String,
+        commitment: CommitmentConfig,
+        rate_limiter: Option<RateLimiter>,
+    ) -> Self {
         Self {
             url,
             commitment,
+            rate_limiter,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -40,7 +49,11 @@ impl<R: RpcConnection> bb8::ManageConnection for SolanaConnectionManager<R> {
     type Error = PoolError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        Ok(R::new(&self.url, Some(self.commitment)))
+        let mut conn = R::new(&self.url, Some(self.commitment));
+        if let Some(limiter) = &self.rate_limiter {
+            conn.set_rate_limiter(limiter.clone());
+        }
+        Ok(conn)
     }
 
     async fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
@@ -62,8 +75,9 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
         url: String,
         commitment: CommitmentConfig,
         max_size: u32,
+        rate_limiter: Option<RateLimiter>,
     ) -> Result<Self, PoolError> {
-        let manager = SolanaConnectionManager::new(url, commitment);
+        let manager = SolanaConnectionManager::new(url, commitment, rate_limiter);
         let pool = Pool::builder()
             .max_size(max_size)
             .connection_timeout(Duration::from_secs(15))
