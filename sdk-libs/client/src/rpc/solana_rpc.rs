@@ -27,6 +27,7 @@ use solana_transaction_status::{
 use tokio::time::{sleep, Instant};
 
 use crate::{
+    rate_limiter::RateLimiter,
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
     transaction_params::TransactionParams,
 };
@@ -76,6 +77,8 @@ pub struct SolanaRpcConnection {
     pub client: RpcClient,
     pub payer: Keypair,
     retry_config: RetryConfig,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
 }
 
 impl Debug for SolanaRpcConnection {
@@ -93,15 +96,30 @@ impl SolanaRpcConnection {
         url: U,
         commitment_config: Option<CommitmentConfig>,
         retry_config: Option<RetryConfig>,
+        rpc_rps: Option<u32>,
+        send_tx_rps: Option<u32>,
     ) -> Self {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url.to_string(), commitment_config);
         let retry_config = retry_config.unwrap_or_default();
+
+        let mut rpc_rate_limiter = None;
+        if let Some(rps) = rpc_rps {
+            rpc_rate_limiter = Some(RateLimiter::new(rps));
+        }
+
+        let mut send_tx_rate_limiter = None;
+        if let Some(rps) = send_tx_rps {
+            send_tx_rate_limiter = Some(RateLimiter::new(rps));
+        }
+
         Self {
             client,
             payer,
             retry_config,
+            rpc_rate_limiter,
+            send_tx_rate_limiter,
         }
     }
 
@@ -113,6 +131,10 @@ impl SolanaRpcConnection {
         let mut attempts = 0;
         let start_time = Instant::now();
         loop {
+            if let Some(limiter) = &self.rpc_rate_limiter {
+                limiter.acquire_with_wait().await;
+            }
+
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
@@ -124,6 +146,37 @@ impl SolanaRpcConnection {
                     }
                     warn!(
                         "Operation failed, retrying in {:?} (attempt {}/{}): {:?}",
+                        self.retry_config.retry_delay, attempts, self.retry_config.max_retries, e
+                    );
+                    sleep(self.retry_config.retry_delay).await;
+                }
+            }
+        }
+    }
+
+    async fn retry_with_tx_rate_limit<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
+    where
+        F: Fn() -> Fut,
+        Fut: std::future::Future<Output = Result<T, RpcError>>,
+    {
+        let mut attempts = 0;
+        let start_time = Instant::now();
+        loop {
+            if let Some(limiter) = &self.send_tx_rate_limiter {
+                limiter.acquire_with_wait().await;
+            }
+
+            match operation().await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    attempts += 1;
+                    if attempts >= self.retry_config.max_retries
+                        || start_time.elapsed() >= self.retry_config.timeout
+                    {
+                        return Err(e);
+                    }
+                    warn!(
+                        "Transaction operation failed, retrying in {:?} (attempt {}/{}): {:?}",
                         self.retry_config.retry_delay, attempts, self.retry_config.max_retries, e
                     );
                     sleep(self.retry_config.retry_delay).await;
@@ -205,7 +258,23 @@ impl RpcConnection for SolanaRpcConnection {
     where
         Self: Sized,
     {
-        Self::new_with_retry(url, commitment_config, None)
+        Self::new_with_retry(url, commitment_config, None, None, None)
+    }
+
+    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter) {
+        self.rpc_rate_limiter = Some(rate_limiter);
+    }
+
+    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
+        self.rpc_rate_limiter.as_ref()
+    }
+
+    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter) {
+        self.send_tx_rate_limiter = Some(rate_limiter);
+    }
+
+    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter> {
+        self.send_tx_rate_limiter.as_ref()
     }
 
     fn get_payer(&self) -> &Keypair {
@@ -247,7 +316,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry_with_tx_rate_limit(|| async {
             self.client
                 .send_and_confirm_transaction(&transaction)
                 .map_err(RpcError::from)
@@ -259,7 +328,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
-        self.retry(|| async {
+        self.retry_with_tx_rate_limit(|| async {
             let signature = self.client.send_and_confirm_transaction(&transaction)?;
             let sig_info = self.client.get_signature_statuses(&[signature])?;
             let slot = sig_info
@@ -354,16 +423,6 @@ impl RpcConnection for SolanaRpcConnection {
         let result = parsed_event.map(|e| (e, signature, slot));
         Ok(result)
     }
-    async fn get_signature_statuses(
-        &self,
-        signatures: &[Signature],
-    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
-        self.client
-            .get_signature_statuses(signatures)
-            .map(|response| response.value)
-            .map_err(RpcError::from)
-    }
-
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
         self.retry(|| async {
             self.client
@@ -456,7 +515,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry_with_tx_rate_limit(|| async {
             self.client
                 .send_transaction_with_config(
                     transaction,
@@ -470,19 +529,19 @@ impl RpcConnection for SolanaRpcConnection {
         })
         .await
     }
+
     async fn send_transaction_with_config(
         &self,
         transaction: &Transaction,
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
+        self.retry_with_tx_rate_limit(|| async {
             self.client
                 .send_transaction_with_config(transaction, config)
                 .map_err(RpcError::from)
         })
         .await
     }
-
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
         self.retry(|| async {
             Ok(self
@@ -499,6 +558,16 @@ impl RpcConnection for SolanaRpcConnection {
                 .slot)
         })
         .await
+    }
+
+    async fn get_signature_statuses(
+        &self,
+        signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
+        self.client
+            .get_signature_statuses(signatures)
+            .map(|response| response.value)
+            .map_err(RpcError::from)
     }
     async fn get_block_height(&mut self) -> Result<u64, RpcError> {
         self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })

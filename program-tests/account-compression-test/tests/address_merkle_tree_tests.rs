@@ -225,7 +225,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -319,7 +319,7 @@ async fn test_address_queue_and_tree_invalid_config() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -1417,7 +1417,7 @@ pub async fn test_setup_with_address_merkle_tree(
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();

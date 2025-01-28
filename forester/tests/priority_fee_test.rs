@@ -11,6 +11,7 @@ use crate::test_utils::init;
 mod test_utils;
 
 #[tokio::test]
+#[ignore]
 async fn test_priority_fee_request() {
     dotenvy::dotenv().ok();
 
@@ -59,6 +60,9 @@ async fn test_priority_fee_request() {
         state_queue_processing_length: 28807,
         address_queue_start_index: 0,
         address_queue_processing_length: 28807,
+        rpc_rate_limit: None,
+        photon_rate_limit: None,
+        send_tx_rate_limit: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

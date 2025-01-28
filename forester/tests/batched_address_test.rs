@@ -59,6 +59,8 @@ async fn test_address_batched() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -217,6 +219,8 @@ async fn test_address_batched() {
 
     let service_handle = tokio::spawn(run_pipeline(
         config.clone(),
+        None,
+        None,
         Arc::new(Mutex::new(env.indexer)),
         shutdown_receiver,
         work_report_sender,

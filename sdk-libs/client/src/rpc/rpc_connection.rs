@@ -15,13 +15,33 @@ use solana_sdk::{
 };
 use solana_transaction_status::TransactionStatus;
 
-use crate::{rpc::errors::RpcError, transaction_params::TransactionParams};
+use crate::{
+    rate_limiter::RateLimiter, rpc::errors::RpcError, transaction_params::TransactionParams,
+};
 
 #[async_trait]
 pub trait RpcConnection: Send + Sync + Debug + 'static {
     fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self
     where
         Self: Sized;
+
+    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter);
+    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter);
+
+    fn rpc_rate_limiter(&self) -> Option<&RateLimiter>;
+    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter>;
+
+    async fn check_rpc_rate_limit(&self) {
+        if let Some(limiter) = self.rpc_rate_limiter() {
+            limiter.acquire_with_wait().await;
+        }
+    }
+
+    async fn check_send_tx_rrate_limit(&self) {
+        if let Some(limiter) = self.send_tx_rate_limiter() {
+            limiter.acquire_with_wait().await;
+        }
+    }
 
     fn get_payer(&self) -> &Keypair;
     fn get_url(&self) -> String;
