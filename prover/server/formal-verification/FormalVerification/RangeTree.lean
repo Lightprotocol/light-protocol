@@ -17,7 +17,7 @@ def RangeTree (d : ℕ) : Type := { t: MerkleTree F poseidon₂ d // ∀ (i : Fi
 def rangeTreeMem {d} : Range → RangeTree d → Prop := fun r t => r.hash ∈ t.val
 
 instance : Membership F Range where
-  mem x r := r.lo.val < x.val ∧ x.val < r.hi.val
+  mem r x := r.lo.val < x.val ∧ x.val < r.hi.val
 
 instance {d} : Membership F (RangeTree d) where
-  mem x t := ∃(r:Range), rangeTreeMem r t ∧ x ∈ r
+  mem t x := ∃(r:Range), rangeTreeMem r t ∧ x ∈ r

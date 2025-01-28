@@ -16,7 +16,7 @@ def sbox (Inp: F) (k: F -> Prop): Prop :=
     ∃gate_2, gate_2 = Gates.mul Inp gate_1 ∧
     k gate_2
 
-def mds_3 (Inp: Vector F 3) (k: Vector F 3 -> Prop): Prop :=
+def mds_3 (Inp: List.Vector F 3) (k: List.Vector F 3 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.mul Inp[0] (7511745149465107256748700652201246547602992235352608707588321460060273774987:F) ∧
     ∃gate_1, gate_1 = Gates.add (0:F) gate_0 ∧
     ∃gate_2, gate_2 = Gates.mul Inp[1] (10370080108974718697676803824769673834027675643658433702224577712625900127200:F) ∧
@@ -37,7 +37,7 @@ def mds_3 (Inp: Vector F 3) (k: Vector F 3 -> Prop): Prop :=
     ∃gate_17, gate_17 = Gates.add gate_15 gate_16 ∧
     k vec![gate_5, gate_11, gate_17]
 
-def fullRound_3_3 (Inp: Vector F 3) (Consts: Vector F 3) (k: Vector F 3 -> Prop): Prop :=
+def fullRound_3_3 (Inp: List.Vector F 3) (Consts: List.Vector F 3) (k: List.Vector F 3 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.add Inp[0] Consts[0] ∧
     ∃gate_1, gate_1 = Gates.add Inp[1] Consts[1] ∧
     ∃gate_2, gate_2 = Gates.add Inp[2] Consts[2] ∧
@@ -47,7 +47,7 @@ def fullRound_3_3 (Inp: Vector F 3) (Consts: Vector F 3) (k: Vector F 3 -> Prop)
     mds_3 vec![gate_3, gate_4, gate_5] fun gate_6 =>
     k gate_6
 
-def halfRound_3_3 (Inp: Vector F 3) (Consts: Vector F 3) (k: Vector F 3 -> Prop): Prop :=
+def halfRound_3_3 (Inp: List.Vector F 3) (Consts: List.Vector F 3) (k: List.Vector F 3 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.add Inp[0] Consts[0] ∧
     ∃gate_1, gate_1 = Gates.add Inp[1] Consts[1] ∧
     ∃gate_2, gate_2 = Gates.add Inp[2] Consts[2] ∧
@@ -55,7 +55,7 @@ def halfRound_3_3 (Inp: Vector F 3) (Consts: Vector F 3) (k: Vector F 3 -> Prop)
     mds_3 vec![gate_3, gate_1, gate_2] fun gate_4 =>
     k gate_4
 
-def poseidon_3 (Inputs: Vector F 3) (k: Vector F 3 -> Prop): Prop :=
+def poseidon_3 (Inputs: List.Vector F 3) (k: List.Vector F 3 -> Prop): Prop :=
     fullRound_3_3 Inputs vec![(6745197990210204598374042828761989596302876299545964402857411729872131034734:F), (426281677759936592021316809065178817848084678679510574715894138690250139748:F), (4014188762916583598888942667424965430287497824629657219807941460227372577781:F)] fun gate_0 =>
     fullRound_3_3 gate_0 vec![(21328925083209914769191926116470334003273872494252651254811226518870906634704:F), (19525217621804205041825319248827370085205895195618474548469181956339322154226:F), (1402547928439424661186498190603111095981986484908825517071607587179649375482:F)] fun gate_1 =>
     fullRound_3_3 gate_1 vec![(18320863691943690091503704046057443633081959680694199244583676572077409194605:F), (17709820605501892134371743295301255810542620360751268064484461849423726103416:F), (15970119011175710804034336110979394557344217932580634635707518729185096681010:F)] fun gate_2 =>
@@ -134,7 +134,7 @@ def ProveParentHash (Bit: F) (Hash: F) (Sibling: F) (k: F -> Prop): Prop :=
     Poseidon2 gate_1 gate_2 fun gate_3 =>
     k gate_3
 
-def MerkleRootGadget_26_26 (Hash: F) (Index: F) (Path: Vector F 26) (k: F -> Prop): Prop :=
+def MerkleRootGadget_26_26 (Hash: F) (Index: F) (Path: List.Vector F 26) (k: F -> Prop): Prop :=
     ∃gate_0, Gates.to_binary Index 26 gate_0 ∧
     ProveParentHash gate_0[0] Hash Path[0] fun gate_1 =>
     ProveParentHash gate_0[1] gate_1 Path[1] fun gate_2 =>
@@ -164,7 +164,7 @@ def MerkleRootGadget_26_26 (Hash: F) (Index: F) (Path: Vector F 26) (k: F -> Pro
     ProveParentHash gate_0[25] gate_25 Path[25] fun gate_26 =>
     k gate_26
 
-def InclusionProof_8_8_8_26_8_8_26 (Roots: Vector F 8) (Leaves: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8) (k: Vector F 8 -> Prop): Prop :=
+def InclusionProof_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Leaves: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8) (k: List.Vector F 8 -> Prop): Prop :=
     MerkleRootGadget_26_26 Leaves[0] InPathIndices[0] InPathElements[0] fun gate_0 =>
     Gates.eq gate_0 Roots[0] ∧
     MerkleRootGadget_26_26 Leaves[1] InPathIndices[1] InPathElements[1] fun gate_2 =>
@@ -189,7 +189,7 @@ def AssertIsLess_248 (A: F) (B: F) : Prop :=
     ∃_ignored_, Gates.to_binary gate_1 248 _ignored_ ∧
     True
 
-def mds_4 (Inp: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
+def mds_4 (Inp: List.Vector F 4) (k: List.Vector F 4 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.mul Inp[0] (16023668707004248971294664614290028914393192768609916554276071736843535714477:F) ∧
     ∃gate_1, gate_1 = Gates.add (0:F) gate_0 ∧
     ∃gate_2, gate_2 = Gates.mul Inp[1] (17849615858846139011678879517964683507928512741474025695659909954675835121177:F) ∧
@@ -224,7 +224,7 @@ def mds_4 (Inp: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
     ∃gate_31, gate_31 = Gates.add gate_29 gate_30 ∧
     k vec![gate_7, gate_15, gate_23, gate_31]
 
-def fullRound_4_4 (Inp: Vector F 4) (Consts: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
+def fullRound_4_4 (Inp: List.Vector F 4) (Consts: List.Vector F 4) (k: List.Vector F 4 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.add Inp[0] Consts[0] ∧
     ∃gate_1, gate_1 = Gates.add Inp[1] Consts[1] ∧
     ∃gate_2, gate_2 = Gates.add Inp[2] Consts[2] ∧
@@ -236,7 +236,7 @@ def fullRound_4_4 (Inp: Vector F 4) (Consts: Vector F 4) (k: Vector F 4 -> Prop)
     mds_4 vec![gate_4, gate_5, gate_6, gate_7] fun gate_8 =>
     k gate_8
 
-def halfRound_4_4 (Inp: Vector F 4) (Consts: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
+def halfRound_4_4 (Inp: List.Vector F 4) (Consts: List.Vector F 4) (k: List.Vector F 4 -> Prop): Prop :=
     ∃gate_0, gate_0 = Gates.add Inp[0] Consts[0] ∧
     ∃gate_1, gate_1 = Gates.add Inp[1] Consts[1] ∧
     ∃gate_2, gate_2 = Gates.add Inp[2] Consts[2] ∧
@@ -245,7 +245,7 @@ def halfRound_4_4 (Inp: Vector F 4) (Consts: Vector F 4) (k: Vector F 4 -> Prop)
     mds_4 vec![gate_4, gate_1, gate_2, gate_3] fun gate_5 =>
     k gate_5
 
-def poseidon_4 (Inputs: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
+def poseidon_4 (Inputs: List.Vector F 4) (k: List.Vector F 4 -> Prop): Prop :=
     fullRound_4_4 Inputs vec![(11633431549750490989983886834189948010834808234699737327785600195936805266405:F), (17353750182810071758476407404624088842693631054828301270920107619055744005334:F), (11575173631114898451293296430061690731976535592475236587664058405912382527658:F), (9724643380371653925020965751082872123058642683375812487991079305063678725624:F)] fun gate_0 =>
     fullRound_4_4 gate_0 vec![(20936725237749945635418633443468987188819556232926135747685274666391889856770:F), (6427758822462294912934022562310355233516927282963039741999349770315205779230:F), (16782979953202249973699352594809882974187694538612412531558950864304931387798:F), (8979171037234948998646722737761679613767384188475887657669871981433930833742:F)] fun gate_1 =>
     fullRound_4_4 gate_1 vec![(5428827536651017352121626533783677797977876323745420084354839999137145767736:F), (507241738797493565802569310165979445570507129759637903167193063764556368390:F), (6711578168107599474498163409443059675558516582274824463959700553865920673097:F), (2197359304646916921018958991647650011119043556688567376178243393652789311643:F)] fun gate_2 =>
@@ -322,7 +322,7 @@ def LeafHashGadget (LeafLowerRangeValue: F) (NextIndex: F) (LeafHigherRangeValue
     Poseidon3 LeafLowerRangeValue NextIndex LeafHigherRangeValue fun gate_2 =>
     k gate_2
 
-def NonInclusionProof_8_8_8_8_8_8_26_8_8_26 (Roots: Vector F 8) (Values: Vector F 8) (LeafLowerRangeValues: Vector F 8) (LeafHigherRangeValues: Vector F 8) (NextIndices: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8) (k: Vector F 8 -> Prop): Prop :=
+def NonInclusionProof_8_8_8_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Values: List.Vector F 8) (LeafLowerRangeValues: List.Vector F 8) (LeafHigherRangeValues: List.Vector F 8) (NextIndices: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8) (k: List.Vector F 8 -> Prop): Prop :=
     LeafHashGadget LeafLowerRangeValues[0] NextIndices[0] LeafHigherRangeValues[0] Values[0] fun gate_0 =>
     MerkleRootGadget_26_26 gate_0 InPathIndices[0] InPathElements[0] fun gate_1 =>
     Gates.eq gate_1 Roots[0] ∧
@@ -349,15 +349,15 @@ def NonInclusionProof_8_8_8_8_8_8_26_8_8_26 (Roots: Vector F 8) (Values: Vector 
     Gates.eq gate_22 Roots[7] ∧
     k vec![gate_1, gate_4, gate_7, gate_10, gate_13, gate_16, gate_19, gate_22]
 
-def InclusionCircuit_8_8_8_26_8_8_26 (Roots: Vector F 8) (Leaves: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8): Prop :=
+def InclusionCircuit_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Leaves: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     InclusionProof_8_8_8_26_8_8_26 Roots Leaves InPathIndices InPathElements fun _ =>
     True
 
-def NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (Roots: Vector F 8) (Values: Vector F 8) (LeafLowerRangeValues: Vector F 8) (LeafHigherRangeValues: Vector F 8) (NextIndices: Vector F 8) (InPathIndices: Vector F 8) (InPathElements: Vector (Vector F 26) 8): Prop :=
+def NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Values: List.Vector F 8) (LeafLowerRangeValues: List.Vector F 8) (LeafHigherRangeValues: List.Vector F 8) (NextIndices: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     NonInclusionProof_8_8_8_8_8_8_26_8_8_26 Roots Values LeafLowerRangeValues LeafHigherRangeValues NextIndices InPathIndices InPathElements fun _ =>
     True
 
-def CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8 (Inclusion_Roots: Vector F 8) (Inclusion_Leaves: Vector F 8) (Inclusion_InPathIndices: Vector F 8) (Inclusion_InPathElements: Vector (Vector F 26) 8) (NonInclusion_Roots: Vector F 8) (NonInclusion_Values: Vector F 8) (NonInclusion_LeafLowerRangeValues: Vector F 8) (NonInclusion_LeafHigherRangeValues: Vector F 8) (NonInclusion_NextIndices: Vector F 8) (NonInclusion_InPathIndices: Vector F 8) (NonInclusion_InPathElements: Vector (Vector F 26) 8): Prop :=
+def CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8 (Inclusion_Roots: List.Vector F 8) (Inclusion_Leaves: List.Vector F 8) (Inclusion_InPathIndices: List.Vector F 8) (Inclusion_InPathElements: List.Vector (List.Vector F 26) 8) (NonInclusion_Roots: List.Vector F 8) (NonInclusion_Values: List.Vector F 8) (NonInclusion_LeafLowerRangeValues: List.Vector F 8) (NonInclusion_LeafHigherRangeValues: List.Vector F 8) (NonInclusion_NextIndices: List.Vector F 8) (NonInclusion_InPathIndices: List.Vector F 8) (NonInclusion_InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     InclusionProof_8_8_8_26_8_8_26 Inclusion_Roots Inclusion_Leaves Inclusion_InPathIndices Inclusion_InPathElements fun _ =>
     NonInclusionProof_8_8_8_8_8_8_26_8_8_26 NonInclusion_Roots NonInclusion_Values NonInclusion_LeafLowerRangeValues NonInclusion_LeafHigherRangeValues NonInclusion_NextIndices NonInclusion_InPathIndices NonInclusion_InPathElements fun _ =>
     True

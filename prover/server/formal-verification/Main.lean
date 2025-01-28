@@ -13,8 +13,8 @@ theorem poseidon₃_testVector :
 
 theorem InclusionCircuit.correct
   [Fact (CollisionResistant poseidon₂)]
-  {trees : Vector (MerkleTree F poseidon₂ 26) 8}
-  {leaves : Vector F 8}:
+  {trees : List.Vector (MerkleTree F poseidon₂ 26) 8}
+  {leaves : List.Vector F 8}:
     (∃p₁ p₂, LightProver.InclusionCircuit_8_8_8_26_8_8_26 (trees.map (·.root)) leaves p₁ p₂)
     ↔ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i]
   := InclusionCircuit_correct
@@ -22,8 +22,8 @@ theorem InclusionCircuit.correct
 theorem NonInclusionCircuit.correct
   [Fact (CollisionResistant poseidon₃)]
   [Fact (CollisionResistant poseidon₂)]
-  {trees : Vector (RangeTree 26) 8}
-  {leaves : Vector F 8}:
+  {trees : List.Vector (RangeTree 26) 8}
+  {leaves : List.Vector F 8}:
     (∃p₁ p₂ p₃ p₄ p₅,
       LightProver.NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (trees.map (·.val.root)) leaves p₁ p₂ p₃ p₄ p₅)
     ↔ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i]
@@ -32,9 +32,9 @@ theorem NonInclusionCircuit.correct
 theorem CombinedCircuit.correct
   [Fact (CollisionResistant poseidon₃)]
   [Fact (CollisionResistant poseidon₂)]
-  {inclusionTrees : Vector (MerkleTree F poseidon₂ 26) 8}
-  {nonInclusionTrees : Vector (RangeTree 26) 8}
-  {inclusionLeaves nonInclusionLeaves : Vector F 8}:
+  {inclusionTrees : List.Vector (MerkleTree F poseidon₂ 26) 8}
+  {nonInclusionTrees : List.Vector (RangeTree 26) 8}
+  {inclusionLeaves nonInclusionLeaves : List.Vector F 8}:
     (∃p₁ p₂ p₃ p₄ p₅ p₆ p₇,
       LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8
         (inclusionTrees.map (·.root)) inclusionLeaves p₁ p₂
