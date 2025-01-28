@@ -123,35 +123,14 @@ async fn test_address_batched() {
     )
     .await;
 
-    let address_trees: Vec<AddressMerkleTreeAccounts> = env
+    let (_address_merkle_tree_index, address_merkle_tree_pubkey) = env
         .indexer
         .address_merkle_trees
         .iter()
-        .map(|x| x.accounts)
-        .collect();
-
-    println!("Address trees: {:?}", address_trees);
-    for tree in address_trees {
-        let is_v2 = tree.merkle_tree == tree.queue;
-        println!("Tree {:?} is_v2: {}", tree, is_v2);
-    }
-
-    println!("Removing trees...");
-    env.indexer.address_merkle_trees.clear();
-
-    println!("Creating new address batch tree...");
-
-    let merkle_tree_keypair = Keypair::new();
-    env.indexer
-        .add_address_merkle_tree(
-            &mut env.rpc,
-            &merkle_tree_keypair,
-            &merkle_tree_keypair,
-            None,
-            2,
-        )
-        .await;
-    env_accounts.batch_address_merkle_tree = merkle_tree_keypair.pubkey();
+        .enumerate()
+        .find(|(_index, tree)| tree.accounts.merkle_tree == tree.accounts.queue)
+        .map(|(index, tree)| (index, tree.accounts.merkle_tree))
+        .unwrap();
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
         .indexer
@@ -168,7 +147,7 @@ async fn test_address_batched() {
 
     let mut merkle_tree_account = env
         .rpc
-        .get_account(merkle_tree_keypair.pubkey())
+        .get_account(address_merkle_tree_pubkey)
         .await
         .unwrap()
         .unwrap();
@@ -190,7 +169,7 @@ async fn test_address_batched() {
         sleep(Duration::from_millis(100)).await;
     }
 
-    let merkle_tree_pubkey = env.indexer.address_merkle_trees[0].accounts.merkle_tree;
+    // let merkle_tree_pubkey = env.indexer.address_merkle_trees[0].accounts.merkle_tree;
 
     let zkp_batches = tree_params.input_queue_batch_size / tree_params.input_queue_zkp_batch_size;
 
@@ -198,7 +177,7 @@ async fn test_address_batched() {
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+        let mut merkle_tree_account = rpc.get_account(address_merkle_tree_pubkey).await.unwrap().unwrap();
 
         let merkle_tree =
             BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
@@ -237,7 +216,7 @@ async fn test_address_batched() {
     }
 
     let mut rpc = pool.get_connection().await.unwrap();
-    let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+    let mut merkle_tree_account = rpc.get_account(address_merkle_tree_pubkey).await.unwrap().unwrap();
 
     let merkle_tree =
         BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
@@ -256,7 +235,7 @@ async fn test_address_batched() {
         let mut rpc = pool.get_connection().await.unwrap();
 
         let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_keypair.pubkey())
+            .get_account(address_merkle_tree_pubkey)
             .await
             .unwrap()
             .unwrap();
