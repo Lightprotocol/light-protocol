@@ -1816,12 +1816,12 @@ async fn batch_invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
-        }),
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: None,
+        //     circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
+        // }),
+        None,
     )
     .await;
     let payer_pubkey = payer.pubkey();

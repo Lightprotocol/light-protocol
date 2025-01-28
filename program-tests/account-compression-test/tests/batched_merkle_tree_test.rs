@@ -670,15 +670,15 @@ pub async fn perform_insert_into_input_queue(
     mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
-    proof_by_index: Vec<bool>,
+    prove_by_index: Vec<bool>,
     output_queue_pubkey: Pubkey,
     merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    if proof_by_index.len() != num_of_leaves as usize {
+    if prove_by_index.len() != num_of_leaves as usize {
         return Err(RpcError::CustomError(format!(
             "Proof by index len {}!= num of leaves {}",
-            proof_by_index.len(),
+            prove_by_index.len(),
             num_of_leaves
         ))
         .into());
@@ -707,7 +707,7 @@ pub async fn perform_insert_into_input_queue(
         nullifiers: leaves,
         leaf_indices,
         tx_hash,
-        proof_by_index,
+        prove_by_index,
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         authority: payer.pubkey(),

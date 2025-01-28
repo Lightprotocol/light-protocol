@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
-use light_batched_merkle_tree::queue::{BatchedQueueAccount, BatchedQueueMetadata};
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_hasher::Discriminator as HasherDiscriminator;
 
 use crate::{
@@ -38,7 +38,7 @@ impl GroupAccess for StateMerkleTreeAccount {
     }
 }
 
-impl GroupAccess for BatchedQueueMetadata {
+impl<'a> GroupAccess for BatchedQueueAccount<'a> {
     fn get_owner(&self) -> Pubkey {
         self.metadata.access_metadata.owner.into()
     }
@@ -96,7 +96,7 @@ pub struct AppendLeavesInput {
 /// 6. check if all leaves are processed
 ///     return Ok(()) if all leaves are processed
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
+    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: &[AppendLeavesInput],
 ) -> Result<()> {
     let mut leaves_processed: usize = 0;
@@ -211,7 +211,7 @@ fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<u64> {
     let output_queue = &mut BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
         .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueMetadata>(
+    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
         ctx,
         output_queue,
     )?;

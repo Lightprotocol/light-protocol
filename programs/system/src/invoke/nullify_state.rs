@@ -1,4 +1,7 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use account_compression::{
+    append_nullify_create_address::AppendNullifyCreateAddressInputs,
+    utils::constants::CPI_AUTHORITY_PDA_SEED,
+};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps, InstructionData};
 use light_macros::heap_neutral;
 
@@ -29,6 +32,10 @@ pub fn insert_nullifiers<
     tx_hash: [u8; 32],
 ) -> Result<Option<(u8, u64)>> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
+    msg!(
+        "get_account_compression_authority {:?}",
+        ctx.accounts.get_account_compression_authority().key()
+    );
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(),
         ctx.accounts
@@ -47,10 +54,20 @@ pub fn insert_nullifiers<
         AccountMeta::new_readonly(account_infos[2].key(), false),
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
-
-    let mut leaf_indices = Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
-    let mut proof_by_index =
-        Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
+    let mut account_indices =
+        Vec::<u8>::with_capacity(input_compressed_accounts_with_merkle_context.len());
+    let bytes_size =
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(0, nullifiers.len() as u8, 0);
+    let mut bytes = vec![0u8; bytes_size];
+    let mut append_nullify_create_address_inputs =
+        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, nullifiers.len() as u8, 0)
+            .map_err(ProgramError::from)?;
+    append_nullify_create_address_inputs.set_invoked_by_program(true);
+    append_nullify_create_address_inputs.tx_hash = tx_hash;
+    append_nullify_create_address_inputs.bump = CPI_AUTHORITY_PDA_BUMP;
+    // let mut leaf_indices = Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
+    // let mut prove_by_index =
+    //     Vec::with_capacity(input_compressed_accounts_with_merkle_context.len());
     // If the transaction contains at least one input compressed account a
     // network fee is paid. This network fee is paid in addition to the address
     // network fee. The network fee is paid once per transaction, defined in the
@@ -58,19 +75,32 @@ pub fn insert_nullifiers<
     // nullifier queue is mutable. The network fee field in the queue is not
     // used.
     let mut network_fee_bundle = None;
-    for account in input_compressed_accounts_with_merkle_context.iter() {
-        leaf_indices.push(account.merkle_context.leaf_index);
+    for (i, account) in input_compressed_accounts_with_merkle_context
+        .iter()
+        .enumerate()
+    {
+        append_nullify_create_address_inputs.nullifiers[i].account_hash = nullifiers[i];
+        append_nullify_create_address_inputs.nullifiers[i].leaf_index =
+            account.merkle_context.leaf_index.into();
+        append_nullify_create_address_inputs.nullifiers[i].prove_by_index =
+            account.merkle_context.prove_by_index as u8;
+        let queue_index = get_index_or_insert(
+            account.merkle_context.nullifier_queue_pubkey_index,
+            &mut account_indices,
+            &mut account_infos,
+            &mut accounts,
+            ctx.remaining_accounts,
+        );
+        append_nullify_create_address_inputs.nullifiers[i].queue_index = queue_index;
+        let tree_index = get_index_or_insert(
+            account.merkle_context.merkle_tree_pubkey_index,
+            &mut account_indices,
+            &mut account_infos,
+            &mut accounts,
+            ctx.remaining_accounts,
+        );
+        append_nullify_create_address_inputs.nullifiers[i].tree_index = tree_index;
 
-        proof_by_index.push(account.merkle_context.prove_by_index);
-
-        let account_info =
-            &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
-        accounts.push(AccountMeta {
-            pubkey: account_info.key(),
-            is_signer: false,
-            is_writable: true,
-        });
-        account_infos.push(account_info.clone());
         // 1. Check invoking signer is eligible to write to the nullifier queue.
         let (_, network_fee, _, _) = check_program_owner_state_merkle_tree::<true>(
             &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
@@ -82,25 +112,11 @@ pub fn insert_nullifiers<
                 network_fee.unwrap(),
             ));
         }
-        let account_info =
-            &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize];
-        accounts.push(AccountMeta {
-            pubkey: account_info.key(),
-            is_signer: false,
-            is_writable: true,
-        });
-        account_infos.push(account_info.clone());
     }
-
+    append_nullify_create_address_inputs.num_queues = account_indices.len() as u8 / 2;
     light_heap::bench_sbf_end!("cpda_insert_nullifiers_prep_accs");
     light_heap::bench_sbf_start!("cpda_instruction_data");
-
-    let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        nullifiers: nullifiers.to_vec(),
-        leaf_indices,
-        proof_by_index,
-        tx_hash,
-    };
+    let instruction_data = account_compression::instruction::NullifyAppendCreateAddress { bytes };
 
     let data = instruction_data.data();
     light_heap::bench_sbf_end!("cpda_instruction_data");
@@ -117,4 +133,29 @@ pub fn insert_nullifiers<
         seeds,
     )?;
     Ok(network_fee_bundle)
+}
+
+pub fn get_index_or_insert<'info>(
+    ix_data_index: u8,
+    account_indices: &mut Vec<u8>,
+    account_infos: &mut Vec<AccountInfo<'info>>,
+    account_metas: &mut Vec<AccountMeta>,
+    remaining_accounts: &[AccountInfo<'info>],
+) -> u8 {
+    let queue_index = account_indices.iter().position(|a| *a == ix_data_index);
+    let queue_index = match queue_index {
+        Some(index) => index as u8,
+        None => {
+            account_indices.push(ix_data_index);
+            let account_info = &remaining_accounts[ix_data_index as usize];
+            account_metas.push(AccountMeta {
+                pubkey: account_info.key(),
+                is_signer: false,
+                is_writable: true,
+            });
+            account_infos.push(account_info.clone());
+            account_indices.len() as u8 - 1
+        }
+    };
+    queue_index
 }

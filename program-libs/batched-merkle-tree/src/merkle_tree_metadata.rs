@@ -33,9 +33,9 @@ use crate::{
 )]
 #[aligned_sized(anchor)]
 pub struct BatchedMerkleTreeMetadata {
+    pub tree_type: u64,
     pub metadata: MerkleTreeMetadata,
     pub sequence_number: u64,
-    pub tree_type: u64,
     pub next_index: u64,
     pub height: u32,
     pub root_history_capacity: u32,

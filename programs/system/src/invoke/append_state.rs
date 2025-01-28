@@ -133,10 +133,6 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
     instruction_data.extend_from_slice(
         &((num_leaves * size_of::<AppendLeavesInput>() + 4) as u32).to_le_bytes(),
     );
-    msg!(
-        "size_of::<AppendLeavesInput>() {:?}",
-        size_of::<AppendLeavesInput>()
-    );
     // leaves vector length (for borsh compat)
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
 

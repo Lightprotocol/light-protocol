@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{log::sol_log_compute_units, pubkey::Pubkey},
+    Discriminator,
+};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -45,10 +49,10 @@ pub struct InsertIntoQueues<'info> {
 ///     3.2 Transfer rollover fee.
 pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-    elements: &'a [[u8; 32]],
+    elements: &[[u8; 32]],
     indices: Vec<u32>,
     queue_type: QueueType,
-    proof_by_index: Option<Vec<bool>>,
+    prove_by_index: Option<Vec<bool>>,
     tx_hash: Option<[u8; 32]>,
 ) -> Result<()> {
     if elements.is_empty() {
@@ -76,7 +80,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
             // V1 nullifier or address queue.
             QueueAccount::DISCRIMINATOR => {
                 if queue_type == QueueType::NullifierQueue
-                    && proof_by_index.as_ref().unwrap()[index]
+                    && prove_by_index.as_ref().unwrap()[index]
                 {
                     return err!(AccountCompressionErrorCode::V1AccountMarkedAsProofByIndex);
                 }
@@ -96,7 +100,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
                 &mut queue_map,
                 element,
                 indices[index],
-                proof_by_index.as_ref().unwrap()[index],
+                prove_by_index.as_ref().unwrap()[index],
                 ctx.remaining_accounts,
             )?,
             // V2 Address queue is part of the address Merkle tree account.
@@ -260,11 +264,11 @@ fn process_nullifier_queue_bundle_v2<'info>(
         merkle_tree,
     )?;
 
-    for ((element, leaf_index), proof_by_index) in queue_bundle
+    for ((element, leaf_index), prove_by_index) in queue_bundle
         .elements
         .iter()
         .zip(queue_bundle.indices.iter())
-        .zip(queue_bundle.proof_by_index.iter())
+        .zip(queue_bundle.prove_by_index.iter())
     {
         let tx_hash = tx_hash.ok_or(AccountCompressionErrorCode::TxHashUndefined)?;
         light_heap::bench_sbf_start!("acp_insert_nf_into_queue_v2");
@@ -274,7 +278,7 @@ fn process_nullifier_queue_bundle_v2<'info>(
             .prove_inclusion_by_index_and_zero_out_leaf(
                 *leaf_index as u64,
                 element,
-                *proof_by_index,
+                *prove_by_index,
             )
             .map_err(ProgramError::from)?;
 
@@ -354,7 +358,7 @@ fn add_nullifier_queue_bundle_v2<'a, 'info>(
     queue_map: &mut HashMap<Pubkey, QueueBundle<'a, 'info>>,
     element: &'a [u8; 32],
     index: u32,
-    proof_by_index: bool,
+    prove_by_index: bool,
     remaining_accounts: &'info [AccountInfo<'info>],
 ) -> Result<()> {
     // 1. Check that the queue type is a nullifier queue.
@@ -368,6 +372,8 @@ fn add_nullifier_queue_bundle_v2<'a, 'info>(
     let merkle_tree = remaining_accounts
         .get(*remaining_accounts_index + 1)
         .unwrap();
+    msg!("hashsetinsert");
+    sol_log_compute_units();
     // 2. Get or create a queue bundle.
     // 3. Add the element to the queue bundle.
     queue_map
@@ -377,11 +383,13 @@ fn add_nullifier_queue_bundle_v2<'a, 'info>(
         })
         .elements
         .push(element);
+    sol_log_compute_units();
     // 4. Add the index and proof by index to the queue bundle.
     queue_map.entry(merkle_tree.key()).and_modify(|x| {
         x.indices.push(index);
-        x.proof_by_index.push(proof_by_index);
+        x.prove_by_index.push(prove_by_index);
     });
+    sol_log_compute_units();
     *remaining_accounts_index += 2;
 
     Ok(())

@@ -79,6 +79,7 @@ pub struct InstructionDataBatchAppendInputs {
 /// - get_address_root_by_index
 #[derive(Debug, PartialEq)]
 pub struct BatchedMerkleTreeAccount<'a> {
+    pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
     pub bloom_filter_stores: [&'a mut [u8]; 2],
@@ -164,7 +165,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice)
+        let mut tree = Self::from_bytes::<TREE_TYPE>(data_slice)?;
+        tree.pubkey = (*account_info.key).into();
+        Ok(tree)
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.
@@ -199,6 +202,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (vec_1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
         let (vec_2, _) = ZeroCopyVecU64::from_bytes_at(account_data)?;
         Ok(BatchedMerkleTreeAccount {
+            pubkey: Pubkey::default(),
             metadata,
             root_history,
             bloom_filter_stores,
@@ -295,6 +299,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_data,
         )?;
         Ok(BatchedMerkleTreeAccount {
+            pubkey: Pubkey::default(),
             metadata: account_metadata,
             root_history,
             bloom_filter_stores,
@@ -843,6 +848,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             return Err(BatchedMerkleTreeError::TreeIsFull);
         }
         Ok(())
+    }
+
+    pub fn get_associated_queue(&self) -> &Pubkey {
+        &self.metadata.metadata.associated_queue
+    }
+
+    pub fn pubkey(&self) -> &Pubkey {
+        &self.pubkey
     }
 }
 

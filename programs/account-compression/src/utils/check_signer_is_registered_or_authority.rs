@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use super::constants::CPI_AUTHORITY_PDA_SEED;
+use crate::context::AcpAccount;
 use crate::{errors::AccountCompressionErrorCode, RegisteredProgram};
 
 pub trait GroupAccess {
@@ -51,6 +52,44 @@ pub fn check_signer_is_registered_or_authority<
         }
         None => {
             if ctx.accounts.get_authority().key() == checked_account.get_owner() {
+                Ok(())
+            } else {
+                Err(AccountCompressionErrorCode::InvalidAuthority.into())
+            }
+        }
+    }
+}
+
+pub fn manual_check_signer_is_registered_or_authority<'a, 'info, A: GroupAccess>(
+    derived_address: &Option<(Pubkey, Pubkey)>,
+    authority: &AcpAccount<'a, 'info>,
+    checked_account: &'a A,
+) -> Result<()> {
+    let authority = match authority {
+        AcpAccount::Authority(authority) => authority,
+        _ => return Err(AccountCompressionErrorCode::InvalidAuthority.into()),
+    };
+    match derived_address {
+        Some((derived_address, group_authority_pda)) => {
+            let auth = authority.key() == *derived_address;
+            let owner = checked_account.get_owner().key() == *group_authority_pda;
+            if auth && owner {
+                Ok(())
+            } else {
+                msg!("Registered program check failed.");
+                msg!("owner address: {:?}", checked_account.get_owner());
+                msg!(
+                    "owner address: {:?}",
+                    checked_account.get_owner().to_bytes()
+                );
+                msg!("derived_address: {:?}", derived_address);
+                msg!("signing_address: {:?}", authority.key());
+                msg!("group_authority_pda: {:?}", group_authority_pda.to_bytes());
+                Err(AccountCompressionErrorCode::InvalidAuthority.into())
+            }
+        }
+        None => {
+            if authority.key() == checked_account.get_owner() {
                 Ok(())
             } else {
                 Err(AccountCompressionErrorCode::InvalidAuthority.into())

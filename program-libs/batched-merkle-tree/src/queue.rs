@@ -310,7 +310,7 @@ impl<'a> BatchedQueueAccount<'a> {
         &mut self,
         leaf_index: u64,
         hash_chain_value: &[u8; 32],
-        proof_by_index: bool,
+        prove_by_index: bool,
     ) -> Result<(), BatchedMerkleTreeError> {
         for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
             if batch.leaf_index_exists(leaf_index) {
@@ -329,7 +329,7 @@ impl<'a> BatchedQueueAccount<'a> {
         }
         // Always check and zero out an existing value.
         // If no value is found and a check is not enforced return ok.
-        if proof_by_index {
+        if prove_by_index {
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {
             Ok(())
