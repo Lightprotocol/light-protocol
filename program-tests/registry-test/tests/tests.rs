@@ -175,11 +175,7 @@ fn test_protocol_config_active_phase_continuity_for_config(config: ProtocolConfi
 #[tokio::test]
 async fn test_initialize_protocol_config() {
     let rpc = setup_test_programs(None).await;
-    let mut rpc = ProgramTestRpcConnection {
-        context: rpc,
-        rate_limiter: None,
-    };
-
+    let mut rpc = ProgramTestRpcConnection::new(rpc);
     let payer = rpc.get_payer().insecure_clone();
     let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let protocol_config = ProtocolConfig::default();
@@ -711,11 +707,7 @@ async fn test_custom_forester_batched() {
             tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
         for i in 0..num_output_zkp_batches {
             // Simulate concurrency since instruction data has been created before
-            let instruction_data = if i == 0 {
-                instruction_data.clone()
-            } else {
-                None
-            };
+            let instruction_data = if i == 0 { instruction_data } else { None };
             perform_batch_append(
                 &mut rpc,
                 &mut state_merkle_tree_bundle,

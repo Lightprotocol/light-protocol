@@ -30,6 +30,16 @@ pub struct ProgramTestRpcConnection {
     pub send_tx_rate_limiter: Option<RateLimiter>,
 }
 
+impl ProgramTestRpcConnection {
+    pub fn new(context: ProgramTestContext) -> Self {
+        Self {
+            context,
+            rpc_rate_limiter: None,
+            send_tx_rate_limiter: None,
+        }
+    }
+}
+
 impl Debug for ProgramTestRpcConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "ProgramTestRpcConnection")
@@ -49,12 +59,12 @@ impl RpcConnection for ProgramTestRpcConnection {
         self.rpc_rate_limiter = Some(rate_limiter);
     }
 
-    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.rpc_rate_limiter.as_ref()
-    }
-
     fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter) {
         self.send_tx_rate_limiter = Some(rate_limiter);
+    }
+
+    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
+        self.rpc_rate_limiter.as_ref()
     }
 
     fn send_tx_rate_limiter(&self) -> Option<&RateLimiter> {

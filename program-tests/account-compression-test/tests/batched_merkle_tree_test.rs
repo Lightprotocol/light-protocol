@@ -29,7 +29,7 @@ use light_program_test::{
 };
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
-    mock_batched_forester::{self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
+    mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_test_utils::{
     address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
@@ -85,10 +85,7 @@ async fn test_batch_state_merkle_tree() {
     let output_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection {
-        context,
-        rate_limiter: None,
-    };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
@@ -170,10 +167,7 @@ async fn test_batch_state_merkle_tree() {
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
-        assert_state_mt_zero_copy_inited(
-            &mut merkle_tree.account.data.as_mut_slice(),
-            ref_mt_account,
-        );
+        assert_state_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
         let output_queue_params = CreateOutputQueueParams::from(
             params,
             owner.into(),
@@ -181,10 +175,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey.into(),
         );
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
-        assert_queue_zero_copy_inited(
-            &mut queue.account.data.as_mut_slice(),
-            ref_output_queue_account,
-        );
+        assert_queue_zero_copy_inited(queue.account.data.as_mut_slice(), ref_output_queue_account);
     }
     let mut mock_indexer = MockBatchedForester::<32>::default();
     let invalid_payer = Keypair::new();
@@ -304,12 +295,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidRegisteredProgram,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
     }
 
     // 8. Functional batch append 10 leaves
@@ -497,12 +483,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidRegisteredProgram,
         )
         .await;
-        assert_rpc_error(
-            result,
-            0,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
     }
     // 15. Functional batch nullify 10 leaves
     for i in 0..num_tx {
@@ -549,7 +530,7 @@ pub async fn perform_insert_into_output_queue(
         registered_program_pda: None,
         system_program: Pubkey::default(),
     };
-    let accounts = vec![
+    let accounts = [
         accounts.to_account_metas(Some(true)),
         vec![AccountMeta {
             pubkey: output_queue_pubkey,
@@ -565,7 +546,7 @@ pub async fn perform_insert_into_output_queue(
         data: instruction.data(),
     };
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
 pub async fn perform_batch_append(
@@ -586,14 +567,10 @@ pub async fn perform_batch_append(
         .await
         .unwrap()
         .unwrap();
-    let mut mt_account_data = merkle_tree_account.data_as_mut_slice();
-    let mut output_queue_account_data = output_queue_account.data_as_mut_slice();
-    let instruction_data = create_append_batch_ix_data(
-        mock_indexer,
-        &mut mt_account_data,
-        &mut output_queue_account_data,
-    )
-    .await;
+    let mt_account_data = merkle_tree_account.data_as_mut_slice();
+    let output_queue_account_data = output_queue_account.data_as_mut_slice();
+    let instruction_data =
+        create_append_batch_ix_data(mock_indexer, mt_account_data, output_queue_account_data).await;
     let mut data = Vec::new();
     instruction_data.serialize(&mut data).unwrap();
     let (merkle_tree_pubkey, output_queue_pubkey, registered_program_pda) = match mode {
@@ -622,7 +599,7 @@ pub async fn perform_batch_append(
         data: instruction.data(),
     };
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
 pub async fn perform_batch_nullify(
@@ -638,8 +615,8 @@ pub async fn perform_batch_nullify(
         .await
         .unwrap()
         .unwrap();
-    let mut mt_account_data = merkle_tree_account.data_as_mut_slice();
-    let instruction_data = create_nullify_batch_ix_data(mock_indexer, &mut mt_account_data).await;
+    let mt_account_data = merkle_tree_account.data_as_mut_slice();
+    let instruction_data = create_nullify_batch_ix_data(mock_indexer, mt_account_data).await;
     let mut data = Vec::new();
     instruction_data.serialize(&mut data).unwrap();
     let (merkle_tree_pubkey, registered_program_pda) = match mode {
@@ -662,10 +639,11 @@ pub async fn perform_batch_nullify(
         data: instruction.data(),
     };
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_insert_into_input_queue(
     context: &mut ProgramTestRpcConnection,
     mock_indexer: &mut MockBatchedForester<32>,
@@ -681,11 +659,10 @@ pub async fn perform_insert_into_input_queue(
             "Proof by index len {}!= num of leaves {}",
             proof_by_index.len(),
             num_of_leaves
-        ))
-        .into());
+        )));
     }
     let mut leaves = vec![];
-    let leaf_indices = (counter.clone()..counter.clone() + num_of_leaves).collect::<Vec<u32>>();
+    let leaf_indices = (*counter..*counter + num_of_leaves).collect::<Vec<u32>>();
     for _ in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
         leaf[31] = *counter as u8;
@@ -697,7 +674,7 @@ pub async fn perform_insert_into_input_queue(
         *counter += 1;
     }
     let slot = context.get_slot().await.unwrap();
-    let tx_hash = create_tx_hash(&leaves, &vec![], slot).unwrap();
+    let tx_hash = create_tx_hash(&leaves, &[], slot).unwrap();
     mock_indexer.tx_events.push(MockTxEvent {
         tx_hash,
         inputs: leaves.clone(),
@@ -729,7 +706,7 @@ pub async fn perform_insert_into_input_queue(
             is_writable: true,
         });
     }
-    let accounts = vec![accounts.to_account_metas(Some(true)), account_metas].concat();
+    let accounts = [accounts.to_account_metas(Some(true)), account_metas].concat();
 
     let instruction = Instruction {
         program_id: ID,
@@ -737,7 +714,7 @@ pub async fn perform_insert_into_input_queue(
         data: instruction.data(),
     };
     context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
 }
 
@@ -833,15 +810,15 @@ pub async fn create_nullify_batch_ix_data(
         )
         .await
         .unwrap();
-    let instruction_data = InstructionDataBatchNullifyInputs {
+
+    InstructionDataBatchNullifyInputs {
         new_root,
         compressed_proof: CompressedProof {
             a: proof.a,
             b: proof.b,
             c: proof.c,
         },
-    };
-    instruction_data
+    }
 }
 
 #[serial]
@@ -856,11 +833,7 @@ async fn test_init_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection {
-        context,
-        rate_limiter: None,
-    };
-
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
@@ -877,7 +850,7 @@ async fn test_init_batch_state_merkle_trees() {
             &payer,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
-            params.clone(),
+            *params,
         )
         .await
         .unwrap();
@@ -894,7 +867,7 @@ async fn test_init_batch_state_merkle_trees() {
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_state_mt_zero_copy_inited(&mut tree_data.as_mut_slice(), ref_mt_account);
+        assert_state_mt_zero_copy_inited(tree_data.as_mut_slice(), ref_mt_account);
         let output_queue_params = CreateOutputQueueParams::from(
             *params,
             owner.into(),
@@ -903,10 +876,7 @@ async fn test_init_batch_state_merkle_trees() {
         );
 
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
-        assert_queue_zero_copy_inited(
-            &mut queue.account.data.as_mut_slice(),
-            ref_output_queue_account,
-        );
+        assert_queue_zero_copy_inited(queue.account.data.as_mut_slice(), ref_output_queue_account);
     }
 }
 
@@ -941,7 +911,7 @@ pub async fn perform_init_batch_state_merkle_tree(
         queue_account_size,
         queue_rent,
         &ID,
-        Some(&nullifier_queue_keypair),
+        Some(nullifier_queue_keypair),
     );
     let mt_rent = context
         .get_minimum_balance_for_rent_exemption(mt_account_size)
@@ -957,7 +927,7 @@ pub async fn perform_init_batch_state_merkle_tree(
         mt_account_size,
         mt_rent,
         &ID,
-        Some(&merkle_tree_keypair),
+        Some(merkle_tree_keypair),
     );
 
     let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
@@ -980,7 +950,7 @@ pub async fn perform_init_batch_state_merkle_tree(
             .create_and_send_transaction(
                 &[create_queue_account_ix, create_mt_account_ix, instruction],
                 &payer_pubkey,
-                &[&payer, &nullifier_queue_keypair, &merkle_tree_keypair],
+                &[payer, nullifier_queue_keypair, merkle_tree_keypair],
             )
             .await?,
         total_rent,
@@ -1007,10 +977,7 @@ async fn test_rollover_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection {
-        context,
-        rate_limiter: None,
-    };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
@@ -1021,7 +988,7 @@ async fn test_rollover_batch_state_merkle_trees() {
         &payer,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        params.clone(),
+        params,
     )
     .await
     .unwrap();
@@ -1138,7 +1105,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             &payer,
             &merkle_tree_keypair_1,
             &nullifier_queue_keypair_1,
-            params.clone(),
+            params,
         )
         .await
         .unwrap();
@@ -1203,6 +1170,7 @@ pub enum BatchStateMerkleTreeRollOverTestMode {
     InvalidDiscriminatorQueue,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,
@@ -1248,15 +1216,15 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         &payer_pubkey,
         mt_account_size,
         mt_rent,
-        &account_compression::ID,
-        Some(&new_state_merkle_tree_keypair),
+        &ID,
+        Some(new_state_merkle_tree_keypair),
     );
 
     let create_queue_account_ix = create_account_instruction(
         &payer_pubkey,
         queue_account_size,
         queue_rent,
-        &account_compression::ID,
+        &ID,
         Some(new_output_queue_keypair),
     );
     let old_state_merkle_tree = if test_mode
@@ -1295,17 +1263,16 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         data: instruction_data.data(),
     };
 
-    Ok(rpc
-        .create_and_send_transaction(
-            &[create_mt_account_ix, create_queue_account_ix, instruction],
-            &payer_pubkey,
-            &[
-                &payer,
-                &new_state_merkle_tree_keypair,
-                &new_output_queue_keypair,
-            ],
-        )
-        .await?)
+    rpc.create_and_send_transaction(
+        &[create_mt_account_ix, create_queue_account_ix, instruction],
+        &payer_pubkey,
+        &[
+            payer,
+            new_state_merkle_tree_keypair,
+            new_output_queue_keypair,
+        ],
+    )
+    .await
 }
 
 pub async fn perform_init_batch_state_merkle_tree_and_queue(
@@ -1338,7 +1305,7 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
         queue_account_size,
         queue_rent,
         &ID,
-        Some(&nullifier_queue_keypair),
+        Some(nullifier_queue_keypair),
     );
     let mt_rent = context
         .get_minimum_balance_for_rent_exemption(mt_account_size)
@@ -1354,7 +1321,7 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
         mt_account_size,
         mt_rent,
         &ID,
-        Some(&merkle_tree_keypair),
+        Some(merkle_tree_keypair),
     );
 
     let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
@@ -1376,7 +1343,7 @@ pub async fn perform_init_batch_state_merkle_tree_and_queue(
         .create_and_send_transaction(
             &[create_queue_account_ix, create_mt_account_ix, instruction],
             &payer_pubkey,
-            &[&payer, &nullifier_queue_keypair, &merkle_tree_keypair],
+            &[&payer, nullifier_queue_keypair, merkle_tree_keypair],
         )
         .await?;
     Ok((total_rent, signature))
@@ -1394,10 +1361,7 @@ async fn test_init_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection {
-        context,
-        rate_limiter: None,
-    };
+    let mut context = ProgramTestRpcConnection::new(context);
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
@@ -1422,7 +1386,7 @@ async fn test_init_batch_address_merkle_trees() {
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_address_mt_zero_copy_inited(&mut tree_data.as_mut_slice(), ref_mt_account);
+        assert_address_mt_zero_copy_inited(tree_data.as_mut_slice(), ref_mt_account);
     }
 }
 pub async fn perform_init_batch_address_merkle_tree(
@@ -1450,7 +1414,7 @@ pub async fn perform_init_batch_address_merkle_tree(
         mt_account_size,
         mt_rent,
         &ID,
-        Some(&merkle_tree_keypair),
+        Some(merkle_tree_keypair),
     );
 
     let instruction = account_compression::instruction::IntializeBatchedAddressMerkleTree {
@@ -1471,7 +1435,7 @@ pub async fn perform_init_batch_address_merkle_tree(
         .create_and_send_transaction(
             &[create_mt_account_ix, instruction],
             &payer_pubkey,
-            &[&payer, &merkle_tree_keypair],
+            &[&payer, merkle_tree_keypair],
         )
         .await?;
     Ok((mt_rent, res))
@@ -1489,11 +1453,8 @@ async fn test_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection {
-        context,
-        rate_limiter: None,
-    };
-    let mut mock_indexer = mock_batched_forester::MockBatchedAddressForester::<40>::default();
+    let mut context = ProgramTestRpcConnection::new(context);
+    let mut mock_indexer = MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();
     // set rollover threshold to 0 to test rollover.
@@ -1614,7 +1575,7 @@ async fn test_batch_address_merkle_trees() {
     // 5. Failing: invalid proof
     // 6. Failing: invalid new root
     // 7. Failing: update twice with the same instruction (proof and public inputs)
-    for (mode, ix_index) in vec![
+    for (mode, ix_index) in [
         UpdateBatchAddressTreeTestMode::InvalidProof,
         UpdateBatchAddressTreeTestMode::InvalidNewRoot,
         UpdateBatchAddressTreeTestMode::UpdateTwice,
@@ -1848,7 +1809,7 @@ pub async fn rollover_batched_address_merkle_tree(
             .create_and_send_transaction(
                 &[create_mt_account_ix, instruction],
                 &payer_pubkey,
-                &[&payer, &new_address_merkle_tree_keypair],
+                &[payer, &new_address_merkle_tree_keypair],
             )
             .await?,
         new_address_merkle_tree_keypair.pubkey(),
@@ -1971,6 +1932,6 @@ pub async fn update_batch_address_tree(
         }]
     };
     context
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
 }
