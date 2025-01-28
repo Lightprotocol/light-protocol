@@ -236,8 +236,11 @@ impl SolanaRpcConnection {
                                 )
                             })?;
 
-                        if let Ok(parsed_data) = T::try_from_slice(data.as_slice()) {
-                            return Ok(parsed_data);
+                        match T::try_from_slice(data.as_slice()) {
+                            Ok(parsed_data) => return Ok(parsed_data),
+                            Err(e) => {
+                                warn!("Failed to parse inner instruction: {:?}", e);
+                            }
                         }
                     }
                     UiInstruction::Parsed(_) => {
@@ -382,9 +385,14 @@ impl RpcConnection for SolanaRpcConnection {
 
         let mut parsed_event = None;
         for instruction in &transaction.message.instructions {
-            if let Ok(e) = T::deserialize(&mut &instruction.data[..]) {
-                parsed_event = Some(e);
-                break;
+            match T::deserialize(&mut &instruction.data[..]) {
+                Ok(e) => {
+                    parsed_event = Some(e);
+                    break;
+                }
+                Err(e) => {
+                    warn!("Failed to parse event: {:?}", e);
+                }
             }
         }
 

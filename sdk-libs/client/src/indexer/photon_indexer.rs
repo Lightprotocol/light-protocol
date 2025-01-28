@@ -64,7 +64,7 @@ impl<R: RpcConnection> PhotonIndexer<R> {
     pub fn get_rpc_mut(&mut self) -> &mut R {
         &mut self.rpc
     }
-    
+
     async fn rate_limited_request<F, Fut, T>(&self, operation: F) -> Result<T, IndexerError>
     where
         F: FnOnce() -> Fut,

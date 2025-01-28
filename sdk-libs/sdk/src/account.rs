@@ -146,7 +146,6 @@ where
                         owner: *self.account_info.owner,
                         lamports: self.account_info.lamports.unwrap_or(0),
                         address: self.account_info.address,
-                        hash: None,
                         data,
                     },
                     merkle_tree_index,

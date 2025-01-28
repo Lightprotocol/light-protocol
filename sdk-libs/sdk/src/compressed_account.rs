@@ -11,7 +11,6 @@ pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
     pub address: Option<[u8; 32]>,
-    pub hash: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
 }
 

@@ -80,7 +80,6 @@ pub fn program_to_sdk_compressed_account(
         owner: program_account.owner,
         lamports: program_account.lamports,
         address: program_account.address,
-        hash: None,
         data: program_account
             .data
             .map(program_to_sdk_compressed_account_data),

@@ -9,6 +9,7 @@ use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
+use light_sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::{
     compressed_account::CompressedAccount, invoke::create_invoke_instruction,
 };
@@ -200,7 +201,10 @@ async fn test_all_endpoints() {
         .await
         .unwrap();
     assert_eq!(account.lamports, lamports);
-    assert_eq!(account.owner, indexer.get_rpc().get_payer().pubkey().to_string());
+    assert_eq!(
+        account.owner,
+        indexer.get_rpc().get_payer().pubkey().to_string()
+    );
 
     let balance = indexer
         .get_compressed_account_balance(None, Some(first_hash))
@@ -217,33 +221,28 @@ async fn test_all_endpoints() {
         tx_create_compressed_account.signatures[0].to_string()
     );
 
-    let token_account = &indexer
+    let token_accounts = &indexer
         .get_compressed_token_accounts_by_owner(&pubkey, None)
         .await
-        .unwrap()[0];
-    assert_eq!(token_account.token_data.mint, mint.pubkey());
-    assert_eq!(token_account.token_data.owner, payer_pubkey);
-
-    let balance = indexer
-        .get_compressed_token_account_balance(
-            None,
-            Some(
-                token_account
-                    .compressed_account
-                    .compressed_account
-                    .hash
-                    .unwrap(),
-            ),
-        )
-        .await
         .unwrap();
-    assert_eq!(balance, amount);
+
+    assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
+    assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
+
+    let hash = token_accounts[0].compressed_account.hash().unwrap();
 
     let balances = indexer
         .get_compressed_token_balances_by_owner(&pubkey, None)
         .await
         .unwrap();
+
     assert_eq!(balances.token_balances[0].balance, amount);
+
+    let balance = indexer
+        .get_compressed_token_account_balance(None, Some(hash))
+        .await
+        .unwrap();
+    assert_eq!(balance, amount);
 
     let hashes_str = hashes.iter().map(|h| h.to_base58()).collect();
     let proofs = indexer

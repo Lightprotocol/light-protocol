@@ -355,16 +355,16 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
             address: account
                 .address
                 .map(|a| <[u8; 32]>::from_base58(&a).unwrap()),
-            hash: Some(<[u8; 32]>::from_base58(&account.hash)?),
             lamports: account.lamports,
             owner: Pubkey::from_str(&account.owner)?,
             data: None,
         };
 
         if let Some(data) = account.data {
+            let data_decoded = base64::decode(&data.data)?;
             compressed_account.data = Some(CompressedAccountData {
-                discriminator: data.discriminator.to_be_bytes(),
-                data: base64::decode(&data.data)?,
+                discriminator: data.discriminator.to_le_bytes(),
+                data: data_decoded,
                 data_hash: <[u8; 32]>::from_base58(&data.data_hash)?,
             });
         }
