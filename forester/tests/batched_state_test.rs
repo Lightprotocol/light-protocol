@@ -131,6 +131,10 @@ async fn test_state_batched() {
                 )
             })
             .unwrap();
+
+    // TODO: regenerate batched state merkle tree with rollover_fee = 1
+    e2e_env.indexer.state_merkle_trees[batched_state_merkle_tree_index].rollover_fee = 1;
+
     let mut merkle_tree_account = e2e_env
         .rpc
         .get_account(batched_state_merkle_tree_pubkey)

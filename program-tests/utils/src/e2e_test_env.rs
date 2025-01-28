@@ -1708,6 +1708,7 @@ where
         } else {
             None
         };
+
         compress_sol_test(
             &mut self.rpc,
             &mut self.indexer,

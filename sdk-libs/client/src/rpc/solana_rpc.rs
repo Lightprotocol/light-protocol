@@ -414,6 +414,7 @@ impl RpcConnection for SolanaRpcConnection {
             if transaction_params.num_new_addresses != 0 {
                 network_fee += transaction_params.fee_config.address_network_fee as i64;
             }
+
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
                     * transaction_params.fee_config.address_queue_rollover as i64
