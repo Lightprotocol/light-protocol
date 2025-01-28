@@ -177,7 +177,11 @@ async fn test_address_batched() {
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc.get_account(address_merkle_tree_pubkey).await.unwrap().unwrap();
+        let mut merkle_tree_account = rpc
+            .get_account(address_merkle_tree_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
 
         let merkle_tree =
             BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
@@ -216,7 +220,11 @@ async fn test_address_batched() {
     }
 
     let mut rpc = pool.get_connection().await.unwrap();
-    let mut merkle_tree_account = rpc.get_account(address_merkle_tree_pubkey).await.unwrap().unwrap();
+    let mut merkle_tree_account = rpc
+        .get_account(address_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
 
     let merkle_tree =
         BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())

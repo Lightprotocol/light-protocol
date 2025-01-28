@@ -116,14 +116,21 @@ async fn test_state_batched() {
         println!("version: {}", tree.version);
     }
 
-    let (batched_state_merkle_tree_index, batched_state_merkle_tree_pubkey, nullifier_queue_pubkey) = e2e_env
-        .indexer
-        .state_merkle_trees
-        .iter()
-        .enumerate()
-        .find(|(_, tree)| tree.version == 2)
-        .map(|(index, tree)| (index, tree.accounts.merkle_tree, tree.accounts.nullifier_queue))
-        .unwrap();
+    let (batched_state_merkle_tree_index, batched_state_merkle_tree_pubkey, nullifier_queue_pubkey) =
+        e2e_env
+            .indexer
+            .state_merkle_trees
+            .iter()
+            .enumerate()
+            .find(|(_, tree)| tree.version == 2)
+            .map(|(index, tree)| {
+                (
+                    index,
+                    tree.accounts.merkle_tree,
+                    tree.accounts.nullifier_queue,
+                )
+            })
+            .unwrap();
     let mut merkle_tree_account = e2e_env
         .rpc
         .get_account(batched_state_merkle_tree_pubkey)
@@ -169,10 +176,18 @@ async fn test_state_batched() {
         println!("\ntx {}", i);
 
         e2e_env
-            .compress_sol_deterministic(&forester_keypair, 1_000_000, Some(batched_state_merkle_tree_index))
+            .compress_sol_deterministic(
+                &forester_keypair,
+                1_000_000,
+                Some(batched_state_merkle_tree_index),
+            )
             .await;
         e2e_env
-            .transfer_sol_deterministic(&forester_keypair, &Pubkey::new_unique(), Some(batched_state_merkle_tree_index))
+            .transfer_sol_deterministic(
+                &forester_keypair,
+                &Pubkey::new_unique(),
+                Some(batched_state_merkle_tree_index),
+            )
             .await
             .unwrap();
     }
