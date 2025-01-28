@@ -9,7 +9,6 @@ use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
-use light_sdk::event::PublicTransactionEvent;
 use light_system_program::sdk::{
     compressed_account::CompressedAccount, invoke::create_invoke_instruction,
 };
