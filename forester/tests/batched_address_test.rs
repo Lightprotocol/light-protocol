@@ -169,8 +169,6 @@ async fn test_address_batched() {
         sleep(Duration::from_millis(100)).await;
     }
 
-    // let merkle_tree_pubkey = env.indexer.address_merkle_trees[0].accounts.merkle_tree;
-
     let zkp_batches = tree_params.input_queue_batch_size / tree_params.input_queue_zkp_batch_size;
 
     println!("zkp_batches: {}", zkp_batches);
