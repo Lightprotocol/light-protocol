@@ -9,7 +9,10 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_system_program::program::LightSystemProgram;
-use solana_sdk::instruction::Instruction;
+use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction, hash::Hash, instruction::Instruction,
+    signature::Keypair, transaction::Transaction,
+};
 
 use crate::utils::{
     get_cpi_authority_pda, get_forester_epoch_pda_from_authority, get_protocol_config_pda_address,
@@ -39,11 +42,33 @@ pub fn create_nullify_instruction(
     let (cpi_authority, bump) = get_cpi_authority_pda();
     let instruction_data = crate::instruction::Nullify {
         bump,
-        change_log_indices: inputs.change_log_indices,
-        leaves_queue_indices: inputs.leaves_queue_indices,
-        indices: inputs.indices,
-        proofs: inputs.proofs,
+        change_log_indices: inputs.change_log_indices.clone(),
+        leaves_queue_indices: inputs.leaves_queue_indices.clone(),
+        indices: inputs.indices.clone(),
+        proofs: inputs.proofs.clone(),
     };
+    println!(
+        "instruction_data len single: {:?}",
+        instruction_data.try_to_vec().unwrap().len()
+    );
+
+    let instruction_data_double = crate::instruction::Nullify {
+        bump,
+        change_log_indices: vec![
+            inputs.change_log_indices.clone()[0],
+            inputs.change_log_indices.clone()[0],
+        ],
+        leaves_queue_indices: vec![
+            inputs.leaves_queue_indices.clone()[0],
+            inputs.leaves_queue_indices.clone()[0],
+        ],
+        indices: vec![inputs.indices.clone()[0], inputs.indices.clone()[0]],
+        proofs: vec![inputs.proofs[0].clone(), inputs.proofs[0].clone()],
+    };
+    println!(
+        "instruction_data len double : {:?}",
+        instruction_data_double.try_to_vec().unwrap().len()
+    );
 
     let accounts = crate::accounts::NullifyLeaves {
         authority: inputs.authority,
@@ -55,6 +80,34 @@ pub fn create_nullify_instruction(
         cpi_authority,
         account_compression_program: account_compression::ID,
     };
+    println!(
+        "accounts len: {:?}",
+        accounts.to_account_metas(Some(true)).len()
+    );
+
+    let test = Instruction {
+        program_id: crate::ID,
+        accounts: vec![],
+        data: instruction_data_double.data(),
+    };
+    // Mock tx
+    let payer_pubkey: Pubkey = Pubkey::default();
+    let final_instructions: Vec<Instruction> = vec![
+        ComputeBudgetInstruction::set_compute_unit_price(10000),
+        ComputeBudgetInstruction::set_compute_unit_limit(1000000000),
+        test,
+    ];
+    let recent_blockhash = Hash::default();
+    let mut tx = Transaction::new_with_payer(&final_instructions, Some(&payer_pubkey));
+
+    let serialized_size = tx.message_data().len();
+    println!("serialized_size pre-sign: {:?}", serialized_size);
+
+    tx.sign(&[&Keypair::new()], recent_blockhash);
+
+    let serialized_size = tx.message_data().len();
+    println!("serialized_size post-sign: {:?}", serialized_size);
+
     Instruction {
         program_id: crate::ID,
         accounts: accounts.to_account_metas(Some(true)),
