@@ -1,9 +1,9 @@
 use anchor_lang::{
     prelude::{AccountInfo, AccountLoader},
-    solana_program::{msg, pubkey::Pubkey},
-    AccountDeserialize, AnchorDeserialize, Discriminator as AnchorDiscriminator, Key,
-    ToAccountInfo,
+    solana_program::{log::sol_log_compute_units, msg, pubkey::Pubkey},
+    AccountDeserialize, Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
+use bytemuck::Pod;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -87,6 +87,12 @@ impl<'a, 'info> LightContext<'a, 'info> {
         let offset = if self.invoked_by_program { 3 } else { 2 };
         &mut self.accounts[offset..]
     }
+
+    #[inline(always)]
+    pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
+        let offset = if self.invoked_by_program { 3 } else { 2 };
+        &self.accounts[offset..]
+    }
 }
 
 const FEE_PAYER_INDEX: usize = 0;
@@ -94,6 +100,7 @@ const AUTHORITY_INDEX: usize = 1;
 const REGISTERED_PROGRAM_PDA_INDEX: usize = 2;
 const SYSTEM_PROGRAM_INDEX: usize = 3;
 
+#[derive(Debug)]
 pub enum AcpAccount<'a, 'info> {
     FeePayer(&'a AccountInfo<'info>),
     Authority(&'a AccountInfo<'info>),
@@ -135,8 +142,12 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             true => {
                 let account_info = &account_infos[1];
                 let data = account_info.try_borrow_data().unwrap();
-                // TODO: zero copy
-                let account = RegisteredProgram::try_deserialize(&mut &data[..]).unwrap();
+                if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
+                    panic!("Invalid discriminator");
+                }
+                let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
+                // 1,670 CU
+                // TODO: get from RegisteredProgram account and compare
                 let derived_address = Pubkey::create_program_address(
                     &[CPI_AUTHORITY_PDA_SEED, &[bump]],
                     &account.registered_program_id,

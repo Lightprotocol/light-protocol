@@ -1,17 +1,11 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Discriminator};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_hasher::Discriminator as HasherDiscriminator;
 
 use crate::{
+    context::AcpAccount,
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
-    state_merkle_tree_from_bytes_zero_copy_mut,
-    utils::{
-        check_signer_is_registered_or_authority::{
-            check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
-        },
-        transfer_lamports::transfer_lamports_cpi,
-    },
+    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
     RegisteredProgram,
 };
 
@@ -96,61 +90,58 @@ pub struct AppendLeavesInput {
 /// 6. check if all leaves are processed
 ///     return Ok(()) if all leaves are processed
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
+    // ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: &[AppendLeavesInput],
+    num_unique_appends: u8,
+    accounts: &mut [AcpAccount<'a, 'info>],
 ) -> Result<()> {
+    if leaves.is_empty() {
+        return Ok(());
+    }
     let mut leaves_processed: usize = 0;
-    let len = ctx.remaining_accounts.len();
     // 1. Iterate over all remaining accounts (Merkle tree or output queue accounts)
-    for i in 0..len {
-        let merkle_tree_acc_info = &ctx.remaining_accounts[i];
+    for i in 0..num_unique_appends as usize {
+        // 2. get first leaves that points to current Merkle tree account
+        let start = match leaves.iter().position(|x| x.index as usize == i) {
+            Some(pos) => Ok(pos),
+            None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
+        }?;
+        // 3. get last leaf that points to current Merkle tree account
+        let end = match leaves[start..].iter().position(|x| x.index as usize != i) {
+            Some(pos) => pos + start,
+            None => leaves.len(),
+        };
+        let batch_size = end - start;
+        leaves_processed += batch_size;
 
-        let rollover_fee: u64 = {
-            // 2. get first leaves that points to current Merkle tree account
-            let start = match leaves.iter().position(|x| x.index as usize == i) {
-                Some(pos) => Ok(pos),
-                None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
-            }?;
-            // 3. get last leaf that points to current Merkle tree account
-            let end = match leaves[start..].iter().position(|x| x.index as usize != i) {
-                Some(pos) => pos + start,
-                None => leaves.len(),
-            };
-            let batch_size = end - start;
-            leaves_processed += batch_size;
-
-            //TODO: check whether copy from slice is more efficient
-            let merkle_tree_acc_discriminator: [u8; 8] = ctx.remaining_accounts[i]
-                .try_borrow_data()?[0..8]
-                .try_into()
-                .unwrap();
-            // 4. append batch to Merkle tree or insert into output queue
-            match merkle_tree_acc_discriminator {
-                StateMerkleTreeAccount::DISCRIMINATOR => append_to_concurrent_merkle_tree(
-                    &ctx,
-                    merkle_tree_acc_info,
-                    batch_size,
-                    leaves[start..end]
-                        .iter()
-                        .map(|x| &x.leaf)
-                        .collect::<Vec<&[u8; 32]>>()
-                        .as_slice(),
-                )?,
-                BatchedQueueAccount::DISCRIMINATOR => insert_into_output_queue(
-                    &ctx,
-                    merkle_tree_acc_info,
-                    batch_size,
-                    &leaves[start..end],
-                )?,
-                _ => {
-                    return err!(
-                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+        // 4. append batch to Merkle tree or insert into output queue
+        match &mut accounts[i] {
+            AcpAccount::StateTree((_, merkle_tree)) => {
+                merkle_tree
+                    .append_batch(
+                        &leaves[start..end]
+                            .iter()
+                            .map(|x| &x.leaf)
+                            .collect::<Vec<&[u8; 32]>>(),
                     )
+                    .map_err(ProgramError::from)?;
+            }
+            AcpAccount::OutputQueue(queue) => {
+                for leaf in leaves[start..end].iter() {
+                    queue
+                        .insert_into_current_batch(&leaf.leaf)
+                        .map_err(ProgramError::from)?;
                 }
             }
-        };
-        // 5. transfer rollover fee
-        transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;
+            _ => {
+                return err!(
+                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                )
+            }
+        }
+
+        // 5. transfer rollover fee (rollover fee is transferred in the system program)
+        // transfer_lamports_cpi(&accounts[0], merkle_tree_acc_info, rollover_fee)?;
     }
     // 6. check if all leaves are processed
     if leaves_processed != leaves.len() {
@@ -160,68 +151,37 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     }
 }
 
-/// Append a batch of leaves to a concurrent Merkle tree.
-/// 1. Check StateMerkleTreeAccount discriminator and ownership (AccountLoader)
-/// 2. Check signer is registered or authority
-/// 3. Append leaves to Merkle tree
-/// 4. Return rollover fee
-fn append_to_concurrent_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-    merkle_tree_acc_info: &'info AccountInfo<'info>,
-    batch_size: usize,
-    leaves: &[&[u8; 32]],
-) -> Result<u64> {
-    let rollover_fee = {
-        let merkle_tree_account =
-            AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                .map_err(ProgramError::from)?;
+// /// Append a batch of leaves to a concurrent Merkle tree.
+// /// 1. Check StateMerkleTreeAccount discriminator and ownership (AccountLoader)
+// /// 2. Check signer is registered or authority
+// /// 3. Append leaves to Merkle tree
+// /// 4. Return rollover fee
+// fn append_to_concurrent_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+//     merkle_tree_acc_info: ConcurrentMerkleTree26<'info>,
+//     batch_size: usize,
+//     leaves: &[&[u8; 32]],
+// ) -> Result<()> {
+//     // let rollover_fee = {
+//     //     let merkle_tree_account =
+//     //         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+//     //             .map_err(ProgramError::from)?;
 
-        {
-            let merkle_tree_account = merkle_tree_account.load()?;
-            let rollover_fee =
-                merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
+//     //     {
+//     //         let merkle_tree_account = merkle_tree_account.load()?;
+//     //         let rollover_fee =
+//     //             merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
 
-            check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
-                ctx,
-                &merkle_tree_account,
-            )?;
+//     //         check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
+//     //             ctx,
+//     //             &merkle_tree_account,
+//     //         )?;
 
-            rollover_fee
-        }
-    };
-    let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
-    let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
-    merkle_tree
-        .append_batch(leaves)
-        .map_err(ProgramError::from)?;
-    Ok(rollover_fee)
-}
+//     //         rollover_fee
+//     //     }
+//     // };
 
-/// Insert a batch of leaves into a batched Merkle tree output queue.
-/// 1. Check BatchedQueueAccount discriminator and ownership
-///     (output_from_account_info)
-/// 2. Check signer is registered or authority
-/// 3. Insert leaves into output queue
-/// 4. Return rollover fee
-fn insert_into_output_queue<'a, 'b, 'c: 'info, 'info>(
-    ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-    merkle_tree_acc_info: &'info AccountInfo<'info>,
-    batch_size: usize,
-    leaves: &[AppendLeavesInput],
-) -> Result<u64> {
-    let output_queue = &mut BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
-        .map_err(ProgramError::from)?;
-    check_signer_is_registered_or_authority::<AppendLeaves, BatchedQueueAccount>(
-        ctx,
-        output_queue,
-    )?;
-
-    for leaf in leaves {
-        output_queue
-            .insert_into_current_batch(&leaf.leaf)
-            .map_err(ProgramError::from)?;
-    }
-
-    let rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee * batch_size as u64;
-    Ok(rollover_fee)
-}
+//     merkle_tree
+//         .append_batch(leaves)
+//         .map_err(ProgramError::from)?;
+//     Ok()
+// }

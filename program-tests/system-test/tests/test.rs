@@ -1947,7 +1947,6 @@ async fn batch_invoke_test() {
                 merkle_tree_pubkey,
                 leaf_index: compressed_account_with_context.merkle_context.leaf_index,
                 nullifier_queue_pubkey: output_queue_pubkey,
-                // Values are not used, it only has to be Some
                 prove_by_index: true,
             }],
             &[output_queue_pubkey],
@@ -2361,26 +2360,26 @@ async fn batch_invoke_test() {
             .unwrap();
         }
 
-        let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                Some(vec![compressed_account_with_context_1.hash().unwrap()]),
-                Some(vec![
-                    compressed_account_with_context_1
-                        .merkle_context
-                        .merkle_tree_pubkey,
-                ]),
-                None,
-                None,
-                &mut context,
-            )
-            .await;
+        // let proof_rpc_result = test_indexer
+        //     .create_proof_for_compressed_accounts2(
+        //         Some(vec![compressed_account_with_context_1.hash().unwrap()]),
+        //         Some(vec![
+        //             compressed_account_with_context_1
+        //                 .merkle_context
+        //                 .merkle_tree_pubkey,
+        //         ]),
+        //         None,
+        //         None,
+        //         &mut context,
+        //     )
+        //     .await;
         let mut merkle_context =
             sdk_to_program_merkle_context(compressed_account_with_context_1.merkle_context);
         merkle_context.prove_by_index = true;
-        let mut proof = None;
-        if let Some(proof_rpc) = proof_rpc_result.proof {
-            proof = Some(sdk_to_program_compressed_proof(proof_rpc));
-        }
+        // let mut proof = None;
+        // if let Some(proof_rpc) = proof_rpc_result.proof {
+        //     proof = Some(sdk_to_program_compressed_proof(proof_rpc));
+        // }
 
         let instruction = create_invoke_instruction(
             &payer_pubkey,
@@ -2393,7 +2392,7 @@ async fn batch_invoke_test() {
             &[merkle_context.nullifier_queue_pubkey],
             &[None],
             &Vec::new(),
-            proof,
+            None,
             None,
             false,
             None,

@@ -121,11 +121,11 @@ pub fn output_compressed_accounts_write_access_check(
     Ok(())
 }
 
-pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>(
-    merkle_tree_acc_info: &'b AccountInfo<'a>,
+pub fn check_program_owner_state_merkle_tree<'a, 'info, const IS_NULLIFY: bool>(
+    merkle_tree_acc_info: &'info AccountInfo<'info>,
     invoking_program: &Option<Pubkey>,
-) -> Result<(u32, Option<u64>, u64, Pubkey)> {
-    let (seq, next_index, network_fee, program_owner, merkle_tree_pubkey) = {
+) -> Result<(u32, Option<u64>, u64, Pubkey, u64)> {
+    let (seq, next_index, network_fee, program_owner, merkle_tree_pubkey, rollover_fee) = {
         let mut discriminator_bytes = [0u8; 8];
         discriminator_bytes.copy_from_slice(&merkle_tree_acc_info.try_borrow_data()?[0..8]);
         match discriminator_bytes {
@@ -152,6 +152,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     merkle_tree_unpacked.metadata.rollover_metadata.network_fee,
                     merkle_tree_unpacked.metadata.access_metadata.program_owner,
                     merkle_tree_acc_info.key(),
+                    merkle_tree_unpacked.metadata.rollover_metadata.rollover_fee,
                 )
             }
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
@@ -172,6 +173,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     merkle_tree.metadata.rollover_metadata.network_fee,
                     merkle_tree.metadata.access_metadata.program_owner,
                     merkle_tree_acc_info.key(),
+                    merkle_tree.metadata.rollover_metadata.rollover_fee,
                 )
             }
             BatchedQueueAccount::DISCRIMINATOR => {
@@ -191,6 +193,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
                     merkle_tree.metadata.rollover_metadata.network_fee,
                     merkle_tree.metadata.access_metadata.program_owner,
                     merkle_tree.metadata.associated_merkle_tree.into(),
+                    merkle_tree.metadata.rollover_metadata.rollover_fee,
                 )
             }
             _ => {
@@ -209,7 +212,13 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
     if program_owner != Pubkey::default().into() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == program_owner.into() {
-                return Ok((next_index, network_fee, seq, merkle_tree_pubkey));
+                return Ok((
+                    next_index,
+                    network_fee,
+                    seq,
+                    merkle_tree_pubkey,
+                    rollover_fee,
+                ));
             }
         }
         msg!(
@@ -219,14 +228,20 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a, const IS_NULLIFY: bool>
         );
         return err!(SystemProgramError::InvalidMerkleTreeOwner);
     }
-    Ok((next_index, network_fee, seq, merkle_tree_pubkey))
+    Ok((
+        next_index,
+        network_fee,
+        seq,
+        merkle_tree_pubkey,
+        rollover_fee,
+    ))
 }
 
 // TODO: extend to match batched trees
 pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<Option<u64>> {
+) -> Result<(Option<u64>, u64)> {
     let discriminator_bytes = merkle_tree_acc_info.try_borrow_data()?[0..8]
         .try_into()
         .unwrap();
@@ -265,7 +280,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
                     invoking_program,
                     metadata.access_metadata.program_owner
                 );
-                return Ok(network_fee);
+                return Ok((network_fee, metadata.rollover_metadata.rollover_fee));
             }
         }
         msg!(
@@ -275,7 +290,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         );
         err!(SystemProgramError::InvalidMerkleTreeOwner)
     } else {
-        Ok(network_fee)
+        Ok((network_fee, metadata.rollover_metadata.rollover_fee))
     }
 }
 

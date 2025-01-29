@@ -93,6 +93,25 @@ pub fn create_tx_hash(
     Ok(hash_chain)
 }
 
+pub fn create_tx_hash_from_hash_chains(
+    inputs_hash_chain: &[u8; 32],
+    outputs_hash_chain: &[u8; 32],
+    current_slot: u64,
+) -> Result<[u8; 32], UtilsError> {
+    let version = [0u8; 32];
+    let mut current_slot_bytes = [0u8; 32];
+    current_slot_bytes[24..].copy_from_slice(&current_slot.to_be_bytes());
+    // let inputs_hash_chain = create_hash_chain_from_slice(input_compressed_account_hashes)?;
+    // let outputs_hash_chain = create_hash_chain_from_slice(output_compressed_account_hashes)?;
+    let hash_chain = create_hash_chain_from_slice(&[
+        version,
+        *inputs_hash_chain,
+        *outputs_hash_chain,
+        current_slot_bytes,
+    ])?;
+    Ok(hash_chain)
+}
+
 #[cfg(test)]
 mod hash_chain_tests {
     use ark_ff::PrimeField;

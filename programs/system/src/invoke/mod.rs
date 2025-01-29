@@ -2,6 +2,7 @@ pub mod instruction;
 pub use instruction::*;
 pub mod address;
 pub mod append_state;
+pub mod cpi_acp;
 pub mod emit_event;
 pub mod nullify_state;
 pub mod processor;

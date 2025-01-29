@@ -31,7 +31,10 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
+    use core::panic;
+
     use anchor_lang::solana_program::log::sol_log_compute_units;
+    use context::AcpAccount;
     use light_merkle_tree_metadata::queue::QueueType;
     use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
 
@@ -191,6 +194,14 @@ pub mod account_compression {
             inputs.bump,
         );
         sol_log_compute_units();
+        msg!("inputs: {:?}", inputs);
+        msg!(
+            "remaining_accounts: {:?}",
+            ctx.remaining_accounts
+                .iter()
+                .map(|a| a.key())
+                .collect::<Vec<_>>()
+        );
 
         // process_append_leaves_to_merkle_trees(&ctx, inputs.leaves.as_slice())?;
         insert_nullifiers(
@@ -200,6 +211,18 @@ pub mod account_compression {
             context.remaining_accounts_mut(),
         )?;
         sol_log_compute_units();
+
+        process_append_leaves_to_merkle_trees(
+            inputs.leaves.as_slice(),
+            inputs.num_unique_appends,
+            context.remaining_accounts_mut(),
+        )?;
+
+        crate::append_nullify_create_address::insert_addresses(
+            inputs.num_address_appends,
+            inputs.addresses.as_slice(),
+            context.remaining_accounts_mut(),
+        )?;
         // return (Pubkey, rollover_fee) and transfer in system program to
         // reduce cpi call depth by 1
         Ok(())
@@ -212,7 +235,8 @@ pub mod account_compression {
         let mut bytes = bytes;
         let leaves =
             ZeroCopySliceMutBorsh::<AppendLeavesInput>::from_bytes(bytes.as_mut_slice()).unwrap();
-        process_append_leaves_to_merkle_trees(&ctx, leaves.as_slice())
+        // process_append_leaves_to_merkle_trees(&ctx, leaves.as_slice())
+        panic!("process_append_leaves_to_merkle_trees not implemented")
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(

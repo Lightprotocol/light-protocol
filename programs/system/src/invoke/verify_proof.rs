@@ -1,16 +1,18 @@
 use std::mem;
 
 use account_compression::{
-    errors::AccountCompressionErrorCode, AddressMerkleTreeAccount, StateMerkleTreeAccount,
+    append_nullify_create_address::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
+    errors::AccountCompressionErrorCode,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, Discriminator};
+use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Discriminator};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::BatchedMerkleTreeAccount,
     queue::BatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
+use light_hasher::{Discriminator as LightDiscriminator, Hasher, Poseidon};
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
 use light_macros::heap_neutral;
 use light_utils::{
@@ -22,9 +24,10 @@ use light_verifier::{
     verify_create_addresses_proof, verify_inclusion_proof, CompressedProof,
 };
 
-use super::PackedReadOnlyAddress;
+use super::{cpi_acp::CpiData, PackedReadOnlyAddress};
 use crate::{
     errors::SystemProgramError,
+    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::compressed_account::{
         PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
     },
@@ -308,25 +311,28 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
 /// Hashes the input compressed accounts and stores the results in the leaves array.
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
-#[inline(never)]
-#[heap_neutral]
+#[inline(always)]
+// #[heap_neutral]
 #[allow(unused_mut)]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
-    remaining_accounts: &'a [AccountInfo<'info>],
-    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
-    leaves: &'a mut Vec<[u8; 32]>,
-    addresses: &'a mut [Option<[u8; 32]>],
-    hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
-) -> Result<()> {
+    remaining_accounts: &'info [AccountInfo<'info>],
+    input_compressed_accounts_with_merkle_context: &'b [PackedCompressedAccountWithMerkleContext],
+    invoking_program: &Option<Pubkey>,
+    cpi_data: &mut CpiData<'info>,
+    cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'a>,
+) -> Result<(Option<(u8, u64)>, [u8; 32])> {
+    let mut network_fee_bundle = None;
     let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
         .compressed_account
         .owner;
     let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes())
         .unwrap()
         .0;
-    hashed_pubkeys.push((owner_pubkey, hashed_owner));
+    cpi_data.hashed_pubkeys.push((owner_pubkey, hashed_owner));
+    let init_len_account_indices = cpi_data.account_indices.len();
     #[allow(unused)]
     let mut current_hashed_mt = [0u8; 32];
+    let mut hash_chain = [0u8; 32];
 
     let mut current_mt_index: i16 = -1;
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
@@ -338,7 +344,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             .compressed_account
             .address
         {
-            addresses[j] = Some(*address);
+            cpi_data.addresses[j] = Some(*address);
         }
 
         #[allow(clippy::comparison_chain)]
@@ -355,14 +361,20 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .merkle_tree_pubkey_index
                 as usize]
                 .key();
-            current_hashed_mt = match hashed_pubkeys.iter().find(|x| x.0 == merkle_tree_pubkey) {
+            current_hashed_mt = match cpi_data
+                .hashed_pubkeys
+                .iter()
+                .find(|x| x.0 == merkle_tree_pubkey)
+            {
                 Some(hashed_merkle_tree_pubkey) => hashed_merkle_tree_pubkey.1,
                 None => {
                     let hashed_merkle_tree_pubkey =
                         hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                             .unwrap()
                             .0;
-                    hashed_pubkeys.push((merkle_tree_pubkey, hashed_merkle_tree_pubkey));
+                    cpi_data
+                        .hashed_pubkeys
+                        .push((merkle_tree_pubkey, hashed_merkle_tree_pubkey));
                     hashed_merkle_tree_pubkey
                 }
             };
@@ -377,7 +389,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             owner_pubkey = input_compressed_account_with_context
                 .compressed_account
                 .owner;
-            hashed_owner = match hashed_pubkeys.iter().find(|x| {
+            hashed_owner = match cpi_data.hashed_pubkeys.iter().find(|x| {
                 x.0 == input_compressed_account_with_context
                     .compressed_account
                     .owner
@@ -392,7 +404,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                     )
                     .unwrap()
                     .0;
-                    hashed_pubkeys.push((
+                    cpi_data.hashed_pubkeys.push((
                         input_compressed_account_with_context
                             .compressed_account
                             .owner,
@@ -402,8 +414,24 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 }
             };
         }
-        leaves.push(
+        let queue_index = cpi_data.get_index_or_insert(
             input_compressed_account_with_context
+                .merkle_context
+                .nullifier_queue_pubkey_index,
+            remaining_accounts,
+        );
+        msg!("queue index {}", queue_index);
+        msg!("cpi_data.account_indices {:?}", cpi_data.account_indices);
+        let tree_index = cpi_data.get_index_or_insert(
+            input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index,
+            remaining_accounts,
+        );
+        msg!("tree index {}", tree_index);
+        msg!("cpi_data.account_indices {:?}", cpi_data.account_indices);
+        cpi_ix_data.nullifiers[j] = InsertNullifierInput {
+            account_hash: input_compressed_account_with_context
                 .compressed_account
                 .hash_with_hashed_values::<Poseidon>(
                     &hashed_owner,
@@ -412,9 +440,60 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                         .merkle_context
                         .leaf_index,
                 )?,
-        );
+            leaf_index: input_compressed_account_with_context
+                .merkle_context
+                .leaf_index
+                .into(),
+            prove_by_index: input_compressed_account_with_context
+                .merkle_context
+                .prove_by_index as u8,
+            queue_index,
+            tree_index,
+        };
+        if j == 0 {
+            hash_chain = cpi_ix_data.nullifiers[j].account_hash;
+        } else {
+            hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.nullifiers[j].account_hash])
+                .map_err(ProgramError::from)?;
+        }
+        // TODO: transfer network fee with set_rollover_fee once we switch to context
+        let (_, network_fee, _, _, _) = check_program_owner_state_merkle_tree::<true>(
+            &remaining_accounts[input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as usize],
+            invoking_program,
+        )?;
+        if network_fee_bundle.is_none() && network_fee.is_some() {
+            network_fee_bundle = Some((
+                input_compressed_account_with_context
+                    .merkle_context
+                    .nullifier_queue_pubkey_index,
+                network_fee.unwrap(),
+            ));
+        }
     }
-    Ok(())
+    msg!("init_len_account_indices {}", init_len_account_indices);
+    msg!(
+        "cpi_data.account_indices.len() {}",
+        cpi_data.account_indices.len()
+    );
+    msg!("cpi data accounts: {:?}", cpi_data.accounts);
+
+    msg!("num queues");
+    sol_log_compute_units();
+    cpi_ix_data.num_queues = input_compressed_accounts_with_merkle_context
+        .iter()
+        .enumerate()
+        .filter(|(i, x)| {
+            let candidate = x.merkle_context.nullifier_queue_pubkey_index;
+            !input_compressed_accounts_with_merkle_context[..*i]
+                .iter()
+                .any(|y| y.merkle_context.nullifier_queue_pubkey_index == candidate)
+        })
+        .count() as u8;
+    sol_log_compute_units();
+
+    Ok((network_fee_bundle, hash_chain))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -443,6 +522,7 @@ pub fn verify_proof(
             // inclusion proof
             create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
         } else {
+            // TODO: compute with addresses
             // non-inclusion proof
             create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         };

@@ -1,92 +1,83 @@
 use crate::{
-    constants::CPI_AUTHORITY_PDA_BUMP,
-    errors::SystemProgramError,
-    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
-    sdk::{
-        accounts::{InvokeAccounts, SignerAccounts},
-        event::MerkleTreeSequenceNumber,
-    },
-    OutputCompressedAccountWithPackedContext,
+    errors::SystemProgramError, invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
+    sdk::event::MerkleTreeSequenceNumber, OutputCompressedAccountWithPackedContext,
 };
-use account_compression::{utils::constants::CPI_AUTHORITY_PDA_SEED, AppendLeavesInput};
-use anchor_lang::{
-    prelude::*,
-    solana_program::{program::invoke_signed, pubkey::Pubkey},
-    Bumps,
-};
-use light_hasher::Poseidon;
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_macros::heap_neutral;
+use account_compression::append_nullify_create_address::AppendNullifyCreateAddressInputs;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
-use std::mem::size_of;
 
-#[allow(clippy::too_many_arguments)]
-#[heap_neutral]
-pub fn insert_output_compressed_accounts_into_state_merkle_tree<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
->(
-    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-    output_compressed_account_indices: &'a mut [u32],
-    output_compressed_account_hashes: &'a mut [[u8; 32]],
-    compressed_account_addresses: &'a mut Vec<Option<[u8; 32]>>,
-    invoking_program: &Option<Pubkey>,
-    hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
-    sequence_numbers: &'a mut Vec<MerkleTreeSequenceNumber>,
-) -> Result<Option<(u8, u64)>> {
-    bench_sbf_start!("cpda_append_data_init");
-    let mut account_infos = vec![
-        ctx.accounts.get_fee_payer().to_account_info(), // fee payer
-        ctx.accounts
-            .get_account_compression_authority() // authority
-            .to_account_info(),
-        ctx.accounts.get_registered_program_pda().to_account_info(),
-        ctx.accounts.get_system_program().to_account_info(),
-    ];
-    let mut accounts = vec![
-        AccountMeta {
-            pubkey: account_infos[0].key(),
-            is_signer: true,
-            is_writable: true,
-        },
-        AccountMeta {
-            pubkey: account_infos[1].key(),
-            is_signer: true,
-            is_writable: false,
-        },
-        AccountMeta::new_readonly(account_infos[2].key(), false),
-        AccountMeta::new_readonly(account_infos[3].key(), false),
-    ];
+use super::cpi_acp::CpiData;
 
-    let (instruction_data, network_fee_bundle) = create_cpi_accounts_and_instruction_data(
-        output_compressed_accounts,
-        output_compressed_account_indices,
-        output_compressed_account_hashes,
-        compressed_account_addresses,
-        invoking_program,
-        hashed_pubkeys,
-        sequence_numbers,
-        ctx.remaining_accounts,
-        &mut account_infos,
-        &mut accounts,
-    )?;
+// #[allow(clippy::too_many_arguments)]
+// #[heap_neutral]
+// pub fn insert_output_compressed_accounts_into_state_merkle_tree<
+//     'a,
+//     'b,
+//     'c: 'info,
+//     'info,
+//     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+// >(
+//     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+//     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
+//     output_compressed_account_indices: &'a mut [u32],
+//     // output_compressed_account_hashes: &'a mut [[u8; 32]],
+//     // compressed_account_addresses: &'a mut Vec<Option<[u8; 32]>>,
+//     invoking_program: &Option<Pubkey>,
+//     // hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
+//     // sequence_numbers: &'a mut Vec<MerkleTreeSequenceNumber>,
+//     cpi_data: &'a mut CpiData<'info>,
+//     cpi_ix_data: &'a mut AppendNullifyCreateAddressInputs<'a>,
+// ) -> Result<Option<(u8, u64)>> {
+//     bench_sbf_start!("cpda_append_data_init");
+//     // let mut account_infos = vec![
+//     //     ctx.accounts.get_fee_payer().to_account_info(), // fee payer
+//     //     ctx.accounts
+//     //         .get_account_compression_authority() // authority
+//     //         .to_account_info(),
+//     //     ctx.accounts.get_registered_program_pda().to_account_info(),
+//     //     ctx.accounts.get_system_program().to_account_info(),
+//     // ];
+//     // let mut accounts = vec![
+//     //     AccountMeta {
+//     //         pubkey: account_infos[0].key(),
+//     //         is_signer: true,
+//     //         is_writable: true,
+//     //     },
+//     //     AccountMeta {
+//     //         pubkey: account_infos[1].key(),
+//     //         is_signer: true,
+//     //         is_writable: false,
+//     //     },
+//     //     AccountMeta::new_readonly(account_infos[2].key(), false),
+//     //     AccountMeta::new_readonly(account_infos[3].key(), false),
+//     // ];
 
-    let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
-    let instruction = anchor_lang::solana_program::instruction::Instruction {
-        program_id: account_compression::ID,
-        accounts,
-        data: instruction_data,
-    };
-    invoke_signed(&instruction, account_infos.as_slice(), seeds)?;
-    bench_sbf_end!("cpda_append_rest");
+//     let (instruction_data, network_fee_bundle) = create_cpi_accounts_and_instruction_data(
+//         output_compressed_accounts,
+//         output_compressed_account_indices,
+//         // output_compressed_account_hashes,
+//         // compressed_account_addresses,
+//         invoking_program,
+//         // hashed_pubkeys,
+//         // sequence_numbers,
+//         ctx.remaining_accounts,
+//         // &mut account_infos,
+//         // &mut accounts,
+//     )?;
 
-    Ok(network_fee_bundle)
-}
+//     // let bump = &[CPI_AUTHORITY_PDA_BUMP];
+//     // let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
+//     // let instruction = anchor_lang::solana_program::instruction::Instruction {
+//     //     program_id: account_compression::ID,
+//     //     accounts,
+//     //     data: instruction_data,
+//     // };
+//     // invoke_signed(&instruction, account_infos.as_slice(), seeds)?;
+//     bench_sbf_end!("cpda_append_rest");
+
+//     Ok(network_fee_bundle)
+// }
 
 /// Creates CPI accounts, instruction data, and performs checks.
 /// - Merkle tree indices must be in order.
@@ -102,39 +93,42 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-pub fn create_cpi_accounts_and_instruction_data<'a>(
+pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
     output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     output_compressed_account_indices: &mut [u32],
-    output_compressed_account_hashes: &mut [[u8; 32]],
-    compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
+    // output_compressed_account_hashes: &mut [[u8; 32]],
+    // compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
     invoking_program: &Option<Pubkey>,
-    hashed_pubkeys: &mut Vec<(Pubkey, [u8; 32])>,
+    // hashed_pubkeys: &mut Vec<(Pubkey, [u8; 32])>,
     sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
-    remaining_accounts: &'a [AccountInfo<'a>],
-    account_infos: &mut Vec<AccountInfo<'a>>,
-    accounts: &mut Vec<AccountMeta>,
-) -> Result<(Vec<u8>, Option<(u8, u64)>)> {
+    remaining_accounts: &'info [AccountInfo<'info>],
+    // account_infos: &mut Vec<AccountInfo<'a>>,
+    // accounts: &mut Vec<AccountMeta>,
+    cpi_data: &mut CpiData<'info>,
+    cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'a>,
+) -> Result<(Option<(u8, u64)>, [u8; 32])> {
     let mut current_index: i16 = -1;
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
     let mut network_fee_bundle = None;
-    let num_leaves = output_compressed_account_hashes.len();
-    let mut instruction_data = Vec::<u8>::with_capacity(16 + 33 * num_leaves);
+    // let mut instruction_data = Vec::<u8>::with_capacity(16 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
     let mut index_merkle_tree_account = 0;
     let number_of_merkle_trees =
         output_compressed_accounts.last().unwrap().merkle_tree_index as usize + 1;
     let mut merkle_tree_pubkeys = Vec::<Pubkey>::with_capacity(number_of_merkle_trees);
+    let mut hash_chain = [0u8; 32];
+    let mut rollover_fee = 0;
 
     // Anchor instruction signature.
-    instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
-    // Bytes Vec length.
-    // instruction_data.extend_from_slice(&(instruction_data.capacity() as u32 - 8).to_le_bytes());
-    instruction_data.extend_from_slice(
-        &((num_leaves * size_of::<AppendLeavesInput>() + 4) as u32).to_le_bytes(),
-    );
-    // leaves vector length (for borsh compat)
-    instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
+    // instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
+    // // Bytes Vec length.
+    // // instruction_data.extend_from_slice(&(instruction_data.capacity() as u32 - 8).to_le_bytes());
+    // instruction_data.extend_from_slice(
+    //     &((num_leaves * size_of::<AppendLeavesInput>() + 4) as u32).to_le_bytes(),
+    // );
+    // // leaves vector length (for borsh compat)
+    // instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
 
     for (j, account) in output_compressed_accounts.iter().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
@@ -147,12 +141,19 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             let seq;
             let merkle_tree_pubkey;
             let network_fee;
+            let int_rollover_fee;
             // Check 1.
-            (mt_next_index, network_fee, seq, merkle_tree_pubkey) =
-                check_program_owner_state_merkle_tree::<false>(
-                    &remaining_accounts[account.merkle_tree_index as usize],
-                    invoking_program,
-                )?;
+            (
+                mt_next_index,
+                network_fee,
+                seq,
+                merkle_tree_pubkey,
+                int_rollover_fee,
+            ) = check_program_owner_state_merkle_tree::<false>(
+                &remaining_accounts[account.merkle_tree_index as usize],
+                invoking_program,
+            )?;
+            rollover_fee = int_rollover_fee;
             if network_fee_bundle.is_none() && network_fee.is_some() {
                 network_fee_bundle = Some((account.merkle_tree_index, network_fee.unwrap()));
             }
@@ -163,7 +164,11 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                 seq,
             });
 
-            hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == merkle_tree_pubkey) {
+            hashed_merkle_tree = match cpi_data
+                .hashed_pubkeys
+                .iter()
+                .find(|x| x.0 == merkle_tree_pubkey)
+            {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,
                 None => {
                     hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
@@ -177,13 +182,17 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             } else {
                 merkle_tree_pubkeys.push(account_info.key());
             }
-            accounts.push(AccountMeta {
-                pubkey: account_info.key(),
-                is_signer: false,
-                is_writable: true,
-            });
-            account_infos.push(account_info);
-
+            // cpi_data.accounts.push(AccountMeta {
+            //     pubkey: account_info.key(),
+            //     is_signer: false,
+            //     is_writable: true,
+            // });
+            // cpi_data.account_infos.push(account_info);
+            // cpi_data.account_indices.push(index_merkle_tree_account);
+            cpi_data.get_index_or_insert(account.merkle_tree_index, &remaining_accounts);
+            msg!("merkle tree index: {:?}", account.merkle_tree_index);
+            msg!("merkle tree pubkey: {:?}", account_info.key());
+            msg!("inserted index {:?}", cpi_data.account_indices);
             num_leaves_in_tree = 0;
             index_merkle_tree_account += 1;
         } else {
@@ -197,17 +206,18 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
 
         // Check 3.
         if let Some(address) = account.compressed_account.address {
-            if let Some(position) = compressed_account_addresses
+            if let Some(position) = cpi_data
+                .addresses
                 .iter()
                 .filter(|x| x.is_some())
                 .position(|&x| x.unwrap() == address)
             {
-                compressed_account_addresses.remove(position);
+                cpi_data.addresses.remove(position);
             } else {
                 msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
                 msg!(
                     "Remaining compressed_account_addresses: {:?}",
-                    compressed_account_addresses
+                    cpi_data.addresses
                 );
                 return Err(SystemProgramError::InvalidAddress.into());
             }
@@ -220,7 +230,8 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
             msg!("Only program owned compressed accounts can have data.");
             return err!(SystemProgramError::InvokingProgramNotProvided);
         }
-        let hashed_owner = match hashed_pubkeys
+        let hashed_owner = match cpi_data
+            .hashed_pubkeys
             .iter()
             .find(|x| x.0 == account.compressed_account.owner)
         {
@@ -230,24 +241,39 @@ pub fn create_cpi_accounts_and_instruction_data<'a>(
                     hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
                         .unwrap()
                         .0;
-                hashed_pubkeys.push((account.compressed_account.owner, hashed_owner));
+                cpi_data
+                    .hashed_pubkeys
+                    .push((account.compressed_account.owner, hashed_owner));
                 hashed_owner
             }
         };
         // Compute output compressed account hash.
-        output_compressed_account_hashes[j] = account
+        cpi_ix_data.leaves[j].leaf = account
             .compressed_account
             .hash_with_hashed_values::<Poseidon>(
                 &hashed_owner,
                 &hashed_merkle_tree,
                 &output_compressed_account_indices[j],
             )?;
+        cpi_ix_data.leaves[j].index = index_merkle_tree_account - 1;
+        msg!("leaf tree index: {:?}", cpi_ix_data.leaves[j].index);
+        // cpi_data.get_index_or_insert(current_index as u8, remaining_accounts);
         // - 1 since we want the index of the next account index.
-        instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);
-        instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
+        // instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);
+        // instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
+        if !cpi_ix_data.nullifiers.is_empty() {
+            if j == 0 {
+                hash_chain = cpi_ix_data.leaves[j].leaf;
+            } else {
+                hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.leaves[j].leaf])
+                    .map_err(ProgramError::from)?;
+            }
+        }
+        cpi_data.set_rollover_fee(index_merkle_tree_account - 1, rollover_fee);
     }
 
-    Ok((instruction_data, network_fee_bundle))
+    cpi_ix_data.num_unique_appends = cpi_data.account_indices.len() as u8;
+    Ok((network_fee_bundle, hash_chain))
 }
 
 #[test]
