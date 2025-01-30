@@ -1,6 +1,5 @@
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::{instruction::Instruction, system_instruction};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
@@ -13,6 +12,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk::pubkey::Pubkey;
 
 pub mod address_merkle_tree_config;
 pub mod forester_epoch;

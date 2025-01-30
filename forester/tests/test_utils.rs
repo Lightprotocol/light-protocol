@@ -1,4 +1,4 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
+use solana_program::pubkey::Pubkey;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig},
     metrics::register_metrics,

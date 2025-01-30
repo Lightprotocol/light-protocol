@@ -1,10 +1,6 @@
 use std::path::PathBuf;
 
 use account_compression::{
-    sdk::{
-        create_initialize_address_merkle_tree_and_queue_instruction,
-        create_initialize_merkle_tree_instruction,
-    },
     utils::constants::GROUP_AUTHORITY_SEED,
     AddressMerkleTreeConfig, AddressQueueConfig, GroupAuthority, NullifierQueueConfig,
     RegisteredProgram, StateMerkleTreeConfig,
@@ -41,7 +37,7 @@ use solana_sdk::{
     system_instruction,
     transaction::Transaction,
 };
-
+use light_registry::account_compression_cpi::sdk::{create_initialize_address_merkle_tree_and_queue_instruction, create_initialize_merkle_tree_instruction};
 use crate::{
     env_accounts,
     test_batch_forester::{create_batch_address_merkle_tree, create_batched_state_merkle_tree},
@@ -731,25 +727,24 @@ pub async fn initialize_accounts<R: RpcConnection>(
         context,
         &keypairs.state_merkle_tree,
         &keypairs.nullifier_queue,
-        Some(&keypairs.cpi_context_account),
+        &keypairs.cpi_context_account,
         None,
         None,
-        1,
         &StateMerkleTreeConfig::default(),
         &NullifierQueueConfig::default(),
     )
     .await
     .unwrap();
+
     create_state_merkle_tree_and_queue_account(
         &keypairs.governance_authority,
         true,
         context,
         &keypairs.state_merkle_tree_2,
         &keypairs.nullifier_queue_2,
-        Some(&keypairs.cpi_context_2),
+        &keypairs.cpi_context_2,
         None,
         None,
-        2,
         &StateMerkleTreeConfig::default(),
         &NullifierQueueConfig::default(),
     )
@@ -790,7 +785,6 @@ pub async fn initialize_accounts<R: RpcConnection>(
         None,
         &AddressMerkleTreeConfig::default(),
         &AddressQueueConfig::default(),
-        0,
     )
     .await
     .unwrap();
@@ -974,10 +968,9 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
-    cpi_context_keypair: Option<&Keypair>,
+    cpi_context_keypair: &Keypair,
     program_owner: Option<Pubkey>,
     forester: Option<Pubkey>,
-    index: u64,
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) -> Result<Signature, RpcError> {
@@ -1012,7 +1005,6 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     );
 
     let transaction = if registry {
-        let cpi_context_keypair = cpi_context_keypair.unwrap();
         let rent_cpi_config = rpc
             .get_minimum_balance_for_rent_exemption(
                 ProtocolConfig::default().cpi_context_size as usize,
@@ -1056,14 +1048,15 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     } else {
         let instruction = create_initialize_merkle_tree_instruction(
             payer.pubkey(),
-            None,
+            // None,
             merkle_tree_keypair.pubkey(),
             nullifier_queue_keypair.pubkey(),
+            cpi_context_keypair.pubkey(),
             merkle_tree_config.clone(),
             queue_config.clone(),
             program_owner,
             forester,
-            index,
+            // index,
         );
         Transaction::new_signed_with_payer(
             &[
@@ -1092,7 +1085,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     forester: Option<Pubkey>,
     merkle_tree_config: &AddressMerkleTreeConfig,
     queue_config: &AddressQueueConfig,
-    index: u64,
 ) -> Result<Signature, RpcError> {
     use light_registry::account_compression_cpi::sdk::create_initialize_address_merkle_tree_and_queue_instruction as create_initialize_address_merkle_tree_and_queue_instruction_registry;
 
@@ -1138,11 +1130,9 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         )
     } else {
         create_initialize_address_merkle_tree_and_queue_instruction(
-            index,
             payer.pubkey(),
-            None,
-            program_owner,
             forester,
+            program_owner,
             address_merkle_tree_keypair.pubkey(),
             address_queue_keypair.pubkey(),
             merkle_tree_config.clone(),

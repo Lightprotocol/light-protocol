@@ -42,7 +42,6 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
         forester,
         merkle_tree_config,
         queue_config,
-        index,
     )
     .await;
 

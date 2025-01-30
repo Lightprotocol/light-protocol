@@ -1,10 +1,11 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 use account_compression::{
-    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
+    accounts, instruction, state::QueueAccount,
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig,
 };
 use anchor_lang::{InstructionData, Key, Lamports, ToAccountInfo, ToAccountMetas};
+use anchor_lang::prelude::AccountLoader;
 use forester_utils::{
     create_account_instruction, get_hash_set, get_indexed_merkle_tree,
     registry::{

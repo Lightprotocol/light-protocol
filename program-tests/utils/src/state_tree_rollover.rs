@@ -3,10 +3,11 @@
 use std::mem;
 
 use account_compression::{
-    self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount, NullifierQueueConfig,
+    self, state::QueueAccount, NullifierQueueConfig,
     StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
+use anchor_lang::prelude::AccountLoader;
 use forester_utils::{create_account_instruction, get_hash_set};
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::{errors::RpcError, RpcConnection};

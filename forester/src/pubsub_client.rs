@@ -1,12 +1,12 @@
 use std::{str::FromStr, thread};
 
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use futures::StreamExt;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
 };
+use solana_program::pubkey::Pubkey;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::{runtime::Builder, sync::mpsc};
 use tracing::{debug, error};

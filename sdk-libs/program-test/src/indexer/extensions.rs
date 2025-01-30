@@ -1,5 +1,5 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
+use solana_sdk::pubkey::Pubkey;
 use light_client::{
     indexer::{
         AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext,

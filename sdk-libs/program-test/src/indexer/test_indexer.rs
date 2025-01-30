@@ -1130,10 +1130,9 @@ where
                     rpc,
                     merkle_tree_keypair,
                     queue_keypair,
-                    Some(cpi_context_keypair),
+                    cpi_context_keypair,
                     owning_program_id,
                     forester,
-                    self.state_merkle_trees.len() as u64,
                     &StateMerkleTreeConfig::default(),
                     &NullifierQueueConfig::default(),
                 )

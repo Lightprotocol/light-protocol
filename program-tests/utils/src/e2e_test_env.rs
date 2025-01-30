@@ -1251,10 +1251,9 @@ where
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
-            Some(&cpi_context_keypair),
+            &cpi_context_keypair,
             None,
             Some(forester),
-            1,
             &merkle_tree_config,
             &queue_config,
         )

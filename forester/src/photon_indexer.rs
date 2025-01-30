@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use async_trait::async_trait;
+use solana_program::pubkey::Pubkey;
 use light_client::{
     indexer::{
         AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo, MerkleProof,

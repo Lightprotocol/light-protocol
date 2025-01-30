@@ -1,6 +1,6 @@
 use std::mem;
-
-use account_compression::{initialize_address_merkle_tree::Pubkey, QueueAccount};
+use solana_program::pubkey::Pubkey;
+use account_compression::QueueAccount;
 use light_client::rpc::RpcConnection;
 use light_hash_set::HashSet;
 use tracing::debug;

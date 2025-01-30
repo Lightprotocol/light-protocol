@@ -1,7 +1,7 @@
 use std::cmp;
 
 use account_compression::{
-    initialize_address_merkle_tree::Pubkey, AddressMerkleTreeConfig, AddressQueueConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig,
     RegisteredProgram,
 };
 use light_merkle_tree_metadata::queue::QueueType;
@@ -10,6 +10,7 @@ use solana_sdk::{
     signature::{Keypair, Signature, Signer},
     transaction,
 };
+use solana_sdk::pubkey::Pubkey;
 
 pub mod address;
 pub mod address_tree_rollover;
@@ -80,7 +81,6 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: RpcConn
         forester,
         merkle_tree_config,
         queue_config,
-        index,
     )
     .await;
 
