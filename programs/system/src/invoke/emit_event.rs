@@ -3,15 +3,16 @@ use anchor_lang::{prelude::*, Bumps};
 
 use crate::{
     errors::SystemProgramError,
+    instruction_data::ZInstructionDataInvoke,
     sdk::{
         accounts::InvokeAccounts,
+        compressed_account::{CompressedAccount, CompressedAccountData},
         event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
     },
-    InstructionDataInvoke,
 };
 
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
-    inputs: InstructionDataInvoke,
+    inputs: ZInstructionDataInvoke<'a>,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     input_compressed_account_hashes: Vec<[u8; 32]>,
     output_compressed_account_hashes: Vec<[u8; 32]>,
@@ -23,12 +24,37 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     let event = PublicTransactionEvent {
         input_compressed_account_hashes,
         output_compressed_account_hashes,
-        output_compressed_accounts: inputs.output_compressed_accounts,
+        output_compressed_accounts: inputs
+            .output_compressed_accounts
+            .iter()
+            .map(|x| {
+                let data = if let Some(data) = x.compressed_account.data.as_ref() {
+                    Some(CompressedAccountData {
+                        discriminator: *data.discriminator,
+                        data: data.data.to_vec(),
+                        data_hash: *data.data_hash,
+                    })
+                } else {
+                    None
+                };
+                super::OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: x.compressed_account.owner.into(),
+                        lamports: u64::from(x.compressed_account.lamports),
+                        address: x.compressed_account.address.map(|x| *x),
+                        data,
+                    },
+                    merkle_tree_index: x.merkle_tree_index,
+                }
+            })
+            .collect(),
         output_leaf_indices,
         sequence_numbers,
-        relay_fee: inputs.relay_fee,
+        relay_fee: inputs.relay_fee.map(|x| (*x).into()),
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
+        compress_or_decompress_lamports: inputs
+            .compress_or_decompress_lamports
+            .map(|x| (*x).into()),
         message: None,
         is_compress: inputs.is_compress,
     };

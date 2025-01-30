@@ -33,8 +33,6 @@ pub mod account_compression {
 
     use core::panic;
 
-    use anchor_lang::solana_program::log::sol_log_compute_units;
-    use context::AcpAccount;
     use light_merkle_tree_metadata::queue::QueueType;
     use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
 
@@ -180,29 +178,16 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        sol_log_compute_units();
         let fee_payer = ctx.accounts.fee_payer.to_account_info();
         let mut bytes = bytes;
         let inputs =
             deserialize_nullify_append_create_address_inputs(bytes.as_mut_slice()).unwrap();
-        msg!("context1");
-        sol_log_compute_units();
         let mut context = LightContext::new(
             ctx.remaining_accounts,
             &fee_payer,
             inputs.is_invoked_by_program(),
             inputs.bump,
         );
-        sol_log_compute_units();
-        msg!("inputs: {:?}", inputs);
-        msg!(
-            "remaining_accounts: {:?}",
-            ctx.remaining_accounts
-                .iter()
-                .map(|a| a.key())
-                .collect::<Vec<_>>()
-        );
-
         // process_append_leaves_to_merkle_trees(&ctx, inputs.leaves.as_slice())?;
         insert_nullifiers(
             inputs.num_queues,
@@ -210,7 +195,6 @@ pub mod account_compression {
             inputs.nullifiers.as_slice(),
             context.remaining_accounts_mut(),
         )?;
-        sol_log_compute_units();
 
         process_append_leaves_to_merkle_trees(
             inputs.leaves.as_slice(),

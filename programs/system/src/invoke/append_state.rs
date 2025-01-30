@@ -1,6 +1,7 @@
 use crate::{
-    errors::SystemProgramError, invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
-    sdk::event::MerkleTreeSequenceNumber, OutputCompressedAccountWithPackedContext,
+    errors::SystemProgramError, instruction_data::ZOutputCompressedAccountWithPackedContext,
+    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
+    sdk::event::MerkleTreeSequenceNumber,
 };
 use account_compression::append_nullify_create_address::AppendNullifyCreateAddressInputs;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
@@ -94,7 +95,7 @@ use super::cpi_acp::CpiData;
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
-    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'a>],
     output_compressed_account_indices: &mut [u32],
     // output_compressed_account_hashes: &mut [[u8; 32]],
     // compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
@@ -190,9 +191,6 @@ pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
             // cpi_data.account_infos.push(account_info);
             // cpi_data.account_indices.push(index_merkle_tree_account);
             cpi_data.get_index_or_insert(account.merkle_tree_index, &remaining_accounts);
-            msg!("merkle tree index: {:?}", account.merkle_tree_index);
-            msg!("merkle tree pubkey: {:?}", account_info.key());
-            msg!("inserted index {:?}", cpi_data.account_indices);
             num_leaves_in_tree = 0;
             index_merkle_tree_account += 1;
         } else {
@@ -210,7 +208,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
                 .addresses
                 .iter()
                 .filter(|x| x.is_some())
-                .position(|&x| x.unwrap() == address)
+                .position(|&x| x.unwrap() == *address)
             {
                 cpi_data.addresses.remove(position);
             } else {
@@ -233,7 +231,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
         let hashed_owner = match cpi_data
             .hashed_pubkeys
             .iter()
-            .find(|x| x.0 == account.compressed_account.owner)
+            .find(|x| x.0 == account.compressed_account.owner.into())
         {
             Some(hashed_owner) => hashed_owner.1,
             None => {
@@ -243,7 +241,7 @@ pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
                         .0;
                 cpi_data
                     .hashed_pubkeys
-                    .push((account.compressed_account.owner, hashed_owner));
+                    .push((account.compressed_account.owner.into(), hashed_owner));
                 hashed_owner
             }
         };
@@ -256,7 +254,6 @@ pub fn create_cpi_accounts_and_instruction_data<'a, 'info>(
                 &output_compressed_account_indices[j],
             )?;
         cpi_ix_data.leaves[j].index = index_merkle_tree_account - 1;
-        msg!("leaf tree index: {:?}", cpi_ix_data.leaves[j].index);
         // cpi_data.get_index_or_insert(current_index as u8, remaining_accounts);
         // - 1 since we want the index of the next account index.
         // instruction_data.extend_from_slice(&[index_merkle_tree_account - 1]);

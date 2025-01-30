@@ -5,7 +5,7 @@ use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
 use super::address::pack_account;
-use crate::OutputCompressedAccountWithPackedContext;
+use crate::{instruction_data::ZCompressedAccount, OutputCompressedAccountWithPackedContext};
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
@@ -221,6 +221,66 @@ impl CompressedAccount {
             discriminator_bytes[1..].copy_from_slice(&data.discriminator);
             vec.push(&discriminator_bytes);
             vec.push(&data.data_hash);
+        }
+        let hash = H::hashv(&vec).map_err(ProgramError::from)?;
+        Ok(hash)
+    }
+
+    pub fn hash<H: Hasher>(
+        &self,
+        &merkle_tree_pubkey: &Pubkey,
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        self.hash_with_hashed_values::<H>(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes())
+                .unwrap()
+                .0,
+            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0,
+            leaf_index,
+        )
+    }
+}
+
+impl ZCompressedAccount<'_> {
+    pub fn hash_with_hashed_values<H: Hasher>(
+        &self,
+        &owner_hashed: &[u8; 32],
+        &merkle_tree_hashed: &[u8; 32],
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        let capacity = 3
+            + std::cmp::min(u64::from(self.lamports), 1) as usize
+            + self.address.is_some() as usize
+            + self.data.is_some() as usize * 2;
+        let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
+        vec.push(owner_hashed.as_slice());
+
+        // leaf index and merkle tree pubkey are used to make every compressed account hash unique
+        let leaf_index = leaf_index.to_le_bytes();
+        vec.push(leaf_index.as_slice());
+
+        vec.push(merkle_tree_hashed.as_slice());
+
+        // Lamports are only hashed if non-zero to safe CU
+        // For safety we prefix the lamports with 1 in 1 byte.
+        // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+        let mut lamports_bytes = [1, 0, 0, 0, 0, 0, 0, 0, 0];
+        if self.lamports != 0 {
+            lamports_bytes[1..].copy_from_slice(&(u64::from(self.lamports)).to_le_bytes());
+            vec.push(lamports_bytes.as_slice());
+        }
+
+        if self.address.is_some() {
+            vec.push(self.address.as_ref().unwrap().as_slice());
+        }
+
+        let mut discriminator_bytes = [2, 0, 0, 0, 0, 0, 0, 0, 0];
+        if let Some(data) = &self.data {
+            discriminator_bytes[1..].copy_from_slice(data.discriminator.as_slice());
+            vec.push(&discriminator_bytes);
+            vec.push(data.data_hash.as_slice());
         }
         let hash = H::hashv(&vec).map_err(ProgramError::from)?;
         Ok(hash)

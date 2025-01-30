@@ -1,12 +1,15 @@
 pub use anchor_lang::prelude::*;
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_zero_copy::slice::ZeroCopySliceBorsh;
 
 use super::verify_signer::cpi_signer_checks;
 use crate::{
+    instruction_data::{
+        ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+    },
     invoke::processor::process,
     invoke_cpi::instruction::InvokeCpiInstruction,
-    sdk::{accounts::SignerAccounts, compressed_account::PackedReadOnlyCompressedAccount},
-    InstructionDataInvoke, InstructionDataInvokeCpi, PackedReadOnlyAddress,
+    sdk::accounts::SignerAccounts,
 };
 
 /// Processes an `InvokeCpi` instruction.
@@ -16,9 +19,9 @@ use crate::{
 #[allow(unused_mut)]
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
-    inputs: InstructionDataInvokeCpi,
-    read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
-    read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+    inputs: ZInstructionDataInvokeCpi<'a>,
+    read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
+    read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(
@@ -48,18 +51,8 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     };
     bench_sbf_end!("cpda_process_cpi_context");
 
-    let data = InstructionDataInvoke {
-        input_compressed_accounts_with_merkle_context: inputs
-            .input_compressed_accounts_with_merkle_context,
-        output_compressed_accounts: inputs.output_compressed_accounts,
-        relay_fee: inputs.relay_fee,
-        proof: inputs.proof,
-        new_address_params: inputs.new_address_params,
-        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
-        is_compress: inputs.is_compress,
-    };
     process(
-        data,
+        inputs.into(),
         Some(ctx.accounts.invoking_program.key()),
         ctx,
         cpi_context_inputs_len,

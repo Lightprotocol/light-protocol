@@ -3,6 +3,7 @@ use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
     groth16::{Groth16Verifier, Groth16Verifyingkey},
 };
+use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use thiserror::Error;
 
 use crate::verifying_keys::*;
@@ -48,8 +49,24 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
     }
 }
 
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 use VerifierError::*;
-#[derive(Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+
+#[repr(C)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    BorshSerialize,
+    BorshDeserialize,
+    KnownLayout,
+    Immutable,
+    FromBytes,
+    IntoBytes,
+    Unaligned,
+)]
 pub struct CompressedProof {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -63,6 +80,13 @@ impl Default for CompressedProof {
             b: [0; 64],
             c: [0; 32],
         }
+    }
+}
+
+impl<'a> Deserialize<'a> for CompressedProof {
+    type Output = Ref<&'a [u8], Self>;
+    fn deserialize_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        Ok(Ref::<&[u8], CompressedProof>::from_prefix(bytes)?)
     }
 }
 

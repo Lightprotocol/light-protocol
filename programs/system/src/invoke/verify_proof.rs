@@ -5,7 +5,7 @@ use account_compression::{
     errors::AccountCompressionErrorCode,
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Discriminator};
+use anchor_lang::{prelude::*, Discriminator};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     merkle_tree::BatchedMerkleTreeAccount,
@@ -24,14 +24,14 @@ use light_verifier::{
     verify_create_addresses_proof, verify_inclusion_proof, CompressedProof,
 };
 
-use super::{cpi_acp::CpiData, PackedReadOnlyAddress};
+use super::cpi_acp::CpiData;
 use crate::{
     errors::SystemProgramError,
-    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
-    sdk::compressed_account::{
-        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
+    instruction_data::{
+        ZNewAddressParamsPacked, ZPackedCompressedAccountWithMerkleContext, ZPackedReadOnlyAddress,
+        ZPackedReadOnlyCompressedAccount,
     },
-    NewAddressParamsPacked,
+    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
 };
 
 const IS_READ_ONLY: bool = true;
@@ -43,8 +43,8 @@ const IS_NOT_STATE: bool = false;
 #[heap_neutral]
 pub fn read_input_state_roots<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
-    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
-    read_only_accounts: &'a [PackedReadOnlyCompressedAccount],
+    input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
+    read_only_accounts: &'a [ZPackedReadOnlyCompressedAccount],
     input_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8> {
     let mut state_tree_height = 0;
@@ -53,7 +53,7 @@ pub fn read_input_state_roots<'a>(
     {
         if input_compressed_account_with_context
             .merkle_context
-            .prove_by_index
+            .prove_by_index()
         {
             continue;
         }
@@ -61,7 +61,7 @@ pub fn read_input_state_roots<'a>(
             &remaining_accounts[input_compressed_account_with_context
                 .merkle_context
                 .merkle_tree_pubkey_index as usize],
-            input_compressed_account_with_context.root_index,
+            u16::from(input_compressed_account_with_context.root_index),
             input_roots,
         )?;
         if state_tree_height == 0 {
@@ -76,14 +76,14 @@ pub fn read_input_state_roots<'a>(
         }
     }
     for readonly_input_account in read_only_accounts.iter() {
-        if readonly_input_account.merkle_context.prove_by_index {
+        if readonly_input_account.merkle_context.prove_by_index() {
             continue;
         }
         let internal_height = read_root::<IS_READ_ONLY, IS_STATE>(
             &remaining_accounts[readonly_input_account
                 .merkle_context
                 .merkle_tree_pubkey_index as usize],
-            readonly_input_account.root_index,
+            readonly_input_account.root_index.into(),
             input_roots,
         )?;
         if state_tree_height == 0 {
@@ -104,15 +104,15 @@ pub fn read_input_state_roots<'a>(
 #[heap_neutral]
 pub fn read_address_roots<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
-    new_address_params: &'a [NewAddressParamsPacked],
-    read_only_addresses: &'a [PackedReadOnlyAddress],
+    new_address_params: &'a [ZNewAddressParamsPacked],
+    read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8> {
     let mut address_tree_height = 0;
     for new_address_param in new_address_params.iter() {
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
             &remaining_accounts[new_address_param.address_merkle_tree_account_index as usize],
-            new_address_param.address_merkle_tree_root_index,
+            new_address_param.address_merkle_tree_root_index.into(),
             address_roots,
         )?;
         if address_tree_height == 0 {
@@ -129,7 +129,7 @@ pub fn read_address_roots<'a>(
     for read_only_address in read_only_addresses.iter() {
         let internal_height = read_root::<IS_READ_ONLY, IS_NOT_STATE>(
             &remaining_accounts[read_only_address.address_merkle_tree_account_index as usize],
-            read_only_address.address_merkle_tree_root_index,
+            read_only_address.address_merkle_tree_root_index.into(),
             address_roots,
         )?;
         if address_tree_height == 0 {
@@ -174,7 +174,6 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             if IS_STATE {
-                msg!("state_from_account_info");
                 let merkle_tree =
                     BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_account_info)
                         .map_err(ProgramError::from)?;
@@ -231,7 +230,7 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
 #[inline(always)]
 pub fn verify_read_only_account_inclusion_by_index<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
-    read_only_accounts: &'a [PackedReadOnlyCompressedAccount],
+    read_only_accounts: &'a [ZPackedReadOnlyCompressedAccount],
 ) -> Result<usize> {
     let mut num_prove_read_only_accounts_prove_by_index = 0;
     for read_only_account in read_only_accounts.iter() {
@@ -252,17 +251,17 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         // Else does nothing.
         let proved_inclusion = output_queue
             .prove_inclusion_by_index(
-                read_only_account.merkle_context.leaf_index as u64,
+                read_only_account.merkle_context.leaf_index.into(),
                 &read_only_account.account_hash,
             )
             .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
-        if read_only_account.merkle_context.prove_by_index {
+        if read_only_account.merkle_context.prove_by_index() {
             num_prove_read_only_accounts_prove_by_index += 1;
         }
         // If a read-only account is marked as proven by index
         // inclusion proof by index has to be successful
         // -> proved_inclusion == true.
-        if !proved_inclusion && read_only_account.merkle_context.prove_by_index {
+        if !proved_inclusion && read_only_account.merkle_context.prove_by_index() {
             msg!("Expected read-only account in the output queue but account does not exist.");
             return err!(SystemProgramError::ReadOnlyAccountDoesNotExist);
         }
@@ -284,7 +283,7 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
 #[inline(always)]
 pub fn verify_read_only_address_queue_non_inclusion<'a>(
     remaining_accounts: &'a [AccountInfo<'_>],
-    read_only_addresses: &'a [PackedReadOnlyAddress],
+    read_only_addresses: &'a [ZPackedReadOnlyAddress],
 ) -> Result<()> {
     if read_only_addresses.is_empty() {
         return Ok(());
@@ -316,7 +315,7 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
 #[allow(unused_mut)]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     remaining_accounts: &'info [AccountInfo<'info>],
-    input_compressed_accounts_with_merkle_context: &'b [PackedCompressedAccountWithMerkleContext],
+    input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
     invoking_program: &Option<Pubkey>,
     cpi_data: &mut CpiData<'info>,
     cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'a>,
@@ -328,8 +327,9 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes())
         .unwrap()
         .0;
-    cpi_data.hashed_pubkeys.push((owner_pubkey, hashed_owner));
-    let init_len_account_indices = cpi_data.account_indices.len();
+    cpi_data
+        .hashed_pubkeys
+        .push((owner_pubkey.into(), hashed_owner));
     #[allow(unused)]
     let mut current_hashed_mt = [0u8; 32];
     let mut hash_chain = [0u8; 32];
@@ -344,7 +344,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             .compressed_account
             .address
         {
-            cpi_data.addresses[j] = Some(*address);
+            cpi_data.addresses[j] = Some(**address);
         }
 
         #[allow(clippy::comparison_chain)]
@@ -393,6 +393,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 x.0 == input_compressed_account_with_context
                     .compressed_account
                     .owner
+                    .into()
             }) {
                 Some(hashed_owner) => hashed_owner.1,
                 None => {
@@ -407,7 +408,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                     cpi_data.hashed_pubkeys.push((
                         input_compressed_account_with_context
                             .compressed_account
-                            .owner,
+                            .owner
+                            .into(),
                         hashed_owner,
                     ));
                     hashed_owner
@@ -420,16 +422,12 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .nullifier_queue_pubkey_index,
             remaining_accounts,
         );
-        msg!("queue index {}", queue_index);
-        msg!("cpi_data.account_indices {:?}", cpi_data.account_indices);
         let tree_index = cpi_data.get_index_or_insert(
             input_compressed_account_with_context
                 .merkle_context
                 .merkle_tree_pubkey_index,
             remaining_accounts,
         );
-        msg!("tree index {}", tree_index);
-        msg!("cpi_data.account_indices {:?}", cpi_data.account_indices);
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .compressed_account
@@ -438,7 +436,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                     &current_hashed_mt,
                     &input_compressed_account_with_context
                         .merkle_context
-                        .leaf_index,
+                        .leaf_index
+                        .into(),
                 )?,
             leaf_index: input_compressed_account_with_context
                 .merkle_context
@@ -446,7 +445,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .into(),
             prove_by_index: input_compressed_account_with_context
                 .merkle_context
-                .prove_by_index as u8,
+                .prove_by_index() as u8,
             queue_index,
             tree_index,
         };
@@ -472,15 +471,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             ));
         }
     }
-    msg!("init_len_account_indices {}", init_len_account_indices);
-    msg!(
-        "cpi_data.account_indices.len() {}",
-        cpi_data.account_indices.len()
-    );
-    msg!("cpi data accounts: {:?}", cpi_data.accounts);
-
-    msg!("num queues");
-    sol_log_compute_units();
     cpi_ix_data.num_queues = input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -491,7 +481,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .any(|y| y.merkle_context.nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
-    sol_log_compute_units();
 
     Ok((network_fee_bundle, hash_chain))
 }

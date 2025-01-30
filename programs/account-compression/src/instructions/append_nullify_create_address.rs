@@ -143,7 +143,6 @@ pub fn insert_nullifiers<'a, 'info>(
     // (tree_index, rollover_fee) no rollover fee for the input queue all rollover fees are paid in the output queue.
     // rollover_fee_vec: Vec<(u8, u64)>,
 ) -> Result<()> {
-    msg!("num_queues {:?}", num_queues);
     if nullifiers.is_empty() {
         return Ok(());
     }
@@ -167,8 +166,6 @@ pub fn insert_nullifiers<'a, 'info>(
         //         &mut queue[(current_queue_index - (current_tree_index + 1)) as usize];
         //     (queue_account, merkle_tree)
         // };
-        msg!("tree index {:?}", current_tree_index);
-        msg!("queue index {:?}", current_queue_index);
         let (queue_account, merkle_tree_account) = get_queue_and_tree_accounts(
             accounts,
             current_queue_index as usize,

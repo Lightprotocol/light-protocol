@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hasher::Discriminator as LightDiscriminator;
 
+pub mod instruction_data;
 pub mod invoke;
 pub use invoke::instruction::*;
 pub mod invoke_cpi;
@@ -10,6 +11,7 @@ pub mod errors;
 pub mod sdk;
 pub mod utils;
 use errors::SystemProgramError;
+use light_zero_copy::borsh::Deserialize;
 use sdk::event::PublicTransactionEvent;
 
 declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
@@ -28,8 +30,13 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     use light_heap::{bench_sbf_end, bench_sbf_start};
+
+    use crate::instruction_data::{
+        ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
+    };
 
     use self::{
         invoke::{processor::process, verify_signer::input_compressed_accounts_signer_check},
@@ -60,9 +67,12 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let inputs: InstructionDataInvoke =
-            InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
-
+        bench_sbf_start!("invoke_deserialize");
+        msg!("Invoke instruction");
+        sol_log_compute_units();
+        let (inputs, _) = ZInstructionDataInvoke::deserialize_at(inputs.as_slice()).unwrap();
+        sol_log_compute_units();
+        bench_sbf_end!("invoke_deserialize");
         input_compressed_accounts_signer_check(
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx.accounts.authority.key(),
@@ -75,8 +85,7 @@ pub mod light_system_program {
         inputs: Vec<u8>,
     ) -> Result<()> {
         bench_sbf_start!("cpda_deserialize");
-        let inputs: InstructionDataInvokeCpi =
-            InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
+        let (inputs, _) = ZInstructionDataInvokeCpi::deserialize_at(inputs.as_slice()).unwrap();
         bench_sbf_end!("cpda_deserialize");
 
         process_invoke_cpi(ctx, inputs, None, None)
@@ -87,11 +96,12 @@ pub mod light_system_program {
         inputs: Vec<u8>,
     ) -> Result<()> {
         bench_sbf_start!("cpda_deserialize");
-        let inputs = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut inputs.as_slice())?;
+        let (inputs, _) =
+            ZInstructionDataInvokeCpiWithReadOnly::deserialize_at(inputs.as_slice()).unwrap();
         bench_sbf_end!("cpda_deserialize");
         // disable set cpi context because cpi context account uses InvokeCpiInstruction
         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
-            if cpi_context.set_context {
+            if cpi_context.set_context() {
                 msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
                 msg!("Please use invoke_cpi instead.");
                 return Err(SystemProgramError::InstructionNotCallable.into());

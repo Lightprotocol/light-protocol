@@ -1,9 +1,8 @@
 use anchor_lang::{
     prelude::{AccountInfo, AccountLoader},
-    solana_program::{log::sol_log_compute_units, msg, pubkey::Pubkey},
-    AccountDeserialize, Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
+    solana_program::{msg, pubkey::Pubkey},
+    Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
-use bytemuck::Pod;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -77,11 +76,6 @@ impl<'a, 'info> LightContext<'a, 'info> {
         }
     }
 
-    // pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
-    //     let offset = if self.invoked_by_program { 4 } else { 3 };
-    //     &self.accounts[offset..]
-    // }
-
     #[inline(always)]
     pub fn remaining_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
         let offset = if self.invoked_by_program { 3 } else { 2 };
@@ -124,7 +118,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
     /// 1. Fee payer
     /// 2. Authority
     /// 3. Option<Registered program PDA>
-    /// 4. System program
+    /// 4. System program ( todo remove we don't need it anymore don't do any transfers)
     /// ... other accounts
     #[inline(always)]
     pub fn from_account_infos(

@@ -70,10 +70,6 @@ pub fn create_cpi_data<
         num_nullifiers,
         num_new_addresses,
     );
-    msg!("num_leaves: {}", num_leaves);
-    msg!("num_nullifiers: {}", num_nullifiers);
-    msg!("num_new_addresses: {}", num_new_addresses);
-    msg!("bytes_size: {}", bytes_size);
     let bytes = vec![0u8; bytes_size];
     Ok((
         CpiData {
@@ -94,21 +90,13 @@ impl<'info> CpiData<'info> {
         ix_data_index: u8,
         remaining_accounts: &[AccountInfo<'info>],
     ) -> u8 {
-        msg!("ix_data_index: {}", ix_data_index);
-        msg!("self.account_indices: {:?}", self.account_indices);
         let queue_index = self
             .account_indices
             .iter()
             .position(|a| *a == ix_data_index);
-        msg!("queue_index: {:?}", queue_index);
         let queue_index = match queue_index {
             Some(index) => index as u8,
             None => {
-                msg!("pushing to account_indices");
-                msg!(
-                    "key: {:?}",
-                    remaining_accounts[ix_data_index as usize].key()
-                );
                 self.account_indices.push(ix_data_index);
                 let account_info = &remaining_accounts[ix_data_index as usize];
                 self.accounts.push(AccountMeta {

@@ -8,8 +8,8 @@ use anchor_lang::{
 
 use crate::{
     errors::SystemProgramError,
+    instruction_data::ZInstructionDataInvoke,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
-    InstructionDataInvoke,
 };
 
 #[account]
@@ -26,7 +26,7 @@ pub fn compress_or_decompress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataInvoke,
+    inputs: &'a ZInstructionDataInvoke<'a>,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     if inputs.is_compress {
@@ -43,7 +43,7 @@ pub fn decompress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataInvoke,
+    inputs: &'a ZInstructionDataInvoke<'a>,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.get_decompression_recipient().as_ref() {
@@ -59,7 +59,7 @@ pub fn decompress_lamports<
         None => return err!(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol),
     };
 
-    transfer_lamports(&sol_pool_pda, &recipient, lamports)
+    transfer_lamports(&sol_pool_pda, &recipient, (*lamports).into())
 }
 
 pub fn compress_lamports<
@@ -69,7 +69,7 @@ pub fn compress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataInvoke,
+    inputs: &'a ZInstructionDataInvoke<'a>,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.get_sol_pool_pda().as_ref() {
@@ -84,7 +84,7 @@ pub fn compress_lamports<
     transfer_lamports_cpi(
         &ctx.accounts.get_fee_payer().to_account_info(),
         &recipient,
-        lamports,
+        (*lamports).into(),
     )
 }
 

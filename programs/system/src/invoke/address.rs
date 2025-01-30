@@ -10,16 +10,16 @@ use light_hasher::Discriminator as LightDiscriminator;
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
     errors::SystemProgramError,
+    instruction_data::ZNewAddressParamsPacked,
     invoke_cpi::verify_signer::check_program_owner_address_merkle_tree,
     sdk::address::{derive_address, derive_address_legacy},
-    NewAddressParamsPacked,
 };
 
 use super::cpi_acp::CpiData;
 
 pub fn derive_new_addresses<'info>(
     invoking_program_id: &Option<Pubkey>,
-    new_address_params: &[NewAddressParamsPacked],
+    new_address_params: &[ZNewAddressParamsPacked],
     num_input_compressed_accounts: usize,
     remaining_accounts: &'info [AccountInfo<'info>],
     invoking_program: &Option<Pubkey>,
