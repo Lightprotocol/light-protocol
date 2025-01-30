@@ -2,7 +2,7 @@
   "scripts": {
     "lint:fix": "prettier \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier  \"*/**/*{.js,.ts}\" --check",
-    "test": "cargo test-sbf -p name-service -- --test-threads 1"
+    "test": "cargo test-sbf -p name-service-without-macros -- --test-threads 1"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0"

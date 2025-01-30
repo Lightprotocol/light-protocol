@@ -28,7 +28,7 @@ light-macros = { workspace = true }
 light-sdk = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-utils = { workspace = true }
-light-verifier = { workspace = true }
+light-verifier = { workspace = true, features = ["solana"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

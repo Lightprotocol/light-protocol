@@ -8,8 +8,8 @@ use light_client::{
     rpc::merkle_tree::MerkleTreeExt,
 };
 use light_program_test::{
+    indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
-    test_indexer::TestIndexer,
     test_rpc::ProgramTestRpcConnection,
 };
 use light_sdk::{
@@ -43,17 +43,18 @@ async fn test_name_service() {
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
-        &[StateMerkleTreeAccounts {
+        Vec::from(&[StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
             cpi_context: env.cpi_context_account_pubkey,
-        }],
-        &[AddressMerkleTreeAccounts {
+        }]),
+        Vec::from(&[AddressMerkleTreeAccounts {
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
-        }],
-        true,
-        true,
+        }]),
+        payer.insecure_clone(),
+        env.group_pda.clone(),
+        None,
     )
     .await;
 
@@ -122,8 +123,10 @@ async fn test_name_service() {
     }
 
     // Check that it was created correctly.
-    let compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts = test_indexer
+        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
+        .await
+        .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -200,8 +203,10 @@ async fn test_name_service() {
     }
 
     // Check that it was updated correctly.
-    let compressed_accounts =
-        test_indexer.get_compressed_accounts_by_owner(&name_service_without_macros::ID);
+    let compressed_accounts = test_indexer
+        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
+        .await
+        .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -372,8 +377,8 @@ where
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
+            Some(Vec::from(&[hash])),
+            Some(Vec::from(&[merkle_tree_pubkey])),
             None,
             None,
             rpc,
@@ -382,7 +387,7 @@ where
 
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
-        rpc_result.root_indices[0],
+        rpc_result.root_indices[0].unwrap(),
         &merkle_tree_pubkey,
         remaining_accounts,
     );
@@ -445,8 +450,8 @@ where
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(&[hash]),
-            Some(&[merkle_tree_pubkey]),
+            Some(Vec::from(&[hash])),
+            Some(Vec::from(&[merkle_tree_pubkey])),
             None,
             None,
             rpc,
@@ -455,7 +460,7 @@ where
 
     let compressed_account = LightAccountMeta::new_close(
         compressed_account,
-        rpc_result.root_indices[0],
+        rpc_result.root_indices[0].unwrap(),
         remaining_accounts,
     );
 

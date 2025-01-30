@@ -194,7 +194,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<Hash>, IndexerError> {
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
         self.rate_limited_request(|| async {
             let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
                 params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
@@ -215,19 +215,40 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             .unwrap();
 
             let accs = result.result.unwrap().value;
-            let mut hashes = Vec::new();
-            for acc in accs.items {
-                hashes.push(acc.hash);
-            }
+            let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
 
-            Ok(hashes
-                .iter()
-                .map(|x| Hash::from_base58(x).unwrap())
-                .collect())
+            for acc in accs.items {
+                let compressed_account = CompressedAccount {
+                    owner: Pubkey::from(decode_hash(&acc.owner)),
+                    lamports: acc.lamports as u64,
+                    address: acc.address.map(|address| decode_hash(&address)),
+                    data: acc.data.map(|data| CompressedAccountData {
+                        discriminator: data.discriminator.to_be_bytes(),
+                        data: data.data.as_bytes().to_vec(),
+                        data_hash: decode_hash(&data.data_hash),
+                    }),
+                };
+                let merkle_context = MerkleContext {
+                    merkle_tree_pubkey: Pubkey::from(decode_hash(&acc.tree)),
+                    // TODO: add nullifier queue pubkey to photon
+                    nullifier_queue_pubkey: Pubkey::from(decode_hash(&acc.tree)),
+                    leaf_index: acc.leaf_index as u32,
+                    prove_by_index: false,
+                };
+
+                let account = CompressedAccountWithMerkleContext {
+                    compressed_account,
+                    merkle_context,
+                };
+                accounts.push(account);
+    }
+
+            Ok(accounts)
         })
         .await
     }
-
+    
+    
     async fn get_compressed_account(
         &self,
         address: Option<Address>,
@@ -584,4 +605,13 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         todo!()
     }
+}
+
+
+fn decode_hash(account: &str) -> [u8; 32] {
+    let mut arr = [0u8; 32];
+    bs58::decode(account)
+        .into(&mut arr)
+        .expect("Failed to decode base58 string");
+    arr
 }
