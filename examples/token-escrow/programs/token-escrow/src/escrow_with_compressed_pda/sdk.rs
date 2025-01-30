@@ -7,7 +7,7 @@ use light_compressed_token::process_transfer::{
     TokenTransferOutputData,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         address::{add_and_get_remaining_account_indices, pack_new_address_params},
         compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},

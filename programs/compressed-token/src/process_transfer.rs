@@ -3,7 +3,7 @@ use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, Ancho
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{
@@ -595,7 +595,7 @@ pub mod transfer_sdk {
     use anchor_lang::{error_code, AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::{token::Token, token_2022::Token2022};
     use light_system_program::{
-        invoke::processor::CompressedProof,
+        processor::processor::CompressedProof,
         sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
     };
     use solana_sdk::{

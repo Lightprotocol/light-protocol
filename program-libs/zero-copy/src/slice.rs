@@ -12,6 +12,7 @@ pub type ZeroCopySliceU16<'a, T> = ZeroCopySlice<'a, u16, T>;
 pub type ZeroCopySliceU8<'a, T> = ZeroCopySlice<'a, u8, T>;
 pub type ZeroCopySliceBorsh<'a, T> = ZeroCopySlice<'a, U32, T, false>;
 
+#[derive(Clone)]
 pub struct ZeroCopySlice<'a, L, T, const PAD: bool = true>
 where
     L: ZeroCopyTraits,

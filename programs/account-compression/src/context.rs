@@ -16,11 +16,23 @@ use crate::{
     errors::AccountCompressionErrorCode,
     state_merkle_tree_from_bytes_zero_copy_mut,
     utils::{
-        check_signer_is_registered_or_authority::manual_check_signer_is_registered_or_authority,
+        check_signer_is_registered_or_authority::{
+            manual_check_signer_is_registered_or_authority, GroupAccess,
+        },
         constants::CPI_AUTHORITY_PDA_SEED,
     },
     AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount,
 };
+
+impl GroupAccess for BatchedQueueAccount<'_> {
+    fn get_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.owner.into()
+    }
+
+    fn get_program_owner(&self) -> Pubkey {
+        self.metadata.access_metadata.program_owner.into()
+    }
+}
 
 use super::RegisteredProgram;
 pub struct LightContext<'a, 'info> {
@@ -59,40 +71,21 @@ impl<'a, 'info> LightContext<'a, 'info> {
         }
     }
 
-    // pub fn registered_program_pda(&self) -> Option<&(Pubkey, Pubkey)> {
-    //     match &self.accounts[REGISTERED_PROGRAM_PDA_INDEX] {
-    //         AcpAccount::RegisteredProgramPda(registered_program_pda) => {
-    //             Some(registered_program_pda)
-    //         }
-    //         _ => None,
-    //     }
-    // }
-
-    pub fn system_program(&self) -> &AccountInfo<'info> {
-        let offset = if self.invoked_by_program { 2 } else { 1 };
-        match self.accounts[offset] {
-            AcpAccount::SystemProgram(account) => account,
-            _ => panic!("Invalid fee payer account"),
-        }
-    }
-
     #[inline(always)]
     pub fn remaining_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
-        let offset = if self.invoked_by_program { 3 } else { 2 };
+        let offset = if self.invoked_by_program { 2 } else { 1 };
         &mut self.accounts[offset..]
     }
 
     #[inline(always)]
     pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
-        let offset = if self.invoked_by_program { 3 } else { 2 };
+        let offset = if self.invoked_by_program { 2 } else { 1 };
         &self.accounts[offset..]
     }
 }
 
 const FEE_PAYER_INDEX: usize = 0;
 const AUTHORITY_INDEX: usize = 1;
-const REGISTERED_PROGRAM_PDA_INDEX: usize = 2;
-const SYSTEM_PROGRAM_INDEX: usize = 3;
 
 #[derive(Debug)]
 pub enum AcpAccount<'a, 'info> {
@@ -118,7 +111,6 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
     /// 1. Fee payer
     /// 2. Authority
     /// 3. Option<Registered program PDA>
-    /// 4. System program ( todo remove we don't need it anymore don't do any transfers)
     /// ... other accounts
     #[inline(always)]
     pub fn from_account_infos(
@@ -127,7 +119,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         invoked_by_program: bool,
         bump: u8,
     ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, AccountCompressionErrorCode> {
-        // TODO: remove + 1 and passed in fee_payer once we removed anchor.
+        // TODO: remove + 1 and pass in fee_payer once we removed anchor.
         let mut vec = Vec::with_capacity(account_infos.len() + 1);
         vec.push(AcpAccount::FeePayer(&fee_payer));
         vec.push(AcpAccount::Authority(&account_infos[0]));
@@ -152,17 +144,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             }
             false => None,
         };
-        {
-            let system_program_account = &account_infos[skip as usize];
-            if system_program_account.key() != Pubkey::default() {
-                msg!("system_program_account {:?}", system_program_account.key());
-                panic!("Invalid system program account");
-                // return Err(AccountCompressionErrorCode::InvalidAuthority);
-            }
-            vec.push(AcpAccount::SystemProgram(&system_program_account));
-        }
 
-        skip += 1;
         account_infos.iter().skip(skip).for_each(|account_info| {
             let account =
                 AcpAccount::try_from_account_info(account_info, &vec[1], &derived_address).unwrap();
@@ -172,7 +154,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
     }
 
     #[inline(always)]
-    pub fn try_from_account_info(
+    pub(crate) fn try_from_account_info(
         account_info: &'info AccountInfo<'info>,
         authority: &AcpAccount<'a, 'info>,
         registered_program_pda: &Option<(Pubkey, Pubkey)>,
@@ -181,7 +163,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             msg!("Invalid owner {:?}", account_info.owner);
             return Err(AccountCompressionErrorCode::InputDeserializationFailed);
         }
-        let mut discriminator = account_info
+        let discriminator = account_info
             .try_borrow_data()
             .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?[..8]
             .try_into()
@@ -210,6 +192,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                             &tree,
                         )
                         .unwrap();
+
                         Ok(AcpAccount::BatchedStateTree(tree))
                     }
                     _ => Err(AccountCompressionErrorCode::InputDeserializationFailed),
@@ -224,6 +207,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     &queue,
                 )
                 .unwrap();
+
                 Ok(AcpAccount::OutputQueue(queue))
             }
             StateMerkleTreeAccount::DISCRIMINATOR => {

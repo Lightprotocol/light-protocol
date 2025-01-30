@@ -58,6 +58,7 @@ fn test_output_queue_account() {
     // 1 batch in progress, 1 batch ready to be processed
     let bloom_filter_capacity = 0;
     let bloom_filter_num_iters = 0;
+    let queue_pubkey = Pubkey::new_unique();
     {
         let queue_type = QueueType::BatchedOutput;
         let (ref_account, mut account_data) =
@@ -69,6 +70,7 @@ fn test_output_queue_account() {
             10,
             bloom_filter_num_iters,
             bloom_filter_capacity,
+            queue_pubkey,
         )
         .unwrap();
 
@@ -86,8 +88,17 @@ fn test_output_queue_account() {
 fn test_value_exists_in_value_vec_present() {
     let (account, mut account_data) =
         get_test_account_and_account_data(100, QueueType::BatchedOutput, 0);
-    let mut account =
-        BatchedQueueAccount::init(&mut account_data, account.metadata, 100, 10, 0, 0).unwrap();
+    let queue_pubkey = Pubkey::new_unique();
+    let mut account = BatchedQueueAccount::init(
+        &mut account_data,
+        account.metadata,
+        100,
+        10,
+        0,
+        0,
+        queue_pubkey,
+    )
+    .unwrap();
 
     let value = [1u8; 32];
     let value2 = [2u8; 32];

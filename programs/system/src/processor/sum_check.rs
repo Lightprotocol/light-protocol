@@ -1,5 +1,4 @@
 use anchor_lang::{solana_program::program_error::ProgramError, Result};
-use light_macros::heap_neutral;
 
 use crate::{
     errors::SystemProgramError,
@@ -8,8 +7,7 @@ use crate::{
     },
 };
 
-#[inline(never)]
-#[heap_neutral]
+#[inline(always)]
 pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext<
         '_,

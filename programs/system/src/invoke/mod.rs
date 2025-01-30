@@ -1,12 +1,3 @@
 pub mod instruction;
 pub use instruction::*;
-pub mod address;
-pub mod append_state;
-pub mod cpi_acp;
-pub mod emit_event;
-pub mod nullify_state;
-pub mod processor;
-pub mod sol_compression;
-pub mod sum_check;
-pub mod verify_proof;
 pub mod verify_signer;

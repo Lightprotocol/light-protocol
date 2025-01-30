@@ -23,7 +23,7 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig,
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
     errors::SystemProgramError,
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         address::{derive_address, derive_address_legacy},
         compressed_account::{

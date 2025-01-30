@@ -3,8 +3,10 @@ use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,
-    initialize_address_merkle_tree::process_initialize_address_merkle_tree,
-    initialize_address_queue::process_initialize_address_queue,
+    processor::{
+        initialize_address_merkle_tree::process_initialize_address_merkle_tree,
+        initialize_address_queue::process_initialize_address_queue,
+    },
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
         check_signer_is_registered_or_authority::{

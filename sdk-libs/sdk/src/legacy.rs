@@ -4,7 +4,7 @@
 //! possible.
 
 pub use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         compressed_account::{
             CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,

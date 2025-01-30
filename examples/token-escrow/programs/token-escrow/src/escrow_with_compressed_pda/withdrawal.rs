@@ -7,7 +7,7 @@ use light_compressed_token::process_transfer::{
 use light_hasher::{DataHasher, Poseidon};
 use light_sdk::verify::verify;
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         compressed_account::{
             CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,

@@ -6,7 +6,9 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, pubkey::Pubkey},
     InstructionData,
 };
-use light_system_program::{invoke::processor::CompressedProof, utils::get_registered_program_pda};
+use light_system_program::{
+    processor::processor::CompressedProof, utils::get_registered_program_pda,
+};
 pub mod create_pda;
 pub use create_pda::*;
 use light_system_program::NewAddressParamsPacked;

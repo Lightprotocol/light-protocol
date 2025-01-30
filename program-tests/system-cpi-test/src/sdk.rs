@@ -11,7 +11,7 @@ use light_compressed_token::{
     get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         address::{
             pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params,

@@ -17,9 +17,9 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap", "test"]
+default = [ "test"]
 test-sbf = []
-bench-sbf = []
+bench-sbf = ["custom-heap"]
 test = []
 
 

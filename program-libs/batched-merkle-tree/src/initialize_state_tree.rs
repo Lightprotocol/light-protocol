@@ -6,7 +6,8 @@ use light_merkle_tree_metadata::{
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
 use light_utils::{
-    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
+    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee,
+    hashv_to_bn254_field_size_be, pubkey::Pubkey,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
@@ -204,6 +205,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             // Output queues have no bloom filter.
             0,
             0,
+            output_queue_pubkey,
         )?;
     }
     let metadata = MerkleTreeMetadata {
@@ -228,6 +230,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
     // to prove inclusion of this state for which we need a root from the tree account.
     BatchedMerkleTreeAccount::init(
         mt_account_data,
+        &mt_pubkey,
         metadata,
         params.root_history_capacity,
         params.input_queue_batch_size,
@@ -379,6 +382,7 @@ pub struct CreateOutputQueueParams {
     pub additional_bytes: u64,
     pub rent: u64,
     pub associated_merkle_tree: Pubkey,
+    pub queue_pubkey: Pubkey,
     pub height: u32,
     pub network_fee: u64,
 }
@@ -389,6 +393,7 @@ impl CreateOutputQueueParams {
         owner: Pubkey,
         rent: u64,
         associated_merkle_tree: Pubkey,
+        queue_pubkey: Pubkey,
     ) -> Self {
         Self {
             owner,
@@ -403,6 +408,7 @@ impl CreateOutputQueueParams {
             associated_merkle_tree,
             height: params.height,
             network_fee: params.network_fee.unwrap_or_default(),
+            queue_pubkey,
         }
     }
 }
@@ -439,5 +445,9 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         metadata,
         batch_metadata,
         tree_capacity: 2u64.pow(params.height),
+        hashed_merkle_tree_pubkey: hashv_to_bn254_field_size_be(&[&params
+            .associated_merkle_tree
+            .to_bytes()]),
+        hashed_queue_pubkey: hashv_to_bn254_field_size_be(&[&params.queue_pubkey.to_bytes()]),
     }
 }

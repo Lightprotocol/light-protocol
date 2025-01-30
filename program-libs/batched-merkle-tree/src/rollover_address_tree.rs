@@ -63,7 +63,7 @@ pub fn rollover_batched_address_tree<'a>(
     // 3. Initialize the new address merkle tree.
     let params = create_batched_address_tree_init_params(old_merkle_tree, network_fee);
     let owner = old_merkle_tree.metadata.access_metadata.owner;
-    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent)
+    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent, new_mt_pubkey)
 }
 
 fn create_batched_address_tree_init_params(

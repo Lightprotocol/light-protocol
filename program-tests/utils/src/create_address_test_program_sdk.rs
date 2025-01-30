@@ -9,7 +9,7 @@ use light_client::{
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{indexer::TestIndexerExtensions, test_env::EnvAccounts};
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::address::{derive_address, pack_new_address_params},
     NewAddressParams,
 };

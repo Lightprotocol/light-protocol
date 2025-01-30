@@ -3,7 +3,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_compressed_token::process_transfer::{
     InputTokenDataWithContext, PackedTokenTransferOutputData,
 };
-use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::processor::processor::CompressedProof;
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
 

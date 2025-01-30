@@ -5,7 +5,7 @@ use light_merkle_tree_metadata::{
     queue::QueueType,
     rollover::RolloverMetadata,
 };
-use light_utils::{fee::compute_rollover_fee, pubkey::Pubkey};
+use light_utils::{fee::compute_rollover_fee, hashv_to_bn254_field_size_be, pubkey::Pubkey};
 use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -41,6 +41,7 @@ pub struct BatchedMerkleTreeMetadata {
     pub root_history_capacity: u32,
     pub capacity: u64,
     pub queue_metadata: BatchMetadata,
+    pub hashed_pubkey: [u8; 32],
 }
 
 impl Default for BatchedMerkleTreeMetadata {
@@ -61,6 +62,7 @@ impl Default for BatchedMerkleTreeMetadata {
                 zkp_batch_size: 10,
                 ..Default::default()
             },
+            hashed_pubkey: [0u8; 32],
         }
     }
 }
@@ -120,6 +122,7 @@ impl BatchedMerkleTreeMetadata {
             root_history_capacity,
             height,
             num_iters,
+            tree_pubkey,
         } = params;
         Self {
             metadata: MerkleTreeMetadata {
@@ -153,6 +156,7 @@ impl BatchedMerkleTreeMetadata {
             )
             .unwrap(),
             capacity: 2u64.pow(height),
+            hashed_pubkey: hashv_to_bn254_field_size_be(&[&tree_pubkey.to_bytes()]),
         }
     }
 }
@@ -171,28 +175,13 @@ pub struct CreateTreeParams {
     pub root_history_capacity: u32,
     pub height: u32,
     pub num_iters: u64,
+    pub tree_pubkey: Pubkey,
 }
 impl CreateTreeParams {
-    pub fn from_state_ix_params(data: InitStateTreeAccountsInstructionData, owner: Pubkey) -> Self {
-        CreateTreeParams {
-            owner,
-            program_owner: data.program_owner,
-            forester: data.forester,
-            rollover_threshold: data.rollover_threshold,
-            index: data.index,
-            network_fee: data.network_fee.unwrap_or(0),
-            batch_size: data.input_queue_batch_size,
-            zkp_batch_size: data.input_queue_zkp_batch_size,
-            bloom_filter_capacity: data.bloom_filter_capacity,
-            root_history_capacity: data.root_history_capacity,
-            height: data.height,
-            num_iters: data.bloom_filter_num_iters,
-        }
-    }
-
-    pub fn from_address_ix_params(
-        data: InitAddressTreeAccountsInstructionData,
+    pub fn from_state_ix_params(
+        data: InitStateTreeAccountsInstructionData,
         owner: Pubkey,
+        tree_pubkey: Pubkey,
     ) -> Self {
         CreateTreeParams {
             owner,
@@ -207,6 +196,29 @@ impl CreateTreeParams {
             root_history_capacity: data.root_history_capacity,
             height: data.height,
             num_iters: data.bloom_filter_num_iters,
+            tree_pubkey,
+        }
+    }
+
+    pub fn from_address_ix_params(
+        data: InitAddressTreeAccountsInstructionData,
+        owner: Pubkey,
+        tree_pubkey: Pubkey,
+    ) -> Self {
+        CreateTreeParams {
+            owner,
+            program_owner: data.program_owner,
+            forester: data.forester,
+            rollover_threshold: data.rollover_threshold,
+            index: data.index,
+            network_fee: data.network_fee.unwrap_or(0),
+            batch_size: data.input_queue_batch_size,
+            zkp_batch_size: data.input_queue_zkp_batch_size,
+            bloom_filter_capacity: data.bloom_filter_capacity,
+            root_history_capacity: data.root_history_capacity,
+            height: data.height,
+            num_iters: data.bloom_filter_num_iters,
+            tree_pubkey,
         }
     }
 }

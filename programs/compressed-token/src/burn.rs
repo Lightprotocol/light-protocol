@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
     OutputCompressedAccountWithPackedContext,
 };
@@ -190,7 +190,7 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof,
+        processor::processor::CompressedProof,
         sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};

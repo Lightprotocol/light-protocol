@@ -34,7 +34,7 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
 use light_test_utils::{
@@ -5304,7 +5304,6 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
 }
 
 #[serial]
-#[serial]
 #[tokio::test]
 async fn mint_with_batched_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
@@ -5322,7 +5321,7 @@ async fn mint_with_batched_tree() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
-    let num_recipients = 25;
+    let num_recipients = 33;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,

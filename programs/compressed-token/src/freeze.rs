@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_hasher::{DataHasher, Poseidon};
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         compressed_account::{
             CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -200,7 +200,7 @@ pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
-        invoke::processor::CompressedProof,
+        processor::processor::CompressedProof,
         sdk::compressed_account::{CompressedAccount, MerkleContext},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};

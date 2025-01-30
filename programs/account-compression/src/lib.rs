@@ -5,11 +5,9 @@ pub mod instructions;
 pub use instructions::*;
 pub mod state;
 pub use state::*;
+pub mod context;
 pub mod processor;
 pub mod utils;
-pub use processor::*;
-mod context;
-pub mod sdk;
 use anchor_lang::prelude::*;
 use errors::AccountCompressionErrorCode;
 use light_batched_merkle_tree::{
@@ -28,22 +26,12 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
+
 #[program]
 pub mod account_compression {
 
-    use core::panic;
+    use crate::processor::insert_into_queues::process_insert_into_queues;
 
-    use light_merkle_tree_metadata::queue::QueueType;
-    use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
-
-    use crate::{
-        append_nullify_create_address::{
-            deserialize_nullify_append_create_address_inputs, insert_nullifiers,
-        },
-        context::LightContext,
-    };
-
-    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
     use super::*;
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
@@ -61,20 +49,6 @@ pub mod account_compression {
             forester,
             address_merkle_tree_config,
             address_queue_config,
-        )
-    }
-
-    pub fn insert_addresses<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-        addresses: Vec<[u8; 32]>,
-    ) -> Result<()> {
-        process_insert_into_queues(
-            ctx,
-            addresses.as_slice(),
-            Vec::new(),
-            QueueType::AddressQueue,
-            None,
-            None,
         )
     }
 
@@ -178,49 +152,7 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        let fee_payer = ctx.accounts.fee_payer.to_account_info();
-        let mut bytes = bytes;
-        let inputs =
-            deserialize_nullify_append_create_address_inputs(bytes.as_mut_slice()).unwrap();
-        let mut context = LightContext::new(
-            ctx.remaining_accounts,
-            &fee_payer,
-            inputs.is_invoked_by_program(),
-            inputs.bump,
-        );
-        // process_append_leaves_to_merkle_trees(&ctx, inputs.leaves.as_slice())?;
-        insert_nullifiers(
-            inputs.num_queues,
-            inputs.tx_hash,
-            inputs.nullifiers.as_slice(),
-            context.remaining_accounts_mut(),
-        )?;
-
-        process_append_leaves_to_merkle_trees(
-            inputs.leaves.as_slice(),
-            inputs.num_unique_appends,
-            context.remaining_accounts_mut(),
-        )?;
-
-        crate::append_nullify_create_address::insert_addresses(
-            inputs.num_address_appends,
-            inputs.addresses.as_slice(),
-            context.remaining_accounts_mut(),
-        )?;
-        // return (Pubkey, rollover_fee) and transfer in system program to
-        // reduce cpi call depth by 1
-        Ok(())
-    }
-
-    pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-        bytes: Vec<u8>,
-    ) -> Result<()> {
-        let mut bytes = bytes;
-        let leaves =
-            ZeroCopySliceMutBorsh::<AppendLeavesInput>::from_bytes(bytes.as_mut_slice()).unwrap();
-        // process_append_leaves_to_merkle_trees(&ctx, leaves.as_slice())
-        panic!("process_append_leaves_to_merkle_trees not implemented")
+        process_insert_into_queues(&ctx, bytes)
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
@@ -236,23 +168,6 @@ pub mod account_compression {
             &leaves_queue_indices,
             &leaf_indices,
             &proofs,
-        )
-    }
-
-    pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-        nullifiers: Vec<[u8; 32]>,
-        leaf_indices: Vec<u32>,
-        prove_by_index: Vec<bool>,
-        tx_hash: [u8; 32],
-    ) -> Result<()> {
-        process_insert_into_queues(
-            ctx,
-            &nullifiers,
-            leaf_indices,
-            QueueType::NullifierQueue,
-            Some(prove_by_index),
-            Some(tx_hash),
         )
     }
 

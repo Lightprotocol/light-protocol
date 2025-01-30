@@ -10,7 +10,7 @@ use light_compressed_token::{
     CompressedTokenInstructionDataBurn,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     program::LightSystemProgram,
     sdk::{
         compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},

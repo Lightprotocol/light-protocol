@@ -1844,6 +1844,7 @@ async fn test_fill_address_tree_completely() {
             params,
             &mut mt_account_data,
             merkle_tree_rent,
+            mt_pubkey,
         )
         .unwrap();
         use rand::SeedableRng;

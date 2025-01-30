@@ -7,7 +7,7 @@ use light_hasher::{
     errors::HasherError, DataHasher, Discriminator as LightDiscriminator, Poseidon,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     program::LightSystemProgram,
     sdk::{
         address::{derive_address, derive_address_legacy},

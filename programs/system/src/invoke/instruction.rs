@@ -1,9 +1,8 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
-use super::processor::CompressedProof;
 use crate::{
-    invoke::sol_compression::SOL_POOL_PDA_SEED,
+    processor::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
@@ -20,15 +19,15 @@ pub struct InvokeInstruction<'info> {
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK: this account
-    #[account(
-    seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
-    )]
+    // #[account(
+    // seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+    // )]
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: is checked when emitting the event.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program.
     /// This pda is used to invoke the account compression program.
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    // #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: Account compression program is used to update state and address
     /// Merkle trees.

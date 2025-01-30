@@ -11,7 +11,7 @@ use super::compressed_account::{
     CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use crate::{
-    invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
+    processor::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
     OutputCompressedAccountWithPackedContext,
@@ -20,7 +20,7 @@ use crate::{
 pub fn get_sol_pool_pda() -> Pubkey {
     Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
-
+// TODO: move to light-test-utils
 #[allow(clippy::too_many_arguments)]
 pub fn create_invoke_instruction(
     fee_payer: &Pubkey,

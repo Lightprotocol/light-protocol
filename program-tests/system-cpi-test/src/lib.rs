@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::processor::processor::CompressedProof;
 pub mod create_pda;
 pub use create_pda::*;
 pub mod sdk;

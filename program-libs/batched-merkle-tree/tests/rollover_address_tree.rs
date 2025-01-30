@@ -30,6 +30,7 @@ use rand::thread_rng;
 #[test]
 fn test_rollover() {
     let owner = Pubkey::new_unique();
+    let mt_pubkey = Pubkey::new_unique();
 
     let mt_account_size = get_merkle_tree_account_size_default();
     let mut mt_account_data = vec![0; mt_account_size];
@@ -38,10 +39,16 @@ fn test_rollover() {
     let merkle_tree_rent = 1_000_000_000;
     // create first merkle tree
 
-    init_batched_address_merkle_tree_account(owner, params, &mut mt_account_data, merkle_tree_rent)
-        .unwrap();
+    init_batched_address_merkle_tree_account(
+        owner,
+        params,
+        &mut mt_account_data,
+        merkle_tree_rent,
+        mt_pubkey,
+    )
+    .unwrap();
 
-    let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
+    let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner, mt_pubkey);
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
@@ -199,7 +206,7 @@ fn test_rnd_rollover() {
             assert_eq!(mt_account_size, ref_account_size);
         }
         let mut mt_account_data = vec![0; mt_account_size];
-
+        let mt_pubkey = Pubkey::new_unique();
         let merkle_tree_rent = rng.gen_range(0..10000000);
 
         init_batched_address_merkle_tree_account(
@@ -207,9 +214,10 @@ fn test_rnd_rollover() {
             params,
             &mut mt_account_data,
             merkle_tree_rent,
+            mt_pubkey,
         )
         .unwrap();
-        let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner);
+        let create_tree_params = CreateTreeParams::from_address_ix_params(params, owner, mt_pubkey);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
@@ -266,9 +274,11 @@ fn test_batched_tree_is_ready_for_rollover() {
         },
         ..Default::default()
     };
+    let mt_pubkey = Pubkey::new_unique();
 
     let mut account = BatchedMerkleTreeAccount::init(
         &mut account_data,
+        &mt_pubkey,
         metadata,
         root_history_len,
         batch_size,

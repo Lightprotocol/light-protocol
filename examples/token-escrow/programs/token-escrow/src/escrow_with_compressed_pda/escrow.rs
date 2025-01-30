@@ -12,7 +12,7 @@ use light_sdk::{
     legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{
         address::derive_address_legacy,
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},

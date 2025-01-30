@@ -1,4 +1,4 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::program::AccountCompression;
 use anchor_lang::{
     prelude::*, solana_program::pubkey::Pubkey, system_program::System, AnchorDeserialize,
     AnchorSerialize,
@@ -6,7 +6,8 @@ use anchor_lang::{
 
 use super::account::CpiContextAccount;
 use crate::{
-    invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
+    instruction_data::ZInstructionDataInvokeCpi,
+    processor::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{
@@ -23,15 +24,11 @@ pub struct InvokeCpiInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    /// CHECK:
-    #[account(
-    seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
-    )]
+    /// CHECK: in account compression program
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: checked in emit_event.rs.
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK:
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK:
     pub account_compression_program: Program<'info, AccountCompression>,
@@ -102,15 +99,19 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
-impl InstructionDataInvokeCpi {
-    pub fn combine(&mut self, other: &[InstructionDataInvokeCpi]) {
+impl<'a, 'info: 'a> ZInstructionDataInvokeCpi<'a> {
+    pub fn combine(&mut self, other: Vec<ZInstructionDataInvokeCpi<'info>>) {
         for other in other {
-            self.new_address_params
-                .extend_from_slice(&other.new_address_params);
-            self.input_compressed_accounts_with_merkle_context
-                .extend_from_slice(&other.input_compressed_accounts_with_merkle_context);
-            self.output_compressed_accounts
-                .extend_from_slice(&other.output_compressed_accounts);
+            // TODO: support address creation with cpi context
+            // self.new_address_params
+            //     .extend_from_slice(&other.new_address_params);
+            for i in other.input_compressed_accounts_with_merkle_context.iter() {
+                self.input_compressed_accounts_with_merkle_context
+                    .push((*i).clone());
+            }
+            for i in other.output_compressed_accounts.iter() {
+                self.output_compressed_accounts.push((*i).clone());
+            }
         }
     }
 }
@@ -126,8 +127,11 @@ pub struct InstructionDataInvokeCpiWithReadOnly {
 mod tests {
     use std::vec;
 
+    use anchor_lang::AnchorSerialize;
+    use light_zero_copy::borsh::Deserialize;
+
     use crate::{
-        invoke::processor::CompressedProof,
+        instruction_data::ZInstructionDataInvokeCpi, processor::processor::CompressedProof,
         sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
         InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
     };
@@ -135,7 +139,7 @@ mod tests {
     // test combine instruction data transfer
     #[test]
     fn test_combine_instruction_data_transfer() {
-        let mut instruction_data_transfer = InstructionDataInvokeCpi {
+        let instruction_data_transfer = InstructionDataInvokeCpi {
             proof: Some(CompressedProof {
                 a: [0; 32],
                 b: [0; 64],
@@ -167,7 +171,14 @@ mod tests {
             new_address_params: vec![NewAddressParamsPacked::default()],
             cpi_context: None,
         };
-        instruction_data_transfer.combine(&[other]);
+        let mut vec = Vec::new();
+        instruction_data_transfer.serialize(&mut vec).unwrap();
+        let mut other_vec = Vec::new();
+        other.serialize(&mut other_vec).unwrap();
+        let (mut instruction_data_transfer, _) =
+            ZInstructionDataInvokeCpi::deserialize_at(&vec).unwrap();
+        let (other, _) = ZInstructionDataInvokeCpi::deserialize_at(&other_vec).unwrap();
+        instruction_data_transfer.combine(vec![other]);
         assert_eq!(instruction_data_transfer.new_address_params.len(), 2);
         assert_eq!(
             instruction_data_transfer

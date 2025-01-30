@@ -1,7 +1,6 @@
 #![cfg(not(target_os = "solana"))]
-
-use anchor_lang::prelude::borsh::BorshSerialize;
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+// TODO: move file to light-test-utils
+use anchor_lang::InstructionData;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -11,8 +10,7 @@ use crate::{
     instruction::{
         InitializeAddressMerkleTreeAndQueue, InitializeStateMerkleTreeAndNullifierQueue,
     },
-    AddressMerkleTreeConfig, AddressQueueConfig, AppendLeavesInput, NullifierQueueConfig,
-    StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 
 pub fn create_initialize_merkle_tree_instruction(
@@ -50,47 +48,47 @@ pub fn create_initialize_merkle_tree_instruction(
     }
 }
 
-pub fn create_insert_leaves_instruction(
-    leaves: Vec<(u8, [u8; 32])>,
-    fee_payer: Pubkey,
-    authority: Pubkey,
-    merkle_tree_pubkeys: Vec<Pubkey>,
-) -> Instruction {
-    let data = leaves
-        .iter()
-        .into_iter()
-        .map(|x| AppendLeavesInput {
-            index: x.0,
-            leaf: x.1,
-        })
-        .collect::<Vec<_>>();
+// pub fn create_insert_leaves_instruction(
+//     leaves: Vec<(u8, [u8; 32])>,
+//     fee_payer: Pubkey,
+//     authority: Pubkey,
+//     merkle_tree_pubkeys: Vec<Pubkey>,
+// ) -> Instruction {
+//     let data = leaves
+//         .iter()
+//         .into_iter()
+//         .map(|x| AppendLeavesInput {
+//             index: x.0,
+//             leaf: x.1,
+//         })
+//         .collect::<Vec<_>>();
 
-    let mut bytes = Vec::new();
-    data.serialize(&mut bytes).unwrap();
+//     let mut bytes = Vec::new();
+//     data.serialize(&mut bytes).unwrap();
 
-    let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { bytes };
+//     let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { bytes };
 
-    let accounts = crate::accounts::AppendLeaves {
-        fee_payer,
-        authority,
-        registered_program_pda: None,
-        system_program: system_program::ID,
-    };
-    let merkle_tree_account_metas = merkle_tree_pubkeys
-        .iter()
-        .map(|pubkey| AccountMeta::new(*pubkey, false))
-        .collect::<Vec<AccountMeta>>();
+//     let accounts = crate::accounts::AppendLeaves {
+//         fee_payer,
+//         authority,
+//         registered_program_pda: None,
+//         system_program: system_program::ID,
+//     };
+//     let merkle_tree_account_metas = merkle_tree_pubkeys
+//         .iter()
+//         .map(|pubkey| AccountMeta::new(*pubkey, false))
+//         .collect::<Vec<AccountMeta>>();
 
-    Instruction {
-        program_id: crate::ID,
-        accounts: [
-            accounts.to_account_metas(Some(true)),
-            merkle_tree_account_metas,
-        ]
-        .concat(),
-        data: instruction_data.data(),
-    }
-}
+//     Instruction {
+//         program_id: crate::ID,
+//         accounts: [
+//             accounts.to_account_metas(Some(true)),
+//             merkle_tree_account_metas,
+//         ]
+//         .concat(),
+//         data: instruction_data.data(),
+//     }
+// }
 
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     index: u64,

@@ -1,65 +1,8 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_batched_merkle_tree::queue::BatchedQueueAccount;
-
-use crate::{
-    context::AcpAccount,
-    errors::AccountCompressionErrorCode,
-    state::StateMerkleTreeAccount,
-    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
-    RegisteredProgram,
-};
-
-#[derive(Accounts)]
-pub struct AppendLeaves<'info> {
-    #[account(mut)]
-    /// Fee payer pays rollover fee.
-    pub fee_payer: Signer<'info>,
-    /// Checked whether instruction is accessed by a registered program or owner = authority.
-    pub authority: Signer<'info>,
-    /// Some assumes that the Merkle trees are accessed by a registered program.
-    /// None assumes that the Merkle trees are accessed by its owner.
-    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
-    pub system_program: Program<'info, System>,
-}
-
-impl GroupAccess for StateMerkleTreeAccount {
-    fn get_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.owner.into()
-    }
-
-    fn get_program_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.program_owner.into()
-    }
-}
-
-impl<'a> GroupAccess for BatchedQueueAccount<'a> {
-    fn get_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.owner.into()
-    }
-
-    fn get_program_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.program_owner.into()
-    }
-}
-
-impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
-    fn get_authority(&self) -> &Signer<'info> {
-        &self.authority
-    }
-    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
-        &self.registered_program_pda
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize)]
-pub struct ZeroOutLeafIndex {
-    pub tree_index: u8,
-    pub batch_index: u8,
-    pub leaf_index: u16,
-}
+use anchor_lang::prelude::*;
 
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Unaligned};
 
+use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 #[repr(C)]
 #[derive(
     KnownLayout,
@@ -150,38 +93,3 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         Ok(())
     }
 }
-
-// /// Append a batch of leaves to a concurrent Merkle tree.
-// /// 1. Check StateMerkleTreeAccount discriminator and ownership (AccountLoader)
-// /// 2. Check signer is registered or authority
-// /// 3. Append leaves to Merkle tree
-// /// 4. Return rollover fee
-// fn append_to_concurrent_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-//     merkle_tree_acc_info: ConcurrentMerkleTree26<'info>,
-//     batch_size: usize,
-//     leaves: &[&[u8; 32]],
-// ) -> Result<()> {
-//     // let rollover_fee = {
-//     //     let merkle_tree_account =
-//     //         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-//     //             .map_err(ProgramError::from)?;
-
-//     //     {
-//     //         let merkle_tree_account = merkle_tree_account.load()?;
-//     //         let rollover_fee =
-//     //             merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
-
-//     //         check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
-//     //             ctx,
-//     //             &merkle_tree_account,
-//     //         )?;
-
-//     //         rollover_fee
-//     //     }
-//     // };
-
-//     merkle_tree
-//         .append_batch(leaves)
-//         .map_err(ProgramError::from)?;
-//     Ok()
-// }

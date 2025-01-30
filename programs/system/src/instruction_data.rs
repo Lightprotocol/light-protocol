@@ -1,4 +1,3 @@
-use anchor_lang::solana_program::log::sol_log_compute_units;
 use light_utils::pubkey::Pubkey;
 use light_verifier::CompressedProof;
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
@@ -10,7 +9,10 @@ use zerocopy::{
 
 use crate::{
     sdk::{
-        compressed_account::{CompressedAccount, CompressedAccountData},
+        compressed_account::{
+            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+            PackedMerkleContext,
+        },
         CompressedCpiContext,
     },
     OutputCompressedAccountWithPackedContext,
@@ -74,24 +76,24 @@ impl ZPackedMerkleContext {
 
 impl<'a> Deserialize<'a> for ZPackedMerkleContext {
     type Output = Ref<&'a [u8], Self>;
-    fn deserialize_at(bytes: &'a [u8]) -> Result<(Self::Output, &[u8]), ZeroCopyError> {
+    fn deserialize_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], Self>::from_prefix(bytes)?)
     }
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ZOutputCompressedAccountWithPackedContext<'a> {
     pub compressed_account: ZCompressedAccount<'a>,
     pub merkle_tree_index: u8,
 }
 
-impl<'a> From<ZOutputCompressedAccountWithPackedContext<'a>>
+impl<'a> From<&ZOutputCompressedAccountWithPackedContext<'a>>
     for OutputCompressedAccountWithPackedContext
 {
-    fn from(output_compressed_account: ZOutputCompressedAccountWithPackedContext<'a>) -> Self {
+    fn from(output_compressed_account: &ZOutputCompressedAccountWithPackedContext<'a>) -> Self {
         OutputCompressedAccountWithPackedContext {
-            compressed_account: output_compressed_account.compressed_account.into(),
+            compressed_account: (&output_compressed_account.compressed_account).into(),
             merkle_tree_index: output_compressed_account.merkle_tree_index,
         }
     }
@@ -114,7 +116,7 @@ impl<'a> Deserialize<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ZCompressedAccountData<'a> {
     pub discriminator: Ref<&'a [u8], [u8; 8]>,
     pub data: &'a [u8],
@@ -163,7 +165,7 @@ pub struct AccountDesMeta {
     address_option: u8,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ZCompressedAccount<'a> {
     meta: Ref<&'a [u8], AccountDesMeta>,
     pub address: Option<Ref<&'a [u8], [u8; 32]>>,
@@ -178,8 +180,8 @@ impl Deref for ZCompressedAccount<'_> {
     }
 }
 
-impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
-    fn from(compressed_account: ZCompressedAccount) -> Self {
+impl<'a> From<&ZCompressedAccount<'a>> for CompressedAccount {
+    fn from(compressed_account: &ZCompressedAccount) -> Self {
         let data: Option<CompressedAccountData> =
             if let Some(data) = compressed_account.data.as_ref() {
                 Some(CompressedAccountData {
@@ -199,7 +201,6 @@ impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
     }
 }
 
-use anchor_lang::solana_program::msg;
 impl<'a> Deserialize<'a> for ZCompressedAccount<'a> {
     type Output = Self;
 
@@ -236,14 +237,34 @@ pub struct ZPackedCompressedAccountWithMerkleContextMeta {
     read_only: u8,
 }
 
-#[derive(Debug, PartialEq)]
+impl From<ZPackedMerkleContext> for PackedMerkleContext {
+    fn from(merkle_context: ZPackedMerkleContext) -> Self {
+        PackedMerkleContext {
+            merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
+            nullifier_queue_pubkey_index: merkle_context.nullifier_queue_pubkey_index,
+            leaf_index: merkle_context.leaf_index.into(),
+            prove_by_index: merkle_context.prove_by_index == 1,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
     pub compressed_account: ZCompressedAccount<'a>,
-    meta: Ref<&'a [u8], ZPackedCompressedAccountWithMerkleContextMeta>, // pub merkle_context: Ref<&'a [u8], ZPackedMerkleContext>,
-                                                                        // /// Index of root used in inclusion validity proof.
-                                                                        // pub root_index: Ref<&'a [u8], U16>,
-                                                                        // /// Placeholder to mark accounts read-only unimplemented set to false.
-                                                                        // pub read_only: bool,
+    meta: Ref<&'a [u8], ZPackedCompressedAccountWithMerkleContextMeta>,
+}
+
+impl From<&ZPackedCompressedAccountWithMerkleContext<'_>>
+    for PackedCompressedAccountWithMerkleContext
+{
+    fn from(packed_compressed_account: &ZPackedCompressedAccountWithMerkleContext<'_>) -> Self {
+        PackedCompressedAccountWithMerkleContext {
+            compressed_account: (&packed_compressed_account.compressed_account).into(),
+            merkle_context: packed_compressed_account.merkle_context.into(),
+            root_index: packed_compressed_account.root_index.into(),
+            read_only: packed_compressed_account.read_only == 1,
+        }
+    }
 }
 
 impl Deref for ZPackedCompressedAccountWithMerkleContext<'_> {
@@ -258,13 +279,10 @@ impl<'a> Deserialize<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
     type Output = Self;
     fn deserialize_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
         let (compressed_account, bytes) = ZCompressedAccount::deserialize_at(bytes)?;
-        // let (merkle_context, bytes) = ZPackedMerkleContext::deserialize_at(bytes)?;
-        // let (root_index, bytes) = Ref::<&[u8], U16>::from_prefix(bytes)?;
-        // let (read_only, bytes) = u8::deserialize_at(bytes)?;
         let (meta, bytes) =
             Ref::<&[u8], ZPackedCompressedAccountWithMerkleContextMeta>::from_prefix(bytes)?;
         if meta.read_only == 1 {
-            unimplemented!("Read only accounts not implemented");
+            unimplemented!("Read only accounts are implemented as a separate instruction.");
         }
 
         Ok((
@@ -379,30 +397,16 @@ impl<'a> From<ZInstructionDataInvokeCpi<'a>> for ZInstructionDataInvoke<'a> {
 impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpi<'a> {
     type Output = Self;
     fn deserialize_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
-        // msg!("proof");
-        // sol_log_compute_units();
         let (proof, bytes) = Option::<CompressedProof>::deserialize_at(bytes)?;
-        // sol_log_compute_units();
-        // msg!("address");
-        // sol_log_compute_units();
         let (new_address_params, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
-        // msg!("inputs");
-        // sol_log_compute_units();
         let (input_compressed_accounts_with_merkle_context, bytes) =
             Vec::<ZPackedCompressedAccountWithMerkleContext>::deserialize_at(bytes)?;
-        // msg!("outputs");
-        // sol_log_compute_units();
         let (output_compressed_accounts, bytes) =
             Vec::<ZOutputCompressedAccountWithPackedContext>::deserialize_at(bytes)?;
-        // sol_log_compute_units();
-        // msg!("relay fee");
-        // sol_log_compute_units();
         let (option_relay_fee, bytes) = bytes.split_at(1);
         if option_relay_fee[0] == 1 {
             unimplemented!(" Relay fee is unimplemented");
         }
-        // sol_log_compute_units();
-
         let (compress_or_decompress_lamports, bytes) =
             Option::<Ref<&'a [u8], U64>>::deserialize_at(bytes)?;
         let (is_compress, bytes) = u8::deserialize_at(bytes)?;
@@ -456,19 +460,7 @@ pub struct ZPackedReadOnlyCompressedAccount {
 impl<'a> Deserialize<'a> for ZPackedReadOnlyCompressedAccount {
     type Output = Self;
     fn deserialize_at(_bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
-        unimplemented!("");
-
-        // let (account_hash, bytes) = bytes.split_at(size_of::<[u8; 32]>());
-        // // let (merkle_context, bytes) = ZPackedMerkleContext::deserialize_at(bytes)?;
-        // let (root_index, bytes) = U16::ref_from_prefix(bytes)?;
-        // Ok((
-        //     ZPackedReadOnlyCompressedAccount {
-        //         account_hash: account_hash.try_into().unwrap(),
-        //         merkle_context: ZPackedMerkleContext::default(),
-        //         root_index: (*root_index).into(),
-        //     },
-        //     bytes,
-        // ))
+        unimplemented!("Place holder to satisfy trait bounds.");
     }
 }
 
@@ -512,7 +504,7 @@ mod test {
         InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
     };
     use crate::{
-        invoke::processor::CompressedProof, InstructionDataInvoke, NewAddressParamsPacked,
+        processor::processor::CompressedProof, InstructionDataInvoke, NewAddressParamsPacked,
     };
     use anchor_lang::AnchorSerialize;
 

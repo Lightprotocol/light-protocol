@@ -7,7 +7,7 @@ use light_compressed_token::{
     program::LightCompressedToken,
 };
 use light_sdk::{light_system_accounts, LightTraits};
-use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::processor::processor::CompressedProof;
 
 use crate::create_change_output_compressed_token_account;
 

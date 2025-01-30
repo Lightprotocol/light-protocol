@@ -40,6 +40,7 @@ fn test_different_parameters() {
         );
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
+        let queue_pubkey = Pubkey::new_unique();
 
         let merkle_tree_rent = 1_000_000_000;
         let queue_rent = 1_000_000_000;
@@ -61,13 +62,14 @@ fn test_different_parameters() {
             owner,
             merkle_tree_rent + queue_rent + additional_bytes_rent,
             mt_pubkey,
+            queue_pubkey,
         );
         let ref_output_queue_account = create_output_queue_account(queue_account_params);
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
         );
-        let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let mt_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
         assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
@@ -109,13 +111,14 @@ fn test_account_init() {
         owner,
         merkle_tree_rent + queue_rent + additional_bytes_rent,
         mt_pubkey,
+        output_queue_pubkey,
     );
     let ref_output_queue_account = create_output_queue_account(queue_account_params);
     assert_queue_zero_copy_inited(
         output_queue_account_data.as_mut_slice(),
         ref_output_queue_account,
     );
-    let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+    let mt_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
     assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
 }
@@ -239,13 +242,14 @@ fn test_rnd_account_init() {
             owner,
             merkle_tree_rent + queue_rent + additional_bytes_rent,
             mt_pubkey,
+            output_queue_pubkey,
         );
         let ref_output_queue_account = create_output_queue_account(queue_account_params);
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
         );
-        let mt_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let mt_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);

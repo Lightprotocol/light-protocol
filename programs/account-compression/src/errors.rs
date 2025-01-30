@@ -63,4 +63,5 @@ pub enum AccountCompressionErrorCode {
     RegistryProgramIsNone,
     EmptyLeaf,
     V1AccountMarkedAsProofByIndex,
+    InvalidAccount,
 }

@@ -8,6 +8,7 @@ use light_merkle_tree_metadata::{
 };
 use light_utils::{
     account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
+    hashv_to_bn254_field_size_be,
     pubkey::Pubkey,
 };
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
@@ -47,6 +48,8 @@ pub struct BatchedQueueMetadata {
     /// Maximum number of leaves that can fit in the tree, calculated as 2^height.
     /// For example, a tree with height 3 can hold up to 8 leaves.
     pub tree_capacity: u64,
+    pub hashed_merkle_tree_pubkey: [u8; 32],
+    pub hashed_queue_pubkey: [u8; 32],
 }
 
 impl BatchedQueueMetadata {
@@ -57,6 +60,7 @@ impl BatchedQueueMetadata {
         zkp_batch_size: u64,
         bloom_filter_capacity: u64,
         num_iters: u64,
+        queue_pubkey: &Pubkey,
     ) -> Result<(), BatchedMerkleTreeError> {
         self.metadata = meta_data;
         self.batch_metadata.init(batch_size, zkp_batch_size)?;
@@ -70,6 +74,9 @@ impl BatchedQueueMetadata {
                 batch_size * (i as u64),
             );
         }
+        self.hashed_merkle_tree_pubkey =
+            hashv_to_bn254_field_size_be(&[&meta_data.associated_merkle_tree.to_bytes()]);
+        self.hashed_queue_pubkey = hashv_to_bn254_field_size_be(&[&queue_pubkey.to_bytes()]);
         Ok(())
     }
 }
@@ -118,6 +125,7 @@ impl BatchedQueueMetadata {
 /// - `prove_inclusion_by_index`
 #[derive(Debug, PartialEq)]
 pub struct BatchedQueueAccount<'a> {
+    pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
     pub value_vecs: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
@@ -153,7 +161,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, (*account_info.key).into())
     }
 
     /// Deserialize a BatchedQueueAccount from bytes.
@@ -166,11 +174,12 @@ impl<'a> BatchedQueueAccount<'a> {
         light_utils::account::check_discriminator::<BatchedQueueAccount>(
             &account_data[..DISCRIMINATOR_LEN],
         )?;
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data)
+        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
     }
 
     fn from_bytes<const QUEUE_TYPE: u64>(
         account_data: &'a mut [u8],
+        pubkey: Pubkey,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
@@ -188,6 +197,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let (hashchain_store2, _account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
 
         Ok(BatchedQueueAccount {
+            pubkey,
             metadata,
             value_vecs: [value_vec1, value_vec2],
             hash_chain_stores: [hashchain_store1, hashchain_store2],
@@ -201,6 +211,7 @@ impl<'a> BatchedQueueAccount<'a> {
         output_queue_zkp_batch_size: u64,
         num_iters: u64,
         bloom_filter_capacity: u64,
+        pubkey: Pubkey,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
@@ -216,6 +227,7 @@ impl<'a> BatchedQueueAccount<'a> {
             output_queue_zkp_batch_size,
             bloom_filter_capacity,
             num_iters,
+            &pubkey,
         )?;
 
         if account_data_len
@@ -242,6 +254,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let (vec_1, account_data) = ZeroCopyVecU64::new_at(hash_chain_capacity, account_data)?;
         let (vec_2, _) = ZeroCopyVecU64::new_at(hash_chain_capacity, account_data)?;
         Ok(BatchedQueueAccount {
+            pubkey,
             metadata: account_metadata,
             value_vecs: [value_vecs_1, value_vecs_2],
             hash_chain_stores: [vec_1, vec_2],
@@ -375,6 +388,10 @@ impl<'a> BatchedQueueAccount<'a> {
             return Err(BatchedMerkleTreeError::TreeIsFull);
         }
         Ok(())
+    }
+
+    pub fn pubkey(&self) -> &Pubkey {
+        &self.pubkey
     }
 }
 
@@ -585,7 +602,7 @@ pub fn assert_queue_zero_copy_inited(account_data: &mut [u8], ref_account: Batch
 #[test]
 fn test_from_bytes_invalid_tree_type() {
     let mut account_data = vec![0u8; get_output_queue_account_size_default()];
-    let account = BatchedQueueAccount::from_bytes::<6>(&mut account_data);
+    let account = BatchedQueueAccount::from_bytes::<6>(&mut account_data, Pubkey::default());
     assert_eq!(
         account.unwrap_err(),
         MerkleTreeMetadataError::InvalidQueueType.into()
@@ -595,11 +612,14 @@ fn test_from_bytes_invalid_tree_type() {
 #[test]
 fn test_batched_queue_metadata_init() {
     let mut metadata = BatchedQueueMetadata::default();
-    let queue_metadata = QueueMetadata::default();
+    let mt_pubkey = Pubkey::new_unique();
+    let mut queue_metadata = QueueMetadata::default();
+    queue_metadata.associated_merkle_tree = mt_pubkey;
     let batch_size = 4;
     let zkp_batch_size = 2;
     let bloom_filter_capacity = 10;
     let num_iters = 5;
+    let queue_pubkey = Pubkey::new_unique();
 
     let result = metadata.init(
         queue_metadata,
@@ -607,6 +627,7 @@ fn test_batched_queue_metadata_init() {
         zkp_batch_size,
         bloom_filter_capacity,
         num_iters,
+        &queue_pubkey,
     );
 
     assert!(result.is_ok());
@@ -622,11 +643,18 @@ fn test_batched_queue_metadata_init() {
         assert_eq!(batch.zkp_batch_size, zkp_batch_size);
         assert_eq!(batch.start_index, batch_size * (i as u64));
     }
+    let hashed_merkle_tree_pubkey = hashv_to_bn254_field_size_be(&[&mt_pubkey.to_bytes()]);
+    let hashed_queue_pubkey = hashv_to_bn254_field_size_be(&[&queue_pubkey.to_bytes()]);
+    assert_eq!(
+        metadata.hashed_merkle_tree_pubkey,
+        hashed_merkle_tree_pubkey
+    );
+    assert_eq!(metadata.hashed_queue_pubkey, hashed_queue_pubkey);
 }
 
 #[test]
 fn test_check_is_associated() {
-    let mut account_data = vec![0u8; 920];
+    let mut account_data = vec![0u8; 984];
     let mut queue_metadata = QueueMetadata::default();
     let associated_merkle_tree = Pubkey::new_unique();
     queue_metadata.associated_merkle_tree = associated_merkle_tree;
@@ -642,6 +670,7 @@ fn test_check_is_associated() {
         zkp_batch_size,
         num_iters,
         bloom_filter_capacity,
+        Pubkey::new_unique(),
     )
     .unwrap();
     // 1. Functional

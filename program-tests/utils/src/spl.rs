@@ -27,7 +27,7 @@ use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_sdk::token::TokenDataWithMerkleContext;
 use light_system_program::{
-    invoke::processor::CompressedProof,
+    processor::processor::CompressedProof,
     sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent},
 };
 use solana_program_test::BanksClientError;

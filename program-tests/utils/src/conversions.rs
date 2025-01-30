@@ -3,10 +3,8 @@ use light_compressed_token::{
 };
 use light_sdk::{self as sdk, proof::CompressedProof};
 use light_system_program::{
-    invoke::{
-        processor::CompressedProof as ProgramCompressedProof,
-        OutputCompressedAccountWithPackedContext as ProgramOutputCompressedAccountWithPackedContext,
-    },
+    invoke::instruction::OutputCompressedAccountWithPackedContext as ProgramOutputCompressedAccountWithPackedContext,
+    processor::processor::CompressedProof as ProgramCompressedProof,
     sdk::{
         compressed_account::{
             CompressedAccount as ProgramCompressedAccount,

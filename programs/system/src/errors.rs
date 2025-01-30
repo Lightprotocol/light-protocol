@@ -74,4 +74,5 @@ pub enum SystemProgramError {
     InvalidAddressTreeHeight,
     InvalidStateTreeHeight,
     InvalidArgument,
+    InvalidAccount,
 }

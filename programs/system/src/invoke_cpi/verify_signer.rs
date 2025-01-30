@@ -1,17 +1,8 @@
-use std::mem;
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use anchor_lang::prelude::*;
 
-use account_compression::{
-    errors::AccountCompressionErrorCode, utils::constants::CPI_AUTHORITY_PDA_SEED,
-    AddressMerkleTreeAccount, StateMerkleTreeAccount,
-};
-use anchor_lang::{prelude::*, Discriminator};
-use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
-};
-use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
+#[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_macros::heap_neutral;
 
 use crate::{
     errors::SystemProgramError,
@@ -32,24 +23,30 @@ pub fn cpi_signer_checks(
     input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
     output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_check(invoking_programid, authority)?;
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpd_input_checks");
     input_compressed_accounts_signer_check(
         input_compressed_accounts_with_merkle_context,
         invoking_programid,
     )?;
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpd_input_checks");
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
     output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_write_checks");
     Ok(())
 }
 
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
-#[heap_neutral]
+
 pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
     let seeds = [CPI_AUTHORITY_PDA_SEED];
     let derived_signer = Pubkey::try_find_program_address(&seeds, invoking_program)
@@ -121,179 +118,6 @@ pub fn output_compressed_accounts_write_access_check(
         }
     }
     Ok(())
-}
-
-pub fn check_program_owner_state_merkle_tree<'a, 'info, const IS_NULLIFY: bool>(
-    merkle_tree_acc_info: &'info AccountInfo<'info>,
-    invoking_program: &Option<Pubkey>,
-) -> Result<(u32, Option<u64>, u64, Pubkey, u64)> {
-    let (seq, next_index, network_fee, program_owner, merkle_tree_pubkey, rollover_fee) = {
-        let mut discriminator_bytes = [0u8; 8];
-        discriminator_bytes.copy_from_slice(&merkle_tree_acc_info.try_borrow_data()?[0..8]);
-        match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => {
-                let (seq, next_index) = {
-                    let merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
-                    let merkle_tree =
-                        ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
-                            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
-                        )
-                        .map_err(ProgramError::from)?;
-
-                    let seq = merkle_tree.sequence_number() as u64 + 1;
-                    let next_index: u32 = merkle_tree.next_index().try_into().unwrap();
-                    (seq, next_index)
-                };
-                let merkle_tree =
-                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                        .unwrap();
-                let merkle_tree_unpacked = merkle_tree.load()?;
-                (
-                    seq,
-                    next_index,
-                    merkle_tree_unpacked.metadata.rollover_metadata.network_fee,
-                    merkle_tree_unpacked.metadata.access_metadata.program_owner,
-                    merkle_tree_acc_info.key(),
-                    merkle_tree_unpacked.metadata.rollover_metadata.rollover_fee,
-                )
-            }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                if !IS_NULLIFY {
-                    return err!(
-                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                    );
-                }
-                let merkle_tree =
-                    BatchedMerkleTreeAccount::state_from_account_info(merkle_tree_acc_info)
-                        .map_err(ProgramError::from)?;
-                let seq = merkle_tree.sequence_number + 1;
-                let next_index: u32 = merkle_tree.next_index.try_into().unwrap();
-
-                (
-                    seq,
-                    next_index,
-                    merkle_tree.metadata.rollover_metadata.network_fee,
-                    merkle_tree.metadata.access_metadata.program_owner,
-                    merkle_tree_acc_info.key(),
-                    merkle_tree.metadata.rollover_metadata.rollover_fee,
-                )
-            }
-            BatchedQueueAccount::DISCRIMINATOR => {
-                if IS_NULLIFY {
-                    return err!(
-                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                    );
-                }
-                let merkle_tree =
-                    BatchedQueueAccount::output_from_account_info(merkle_tree_acc_info)
-                        .map_err(ProgramError::from)?;
-                let seq = u64::MAX;
-                let next_index: u32 = merkle_tree.batch_metadata.next_index.try_into().unwrap();
-                (
-                    seq,
-                    next_index,
-                    merkle_tree.metadata.rollover_metadata.network_fee,
-                    merkle_tree.metadata.access_metadata.program_owner,
-                    merkle_tree.metadata.associated_merkle_tree.into(),
-                    merkle_tree.metadata.rollover_metadata.rollover_fee,
-                )
-            }
-            _ => {
-                return err!(
-                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                );
-            }
-        }
-    };
-
-    let network_fee = if network_fee != 0 {
-        Some(network_fee)
-    } else {
-        None
-    };
-    if program_owner != Pubkey::default().into() {
-        if let Some(invoking_program) = invoking_program {
-            if *invoking_program == program_owner.into() {
-                return Ok((
-                    next_index,
-                    network_fee,
-                    seq,
-                    merkle_tree_pubkey,
-                    rollover_fee,
-                ));
-            }
-        }
-        msg!(
-            "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
-            invoking_program,
-            program_owner
-        );
-        return err!(SystemProgramError::InvalidMerkleTreeOwner);
-    }
-    Ok((
-        next_index,
-        network_fee,
-        seq,
-        merkle_tree_pubkey,
-        rollover_fee,
-    ))
-}
-
-// TODO: extend to match batched trees
-pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
-    merkle_tree_acc_info: &'b AccountInfo<'a>,
-    invoking_program: &Option<Pubkey>,
-) -> Result<(Option<u64>, u64)> {
-    let discriminator_bytes = merkle_tree_acc_info.try_borrow_data()?[0..8]
-        .try_into()
-        .unwrap();
-
-    let metadata = match discriminator_bytes {
-        AddressMerkleTreeAccount::DISCRIMINATOR => {
-            let merkle_tree =
-                AccountLoader::<AddressMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
-            let merkle_tree_unpacked = merkle_tree.load()?;
-            merkle_tree_unpacked.metadata
-        }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
-            let merkle_tree =
-                BatchedMerkleTreeAccount::address_from_account_info(merkle_tree_acc_info)
-                    .map_err(ProgramError::from)?;
-            merkle_tree.metadata
-        }
-        _ => {
-            return err!(
-                AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-            );
-        }
-    };
-
-    let network_fee = if metadata.rollover_metadata.network_fee != 0 {
-        Some(metadata.rollover_metadata.network_fee)
-    } else {
-        None
-    };
-
-    if metadata.access_metadata.program_owner != Pubkey::default().into() {
-        if let Some(invoking_program) = invoking_program {
-            if *invoking_program == metadata.access_metadata.program_owner.into() {
-                msg!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
-                    invoking_program,
-                    metadata.access_metadata.program_owner
-                );
-                return Ok((network_fee, metadata.rollover_metadata.rollover_fee));
-            }
-        }
-        msg!(
-            "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
-            invoking_program,
-            metadata.access_metadata.program_owner
-        );
-        err!(SystemProgramError::InvalidMerkleTreeOwner)
-    } else {
-        Ok((network_fee, metadata.rollover_metadata.rollover_fee))
-    }
 }
 
 #[cfg(test)]

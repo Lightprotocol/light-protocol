@@ -1,15 +1,20 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hasher::Discriminator as LightDiscriminator;
 
+mod check_accounts;
 pub mod instruction_data;
-pub mod invoke;
-pub use invoke::instruction::*;
 pub mod invoke_cpi;
+pub mod processor;
+pub use invoke::instruction::*;
 pub use invoke_cpi::{initialize::*, instruction::*};
+pub mod compressed_account;
 pub mod constants;
+pub mod context;
 pub mod errors;
+pub mod invoke;
 pub mod sdk;
 pub mod utils;
+
 use errors::SystemProgramError;
 use light_zero_copy::borsh::Deserialize;
 use sdk::event::PublicTransactionEvent;
@@ -32,16 +37,18 @@ pub mod light_system_program {
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
     use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+    #[cfg(feature = "bench-sbf")]
     use light_heap::{bench_sbf_end, bench_sbf_start};
 
-    use crate::instruction_data::{
-        ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
+    use crate::{
+        instruction_data::{
+            ZInstructionDataInvoke, ZInstructionDataInvokeCpi,
+            ZInstructionDataInvokeCpiWithReadOnly,
+        },
+        invoke::verify_signer::input_compressed_accounts_signer_check,
     };
 
-    use self::{
-        invoke::{processor::process, verify_signer::input_compressed_accounts_signer_check},
-        invoke_cpi::processor::process_invoke_cpi,
-    };
+    use self::{invoke_cpi::processor::process_invoke_cpi, processor::processor::process};
     use super::*;
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
@@ -67,37 +74,52 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        sol_log_compute_units();
+
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("invoke_deserialize");
         msg!("Invoke instruction");
-        sol_log_compute_units();
         let (inputs, _) = ZInstructionDataInvoke::deserialize_at(inputs.as_slice()).unwrap();
         sol_log_compute_units();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("invoke_deserialize");
         input_compressed_accounts_signer_check(
             &inputs.input_compressed_accounts_with_merkle_context,
             &ctx.accounts.authority.key(),
         )?;
-        process(inputs, None, ctx, 0, None, None)
+        process(inputs, None, ctx, 0, None, None)?;
+        sol_log_compute_units();
+        Ok(())
     }
 
     pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        sol_log_compute_units();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
         let (inputs, _) = ZInstructionDataInvokeCpi::deserialize_at(inputs.as_slice()).unwrap();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
 
-        process_invoke_cpi(ctx, inputs, None, None)
+        process_invoke_cpi(ctx, inputs, None, None)?;
+        sol_log_compute_units();
+        // 22,903 bytes heap with 33 outputs
+        #[cfg(feature = "bench-sbf")]
+        light_heap::bench_sbf_end!("total_usage");
+        Ok(())
     }
 
     pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
         let (inputs, _) =
             ZInstructionDataInvokeCpiWithReadOnly::deserialize_at(inputs.as_slice()).unwrap();
+        #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
         // disable set cpi context because cpi context account uses InvokeCpiInstruction
         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {

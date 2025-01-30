@@ -3,7 +3,7 @@ use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };
-use light_system_program::invoke::processor::CompressedProof;
+use light_system_program::processor::processor::CompressedProof;
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithPda, EscrowError,
