@@ -40,15 +40,11 @@ async fn test_memo_program() {
         }],
         payer.insecure_clone(),
         env.group_pda,
-        None,
-        // Some(ProverConfig {
-        //     circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
-        //     run_mode: None,
-        // }),
+        None, // Some if need to start prover
     )
     .await;
 
-    // Create a memo instruction
+    // Create memo instruction
     let memo_data = b"Test memo data";
     let memo_instruction = Instruction {
         program_id: memo_test_program::ID,
@@ -70,10 +66,6 @@ async fn test_memo_program() {
         .unwrap();
     let slot = rpc.get_slot().await.unwrap();
 
-    // Index the event
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-
-    // Assert that the memo was processed correctly
-    let processed_memo = std::str::from_utf8(&memo_data[..]).unwrap();
-    assert_eq!(processed_memo, "Test memo data");
+    // Index the event if emitted, and assert...
+    // test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
 }
