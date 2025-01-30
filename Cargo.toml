@@ -23,7 +23,7 @@ members = [
     "sdk-libs/program-test",
     "xtask",
     "examples/token-escrow/programs/*",
-    "examples/name-service/programs/*",
+    "examples/name-service/programs/name-service-without-macros",
     "program-tests/account-compression-test/",
     "program-tests/compressed-token-test/",
     "program-tests/e2e-test/",

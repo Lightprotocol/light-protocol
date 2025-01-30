@@ -7,10 +7,12 @@ use forester::{
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerError, NewAddressProofWithContext},
+    photon_rpc::Base58Conversions,
     rpc::RpcConnection,
 };
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
+use light_sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::signature::{Keypair, Signer};
 use tracing::debug;
@@ -192,13 +194,13 @@ pub async fn assert_accounts_by_owner<
         .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    photon_accs.sort();
+    photon_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     let mut test_accs = indexer
         .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    test_accs.sort();
+    test_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
@@ -225,14 +227,14 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, IndexerError> =
+    let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> =
         indexer.get_compressed_accounts_by_owner(user_pubkey).await;
-    for account_hash in accs.unwrap() {
+    for account in accs.unwrap() {
         let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
             .await;
         let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
             .await;
 
         if photon_result.is_err() {
@@ -245,10 +247,6 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
 
         let photon_result = photon_result.unwrap();
         let test_indexer_result = test_indexer_result.unwrap();
-        debug!(
-            "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
-            account_hash, photon_result, test_indexer_result
-        );
 
         assert_eq!(photon_result.len(), test_indexer_result.len());
         for (photon_proof, test_indexer_proof) in
