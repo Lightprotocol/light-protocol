@@ -7,7 +7,7 @@ use light_indexed_merkle_tree::{
     reference::IndexedMerkleTree,
 };
 use light_merkle_tree_reference::MerkleTree;
-use light_sdk::proof::ProofRpcResult;
+use light_sdk::{compressed_account::CompressedAccountWithMerkleContext, proof::ProofRpcResult};
 use num_bigint::BigUint;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
@@ -68,7 +68,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<String>, IndexerError>;
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
 
     async fn get_multiple_new_address_proofs(
         &self,

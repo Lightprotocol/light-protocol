@@ -1,7 +1,13 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use light_sdk::proof::ProofRpcResult;
+use light_sdk::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+    },
+    merkle_context::MerkleContext,
+    proof::ProofRpcResult,
+};
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{AddressWithTree, GetCompressedAccountsByOwnerPostRequestParams},
@@ -156,7 +162,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<String>, IndexerError> {
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
         self.rate_limited_request(|| async {
             let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
                 params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
@@ -177,12 +183,35 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             .unwrap();
 
             let accs = result.result.unwrap().value;
-            let mut hashes = Vec::new();
+            let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
+
             for acc in accs.items {
-                hashes.push(acc.hash);
+                let compressed_account = CompressedAccount {
+                    owner: Pubkey::from(decode_hash(&acc.owner)),
+                    lamports: acc.lamports as u64,
+                    address: acc.address.map(|address| decode_hash(&address)),
+                    data: acc.data.map(|data| CompressedAccountData {
+                        discriminator: data.discriminator.to_be_bytes(),
+                        data: data.data.as_bytes().to_vec(),
+                        data_hash: decode_hash(&data.data_hash),
+                    }),
+                };
+                let merkle_context = MerkleContext {
+                    merkle_tree_pubkey: Pubkey::from(decode_hash(&acc.tree)),
+                    // TODO: add nullifier queue pubkey to photon
+                    nullifier_queue_pubkey: Pubkey::from(decode_hash(&acc.tree)),
+                    leaf_index: acc.leaf_index as u32,
+                    prove_by_index: false,
+                };
+
+                let account = CompressedAccountWithMerkleContext {
+                    compressed_account,
+                    merkle_context,
+                };
+                accounts.push(account);
             }
 
-            Ok(hashes)
+            Ok(accounts)
         })
         .await
     }
