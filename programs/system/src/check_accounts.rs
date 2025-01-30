@@ -25,8 +25,8 @@ pub(crate) fn try_from_account_infos<'a, 'info>(
     context: &mut SystemContext<'info>,
 ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, SystemProgramError> {
     let mut accounts = Vec::with_capacity(account_infos.len());
-    for (index, account_info) in account_infos.iter().enumerate() {
-        let account = try_from_account_info(account_info, context, index as u8)?;
+    for (index, account_info) in (0u8..).zip(account_infos.iter()) {
+        let account = try_from_account_info(account_info, context, index)?;
         accounts.push(account);
     }
     Ok(accounts)

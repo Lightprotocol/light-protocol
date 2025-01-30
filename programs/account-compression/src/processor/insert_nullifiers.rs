@@ -116,7 +116,7 @@ fn process_nullifier_v2<'a, 'info>(
     let merkle_tree = if let AcpAccount::BatchedStateTree(tree) = merkle_tree {
         tree
     } else {
-        panic!("Invalid account");
+        return err!(AccountCompressionErrorCode::InvalidAccount);
     };
     // 3. Check queue and Merkle tree are associated.
     output_queue

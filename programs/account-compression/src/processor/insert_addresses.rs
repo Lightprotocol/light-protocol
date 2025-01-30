@@ -125,7 +125,7 @@ fn process_address_v1<'a, 'info>(
     let (merkle_pubkey, merkle_tree) = if let AcpAccount::AddressTree(tree) = merkle_tree {
         tree
     } else {
-        panic!("Invalid account");
+        return err!(AccountCompressionErrorCode::InvalidAccount);
     };
     {
         let queue_data = nullifier_queue

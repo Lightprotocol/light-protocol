@@ -26,6 +26,9 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Option<T> {
     type Output = Option<T::Output>;
     #[inline]
     fn deserialize_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        if bytes.len() < size_of::<u8>() {
+            return Err(ZeroCopyError::ArraySize(1, bytes.len()));
+        }
         let (option_byte, bytes) = bytes.split_at(1);
         Ok(match option_byte[0] {
             0u8 => (None, bytes),
@@ -56,7 +59,7 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
     #[inline]
     fn deserialize_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
-        let num_slices = u64::from(*num_slices) as usize;
+        let num_slices = u32::from(*num_slices) as usize;
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
             let (slice, _bytes) = T::deserialize_at(bytes)?;
