@@ -1,0 +1,22 @@
+[package]
+name = "memo-test-program"
+version = "1.0.0"
+description = "Minimal raw solana program using light-sdk"
+edition = "2021"
+
+[dependencies]
+solana-program = "1.18.22" 
+light-sdk = { path = "../../sdk-libs/sdk" }
+
+[dev-dependencies]
+light-sdk = { path = "../../sdk-libs/sdk" }
+litesvm = "0.2.0"
+solana-program-test = "1.18.22"
+solana-sdk = "1.18.22"
+tokio = "1.39.0"
+light-program-test = { workspace = true }
+light-prover-client = { workspace = true }
+light-client = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "lib"]

@@ -33,6 +33,7 @@ members = [
     "program-tests/create-address-test-program/",
     "program-tests/utils",
     "program-tests/merkle-tree",
+    "program-tests/memo-test-program/",
     "forester-utils",
     "forester",
 ]
