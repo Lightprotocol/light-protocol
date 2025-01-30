@@ -3553,6 +3553,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "name-service"
+version = "0.7.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-macros",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "name-service-without-macros"
 version = "0.7.0"
 dependencies = [

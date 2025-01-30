@@ -532,7 +532,14 @@ where
         &self,
         _hash: Hash,
     ) -> Result<Vec<String>, IndexerError> {
-        todo!()
+        let result = self.get_compressed_accounts_with_merkle_context_by_owner(owner);
+        let mut hashes: Vec<String> = Vec::new();
+        for account in result.iter() {
+            let hash = account.hash().unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            hashes.push(bs58_hash);
+        }
+        Ok(hashes)
     }
 
     async fn get_multiple_new_address_proofs(

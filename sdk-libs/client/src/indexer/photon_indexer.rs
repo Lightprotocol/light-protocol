@@ -288,7 +288,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             }
         })
         .await
-    }
+            }
 
     async fn get_compressed_token_accounts_by_owner(
         &self,
