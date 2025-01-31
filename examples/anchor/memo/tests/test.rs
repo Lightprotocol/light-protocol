@@ -10,6 +10,7 @@ use light_program_test::{
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
+use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
@@ -30,6 +31,15 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_memo_program() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        },
+    )
+    .await;
+
     let (mut rpc, env) =
         setup_test_programs_with_accounts_v2(Some(vec![(String::from("memo"), memo::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();

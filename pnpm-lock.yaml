@@ -181,6 +181,8 @@ importers:
         specifier: ^5.5.3
         version: 5.5.3
 
+  examples/anchor: {}
+
   examples/browser/nextjs:
     dependencies:
       '@coral-xyz/anchor':
@@ -239,108 +241,6 @@ importers:
         specifier: ^5.7.2
         version: 5.7.2
 
-  examples/counter:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-    devDependencies:
-      '@lightprotocol/zk-compression-cli':
-        specifier: workspace:*
-        version: link:../../cli
-      '@types/bn.js':
-        specifier: ^5.1.6
-        version: 5.1.6
-      '@types/chai':
-        specifier: ^5.0.1
-        version: 5.0.1
-      '@types/mocha':
-        specifier: ^10.0.7
-        version: 10.0.7
-      chai:
-        specifier: ^5.1.2
-        version: 5.1.2
-      mocha:
-        specifier: ^11.0.1
-        version: 11.0.1
-      prettier:
-        specifier: ^3.4.2
-        version: 3.4.2
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@11.0.1)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.2
-
-  examples/memo:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-    devDependencies:
-      '@lightprotocol/zk-compression-cli':
-        specifier: workspace:*
-        version: link:../../cli
-      '@types/bn.js':
-        specifier: ^5.1.6
-        version: 5.1.6
-      '@types/chai':
-        specifier: ^5.0.1
-        version: 5.0.1
-      '@types/mocha':
-        specifier: ^10.0.7
-        version: 10.0.7
-      chai:
-        specifier: ^5.1.2
-        version: 5.1.2
-      mocha:
-        specifier: ^11.0.1
-        version: 11.0.1
-      prettier:
-        specifier: ^3.4.2
-        version: 3.4.2
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@11.0.1)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.2
-
-  examples/name-service:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-    devDependencies:
-      '@lightprotocol/zk-compression-cli':
-        specifier: workspace:*
-        version: link:../../cli
-      '@types/bn.js':
-        specifier: ^5.1.6
-        version: 5.1.6
-      '@types/chai':
-        specifier: ^5.0.1
-        version: 5.0.1
-      '@types/mocha':
-        specifier: ^10.0.7
-        version: 10.0.7
-      chai:
-        specifier: ^5.1.2
-        version: 5.1.2
-      mocha:
-        specifier: ^11.0.1
-        version: 11.0.1
-      prettier:
-        specifier: ^3.4.2
-        version: 3.4.2
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@11.0.1)
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.2
-
   examples/node/esm:
     dependencies:
       '@coral-xyz/anchor':
@@ -356,37 +256,6 @@ importers:
       '@types/node':
         specifier: ^22.10.10
         version: 22.10.10
-      typescript:
-        specifier: ^5.7.2
-        version: 5.7.2
-
-  examples/token-escrow:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-    devDependencies:
-      '@types/bn.js':
-        specifier: ^5.1.6
-        version: 5.1.6
-      '@types/chai':
-        specifier: ^5.0.1
-        version: 5.0.1
-      '@types/mocha':
-        specifier: ^10.0.7
-        version: 10.0.7
-      chai:
-        specifier: ^5.1.2
-        version: 5.1.2
-      mocha:
-        specifier: ^11.0.1
-        version: 11.0.1
-      prettier:
-        specifier: ^3.4.2
-        version: 3.4.2
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@11.0.1)
       typescript:
         specifier: ^5.7.2
         version: 5.7.2
