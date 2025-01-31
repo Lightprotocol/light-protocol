@@ -14,8 +14,7 @@ use light_program_test::{
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
-    compressed_account::CompressedAccountWithMerkleContext
-    ,
+    compressed_account::CompressedAccountWithMerkleContext,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
     utils::get_cpi_authority_pda,
@@ -24,20 +23,16 @@ use light_sdk::{
 };
 use light_test_utils::{RpcConnection, RpcError};
 use solana_sdk::{
-    instruction::Instruction
-    ,
+    instruction::Instruction,
     pubkey::Pubkey,
-    signature::{Keypair, Signer}
-    ,
+    signature::{Keypair, Signer},
 };
 
 #[tokio::test]
 async fn test_counter() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        String::from("counter"),
-        counter::ID,
-    )]))
-        .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_v2(Some(vec![(String::from("counter"), counter::ID)]))
+            .await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
@@ -54,7 +49,7 @@ async fn test_counter() {
         env.group_pda,
         None,
     )
-        .await;
+    .await;
 
     let mut remaining_accounts = RemainingAccounts::default();
 
@@ -74,7 +69,7 @@ async fn test_counter() {
         &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
         &PROGRAM_ID_ACCOUNT_COMPRESSION,
     )
-        .0;
+    .0;
 
     // Create the counter.
     create_counter(
@@ -88,8 +83,8 @@ async fn test_counter() {
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer
@@ -118,8 +113,8 @@ async fn test_counter() {
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     // Check that it was incremented correctly.
     let compressed_accounts = test_indexer
@@ -148,8 +143,8 @@ async fn test_counter() {
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     // Check that it was decremented correctly.
     let compressed_accounts = test_indexer
@@ -178,8 +173,8 @@ async fn test_counter() {
         &registered_program_pda,
         &PROGRAM_ID_LIGHT_SYSTEM,
     )
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     // Check that it was reset correctly.
     let compressed_accounts = test_indexer
@@ -233,7 +228,7 @@ where
         Some(rpc_result.address_root_indices[0]),
         remaining_accounts,
     )
-        .unwrap();
+    .unwrap();
 
     let inputs = LightInstructionData {
         proof: Some(rpc_result),
