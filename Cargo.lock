@@ -3413,6 +3413,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "memo"
+version = "0.0.1"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.3",
+ "light-client",
+ "light-hasher",
+ "light-program-test",
+ "light-sdk",
+ "light-test-utils",
+ "light-utils",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
