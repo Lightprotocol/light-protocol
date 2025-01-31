@@ -3562,12 +3562,12 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-program-test",
+ "light-prover-client",
  "light-sdk",
  "light-sdk-macros",
  "light-test-utils",
  "light-utils",
  "light-verifier",
- "solana-program-test",
  "solana-sdk",
  "tokio",
 ]
