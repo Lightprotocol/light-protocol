@@ -1013,8 +1013,11 @@ pub async fn perform_compress_spl_token_account<
         slot,
         &program_to_sdk_public_transaction_event(event.clone()),
     );
-    let created_compressed_token_account =
-        test_indexer.get_compressed_token_accounts_by_owner(&token_owner.pubkey())[0].clone();
+    let created_compressed_token_account = test_indexer
+        .get_compressed_token_accounts_by_owner(&token_owner.pubkey(), None)
+        .await
+        .unwrap()[0]
+        .clone();
     let expected_token_data = TokenData {
         amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),
         mint: *mint,

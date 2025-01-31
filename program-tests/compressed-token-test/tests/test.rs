@@ -658,8 +658,10 @@ async fn test_wrapped_sol() {
             None,
         )
         .await;
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .await
+            .unwrap();
         decompress_test(
             &payer,
             &mut rpc,
@@ -1443,8 +1445,10 @@ async fn perform_transfer_22_test(
     for _ in 0..outputs {
         recipients.push(Pubkey::new_unique());
     }
-    let input_compressed_accounts =
-        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let input_compressed_accounts = test_indexer
+        .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+        .await
+        .unwrap();
     let equal_amount = (amount * inputs as u64) / outputs as u64;
     let rest_amount = (amount * inputs as u64) % outputs as u64;
     let mut output_amounts = vec![equal_amount; outputs - 1];
@@ -1522,8 +1526,10 @@ async fn test_decompression() {
         .await
         .unwrap();
         println!("4");
-        let input_compressed_account =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_account = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         decompress_test(
             &sender,
             &mut context,
@@ -1666,8 +1672,11 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
             iterator
         };
         for i in iterator {
-            let input_compressed_account =
-                test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+            let input_compressed_account = test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+                .await
+                .unwrap()[0]
+                .clone();
             let change_account_merkle_tree = input_compressed_account
                 .compressed_account
                 .merkle_context
@@ -1762,7 +1771,9 @@ async fn test_multiple_decompression() {
         iterator.shuffle(rng);
         for i in iterator {
             let input_compressed_account = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
                 .collect::<Vec<_>>()[0]
@@ -1810,7 +1821,9 @@ async fn test_multiple_decompression() {
         // Decompress from all token pools
         {
             let input_compressed_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())[0..4]
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()[0..4]
                 .to_vec();
             let amount = input_compressed_accounts
                 .iter()
@@ -1835,7 +1848,9 @@ async fn test_multiple_decompression() {
             )
             .await;
             let input_compressed_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
                 .collect::<Vec<_>>()[0]
@@ -1905,8 +1920,10 @@ async fn test_delegation(
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -1929,8 +1946,10 @@ async fn test_delegation(
     let recipient = Pubkey::new_unique();
     // 2. Transfer partial delegated amount
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -1955,8 +1974,10 @@ async fn test_delegation(
     }
     // 3. Transfer full delegated amount
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -2039,8 +2060,10 @@ async fn test_delegation_mixed() {
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -2063,15 +2086,19 @@ async fn test_delegation_mixed() {
     let recipient = Pubkey::new_unique();
     // 2. Transfer partial delegated amount with delegate change account
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        let delegate_input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None)
+            .await
+            .unwrap();
         input_compressed_accounts
             .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
         let delegate_lamports = delegate_input_compressed_accounts[0]
@@ -2102,15 +2129,19 @@ async fn test_delegation_mixed() {
     let recipient = Pubkey::new_unique();
     // 3. Transfer partial delegated amount without delegate change account
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        let delegate_input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None)
+            .await
+            .unwrap();
         input_compressed_accounts
             .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
         let delegate_input_amount = input_compressed_accounts
@@ -2143,15 +2174,19 @@ async fn test_delegation_mixed() {
     }
     // 3. Transfer full delegated amount
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&delegate.pubkey());
+        let delegate_input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None)
+            .await
+            .unwrap();
 
         input_compressed_accounts.extend_from_slice(&delegate_input_compressed_accounts);
         let input_amount = input_compressed_accounts
@@ -2254,8 +2289,10 @@ async fn test_approve_failing() {
     )
     .await;
 
-    let input_compressed_accounts =
-        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let input_compressed_accounts = test_indexer
+        .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+        .await
+        .unwrap();
     let delegated_amount = 1000u64;
     let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
         .compressed_account
@@ -2552,8 +2589,10 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         for input in input_compressed_accounts.iter() {
             let input_compressed_accounts = vec![input.clone()];
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
@@ -2578,7 +2617,9 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     // 2. Revoke
     {
         let input_compressed_accounts = test_indexer
-            .get_compressed_token_accounts_by_owner(&sender.pubkey())
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap()
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
@@ -2672,8 +2713,10 @@ async fn test_revoke_failing() {
     .await;
     // Delegate tokens
     {
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let delegated_amount = 1000u64;
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
@@ -2694,8 +2737,10 @@ async fn test_revoke_failing() {
         .await;
     }
 
-    let input_compressed_accounts =
-        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let input_compressed_accounts = test_indexer
+        .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+        .await
+        .unwrap();
     let input_compressed_accounts = input_compressed_accounts
         .iter()
         .filter(|x| x.token_data.delegate.is_some())
@@ -2898,8 +2943,10 @@ async fn test_burn() {
         .await;
         // 1. Burn tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1000u64;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2921,8 +2968,10 @@ async fn test_burn() {
         }
         // 2. Delegate tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let delegated_amount = 1000u64;
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2944,8 +2993,10 @@ async fn test_burn() {
         }
         // 3. Burn delegated tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -2972,8 +3023,10 @@ async fn test_burn() {
         }
         // 3. Burn all delegated tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -3018,7 +3071,9 @@ async fn test_burn() {
             .await
             .unwrap();
             let input_compressed_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
                 .cloned()
@@ -3065,7 +3120,9 @@ async fn test_burn() {
             let slot = rpc.get_slot().await.unwrap();
             test_indexer.add_event_and_compressed_accounts(slot, &event);
             let input_compressed_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
                 .cloned()
@@ -3147,8 +3204,10 @@ async fn failing_tests_burn() {
         .await;
         // Delegate tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let delegated_amount = 1000u64;
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3170,8 +3229,10 @@ async fn failing_tests_burn() {
         }
         // 1. invalid proof
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3198,8 +3259,10 @@ async fn failing_tests_burn() {
         }
         // 2. Signer is delegate but token data has no delegate.
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3230,8 +3293,10 @@ async fn failing_tests_burn() {
         }
         // 3. Signer is delegate but token data has no delegate.
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -3263,8 +3328,10 @@ async fn failing_tests_burn() {
         }
         // 4. invalid authority (use delegate as authority)
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3295,8 +3362,10 @@ async fn failing_tests_burn() {
         }
         // 5. invalid mint
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3328,8 +3397,10 @@ async fn failing_tests_burn() {
         }
         // 6. invalid change merkle tree
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3361,8 +3432,10 @@ async fn failing_tests_burn() {
         }
         // 6. invalid token pool (not initialized)
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3389,8 +3462,10 @@ async fn failing_tests_burn() {
         }
         // 7. invalid token pool (invalid mint)
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3469,8 +3544,10 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         .await;
         // 1. Freeze tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3488,8 +3565,10 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 2. Thaw tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -3511,8 +3590,10 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 3. Delegate tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3533,8 +3614,10 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 4. Freeze delegated tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3552,8 +3635,10 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 5. Thaw delegated tokens
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -3638,8 +3723,11 @@ async fn test_failing_freeze() {
         )
         .await;
 
-        let input_compressed_accounts =
-            vec![test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey())[0].clone()];
+        let input_compressed_accounts = vec![test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap()[0]
+            .clone()];
         let outputs_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -3798,7 +3886,9 @@ async fn test_failing_freeze() {
             )
             .await;
             let input_compressed_accounts = vec![test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
                 .cloned()
@@ -3913,7 +4003,9 @@ async fn test_failing_thaw() {
         // Freeze tokens
         {
             let input_compressed_accounts = vec![test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey())[0]
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap()[0]
                 .clone()];
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3931,8 +4023,10 @@ async fn test_failing_thaw() {
             .await;
         }
 
-        let input_compressed_accounts =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -4086,8 +4180,10 @@ async fn test_failing_thaw() {
         }
         // 4. thaw compressed account which is not frozen
         {
-            let input_compressed_accounts =
-                test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+                .await
+                .unwrap();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Initialized)
@@ -4225,8 +4321,10 @@ async fn test_failing_decompression() {
         )
         .await
         .unwrap();
-        let input_compressed_account =
-            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_account = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
+            .await
+            .unwrap();
         let decompress_amount = amount - 1000;
         // Test 1: invalid decompress account
         {

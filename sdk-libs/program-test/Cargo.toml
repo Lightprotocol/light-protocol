@@ -8,6 +8,7 @@ default = []
 devenv = []
 
 [dependencies]
+base64 = "0.2"
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
@@ -19,6 +20,7 @@ light-registry = { workspace = true }
 light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
 light-utils = { workspace = true }
+photon-api = { workspace = true }
 account-compression = { workspace = true  }
 forester-utils = { workspace = true }
 solana-sdk = { workspace = true }

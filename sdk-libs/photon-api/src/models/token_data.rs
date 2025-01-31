@@ -13,7 +13,7 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenData {
     #[serde(rename = "amount")]
-    pub amount: i32,
+    pub amount: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "delegate", skip_serializing_if = "Option::is_none")]
     pub delegate: Option<String>,
@@ -31,7 +31,7 @@ pub struct TokenData {
 }
 
 impl TokenData {
-    pub fn new(amount: i32, mint: String, owner: String, state: models::AccountState) -> TokenData {
+    pub fn new(amount: u64, mint: String, owner: String, state: models::AccountState) -> TokenData {
         TokenData {
             amount,
             delegate: None,

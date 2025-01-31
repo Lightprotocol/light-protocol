@@ -283,6 +283,7 @@ pub async fn transfer_compressed_sol_test<
     compressed_transaction_test(inputs).await
 }
 
+#[derive(Debug)]
 pub struct CompressedTransactionTestInputs<'a, R: RpcConnection, I: Indexer<R>> {
     rpc: &'a mut R,
     test_indexer: &'a mut I,

@@ -17,9 +17,9 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo,
-        MerkleProof, NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle,
+        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
+        Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
+        NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
@@ -62,6 +62,7 @@ use light_utils::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
+use photon_api::models::TokenBalance;
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -369,15 +370,175 @@ where
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<String>, IndexerError> {
+    ) -> Result<Vec<Hash>, IndexerError> {
         let result = self.get_compressed_accounts_with_merkle_context_by_owner(owner);
-        let mut hashes: Vec<String> = Vec::new();
+        let mut hashes: Vec<Hash> = Vec::new();
         for account in result.iter() {
             let hash = account.hash().unwrap();
-            let bs58_hash = bs58::encode(hash).into_string();
-            hashes.push(bs58_hash);
+            hashes.push(hash);
         }
         Ok(hashes)
+    }
+
+    async fn get_compressed_account(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<photon_api::models::account::Account, IndexerError> {
+        let account = match (address, hash) {
+            (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .address
+                    .map_or(false, |acc_addr| acc_addr == address)
+            }),
+            (_, Some(hash)) => self.compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .hash::<Poseidon>(
+                        &acc.merkle_context.merkle_tree_pubkey,
+                        &acc.merkle_context.leaf_index,
+                    )
+                    .map_or(false, |acc_hash| acc_hash == hash)
+            }),
+            (None, None) => {
+                return Err(IndexerError::Custom(
+                    "Either address or hash must be provided".to_string(),
+                ))
+            }
+        };
+
+        account
+            .map(|acc| acc.clone().into_photon_account())
+            .ok_or_else(|| IndexerError::Custom("Account not found".to_string()))
+    }
+
+    async fn get_compressed_token_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        let accounts = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+            })
+            .cloned()
+            .collect();
+
+        Ok(accounts)
+    }
+
+    async fn get_compressed_account_balance(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<u64, IndexerError> {
+        let account = self.get_compressed_account(address, hash).await?;
+        Ok(account.lamports)
+    }
+
+    async fn get_compressed_token_account_balance(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<u64, IndexerError> {
+        let account = match (address, hash) {
+            (Some(address), _) => self.token_compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .compressed_account
+                    .address
+                    .map_or(false, |acc_addr| acc_addr == address)
+            }),
+            (_, Some(hash)) => self.token_compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .compressed_account
+                    .hash::<Poseidon>(
+                        &acc.compressed_account.merkle_context.merkle_tree_pubkey,
+                        &acc.compressed_account.merkle_context.leaf_index,
+                    )
+                    .map_or(false, |acc_hash| acc_hash == hash)
+            }),
+            (None, None) => {
+                return Err(IndexerError::Custom(
+                    "Either address or hash must be provided".to_string(),
+                ))
+            }
+        };
+
+        account
+            .map(|acc| acc.token_data.amount)
+            .ok_or_else(|| IndexerError::Custom("Token account not found".to_string()))
+    }
+
+    async fn get_multiple_compressed_accounts(
+        &self,
+        addresses: Option<Vec<Address>>,
+        hashes: Option<Vec<Hash>>,
+    ) -> Result<Vec<photon_api::models::account::Account>, IndexerError> {
+        match (addresses, hashes) {
+            (Some(addresses), _) => {
+                let accounts = self
+                    .compressed_accounts
+                    .iter()
+                    .filter(|acc| {
+                        acc.compressed_account
+                            .address
+                            .map_or(false, |addr| addresses.contains(&addr))
+                    })
+                    .map(|acc| acc.clone().into_photon_account())
+                    .collect();
+                Ok(accounts)
+            }
+            (_, Some(hashes)) => {
+                let accounts = self
+                    .compressed_accounts
+                    .iter()
+                    .filter(|acc| {
+                        acc.compressed_account
+                            .hash::<Poseidon>(
+                                &acc.merkle_context.merkle_tree_pubkey,
+                                &acc.merkle_context.leaf_index,
+                            )
+                            .map_or(false, |hash| hashes.contains(&hash))
+                    })
+                    .map(|acc| acc.clone().into_photon_account())
+                    .collect();
+                Ok(accounts)
+            }
+            (None, None) => Err(IndexerError::Custom(
+                "Either addresses or hashes must be provided".to_string(),
+            )),
+        }
+    }
+
+    async fn get_compressed_token_balances_by_owner(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<photon_api::models::token_balance_list::TokenBalanceList, IndexerError> {
+        let balances: Vec<TokenBalance> = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+            })
+            .map(|acc| photon_api::models::token_balance::TokenBalance {
+                balance: acc.token_data.amount,
+                mint: acc.token_data.mint.to_string(),
+            })
+            .collect();
+
+        Ok(photon_api::models::token_balance_list::TokenBalanceList {
+            cursor: None,
+            token_balances: balances,
+        })
+    }
+
+    async fn get_compression_signatures_for_account(
+        &self,
+        _hash: Hash,
+    ) -> Result<Vec<String>, IndexerError> {
+        todo!()
     }
 
     async fn get_multiple_new_address_proofs(
@@ -396,6 +557,17 @@ where
     ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
         self._get_multiple_new_address_proofs(merkle_tree_pubkey, addresses, true)
             .await
+    }
+
+    async fn get_validity_proof(
+        &self,
+        _hashes: Vec<Hash>,
+        _new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<
+        photon_api::models::compressed_proof_with_context::CompressedProofWithContext,
+        IndexerError,
+    > {
+        todo!()
     }
 
     fn get_proofs_by_indices(
@@ -676,17 +848,6 @@ where
         self.compressed_accounts
             .iter()
             .filter(|x| x.compressed_account.owner == *owner)
-            .cloned()
-            .collect()
-    }
-
-    fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<TokenDataWithMerkleContext> {
-        self.token_compressed_accounts
-            .iter()
-            .filter(|x| x.token_data.owner == *owner)
             .cloned()
             .collect()
     }

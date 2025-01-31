@@ -69,11 +69,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext>;
 
-    fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<TokenDataWithMerkleContext>;
-
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle);
 
     fn add_event_and_compressed_accounts(
