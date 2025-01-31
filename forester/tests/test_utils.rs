@@ -6,8 +6,10 @@ use forester::{
     ForesterConfig,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerError, NewAddressProofWithContext},
-    photon_rpc::Base58Conversions,
+    indexer::{
+        photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
+        NewAddressProofWithContext,
+    },
     rpc::RpcConnection,
 };
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
@@ -247,7 +249,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
 
         let photon_result = photon_result.unwrap();
         let test_indexer_result = test_indexer_result.unwrap();
-        
+
         assert_eq!(photon_result.len(), test_indexer_result.len());
         for (photon_proof, test_indexer_proof) in
             photon_result.iter().zip(test_indexer_result.iter())

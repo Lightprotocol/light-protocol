@@ -373,8 +373,7 @@ where
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
         Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
     }
-    
-    
+
     async fn get_compressed_account(
         &self,
         address: Option<Address>,
@@ -535,7 +534,6 @@ where
     ) -> Result<Vec<String>, IndexerError> {
         todo!()
     }
-
 
     async fn get_multiple_new_address_proofs(
         &self,
