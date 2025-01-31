@@ -19,7 +19,7 @@ pub mod counter {
 
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateCounter<'info>>,
-        inputs: Vec<u8>
+        inputs: Vec<u8>,
     ) -> Result<()> {
         let inputs = LightInstructionData::deserialize(&inputs)?;
         let accounts = inputs
