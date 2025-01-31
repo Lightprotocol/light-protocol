@@ -127,12 +127,16 @@ bytemuck = { version = "1.21" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 zerocopy = { version = "0.8.14"}
+base64 = "0.13"
 
 # HTTP client
 reqwest = "0.11"
 
 # Testing
 serial_test = "3.2.0"
+
+# Rate limiter
+governor = "0.8.0"
 
 # Random
 rand = "0.8.5"

@@ -31,11 +31,9 @@ bb8 = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
-num-traits = { workspace = true }
-reqwest = { workspace = true }
-base64 = "0.13.1"
+base64 = { workspace = true }
 
-governor = "0.8.0"
+governor = { workspace = true }
 
 
 [dev-dependencies]
