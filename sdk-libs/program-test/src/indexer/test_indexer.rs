@@ -370,14 +370,8 @@ where
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<Hash>, IndexerError> {
-        let result = self.get_compressed_accounts_with_merkle_context_by_owner(owner);
-        let mut hashes: Vec<Hash> = Vec::new();
-        for account in result.iter() {
-            let hash = account.hash().unwrap();
-            hashes.push(hash);
-        }
-        Ok(hashes)
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
     }
 
     async fn get_compressed_account(

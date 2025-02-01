@@ -128,7 +128,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<Hash>, IndexerError>;
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
 
     async fn get_compressed_account(
         &self,

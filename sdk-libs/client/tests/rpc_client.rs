@@ -164,39 +164,41 @@ async fn test_all_endpoints() {
         .unwrap();
 
     let pubkey = payer_pubkey;
-    let hashes = indexer
+    let accounts = indexer
         .get_compressed_accounts_by_owner(&pubkey)
         .await
         .unwrap();
-    assert!(!hashes.is_empty());
-
-    let first_hash = hashes[0];
-
+    assert!(!accounts.is_empty());
+    let first_account = accounts[0].clone();
     let seed = rand::random::<[u8; 32]>();
     let new_addresses = vec![AddressWithTree {
         address: hash_to_bn254_field_size_be(&seed).unwrap().0,
         tree: env_accounts.address_merkle_tree_pubkey,
     }];
 
+    let account_hashes: Vec<Hash> = accounts.iter().map(|a| a.hash().unwrap()).collect();
     let accounts = indexer
-        .get_multiple_compressed_accounts(None, Some(hashes.clone()))
+        .get_multiple_compressed_accounts(None, Some(account_hashes.clone()))
         .await
         .unwrap();
 
     assert!(!accounts.is_empty());
-    assert_eq!(Hash::from_base58(&accounts[0].hash).unwrap(), first_hash);
+    assert_eq!(
+        Hash::from_base58(&accounts[0].hash).unwrap(),
+        first_account.hash().unwrap()
+    );
 
     let result = indexer
-        .get_validity_proof(hashes.clone(), new_addresses)
+        .get_validity_proof(account_hashes.clone(), new_addresses)
         .await
         .unwrap();
     assert_eq!(
         Hash::from_base58(result.leaves[0].as_ref()).unwrap(),
-        hashes[0]
+        account_hashes[0]
     );
 
     let account = indexer
-        .get_compressed_account(None, Some(first_hash))
+        .get_compressed_account(None, Some(first_account.hash().unwrap()))
         .await
         .unwrap();
     assert_eq!(account.lamports, lamports);
@@ -206,13 +208,13 @@ async fn test_all_endpoints() {
     );
 
     let balance = indexer
-        .get_compressed_account_balance(None, Some(first_hash))
+        .get_compressed_account_balance(None, Some(first_account.hash().unwrap()))
         .await
         .unwrap();
     assert_eq!(balance, lamports);
 
     let signatures = indexer
-        .get_compression_signatures_for_account(first_hash)
+        .get_compression_signatures_for_account(first_account.hash().unwrap())
         .await
         .unwrap();
     assert_eq!(
@@ -243,13 +245,13 @@ async fn test_all_endpoints() {
         .unwrap();
     assert_eq!(balance, amount);
 
-    let hashes_str = hashes.iter().map(|h| h.to_base58()).collect();
+    let hashes_str = account_hashes.iter().map(|h| h.to_base58()).collect();
     let proofs = indexer
         .get_multiple_compressed_account_proofs(hashes_str)
         .await
         .unwrap();
     assert!(!proofs.is_empty());
-    assert_eq!(proofs[0].hash, hashes[0].to_base58());
+    assert_eq!(proofs[0].hash, account_hashes[0].to_base58());
 
     let addresses = vec![hash_to_bn254_field_size_be(&seed).unwrap().0];
     let new_address_proofs = indexer

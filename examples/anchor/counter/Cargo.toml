@@ -1,6 +1,6 @@
 [package]
-name = "name-service-without-macros"
-version = "0.7.0"
+name = "counter"
+version = "0.0.11"
 description = "Created with Anchor"
 edition = "2021"
 rust-version = "1.75.0" 
@@ -8,7 +8,7 @@ license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "name_service_without_macros"
+name = "counter"
 
 [features]
 no-entrypoint = []
@@ -21,14 +21,11 @@ bench-sbf = []
 idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
-anchor-lang = { workspace=true}
+anchor-lang = { workspace = true }
 borsh = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
-light-macros = { workspace = true }
 light-sdk = { workspace = true }
-light-sdk-macros = { workspace = true }
 light-utils = { workspace = true }
-light-verifier = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -37,5 +34,5 @@ solana-sdk = { workspace = true }
 light-client = { workspace = true , features = ["devenv"]}
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
-solana-program-test = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 tokio = "1.36.0"
