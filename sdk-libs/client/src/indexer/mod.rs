@@ -68,16 +68,20 @@ impl Base58Conversions for [u8; 32] {
     }
 
     fn from_base58(s: &str) -> Result<Self, IndexerError> {
-        let bytes = bs58::decode(s)
-            .into_vec()
+        let mut result = [0u8; 32];
+
+        let len = bs58::decode(s)
+            .into(&mut result)
             .map_err(|e| IndexerError::Custom(format!("Base58 decoding error: {}", e)))?;
 
-        bytes.as_slice().try_into().map_err(|_| {
-            IndexerError::Custom(format!(
+        if len != 32 {
+            return Err(IndexerError::Custom(format!(
                 "Invalid length: expected 32 bytes, got {}",
-                bytes.len()
-            ))
-        })
+                len
+            )));
+        }
+
+        Ok(result)
     }
 
     fn to_bytes(&self) -> [u8; 32] {
