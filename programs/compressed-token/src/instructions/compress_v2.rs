@@ -1,9 +1,11 @@
-use crate::{program::LightCompressedToken, ProcessMintToOrCompressV2Accounts};
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use light_system_program::{self, program::LightSystemProgram};
 
+use crate::{program::LightCompressedToken, ProcessMintToOrCompressV2Accounts};
+
+// TOOD: verify that source_token_account.authority == authority check is implied
 #[derive(Accounts)]
 pub struct CompressV2Instruction<'info> {
     /// UNCHECKED: only pays fees.

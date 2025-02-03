@@ -1,7 +1,9 @@
 #![allow(deprecated)]
-use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
-use anchor_spl::{token::TokenAccount, token_interface};
-use solana_sdk::program::invoke_signed;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{account_info::AccountInfo, program::invoke_signed},
+};
+use anchor_spl::token_interface::{self, TokenAccount, TokenInterface};
 use spl_token::instruction::transfer as spl_transfer;
 
 use crate::{
@@ -16,9 +18,16 @@ pub fn process_compression_or_decompression<'info>(
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     if inputs.is_compress {
-        compress_spl_tokens(&inputs, ctx)
+        compress_spl_tokens(
+            &inputs.compress_or_decompress_amount,
+            &inputs.mint,
+            &ctx.accounts.compress_or_decompress_token_account,
+            &ctx.accounts.authority,
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.token_program,
+        )
     } else {
-        decompress_spl_tokens(&inputs, ctx)
+        decompress_spl_tokens(inputs, ctx)
     }
 }
 
@@ -178,33 +187,29 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
 }
 
 pub fn compress_spl_tokens<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer,
-    ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+    amount: &Option<u64>,
+    mint: &Pubkey,
+    source_token_account: &Option<InterfaceAccount<'info, TokenAccount>>,
+    authority: &Signer<'info>,
+    token_pool_pda: &Option<InterfaceAccount<'info, TokenAccount>>,
+    token_program: &Option<Interface<'info, TokenInterface>>,
 ) -> Result<()> {
-    let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {
+    let recipient_token_pool = match token_pool_pda {
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(ErrorCode::CompressedPdaUndefinedForCompress),
     };
-    let amount = match inputs.compress_or_decompress_amount {
+    let amount = match amount {
         Some(amount) => amount,
         None => return err!(ErrorCode::DeCompressAmountUndefinedForCompress),
     };
 
-    check_spl_token_pool_derivation(&recipient_token_pool.key(), &inputs.mint)?;
+    check_spl_token_pool_derivation(&recipient_token_pool.key(), mint)?;
     spl_token_transfer(
-        ctx.accounts
-            .compress_or_decompress_token_account
-            .as_ref()
-            .unwrap()
-            .to_account_info(),
+        source_token_account.as_ref().unwrap().to_account_info(),
         recipient_token_pool.to_account_info(),
-        ctx.accounts.authority.to_account_info(),
-        ctx.accounts
-            .token_program
-            .as_ref()
-            .unwrap()
-            .to_account_info(),
-        amount,
+        authority.to_account_info(),
+        token_program.as_ref().unwrap().to_account_info(),
+        *amount,
     )
 }
 
@@ -240,10 +245,10 @@ pub fn spl_token_transfer<'info>(
 ) -> Result<()> {
     invoke_signed(
         &spl_transfer(
-            &token_program.key,
-            &from.key,
-            &to.key,
-            &authority.key,
+            token_program.key,
+            from.key,
+            to.key,
+            authority.key,
             &[],
             amount,
         )?,

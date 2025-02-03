@@ -81,12 +81,9 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
+        process_mint_to(ctx.accounts, &public_keys, &amounts, lamports)?;
         // 7,912 CU
-        #[cfg(target_os = "solana")]
-        {
-            mint_spl_to_pool_pda(&ctx, &amounts)?;
-        }
-        process_mint_to(ctx.accounts, &public_keys, &amounts, lamports)
+        mint_spl_to_pool_pda(&ctx, &amounts)
     }
 
     pub fn compress_v2<'info>(
@@ -97,10 +94,18 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         let amounts = vec![amount; public_keys.len()];
 
-        #[cfg(target_os = "solana")]
-        {
-            compress_spl_tokens(&amount, &ctx.accounts.mint.key(), ctx);
-        }
+        // #[cfg(target_os = "solana")]
+        // {
+        compress_spl_tokens(
+            &Some(amount),
+            &ctx.accounts.mint.key(),
+            &ctx.accounts.source_token_account,
+            &ctx.accounts.authority,
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.token_program,
+        )
+        .unwrap();
+        // }
         process_mint_to(ctx.accounts, &public_keys, &amounts, lamports)
     }
 

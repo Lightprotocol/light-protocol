@@ -10,7 +10,7 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
-use crate::{check_spl_token_pool_derivation, program::LightCompressedToken, TransferInstruction};
+use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -62,9 +62,7 @@ pub fn process_mint_to<'info, T: ProcessMintToOrCompressV2Accounts<'info>>(
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
-        bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
-        bench_sbf_end!("tm_mint_spl_to_pool_pda");
         let hashed_mint = hash_to_bn254_field_size_be(accounts.mint().key().as_ref())
             .unwrap()
             .0;
@@ -75,7 +73,7 @@ pub fn process_mint_to<'info, T: ProcessMintToOrCompressV2Accounts<'info>>(
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             accounts.mint().key(),
-            recipient_pubkeys.as_slice(),
+            recipient_pubkeys,
             None,
             None,
             &amounts,
