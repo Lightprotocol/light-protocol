@@ -1,5 +1,5 @@
 use light_hasher::Discriminator;
-use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 #[cfg(target_os = "solana")]
 use solana_program::{rent::Rent, sysvar::Sysvar};
 
@@ -69,7 +69,7 @@ pub fn check_account_info<T: Discriminator>(
 pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), UtilsError> {
     if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
         #[cfg(target_os = "solana")]
-        msg!("Discriminator bytes must be zero for initialization.");
+        solana_program::msg!("Discriminator bytes must be zero for initialization.");
         return Err(UtilsError::AlreadyInitialized);
     }
     bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
@@ -86,7 +86,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), UtilsEr
 
     if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
         #[cfg(target_os = "solana")]
-        msg!(
+        solana_program::msg!(
             "Expected discriminator: {:?}, actual {:?} ",
             T::DISCRIMINATOR,
             bytes[0..DISCRIMINATOR_LEN].to_vec()
@@ -104,7 +104,7 @@ pub fn check_account_balance_is_rent_exempt(
     let account_size = account_info.data_len();
     if account_size != expected_size {
         #[cfg(target_os = "solana")]
-        msg!(
+        solana_program::msg!(
             "Account {:?} size not equal to expected size. size: {}, expected size {}",
             account_info.key,
             account_size,
@@ -118,7 +118,7 @@ pub fn check_account_balance_is_rent_exempt(
         let rent_exemption = (Rent::get().map_err(|_| UtilsError::FailedBorrowRentSysvar))?
             .minimum_balance(expected_size);
         if lamports != rent_exemption {
-            msg!(
+            solana_program::msg!(
             "Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
             account_info.key,
             lamports,

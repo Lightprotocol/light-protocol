@@ -79,7 +79,8 @@ impl ZPackedMerkleContext {
 impl<'a> Deserialize<'a> for ZPackedMerkleContext {
     type Output = Ref<&'a [u8], Self>;
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
-        Ok(Ref::<&[u8], Self>::from_prefix(bytes)?)
+        let (ref_value, bytes) = Ref::<&[u8], Self>::from_prefix(bytes)?;
+        Ok((ref_value, bytes))
     }
 }
 
@@ -456,9 +457,9 @@ pub struct ZPackedReadOnlyCompressedAccount {
 }
 
 impl<'a> Deserialize<'a> for ZPackedReadOnlyCompressedAccount {
-    type Output = Self;
-    fn zero_copy_at(_bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
-        unimplemented!("Place holder to satisfy trait bounds.");
+    type Output = Ref<&'a [u8], Self>;
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        Ok(Ref::<&[u8], Self>::from_prefix(bytes)?)
     }
 }
 

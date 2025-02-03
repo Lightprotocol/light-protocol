@@ -198,8 +198,7 @@ impl BatchMetadata {
         let value_vecs_size =
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(self.batch_size) * num_value_vec;
         // Bloomfilter capacity is in bits.
-        let bloom_filter_stores_size =
-            (self.bloom_filter_capacity / 8) as usize * num_bloom_filter_stores;
+        let bloom_filter_stores_size = self.get_bloomfilter_size_bytes() * num_bloom_filter_stores;
         let hashchain_store_size =
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(self.get_num_zkp_batches())
                 * num_hashchain_store;
@@ -279,7 +278,10 @@ fn test_batch_size_validation() {
 #[test]
 fn test_output_queue_account_size() {
     let metadata = BatchMetadata::new_output_queue(10, 2).unwrap();
-    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 64;
+    // Metadata::size, value array (vec metadata + 10 *[u8;32])
+    // + hash chain(vec metadata + 5 *[u8;32])
+    // + hashed merkle tree pubkey + hashed queue pubkey
+    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 32 + 32;
     assert_eq!(
         metadata
             .queue_account_size(QueueType::BatchedOutput as u64)

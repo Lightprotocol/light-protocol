@@ -143,7 +143,7 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
-            Ok(false)
+            Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI => {
             let (data, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction)?;
