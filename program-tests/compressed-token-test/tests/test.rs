@@ -1124,17 +1124,6 @@ async fn test_mint_to_failing() {
         // 6. Invalid registered program.
         {
             let invalid_registered_program = Keypair::new();
-            println!(
-                "invalid_registered_program: {:?}",
-                invalid_registered_program.pubkey()
-            );
-            println!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
-            println!(
-                "light_system_program::utils::get_cpi_authority_pda(
-                    &light_system_program::ID,
-                ): {:?}",
-                light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID,)
-            );
             let accounts = light_compressed_token::accounts::MintToInstruction {
                 fee_payer: payer_1.pubkey(),
                 authority: payer_1.pubkey(),
@@ -2413,14 +2402,6 @@ async fn test_approve_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        // // Anchor panics when trying to read the MT account. Unfortunately
-        // // there is no specific error code to assert.
-        // assert!(matches!(
-        //     result,
-        //     Err(RpcError::TransactionError(
-        //         TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
-        //     ))
-        // ));
         assert_rpc_error(
             result,
             0,
@@ -2847,15 +2828,6 @@ async fn test_revoke_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        // // Anchor panics when trying to deserialize the account, the
-        // // instruction returns `ProgramFailedToComplete`. No specific error
-        // // to assert.
-        // assert!(matches!(
-        //     result,
-        //     Err(RpcError::TransactionError(
-        //         TransactionError::InstructionError(0, InstructionError::ProgramFailedToComplete)
-        //     ))
-        // ));
         assert_rpc_error(
             result,
             0,
@@ -3175,7 +3147,7 @@ async fn test_burn() {
 #[tokio::test]
 async fn failing_tests_burn() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
@@ -3193,8 +3165,6 @@ async fn failing_tests_burn() {
             .await
             .unwrap();
         let delegate = Keypair::new();
-        println!("delegate: {:?}", delegate.pubkey());
-        println!("sender: {:?}", sender.pubkey());
         airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
             .await
             .unwrap();
@@ -5421,7 +5391,7 @@ async fn mint_with_batched_tree() {
 #[tokio::test]
 async fn test_transfer_with_batched_tree() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],

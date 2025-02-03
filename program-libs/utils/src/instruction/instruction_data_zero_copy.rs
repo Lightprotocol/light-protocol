@@ -145,7 +145,6 @@ impl<'a> Deserialize<'a> for ZCompressedAccountData<'a> {
         let (discriminator, bytes) = Ref::<&'a [u8], [u8; 8]>::from_prefix(bytes)?;
         let (len, bytes) = Ref::<&'a [u8], U32>::from_prefix(bytes)?;
         let (data, bytes) = bytes.split_at(u64::from(*len) as usize);
-        // let (data, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (data_hash, bytes) = Ref::<&'a [u8], [u8; 32]>::from_prefix(bytes)?;
 
         Ok((
@@ -309,26 +308,19 @@ pub struct ZInstructionDataInvoke<'a> {
 impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
     type Output = Self;
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
-        println!("pre proof");
         let (proof, bytes) = Option::<CompressedProof>::zero_copy_at(bytes)?;
-        println!("pre input_compressed_accounts_with_merkle_context");
         let (input_compressed_accounts_with_merkle_context, bytes) =
             Vec::<ZPackedCompressedAccountWithMerkleContext>::zero_copy_at(bytes)?;
-        println!("pre output_compressed_accounts");
         let (output_compressed_accounts, bytes) =
             Vec::<ZOutputCompressedAccountWithPackedContext>::zero_copy_at(bytes)?;
-        println!("pre relay_fee");
         let (relay_fee, bytes) = Option::<Ref<&'a [u8], U64>>::zero_copy_at(bytes)?;
         if relay_fee.is_some() {
             unimplemented!("Relay fee not implemented");
         }
-        println!("pre new_address_params");
 
         let (new_address_params, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
-        println!("pre compress_or_decompress_lamports");
         let (compress_or_decompress_lamports, bytes) =
             Option::<Ref<&'a [u8], U64>>::zero_copy_at(bytes)?;
-        println!("pre is_compress");
         let (is_compress, bytes) = u8::zero_copy_at(bytes)?;
 
         Ok((
@@ -518,17 +510,6 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
         }
     }
 }
-
-// impl<'a> From<&ZOutputCompressedAccountWithPackedContext<'a>>
-//     for OutputCompressedAccountWithPackedContext
-// {
-//     fn from(output_compressed_account: &ZOutputCompressedAccountWithPackedContext<'a>) -> Self {
-//         OutputCompressedAccountWithPackedContext {
-//             compressed_account: (&output_compressed_account.compressed_account).into(),
-//             merkle_tree_index: output_compressed_account.merkle_tree_index,
-//         }
-//     }
-// }
 
 // TODO: add randomized tests
 // TODO: add unit test ZInstructionDataInvokeCpiWithReadOnly

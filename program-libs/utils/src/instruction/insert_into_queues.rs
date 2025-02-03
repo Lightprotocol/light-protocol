@@ -214,19 +214,13 @@ pub fn deserialize_insert_into_queues(
     bytes: &mut [u8],
 ) -> std::result::Result<AppendNullifyCreateAddressInputs<'_>, ZeroCopyError> {
     let (meta, bytes) = Ref::<&mut [u8], AppendNullifyCreateAddressInputsMeta>::from_prefix(bytes)?;
-    println!("meta: {:?}", meta);
     let (leaves, bytes) = ZeroCopySliceMut::<u8, AppendLeavesInput, false>::from_bytes_at(bytes)?;
-    println!("leaves: {:?}", leaves.len());
-    println!("bytes nullifiers: {:?}", bytes.len());
     let (nullifiers, bytes) =
         ZeroCopySliceMut::<u8, InsertNullifierInput, false>::from_bytes_at(bytes)?;
-    println!("bytes addresses: {:?}", bytes.len());
     let (addresses, bytes) =
         ZeroCopySliceMut::<u8, InsertAddressInput, false>::from_bytes_at(bytes)?;
-    println!("bytes sequence_numbers: {:?}", bytes.len());
     let (sequence_numbers, bytes) =
         ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
-    println!("sequence_numbers: {:?}", sequence_numbers.len());
     let output_leaf_indices = ZeroCopySliceMut::<u8, U32, false>::from_bytes(bytes)?;
     Ok(AppendNullifyCreateAddressInputs {
         meta,

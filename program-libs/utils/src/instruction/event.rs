@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
 
-use super::insert_into_queues::AppendNullifyCreateAddressInputsIndexer;
+use super::{discriminators::*, insert_into_queues::AppendNullifyCreateAddressInputsIndexer};
 use crate::instruction::{
     instruction_data::OutputCompressedAccountWithPackedContext,
     instruction_data_zero_copy::{
@@ -114,12 +114,6 @@ pub fn match_account_compression_program_instruction(
                 .for_each(|(x, y)| {
                     x.merkle_tree_index = y.index;
                 });
-
-            // event.pubkey_array = data
-            //     .sequence_numbers
-            //     .iter()
-            //     .map(|x| x.pubkey.to_bytes().into())
-            //     .collect();
             Ok(true)
         }
         _ => Ok(false),
@@ -149,7 +143,6 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
-            // event.message = data.message;
             Ok(false)
         }
         DISCRIMINATOR_INVOKE_CPI => {
@@ -180,8 +173,6 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
-
-            // event.message = data.message;
             Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
@@ -213,14 +204,8 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
-            // event.message = data.message;
             Ok(true)
         }
         _ => Ok(false),
     }
 }
-
-pub const DISCRIMINATOR_INSERT_INTO_QUEUES: [u8; 8] = [180, 143, 159, 153, 35, 46, 248, 163];
-pub const DISCRIMINATOR_INVOKE: [u8; 8] = [26, 16, 169, 7, 21, 202, 242, 25];
-pub const DISCRIMINATOR_INVOKE_CPI: [u8; 8] = [49, 212, 191, 129, 39, 194, 43, 196];
-pub const DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY: [u8; 8] = [86, 47, 163, 166, 21, 223, 92, 8];

@@ -718,11 +718,6 @@ pub async fn perform_insert_into_input_queue(
     }
     ix_data.tx_hash = tx_hash;
     let instruction = account_compression::instruction::InsertIntoQueues { bytes };
-    //     nullifiers: leaves,
-    //     leaf_indices,
-    //     tx_hash,
-    //     prove_by_index,
-    // };
     let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
     };
@@ -1868,10 +1863,6 @@ pub async fn rollover_batched_address_merkle_tree(
     mode: RolloverBatchAddressTreeTestMode,
 ) -> Result<(Signature, Pubkey), RpcError> {
     let new_address_merkle_tree_keypair = Keypair::new();
-    println!(
-        "new address tree {}",
-        new_address_merkle_tree_keypair.pubkey()
-    );
     let payer_pubkey = payer.pubkey();
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let mut mt_account_size = get_merkle_tree_account_size(
@@ -1881,7 +1872,6 @@ pub async fn rollover_batched_address_merkle_tree(
         params.root_history_capacity,
         params.height,
     );
-    println!("mt account size {}", mt_account_size);
     if mode == RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeSmall {
         mt_account_size -= 1;
     } else if mode == RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeLarge {
@@ -1891,7 +1881,6 @@ pub async fn rollover_batched_address_merkle_tree(
         .get_minimum_balance_for_rent_exemption(mt_account_size)
         .await
         .unwrap();
-    println!("mt rent {}", mt_rent);
     let create_mt_account_ix = create_account_instruction(
         &payer_pubkey,
         mt_account_size,

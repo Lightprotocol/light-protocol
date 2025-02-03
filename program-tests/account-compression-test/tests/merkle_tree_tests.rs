@@ -425,7 +425,7 @@ async fn test_full_nullifier_queue_default() {
 /// Insert nullifiers failing tests
 /// Test:
 /// 1. no nullifiers
-/// 2. mismatch remaining accounts and addresses
+/// 2. mismatch remaining accounts and addresses (removed error)
 /// 3. invalid queue accounts:
 /// 3.1 pass non queue account as queue account
 /// 3.2 pass address queue account
@@ -502,14 +502,6 @@ async fn failing_queue(
     )
     .unwrap();
     let nullifier_1 = [1u8; 32];
-    // // CHECK 2: Number of leaves/addresses leaves mismatch (error doesn't exist anymore)
-    // let result = insert_into_nullifier_queues(&[nullifier_1], &payer, &payer, &[], &mut rpc).await;
-    // assert_rpc_error(
-    //     result,
-    //     0,
-    //     AccountCompressionErrorCode::NumberOfLeavesMismatch.into(),
-    // )
-    // .unwrap();
 
     // CHECK 3.1: pass non queue account as queue account
     let result = insert_into_nullifier_queues(
@@ -1363,29 +1355,12 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         ix_nf.queue_index = 0;
         ix_nf.tree_index = 1;
     }
-    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-    //     nullifiers: elements.to_vec(),
-    //     leaf_indices: Vec::new(),
-    //     tx_hash: [0u8; 32],
-    //     prove_by_index: vec![false; elements.len()],
-    // };
+
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
     };
-    // let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
-    // remaining_accounts.extend(
-    //     vec![
-    //         vec![
-    //             AccountMeta::new(*nullifier_queue_pubkey, false),
-    //             AccountMeta::new(*merkle_tree_pubkey, false)
-    //         ];
-    //         elements.len()
-    //     ]
-    //     .iter()
-    //     .flat_map(|x| x.to_vec())
-    //     .collect::<Vec<AccountMeta>>(),
-    // );
+
     let remaining_accounts = vec![
         AccountMeta::new(*nullifier_queue_pubkey, false),
         AccountMeta::new(*merkle_tree_pubkey, false),
@@ -1433,28 +1408,11 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     }
     ix_data.num_queues = hash_set.len() as u8 / 2;
 
-    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-    //     nullifiers: elements.to_vec(),
-    //     leaf_indices: Vec::new(),
-    //     tx_hash: [0u8; 32],
-    //     prove_by_index: vec![false; elements.len()],
-    // };
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
     };
-    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-    //     nullifiers: elements.to_vec(),
-    //     leaf_indices: Vec::new(),
-    //     tx_hash: [0u8; 32],
-    //     prove_by_index: vec![false; elements.len()],
-    // };
-    // let accounts = account_compression::accounts::InsertIntoQueues {
-    //     fee_payer: fee_payer.pubkey(),
-    //     authority: payer.pubkey(),
-    //     registered_program_pda: None,
-    //     system_program: system_program::ID,
-    // };
+
     let mut remaining_accounts = hash_set
         .iter()
         .map(|(pubkey, index)| (*pubkey, *index))

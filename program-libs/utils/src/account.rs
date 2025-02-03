@@ -53,9 +53,6 @@ pub fn check_account_info<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), UtilsError> {
-    msg!("account {:?}", account_info.key);
-    msg!("program_id {:?}", program_id);
-    msg!("owner {:?}", *account_info.owner);
     if *program_id != *account_info.owner {
         return Err(UtilsError::AccountOwnedByWrongProgram);
     }

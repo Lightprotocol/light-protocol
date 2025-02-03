@@ -94,7 +94,7 @@ use tokio::fs::write as async_write;
 async fn invoke_failing_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],

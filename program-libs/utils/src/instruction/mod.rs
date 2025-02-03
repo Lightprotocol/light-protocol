@@ -8,3 +8,4 @@ pub mod instruction_data;
 pub mod instruction_data_zero_copy;
 pub mod invoke_cpi;
 pub mod z_compressed_account;
+pub mod discriminators;

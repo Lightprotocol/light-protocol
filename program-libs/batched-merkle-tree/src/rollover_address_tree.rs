@@ -17,15 +17,12 @@ pub fn rollover_batched_address_tree_from_account_info<'a>(
     new_account: &AccountInfo<'a>,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
-    msg!("rollover_batched_address_tree_from_account_info 1");
     let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
     #[cfg(target_os = "solana")]
     if old_account.lamports().checked_sub(new_mt_rent).unwrap() == 0 {
         return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
     }
-    msg!("rollover_batched_address_tree_from_account_info 2");
     let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
-    msg!("rollover_batched_address_tree_from_account_info3");
     let mut new_mt_data = new_account.try_borrow_mut_data()?;
     rollover_batched_address_tree(
         &mut old_merkle_tree,
