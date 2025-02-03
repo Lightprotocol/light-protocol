@@ -553,9 +553,11 @@ mod test {
         z_copy: &ZInstructionDataInvokeCpi,
     ) -> Result<(), UtilsError> {
         if reference.proof.is_some() && z_copy.proof.is_none() {
+            println!("proof is none");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.proof.is_none() && z_copy.proof.is_some() {
+            println!("proof is some");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.proof.is_some()
@@ -564,6 +566,7 @@ mod test {
             || reference.proof.as_ref().unwrap().b != z_copy.proof.as_ref().unwrap().b
             || reference.proof.as_ref().unwrap().c != z_copy.proof.as_ref().unwrap().c
         {
+            println!("proof is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         if reference
@@ -571,6 +574,7 @@ mod test {
             .len()
             != z_copy.input_compressed_accounts_with_merkle_context.len()
         {
+            println!("input_compressed_accounts_with_merkle_context is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         for (ref_input, z_input) in reference
@@ -581,6 +585,7 @@ mod test {
             compare_packed_compressed_account_with_merkle_context(ref_input, z_input)?;
         }
         if reference.output_compressed_accounts.len() != z_copy.output_compressed_accounts.len() {
+            println!("output_compressed_accounts is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         for (ref_output, z_output) in reference
@@ -591,9 +596,11 @@ mod test {
             compare_compressed_output_account(ref_output, z_output)?;
         }
         if reference.relay_fee != z_copy.relay_fee.map(|x| (*x).into()) {
+            println!("relay_fee is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.new_address_params.len() != z_copy.new_address_params.len() {
+            println!("new_address_params is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         for (ref_params, z_params) in reference
@@ -602,38 +609,57 @@ mod test {
             .zip(z_copy.new_address_params.iter())
         {
             if ref_params.seed != z_params.seed {
+                println!("seed is not equal");
                 return Err(UtilsError::InvalidArgument);
             }
             if ref_params.address_queue_account_index != z_params.address_queue_account_index {
+                println!("address_queue_account_index is not equal");
                 return Err(UtilsError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_account_index
                 != z_params.address_merkle_tree_account_index
             {
+                println!("address_merkle_tree_account_index is not equal");
                 return Err(UtilsError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_root_index
                 != u16::from(z_params.address_merkle_tree_root_index)
             {
+                println!("address_merkle_tree_root_index is not equal");
                 return Err(UtilsError::InvalidArgument);
             }
         }
         if reference.compress_or_decompress_lamports
             != z_copy.compress_or_decompress_lamports.map(|x| (*x).into())
         {
+            println!("compress_or_decompress_lamports is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.is_compress != z_copy.is_compress {
+            println!("is_compress is not equal");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.cpi_context.is_some() && z_copy.cpi_context.is_none() {
+            println!("cpi_context is none");
             return Err(UtilsError::InvalidArgument);
         }
         if reference.cpi_context.is_none() && z_copy.cpi_context.is_some() {
+            println!("cpi_context is some");
+            println!("reference: {:?}", reference.cpi_context);
+            println!("z_copy: {:?}", z_copy.cpi_context);
             return Err(UtilsError::InvalidArgument);
         }
         if reference.cpi_context.is_some() && z_copy.cpi_context.is_some() {
-            return Err(UtilsError::InvalidArgument);
+            let reference = reference.cpi_context.as_ref().unwrap();
+            let zcopy = z_copy.cpi_context.as_ref().unwrap();
+            if reference.first_set_context != zcopy.first_set_context()
+                || reference.set_context != zcopy.set_context()
+                || reference.cpi_context_account_index != zcopy.cpi_context_account_index
+            {
+                println!("reference: {:?}", reference);
+                println!("z_copy: {:?}", zcopy);
+                return Err(UtilsError::InvalidArgument);
+            }
         }
         Ok(())
     }

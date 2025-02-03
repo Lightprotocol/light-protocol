@@ -16,7 +16,7 @@ aligned-sized = { workspace=true}
 solana-program = { workspace = true }
 light-zero-copy = { workspace=true, features = ["solana", "std"] }
 light-hasher = { workspace=true, features = ["solana"] }
-light-utils = { workspace=true }
+light-utils = { workspace=true, features = ["bytemuck-des"] }
 light-bloom-filter = { workspace=true, features = ["solana"] }
 light-verifier = { workspace=true, features = ["solana"] }
 thiserror =  { workspace = true }

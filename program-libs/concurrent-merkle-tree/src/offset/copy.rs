@@ -188,7 +188,7 @@ mod test {
 
     #[test]
     fn test_read_bounded_vec_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: [i64; 32],
@@ -241,7 +241,7 @@ mod test {
 
     #[test]
     fn test_read_cyclic_bounded_vec_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: [i64; 32],

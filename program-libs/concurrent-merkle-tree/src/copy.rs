@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
+use crate::offset::copy::{read_bounded_vec_at, read_cyclic_bounded_vec_at, read_value_at};
 use light_bounded_vec::{BoundedVecMetadata, CyclicBoundedVecMetadata};
 use light_hasher::Hasher;
-use light_utils::offset::copy::{read_bounded_vec_at, read_cyclic_bounded_vec_at, read_value_at};
 use memoffset::{offset_of, span_of};
 
 use crate::{errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree};

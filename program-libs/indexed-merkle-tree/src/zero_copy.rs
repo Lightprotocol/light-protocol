@@ -8,11 +8,11 @@ use std::{
 use light_bounded_vec::{CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError,
+    offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at},
     zero_copy::{ConcurrentMerkleTreeZeroCopy, ConcurrentMerkleTreeZeroCopyMut},
     ConcurrentMerkleTree,
 };
 use light_hasher::Hasher;
-use light_utils::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};

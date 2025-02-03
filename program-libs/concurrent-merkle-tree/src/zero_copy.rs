@@ -4,11 +4,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use crate::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
 use light_bounded_vec::{
     BoundedVec, BoundedVecMetadata, CyclicBoundedVec, CyclicBoundedVecMetadata,
 };
 use light_hasher::Hasher;
-use light_utils::offset::zero_copy::{read_array_like_ptr_at, read_ptr_at, write_at};
 use memoffset::{offset_of, span_of};
 
 use crate::{errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree};

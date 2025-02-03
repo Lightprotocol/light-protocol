@@ -159,7 +159,7 @@ mod test {
 
     #[test]
     fn test_read_array_like_ptr_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: [i64; 32],
@@ -197,7 +197,7 @@ mod test {
 
     #[test]
     fn test_read_array_like_ptr_at_mut() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: [i64; 32],
@@ -235,7 +235,7 @@ mod test {
 
     #[test]
     fn test_write_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: isize,
