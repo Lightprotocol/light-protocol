@@ -11,10 +11,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     bytes: Vec<u8>,
 ) -> Result<()> {
-    msg!(
-        "ctx remaining accounts len  {}",
-        ctx.remaining_accounts.len()
-    );
     let authority = ctx.accounts.authority.to_account_info();
     let mut bytes = bytes;
     let inputs = deserialize_insert_into_queues(bytes.as_mut_slice()).unwrap();

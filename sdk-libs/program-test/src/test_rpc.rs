@@ -394,7 +394,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
         let mut vec = Vec::new();
-        
+
         let pre_balance = self
             .context
             .banks_client
@@ -428,16 +428,10 @@ impl RpcConnection for ProgramTestRpcConnection {
             return Err(error);
         }
         let mut vec_accounts = Vec::<Vec<Pubkey>>::new();
-       
+
         instruction.iter().for_each(|i| {
             vec.push(i.data.clone());
-            vec_accounts.push(
-                i
-                    .accounts
-                    .iter()
-                    .map(|x| x.pubkey)
-                    .collect(),
-            );
+            vec_accounts.push(i.accounts.iter().map(|x| x.pubkey).collect());
         });
         simulation_result
             .simulation_details

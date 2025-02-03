@@ -144,7 +144,10 @@ async fn test_address_batched() {
         let is_v2 = tree.merkle_tree == tree.queue;
         println!("Tree {:?} is_v2: {}", tree, is_v2);
     }
-    println!("env.batch_address_merkle_tree , {}", env_accounts.batch_address_merkle_tree);
+    println!(
+        "env.batch_address_merkle_tree , {}",
+        env_accounts.batch_address_merkle_tree
+    );
     let mut merkle_tree_account = env
         .rpc
         .get_account(address_merkle_tree_pubkey)
@@ -153,7 +156,10 @@ async fn test_address_batched() {
         .unwrap();
     println!("address_merkle_tree_pubkey {}", address_merkle_tree_pubkey);
     println!("merkle_tree_account {}", merkle_tree_account.owner);
-    println!("merkle_tree_account.data {:?}", merkle_tree_account.data[..100].to_vec());
+    println!(
+        "merkle_tree_account.data {:?}",
+        merkle_tree_account.data[..100].to_vec()
+    );
     let merkle_tree =
         BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account.data).unwrap();
 
