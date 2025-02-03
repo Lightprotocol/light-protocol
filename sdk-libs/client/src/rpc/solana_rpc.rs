@@ -19,7 +19,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     epoch_info::EpochInfo,
     instruction::Instruction,
-    signature::{Keypair, Signature},
+    signature::{Keypair, Signature, Signer},
     transaction::Transaction,
 };
 use solana_transaction_status::{
@@ -460,29 +460,15 @@ impl RpcConnection for SolanaRpcConnection {
             .process_transaction_with_context(transaction.clone())
             .await?;
 
-        // let mut parsed_event = None;
-        // for instruction in &transaction.message.instructions {
-        //     match T::deserialize(&mut &instruction.data[..]) {
-        //         Ok(e) => {
-        //             parsed_event = Some(e);
-        //             break;
-        //         }
-        //         Err(e) => {
-        //             warn!("Failed to parse event: {:?}", e);
-        //         }
-        //     }
-        // }
-
-        // if parsed_event.is_none() {
-        //     parsed_event = self.parse_inner_instructions::<T>(signature).ok();
-        // }
-        let rpc_transaction_config = RpcTransactionConfig {
-            encoding: Some(UiTransactionEncoding::Base64),
-            commitment: Some(self.client.commitment()),
-            ..Default::default()
-        };
         let mut vec = Vec::new();
         let mut vec_accounts = Vec::new();
+        instructions_vec.iter().for_each(|x| {
+            vec.push(x.data.clone());
+            use solana_sdk::signature::Signer;
+            use std::ops::Deref;
+            use solana_sdk::instruction::AccountMeta;
+            vec_accounts.push(x.accounts.iter().map(|x| x.pubkey.clone()).collect());
+        });
         {
             let transaction = self
                 .client
@@ -545,23 +531,6 @@ impl RpcConnection for SolanaRpcConnection {
                 }
             }
         }
-        // let mut vec = Vec::new();
-        // instructions_vec.iter().for_each(|x|vec.push(x.data.clone()));
-        // let mut vec_accounts = Vec::new();
-        // transaction
-        //     .message
-        //     .instructions
-        //     .iter()
-        //     .for_each(|instruction| {
-        //         vec.push(instruction.data.clone());
-        //         vec_accounts.push(
-        //             instruction
-        //                 .accounts
-        //                 .iter()
-        //                 .map(|x| transaction.message.account_keys[*x as usize])
-        //                 .collect(),
-        //         );
-        //     });
         println!("vec: {:?}", vec);
         println!("vec_accounts {:?}", vec_accounts);
         let parsed_event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
