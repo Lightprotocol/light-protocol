@@ -102,7 +102,6 @@ install_rust() {
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
         cargo install cargo-expand --locked
-        cargo +nightly install photon-indexer --git https://github.com/Lightprotocol/photon/ --branch feat/parse-event-from-ixs #--version $(get_version "photon") --locked
         cargo install --git https://github.com/Lightprotocol/photon.git --branch feat/parse-event-from-ixs --locked
         log "rust"
     fi
