@@ -1,13 +1,9 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use light_sdk::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-    },
-    merkle_context::MerkleContext,
-    proof::ProofRpcResult,
-    token::TokenDataWithMerkleContext,
+use light_sdk::{proof::ProofRpcResult, token::TokenDataWithMerkleContext};
+use light_utils::instruction::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},

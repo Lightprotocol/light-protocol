@@ -993,10 +993,12 @@ async fn only_test_create_pda() {
     )
     .await;
 
-    let compressed_account = test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
-        [0]
-    .compressed_account
-    .clone();
+    let compressed_account = test_indexer
+        .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+        .await
+        .unwrap()[0]
+        .compressed_account
+        .clone();
 
     // Failing 4 input account that is not owned by signer ----------------------------------------------
     perform_with_input_accounts(
@@ -1205,8 +1207,11 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
-        let compressed_token_data =
-            test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+        let compressed_token_data = test_indexer
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .await
+            .unwrap()[0]
+            .clone();
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
@@ -1268,8 +1273,11 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
-        let compressed_token_data =
-            test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+        let compressed_token_data = test_indexer
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .await
+            .unwrap()[0]
+            .clone();
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
@@ -1295,8 +1303,11 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
-        let compressed_token_data =
-            test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+        let compressed_token_data = test_indexer
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+            .await
+            .unwrap()[0]
+            .clone();
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,

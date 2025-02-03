@@ -15,7 +15,6 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
-    compressed_account::CompressedAccountWithMerkleContext,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
     utils::get_cpi_authority_pda,
@@ -23,6 +22,7 @@ use light_sdk::{
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 use light_test_utils::{RpcConnection, RpcError};
+use light_utils::instruction::compressed_account::CompressedAccountWithMerkleContext;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

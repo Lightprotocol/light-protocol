@@ -16,7 +16,6 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
-    compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
@@ -25,6 +24,7 @@ use light_sdk::{
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 use light_test_utils::{RpcConnection, RpcError};
+use light_utils::instruction::compressed_account::CompressedAccountWithMerkleContext;
 use name_service_without_macros::{CustomError, NameRecord, RData};
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
