@@ -38,7 +38,7 @@ borsh = { workspace = true }
 bs58 = "0.5.1"
 env_logger = { workspace = true }
 async-trait = { workspace = true}
-tracing = "0.1.40"
+tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
 tracing-appender = "0.2.3"
 prometheus = "0.13"
