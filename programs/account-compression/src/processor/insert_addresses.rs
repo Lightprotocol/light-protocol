@@ -21,6 +21,9 @@ pub fn insert_addresses(
     let mut inserted_addresses = 0;
     let mut current_tree_index = addresses[0].tree_index;
     let mut current_queue_index = addresses[0].queue_index;
+    msg!("current_tree_index {:?}", current_tree_index);
+    msg!("current_queue_index {:?}", current_queue_index);
+    msg!(" num queues {:?}", num_queues);
     let mut dedup_vec = Vec::with_capacity(num_queues as usize);
     for _ in 0..num_queues {
         let queue_account = &mut accounts[current_queue_index as usize];
@@ -41,6 +44,7 @@ pub fn insert_addresses(
                     if let AcpAccount::V1Queue(queue_account_info) = queue_account {
                         queue_account_info
                     } else {
+                        msg!("Queue account is not a queue account");
                         return err!(AccountCompressionErrorCode::InvalidAccount);
                     };
                 inserted_addresses += process_address_v1(
@@ -50,6 +54,7 @@ pub fn insert_addresses(
                     current_queue_index,
                 )?;
             }
+            AcpAccount::AddressTree(_) => unimplemented!("AddressTree"),
             _ => unimplemented!(),
         }
 
@@ -101,20 +106,21 @@ fn process_address_v2(
 
 fn process_address_v1<'info>(
     merkle_tree: &mut AcpAccount<'_, 'info>,
-    nullifier_queue: &mut AccountInfo<'info>,
+    address_queue: &mut AccountInfo<'info>,
     addresses: &[InsertAddressInput],
     current_queue_index: u8,
 ) -> Result<usize> {
     let addresses = addresses
         .iter()
         .filter(|x| x.queue_index == current_queue_index);
+    msg!("addresses {:?}", addresses);
     let (merkle_pubkey, merkle_tree) = if let AcpAccount::AddressTree(tree) = merkle_tree {
         tree
     } else {
         return err!(AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch);
     };
     {
-        let queue_data = nullifier_queue
+        let queue_data = address_queue
             .try_borrow_data()
             .map_err(ProgramError::from)?;
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
@@ -122,7 +128,7 @@ fn process_address_v1<'info>(
         if queue.metadata.associated_merkle_tree != (*merkle_pubkey).into() {
             msg!(
                 "Queue account {:?} is not associated with Merkle tree  {:?}",
-                nullifier_queue.key(),
+                address_queue.key(),
                 *merkle_pubkey
             );
             return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
@@ -132,7 +138,7 @@ fn process_address_v1<'info>(
     // 2. Insert the addresses into the queues hash set.
 
     let sequence_number = merkle_tree.sequence_number();
-    let mut queue = nullifier_queue.try_borrow_mut_data()?;
+    let mut queue = address_queue.try_borrow_mut_data()?;
     let mut queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue).unwrap() };
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("acp_insert_nf_into_queue");

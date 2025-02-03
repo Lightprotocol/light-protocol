@@ -41,7 +41,6 @@ impl GroupAccess for BatchedQueueAccount<'_> {
 use super::RegisteredProgram;
 pub struct LightContext<'a, 'info> {
     pub accounts: Vec<AcpAccount<'a, 'info>>,
-    invoked_by_program: bool,
 }
 
 impl<'a, 'info> LightContext<'a, 'info> {
@@ -55,10 +54,7 @@ impl<'a, 'info> LightContext<'a, 'info> {
         let accounts =
             AcpAccount::from_account_infos(account_infos, authority, invoked_by_program, bump)
                 .unwrap();
-        LightContext {
-            accounts,
-            invoked_by_program,
-        }
+        LightContext { accounts }
     }
 
     pub fn authority(&self) -> &AccountInfo<'info> {
@@ -72,16 +68,14 @@ impl<'a, 'info> LightContext<'a, 'info> {
     /// ... other accounts (registry program PDA is not added)
     #[inline(always)]
     pub fn remaining_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
-        let offset = if self.invoked_by_program { 1 } else { 0 };
-        &mut self.accounts[offset..]
+        &mut self.accounts[1..]
     }
 
     /// Index 0 : authority
     /// ... other accounts (registry program PDA is not added)
     #[inline(always)]
     pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
-        let offset = if self.invoked_by_program { 1 } else { 0 };
-        &self.accounts[offset..]
+        &self.accounts[1..]
     }
 }
 

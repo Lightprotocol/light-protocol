@@ -15,24 +15,21 @@ pub async fn insert_addresses<R: RpcConnection>(
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
 ) -> Result<Signature, RpcError> {
-    let num_addresses = addresses.len();
-    let mut bytes = vec![
-        0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
-            0,
-            0,
-            addresses.len() as u8,
-            0,
-        )
-    ];
+    let num_addresses = addresses.len() as u8;
+    let mut bytes =
+        vec![
+            0u8;
+            AppendNullifyCreateAddressInputs::required_size_for_capacity(0, 0, num_addresses, 0,)
+        ];
     let ix_data =
-        &mut AppendNullifyCreateAddressInputs::new(&mut bytes, 0, 0, addresses.len() as u8, 0)
-            .unwrap();
+        &mut AppendNullifyCreateAddressInputs::new(&mut bytes, 0, 0, num_addresses, 0).unwrap();
     ix_data.num_address_queues = 1;
+    let is_batched = address_queue_pubkey == address_merkle_tree_pubkey;
+
     for (a_ix, address) in ix_data.addresses.iter_mut().zip(addresses.iter()) {
         a_ix.address = *address;
         a_ix.queue_index = 0;
-        a_ix.tree_index = 1;
+        a_ix.tree_index = if is_batched { 0 } else { 1 };
     }
     let instruction_data = InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
@@ -43,15 +40,9 @@ pub async fn insert_addresses<R: RpcConnection>(
         accounts: [
             accounts.to_account_metas(Some(true)),
             vec![
-                vec![
-                    AccountMeta::new(address_queue_pubkey, false),
-                    AccountMeta::new(address_merkle_tree_pubkey, false)
-                ];
-                num_addresses
-            ]
-            .iter()
-            .flat_map(|x| x.to_vec())
-            .collect::<Vec<AccountMeta>>(),
+                AccountMeta::new(address_queue_pubkey, false),
+                AccountMeta::new(address_merkle_tree_pubkey, false),
+            ],
         ]
         .concat(),
         data: instruction_data.data(),
