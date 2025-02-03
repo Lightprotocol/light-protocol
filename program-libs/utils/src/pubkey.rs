@@ -1,9 +1,30 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
+#[cfg(feature = "bytemuck-des")]
+#[derive(
+    Pod,
+    Zeroable,
+    Debug,
+    Copy,
+    PartialEq,
+    Clone,
+    Immutable,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    BorshDeserialize,
+    BorshSerialize,
+    Default,
+    Unaligned,
+)]
+#[repr(C)]
+pub struct Pubkey(pub(crate) [u8; 32]);
 
+#[cfg(not(feature = "bytemuck-des"))]
 #[derive(
     Debug,
     Copy,
@@ -16,8 +37,6 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
     BorshDeserialize,
     BorshSerialize,
     Default,
-    Pod,
-    Zeroable,
     Unaligned,
 )]
 #[repr(C)]

@@ -65,14 +65,13 @@ pub fn write_at<T>(bytes: &mut [u8], data: &[u8], offset: &mut usize) {
 
 #[cfg(test)]
 mod test {
-    use bytemuck::{Pod, Zeroable};
     use memoffset::offset_of;
 
     use super::*;
 
     #[test]
     fn test_read_ptr_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: isize,

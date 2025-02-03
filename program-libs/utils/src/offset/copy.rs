@@ -94,14 +94,13 @@ where
 mod test {
     use std::slice;
 
-    use bytemuck::{Pod, Zeroable};
     use memoffset::offset_of;
 
     use super::*;
 
     #[test]
     fn test_value_at() {
-        #[derive(Clone, Copy, Pod, Zeroable)]
+        #[derive(Clone, Copy)]
         #[repr(C)]
         struct TestStruct {
             a: isize,

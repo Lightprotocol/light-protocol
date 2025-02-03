@@ -137,12 +137,11 @@ mod check_account_tests {
     use std::{cell::RefCell, rc::Rc};
 
     use borsh::{BorshDeserialize, BorshSerialize};
-    use bytemuck::{Pod, Zeroable};
 
     use super::*;
 
     #[repr(C)]
-    #[derive(Debug, PartialEq, Copy, Clone, Pod, Zeroable, BorshSerialize, BorshDeserialize)]
+    #[derive(Debug, PartialEq, Copy, Clone, BorshSerialize, BorshDeserialize)]
     pub struct MyStruct {
         pub data: u64,
     }

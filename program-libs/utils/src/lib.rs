@@ -17,6 +17,7 @@ pub mod bigint;
 pub mod fee;
 pub mod hashchain;
 pub mod instruction;
+#[cfg(feature = "bytemuck-des")]
 pub mod offset;
 pub mod prime;
 pub mod pubkey;

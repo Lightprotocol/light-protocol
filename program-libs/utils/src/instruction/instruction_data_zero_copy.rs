@@ -632,9 +632,7 @@ mod test {
         if reference.cpi_context.is_none() && z_copy.cpi_context.is_some() {
             return Err(UtilsError::InvalidArgument);
         }
-        if reference.cpi_context.is_some() && z_copy.cpi_context.is_some()
-        // && reference.cpi_context.as_ref().unwrap()!= z_copy.cpi_context.as_ref().unwrap()
-        {
+        if reference.cpi_context.is_some() && z_copy.cpi_context.is_some() {
             return Err(UtilsError::InvalidArgument);
         }
         Ok(())
