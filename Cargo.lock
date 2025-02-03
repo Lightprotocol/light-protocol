@@ -61,6 +61,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "serial_test",

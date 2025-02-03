@@ -68,12 +68,16 @@ impl<'a, 'info> LightContext<'a, 'info> {
         }
     }
 
+    /// Index 0 : authority
+    /// ... other accounts (registry program PDA is not added)
     #[inline(always)]
     pub fn remaining_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
         let offset = if self.invoked_by_program { 1 } else { 0 };
         &mut self.accounts[offset..]
     }
 
+    /// Index 0 : authority
+    /// ... other accounts (registry program PDA is not added)
     #[inline(always)]
     pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
         let offset = if self.invoked_by_program { 1 } else { 0 };
@@ -256,7 +260,10 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     address_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
                 )))
             }
-            QueueAccount::DISCRIMINATOR => Ok(AcpAccount::V1Queue(account_info.to_account_info())),
+            QueueAccount::DISCRIMINATOR => {
+                msg!("queue account: {:?}", account_info.key());
+                Ok(AcpAccount::V1Queue(account_info.to_account_info()))
+            }
             _ => panic!("invalid account"),
         }
     }

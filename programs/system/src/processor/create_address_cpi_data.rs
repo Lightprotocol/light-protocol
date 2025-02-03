@@ -66,6 +66,10 @@ pub fn derive_new_addresses<'info>(
                             new_address_params.address_merkle_tree_account_index,
                             remaining_accounts,
                         );
+                        context.set_address_fee(
+                            tree.metadata.rollover_metadata.network_fee,
+                            new_address_params.address_merkle_tree_account_index,
+                        );
                         msg!(
                             "batched address tree fee {:?}",
                             tree.metadata.rollover_metadata.rollover_fee
@@ -104,7 +108,7 @@ pub fn derive_new_addresses<'info>(
             context.set_rollover_fee(new_address_params.address_queue_account_index, rollover_fee);
             Ok(())
         })?;
-    cpi_ix_data.num_address_appends = accounts
+    cpi_ix_data.num_address_queues = accounts
         .iter()
         .filter(|x| {
             matches!(
@@ -114,8 +118,8 @@ pub fn derive_new_addresses<'info>(
         })
         .count() as u8;
     msg!(
-        "cpi_ix_data.num_address_appends: {:?}",
-        cpi_ix_data.num_address_appends
+        "cpi_ix_data.num_address_queues: {:?}",
+        cpi_ix_data.num_address_queues
     );
     msg!(
         "start output appends: {:?}",

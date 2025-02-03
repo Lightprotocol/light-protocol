@@ -21,6 +21,8 @@ pub fn insert_addresses(
     let mut inserted_addresses = 0;
     let mut current_tree_index = addresses[0].tree_index;
     let mut current_queue_index = addresses[0].queue_index;
+    msg!("current_tree_index {:?}", current_tree_index);
+    msg!("current_queue_index {:?}", current_queue_index);
     let mut dedup_vec = Vec::with_capacity(num_queues as usize);
     for _ in 0..num_queues {
         let queue_account = &mut accounts[current_queue_index as usize];
@@ -70,7 +72,7 @@ pub fn insert_addresses(
     }
     if inserted_addresses != addresses.len() {
         msg!("inserted_addresses {:?}", inserted_addresses);
-        msg!("nullifiers.len() {:?}", addresses.len());
+        msg!("addresses.len() {:?}", addresses.len());
         return err!(AccountCompressionErrorCode::NotAllLeavesProcessed);
     }
     Ok(())

@@ -66,15 +66,13 @@ pub(crate) fn try_from_account_info<'a, 'info>(
                     let tree =
                         BatchedMerkleTreeAccount::address_from_account_info(account_info).unwrap();
                     let program_owner = tree.metadata.access_metadata.program_owner;
-                    context.set_address_fee(tree.metadata.rollover_metadata.network_fee, index);
-
+                    // for batched trees we set the fee when setting the rollover fee.
                     Ok((AcpAccount::BatchedAddressTree(tree), program_owner))
                 }
                 TreeType::BatchedState => {
                     let tree =
                         BatchedMerkleTreeAccount::state_from_account_info(account_info).unwrap();
                     let program_owner = tree.metadata.access_metadata.program_owner;
-                    context.set_network_fee(tree.metadata.rollover_metadata.network_fee, index);
                     Ok((AcpAccount::BatchedStateTree(tree), program_owner))
                 }
                 _ => {
@@ -90,7 +88,6 @@ pub(crate) fn try_from_account_info<'a, 'info>(
         BatchedQueueAccount::DISCRIMINATOR => {
             let queue = BatchedQueueAccount::output_from_account_info(account_info).unwrap();
             let program_owner = queue.metadata.access_metadata.program_owner;
-            context.set_network_fee(queue.metadata.rollover_metadata.network_fee, index);
             Ok((AcpAccount::OutputQueue(queue), program_owner))
         }
         StateMerkleTreeAccount::DISCRIMINATOR => {

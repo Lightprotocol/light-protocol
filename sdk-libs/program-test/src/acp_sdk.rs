@@ -4,7 +4,8 @@ use account_compression::{
     },
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
-use anchor_lang::InstructionData;
+use anchor_lang::{InstructionData, ToAccountMetas};
+use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -46,47 +47,64 @@ pub fn create_initialize_merkle_tree_instruction(
     }
 }
 
-// pub fn create_insert_leaves_instruction(
-//     leaves: Vec<(u8, [u8; 32])>,
-//     fee_payer: Pubkey,
-//     authority: Pubkey,
-//     merkle_tree_pubkeys: Vec<Pubkey>,
-// ) -> Instruction {
-//     let data = leaves
-//         .iter()
-//         .into_iter()
-//         .map(|x| AppendLeavesInput {
-//             index: x.0,
-//             leaf: x.1,
-//         })
-//         .collect::<Vec<_>>();
+pub fn create_insert_leaves_instruction(
+    leaves: Vec<(u8, [u8; 32])>,
+    _fee_payer: Pubkey,
+    authority: Pubkey,
+    merkle_tree_pubkeys: Vec<Pubkey>,
+) -> Instruction {
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            leaves.len() as u8,
+            0,
+            0,
+            merkle_tree_pubkeys.len() as u8,
+        )
+    ];
+    let mut ix_data = AppendNullifyCreateAddressInputs::new(
+        &mut bytes,
+        leaves.len() as u8,
+        0,
+        0,
+        merkle_tree_pubkeys.len() as u8,
+    )
+    .unwrap();
+    ix_data.num_output_queues = merkle_tree_pubkeys.len() as u8;
+    for (i, (index, leaf)) in leaves.iter().enumerate() {
+        ix_data.leaves[i].leaf = *leaf;
+        ix_data.leaves[i].index = *index;
+    }
+    // let data = leaves
+    //     .iter()
+    //     .into_iter()
+    //     .map(|x| AppendLeavesInput {
+    //         index: x.0,
+    //         leaf: x.1,
+    //     })
+    //     .collect::<Vec<_>>();
 
-//     let mut bytes = Vec::new();
-//     data.serialize(&mut bytes).unwrap();
+    // let mut bytes = Vec::new();
+    // data.serialize(&mut bytes).unwrap();
 
-//     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
+    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 
-//     let accounts = account_compression::accounts::AppendLeaves {
-//         fee_payer,
-//         authority,
-//         registered_program_pda: None,
-//         system_program: system_program::ID,
-//     };
-//     let merkle_tree_account_metas = merkle_tree_pubkeys
-//         .iter()
-//         .map(|pubkey| AccountMeta::new(*pubkey, false))
-//         .collect::<Vec<AccountMeta>>();
+    let accounts = account_compression::accounts::GenericInstruction { authority };
+    let merkle_tree_account_metas = merkle_tree_pubkeys
+        .iter()
+        .map(|pubkey| AccountMeta::new(*pubkey, false))
+        .collect::<Vec<AccountMeta>>();
 
-//     Instruction {
-//         program_id: account_compression::ID,
-//         accounts: [
-//             accounts.to_account_metas(Some(true)),
-//             merkle_tree_account_metas,
-//         ]
-//         .concat(),
-//         data: instruction_data.data(),
-//     }
-// }
+    Instruction {
+        program_id: account_compression::ID,
+        accounts: [
+            accounts.to_account_metas(Some(true)),
+            merkle_tree_account_metas,
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(

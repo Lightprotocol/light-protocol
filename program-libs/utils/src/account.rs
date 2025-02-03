@@ -1,7 +1,7 @@
 use light_hasher::Discriminator;
-use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, msg, pubkey::Pubkey};
 #[cfg(target_os = "solana")]
-use solana_program::{msg, rent::Rent, sysvar::Sysvar};
+use solana_program::{rent::Rent, sysvar::Sysvar};
 
 use crate::UtilsError;
 
@@ -53,6 +53,9 @@ pub fn check_account_info<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), UtilsError> {
+    msg!("account {:?}", account_info.key);
+    msg!("program_id {:?}", program_id);
+    msg!("owner {:?}", *account_info.owner);
     if *program_id != *account_info.owner {
         return Err(UtilsError::AccountOwnedByWrongProgram);
     }

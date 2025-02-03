@@ -7,7 +7,7 @@ use light_utils::{
     account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
     UtilsError,
 };
-use solana_program::account_info::AccountInfo;
+use solana_program::{account_info::AccountInfo, msg};
 
 use crate::{
     constants::{
@@ -142,6 +142,8 @@ pub fn init_batched_address_merkle_tree_account(
         }
         None => 0,
     };
+    msg!("rollover fee {}", rollover_fee);
+    msg!("rollover threshold {:?}", params.rollover_threshold);
 
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),

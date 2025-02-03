@@ -60,6 +60,10 @@ pub fn create_outputs_cpi_data<'a, 'info>(
 
             let pubkey = match &accounts[current_index as usize] {
                 AcpAccount::OutputQueue(output_queue) => {
+                    context.set_network_fee(
+                        output_queue.metadata.rollover_metadata.network_fee,
+                        current_index as u8,
+                    );
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
@@ -180,6 +184,6 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         context.set_rollover_fee(current_index as u8, rollover_fee);
     }
 
-    cpi_ix_data.num_unique_appends = index_merkle_tree_account as u8;
+    cpi_ix_data.num_output_queues = index_merkle_tree_account as u8;
     Ok(hash_chain)
 }

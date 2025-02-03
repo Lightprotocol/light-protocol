@@ -1,4 +1,4 @@
-use core::mem::size_of;
+use core::{mem::size_of, ops::Deref};
 use std::vec::Vec;
 
 use zerocopy::{little_endian::U32, FromBytes, Immutable, KnownLayout, Ref};
@@ -10,6 +10,7 @@ where
     Self: Sized,
 {
     type Output;
+
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError>;
 }
 
@@ -69,4 +70,39 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
         }
         Ok((slices, bytes))
     }
+}
+
+pub struct VecU8<T>(Vec<T>);
+
+impl<T> Deref for VecU8<T> {
+    type Target = Vec<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a, T: Deserialize<'a>> Deserialize<'a> for VecU8<T> {
+    type Output = Vec<T::Output>;
+
+    #[inline]
+    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+        let (num_slices, mut bytes) = Ref::<&[u8], u8>::from_prefix(bytes)?;
+        let num_slices = u32::from(*num_slices) as usize;
+        let mut slices = Vec::with_capacity(num_slices);
+        for _ in 0..num_slices {
+            let (slice, _bytes) = T::zero_copy_at(bytes)?;
+            bytes = _bytes;
+            slices.push(slice);
+        }
+        Ok((slices, bytes))
+    }
+}
+
+#[test]
+fn test_vecu8() {
+    use std::vec;
+    let bytes = vec![8, 1u8, 2, 3, 4, 5, 6, 7, 8];
+    let (vec, remaining_bytes) = VecU8::<u8>::zero_copy_at(&bytes).unwrap();
+    assert_eq!(vec, vec![1u8, 2, 3, 4, 5, 6, 7, 8]);
+    assert_eq!(remaining_bytes, &[]);
 }

@@ -406,6 +406,16 @@ pub fn process<
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(ctx.remaining_accounts, ctx.accounts.get_fee_payer())?;
+    // No elements are to be inserted into the queue.
+    // -> tx only contains read only accounts.
+    if inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+        && inputs.new_address_params.is_empty()
+        && inputs.output_compressed_accounts.is_empty()
+    {
+        return Ok(());
+    }
     // 17. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
 }

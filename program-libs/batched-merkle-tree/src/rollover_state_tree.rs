@@ -66,6 +66,7 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
         new_state_merkle_tree,
         old_state_merkle_tree.data_len(),
     )?;
+
     // 4. Check that new Queue account is exactly rent exempt.
     let queue_rent =
         check_account_balance_is_rent_exempt(new_output_queue, old_output_queue.data_len())?;
@@ -98,6 +99,10 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
     // 5. Rollover the old Merkle tree and queue to new Merkle tree and queue.
     rollover_batched_state_tree(params)?;
     let rent = merkle_tree_rent + queue_rent + additional_bytes_rent;
+    #[cfg(target_os = "solana")]
+    if old_output_queue.lamports().saturating_sub(rent) == 0 {
+        return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
+    }
     Ok(rent)
 }
 

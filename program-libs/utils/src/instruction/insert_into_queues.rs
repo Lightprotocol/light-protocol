@@ -115,9 +115,9 @@ pub struct AppendNullifyCreateAddressInputsMeta {
     is_invoked_by_program: u8,
     pub bump: u8,
     pub num_queues: u8,
-    pub num_unique_appends: u8,
+    pub num_output_queues: u8,
     pub start_output_appends: u8,
-    pub num_address_appends: u8,
+    pub num_address_queues: u8,
     pub tx_hash: [u8; 32],
 }
 

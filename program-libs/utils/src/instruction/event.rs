@@ -214,7 +214,7 @@ pub fn match_system_program_instruction(
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
             // event.message = data.message;
-            Ok(false)
+            Ok(true)
         }
         _ => Ok(false),
     }

@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
@@ -182,5 +183,14 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         &ctx.accounts.fee_payer.to_account_info(),
         lamports,
     )?;
+    if ctx
+        .accounts
+        .old_state_merkle_tree
+        .to_account_info()
+        .lamports()
+        == 0
+    {
+        return Err(ProgramError::from(MerkleTreeMetadataError::NotReadyForRollover).into());
+    }
     Ok(())
 }

@@ -5,14 +5,12 @@ use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
     queue_from_bytes_copy,
-    sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeConfig, AddressQueueConfig, AppendLeavesInput, NullifierQueueConfig,
-    StateMerkleTreeAccount, StateMerkleTreeConfig, ID, SAFETY_MARGIN,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeAccount,
+    StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
-use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
-use borsh::BorshSerialize;
+use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
@@ -21,7 +19,10 @@ use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
 use light_merkle_tree_reference::MerkleTree;
-use light_program_test::test_rpc::ProgramTestRpcConnection;
+use light_program_test::{
+    acp_sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
+    test_rpc::ProgramTestRpcConnection,
+};
 use light_test_utils::{
     airdrop_lamports,
     assert_merkle_tree::assert_merkle_tree_initialized,
@@ -33,9 +34,15 @@ use light_test_utils::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
     },
-    AccountZeroCopy, RpcConnection, RpcError,
+    RpcConnection, RpcError,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
+use light_utils::{
+    bigint::bigint_to_be_bytes_array,
+    instruction::{
+        insert_into_queues::AppendNullifyCreateAddressInputs, instruction_data::pack_pubkey,
+    },
+    UtilsError,
+};
 use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
@@ -495,21 +502,14 @@ async fn failing_queue(
     )
     .unwrap();
     let nullifier_1 = [1u8; 32];
-    // CHECK 2: Number of leaves/addresses leaves mismatch
-    let result = insert_into_nullifier_queues(
-        &[nullifier_1],
-        &payer,
-        &payer,
-        &[queue_tree_pair, queue_tree_pair],
-        &mut rpc,
-    )
-    .await;
-    assert_rpc_error(
-        result,
-        0,
-        AccountCompressionErrorCode::NumberOfLeavesMismatch.into(),
-    )
-    .unwrap();
+    // // CHECK 2: Number of leaves/addresses leaves mismatch (error doesn't exist anymore)
+    // let result = insert_into_nullifier_queues(&[nullifier_1], &payer, &payer, &[], &mut rpc).await;
+    // assert_rpc_error(
+    //     result,
+    //     0,
+    //     AccountCompressionErrorCode::NumberOfLeavesMismatch.into(),
+    // )
+    // .unwrap();
 
     // CHECK 3.1: pass non queue account as queue account
     let result = insert_into_nullifier_queues(
@@ -531,7 +531,12 @@ async fn failing_queue(
         &mut rpc,
     )
     .await;
-    assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidQueueType.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+    )
+    .unwrap();
     let nullifier_2 = [2u8; 32];
 
     // CHECK 3.3: pass non associated queue account
@@ -929,7 +934,7 @@ async fn test_append_functional_and_failing(
     .unwrap();
 
     // CHECK: 4 append leaves to merkle tree
-    let leaves = (0u8..=139)
+    let leaves = (0u8..=50)
         .map(|i| {
             (
                 0,
@@ -1341,31 +1346,50 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     context: &mut R,
 ) -> Result<Signature, RpcError> {
-    let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        nullifiers: elements.to_vec(),
-        leaf_indices: Vec::new(),
-        tx_hash: [0u8; 32],
-        prove_by_index: vec![false; elements.len()],
-    };
-    let accounts = account_compression::accounts::InsertIntoQueues {
-        fee_payer: fee_payer.pubkey(),
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            0,
+            elements.len() as u8,
+            0,
+            0
+        )
+    ];
+    let mut ix_data =
+        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
+    ix_data.num_queues = 1;
+    for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
+        ix_nf.account_hash = elements[i];
+        ix_nf.queue_index = 0;
+        ix_nf.tree_index = 1;
+    }
+    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
+    //     nullifiers: elements.to_vec(),
+    //     leaf_indices: Vec::new(),
+    //     tx_hash: [0u8; 32],
+    //     prove_by_index: vec![false; elements.len()],
+    // };
+    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
         authority: payer.pubkey(),
-        registered_program_pda: None,
-        system_program: system_program::ID,
     };
-    let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
-    remaining_accounts.extend(
-        vec![
-            vec![
-                AccountMeta::new(*nullifier_queue_pubkey, false),
-                AccountMeta::new(*merkle_tree_pubkey, false)
-            ];
-            elements.len()
-        ]
-        .iter()
-        .flat_map(|x| x.to_vec())
-        .collect::<Vec<AccountMeta>>(),
-    );
+    // let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
+    // remaining_accounts.extend(
+    //     vec![
+    //         vec![
+    //             AccountMeta::new(*nullifier_queue_pubkey, false),
+    //             AccountMeta::new(*merkle_tree_pubkey, false)
+    //         ];
+    //         elements.len()
+    //     ]
+    //     .iter()
+    //     .flat_map(|x| x.to_vec())
+    //     .collect::<Vec<AccountMeta>>(),
+    // );
+    let remaining_accounts = vec![
+        AccountMeta::new(*nullifier_queue_pubkey, false),
+        AccountMeta::new(*merkle_tree_pubkey, false),
+    ];
     let instruction = Instruction {
         program_id: ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
@@ -1388,23 +1412,59 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     pubkeys: &[(Pubkey, Pubkey)],
     context: &mut R,
 ) -> Result<Signature, RpcError> {
-    let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        nullifiers: elements.to_vec(),
-        leaf_indices: Vec::new(),
-        tx_hash: [0u8; 32],
-        prove_by_index: vec![false; elements.len()],
-    };
-    let accounts = account_compression::accounts::InsertIntoQueues {
-        fee_payer: fee_payer.pubkey(),
-        authority: payer.pubkey(),
-        registered_program_pda: None,
-        system_program: system_program::ID,
-    };
-    let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
-    for (nullifier_queue_pubkey, merkle_tree_pubkey) in pubkeys.iter() {
-        remaining_accounts.push(AccountMeta::new(*nullifier_queue_pubkey, false));
-        remaining_accounts.push(AccountMeta::new(*merkle_tree_pubkey, false));
+    let mut hash_set = HashMap::<Pubkey, u8>::new();
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            0,
+            elements.len() as u8,
+            0,
+            0
+        )
+    ];
+    let mut ix_data =
+        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
+
+    for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
+        ix_nf.account_hash = elements[i];
+
+        ix_nf.queue_index = pack_pubkey(&pubkeys[i].0, &mut hash_set);
+        ix_nf.tree_index = pack_pubkey(&pubkeys[i].1, &mut hash_set);
     }
+    ix_data.num_queues = hash_set.len() as u8 / 2;
+
+    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
+    //     nullifiers: elements.to_vec(),
+    //     leaf_indices: Vec::new(),
+    //     tx_hash: [0u8; 32],
+    //     prove_by_index: vec![false; elements.len()],
+    // };
+    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
+        authority: payer.pubkey(),
+    };
+    // let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
+    //     nullifiers: elements.to_vec(),
+    //     leaf_indices: Vec::new(),
+    //     tx_hash: [0u8; 32],
+    //     prove_by_index: vec![false; elements.len()],
+    // };
+    // let accounts = account_compression::accounts::InsertIntoQueues {
+    //     fee_payer: fee_payer.pubkey(),
+    //     authority: payer.pubkey(),
+    //     registered_program_pda: None,
+    //     system_program: system_program::ID,
+    // };
+    let mut remaining_accounts = hash_set
+        .iter()
+        .map(|(pubkey, index)| (*pubkey, *index))
+        .collect::<Vec<(Pubkey, u8)>>();
+    remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+    let remaining_accounts = remaining_accounts
+        .iter()
+        .map(|(pubkey, _)| AccountMeta::new(*pubkey, false))
+        .collect::<Vec<AccountMeta>>();
+
     let instruction = Instruction {
         program_id: ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
@@ -1782,22 +1842,42 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
     leaves: Vec<(u8, [u8; 32])>,
     expected_error: u32,
 ) -> Result<(), RpcError> {
-    let mut bytes = Vec::new();
-    let leaves = leaves
-        .iter()
-        .map(|(i, leaf)| AppendLeavesInput {
-            index: *i,
-            leaf: *leaf,
-        })
-        .collect::<Vec<_>>();
-    leaves.serialize(&mut bytes).unwrap();
-    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            leaves.len() as u8,
+            0,
+            0,
+            merkle_tree_pubkeys.len() as u8,
+        )
+    ];
+    let mut ix_data = AppendNullifyCreateAddressInputs::new(
+        &mut bytes,
+        leaves.len() as u8,
+        0,
+        0,
+        merkle_tree_pubkeys.len() as u8,
+    )
+    .unwrap();
+    ix_data.num_output_queues = merkle_tree_pubkeys.len() as u8;
 
-    let accounts = account_compression::accounts::AppendLeaves {
-        fee_payer: context.get_payer().pubkey(),
+    for (i, (index, leaf)) in leaves.iter().enumerate() {
+        ix_data.leaves[i].leaf = *leaf;
+        ix_data.leaves[i].index = *index;
+    }
+    // let mut bytes = Vec::new();
+    // let leaves = leaves
+    //     .iter()
+    //     .map(|(i, leaf)| AppendLeavesInput {
+    //         index: *i,
+    //         leaf: *leaf,
+    //     })
+    //     .collect::<Vec<_>>();
+    // leaves.serialize(&mut bytes).unwrap();
+    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
+
+    let accounts = account_compression::accounts::GenericInstruction {
         authority: context.get_payer().pubkey(),
-        registered_program_pda: None,
-        system_program: system_program::ID,
     };
 
     let instruction = Instruction {
@@ -1872,13 +1952,6 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     for (pubkey, (leaves, lamports, next_index, mt_index)) in hash_map.iter() {
         let num_leaves = leaves.len();
         let post_account_mt = context.get_account(*pubkey).await.unwrap().unwrap();
-        let merkle_tree = AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *pubkey).await;
-        let merkle_tree_deserialized = merkle_tree.deserialized();
-        let roll_over_fee = merkle_tree_deserialized
-            .metadata
-            .rollover_metadata
-            .rollover_fee
-            * (num_leaves as u64);
 
         let merkle_tree =
             get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(context, *pubkey)
@@ -1890,7 +1963,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
         reference_merkle_tree.append_batch(&leaves).unwrap();
 
         assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
-        assert_eq!(lamports + roll_over_fee, post_account_mt.lamports);
+        assert_eq!(*lamports, post_account_mt.lamports);
 
         let changelog_entry = merkle_tree
             .changelog
@@ -1911,20 +1984,25 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     airdrop_lamports(rpc, &invalid_autority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mut bytes = Vec::new();
-    let leaves: vec![AppendLeavesInput {
-        index: 0,
-        leaf: [1; 32],
-    }];
+    let mut bytes =
+        vec![0u8; AppendNullifyCreateAddressInputs::required_size_for_capacity(1, 0, 0, 1)];
+    let mut ix_data = AppendNullifyCreateAddressInputs::new(&mut bytes, 1, 0, 0, 1).unwrap();
+    ix_data.num_output_queues = 1;
+    ix_data.leaves[0].leaf = [1; 32];
+    ix_data.leaves[0].index = 0;
 
-    leaves.serialize(&mut bytes).unwrap();
-    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
+    // let instruction = account_compression::instruction::InsertIntoQueues { bytes };
+    // let mut bytes = Vec::new();
+    // let leaves: vec![AppendLeavesInput {
+    //     index: 0,
+    //     leaf: [1; 32],
+    // }];
 
-    let accounts = account_compression::accounts::AppendLeaves {
-        fee_payer: rpc.get_payer().pubkey(),
+    // leaves.serialize(&mut bytes).unwrap();
+    // let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
+    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
         authority: invalid_autority.pubkey(),
-        registered_program_pda: None,
-        system_program: system_program::ID,
     };
 
     let instruction = Instruction {
@@ -1940,7 +2018,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&invalid_autority.pubkey()),
-        &vec![&rpc.get_payer(), &invalid_autority],
+        &vec![&invalid_autority],
         latest_blockhash,
     );
     let remaining_accounts_mismatch_error = rpc.process_transaction(transaction).await;

@@ -60,7 +60,13 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                 .merkle_context
                 .merkle_tree_pubkey_index as i16;
             current_hashed_mt = match &accounts[current_mt_index as usize] {
-                AcpAccount::BatchedStateTree(queue) => queue.hashed_pubkey,
+                AcpAccount::BatchedStateTree(tree) => {
+                    context.set_network_fee(
+                        tree.metadata.rollover_metadata.network_fee,
+                        current_mt_index as u8,
+                    );
+                    tree.hashed_pubkey
+                }
                 AcpAccount::StateTree(_) => {
                     context
                         .get_legacy_merkle_context(current_mt_index as u8)

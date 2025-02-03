@@ -1,50 +1,67 @@
-// use anchor_lang::{prelude::AccountMeta, system_program};
-// use light_client::rpc::{RpcConnection, RpcError};
-// use solana_sdk::{
-//     instruction::Instruction,
-//     pubkey::Pubkey,
-//     signature::{Signature, Signer},
-//     transaction::Transaction,
-// };
+use account_compression::instruction::InsertIntoQueues;
+use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
+use light_client::rpc::{RpcConnection, RpcError};
+use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
+use solana_sdk::{
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::{Signature, Signer},
+    transaction::Transaction,
+};
 
-// pub async fn insert_addresses<R: RpcConnection>(
-//     context: &mut R,
-//     address_queue_pubkey: Pubkey,
-//     address_merkle_tree_pubkey: Pubkey,
-//     addresses: Vec<[u8; 32]>,
-// ) -> Result<Signature, RpcError> {
-//     let num_addresses = addresses.len();
-//     let instruction_data = InsertAddresses { addresses };
-//     let accounts = account_compression::accounts::InsertIntoQueues {
-//         fee_payer: context.get_payer().pubkey(),
-//         authority: context.get_payer().pubkey(),
-//         registered_program_pda: None,
-//         system_program: system_program::ID,
-//     };
-//     let insert_ix = Instruction {
-//         program_id: account_compression::ID,
-//         accounts: [
-//             accounts.to_account_metas(Some(true)),
-//             vec![
-//                 vec![
-//                     AccountMeta::new(address_queue_pubkey, false),
-//                     AccountMeta::new(address_merkle_tree_pubkey, false)
-//                 ];
-//                 num_addresses
-//             ]
-//             .iter()
-//             .flat_map(|x| x.to_vec())
-//             .collect::<Vec<AccountMeta>>(),
-//         ]
-//         .concat(),
-//         data: instruction_data.data(),
-//     };
-//     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
-//     let transaction = Transaction::new_signed_with_payer(
-//         &[insert_ix],
-//         Some(&context.get_payer().pubkey()),
-//         &[&context.get_payer()],
-//         latest_blockhash,
-//     );
-//     context.process_transaction(transaction).await
-// }
+pub async fn insert_addresses<R: RpcConnection>(
+    context: &mut R,
+    address_queue_pubkey: Pubkey,
+    address_merkle_tree_pubkey: Pubkey,
+    addresses: Vec<[u8; 32]>,
+) -> Result<Signature, RpcError> {
+    let num_addresses = addresses.len();
+    let mut bytes = vec![
+        0u8;
+        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+            0,
+            0,
+            addresses.len() as u8,
+            0,
+        )
+    ];
+    let ix_data =
+        &mut AppendNullifyCreateAddressInputs::new(&mut bytes, 0, 0, addresses.len() as u8, 0)
+            .unwrap();
+    ix_data.num_address_queues = 1;
+    for (a_ix, address) in ix_data.addresses.iter_mut().zip(addresses.iter()) {
+        a_ix.address = *address;
+        a_ix.queue_index = 0;
+        a_ix.tree_index = 1;
+    }
+    let instruction_data = InsertIntoQueues { bytes };
+    let accounts = account_compression::accounts::GenericInstruction {
+        authority: context.get_payer().pubkey(),
+    };
+    let insert_ix = Instruction {
+        program_id: account_compression::ID,
+        accounts: [
+            accounts.to_account_metas(Some(true)),
+            vec![
+                vec![
+                    AccountMeta::new(address_queue_pubkey, false),
+                    AccountMeta::new(address_merkle_tree_pubkey, false)
+                ];
+                num_addresses
+            ]
+            .iter()
+            .flat_map(|x| x.to_vec())
+            .collect::<Vec<AccountMeta>>(),
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[insert_ix],
+        Some(&context.get_payer().pubkey()),
+        &[&context.get_payer()],
+        latest_blockhash,
+    );
+    context.process_transaction(transaction).await
+}

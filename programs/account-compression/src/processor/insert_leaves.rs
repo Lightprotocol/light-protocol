@@ -16,7 +16,7 @@ use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     leaves: &[AppendLeavesInput],
     start_output_appends: u8,
-    num_unique_appends: u8,
+    num_output_queues: u8,
     accounts: &mut [AcpAccount<'a, 'info>],
 ) -> Result<()> {
     if leaves.is_empty() {
@@ -26,8 +26,12 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         return err!(AccountCompressionErrorCode::TooManyLeaves);
     }
     let mut leaves_processed: u8 = 0;
+    msg!("start_output_appends: {}", start_output_appends);
+    msg!("num_output_queues: {}", num_output_queues);
+    msg!("leaves {:?}", leaves);
+    msg!("num accounts: {}", accounts.len());
     // 1. Iterate over all remaining accounts (Merkle tree or output queue accounts)
-    for i in start_output_appends..start_output_appends + num_unique_appends {
+    for i in start_output_appends..start_output_appends + num_output_queues {
         let account = &mut accounts[i as usize];
         // 2. get first leaves that points to current Merkle tree account
         let start = match leaves.iter().position(|x| x.index == i) {
@@ -71,6 +75,8 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     }
     // 5. check if all leaves are processed
     if leaves_processed != leaves.len() as u8 {
+        msg!("leaves processed {}", leaves_processed);
+        msg!("leaves {}, ", leaves.len());
         err!(crate::errors::AccountCompressionErrorCode::NotAllLeavesProcessed)
     } else {
         Ok(())

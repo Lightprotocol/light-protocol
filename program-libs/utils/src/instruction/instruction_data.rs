@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -59,4 +61,15 @@ pub struct ReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,
+}
+
+pub fn pack_pubkey(pubkey: &Pubkey, hash_set: &mut HashMap<Pubkey, u8>) -> u8 {
+    match hash_set.get(pubkey) {
+        Some(index) => *index,
+        None => {
+            let index = hash_set.len() as u8;
+            hash_set.insert(*pubkey, index);
+            index
+        }
+    }
 }
