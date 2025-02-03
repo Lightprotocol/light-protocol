@@ -59,20 +59,6 @@ where
         Ok((ZeroCopySlice { length, bytes }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num_slices: usize,
-        mut bytes: &'a [u8],
-    ) -> Result<(Vec<Self>, &'a [u8]), ZeroCopyError> {
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
-    }
-
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
         if self.len() != N {
             return Err(ZeroCopyError::ArraySize(N, self.len()));

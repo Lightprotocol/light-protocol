@@ -46,6 +46,7 @@ where
         let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
 
         let (mut metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
+
         if u64::from(metadata[LENGTH_INDEX]) != 0 || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
@@ -55,21 +56,6 @@ where
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, capacity_usize)?;
         Ok((Self { metadata, slice }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
     }
 
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
@@ -99,20 +85,6 @@ where
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((Self { metadata, slice }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
     }
 
     /// Convenience method to get the current index of the vector.

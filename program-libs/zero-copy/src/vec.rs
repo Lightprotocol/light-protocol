@@ -59,21 +59,6 @@ where
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
-    }
-
     #[inline]
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
@@ -102,20 +87,6 @@ where
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((Self { metadata, slice }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
     }
 
     /// Convenience method to get the length of the vector.
