@@ -19,7 +19,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     epoch_info::EpochInfo,
     instruction::Instruction,
-    signature::{Keypair, Signature, Signer},
+    signature::{Keypair, Signature},
     transaction::Transaction,
 };
 use solana_transaction_status::{
@@ -464,12 +464,14 @@ impl RpcConnection for SolanaRpcConnection {
         let mut vec_accounts = Vec::new();
         instructions_vec.iter().for_each(|x| {
             vec.push(x.data.clone());
-            use solana_sdk::signature::Signer;
-            use std::ops::Deref;
-            use solana_sdk::instruction::AccountMeta;
-            vec_accounts.push(x.accounts.iter().map(|x| x.pubkey.clone()).collect());
+            vec_accounts.push(x.accounts.iter().map(|x| x.pubkey).collect());
         });
         {
+            let rpc_transaction_config = RpcTransactionConfig {
+                encoding: Some(UiTransactionEncoding::Base64),
+                commitment: Some(self.client.commitment()),
+                ..Default::default()
+            };
             let transaction = self
                 .client
                 .get_transaction_with_config(&signature, rpc_transaction_config)
