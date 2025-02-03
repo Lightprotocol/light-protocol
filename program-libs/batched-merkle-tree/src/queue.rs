@@ -74,13 +74,20 @@ impl BatchedQueueMetadata {
                 batch_size * (i as u64),
             );
         }
+        println!(
+            "merkle tree pubkey key: {:?}",
+            meta_data.associated_merkle_tree
+        );
         self.hashed_merkle_tree_pubkey =
             hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes())
                 .unwrap()
                 .0;
+        println!("hashed mt {:?}", self.hashed_merkle_tree_pubkey);
+        println!("queue_pubkey pubkey key: {:?}", queue_pubkey);
         self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())
             .unwrap()
             .0;
+        println!("hashed queue {:?}", self.hashed_queue_pubkey);
         Ok(())
     }
 }
