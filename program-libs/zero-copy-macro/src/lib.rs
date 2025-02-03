@@ -14,12 +14,11 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
         panic!("ZeroCopyAccount can only be derived for structs");
     };
 
-    let mut meta_fields = Vec::new();
-    let mut optional_fields = Vec::new();
-    let mut optional_field_inits = Vec::new();
     let mut meta_struct_fields = Vec::new();
+    let mut optional_fields = Vec::new();
     let mut deserialize_code = Vec::new();
     let mut deserialize_field_inits = Vec::new();
+    let mut from_field_inits = Vec::new();
 
     for field in fields.iter() {
         let field_name = field.ident.as_ref().unwrap();
@@ -43,14 +42,15 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
 
                             deserialize_code.push(quote! {
                                 let (#field_name, bytes) = if meta.#flag_name == 1 {
-                                    let (val, bytes) = zerocopy::Ref::<&[u8], #inner_type_name>::zero_copy_at(bytes)?;
-                                    (Some(val), bytes)
+                                    let val = zerocopy::Ref::new(&bytes[..std::mem::size_of::<#inner_type_name>()])
+                                        .ok_or(light_zero_copy::errors::ZeroCopyError::InvalidData)?;
+                                    (Some(val), &bytes[std::mem::size_of::<#inner_type_name>()..])
                                 } else {
                                     (None, bytes)
                                 };
                             });
 
-                            optional_field_inits.push(quote! {
+                            from_field_inits.push(quote! {
                                 #field_name: z_account.#field_name.map(|x| *x)
                             });
 
@@ -68,8 +68,8 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
         meta_struct_fields.push(quote! {
             pub #field_name: #converted_type
         });
-        meta_fields.push(quote! {
-            #field_name: z_account.meta.#field_name.into()
+        from_field_inits.push(quote! {
+            #field_name: z_account.meta.#field_name.get()
         });
     }
 
@@ -77,12 +77,12 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #[repr(C)]
-        #[derive(zerocopy::FromBytes, zerocopy::AsBytes, zerocopy::Unaligned)]
+        #[derive(zerocopy::FromBytes, zerocopy::AsBytes, zerocopy::Unaligned, Debug, Clone, PartialEq)]
         pub struct #meta_struct_name {
             #(#meta_struct_fields),*
         }
 
-        #[derive(Debug, PartialEq, Clone)]
+        #[derive(Debug, PartialEq)]
         pub struct #z_struct_name<'a> {
             meta: zerocopy::Ref<&'a [u8], #meta_struct_name>,
             #(#optional_fields),*
@@ -98,8 +98,7 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
         impl From<&#z_struct_name<'_>> for #struct_name {
             fn from(z_account: &#z_struct_name) -> Self {
                 Self {
-                    #(#meta_fields,)*
-                    #(#optional_field_inits),*
+                    #(#from_field_inits),*
                 }
             }
         }
@@ -108,7 +107,9 @@ pub fn derive_zero_copy_account(input: TokenStream) -> TokenStream {
             type Output = Self;
 
             fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), light_zero_copy::errors::ZeroCopyError> {
-                let (meta, mut bytes) = zerocopy::Ref::<&[u8], #meta_struct_name>::from_prefix(bytes)?;
+                let meta = zerocopy::Ref::new(bytes)
+                    .ok_or(light_zero_copy::errors::ZeroCopyError::InvalidData)?;
+                let mut bytes = &bytes[std::mem::size_of::<#meta_struct_name>()..];
                 #(#deserialize_code)*
                 Ok((
                     Self {
