@@ -139,7 +139,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<
         (pool_pda.to_account_info(), true)
     } else {
         // Account is None
-        (accounts.system_program().to_account_info(), false)
+        (accounts.light_system_program().to_account_info(), false)
     };
 
     // 1300 CU
@@ -152,10 +152,10 @@ pub fn cpi_execute_compressed_transaction_mint_to<
         accounts.account_compression_program().to_account_info(),
         accounts.self_program().to_account_info(),
         sol_pool_pda,
-        accounts.system_program().to_account_info(), // none compression_recipient
+        accounts.light_system_program().to_account_info(), // none compression_recipient
         accounts.system_program().to_account_info(),
-        accounts.system_program().to_account_info(), // none cpi_context_account
-        accounts.merkle_tree().to_account_info(),    // first remaining account
+        accounts.light_system_program().to_account_info(), // none cpi_context_account
+        accounts.merkle_tree().to_account_info(),          // first remaining account
     ];
 
     // account_metas take 1k cu
@@ -362,6 +362,7 @@ pub trait ProcessMintToOrCompressV2Accounts<'info> {
     fn self_program(&self) -> &Program<'info, LightCompressedToken>;
     fn system_program(&self) -> &Program<'info, System>;
     fn merkle_tree(&self) -> &UncheckedAccount<'info>;
+    fn light_system_program(&self) -> &Program<'info, LightSystemProgram>;
 }
 
 impl<'info> ProcessMintToOrCompressV2Accounts<'info> for MintToInstruction<'info> {
@@ -397,6 +398,9 @@ impl<'info> ProcessMintToOrCompressV2Accounts<'info> for MintToInstruction<'info
     }
     fn merkle_tree(&self) -> &UncheckedAccount<'info> {
         &self.merkle_tree
+    }
+    fn light_system_program(&self) -> &Program<'info, LightSystemProgram> {
+        &self.light_system_program
     }
 }
 

@@ -84,4 +84,7 @@ impl<'info> ProcessMintToOrCompressV2Accounts<'info> for CompressV2Instruction<'
     fn merkle_tree(&self) -> &UncheckedAccount<'info> {
         &self.merkle_tree
     }
+    fn light_system_program(&self) -> &Program<'info, LightSystemProgram> {
+        &self.light_system_program
+    }
 }
