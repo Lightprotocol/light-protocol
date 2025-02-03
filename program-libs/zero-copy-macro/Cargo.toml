@@ -1,0 +1,21 @@
+[lib]
+proc-macro = true
+
+[package]
+name = "zero-copy-macro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+borsh = "1.5.5"
+solana-program.workspace = true
+zerocopy = "0.7.35"
+light-zero-copy.workspace = true
+
+[dev-dependencies]
+
+[lints]
+workspace = true
