@@ -65,10 +65,11 @@ pub fn event_from_light_transaction(
     let pos = instructions
         .iter()
         .position(|x| match_account_compression_program_instruction(x, &mut event).unwrap());
+
+    println!("pos {:?}", pos);
     if let Some(pos) = pos {
-        // -1 because it cannot be the first tx and we don't collect accounts of the first ix
-        // cut off the authority and registered program accounts
-        event.pubkey_array = remaining_accounts[pos - 1][2..].to_vec().clone();
+        println!("remaining accounts {:?}", remaining_accounts);
+        event.pubkey_array = remaining_accounts[pos][2..].to_vec().clone();
         println!("event pubkey array {:?}", event.pubkey_array);
         Ok(Some(event))
     } else {

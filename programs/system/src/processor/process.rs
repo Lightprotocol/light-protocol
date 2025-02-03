@@ -131,20 +131,6 @@ pub fn process<
     .map_err(ProgramError::from)?;
     cpi_ix_data.set_invoked_by_program(true);
     cpi_ix_data.bump = CPI_AUTHORITY_PDA_BUMP;
-    msg!(
-        "cpi_ix_data.nullifiers len: {}",
-        cpi_ix_data.nullifiers.len()
-    );
-    msg!("cpi_ix_data.leaves len: {}", cpi_ix_data.leaves.len());
-    msg!("cpi_ix_data.addresses len: {}", cpi_ix_data.addresses.len());
-    msg!(
-        "outputs owners len: {:?}",
-        inputs
-            .output_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.owner)
-            .collect::<Vec<_>>()
-    );
 
     // 4. Create new & verify read-only addresses ---------------------------------------------------
     let read_only_addresses =

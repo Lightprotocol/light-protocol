@@ -130,11 +130,6 @@ impl<'info> SystemContext<'info> {
         accounts: &[AccountInfo<'info>],
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
-        msg!("accounts len: {:?}", accounts.len());
-        msg!(
-            "pubkeys {:?}",
-            self.accounts.iter().map(|a| a.pubkey).collect::<Vec<_>>()
-        );
         // TODO: if len is 1 don't do a cpi mutate lamports.
         for (i, fee) in self.rollover_fee_payments.iter() {
             msg!("paying fee: {:?}", fee);

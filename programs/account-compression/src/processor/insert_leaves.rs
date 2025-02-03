@@ -26,10 +26,6 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         return err!(AccountCompressionErrorCode::TooManyLeaves);
     }
     let mut leaves_processed: u8 = 0;
-    msg!("start_output_appends: {}", start_output_appends);
-    msg!("num_output_queues: {}", num_output_queues);
-    msg!("leaves {:?}", leaves);
-    msg!("num accounts: {}", accounts.len());
     // 1. Iterate over all remaining accounts (Merkle tree or output queue accounts)
     for i in start_output_appends..start_output_appends + num_output_queues {
         let account = &mut accounts[i as usize];
