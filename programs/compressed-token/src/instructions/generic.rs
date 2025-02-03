@@ -34,6 +34,8 @@ pub struct GenericInstruction<'info> {
     pub system_program: Program<'info, System>,
 }
 
+// TODO: check if this is an issue when using it in process_mint_to and
+// cpi_execute_compressed_transaction_mint_to
 impl<'info> InvokeAccounts<'info> for GenericInstruction<'info> {
     fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
         &self.registered_program_pda

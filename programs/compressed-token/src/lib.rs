@@ -35,6 +35,8 @@ pub mod light_compressed_token {
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
     use spl_compression::check_spl_token_pool_derivation_with_index;
 
+    use crate::spl_compression::compress_spl_tokens;
+
     use super::*;
 
     /// This instruction creates a token pool for a given mint. Every spl mint
@@ -79,7 +81,27 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts, lamports)
+        // 7,912 CU
+        #[cfg(target_os = "solana")]
+        {
+            mint_spl_to_pool_pda(&ctx, &amounts)?;
+        }
+        process_mint_to(ctx.accounts, &public_keys, &amounts, lamports)
+    }
+
+    pub fn compress_v2<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressV2Instruction<'info>>,
+        public_keys: Vec<Pubkey>,
+        amount: u64,
+        lamports: Option<u64>,
+    ) -> Result<()> {
+        let amounts = vec![amount; public_keys.len()];
+
+        #[cfg(target_os = "solana")]
+        {
+            compress_spl_tokens(&amount, &ctx.accounts.mint.key(), ctx);
+        }
+        process_mint_to(ctx.accounts, &public_keys, &amounts, lamports)
     }
 
     /// Compresses the balance of an spl token account sub an optional remaining
@@ -216,6 +238,8 @@ pub enum ErrorCode {
     HashToFieldError,
     #[msg("Expected the authority to be also a mint authority")]
     InvalidAuthorityMint,
+    #[msg("Provided mint is not the same as the source token account mint")]
+    InvalidSourceTokenAccountMint,
     #[msg("Provided authority is not the freeze authority")]
     InvalidFreezeAuthority,
     InvalidDelegateIndex,

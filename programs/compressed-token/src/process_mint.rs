@@ -10,7 +10,7 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
-use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
+use crate::{check_spl_token_pool_derivation, program::LightCompressedToken, TransferInstruction};
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -24,11 +24,12 @@ use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 /// 4. Serialize cpi instruction data and free memory up to
 ///    pre_compressed_acounts_pos.
 /// 5. Invoke system program to execute the compressed transaction.
+// TODO: consider renaming to process_mint_to_or_compress_v2
 #[allow(unused_variables)]
-pub fn process_mint_to(
-    ctx: Context<MintToInstruction>,
-    recipient_pubkeys: Vec<Pubkey>,
-    amounts: Vec<u64>,
+pub fn process_mint_to<'info, T: ProcessMintToOrCompressV2Accounts<'info>>(
+    accounts: &T,
+    recipient_pubkeys: &[Pubkey],
+    amounts: &[u64],
     lamports: Option<u64>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
@@ -63,11 +64,8 @@ pub fn process_mint_to(
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
-        // 7,912 CU
-        mint_spl_to_pool_pda(&ctx, &amounts)?;
-
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
-        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
+        let hashed_mint = hash_to_bn254_field_size_be(accounts.mint().key().as_ref())
             .unwrap()
             .0;
         bench_sbf_start!("tm_output_compressed_accounts");
@@ -76,7 +74,7 @@ pub fn process_mint_to(
         let lamports_vec = lamports.map(|_| vec![lamports; amounts.len()]);
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
-            ctx.accounts.mint.key(),
+            accounts.mint().key(),
             recipient_pubkeys.as_slice(),
             None,
             None,
@@ -90,7 +88,7 @@ pub fn process_mint_to(
         bench_sbf_end!("tm_output_compressed_accounts");
 
         cpi_execute_compressed_transaction_mint_to(
-            &ctx,
+            accounts,
             output_compressed_accounts,
             &mut inputs,
             pre_compressed_acounts_pos,
@@ -112,8 +110,11 @@ pub fn process_mint_to(
 
 #[cfg(target_os = "solana")]
 #[inline(never)]
-pub fn cpi_execute_compressed_transaction_mint_to<'info>(
-    ctx: &Context<'_, '_, '_, 'info, MintToInstruction>,
+pub fn cpi_execute_compressed_transaction_mint_to<
+    'info,
+    T: ProcessMintToOrCompressV2Accounts<'info>,
+>(
+    accounts: &T,
     output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
@@ -135,28 +136,28 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     let instructiondata = light_system_program::instruction::InvokeCpi {
         inputs: inputs.to_owned(),
     };
-    let (sol_pool_pda, is_writable) = if let Some(pool_pda) = ctx.accounts.sol_pool_pda.as_ref() {
+    let (sol_pool_pda, is_writable) = if let Some(pool_pda) = accounts.sol_pool_pda().as_ref() {
         // Account is some
         (pool_pda.to_account_info(), true)
     } else {
         // Account is None
-        (ctx.accounts.light_system_program.to_account_info(), false)
+        (accounts.system_program().to_account_info(), false)
     };
 
     // 1300 CU
     let account_infos = vec![
-        ctx.accounts.fee_payer.to_account_info(),
-        ctx.accounts.cpi_authority_pda.to_account_info(),
-        ctx.accounts.registered_program_pda.to_account_info(),
-        ctx.accounts.noop_program.to_account_info(),
-        ctx.accounts.account_compression_authority.to_account_info(),
-        ctx.accounts.account_compression_program.to_account_info(),
-        ctx.accounts.self_program.to_account_info(),
+        accounts.fee_payer().to_account_info(),
+        accounts.cpi_authority_pda().to_account_info(),
+        accounts.registered_program_pda().to_account_info(),
+        accounts.noop_program().to_account_info(),
+        accounts.account_compression_authority().to_account_info(),
+        accounts.account_compression_program().to_account_info(),
+        accounts.self_program().to_account_info(),
         sol_pool_pda,
-        ctx.accounts.light_system_program.to_account_info(), // none compression_recipient
-        ctx.accounts.system_program.to_account_info(),
-        ctx.accounts.light_system_program.to_account_info(), // none cpi_context_account
-        ctx.accounts.merkle_tree.to_account_info(),          // first remaining account
+        accounts.system_program().to_account_info(), // none compression_recipient
+        accounts.system_program().to_account_info(),
+        accounts.system_program().to_account_info(), // none cpi_context_account
+        accounts.merkle_tree().to_account_info(),    // first remaining account
     ];
 
     // account_metas take 1k cu
@@ -349,6 +350,56 @@ pub struct MintToInstruction<'info> {
     /// CHECK: (different program) will be checked by the system program
     #[account(mut)]
     pub sol_pool_pda: Option<AccountInfo<'info>>,
+}
+
+pub trait ProcessMintToOrCompressV2Accounts<'info> {
+    fn mint(&self) -> &InterfaceAccount<'info, Mint>;
+    fn fee_payer(&self) -> &Signer<'info>;
+    fn sol_pool_pda(&self) -> Option<&AccountInfo<'info>>;
+    fn cpi_authority_pda(&self) -> &UncheckedAccount<'info>;
+    fn registered_program_pda(&self) -> &UncheckedAccount<'info>;
+    fn noop_program(&self) -> &UncheckedAccount<'info>;
+    fn account_compression_authority(&self) -> &UncheckedAccount<'info>;
+    fn account_compression_program(&self) -> &Program<'info, AccountCompression>;
+    fn self_program(&self) -> &Program<'info, LightCompressedToken>;
+    fn system_program(&self) -> &Program<'info, System>;
+    fn merkle_tree(&self) -> &UncheckedAccount<'info>;
+}
+
+impl<'info> ProcessMintToOrCompressV2Accounts<'info> for MintToInstruction<'info> {
+    fn mint(&self) -> &InterfaceAccount<'info, Mint> {
+        &self.mint
+    }
+    fn fee_payer(&self) -> &Signer<'info> {
+        &self.fee_payer
+    }
+    fn sol_pool_pda(&self) -> Option<&AccountInfo<'info>> {
+        self.sol_pool_pda.as_ref()
+    }
+    fn cpi_authority_pda(&self) -> &UncheckedAccount<'info> {
+        &self.cpi_authority_pda
+    }
+    fn registered_program_pda(&self) -> &UncheckedAccount<'info> {
+        &self.registered_program_pda
+    }
+    fn noop_program(&self) -> &UncheckedAccount<'info> {
+        &self.noop_program
+    }
+    fn account_compression_authority(&self) -> &UncheckedAccount<'info> {
+        &self.account_compression_authority
+    }
+    fn account_compression_program(&self) -> &Program<'info, AccountCompression> {
+        &self.account_compression_program
+    }
+    fn self_program(&self) -> &Program<'info, LightCompressedToken> {
+        &self.self_program
+    }
+    fn system_program(&self) -> &Program<'info, System> {
+        &self.system_program
+    }
+    fn merkle_tree(&self) -> &UncheckedAccount<'info> {
+        &self.merkle_tree
+    }
 }
 
 #[cfg(not(target_os = "solana"))]
