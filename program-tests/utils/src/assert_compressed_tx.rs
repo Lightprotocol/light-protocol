@@ -10,7 +10,6 @@ use light_client::{
 };
 use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
 use light_program_test::indexer::TestIndexerExtensions;
-use light_system_program::sdk::invoke::get_sol_pool_pda;
 use light_utils::instruction::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
@@ -18,6 +17,8 @@ use light_utils::instruction::{
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};
+
+use crate::system_program::get_sol_pool_pda;
 
 pub struct AssertCompressedTransactionInputs<
     'a,

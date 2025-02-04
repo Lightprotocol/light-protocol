@@ -6,11 +6,11 @@ pub mod invoke_cpi;
 pub mod processor;
 pub use invoke::instruction::*;
 pub use invoke_cpi::{initialize::*, instruction::*};
+pub mod account_traits;
 pub mod constants;
 pub mod context;
 pub mod errors;
 pub mod invoke;
-pub mod sdk;
 pub mod utils;
 
 use errors::SystemProgramError;

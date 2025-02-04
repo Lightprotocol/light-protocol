@@ -23,9 +23,6 @@ use light_prover_client::gnark::helpers::{spawn_prover, ProofType, ProverConfig,
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
     errors::SystemProgramError,
-    sdk::invoke::{
-        create_invoke_instruction, create_invoke_instruction_data_and_remaining_accounts,
-    },
     utils::{get_cpi_authority_pda, get_registered_program_pda},
 };
 use light_test_utils::{
@@ -33,7 +30,9 @@ use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error, assert_rpc_error,
     system_program::{
-        compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
+        compress_sol_test, create_addresses_test, create_invoke_instruction,
+        create_invoke_instruction_data_and_remaining_accounts, decompress_sol_test,
+        transfer_compressed_sol_test,
     },
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };

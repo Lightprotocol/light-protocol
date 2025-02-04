@@ -19,6 +19,7 @@ use crate::processor::{
     read_only_address::verify_read_only_address_queue_non_inclusion,
 };
 use crate::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     check_accounts::try_from_account_infos,
     constants::CPI_AUTHORITY_PDA_BUMP,
     errors::SystemProgramError,
@@ -31,7 +32,6 @@ use crate::{
         sum_check::sum_check,
         verify_proof::{read_address_roots, read_input_state_roots, verify_proof},
     },
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 /// Inputs:

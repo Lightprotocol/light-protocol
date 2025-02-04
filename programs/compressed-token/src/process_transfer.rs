@@ -2,7 +2,7 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
 use light_utils::{
     hash_to_bn254_field_size_be,
     instruction::{

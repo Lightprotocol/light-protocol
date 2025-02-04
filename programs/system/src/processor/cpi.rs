@@ -6,9 +6,9 @@ use anchor_lang::{
 use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
 
 use crate::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::SystemContext,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 pub fn create_cpi_data_and_context<

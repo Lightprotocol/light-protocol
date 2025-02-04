@@ -355,7 +355,7 @@ pub struct MintToInstruction<'info> {
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-    use light_system_program::sdk::invoke::get_sol_pool_pda;
+    use light_system_program::utils::get_sol_pool_pda;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{

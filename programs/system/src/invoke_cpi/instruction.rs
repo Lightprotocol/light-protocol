@@ -3,8 +3,8 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, system_program::Sy
 
 use super::account::CpiContextAccount;
 use crate::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 #[derive(Accounts)]

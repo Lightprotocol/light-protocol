@@ -2,8 +2,8 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenInterface};
 use light_system_program::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     program::LightSystemProgram,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 use crate::program::LightCompressedToken;

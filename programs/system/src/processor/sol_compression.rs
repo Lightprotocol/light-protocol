@@ -8,8 +8,8 @@ use anchor_lang::{
 use light_utils::instruction::instruction_data_zero_copy::ZInstructionDataInvoke;
 
 use crate::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 #[account]

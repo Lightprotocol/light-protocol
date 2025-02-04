@@ -2,8 +2,8 @@ use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
 use crate::{
+    account_traits::{InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.

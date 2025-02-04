@@ -8,8 +8,8 @@ use light_zero_copy::slice::ZeroCopySliceBorsh;
 
 use super::verify_signer::cpi_signer_checks;
 use crate::{
-    invoke_cpi::instruction::InvokeCpiInstruction, processor::process::process,
-    sdk::accounts::SignerAccounts,
+    account_traits::SignerAccounts, invoke_cpi::instruction::InvokeCpiInstruction,
+    processor::process::process,
 };
 
 /// Processes an `InvokeCpi` instruction.
