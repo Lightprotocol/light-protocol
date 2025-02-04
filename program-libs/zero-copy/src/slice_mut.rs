@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::Ref;
+use zerocopy::{little_endian::U32, Ref};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -15,6 +15,7 @@ pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
 pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
+pub type ZeroCopySliceMutBorsh<'a, T> = ZeroCopySliceMut<'a, U32, T>;
 
 pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
 where
@@ -57,21 +58,6 @@ where
         Ok((Self { length: len, bytes }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num_slices: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
-    }
-
     #[inline]
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
@@ -102,20 +88,6 @@ where
         let (bytes, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((ZeroCopySliceMut { length, bytes }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num_slices: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
     }
 
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
