@@ -42,8 +42,8 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-bounded-vec",
@@ -677,7 +677,6 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
- "rayon",
 ]
 
 [[package]]
@@ -688,6 +687,7 @@ checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
+ "rayon",
 ]
 
 [[package]]
@@ -3191,8 +3191,8 @@ dependencies = [
 name = "light-concurrent-merkle-tree"
 version = "1.1.0"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "borsh 0.10.3",
  "light-bounded-vec",
  "light-hash-set",
@@ -3213,8 +3213,8 @@ dependencies = [
 name = "light-hash-set"
 version = "1.2.0"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "light-heap",
  "light-utils",
  "num-bigint 0.4.6",
@@ -3228,7 +3228,7 @@ dependencies = [
 name = "light-hasher"
 version = "1.1.0"
 dependencies = [
- "ark-bn254 0.4.0",
+ "ark-bn254 0.5.0",
  "light-poseidon 0.3.0",
  "sha2 0.10.8",
  "sha3 0.10.8",
@@ -3357,9 +3357,9 @@ dependencies = [
 name = "light-prover-client"
 version = "1.2.0"
 dependencies = [
- "ark-bn254 0.4.0",
- "ark-serialize 0.4.2",
- "ark-std 0.4.0",
+ "ark-bn254 0.5.0",
+ "ark-serialize 0.5.0",
+ "ark-std 0.5.0",
  "env_logger 0.11.6",
  "groth16-solana",
  "light-batched-merkle-tree",
@@ -3491,8 +3491,8 @@ version = "1.1.0"
 dependencies = [
  "anchor-lang",
  "anyhow",
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "borsh 0.10.3",
  "bytemuck",
  "light-bounded-vec",
@@ -8497,8 +8497,8 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anyhow",
- "ark-bn254 0.4.0",
- "ark-ff 0.4.2",
+ "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
  "clap 4.5.27",
  "dirs",
  "groth16-solana",
