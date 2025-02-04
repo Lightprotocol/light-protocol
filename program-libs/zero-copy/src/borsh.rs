@@ -49,6 +49,8 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Option<T> {
 impl Deserialize<'_> for u8 {
     type Output = Self;
 
+    /// Not a zero copy but cheaper.
+    /// A u8 should not be deserialized on it's own but as part of a struct.
     #[inline]
     fn zero_copy_at(bytes: &[u8]) -> Result<(u8, &[u8]), ZeroCopyError> {
         if bytes.len() < size_of::<u8>() {
