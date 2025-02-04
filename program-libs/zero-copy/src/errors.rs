@@ -24,6 +24,8 @@ pub enum ZeroCopyError {
     Size,
     #[error("Invalid option byte {0} must be 0 (None) or 1 (Some).")]
     InvalidOptionByte(u8),
+    #[error("Invalid capacity. Capacity must be greater than 0.")]
+    InvalidCapacity,
 }
 
 #[cfg(feature = "solana")]
@@ -40,6 +42,7 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::InvalidData(_) => 15009,
             ZeroCopyError::Size => 15010,
             ZeroCopyError::InvalidOptionByte(_) => 15011,
+            ZeroCopyError::InvalidCapacity => 15012,
         }
     }
 }

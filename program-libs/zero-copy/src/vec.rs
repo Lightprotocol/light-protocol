@@ -15,7 +15,7 @@ pub type ZeroCopyVecU64<'a, T> = ZeroCopyVec<'a, u64, T>;
 pub type ZeroCopyVecU32<'a, T> = ZeroCopyVec<'a, u32, T>;
 pub type ZeroCopyVecU16<'a, T> = ZeroCopyVec<'a, u16, T>;
 pub type ZeroCopyVecU8<'a, T> = ZeroCopyVec<'a, u8, T>;
-pub type ZeroCopyVecBorsh<'a, T> = ZeroCopyVec<'a, U32, T>;
+pub type ZeroCopyVecBorsh<'a, T> = ZeroCopyVec<'a, U32, T, false>;
 
 /// `ZeroCopyVec` is a custom vector implementation which forbids
 /// post-initialization reallocations. The size is not known during compile
@@ -45,10 +45,17 @@ where
     }
 
     pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                bytes.len(),
+                metadata_size,
+            ));
+        }
+        let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
 
         let (mut metadata, _padding) = Ref::<&mut [u8], [L; 2]>::from_prefix(meta_data)?;
-        if u64::from(metadata[LENGTH_INDEX]) != 0 {
+        if u64::from(metadata[LENGTH_INDEX]) != 0 || u64::from(metadata[CAPACITY_INDEX]) != 0 {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
         metadata[CAPACITY_INDEX] = capacity;
@@ -66,22 +73,22 @@ where
 
     #[inline]
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let meta_data_size = Self::metadata_size();
-        if bytes.len() < meta_data_size {
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
                 bytes.len(),
-                meta_data_size,
+                metadata_size,
             ));
         }
 
-        let (meta_data, bytes) = bytes.split_at_mut(meta_data_size);
+        let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
         let (metadata, _padding) = Ref::<&mut [u8], [L; 2]>::from_prefix(meta_data)?;
         let usize_len: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
         let full_vector_size = Self::data_size(metadata[CAPACITY_INDEX]);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len(),
-                full_vector_size,
+                bytes.len() + metadata_size,
+                full_vector_size + metadata_size,
             ));
         }
         let (slice, remaining_bytes) =

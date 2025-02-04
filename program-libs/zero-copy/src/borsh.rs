@@ -38,8 +38,8 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Option<T> {
         Ok(match option_byte[0] {
             0u8 => (None, bytes),
             1u8 => {
-                let (address, bytes) = T::zero_copy_at(bytes)?;
-                (Some(address), bytes)
+                let (value, bytes) = T::zero_copy_at(bytes)?;
+                (Some(value), bytes)
             }
             _ => return Err(ZeroCopyError::InvalidOptionByte(option_byte[0])),
         })

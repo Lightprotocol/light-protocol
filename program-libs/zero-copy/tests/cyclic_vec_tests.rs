@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 
 #[test]
 fn test_cyclic_bounded_vec_with_capacity() {
-    for capacity in 0..1024 {
+    for capacity in 1..1024 {
         let mut data = vec![0; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(capacity)];
         let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<u32>::new(capacity, &mut data).unwrap();
 
@@ -726,8 +726,8 @@ fn test_from_bytes_at_failing() {
     assert_eq!(
         result,
         Err(ZeroCopyError::InsufficientMemoryAllocated(
-            data_len - 1,
-            data_len,
+            metadata_len + data_len - 1,
+            metadata_len + data_len,
         ))
     );
 }

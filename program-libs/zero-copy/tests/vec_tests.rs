@@ -591,8 +591,8 @@ fn test_from_bytes_at_failing() {
     assert_eq!(
         result,
         Err(ZeroCopyError::InsufficientMemoryAllocated(
-            data_len - 1,
-            data_len,
+            metadata_len + data_len - 1,
+            metadata_len + data_len,
         ))
     );
 }

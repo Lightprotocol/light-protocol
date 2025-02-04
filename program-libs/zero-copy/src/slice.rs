@@ -37,22 +37,22 @@ where
     pub fn from_bytes_at(
         bytes: &'a [u8],
     ) -> Result<(ZeroCopySlice<'a, L, T, PAD>, &'a [u8]), ZeroCopyError> {
-        let meta_data_size = Self::metadata_size();
-        if bytes.len() < meta_data_size {
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
                 bytes.len(),
-                meta_data_size,
+                metadata_size,
             ));
         }
 
-        let (meta_data, bytes) = bytes.split_at(meta_data_size);
+        let (meta_data, bytes) = bytes.split_at(metadata_size);
         let (length, _padding) = Ref::<&[u8], L>::from_prefix(meta_data)?;
         let usize_len: usize = u64::from(*length) as usize;
         let full_vector_size = Self::data_size(*length);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len(),
-                full_vector_size + meta_data_size,
+                bytes.len() + metadata_size,
+                full_vector_size + metadata_size,
             ));
         }
         let (bytes, remaining_bytes) = Ref::<&[u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
