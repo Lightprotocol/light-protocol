@@ -60,17 +60,17 @@ where
             assert_eq!(data, vec![0; padding_end - padding_start]);
         }
     }
-    let value = rng.gen();
+    let mut reference_vec: Vec<T> = vec![];
     // fill vector
     {
         let slice_length_bytes = &mut data[0..size_of::<LEN>()];
         slice_length_bytes.copy_from_slice(&length_bytes);
         for chunk in data[ZeroCopySlice::<LEN, T>::metadata_size()..].chunks_mut(size_of::<T>()) {
+            let value = rng.gen();
             chunk.copy_from_slice(value.as_bytes());
+            reference_vec.push(value);
         }
     }
-    let length_usize: usize = usize_len;
-    let reference_vec = vec![value; length_usize];
     // Test from_bytes with a filled slice
     {
         let slice = ZeroCopySlice::<LEN, T>::from_bytes(&data).unwrap();
@@ -84,11 +84,11 @@ where
         assert!(!slice.is_empty());
 
         // 4. Validate accessors return None
-        assert_eq!(value, *slice.first().unwrap());
-        assert_eq!(value, *slice.last().unwrap());
+        assert_eq!(reference_vec.first().unwrap(), slice.first().unwrap());
+        assert_eq!(reference_vec.last().unwrap(), slice.last().unwrap());
 
-        for element in slice.iter() {
-            assert_eq!(*element, value);
+        for (element, value) in slice.iter().zip(&reference_vec) {
+            assert_eq!(element, value);
         }
 
         for (i, element) in reference_vec.iter().enumerate() {
