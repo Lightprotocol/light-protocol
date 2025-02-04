@@ -26,14 +26,14 @@ members = [
     "examples/anchor/name-service-without-macros",
     "examples/anchor/counter",
     "examples/anchor/memo",
-    "program-tests/account-compression-test/",
-    "program-tests/compressed-token-test/",
-    "program-tests/e2e-test/",
-    "program-tests/registry-test/",
-    "program-tests/system-cpi-test/",
-    "program-tests/system-test/",
-    "program-tests/sdk-test-program/programs/sdk-test/",
-    "program-tests/create-address-test-program/",
+    "program-tests/account-compression-test",
+    "program-tests/compressed-token-test",
+    "program-tests/e2e-test",
+    "program-tests/registry-test",
+    "program-tests/system-cpi-test",
+    "program-tests/system-test",
+    "program-tests/sdk-test-program/programs/sdk-test",
+    "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
     "forester-utils",
@@ -88,10 +88,10 @@ thiserror = "1.0"
 anyhow = "1.0"
 
 # Arkworks
-ark-ff = "0.4"
-ark-bn254 = "0.4"
-ark-serialize = "0.4"
-ark-std = "0.4"
+ark-ff = "0.5"
+ark-bn254 = "0.5"
+ark-serialize = "0.5"
+ark-std = "0.5"
 
 
 # Light Protocol
@@ -122,7 +122,7 @@ light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", versi
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
 light-bounded-vec = { version = "1.1.0" }
-light-poseidon = { version = "0.2.0" }
+light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 bytemuck = { version = "1.21" }
