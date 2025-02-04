@@ -759,6 +759,7 @@ async fn compress_spl_account() {
         .await
         .unwrap();
 
+        
         perform_compress_spl_token_account(
             &mut rpc,
             &mut test_indexer,

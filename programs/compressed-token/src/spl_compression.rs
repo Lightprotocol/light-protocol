@@ -4,7 +4,7 @@ use anchor_lang::{
     solana_program::{account_info::AccountInfo, program::invoke_signed},
 };
 use anchor_spl::token_interface::{self, TokenAccount, TokenInterface};
-use spl_token::instruction::transfer as spl_transfer;
+// use spl_token::instruction::transfer as spl_transfer;
 
 use crate::{
     check_spl_token_pool_derivation,
@@ -17,6 +17,7 @@ pub fn process_compression_or_decompression<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
+    msg!("process_compression_or_decompression");
     if inputs.is_compress {
         compress_spl_tokens(
             &inputs.compress_or_decompress_amount,
@@ -243,17 +244,30 @@ pub fn spl_token_transfer<'info>(
     token_program: AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    invoke_signed(
-        &spl_transfer(
-            token_program.key,
-            from.key,
-            to.key,
-            authority.key,
-            &[],
-            amount,
-        )?,
-        &[from, to, authority, token_program],
-        &[],
-    )?;
-    Ok(())
+    msg!("spl_token_transfer");
+    msg!("from: {}", from.key());
+    msg!("to: {}", to.key());
+    msg!("authority: {}", authority.key());
+    msg!("token_program: {}", token_program.key());
+
+    let accounts = token_interface::Transfer {
+        from,
+        to,
+        authority,
+    };
+    let cpi_ctx = CpiContext::new(token_program, accounts);
+    anchor_spl::token_interface::transfer(cpi_ctx, amount)
+    // invoke_signed(
+    //     &spl_transfer(
+    //         token_program.key,
+    //         from.key,
+    //         to.key,
+    //         authority.key,
+    //         &[],
+    //         amount,
+    //     )?,
+    //     &[from, to, authority, token_program],
+    //     &[],
+    // )?;
+    // Ok(())
 }

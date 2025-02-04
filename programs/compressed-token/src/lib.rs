@@ -118,6 +118,11 @@ pub mod light_compressed_token {
         remaining_amount: Option<u64>,
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
+        msg!("compress_spl_token_account");
+        msg!(
+            "token_program_id: {:?}",
+            ctx.accounts.token_program.as_ref().unwrap().key()
+        );
         process_compress_spl_token_account(ctx, owner, remaining_amount, cpi_context)
     }
 
@@ -133,6 +138,7 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        msg!("transfer");
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         process_transfer::process_transfer(ctx, inputs)

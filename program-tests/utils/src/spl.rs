@@ -981,6 +981,15 @@ pub async fn perform_compress_spl_token_account<
     is_token_22: bool,
     token_pool_index: u8,
 ) -> Result<(), RpcError> {
+    println!("perform_compress_spl_token_account");
+    println!("token_account: {}", token_account);
+    println!("remaining_amount: {}", remaining_amount.unwrap_or_default());
+    println!("is_token_22: {}", is_token_22);
+    println!("token_pool_index: {}", token_pool_index);
+    println!("payer: {}", payer.pubkey());
+    println!("token_owner: {}", token_owner.pubkey());
+    println!("mint: {}", mint);
+    println!("merkle_tree_pubkey: {}", merkle_tree_pubkey);
     let pre_token_account_amount = spl_token::state::Account::unpack(
         &rpc.get_account(*token_account).await.unwrap().unwrap().data,
     )
@@ -998,6 +1007,7 @@ pub async fn perform_compress_spl_token_account<
         is_token_22,
         token_pool_index,
     );
+    println!("instruction: {:?}", instruction);
     let (event, _, _) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
