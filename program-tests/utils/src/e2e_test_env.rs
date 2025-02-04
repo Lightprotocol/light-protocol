@@ -2759,6 +2759,7 @@ where
         {
             return Ok(());
         }
+
         let user = &self.users[user_index].keypair;
         let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -2768,7 +2769,7 @@ where
             remaining_accounts,
         );
 
-        let (event, _, slot) = self
+        let res = self
             .rpc
             .create_and_send_transaction_with_public_event(
                 &[instruction],
@@ -2776,20 +2777,39 @@ where
                 &[user],
                 None,
             )
-            .await?
-            .ok_or(RpcError::CustomError(
-                "invoke_cpi_test No event".to_string(),
+            .await?;
+        // In case that only read only accounts exist in a transaction
+        // the account compression program is not invoked -> there is no event and it is ok.
+        let tx_has_read_only =
+            ix_data.read_only_accounts.is_some() || ix_data.read_only_addresses.is_some();
+        let tx_has_no_writable = ix_data
+            .invoke_cpi
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
+            && ix_data.invoke_cpi.new_address_params.is_empty();
+        let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
+        if !tx_is_read_only {
+            let (event, _, slot) = res.ok_or(RpcError::CustomError(
+                "invoke_cpi_test: No event".to_string(),
             ))?;
-        self.indexer.add_event_and_compressed_accounts(slot, &event);
-        let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
-        println!(
-            "tree_bundle queue_elements: {:?}",
-            tree_bundle.queue_elements
-        );
-        println!(
-            "new addresses proof_input_addresses: {:?}",
-            proof_input_addresses
-        );
+
+            self.indexer.add_event_and_compressed_accounts(slot, &event);
+            let tree_bundle = &self.indexer.get_address_merkle_trees()[0];
+            println!(
+                "tree_bundle queue_elements: {:?}",
+                tree_bundle.queue_elements
+            );
+            println!(
+                "new addresses proof_input_addresses: {:?}",
+                proof_input_addresses
+            );
+        } else if res.is_some() {
+            return Err(RpcError::CustomError(
+                "invoke_cpi_test: Read only tx created an event.".to_string(),
+            ));
+        }
+
         Ok(())
     }
 

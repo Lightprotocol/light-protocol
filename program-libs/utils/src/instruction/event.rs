@@ -31,10 +31,20 @@ pub struct PublicTransactionEvent {
     pub message: Option<Vec<u8>>,
 }
 
+pub struct NewAddress {
+    pub address: [u8; 32],
+    pub mt_pubkey: Pubkey,
+}
+
 // TODO: remove unwraps
 /// We piece the event together from 2 instructions:
 /// 1. light_system_program::{Invoke, InvokeCpi, InvokeCpiReadOnly} (one of the 3)
 /// 2. account_compression::InsertIntoQueues
+/// - We return new addresses in batched trees separately
+///     because from the PublicTransactionEvent there
+///     is no way to know which addresses are new and
+///     for batched address trees we need to index the queue of new addresses
+///     the tree&queue account only contains bloomfilters, roots and metadata.
 ///
 /// Steps:
 /// 1. search instruction which matches one of the system instructions
@@ -43,7 +53,7 @@ pub struct PublicTransactionEvent {
 pub fn event_from_light_transaction(
     instructions: &[Vec<u8>],
     remaining_accounts: Vec<Vec<Pubkey>>,
-) -> Result<Option<PublicTransactionEvent>, ZeroCopyError> {
+) -> Result<(Option<PublicTransactionEvent>, Option<Vec<NewAddress>>), ZeroCopyError> {
     let mut event = PublicTransactionEvent::default();
     let mut ix_set_cpi_context = false;
     let found_event = instructions.iter().any(|x| {
@@ -51,7 +61,7 @@ pub fn event_from_light_transaction(
     });
     println!("found event {}", found_event);
     if !found_event {
-        return Ok(None);
+        return Ok((None, None));
     }
     println!("ix_set_cpi_context {}", ix_set_cpi_context);
     // If an instruction set the cpi context add the instructions that set the cpi context.
@@ -61,25 +71,39 @@ pub fn event_from_light_transaction(
         });
         println!("added cpi context to event {}", found_event);
     }
-
-    let pos = instructions
-        .iter()
-        .position(|x| match_account_compression_program_instruction(x, &mut event).unwrap());
+    // New addresses in batched trees.
+    let mut new_addresses = Vec::new();
+    let pos = instructions.iter().enumerate().position(|(i, x)| {
+        match_account_compression_program_instruction(
+            x,
+            &mut event,
+            &mut new_addresses,
+            &remaining_accounts[i][2..],
+        )
+        .unwrap()
+    });
 
     println!("pos {:?}", pos);
     if let Some(pos) = pos {
         println!("remaining accounts {:?}", remaining_accounts);
         event.pubkey_array = remaining_accounts[pos][2..].to_vec().clone();
         println!("event pubkey array {:?}", event.pubkey_array);
-        Ok(Some(event))
+        let new_addresses = if new_addresses.is_empty() {
+            None
+        } else {
+            Some(new_addresses)
+        };
+        Ok((Some(event), new_addresses))
     } else {
-        Ok(None)
+        Ok((None, None))
     }
 }
 
 pub fn match_account_compression_program_instruction(
     instruction: &[u8],
     event: &mut PublicTransactionEvent,
+    new_addresses: &mut Vec<NewAddress>,
+    accounts: &[Pubkey],
 ) -> Result<bool, ZeroCopyError> {
     if instruction.len() < 8 {
         return Ok(false);
@@ -115,6 +139,14 @@ pub fn match_account_compression_program_instruction(
                 .for_each(|(x, y)| {
                     x.merkle_tree_index = y.index;
                 });
+            data.addresses.iter().for_each(|x| {
+                if x.tree_index == x.queue_index {
+                    new_addresses.push(NewAddress {
+                        address: x.address,
+                        mt_pubkey: accounts[x.queue_index as usize],
+                    });
+                }
+            });
             Ok(true)
         }
         _ => Ok(false),

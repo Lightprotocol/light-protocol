@@ -453,7 +453,8 @@ impl RpcConnection for ProgramTestRpcConnection {
             });
         println!("vec: {:?}", vec);
         println!("vec_accounts {:?}", vec_accounts);
-        let event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
+        let (event, _new_addresses) =
+            event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
         println!("event: {:?}", event);
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
@@ -520,8 +521,8 @@ impl RpcConnection for ProgramTestRpcConnection {
         }
 
         let slot = self.context.banks_client.get_root_slot().await?;
-        let result = event.map(|event| (event, signature, slot));
-        Ok(result)
+        let event = event.map(|e| (e, signature, slot));
+        Ok(event)
     }
 }
 

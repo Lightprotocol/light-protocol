@@ -158,7 +158,7 @@ async fn test_batched_only() {
     println!("stats {:?}", env.stats);
 }
 
-//  cargo test-sbf -p e2e-test -- --nocapture --ignored --test test_10000_all > output.txt 2>&1
+//  cargo test-sbf -p e2e-test -- --nocapture --ignored --test test_10000_all > output.txt 2>&1 && tail -f output.txt
 #[ignore = "Not maintained for batched trees."]
 #[tokio::test]
 async fn test_10000_all() {

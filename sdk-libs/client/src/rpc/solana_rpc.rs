@@ -440,7 +440,7 @@ impl RpcConnection for SolanaRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<(PublicTransactionEvent, Signature, u64)>, RpcError> {
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
         let pre_balance = self.client.get_balance(payer)?;
         let latest_blockhash = self.client.get_latest_blockhash()?;
 
@@ -535,7 +535,8 @@ impl RpcConnection for SolanaRpcConnection {
         }
         println!("vec: {:?}", vec);
         println!("vec_accounts {:?}", vec_accounts);
-        let parsed_event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
+        let (parsed_event, _new_addresses) =
+            event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
         println!("event: {:?}", parsed_event);
 
         if let Some(transaction_params) = transaction_params {
@@ -566,9 +567,8 @@ impl RpcConnection for SolanaRpcConnection {
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
         }
-
-        let result = parsed_event.map(|e| (e, signature, slot));
-        Ok(result)
+        let event = parsed_event.map(|e| (e, signature, slot));
+        Ok(event)
     }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
