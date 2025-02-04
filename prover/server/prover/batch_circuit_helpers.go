@@ -19,16 +19,25 @@ func createHashChain(api frontend.API, hashes []frontend.Variable) frontend.Vari
 	return computeHashChain(api, initialHash, hashes)
 }
 
-func createTwoInputsHashChain(api frontend.API, hashesFirst []frontend.Variable, hashesSecond []frontend.Variable) frontend.Variable {
-	if len(hashesFirst) == 0 {
-		return abstractor.Call(api, poseidon.Poseidon2{In1: hashesFirst[0], In2: hashesSecond[0]})
+type TwoInputsHashChain struct {
+	HashesFirst  []frontend.Variable
+	HashesSecond []frontend.Variable
+}
+
+func (gadget TwoInputsHashChain) DefineGadget(api frontend.API) interface{} {
+	if len(gadget.HashesFirst) == 0 {
+		panic("HashesFirst must not be empty")
 	}
 
-	hashChain := abstractor.Call(api, poseidon.Poseidon2{In1: hashesFirst[0], In2: hashesSecond[0]})
-	for i := 1; i < len(hashesFirst); i++ {
-		hashChain = abstractor.Call(api, poseidon.Poseidon3{In1: hashChain, In2: hashesFirst[i], In3: hashesSecond[i]})
+	hashChain := abstractor.Call(api, poseidon.Poseidon2{In1: gadget.HashesFirst[0], In2: gadget.HashesSecond[0]})
+	for i := 1; i < len(gadget.HashesFirst); i++ {
+		hashChain = abstractor.Call(api, poseidon.Poseidon3{In1: hashChain, In2: gadget.HashesFirst[i], In3: gadget.HashesSecond[i]})
 	}
 	return hashChain
+}
+
+func createTwoInputsHashChain(api frontend.API, hashesFirst []frontend.Variable, hashesSecond []frontend.Variable) frontend.Variable {
+	return abstractor.Call(api, TwoInputsHashChain{HashesFirst: hashesFirst, HashesSecond: hashesSecond})
 }
 
 func computeHashChain(api frontend.API, initialHash frontend.Variable, hashes []frontend.Variable) frontend.Variable {
