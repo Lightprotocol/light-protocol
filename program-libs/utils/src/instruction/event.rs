@@ -74,6 +74,9 @@ pub fn event_from_light_transaction(
     // New addresses in batched trees.
     let mut new_addresses = Vec::new();
     let pos = instructions.iter().enumerate().position(|(i, x)| {
+        if remaining_accounts[i].len() < 3 {
+            return false;
+        }
         match_account_compression_program_instruction(
             x,
             &mut event,

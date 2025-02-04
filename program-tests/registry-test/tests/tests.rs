@@ -2107,7 +2107,9 @@ async fn test_rollover_batch_address_tree() {
         // .await;
         // assert_rpc_error(result, 1, RegistryError::NotInActivePhase.into()).unwrap();
     }
-
+    airdrop_lamports(&mut rpc, &new_merkle_tree_keypair.pubkey(), 100_000_000_000)
+        .await
+        .unwrap();
     let new_merkle_tree_keypair2 = Keypair::new();
     perform_rollover_batch_address_merkle_tree(
         &mut rpc,
