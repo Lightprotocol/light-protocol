@@ -432,80 +432,6 @@ fn test_zero_copy_vec_into_iter() {
 }
 
 #[test]
-fn test_new_at_and_from_bytes_at_multiple() {
-    let mut account_data = vec![0u8; ZeroCopyVecU64::<u64>::required_size_for_capacity(4) * 2];
-    // test new_at & fill vectors
-    {
-        let (mut vec, remaining_bytes) =
-            ZeroCopyVecU64::<u64>::new_at(4, &mut account_data).unwrap();
-        for i in 0..4 {
-            vec.push(i as u64).unwrap();
-        }
-        assert_eq!(
-            remaining_bytes.len(),
-            ZeroCopyVecU64::<u64>::required_size_for_capacity(4)
-        );
-
-        let (mut vec, remaining_bytes) = ZeroCopyVecU64::<u64>::new_at(4, remaining_bytes).unwrap();
-        for i in 4..8 {
-            vec.push(i as u64).unwrap();
-        }
-        assert_eq!(remaining_bytes.len(), 0);
-    }
-    // test from_bytes_at_multiple
-    {
-        let (deserialized_vecs, remaining_bytes) =
-            ZeroCopyVecU64::<u64>::from_bytes_at_multiple(2, &mut account_data)
-                .expect("Failed to deserialize multiple ZeroCopyCyclicVecs");
-
-        assert_eq!(deserialized_vecs.len(), 2);
-        for (i, deserialized_vec) in deserialized_vecs.iter().enumerate() {
-            for (j, element) in deserialized_vec.iter().enumerate() {
-                assert_eq!(*element, (i * 4 + j) as u64);
-            }
-        }
-        assert_eq!(0, remaining_bytes.len());
-    }
-}
-
-#[test]
-fn test_init_multiple_pass() {
-    let mut account_data = vec![0u8; 128];
-    let capacity = 4usize;
-    let (mut initialized_vecs, remaining_bytes) =
-        ZeroCopyVecU64::<u64>::new_at_multiple(2, capacity as u64, &mut account_data).unwrap();
-    assert_eq!(
-        remaining_bytes.len(),
-        128 - ZeroCopyVecU64::<u64>::required_size_for_capacity(capacity as u64) * 2
-    );
-    assert_eq!(initialized_vecs.len(), 2);
-    assert_eq!(initialized_vecs[0].capacity(), capacity);
-    assert_eq!(initialized_vecs[1].capacity(), capacity);
-    assert_eq!(initialized_vecs[0].len(), 0);
-    assert_eq!(initialized_vecs[1].len(), 0);
-    let mut reference_vecs = [vec![], vec![]];
-    for i in 0..capacity {
-        for (j, vec) in initialized_vecs.iter_mut().enumerate() {
-            assert!(vec.get(i).is_none());
-            vec.push(i as u64).unwrap();
-            reference_vecs[j].push(i as u64);
-            assert_eq!(*vec.get(i).unwrap(), i as u64);
-            assert!(vec.len() == i + 1);
-        }
-    }
-    for (i, vec) in initialized_vecs.iter_mut().enumerate() {
-        let mut rng = thread_rng();
-        assert_full_vec(
-            capacity as u64,
-            &mut rng,
-            capacity,
-            &mut reference_vecs[i],
-            vec,
-        );
-    }
-}
-
-#[test]
 fn test_metadata_size() {
     assert_eq!(ZeroCopyVec::<u8, u8>::metadata_size(), 2);
     assert_eq!(ZeroCopyVec::<u16, u8>::metadata_size(), 4);
@@ -665,8 +591,8 @@ fn test_from_bytes_at_failing() {
     assert_eq!(
         result,
         Err(ZeroCopyError::InsufficientMemoryAllocated(
-            data_len - 1,
-            data_len,
+            metadata_len + data_len - 1,
+            metadata_len + data_len,
         ))
     );
 }

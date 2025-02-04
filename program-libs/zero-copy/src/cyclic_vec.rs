@@ -42,10 +42,24 @@ where
     }
 
     pub fn new_at(capacity: L, bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
+        if u64::from(capacity) == 0 {
+            return Err(ZeroCopyError::InvalidCapacity);
+        }
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
+            return Err(ZeroCopyError::InsufficientMemoryAllocated(
+                bytes.len(),
+                metadata_size,
+            ));
+        }
+        let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
 
         let (mut metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
-        if u64::from(metadata[LENGTH_INDEX]) != 0 || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0 {
+
+        if u64::from(metadata[LENGTH_INDEX]) != 0
+            || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0
+            || u64::from(metadata[CAPACITY_INDEX]) != 0
+        {
             return Err(ZeroCopyError::MemoryNotZeroed);
         }
         metadata[CAPACITY_INDEX] = capacity;
@@ -56,62 +70,33 @@ where
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
-    }
-
     pub fn from_bytes(bytes: &'a mut [u8]) -> Result<Self, ZeroCopyError> {
         Ok(Self::from_bytes_at(bytes)?.0)
     }
 
     #[inline]
     pub fn from_bytes_at(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
-        let meta_data_size = Self::metadata_size();
-        if bytes.len() < meta_data_size {
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
                 bytes.len(),
-                meta_data_size,
+                metadata_size,
             ));
         }
 
-        let (meta_data, bytes) = bytes.split_at_mut(meta_data_size);
+        let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
         let (metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
         let usize_len: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
         let full_vector_size = Self::data_size(metadata[CAPACITY_INDEX]);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len(),
-                full_vector_size,
+                bytes.len() + metadata_size,
+                full_vector_size + metadata_size,
             ));
         }
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((Self { metadata, slice }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut value_vecs = Vec::with_capacity(num);
-        for _ in 0..num {
-            let (vec, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            value_vecs.push(vec);
-        }
-        Ok((value_vecs, bytes))
     }
 
     /// Convenience method to get the current index of the vector.
@@ -170,10 +155,7 @@ where
             .try_into()
             .map_err(|_| ZeroCopyError::InvalidConversion)
             .unwrap();
-        *self.get_len_mut() = 0
-            .try_into()
-            .map_err(|_| ZeroCopyError::InvalidConversion)
-            .unwrap();
+        *self.get_len_mut() = self.get_current_index();
     }
 
     #[inline]
@@ -204,7 +186,7 @@ where
     /// First index is the next index after the last index mod capacity.
     #[inline]
     pub fn first_index(&self) -> usize {
-        if self.len() < self.capacity() || self.last_index() == self.capacity() {
+        if self.len() < self.capacity() {
             0
         } else {
             self.last_index().saturating_add(1) % (self.capacity())
@@ -346,6 +328,7 @@ where
         if self.vec.capacity() == 0 || self.is_finished {
             None
         } else {
+            // Perform one more iteration to perform len() iterations.
             if self.current == self.vec.last_index() {
                 self.is_finished = true;
             }
