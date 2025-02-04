@@ -199,7 +199,7 @@ pub(crate) fn try_from_account_info<'a, 'info>(
 
     if program_owner != Pubkey::default() {
         if let Some(invoking_program) = context.invoking_program_id {
-            if invoking_program != program_owner.to_bytes().into() {
+            if invoking_program != program_owner.into() {
                 msg!(
                     "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
                     invoking_program,

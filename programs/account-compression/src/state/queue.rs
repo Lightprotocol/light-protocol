@@ -37,7 +37,7 @@ impl QueueAccount {
 
 impl GroupAccess for QueueAccount {
     fn get_owner(&self) -> Pubkey {
-        self.metadata.access_metadata.owner.to_bytes().into()
+        self.metadata.access_metadata.owner.into()
     }
 
     fn get_program_owner(&self) -> Pubkey {

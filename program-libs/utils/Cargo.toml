@@ -9,7 +9,8 @@ edition = "2021"
 [features]
 default = []
 anchor = ["anchor-lang"]
-bytemuck-des= ["bytemuck"]
+solana = []
+bytemuck-des = ["bytemuck"]
 
 [dependencies]
 anyhow = { workspace = true }
@@ -22,7 +23,7 @@ solana-program = { workspace = true }
 rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
-bytemuck = { workspace = true , optional = true }
+bytemuck = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
 light-bounded-vec = { workspace = true }
 light-zero-copy = { workspace = true }

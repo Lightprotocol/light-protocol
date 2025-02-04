@@ -63,17 +63,56 @@ impl<'a> Deserialize<'a> for Pubkey {
     }
 }
 
+#[cfg(not(feature = "anchor"))]
 impl From<pubkey::Pubkey> for Pubkey {
     fn from(pubkey: pubkey::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
+#[cfg(not(feature = "anchor"))]
 impl From<&pubkey::Pubkey> for Pubkey {
     fn from(pubkey: &pubkey::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
 
+#[cfg(not(feature = "anchor"))]
+impl From<Pubkey> for pubkey::Pubkey {
+    fn from(pubkey: Pubkey) -> Self {
+        pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl From<&Pubkey> for pubkey::Pubkey {
+    fn from(pubkey: &Pubkey) -> Self {
+        pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+    }
+}
+#[cfg(feature = "anchor")]
+impl From<anchor_lang::prelude::Pubkey> for Pubkey {
+    fn from(pubkey: pubkey::Pubkey) -> Self {
+        Self(pubkey.to_bytes())
+    }
+}
+#[cfg(feature = "anchor")]
+impl From<crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
+    fn from(pubkey: crate::pubkey::Pubkey) -> Self {
+        anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
+    }
+}
+#[cfg(feature = "anchor")]
+impl From<&crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
+    fn from(pubkey: &crate::pubkey::Pubkey) -> Self {
+        anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
+    }
+}
+#[cfg(feature = "anchor")]
+impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
+    fn from(pubkey: &pubkey::Pubkey) -> Self {
+        Self(pubkey.to_bytes())
+    }
+}
 impl Pubkey {
     pub fn new_unique() -> Self {
         Self(pubkey::Pubkey::new_unique().to_bytes())

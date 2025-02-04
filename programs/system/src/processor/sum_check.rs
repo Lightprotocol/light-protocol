@@ -171,7 +171,7 @@ mod test {
             };
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique().to_bytes().into(),
+                    owner: Pubkey::new_unique().into(),
                     lamports: *i,
                     address: None,
                     data: None,
@@ -193,7 +193,7 @@ mod test {
         for amount in output_amounts.iter() {
             outputs.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique().to_bytes().into(),
+                    owner: Pubkey::new_unique().into(),
                     lamports: *amount,
                     address: None,
                     data: None,

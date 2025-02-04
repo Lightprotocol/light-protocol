@@ -79,9 +79,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 .await?
                 .unwrap();
             let queue_account = rpc
-                .get_anchor_account::<QueueAccount>(
-                    &account.metadata.associated_queue.to_bytes().into(),
-                )
+                .get_anchor_account::<QueueAccount>(&account.metadata.associated_queue.into())
                 .await?
                 .unwrap();
             let merkle_tree =

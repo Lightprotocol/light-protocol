@@ -124,7 +124,7 @@ pub fn match_account_compression_program_instruction(
                 .sequence_numbers
                 .iter()
                 .map(|x| MerkleTreeSequenceNumber {
-                    pubkey: x.pubkey.to_bytes().into(),
+                    pubkey: x.pubkey.into(),
                     seq: x.seq.into(),
                 })
                 .collect();

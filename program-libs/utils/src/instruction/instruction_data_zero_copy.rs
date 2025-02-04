@@ -194,7 +194,7 @@ impl From<&ZCompressedAccount<'_>> for CompressedAccount {
                     data_hash: *data.data_hash,
                 });
         CompressedAccount {
-            owner: compressed_account.owner.to_bytes().into(),
+            owner: compressed_account.owner.into(),
             lamports: compressed_account.lamports.into(),
             address: compressed_account.address.map(|x| *x),
             data,
@@ -933,7 +933,7 @@ mod test {
         reference: &CompressedAccount,
         z_copy: &ZCompressedAccount,
     ) -> Result<(), UtilsError> {
-        if reference.owner != z_copy.owner.to_bytes().into() {
+        if reference.owner != z_copy.owner.into() {
             return Err(UtilsError::InvalidArgument);
         }
         if reference.lamports != u64::from(z_copy.lamports) {

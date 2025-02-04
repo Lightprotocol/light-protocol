@@ -15,7 +15,7 @@ pub fn input_compressed_accounts_signer_check(
         .iter()
         .try_for_each(
             |compressed_account_with_context: &ZPackedCompressedAccountWithMerkleContext| {
-                if *authority == compressed_account_with_context.compressed_account.owner.to_bytes().into()
+                if *authority == compressed_account_with_context.compressed_account.owner.into()
                     && compressed_account_with_context
                         .compressed_account
                         .data
@@ -35,45 +35,68 @@ pub fn input_compressed_accounts_signer_check(
         )
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//     use crate::sdk::compressed_account::CompressedAccount;
+#[cfg(test)]
+mod test {
+    use anchor_lang::prelude::borsh::BorshSerialize;
+    use light_utils::instruction::compressed_account::{
+        CompressedAccount, PackedCompressedAccountWithMerkleContext,
+    };
+    use light_zero_copy::borsh::Deserialize;
 
-//     #[test]
-//     fn test_input_compressed_accounts_signer_check() {
-//         let authority = Pubkey::new_unique();
-//         let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
-//             compressed_account: CompressedAccount {
-//                 owner: authority,
-//                 ..CompressedAccount::default()
-//             },
-//             ..PackedCompressedAccountWithMerkleContext::default()
-//         };
+    use super::*;
 
-//         assert_eq!(
-//             input_compressed_accounts_signer_check(
-//                 &[compressed_account_with_context.clone()],
-//                 &authority
-//             ),
-//             Ok(())
-//         );
-//         let invalid_compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
-//             compressed_account: CompressedAccount {
-//                 owner: Pubkey::new_unique(),
-//                 ..CompressedAccount::default()
-//             },
-//             ..PackedCompressedAccountWithMerkleContext::default()
-//         };
-//         assert_eq!(
-//             input_compressed_accounts_signer_check(
-//                 &vec![
-//                     compressed_account_with_context,
-//                     invalid_compressed_account_with_context
-//                 ],
-//                 &authority
-//             ),
-//             Err(SystemProgramError::SignerCheckFailed.into())
-//         );
-//     }
-// }
+    #[test]
+    fn test_input_compressed_accounts_signer_check() {
+        let authority = Pubkey::new_unique();
+
+        let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: authority,
+                ..CompressedAccount::default()
+            },
+            ..PackedCompressedAccountWithMerkleContext::default()
+        };
+        let bytes = compressed_account_with_context.try_to_vec().unwrap();
+        let compressed_account_with_context =
+            ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
+                .unwrap()
+                .0;
+
+        assert_eq!(
+            input_compressed_accounts_signer_check(
+                &[compressed_account_with_context.clone()],
+                &authority
+            ),
+            Ok(())
+        );
+
+        {
+            let invalid_compressed_account_with_context =
+                PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: Pubkey::new_unique(),
+                        ..CompressedAccount::default()
+                    },
+                    ..PackedCompressedAccountWithMerkleContext::default()
+                };
+
+            let bytes = invalid_compressed_account_with_context
+                .try_to_vec()
+                .unwrap();
+            let invalid_compressed_account_with_context =
+                ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
+                    .unwrap()
+                    .0;
+            assert_eq!(
+                input_compressed_accounts_signer_check(
+                    &[
+                        compressed_account_with_context,
+                        invalid_compressed_account_with_context
+                    ],
+                    &authority
+                ),
+                Err(SystemProgramError::SignerCheckFailed.into())
+            );
+        }
+    }
+}

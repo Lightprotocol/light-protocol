@@ -116,7 +116,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         process_initialize_address_merkle_tree(
             &ctx.accounts.new_address_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
-            merkle_tree_metadata.access_metadata.owner.to_bytes().into(),
+            merkle_tree_metadata.access_metadata.owner.into(),
             Some(
                 merkle_tree_metadata
                     .access_metadata
@@ -152,7 +152,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             &ctx.accounts.new_queue.to_account_info(),
             &ctx.accounts.new_queue,
             queue_metadata.rollover_metadata.index,
-            queue_metadata.access_metadata.owner.to_bytes().into(),
+            queue_metadata.access_metadata.owner.into(),
             Some(
                 queue_metadata
                     .access_metadata
@@ -160,7 +160,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
                     .to_bytes()
                     .into(),
             ),
-            Some(queue_metadata.access_metadata.forester.to_bytes().into()),
+            Some(queue_metadata.access_metadata.forester.into()),
             ctx.accounts.new_address_merkle_tree.key(),
             queue.hash_set.get_capacity() as u16,
             queue.hash_set.sequence_threshold as u64,

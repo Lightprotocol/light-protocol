@@ -86,7 +86,7 @@ fn create_tree_accounts(
 ) -> TreeAccounts {
     let tree_accounts = TreeAccounts::new(
         pubkey,
-        metadata.associated_queue.to_bytes().into(),
+        metadata.associated_queue.into(),
         tree_type,
         metadata.rollover_metadata.rolledover_slot != u64::MAX,
     );

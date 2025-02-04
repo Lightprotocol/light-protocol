@@ -122,7 +122,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         process_initialize_state_merkle_tree(
             &ctx.accounts.new_state_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
-            merkle_tree_metadata.access_metadata.owner.to_bytes().into(),
+            merkle_tree_metadata.access_metadata.owner.into(),
             Some(
                 merkle_tree_metadata
                     .access_metadata
@@ -159,7 +159,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             ctx.accounts.new_nullifier_queue.to_account_info(),
             &ctx.accounts.new_nullifier_queue,
             queue_metadata.rollover_metadata.index,
-            queue_metadata.access_metadata.owner.to_bytes().into(),
+            queue_metadata.access_metadata.owner.into(),
             Some(
                 queue_metadata
                     .access_metadata
@@ -167,7 +167,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
                     .to_bytes()
                     .into(),
             ),
-            Some(queue_metadata.access_metadata.forester.to_bytes().into()),
+            Some(queue_metadata.access_metadata.forester.into()),
             ctx.accounts.new_state_merkle_tree.key(),
             nullifier_queue.hash_set.get_capacity() as u16,
             nullifier_queue.hash_set.sequence_threshold as u64,

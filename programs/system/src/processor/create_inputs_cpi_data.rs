@@ -33,7 +33,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         .0;
     context
         .hashed_pubkeys
-        .push((owner_pubkey.to_bytes().into(), hashed_owner));
+        .push((owner_pubkey.into(), hashed_owner));
     let mut current_hashed_mt = [0u8; 32];
     let mut hash_chain = [0u8; 32];
 
@@ -91,7 +91,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
             owner_pubkey = input_compressed_account_with_context
                 .compressed_account
                 .owner;
-            hashed_owner = context.get_or_hash_pubkey(owner_pubkey.to_bytes().into());
+            hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
         }
         let queue_index = context.get_index_or_insert(
             input_compressed_account_with_context

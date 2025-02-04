@@ -68,7 +68,7 @@ pub fn input_compressed_accounts_signer_check(
         .try_for_each(
             |compressed_account_with_context| {
                 let invoking_program_id = invoking_program_id.key();
-                if invoking_program_id == compressed_account_with_context.compressed_account.owner.to_bytes().into() {
+                if invoking_program_id == compressed_account_with_context.compressed_account.owner.into() {
                     Ok(())
                 } else {
                     msg!(

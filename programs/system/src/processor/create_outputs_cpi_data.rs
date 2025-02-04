@@ -147,7 +147,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         let hashed_owner = match context
             .hashed_pubkeys
             .iter()
-            .find(|x| x.0 == account.compressed_account.owner.to_bytes().into())
+            .find(|x| x.0 == account.compressed_account.owner.into())
         {
             Some(hashed_owner) => hashed_owner.1,
             None => {
@@ -155,10 +155,9 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
                         .unwrap()
                         .0;
-                context.hashed_pubkeys.push((
-                    account.compressed_account.owner.to_bytes().into(),
-                    hashed_owner,
-                ));
+                context
+                    .hashed_pubkeys
+                    .push((account.compressed_account.owner.into(), hashed_owner));
                 hashed_owner
             }
         };
