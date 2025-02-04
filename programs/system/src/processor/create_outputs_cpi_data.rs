@@ -79,7 +79,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     cpi_ix_data.sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
                             pubkey: (*pubkey).into(),
-                            seq: (tree.sequence_number() as u64).into(),
+                            seq: (tree.sequence_number() as u64 + 1).into(),
                         };
                     hashed_merkle_tree = context
                         .get_legacy_merkle_context(current_index as u8)

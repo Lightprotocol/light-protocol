@@ -55,6 +55,7 @@ export async function transfer(
             cursor,
             limit: new BN(batchSize),
         };
+
         const batch = await rpc.getCompressedAccountsByOwner(
             owner.publicKey,
             batchConfig,
@@ -103,6 +104,7 @@ export async function transfer(
         payer,
         blockhash,
     );
+
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
 }

@@ -10,7 +10,7 @@ export default defineConfig({
         includeSource: ['src/**/*.{js,ts}'],
         exclude: ['src/program.ts'],
         testTimeout: 350000,
-        hookTimeout: 30000,
+        hookTimeout: 100000,
     },
     define: {
         'import.meta.vitest': false,

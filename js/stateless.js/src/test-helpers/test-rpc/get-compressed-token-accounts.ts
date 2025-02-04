@@ -170,7 +170,6 @@ export async function getCompressedTokenAccountsByOwnerTest(
     mint: PublicKey,
 ): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
-
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
 
     const accounts = compressedTokenAccounts.filter(
