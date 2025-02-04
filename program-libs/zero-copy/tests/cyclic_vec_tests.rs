@@ -660,7 +660,6 @@ fn test_new_memory_not_zeroed() {
     ]
     .concat();
     let vec = ZeroCopyCyclicVecU64::<u64>::new(capacity, &mut data);
-    println!("vec {:?}", vec);
     assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
 }
 
