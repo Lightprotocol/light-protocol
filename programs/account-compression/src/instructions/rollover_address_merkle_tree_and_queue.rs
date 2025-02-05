@@ -20,7 +20,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     #[account(mut)]
-    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    /// Signer used to receive rollover accounts rent exemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,

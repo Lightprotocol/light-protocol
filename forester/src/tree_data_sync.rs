@@ -1,5 +1,5 @@
 use account_compression::{
-    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
+    utils::check_discriminator::check_discriminator, AddressMerkleTreeAccount,
     StateMerkleTreeAccount,
 };
 use borsh::BorshDeserialize;

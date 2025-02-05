@@ -21,10 +21,10 @@ pub fn check_account_balance_is_rent_exempt(
         return err!(AccountCompressionErrorCode::InvalidAccountSize);
     }
     let lamports = account_info.lamports();
-    let rent_exemption = (Rent::get()?).minimum_balance(expected_size);
+    let rent_exemption = Rent::get()?.minimum_balance(expected_size);
     if lamports != rent_exemption {
         msg!(
-            "Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
+            "Account {:?} lamports is not equal to rent exemption: lamports {}, rent exemption {}",
             account_info.key(),
             lamports,
             rent_exemption

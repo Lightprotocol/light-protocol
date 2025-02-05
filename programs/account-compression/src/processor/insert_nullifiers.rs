@@ -42,8 +42,7 @@ pub fn insert_nullifiers(
     for &(tree_index, queue_index) in &visited {
         // Lookup the queue and tree accounts
         let (queue_account, merkle_tree_account) =
-            get_queue_and_tree_accounts(accounts, queue_index as usize, tree_index as usize)
-                .unwrap();
+            get_queue_and_tree_accounts(accounts, queue_index as usize, tree_index as usize)?;
 
         // Dispatch to v1 / v2 / ... based on the account type
         match queue_account {

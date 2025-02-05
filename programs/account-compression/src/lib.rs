@@ -212,7 +212,7 @@ pub mod account_compression {
     /// 2. update address tree
     ///     The address tree is updated with the instruction
     ///     batch_update_address_tree.
-    pub fn intialize_batched_address_merkle_tree<'info>(
+    pub fn initialize_batched_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
