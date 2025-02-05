@@ -1,4 +1,6 @@
-use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
+use light_batched_merkle_tree::constants::{
+    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
@@ -174,7 +176,7 @@ async fn prove_batch_update() {
         },
     )
     .await;
-    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
@@ -255,7 +257,7 @@ async fn prove_batch_append_with_proofs() {
     )
     .await;
 
-    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     info!("Initializing Merkle tree for append.");
@@ -359,8 +361,6 @@ async fn prove_batch_address_append() {
     )
     .await;
 
-    const TREE_HEIGHT: usize = 40;
-
     // Initialize test data
     let mut new_element_values = vec![];
     let zkp_batch_size = 10;
@@ -372,7 +372,7 @@ async fn prove_batch_address_append() {
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
     let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
+        IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, 0).unwrap();
     relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
@@ -406,7 +406,7 @@ async fn prove_batch_address_append() {
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
     let batch_start_index = start_index;
     // Generate circuit inputs
-    let inputs = get_batch_address_append_circuit_inputs::<TREE_HEIGHT>(
+    let inputs = get_batch_address_append_circuit_inputs::<DEFAULT_BATCH_ADDRESS_TREE_HEIGHT>(
         start_index,
         current_root,
         low_element_values,

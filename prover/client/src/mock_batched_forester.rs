@@ -227,12 +227,6 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
     }
 }
 
-// pub struct CompressedProof {
-//     pub a: [u8; 32],
-//     pub b: [u8; 64],
-//     pub c: [u8; 32],
-// }
-
 #[derive(Clone, Debug)]
 pub struct MockBatchedAddressForester<const HEIGHT: usize> {
     pub merkle_tree: IndexedMerkleTree<Poseidon, u16>,

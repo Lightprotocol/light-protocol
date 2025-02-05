@@ -33,7 +33,7 @@ use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
-    mock_batched_forester::{self, MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
+    mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_utils::{
     hashchain::create_hash_chain_from_slice, instruction::compressed_proof::CompressedProof,
@@ -170,7 +170,7 @@ pub fn assert_input_queue_insert(
             inserted_batch_index
         );
         // New value exists in the current batch bloom filter
-        let mut bloom_filter = light_bloom_filter::BloomFilter::new(
+        let mut bloom_filter = BloomFilter::new(
             merkle_tree_account.queue_metadata.batches[inserted_batch_index].num_iters as usize,
             merkle_tree_account.queue_metadata.batches[inserted_batch_index].bloom_filter_capacity,
             merkle_tree_account.bloom_filter_stores[inserted_batch_index],
@@ -197,8 +197,7 @@ pub fn assert_input_queue_insert(
             // Skip current batch it is already checked above
             if i != inserted_batch_index {
                 let mut bloom_filter =
-                    light_bloom_filter::BloomFilter::new(num_iters, bloom_filter_capacity, store)
-                        .unwrap();
+                    BloomFilter::new(num_iters, bloom_filter_capacity, store).unwrap();
                 assert!(!bloom_filter.contains(insert_value));
             }
         }
@@ -303,11 +302,11 @@ pub fn assert_output_queue_insert(
             .to_vec()
             .contains(insert_value));
         if expected_batch.get_num_zkp_batches() == expected_batch.get_current_zkp_batch_index() {
-            assert!(
+            assert_eq!(
                 output_account.batch_metadata.batches
                     [pre_account.batch_metadata.currently_processing_batch_index as usize]
-                    .get_state()
-                    == BatchState::Full
+                    .get_state(),
+                BatchState::Full
             );
             pre_account.batch_metadata.currently_processing_batch_index += 1;
             pre_account.batch_metadata.currently_processing_batch_index %=
@@ -435,9 +434,7 @@ async fn test_simulate_transactions() {
         },
     )
     .await;
-    let mut mock_indexer = mock_batched_forester::MockBatchedForester::<
-        { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
-    >::default();
+    let mut mock_indexer = MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
 
     let num_tx = 2200;
     let owner = Pubkey::new_unique();
@@ -871,9 +868,7 @@ async fn test_e2e() {
         },
     )
     .await;
-    let mut mock_indexer = mock_batched_forester::MockBatchedForester::<
-        { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
-    >::default();
+    let mut mock_indexer = MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
 
     let num_tx = 2200;
     let owner = Pubkey::new_unique();
@@ -1156,7 +1151,7 @@ async fn test_e2e() {
 }
 pub async fn perform_input_update(
     mt_account_data: &mut [u8],
-    mock_indexer: &mut MockBatchedForester<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>,
+    mock_indexer: &mut MockBatchedForester<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>,
     enable_assert: bool,
     mt_pubkey: Pubkey,
 ) {
@@ -1436,9 +1431,8 @@ async fn test_fill_state_queues_completely() {
     .await;
     let roothistory_capacity = vec![17, 80]; //
     for root_history_capacity in roothistory_capacity {
-        let mut mock_indexer = mock_batched_forester::MockBatchedForester::<
-            { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
-        >::default();
+        let mut mock_indexer =
+            MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
 
         let mut params = InitStateTreeAccountsInstructionData::test_default();
         params.output_queue_batch_size = params.input_queue_batch_size * 10;
@@ -1825,9 +1819,8 @@ async fn test_fill_address_tree_completely() {
     .await;
     let roothistory_capacity = vec![17, 80]; //
     for root_history_capacity in roothistory_capacity {
-        let mut mock_indexer = mock_batched_forester::MockBatchedAddressForester::<
-            { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-        >::default();
+        let mut mock_indexer =
+            MockBatchedAddressForester::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT }>::default();
 
         let mut params = InitAddressTreeAccountsInstructionData::test_default();
         // Root history capacity which is greater than the input updates

@@ -75,17 +75,6 @@ pub fn create_insert_leaves_instruction(
         ix_data.leaves[i].leaf = *leaf;
         ix_data.leaves[i].index = *index;
     }
-    // let data = leaves
-    //     .iter()
-    //     .into_iter()
-    //     .map(|x| AppendLeavesInput {
-    //         index: x.0,
-    //         leaf: x.1,
-    //     })
-    //     .collect::<Vec<_>>();
-
-    // let mut bytes = Vec::new();
-    // data.serialize(&mut bytes).unwrap();
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 

@@ -170,14 +170,10 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             height = merkle_tree.height as u8;
         }
         _ => {
-            if IS_STATE {
-                return err!(
-                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                );
+            return if IS_STATE {
+                err!(AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch)
             } else {
-                return err!(
-                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-                );
+                err!(AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch)
             }
         }
     }
@@ -194,8 +190,8 @@ pub fn verify_proof(
     address_tree_height: u8,
     state_tree_height: u8,
 ) -> anchor_lang::Result<()> {
-    if state_tree_height as u32 == DEFAULT_BATCH_STATE_TREE_HEIGHT
-        || address_tree_height as u32 == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
+    if state_tree_height as usize == DEFAULT_BATCH_STATE_TREE_HEIGHT
+        || address_tree_height as usize == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
     {
         let public_input_hash = if !leaves.is_empty() && !addresses.is_empty() {
             // combined inclusion & non-inclusion proof

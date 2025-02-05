@@ -1,7 +1,7 @@
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
-        assert_state_mt_zero_copy_inited, create_output_queue_account,
+        assert_state_mt_zero_copy_initialized, create_output_queue_account,
         init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
         InitStateTreeAccountsInstructionData,
     },
@@ -72,7 +72,7 @@ fn test_rollover() {
         let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
-        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_state_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
         let total_rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
         let output_queue_params =
             CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey, queue_pubkey);
@@ -578,7 +578,7 @@ fn test_rnd_rollover() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_state_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
 
         let mut new_mt_account_data = vec![0; mt_account_size];
         let new_mt_pubkey = Pubkey::new_unique();

@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
-        assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
+        assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
@@ -169,7 +169,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
 
         // TODO: remove unwraps
         let circuit_inputs =
-            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>(
                 old_root,
                 merkle_tree_next_index as u32,
                 batch_update_leaves,
@@ -328,7 +328,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     // local_leaves_hashchain is only used for a test assertion.
     let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
     assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
@@ -503,7 +503,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
-    assert_state_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
+    assert_state_mt_zero_copy_initialized(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
 
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
@@ -792,7 +792,10 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
         merkle_tree_pubkey.into(),
     );
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
-    assert_address_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
+    assert_address_mt_zero_copy_initialized(
+        merkle_tree.account.data.as_mut_slice(),
+        ref_mt_account,
+    );
 
     Ok(())
 }
@@ -858,26 +861,25 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
 
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
-    let inputs =
-        get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
-            start_index,
-            current_root,
-            low_element_values,
-            low_element_next_values,
-            low_element_indices,
-            low_element_next_indices,
-            low_element_proofs,
-            addresses,
-            indexer
-                .get_subtrees(merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .try_into()
-                .unwrap(),
-            leaves_hashchain,
-            batch_start_index,
-            batch.zkp_batch_size as usize,
-        )
-        .unwrap();
+    let inputs = get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT }>(
+        start_index,
+        current_root,
+        low_element_values,
+        low_element_next_values,
+        low_element_indices,
+        low_element_next_indices,
+        low_element_proofs,
+        addresses,
+        indexer
+            .get_subtrees(merkle_tree_pubkey.to_bytes())
+            .unwrap()
+            .try_into()
+            .unwrap(),
+        leaves_hashchain,
+        batch_start_index,
+        batch.zkp_batch_size as usize,
+    )
+    .unwrap();
     let client = Client::new();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);

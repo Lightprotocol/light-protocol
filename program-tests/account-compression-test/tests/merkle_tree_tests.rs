@@ -1823,15 +1823,6 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
         ix_data.leaves[i].leaf = *leaf;
         ix_data.leaves[i].index = *index;
     }
-    // let mut bytes = Vec::new();
-    // let leaves = leaves
-    //     .iter()
-    //     .map(|(i, leaf)| AppendLeavesInput {
-    //         index: *i,
-    //         leaf: *leaf,
-    //     })
-    //     .collect::<Vec<_>>();
-    // leaves.serialize(&mut bytes).unwrap();
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 
     let accounts = account_compression::accounts::GenericInstruction {
@@ -1949,15 +1940,6 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     ix_data.leaves[0].leaf = [1; 32];
     ix_data.leaves[0].index = 0;
 
-    // let instruction = account_compression::instruction::InsertIntoQueues { bytes };
-    // let mut bytes = Vec::new();
-    // let leaves: vec![AppendLeavesInput {
-    //     index: 0,
-    //     leaf: [1; 32],
-    // }];
-
-    // leaves.serialize(&mut bytes).unwrap();
-    // let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { bytes };
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
         authority: invalid_autority.pubkey(),

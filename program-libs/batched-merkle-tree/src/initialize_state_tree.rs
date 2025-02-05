@@ -54,7 +54,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -74,7 +74,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -96,7 +96,7 @@ impl Default for InitStateTreeAccountsInstructionData {
             output_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
             network_fee: Some(5000),
@@ -275,7 +275,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
     assert_eq!(params.close_threshold, None);
-    assert_eq!(params.height, DEFAULT_BATCH_STATE_TREE_HEIGHT);
+    assert_eq!(params.height as usize, DEFAULT_BATCH_STATE_TREE_HEIGHT);
 }
 
 pub fn match_circuit_size(size: u64) -> bool {
@@ -295,13 +295,13 @@ pub fn get_state_merkle_tree_account_size_from_params(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub fn assert_state_mt_zero_copy_inited(
+pub fn assert_state_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
 ) {
     let account = BatchedMerkleTreeAccount::state_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
+    _assert_mt_zero_copy_initialized::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
         account,
         ref_account,
         TreeType::BatchedState as u64,
@@ -309,7 +309,7 @@ pub fn assert_state_mt_zero_copy_inited(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub fn assert_address_mt_zero_copy_inited(
+pub fn assert_address_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
 ) {
@@ -317,7 +317,7 @@ pub fn assert_address_mt_zero_copy_inited(
 
     let account = BatchedMerkleTreeAccount::address_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited::<BATCHED_ADDRESS_TREE_TYPE>(
+    _assert_mt_zero_copy_initialized::<BATCHED_ADDRESS_TREE_TYPE>(
         account,
         ref_account,
         TreeType::Address as u64,
@@ -325,7 +325,7 @@ pub fn assert_address_mt_zero_copy_inited(
 }
 
 #[cfg(not(target_os = "solana"))]
-fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
+fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
     account: BatchedMerkleTreeAccount,
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     tree_type: u64,
