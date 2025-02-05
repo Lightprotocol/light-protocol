@@ -571,7 +571,7 @@ pub mod light_registry {
             msg!("Trees without a network fee will not be serviced by light foresters.");
             return err!(RegistryError::ForesterUndefined);
         }
-        process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec().unwrap())
+        process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
     }
 
     pub fn batch_update_address_tree<'info>(
