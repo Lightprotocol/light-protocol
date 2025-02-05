@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::prelude::*;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::rollover_batched_state_tree_from_account_info,
@@ -18,7 +18,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct RolloverBatchedStateMerkleTree<'info> {
     #[account(mut)]
-    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    /// Signer used to receive rollover accounts rent exemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,

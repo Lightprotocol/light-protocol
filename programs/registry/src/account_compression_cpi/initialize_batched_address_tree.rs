@@ -7,7 +7,7 @@ use crate::protocol_config::state::ProtocolConfigPda;
 pub struct InitializeBatchedAddressTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK:  initializated in account compression program.
+    /// CHECK:  initialized in account compression program.
     #[account(zero)]
     pub merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program) access control.
@@ -39,5 +39,5 @@ pub fn process_initialize_batched_address_merkle_tree(
         signer_seeds,
     );
 
-    account_compression::cpi::intialize_batched_address_merkle_tree(cpi_ctx, params)
+    account_compression::cpi::initialize_batched_address_merkle_tree(cpi_ctx, params)
 }
