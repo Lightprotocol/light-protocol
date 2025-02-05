@@ -1371,12 +1371,12 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
 
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
-        &payer, &env,
-        // Some(ProverConfig {
-        //     run_mode: Some(ProverMode::Rpc),
-        //     circuits: vec![],
-        // }),
-        None,
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
     // Failing test 1 invalid address Merkle tree ----------------------------------------------
