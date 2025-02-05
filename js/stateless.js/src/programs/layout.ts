@@ -93,130 +93,10 @@ export function encodeInstructionDataInvoke(
     data: InstructionDataInvoke,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
-    console.log('--- Pre-encoding logging ---');
-    console.log('data:', data);
-
-    // Check the proof field arrays
-    if (data.proof) {
-        console.log(
-            'Proof.a:',
-            data.proof.a,
-            'Is Array:',
-            Array.isArray(data.proof.a),
-        );
-        console.log(
-            'Proof.b:',
-            data.proof.b,
-            'Is Array:',
-            Array.isArray(data.proof.b),
-        );
-        console.log(
-            'Proof.c:',
-            data.proof.c,
-            'Is Array:',
-            Array.isArray(data.proof.c),
-        );
-    } else {
-        console.log('proof is missing or null');
-    }
-
-    // Check inputCompressedAccountsWithMerkleContext array
-    console.log(
-        'inputCompressedAccountsWithMerkleContext:',
-        data.inputCompressedAccountsWithMerkleContext,
-        'Is Array:',
-        Array.isArray(data.inputCompressedAccountsWithMerkleContext),
-    );
-    data.inputCompressedAccountsWithMerkleContext.forEach((account, index) => {
-        console.log(
-            `Input account[${index}] compressedAccount:`,
-            account.compressedAccount,
-        );
-        // Check the optional data field within compressedAccount
-        if (
-            account.compressedAccount.data === null ||
-            account.compressedAccount.data === undefined
-        ) {
-            console.log(
-                `Input account[${index}] compressedAccount.data is missing or null (so inner structure is not encoded)`,
-            );
-        } else {
-            console.log(
-                `Input account[${index}] compressedAccount.data exists:`,
-                account.compressedAccount.data,
-            );
-            console.log(
-                `Input account[${index}] compressedAccount.data.data:`,
-                account.compressedAccount.data.data,
-                'Is Array:',
-                Array.isArray(account.compressedAccount.data.data),
-            );
-        }
-        console.log(
-            `Input account[${index}] merkleContext:`,
-            account.merkleContext,
-        );
-    });
-
-    // Check outputCompressedAccounts array
-    console.log(
-        'outputCompressedAccounts:',
-        data.outputCompressedAccounts,
-        'Is Array:',
-        Array.isArray(data.outputCompressedAccounts),
-    );
-    data.outputCompressedAccounts.forEach((account, index) => {
-        console.log(
-            `Output account[${index}] compressedAccount:`,
-            account.compressedAccount,
-        );
-        if (
-            account.compressedAccount.data === null ||
-            account.compressedAccount.data === undefined
-        ) {
-            console.log(
-                `Output account[${index}] compressedAccount.data is missing or null (so inner structure is not encoded)`,
-            );
-        } else {
-            console.log(
-                `Output account[${index}] compressedAccount.data exists:`,
-                account.compressedAccount.data,
-            );
-            console.log(
-                `Output account[${index}] compressedAccount.data.data:`,
-                account.compressedAccount.data.data,
-                'Is Array:',
-                Array.isArray(account.compressedAccount.data.data),
-            );
-        }
-    });
-
-    // Check newAddressParams array (if any)
-    console.log(
-        'newAddressParams:',
-        data.newAddressParams,
-        'Is Array:',
-        Array.isArray(data.newAddressParams),
-    );
-
-    // Log other fields if needed
-    console.log('relayFee:', data.relayFee);
-    console.log(
-        'compressOrDecompressLamports:',
-        data.compressOrDecompressLamports,
-    );
-    console.log('isCompress:', data.isCompress);
-
-    console.log('--- End of pre-encoding logging ---');
-
-    console.log('encoding');
     const len = InstructionDataInvokeLayout.encode(data, buffer);
-    console.log('encoded, len', len);
     const dataBuffer = Buffer.from(buffer.slice(0, len));
-
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
-
     return Buffer.concat([INVOKE_DISCRIMINATOR, lengthBuffer, dataBuffer]);
 }
 
@@ -427,7 +307,6 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         offset,
     );
     offset += AppendNullifyCreateAddressInputsMetaLayout.span;
-    console.log('post meta offset', offset);
     const leavesCount = buffer.readUInt8(offset);
     offset += 1;
     const leaves = [];
@@ -436,8 +315,6 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         leaves.push(leaf);
         offset += AppendLeavesInputLayout.span;
     }
-    console.log('post leaves offset', offset);
-
     const nullifiersCount = buffer.readUInt8(offset);
     offset += 1;
     const nullifiers = [];
@@ -446,7 +323,6 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         nullifiers.push(nullifier);
         offset += InsertNullifierInputLayout.span;
     }
-    console.log('post nullifiers offset', offset);
     const addressesCount = buffer.readUInt8(offset);
     offset += 1;
     const addresses = [];
@@ -455,7 +331,6 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         addresses.push(address);
         offset += InsertAddressInputLayout.span;
     }
-    console.log('post nullifiers offset', offset);
     const sequenceNumbersCount = buffer.readUInt8(offset);
     offset += 1;
     const sequence_numbers = [];
@@ -554,7 +429,7 @@ export function convertToPublicTransactionEvent(
         compressOrDecompressLamports: invokeData?.compressOrDecompressLamports
             ? new BN(invokeData.compressOrDecompressLamports)
             : null,
-        message: null, //invokeData?.message ? Buffer.from(convertByteArray(invokeData.message)) : null
+        message: null,
     };
 
     return result;

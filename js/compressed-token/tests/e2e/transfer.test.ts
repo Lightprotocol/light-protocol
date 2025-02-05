@@ -93,7 +93,6 @@ describe('transfer', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    // let lut: PublicKey;
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
@@ -112,23 +111,7 @@ describe('transfer', () => {
                 mintKeypair,
             )
         ).mint;
-
-        // /// Setup LUT.
-        // const { address } = await createTokenProgramLookupTable(
-        //     rpc,
-        //     payer,
-        //     payer,
-        //     [mint, payer.publicKey],
-        // );
-        // lut = address;
     });
-
-    // const maxRecipients = 22;
-    // const recipients = Array.from(
-    //     { length: maxRecipients },
-    //     () => Keypair.generate().publicKey,
-    // );
-    // const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
 
     beforeEach(async () => {
         bob = await newAccountWithLamports(rpc, 1e9);

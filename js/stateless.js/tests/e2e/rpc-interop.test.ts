@@ -412,21 +412,18 @@ describe('rpc-interop', () => {
                 prePayerAccounts.items.map(account => bn(account.hash)),
             );
 
-            console.log('proofs', proofs);
-            console.log('root: ', proofs[0].root.toArray('be', 32).toString());
-            /// compare each proof by node and root
-            // assert.equal(testProofs.length, proofs.length);
-            // proofs.forEach((proof, index) => {
-            //     proof.merkleProof.forEach((elem, elemIndex) => {
-            //         assert.isTrue(
-            //             bn(elem).eq(
-            //                 bn(testProofs[index].merkleProof[elemIndex]),
-            //             ),
-            //         );
-            //     });
-            // });
+            assert.equal(testProofs.length, proofs.length);
+            proofs.forEach((proof, index) => {
+                proof.merkleProof.forEach((elem, elemIndex) => {
+                    assert.isTrue(
+                        bn(elem).eq(
+                            bn(testProofs[index].merkleProof[elemIndex]),
+                        ),
+                    );
+                });
+            });
 
-            // assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
+            assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
 
             await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
@@ -638,10 +635,7 @@ describe('rpc-interop', () => {
             await rpc.getLatestCompressionSignatures(cursor!, 1)
         ).value;
 
-        /// cursor should work
-        console.log('cursor ', cursor);
-        console.log('signature2 ', signatures2[0].signature);
-        console.log('signarure3 ', signatures3[0].signature);
+        /// cursor should workv
         assert.notEqual(signatures2[0].signature, signatures3[0].signature);
     });
 
