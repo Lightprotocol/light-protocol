@@ -154,11 +154,6 @@ describe('transfer', () => {
             })
         ).items;
 
-        console.log(
-            'bobPreCompressedTokenAccounts',
-            bobPreCompressedTokenAccounts,
-        );
-
         await transfer(
             rpc,
             payer,
