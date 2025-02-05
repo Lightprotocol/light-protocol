@@ -1619,7 +1619,7 @@ where
             .sum()
     }
 
-    fn process_v1_compressed_account(
+    fn  process_v1_compressed_account(
         &mut self,
         slot: u64,
         event: &PublicTransactionEvent,
