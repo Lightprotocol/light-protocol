@@ -276,6 +276,7 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn insert_into_current_batch(
         &mut self,
         hash_chain_value: &[u8; 32],
+        current_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         let current_index = self.batch_metadata.next_index;
 
@@ -288,6 +289,7 @@ impl<'a> BatchedQueueAccount<'a> {
             hash_chain_value,
             None,
             Some(current_index),
+            current_slot,
         )?;
         self.metadata.batch_metadata.next_index += 1;
 
@@ -437,6 +439,7 @@ pub(crate) fn insert_into_current_batch(
     hash_chain_value: &[u8; 32],
     bloom_filter_value: Option<&[u8; 32]>,
     current_index: Option<u64>,
+    current_slot: &u64,
 ) -> Result<(), BatchedMerkleTreeError> {
     let batch_index = batch_metadata.currently_processing_batch_index as usize;
     let mut value_store = value_vecs.get_mut(batch_index);
@@ -483,11 +486,13 @@ pub(crate) fn insert_into_current_batch(
             bloom_filter_stores,
             hash_chain_stores.as_mut().unwrap(),
             batch_index,
+            current_slot,
         ),
         QueueType::BatchedOutput => current_batch.store_and_hash_value(
             hash_chain_value,
             value_store.unwrap(),
             hash_chain_stores.unwrap(),
+            current_slot,
         ),
         _ => Err(MerkleTreeMetadataError::InvalidQueueType.into()),
     }?;
@@ -668,7 +673,7 @@ fn test_batched_queue_metadata_init() {
 
 #[test]
 fn test_check_is_associated() {
-    let mut account_data = vec![0u8; 984];
+    let mut account_data = vec![0u8; 1000];
     let mut queue_metadata = QueueMetadata::default();
     let associated_merkle_tree = Pubkey::new_unique();
     queue_metadata.associated_merkle_tree = associated_merkle_tree;

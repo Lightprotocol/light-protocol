@@ -269,7 +269,7 @@ fn test_rnd_rollover() {
 /// 6. failing: rollower threshold not set
 #[test]
 fn test_batched_tree_is_ready_for_rollover() {
-    let mut account_data = vec![0u8; 6104];
+    let mut account_data = vec![0u8; 6120];
     let batch_size = 50;
     let zkp_batch_size = 1;
     let root_history_len = 10;

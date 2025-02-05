@@ -244,7 +244,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_metadata.queue_metadata.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
             msg!("merkle_tree_metadata: {:?}", account_metadata);
-            msg!("account_data.len(): {}", account_data.len());
+            msg!("account_data.len(): {}", account_data_len);
             msg!(
                 "account.get_account_size(): {}",
                 account_metadata.get_account_size()?
@@ -586,6 +586,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         compressed_account_hash: &[u8; 32],
         leaf_index: u64,
         tx_hash: &[u8; 32],
+        current_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         // Note, no need to check whether the tree is full
         // since nullifier insertions update existing values
@@ -622,12 +623,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             &nullifier,
             Some(compressed_account_hash),
             None,
+            current_slot,
         )
     }
 
     pub fn insert_address_into_current_batch(
         &mut self,
         address: &[u8; 32],
+        current_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         if self.tree_type != TreeType::BatchedAddress as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
@@ -644,6 +647,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             address,
             Some(address),
             None,
+            current_slot,
         )?;
         self.queue_metadata.next_index += 1;
         Ok(())
@@ -1010,7 +1014,8 @@ mod test {
     /// 9. Batch 1 is inserted and Batch 0 is full and overlapping roots exist
     #[test]
     fn test_zero_out() {
-        let mut account_data = vec![0u8; 3160];
+        let current_slot = 1;
+        let mut account_data = vec![0u8; 3176];
         let batch_size = 4;
         let zkp_batch_size = 1;
         let num_zkp_updates = batch_size / zkp_batch_size;
@@ -1038,7 +1043,8 @@ mod test {
         // 1. No batch is ready
         //   -> nothing should happen.
         {
-            let mut account = insert_rnd_addresses(&mut account_data, batch_size, rng).unwrap();
+            let mut account =
+                insert_rnd_addresses(&mut account_data, batch_size, rng, current_slot).unwrap();
 
             assert_eq!(
                 account.queue_metadata.batches[0].get_state(),
@@ -1085,7 +1091,7 @@ mod test {
         {
             // Make Batch 1 almost half full
             {
-                insert_rnd_addresses(&mut account_data, 1, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, 1, rng, current_slot).unwrap();
             }
             let mut account_data = account_data.clone();
             let account_data_ref = account_data.clone();
@@ -1099,7 +1105,7 @@ mod test {
         {
             // Make Batch 1 half full
             {
-                insert_rnd_addresses(&mut account_data, 1, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, 1, rng, current_slot).unwrap();
             }
             let mut account_data = account_data.clone();
             // let account_data_ref = account_data.clone();
@@ -1141,7 +1147,8 @@ mod test {
         }
         // Make Batch 1 full and insert
         {
-            let mut account = insert_rnd_addresses(&mut account_data, 2, rng).unwrap();
+            let mut account =
+                insert_rnd_addresses(&mut account_data, 2, rng, current_slot).unwrap();
 
             assert_eq!(
                 account.queue_metadata.batches[1].get_state(),
@@ -1200,7 +1207,7 @@ mod test {
         {
             // Make Batch 0 quater full
             {
-                insert_rnd_addresses(&mut account_data, 1, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, 1, rng, current_slot).unwrap();
             }
             let mut account_data = account_data.clone();
             let account_data_ref = account_data.clone();
@@ -1215,7 +1222,7 @@ mod test {
         {
             // Make Batch 0 half full
             {
-                insert_rnd_addresses(&mut account_data, 1, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, 1, rng, current_slot).unwrap();
             }
             // simulate 10 other batch insertions from an output queue
             {
@@ -1255,7 +1262,7 @@ mod test {
         {
             // Make Batch 0 and 1 full
             {
-                insert_rnd_addresses(&mut account_data, batch_size + 2, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, batch_size + 2, rng, current_slot).unwrap();
             }
             // simulate batch 0 insertion
             {
@@ -1352,14 +1359,14 @@ mod test {
         {
             // fill batch 0
             {
-                insert_rnd_addresses(&mut account_data, batch_size, rng).unwrap();
+                insert_rnd_addresses(&mut account_data, batch_size, rng, current_slot).unwrap();
             }
             println!("pre 9.2");
             // the insertion into batch 1 fails since the bloom filter of batch 0 is not zeroed out.
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data).unwrap();
             let address = rng.gen();
-            let result = account.insert_address_into_current_batch(&address);
+            let result = account.insert_address_into_current_batch(&address, &current_slot);
             assert_eq!(
                 result.unwrap_err(),
                 BatchedMerkleTreeError::BloomFilterNotZeroed
@@ -1371,23 +1378,25 @@ mod test {
         account_data: &'a mut [u8],
         batch_size: u64,
         rng: &mut rand::prelude::StdRng,
+        current_slot: u64,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let mut account = BatchedMerkleTreeAccount::address_from_bytes(account_data).unwrap();
         for i in 0..batch_size {
             println!("inserting address: {}", i);
             let address = rng.gen();
-            account.insert_address_into_current_batch(&address)?;
+            account.insert_address_into_current_batch(&address, &current_slot)?;
         }
         Ok(account)
     }
 
     #[test]
     fn test_tree_is_full() {
-        let mut account_data = vec![0u8; 15704];
+        let mut account_data = vec![0u8; 15720];
         let batch_size = 200;
         let zkp_batch_size = 1;
         let root_history_len = 10;
         let num_iter = 1;
+        let current_slot = 1;
         let bloom_filter_capacity = 8000;
         let height = 4;
         let tree_capacity = 2u64.pow(height);
@@ -1408,11 +1417,12 @@ mod test {
         assert!(!account.tree_is_full());
 
         let rng = &mut rand::rngs::StdRng::from_seed([0u8; 32]);
-        let account = insert_rnd_addresses(&mut account_data, tree_capacity - 1, rng).unwrap();
+        let account =
+            insert_rnd_addresses(&mut account_data, tree_capacity - 1, rng, current_slot).unwrap();
         // 2. tree at capacity - 1 is not full
         assert!(!account.tree_is_full());
         // 3. tree at capacity is full
-        let account = insert_rnd_addresses(&mut account_data, 1, rng).unwrap();
+        let account = insert_rnd_addresses(&mut account_data, 1, rng, current_slot).unwrap();
         assert!(account.tree_is_full());
         assert_eq!(
             account.check_tree_is_full().unwrap_err(),
@@ -1422,11 +1432,12 @@ mod test {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut account_data = vec![0u8; 3224];
+        let mut account_data = vec![0u8; 3240];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
         let num_iter = 1;
+        let mut current_slot = 1;
         let bloom_filter_capacity = 8000;
         let height = 4;
         let mut account = BatchedMerkleTreeAccount::init(
@@ -1451,7 +1462,14 @@ mod test {
         for _ in 0..batch_size {
             let address = rng.gen();
             inserted_elements.push(address);
-            account.insert_address_into_current_batch(&address).unwrap();
+            account
+                .insert_address_into_current_batch(&address, &current_slot)
+                .unwrap();
+            assert_eq!(
+                account.queue_metadata.batches[0].start_slot, 1,
+                "Slot should not change unless batch is advanced from inserted to fill."
+            );
+            current_slot += 1;
         }
         // 1. Non inclusion of inserted elements should fail
         for address in inserted_elements.iter() {
@@ -1469,9 +1487,12 @@ mod test {
         }
         // fill batch 1
         for _ in 0..batch_size {
+            current_slot += 1;
             let address = rng.gen();
             inserted_elements.push(address);
-            account.insert_address_into_current_batch(&address).unwrap();
+            account
+                .insert_address_into_current_batch(&address, &current_slot)
+                .unwrap();
         }
         // 3. Non inclusion of inserted elements should fail
         for address in inserted_elements.iter() {
