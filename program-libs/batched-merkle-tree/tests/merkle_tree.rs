@@ -434,7 +434,8 @@ async fn test_simulate_transactions() {
         },
     )
     .await;
-    let mut mock_indexer = MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
+    let mut mock_indexer =
+        MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
 
     let num_tx = 2200;
     let owner = Pubkey::new_unique();
@@ -868,7 +869,8 @@ async fn test_e2e() {
         },
     )
     .await;
-    let mut mock_indexer = MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
+    let mut mock_indexer =
+        MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
 
     let num_tx = 2200;
     let owner = Pubkey::new_unique();
@@ -1151,7 +1153,7 @@ async fn test_e2e() {
 }
 pub async fn perform_input_update(
     mt_account_data: &mut [u8],
-    mock_indexer: &mut MockBatchedForester<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>,
+    mock_indexer: &mut MockBatchedForester<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>,
     enable_assert: bool,
     mt_pubkey: Pubkey,
 ) {
@@ -1432,7 +1434,7 @@ async fn test_fill_state_queues_completely() {
     let roothistory_capacity = vec![17, 80]; //
     for root_history_capacity in roothistory_capacity {
         let mut mock_indexer =
-            MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>::default();
+            MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
 
         let mut params = InitStateTreeAccountsInstructionData::test_default();
         params.output_queue_batch_size = params.input_queue_batch_size * 10;
@@ -1820,7 +1822,7 @@ async fn test_fill_address_tree_completely() {
     let roothistory_capacity = vec![17, 80]; //
     for root_history_capacity in roothistory_capacity {
         let mut mock_indexer =
-            MockBatchedAddressForester::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT }>::default();
+            MockBatchedAddressForester::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::default();
 
         let mut params = InitAddressTreeAccountsInstructionData::test_default();
         // Root history capacity which is greater than the input updates

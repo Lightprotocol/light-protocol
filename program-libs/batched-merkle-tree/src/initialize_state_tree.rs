@@ -54,7 +54,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -74,7 +74,7 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
             network_fee: Some(5000),
@@ -96,7 +96,7 @@ impl Default for InitStateTreeAccountsInstructionData {
             output_queue_batch_size: DEFAULT_BATCH_SIZE,
             input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: (DEFAULT_BATCH_SIZE / DEFAULT_ZKP_BATCH_SIZE * 2) as u32,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
             network_fee: Some(5000),
@@ -275,7 +275,7 @@ pub fn validate_batched_tree_params(params: InitStateTreeAccountsInstructionData
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
     assert_eq!(params.close_threshold, None);
-    assert_eq!(params.height as usize, DEFAULT_BATCH_STATE_TREE_HEIGHT);
+    assert_eq!(params.height, DEFAULT_BATCH_STATE_TREE_HEIGHT);
 }
 
 pub fn match_circuit_size(size: u64) -> bool {

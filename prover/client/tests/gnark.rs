@@ -176,7 +176,7 @@ async fn prove_batch_update() {
         },
     )
     .await;
-    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
@@ -257,7 +257,7 @@ async fn prove_batch_append_with_proofs() {
     )
     .await;
 
-    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT;
+    const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
     info!("Initializing Merkle tree for append.");
@@ -372,7 +372,8 @@ async fn prove_batch_address_append() {
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
     let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, 0).unwrap();
+        IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
+            .unwrap();
     relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
@@ -406,25 +407,26 @@ async fn prove_batch_address_append() {
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
     let batch_start_index = start_index;
     // Generate circuit inputs
-    let inputs = get_batch_address_append_circuit_inputs::<DEFAULT_BATCH_ADDRESS_TREE_HEIGHT>(
-        start_index,
-        current_root,
-        low_element_values,
-        low_element_next_values,
-        low_element_indices,
-        low_element_next_indices,
-        low_element_proofs,
-        new_element_values,
-        relayer_merkle_tree
-            .merkle_tree
-            .get_subtrees()
-            .try_into()
-            .unwrap(),
-        hash_chain,
-        batch_start_index,
-        zkp_batch_size,
-    )
-    .unwrap();
+    let inputs =
+        get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+            start_index,
+            current_root,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            new_element_values,
+            relayer_merkle_tree
+                .merkle_tree
+                .get_subtrees()
+                .try_into()
+                .unwrap(),
+            hash_chain,
+            batch_start_index,
+            zkp_batch_size,
+        )
+        .unwrap();
     // Convert inputs to JSON format
     let inputs_json = to_json(&inputs);
     // Send proof request to server

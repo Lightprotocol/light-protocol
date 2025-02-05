@@ -51,9 +51,9 @@ impl Default for BatchedMerkleTreeMetadata {
             next_index: 0,
             sequence_number: 0,
             tree_type: TreeType::BatchedState as u64,
-            height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
-            capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT as u32),
+            capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
             queue_metadata: BatchMetadata {
                 currently_processing_batch_index: 0,
                 num_batches: NUM_BATCHES as u64,

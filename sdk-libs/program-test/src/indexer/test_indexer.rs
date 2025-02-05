@@ -272,8 +272,8 @@ where
 
                         CombinedJsonStruct {
                             circuit_type: ProofType::Combined.to_string(),
-                            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
-                            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u32,
+                            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                             public_input_hash: big_int_to_string(&public_input_hash),
                             inclusion: inclusion_payload.unwrap().inputs,
                             non_inclusion: non_inclusion_payload.inputs,
@@ -1121,7 +1121,7 @@ where
                 == test_batched_output_queue.pubkey()
             {
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                    DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
                     0,
                 ));
                 (2, merkle_tree)
@@ -1321,7 +1321,7 @@ where
                     params,
                 ).await.unwrap();
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
-                    DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
                     0
                 ));
                 (FeeConfig::test_batched().state_merkle_tree_rollover as i64,merkle_tree)
@@ -1434,7 +1434,9 @@ where
             root_indices.push(root_index as u16);
         }
 
-        let (batch_inclusion_proof_inputs, legacy) = if height == DEFAULT_BATCH_STATE_TREE_HEIGHT {
+        let (batch_inclusion_proof_inputs, legacy) = if height
+            == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
+        {
             let inclusion_proof_inputs =
                 InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (

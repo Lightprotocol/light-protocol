@@ -802,7 +802,7 @@ where
                                         .push(non_inclusion_proof.low_address_proof.to_vec());
                                 }
                                 let inputs = get_batch_address_append_circuit_inputs::<
-                                    { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT },
+                                    { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
                                 >(
                                     start_index,
                                     current_root,

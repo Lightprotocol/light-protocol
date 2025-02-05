@@ -54,8 +54,8 @@ impl CombinedJsonStruct {
 
         Ok(Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
-            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u32,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&BigInt::from_bytes_be(
                 num_bigint::Sign::Plus,
                 public_inputs_hash.as_slice(),
@@ -74,8 +74,8 @@ impl CombinedJsonStruct {
 
         Self {
             circuit_type: CircuitType::Combined.to_string(),
-            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
-            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u32,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inclusion: inclusion_parameters.inputs,
             non_inclusion: non_inclusion_parameters.inputs,

@@ -67,7 +67,7 @@ impl BatchInclusionJsonStruct {
         (
             Self {
                 circuit_type: CircuitType::Inclusion.to_string(),
-                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
                 public_input_hash: public_input_hash_string,
                 inputs,
             },
@@ -93,7 +93,7 @@ impl BatchInclusionJsonStruct {
         }
         Self {
             circuit_type: CircuitType::Inclusion.to_string(),
-            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+            state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             public_input_hash: big_int_to_string(&inputs.public_input_hash),
             inputs: proof_inputs,
         }

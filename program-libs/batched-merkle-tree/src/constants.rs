@@ -2,9 +2,9 @@
 
 use light_macros::pubkey;
 
-pub const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: usize = 40;
+pub const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: u32 = 40;
 
-pub const DEFAULT_BATCH_STATE_TREE_HEIGHT: usize = 32;
+pub const DEFAULT_BATCH_STATE_TREE_HEIGHT: u32 = 32;
 
 pub const DEFAULT_NUM_BATCHES: u64 = 2;
 

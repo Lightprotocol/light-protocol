@@ -150,27 +150,28 @@ where
         .try_into()
         .unwrap();
 
-    let inputs = get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT }>(
-        start_index as usize,
-        current_root,
-        low_element_values,
-        low_element_next_values,
-        low_element_indices,
-        low_element_next_indices,
-        low_element_proofs,
-        addresses,
-        subtrees,
-        leaves_hashchain,
-        batch_start_index,
-        batch_size,
-    )
-    .map_err(|e| {
-        error!(
+    let inputs =
+        get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+            start_index as usize,
+            current_root,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            addresses,
+            subtrees,
+            leaves_hashchain,
+            batch_start_index,
+            batch_size,
+        )
+        .map_err(|e| {
+            error!(
             "create_batch_update_address_tree_instruction_data: failed to get circuit inputs: {:?}",
             e
         );
-        ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
-    })?;
+            ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
+        })?;
 
     let client = Client::new();
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
@@ -277,7 +278,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
     let (proof, new_root) = {
         let circuit_inputs =
-            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>(
+            get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 current_root,
                 merkle_tree_next_index as u32,
                 leaves,
@@ -378,7 +379,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         nullifiers.push(nullifier);
     }
 
-    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT }>(
+    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
