@@ -107,7 +107,7 @@ pub fn set_cpi_context(
 
     // Expected usage:
     // 1. The first invocation is marked with
-    // No need to store the proof (except in first invokation),
+    // No need to store the proof (except in first invocation),
     // cpi context, compress_or_decompress_lamports,
     // relay_fee
     // 2. Subsequent invocations check the proof and fee payer

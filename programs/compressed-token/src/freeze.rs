@@ -165,7 +165,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             state,
             tlv: None,
         };
-        token_data.serialize(&mut token_data_bytes).unwrap();
+        token_data.serialize(&mut token_data_bytes)?;
 
         let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
         let data: CompressedAccountData = CompressedAccountData {

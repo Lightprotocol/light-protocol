@@ -11,7 +11,7 @@ pub struct RolloverBatchedAddressMerkleTree<'info> {
     pub registered_forester_pda: Option<Account<'info, ForesterEpochPda>>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK:  initializated in account compression program.
+    /// CHECK:  initialized in account compression program.
     #[account(zero)]
     pub new_address_merkle_tree: AccountInfo<'info>,
     /// CHECK:  in account compression program.

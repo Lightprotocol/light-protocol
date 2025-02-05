@@ -45,17 +45,17 @@ pub struct ForesterEpochPda {
 
 impl ForesterEpochPda {
     pub fn get_current_light_slot(&self, current_solana_slot: u64) -> Result<u64> {
-        let epoch_progres =
+        let epoch_progress =
             match current_solana_slot.checked_sub(self.epoch_active_phase_start_slot) {
-                Some(epoch_progres) => epoch_progres,
+                Some(epoch_progress) => epoch_progress,
                 None => return err!(RegistryError::EpochEnded),
             };
-        Ok(epoch_progres / self.protocol_config.slot_length)
+        Ok(epoch_progress / self.protocol_config.slot_length)
     }
 
     /// Returns the forester index for the current slot. The forester whose
     /// weighted range [total_registered_weight_at_registration,
-    /// total_registered_weight_at_registration + forester_weight ) contains the
+    /// total_registered_weight_at_registration + forester_weight] contains the
     /// forester index is eligible to perform work. If a forester has more
     /// weight the range is larger -> the forester is eligible for more slots.
     /// The forester index is a random number, derived from queue pubkey, epoch,
@@ -163,7 +163,7 @@ pub struct RegisterForesterEpoch<'info> {
     pub authority: Signer<'info>,
     #[account(has_one = authority)]
     pub forester_pda: Account<'info, ForesterPda>,
-    /// Instruction checks that current_epoch is the the current epoch and that
+    /// Instruction checks that current_epoch is the current epoch and that
     /// the epoch is in registration phase.
     #[account(init, seeds = [FORESTER_EPOCH_SEED, forester_pda.key().to_bytes().as_slice(), current_epoch.to_le_bytes().as_slice()], bump, space =ForesterEpochPda::LEN , payer = fee_payer)]
     pub forester_epoch_pda: Account<'info, ForesterEpochPda>,
@@ -187,7 +187,7 @@ pub struct RegisterForesterEpoch<'info> {
 /// - should only be created once
 /// - contains the protocol config to set the protocol config for that epoch
 ///   (changes to protocol config take effect with next epoch)
-/// - collectes the active weight of registered foresters
+/// - collects the active weight of registered foresters
 ///
 /// Forester Epoch Account:
 /// - should only be created in epoch registration period

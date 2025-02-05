@@ -14,7 +14,7 @@ use crate::{
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:
-/// 1. signer checks (inputs), writeaccess (outputs) (cpi_signer_checks)
+/// 1. signer checks (inputs), write access (outputs) (cpi_signer_checks)
 /// 2. sets or gets cpi context (process_cpi_context)
 #[allow(unused_mut)]
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(

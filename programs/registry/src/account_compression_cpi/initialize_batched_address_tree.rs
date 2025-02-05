@@ -7,7 +7,7 @@ use crate::protocol_config::state::ProtocolConfigPda;
 pub struct InitializeBatchedAddressTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK:  initializated in account compression program.
+    /// CHECK:  initialized in account compression program.
     #[account(zero)]
     pub merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program) access control.

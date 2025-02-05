@@ -62,15 +62,15 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.account_compression_program
     }
 
+    fn get_system_program(&self) -> &Program<'info, System> {
+        &self.system_program
+    }
+
     fn get_sol_pool_pda(&self) -> Option<&AccountInfo<'info>> {
         self.sol_pool_pda.as_ref()
     }
 
     fn get_decompression_recipient(&self) -> Option<&AccountInfo<'info>> {
         self.decompression_recipient.as_ref()
-    }
-
-    fn get_system_program(&self) -> &Program<'info, System> {
-        &self.system_program
     }
 }
