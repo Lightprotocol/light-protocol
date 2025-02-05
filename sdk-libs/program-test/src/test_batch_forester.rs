@@ -6,7 +6,7 @@ use light_batched_merkle_tree::{
     event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
-        assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
+        assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
@@ -503,7 +503,7 @@ pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
-    assert_state_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
+    assert_state_mt_zero_copy_initialized(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
 
     let queue_account_size = get_output_queue_account_size(
         params.output_queue_batch_size,
@@ -792,7 +792,10 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
         merkle_tree_pubkey.into(),
     );
     let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
-    assert_address_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
+    assert_address_mt_zero_copy_initialized(
+        merkle_tree.account.data.as_mut_slice(),
+        ref_mt_account,
+    );
 
     Ok(())
 }

@@ -9,7 +9,7 @@ use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
-        assert_address_mt_zero_copy_inited, assert_state_mt_zero_copy_inited,
+        assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
         create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
@@ -175,7 +175,10 @@ async fn test_batch_state_merkle_tree() {
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
-        assert_state_mt_zero_copy_inited(merkle_tree.account.data.as_mut_slice(), ref_mt_account);
+        assert_state_mt_zero_copy_initialized(
+            merkle_tree.account.data.as_mut_slice(),
+            ref_mt_account,
+        );
         let output_queue_params = CreateOutputQueueParams::from(
             params,
             owner.into(),
@@ -898,7 +901,7 @@ async fn test_init_batch_state_merkle_trees() {
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_state_mt_zero_copy_inited(tree_data.as_mut_slice(), ref_mt_account);
+        assert_state_mt_zero_copy_initialized(tree_data.as_mut_slice(), ref_mt_account);
         let output_queue_params = CreateOutputQueueParams::from(
             *params,
             owner.into(),
@@ -1451,7 +1454,7 @@ async fn test_init_batch_address_merkle_trees() {
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_address_mt_zero_copy_inited(tree_data.as_mut_slice(), ref_mt_account);
+        assert_address_mt_zero_copy_initialized(tree_data.as_mut_slice(), ref_mt_account);
     }
 }
 pub async fn perform_init_batch_address_merkle_tree(

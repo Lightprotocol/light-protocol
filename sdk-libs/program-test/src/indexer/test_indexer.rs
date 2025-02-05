@@ -518,7 +518,7 @@ where
             .filter(|acc| {
                 acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
             })
-            .map(|acc| photon_api::models::token_balance::TokenBalance {
+            .map(|acc| TokenBalance {
                 balance: acc.token_data.amount,
                 mint: acc.token_data.mint.to_string(),
             })
@@ -957,7 +957,6 @@ where
         let batch_update_leaves = leaves[start..end].to_vec();
 
         for (i, _) in batch_update_leaves.iter().enumerate() {
-            // if leaves[i] == [0u8; 32] {
             let index = merkle_tree_next_index + i - zkp_batch_size as usize;
             // This is dangerous it should call self.get_leaf_by_index() but it
             // can t for mutable borrow
@@ -1775,39 +1774,12 @@ where
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-            // let seq = event
-            //     .sequence_numbers
-            //     .iter()
-            //     .find(|x| x.pubkey == merkle_tree_pubkey);
-            // let seq = if let Some(seq) = seq {
-            //     seq
-            // } else {
-            //     event
-            //         .sequence_numbers
-            //         .iter()
-            //         .find(|x| x.pubkey == nullifier_queue_pubkey)
-            //         .unwrap()
-            // };
+
             let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
                 x.accounts.merkle_tree
                     == event.pubkey_array
                         [event.output_compressed_accounts[i].merkle_tree_index as usize]
             });
-            // // Could be batched.
-            // let merkle_tree = if merkle_tree.is_none() {
-            //     let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
-            //         x.accounts.nullifier_queue
-            //             == event.pubkey_array
-            //                 [event.output_compressed_accounts[i].merkle_tree_index as usize]
-            //     });
-            //     if let Some(merkle_tree) = merkle_tree {
-            //         merkle_tree
-            //     } else {
-            //         panic!("no mit found")
-            //     }
-            // } else {
-            //     merkle_tree.unwrap()
-            // };
             let is_batched = merkle_tree.is_none();
 
             println!("Output is batched {:?}", is_batched);

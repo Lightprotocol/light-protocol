@@ -325,7 +325,7 @@ pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
     let zero_copy_mt = BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data).unwrap();
     assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
 
-    crate::initialize_state_tree::assert_state_mt_zero_copy_inited(
+    crate::initialize_state_tree::assert_state_mt_zero_copy_initialized(
         &mut new_mt_account_data,
         ref_mt_account,
     );

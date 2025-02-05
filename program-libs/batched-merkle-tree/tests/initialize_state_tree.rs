@@ -1,7 +1,7 @@
 use light_batched_merkle_tree::{
     constants::NUM_BATCHES,
     initialize_state_tree::{
-        assert_state_mt_zero_copy_inited, create_output_queue_account,
+        assert_state_mt_zero_copy_initialized, create_output_queue_account,
         init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
         InitStateTreeAccountsInstructionData,
     },
@@ -72,7 +72,7 @@ fn test_different_parameters() {
         let mt_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_state_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
     }
 }
 
@@ -120,7 +120,7 @@ fn test_account_init() {
     );
     let mt_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
     let ref_mt_account = BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-    assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+    assert_state_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
 }
 
 #[test]
@@ -253,6 +253,6 @@ fn test_rnd_account_init() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey);
-        assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_state_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
     }
 }

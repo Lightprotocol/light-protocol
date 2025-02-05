@@ -17,7 +17,7 @@ pub trait LightAccounts<'a>: Sized {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
 }
 
-// TODO(vadorovsky): Implment `LightAccountLoader`.
+// TODO(vadorovsky): Implement `LightAccountLoader`.
 
 /// A wrapper which abstracts away the UTXO model.
 pub struct LightAccount<'info, T>

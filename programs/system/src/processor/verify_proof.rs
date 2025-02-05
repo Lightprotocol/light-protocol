@@ -170,14 +170,10 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
             height = merkle_tree.height as u8;
         }
         _ => {
-            if IS_STATE {
-                return err!(
-                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                );
+            return if IS_STATE {
+                err!(AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch)
             } else {
-                return err!(
-                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-                );
+                err!(AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch)
             }
         }
     }

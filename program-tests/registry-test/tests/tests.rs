@@ -13,7 +13,7 @@ use forester_utils::{
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
-        assert_address_mt_zero_copy_inited, InitStateTreeAccountsInstructionData,
+        assert_address_mt_zero_copy_initialized, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
@@ -2063,7 +2063,7 @@ async fn test_rollover_batch_address_tree() {
     );
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
-    assert_address_mt_zero_copy_inited(&mut account.data, zero_copy_account);
+    assert_address_mt_zero_copy_initialized(&mut account.data, zero_copy_account);
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)
         .await
@@ -2086,26 +2086,6 @@ async fn test_rollover_batch_address_tree() {
         )
         .await;
         assert_rpc_error(result, 1, RegistryError::InvalidForester.into()).unwrap();
-
-        // Issue is forester is not registered for this epoch
-        // register_test_forester(
-        //     &mut rpc,
-        //     &env.governance_authority,
-        //     &unregistered_forester_keypair.pubkey(),
-        //     ForesterConfig::default(),
-        // )
-        // .await
-        // .unwrap();
-        // let result = perform_rollover_batch_address_merkle_tree(
-        //     &mut rpc,
-        //     &unregistered_forester_keypair,
-        //     unregistered_forester_keypair.pubkey(),
-        //     new_merkle_tree_keypair.pubkey(),
-        //     &new_merkle_tree_keypair2,
-        //     0,
-        // )
-        // .await;
-        // assert_rpc_error(result, 1, RegistryError::NotInActivePhase.into()).unwrap();
     }
     airdrop_lamports(&mut rpc, &new_merkle_tree_keypair.pubkey(), 100_000_000_000)
         .await

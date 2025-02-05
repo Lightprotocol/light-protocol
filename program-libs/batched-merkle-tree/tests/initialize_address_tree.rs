@@ -3,7 +3,7 @@ use light_batched_merkle_tree::{
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
-    initialize_state_tree::assert_address_mt_zero_copy_inited,
+    initialize_state_tree::assert_address_mt_zero_copy_initialized,
     merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
 };
@@ -32,7 +32,7 @@ fn test_account_init() {
     )
     .unwrap();
 
-    assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
 }
 
 #[test]
@@ -112,6 +112,6 @@ fn test_rnd_account_init() {
         let mt_params = CreateTreeParams::from_address_ix_params(params, owner, tree_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
     }
 }

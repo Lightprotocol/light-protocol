@@ -295,13 +295,13 @@ pub fn get_state_merkle_tree_account_size_from_params(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub fn assert_state_mt_zero_copy_inited(
+pub fn assert_state_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
 ) {
     let account = BatchedMerkleTreeAccount::state_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
+    _assert_mt_zero_copy_initialized::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
         account,
         ref_account,
         TreeType::BatchedState as u64,
@@ -309,7 +309,7 @@ pub fn assert_state_mt_zero_copy_inited(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub fn assert_address_mt_zero_copy_inited(
+pub fn assert_address_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
 ) {
@@ -317,7 +317,7 @@ pub fn assert_address_mt_zero_copy_inited(
 
     let account = BatchedMerkleTreeAccount::address_from_bytes(account_data)
         .expect("from_bytes_unchecked_mut failed");
-    _assert_mt_zero_copy_inited::<BATCHED_ADDRESS_TREE_TYPE>(
+    _assert_mt_zero_copy_initialized::<BATCHED_ADDRESS_TREE_TYPE>(
         account,
         ref_account,
         TreeType::Address as u64,
@@ -325,7 +325,7 @@ pub fn assert_address_mt_zero_copy_inited(
 }
 
 #[cfg(not(target_os = "solana"))]
-fn _assert_mt_zero_copy_inited<const TREE_TYPE: u64>(
+fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
     account: BatchedMerkleTreeAccount,
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     tree_type: u64,

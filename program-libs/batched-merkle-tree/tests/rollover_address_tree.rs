@@ -4,7 +4,7 @@ use light_batched_merkle_tree::{
     initialize_address_tree::{
         init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
     },
-    initialize_state_tree::assert_address_mt_zero_copy_inited,
+    initialize_state_tree::assert_address_mt_zero_copy_initialized,
     merkle_tree::{
         get_merkle_tree_account_size, get_merkle_tree_account_size_default,
         BatchedMerkleTreeAccount,
@@ -52,7 +52,7 @@ fn test_rollover() {
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-    assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
 
     let mut new_mt_account_data = vec![0; mt_account_size];
     let new_mt_pubkey = Pubkey::new_unique();
@@ -226,7 +226,7 @@ fn test_rnd_rollover() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
+        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
         let mut new_mt_data = vec![0; mt_account_size];
         let new_mt_rent = merkle_tree_rent;
         let network_fee = params.network_fee;
