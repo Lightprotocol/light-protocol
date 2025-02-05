@@ -36,8 +36,7 @@ export async function getParsedEvents(
     rpc: Rpc,
 ): Promise<PublicTransactionEvent[]> {
     const events: PublicTransactionEvent[] = [];
-    const slot = await rpc.getSlot();
-    console.log('slot', slot);
+
     const { noopProgram, accountCompressionProgram } =
         defaultStaticAccountsStruct();
 
@@ -48,37 +47,38 @@ export async function getParsedEvents(
             'confirmed',
         )
     ).map(s => s.signature);
-
     const txs = await rpc.getParsedTransactions(signatures, {
         maxSupportedTransactionVersion: 0,
         commitment: 'confirmed',
     });
 
-    const txResponses: (VersionedTransactionResponse | null)[] =
-        await Promise.all(
-            signatures.map(async sig => {
-                const config: GetVersionedTransactionConfig = {
-                    commitment: 'confirmed',
-                    maxSupportedTransactionVersion: 0,
-                };
-                return rpc.getTransaction(sig, config);
-            }),
-        );
+    for (const txParsed of txs) {
+        if (!txParsed || !txParsed.transaction || !txParsed.meta) continue;
 
-    for (const txResp of txResponses) {
-        if (!txResp || !txResp.transaction || !txResp.meta) continue;
         if (
-            !txResp.meta.innerInstructions ||
-            txResp.meta.innerInstructions.length == 0
-        )
+            !txParsed.meta.innerInstructions ||
+            txParsed.meta.innerInstructions.length == 0
+        ) {
             continue;
+        }
 
-        const messageV0 = txResp.transaction.message as MessageV0;
-        const allAccounts = messageV0.getAccountKeys().staticAccountKeys;
+        const messageV0 = txParsed.transaction.message;
+        const accKeys = messageV0.accountKeys;
 
+        const allAccounts = accKeys.map(a => a.pubkey);
         const dataVec: Uint8Array[] = [];
 
-        for (const ix of messageV0.compiledInstructions) {
+        // get tx wth sig
+        const txRaw = await rpc.getTransaction(
+            txParsed.transaction.signatures[0],
+            {
+                commitment: 'confirmed',
+                maxSupportedTransactionVersion: 0,
+            },
+        );
+
+        for (const ix of txRaw?.transaction.message.compiledInstructions ||
+            []) {
             if (ix.data && ix.data.length > 0) {
                 const decodedData = Uint8Array.from(ix.data);
                 if (
@@ -96,10 +96,10 @@ export async function getParsedEvents(
         const groupedAccountVec: PublicKey[][] = [];
 
         if (
-            txResp.meta.innerInstructions &&
-            txResp.meta.innerInstructions.length > 0
+            txRaw!.meta!.innerInstructions &&
+            txRaw!.meta!.innerInstructions.length > 0
         ) {
-            for (const innerGroup of txResp.meta.innerInstructions) {
+            for (const innerGroup of txRaw!.meta!.innerInstructions) {
                 for (const ix of innerGroup.instructions) {
                     const group = ix.accounts.map(
                         (accountIdx: number) => allAccounts[accountIdx],

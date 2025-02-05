@@ -13,9 +13,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    dedupeSigner,
-    buildAndSignTx,
-    sendAndConfirmTx,
+    TestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -89,13 +87,13 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let rpc: Rpc;
+    let rpc: TestRpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let lut: PublicKey;
+    // let lut: PublicKey;
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
@@ -115,22 +113,22 @@ describe('transfer', () => {
             )
         ).mint;
 
-        /// Setup LUT.
-        const { address } = await createTokenProgramLookupTable(
-            rpc,
-            payer,
-            payer,
-            [mint, payer.publicKey],
-        );
-        lut = address;
+        // /// Setup LUT.
+        // const { address } = await createTokenProgramLookupTable(
+        //     rpc,
+        //     payer,
+        //     payer,
+        //     [mint, payer.publicKey],
+        // );
+        // lut = address;
     });
 
-    const maxRecipients = 22;
-    const recipients = Array.from(
-        { length: maxRecipients },
-        () => Keypair.generate().publicKey,
-    );
-    const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
+    // const maxRecipients = 22;
+    // const recipients = Array.from(
+    //     { length: maxRecipients },
+    //     () => Keypair.generate().publicKey,
+    // );
+    // const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
 
     beforeEach(async () => {
         bob = await newAccountWithLamports(rpc, 1e9);
@@ -300,6 +298,7 @@ describe('transfer', () => {
 
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
+
         const bobPreCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
