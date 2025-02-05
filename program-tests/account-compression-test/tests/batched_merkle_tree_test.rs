@@ -1180,7 +1180,7 @@ async fn test_rollover_batch_state_merkle_trees() {
         )
         .unwrap();
     }
-    // Sent funds to nullier queue for rollover reimbursment
+    // Sent funds to nullifier queue for rollover reimbursement
     // rollover fees are now transferred in the system program.
     airdrop_lamports(
         &mut context,
@@ -1482,7 +1482,7 @@ pub async fn perform_init_batch_address_merkle_tree(
         Some(merkle_tree_keypair),
     );
 
-    let instruction = account_compression::instruction::IntializeBatchedAddressMerkleTree {
+    let instruction = account_compression::instruction::InitializeBatchedAddressMerkleTree {
         bytes: params.try_to_vec().unwrap(),
     };
     let accounts = account_compression::accounts::InitializeBatchedAddressMerkleTree {
