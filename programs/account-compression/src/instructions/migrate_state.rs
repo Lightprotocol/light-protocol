@@ -184,7 +184,10 @@ mod migrate_state_test {
                 ],
             },
             tree_capacity: 2u64.pow(32),
+            hashed_merkle_tree_pubkey: [0u8; 32],
+            hashed_queue_pubkey: [0u8; 32],
         };
+        let queue_pubkey = Pubkey::new_unique();
         let account_data: Vec<u8> = vec![
             0;
             account
@@ -209,6 +212,7 @@ mod migrate_state_test {
             account.batch_metadata.zkp_batch_size,
             3,
             account.batch_metadata.bloom_filter_capacity,
+            queue_pubkey.into(),
         )
         .unwrap();
         mock_account.account = Some(output_queue);

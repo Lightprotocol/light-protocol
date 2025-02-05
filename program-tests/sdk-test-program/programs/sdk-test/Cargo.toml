@@ -34,3 +34,4 @@ light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-prover-client = { workspace = true }
 tokio = { workspace = true }
+light-utils = { workspace = true }

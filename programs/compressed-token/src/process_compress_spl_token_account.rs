@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_system_program::sdk::CompressedCpiContext;
+use light_utils::instruction::cpi_context::CompressedCpiContext;
 
 use super::TransferInstruction;
 use crate::{
@@ -51,7 +51,7 @@ pub fn process_compress_spl_token_account<'info>(
 pub mod sdk {
     use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
     use anchor_spl::token::ID as TokenProgramId;
-    use light_system_program::sdk::CompressedCpiContext;
+    use light_utils::instruction::cpi_context::CompressedCpiContext;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::get_token_pool_pda_with_index;

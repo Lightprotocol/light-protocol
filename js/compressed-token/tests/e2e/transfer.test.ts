@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeAll, beforeEach, assert } from 'vitest';
-import { PublicKey, Keypair, Signer } from '@solana/web3.js';
+import {
+    PublicKey,
+    Keypair,
+    Signer,
+    ComputeBudgetProgram,
+} from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     ParsedTokenAccount,
@@ -8,11 +13,18 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
+    TestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
-import { createMint, mintTo, transfer } from '../../src/actions';
+import {
+    createMint,
+    createTokenProgramLookupTable,
+    mintTo,
+    transfer,
+} from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
+import { CompressedTokenProgram } from '../../src';
 
 /**
  * Assert that we created recipient and change-account for the sender, with all
@@ -75,7 +87,7 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let rpc: Rpc;
+    let rpc: TestRpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
@@ -264,6 +276,7 @@ describe('transfer', () => {
 
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
+
         const bobPreCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,

@@ -1,9 +1,11 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+use bytemuck::{Pod, Zeroable};
 
 use crate::{errors::AccountCompressionErrorCode, GroupAuthority};
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Debug, Pod, Zeroable, Copy)]
 #[account]
 #[aligned_sized(anchor)]
 pub struct RegisteredProgram {

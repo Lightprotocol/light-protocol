@@ -10,8 +10,18 @@ export const HIGHEST_ADDRESS_PLUS_ONE = new BN(
     '452312848583266388373324160190187140051835877600158453279131187530910662655',
 );
 
+export const COMPUTE_BUDGET_PATTERN = [2, 64, 66, 15, 0];
+
 export const INVOKE_DISCRIMINATOR = Buffer.from([
     26, 16, 169, 7, 21, 202, 242, 25,
+]);
+
+export const INVOKE_CPI_DISCRIMINATOR = Buffer.from([
+    49, 212, 191, 129, 39, 194, 43, 196,
+]);
+
+export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
+    180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 
 // TODO: implement properly

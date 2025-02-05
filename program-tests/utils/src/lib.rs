@@ -1,16 +1,13 @@
 use std::cmp;
 
-use account_compression::{
-    initialize_address_merkle_tree::Pubkey, AddressMerkleTreeConfig, AddressQueueConfig,
-    RegisteredProgram,
-};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
 use light_merkle_tree_metadata::queue::QueueType;
 use solana_sdk::{
     instruction::InstructionError,
+    pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
     transaction,
 };
-
 pub mod address;
 pub mod address_tree_rollover;
 pub mod assert_compressed_tx;

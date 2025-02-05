@@ -1,13 +1,8 @@
 use std::path::PathBuf;
 
 use account_compression::{
-    sdk::{
-        create_initialize_address_merkle_tree_and_queue_instruction,
-        create_initialize_merkle_tree_instruction,
-    },
-    utils::constants::GROUP_AUTHORITY_SEED,
-    AddressMerkleTreeConfig, AddressQueueConfig, GroupAuthority, NullifierQueueConfig,
-    RegisteredProgram, StateMerkleTreeConfig,
+    utils::constants::GROUP_AUTHORITY_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
 };
 use forester_utils::{
     airdrop_lamports, create_account_instruction,
@@ -43,6 +38,10 @@ use solana_sdk::{
 };
 
 use crate::{
+    acp_sdk::{
+        create_initialize_address_merkle_tree_and_queue_instruction,
+        create_initialize_merkle_tree_instruction,
+    },
     env_accounts,
     test_batch_forester::{create_batch_address_merkle_tree, create_batched_state_merkle_tree},
     test_rpc::ProgramTestRpcConnection,

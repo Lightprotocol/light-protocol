@@ -20,8 +20,9 @@ use light_prover_client::{
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
-use light_verifier::CompressedProof;
+use light_utils::{
+    bigint::bigint_to_be_bytes_array, instruction::compressed_proof::CompressedProof,
+};
 use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;

@@ -6,15 +6,14 @@ use light_compressed_token::process_transfer::{
 };
 use light_hasher::{DataHasher, Poseidon};
 use light_sdk::verify::verify;
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        },
-        CompressedCpiContext,
+use light_utils::instruction::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
-    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    instruction_data::OutputCompressedAccountWithPackedContext,
+    invoke_cpi::InstructionDataInvokeCpi,
 };
 
 use crate::{
@@ -59,7 +58,7 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        proof.clone(),
+        proof,
         bump,
         cpi_context,
     )?;

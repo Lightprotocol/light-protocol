@@ -895,7 +895,7 @@ mod tests {
     // to modify private Batch variables for assertions.
     #[test]
     fn test_get_num_inserted() {
-        let mut account_data = vec![0u8; 920];
+        let mut account_data = vec![0u8; 984];
         let mut queue_metadata = QueueMetadata::default();
         let associated_merkle_tree = Pubkey::new_unique();
         queue_metadata.associated_merkle_tree = associated_merkle_tree;
@@ -911,6 +911,7 @@ mod tests {
             zkp_batch_size,
             num_iters,
             bloom_filter_capacity,
+            Pubkey::new_unique(),
         )
         .unwrap();
         // Tree height 4 -> capacity 16

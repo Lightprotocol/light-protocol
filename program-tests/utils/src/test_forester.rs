@@ -1,5 +1,5 @@
 use account_compression::{
-    instruction::{InsertAddresses, UpdateAddressMerkleTree},
+    instruction::UpdateAddressMerkleTree,
     state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS},
     AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,

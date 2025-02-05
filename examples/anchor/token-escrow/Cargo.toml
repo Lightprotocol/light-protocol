@@ -26,6 +26,7 @@ light-system-program = { workspace = true }
 account-compression = { workspace = true }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true, features = ["legacy"] }
+light-utils = { workspace = true , features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

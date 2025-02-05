@@ -38,3 +38,4 @@ light-verifier = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }
+light-zero-copy = { workspace = true }

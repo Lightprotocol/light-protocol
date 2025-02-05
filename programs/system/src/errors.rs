@@ -73,4 +73,6 @@ pub enum SystemProgramError {
     HashChainInputsLenghtInconsistent,
     InvalidAddressTreeHeight,
     InvalidStateTreeHeight,
+    InvalidArgument,
+    InvalidAccount,
 }

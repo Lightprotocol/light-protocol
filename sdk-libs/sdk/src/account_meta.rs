@@ -1,14 +1,16 @@
 //! Types used
 
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use light_utils::instruction::compressed_account::{
+    CompressedAccountWithMerkleContext, PackedMerkleContext,
+};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    compressed_account::CompressedAccountWithMerkleContext,
     error::LightSdkError,
     merkle_context::{
         pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
-        PackedAddressMerkleContext, PackedMerkleContext, RemainingAccounts,
+        PackedAddressMerkleContext, RemainingAccounts,
     },
 };
 

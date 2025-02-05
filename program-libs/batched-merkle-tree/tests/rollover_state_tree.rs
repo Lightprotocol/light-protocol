@@ -69,13 +69,13 @@ fn test_rollover() {
         )
         .unwrap();
 
-        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
         assert_state_mt_zero_copy_inited(&mut mt_account_data, ref_mt_account);
         let total_rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
         let output_queue_params =
-            CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey);
+            CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey, queue_pubkey);
         let ref_output_queue_account = create_output_queue_account(output_queue_params);
         assert_queue_zero_copy_inited(queue_account_data.as_mut_slice(), ref_output_queue_account);
         let mut new_mt_account_data = vec![0; mt_account_size];
@@ -83,7 +83,7 @@ fn test_rollover() {
 
         let mut new_queue_account_data = vec![0; queue_account_size];
         let new_output_queue_pubkey = Pubkey::new_unique();
-
+        println!("pre 1");
         // 1. Failing: not ready for rollover
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -116,6 +116,7 @@ fn test_rollover() {
                 Err(MerkleTreeMetadataError::NotReadyForRollover.into())
             );
         }
+        println!("pre 2");
         // 2. Failing rollover threshold not set
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -154,6 +155,7 @@ fn test_rollover() {
                 Err(MerkleTreeMetadataError::RolloverNotConfigured.into())
             );
         }
+        println!("pre 3");
         // 3. Failing: invalid mt size
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -185,6 +187,7 @@ fn test_rollover() {
             let result = rollover_batched_state_tree(params);
             assert_eq!(result, Err(ZeroCopyError::Size.into()));
         }
+        println!("pre 4");
         // 4. Failing: invalid queue size
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -216,6 +219,7 @@ fn test_rollover() {
             let result = rollover_batched_state_tree(params);
             assert_eq!(result, Err(ZeroCopyError::Size.into()));
         }
+        println!("pre 5");
         // 5. Functional: rollover address tree
         {
             let merkle_tree =
@@ -246,14 +250,25 @@ fn test_rollover() {
 
             let mut ref_rolledover_mt = ref_mt_account;
             ref_rolledover_mt.next_index = 1 << height;
-            let mut new_ref_output_queue_account = ref_output_queue_account;
+
+            let output_queue_params = CreateOutputQueueParams::from(
+                params,
+                owner,
+                total_rent,
+                new_mt_pubkey,
+                new_output_queue_pubkey,
+            );
+            let mut new_ref_output_queue_account = create_output_queue_account(output_queue_params);
             new_ref_output_queue_account
                 .metadata
                 .rollover_metadata
                 .additional_bytes = additional_bytes;
-            new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-            let mut new_ref_merkle_tree_account = ref_mt_account;
-            new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
+            let create_tree_params =
+                CreateTreeParams::from_state_ix_params(params, owner, new_mt_pubkey);
+            let new_ref_merkle_tree_account = BatchedMerkleTreeMetadata::new_state_tree(
+                create_tree_params,
+                new_output_queue_pubkey,
+            );
             let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {
                 mt_account_data: mt_account_data.to_vec(),
                 ref_mt_account: new_ref_merkle_tree_account,
@@ -272,6 +287,7 @@ fn test_rollover() {
 
             assert_state_mt_roll_over(assert_state_mt_roll_over_params);
         }
+        println!("pre 6");
         // 6. Failing: already rolled over
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -308,6 +324,7 @@ fn test_rollover() {
             );
         }
     }
+    println!("pre 7");
     {
         let mt_account_size = get_merkle_tree_account_size_default();
         let mut mt_account_data = vec![0; mt_account_size];
@@ -340,6 +357,7 @@ fn test_rollover() {
         .unwrap();
         let new_mt_pubkey = Pubkey::new_unique();
         let new_output_queue_pubkey = Pubkey::new_unique();
+        println!("pre 7.1");
         // 7. failing Invalid network fee
         {
             let mut mt_account_data = mt_account_data.clone();
@@ -373,14 +391,14 @@ fn test_rollover() {
         }
         let mut new_mt_account_data = vec![0; mt_account_size];
         let mut new_queue_account_data = vec![0; queue_account_size];
-        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
 
         let mut ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, queue_pubkey);
         ref_mt_account.metadata.access_metadata.forester = forester;
         let total_rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
         let output_queue_params =
-            CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey);
+            CreateOutputQueueParams::from(params, owner, total_rent, mt_pubkey, queue_pubkey);
         let mut ref_output_queue_account = create_output_queue_account(output_queue_params);
         ref_output_queue_account
             .metadata
@@ -388,6 +406,7 @@ fn test_rollover() {
             .network_fee = 0;
         ref_output_queue_account.metadata.access_metadata.forester = forester;
         assert_queue_zero_copy_inited(queue_account_data.as_mut_slice(), ref_output_queue_account);
+        println!("pre 8");
         // 8. Functional: rollover address tree with network fee 0 additional bytes 0
         {
             let merkle_tree =
@@ -418,15 +437,25 @@ fn test_rollover() {
 
             let mut ref_rolledover_mt = ref_mt_account;
             ref_rolledover_mt.next_index = 1 << height;
-            let mut new_ref_output_queue_account = ref_output_queue_account;
+
+            let output_queue_params = CreateOutputQueueParams::from(
+                params,
+                owner,
+                total_rent,
+                new_mt_pubkey,
+                new_output_queue_pubkey,
+            );
+            let mut new_ref_output_queue_account = create_output_queue_account(output_queue_params);
             new_ref_output_queue_account
                 .metadata
                 .rollover_metadata
                 .additional_bytes = additional_bytes;
-            new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-            let mut new_ref_merkle_tree_account = ref_mt_account;
-            new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
-
+            let create_tree_params =
+                CreateTreeParams::from_state_ix_params(params, owner, new_mt_pubkey);
+            let new_ref_merkle_tree_account = BatchedMerkleTreeMetadata::new_state_tree(
+                create_tree_params,
+                new_output_queue_pubkey,
+            );
             let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {
                 mt_account_data: mt_account_data.to_vec(),
                 ref_mt_account: new_ref_merkle_tree_account,
@@ -513,6 +542,8 @@ fn test_rnd_rollover() {
 
         let mut mt_account_data = vec![0; mt_account_size];
         let mt_pubkey = Pubkey::new_unique();
+        println!("mt_pubkey {:?}", mt_pubkey);
+        println!("queue_pubkey {:?}", output_queue_pubkey);
 
         let merkle_tree_rent = rng.gen_range(0..10000000);
         let queue_rent = rng.gen_range(0..10000000);
@@ -530,18 +561,20 @@ fn test_rnd_rollover() {
             additional_bytes_rent,
         )
         .unwrap();
+        let total_rent = merkle_tree_rent + queue_rent + additional_bytes_rent;
         let queue_account_params = CreateOutputQueueParams::from(
             params,
             owner,
-            merkle_tree_rent + queue_rent + additional_bytes_rent,
+            total_rent,
             mt_pubkey,
+            output_queue_pubkey,
         );
         let ref_output_queue_account = create_output_queue_account(queue_account_params);
         assert_queue_zero_copy_inited(
             output_queue_account_data.as_mut_slice(),
             ref_output_queue_account,
         );
-        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner);
+        let create_tree_params = CreateTreeParams::from_state_ix_params(params, owner, mt_pubkey);
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, output_queue_pubkey);
@@ -580,14 +613,23 @@ fn test_rnd_rollover() {
 
         let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << height;
-        let mut new_ref_output_queue_account = ref_output_queue_account;
+
+        let output_queue_params = CreateOutputQueueParams::from(
+            params,
+            owner,
+            total_rent,
+            new_mt_pubkey,
+            new_output_queue_pubkey,
+        );
+        let mut new_ref_output_queue_account = create_output_queue_account(output_queue_params);
         new_ref_output_queue_account
             .metadata
             .rollover_metadata
             .additional_bytes = additional_bytes;
-        new_ref_output_queue_account.metadata.associated_merkle_tree = new_mt_pubkey;
-        let mut new_ref_merkle_tree_account = ref_mt_account;
-        new_ref_merkle_tree_account.metadata.associated_queue = new_output_queue_pubkey;
+        let create_tree_params =
+            CreateTreeParams::from_state_ix_params(params, owner, new_mt_pubkey);
+        let new_ref_merkle_tree_account =
+            BatchedMerkleTreeMetadata::new_state_tree(create_tree_params, new_output_queue_pubkey);
 
         let assert_state_mt_roll_over_params = StateMtRollOverAssertParams {
             mt_account_data: mt_account_data.to_vec(),

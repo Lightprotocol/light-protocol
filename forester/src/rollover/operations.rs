@@ -60,6 +60,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                     tree_pubkey,
                 )
                 .await;
+
             let height = 26;
             let capacity = 1 << height;
             let threshold = ((1 << height) * account.metadata.rollover_metadata.rollover_threshold
