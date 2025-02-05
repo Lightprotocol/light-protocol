@@ -10,7 +10,7 @@ edition = "2021"
 solana = []
 
 [dependencies]
-light-poseidon = "0.3.0"
+light-poseidon = { workspace = true }
 solana-program = { workspace = true }
 thiserror = { workspace = true }
 

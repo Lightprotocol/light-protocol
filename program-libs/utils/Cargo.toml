@@ -25,10 +25,8 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
-light-bounded-vec = { workspace = true }
 light-zero-copy = { workspace = true }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }
 borsh = { workspace = true }
-memoffset = "0.9"
