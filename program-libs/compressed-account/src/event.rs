@@ -163,7 +163,7 @@ pub fn event_from_light_transaction(
             address_sequence_numbers,
             nullifier_queue_indices,
         }))
-    } else {
+        } else {
         Ok(None)
     }
 }
