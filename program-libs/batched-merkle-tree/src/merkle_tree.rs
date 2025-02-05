@@ -342,7 +342,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     3.2. Increment the number of inserted zkps.
     ///     3.3. If all zkps are inserted, set batch state to inserted.
     /// 4. Increment next full batch index if inserted.
-    /// 5. Return the batch append event.
+    /// 5. Zero out previous batch bloom filter of input queue
+    ///     if current batch is 50% inserted.
+    /// 6. Return the batch append event.
     ///
     /// Note: when proving inclusion by index in
     ///     value array we need to insert the value into a bloom_filter once it is
@@ -401,8 +403,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             queue_account
                 .batch_metadata
                 .increment_next_full_batch_index_if_inserted(full_batch_state);
+            // 5. Zero out previous batch bloom filter
+            //     if current batch is 50% inserted.
+            // Needs to be executed post mark_as_inserted_in_merkle_tree.
+            self.zero_out_previous_batch_bloom_filter()?;
         }
-        // 5. Return the batch append event.
+        // 6. Return the batch append event.
         Ok(BatchAppendEvent {
             id,
             batch_index: full_batch_index as u64,
@@ -756,14 +762,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 self.queue_metadata.batches[current_batch].get_num_inserted_elements();
             num_inserted_elements >= batch_size / 2
         };
-
         let previous_full_batch = self
             .queue_metadata
             .batches
             .get_mut(previous_full_batch_index)
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
-
         let batch_is_inserted = previous_full_batch.get_state() == BatchState::Inserted;
+
         let previous_batch_is_ready =
             batch_is_inserted && !previous_full_batch.bloom_filter_is_zeroed();
 

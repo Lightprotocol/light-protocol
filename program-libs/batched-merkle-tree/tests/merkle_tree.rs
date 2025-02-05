@@ -1302,6 +1302,52 @@ fn assert_merkle_tree_update(
     queue_account: Option<BatchedQueueAccount>,
     root: [u8; 32],
 ) {
+    let input_queue_previous_batch_state =
+        old_account.queue_metadata.get_previous_batch().get_state();
+    let input_queue_current_batch = old_account.queue_metadata.get_current_batch();
+    let previous_batch_index = old_account.queue_metadata.get_previous_batch_index();
+    let is_half_full = input_queue_current_batch.get_num_inserted_elements()
+        >= input_queue_current_batch.batch_size / 2;
+    if is_half_full
+        && input_queue_previous_batch_state == BatchState::Inserted
+        && !old_account
+            .queue_metadata
+            .get_previous_batch()
+            .bloom_filter_is_zeroed()
+    {
+        old_account
+            .queue_metadata
+            .get_previous_batch_mut()
+            .set_bloom_filter_to_zeroed();
+        old_account.bloom_filter_stores[previous_batch_index]
+            .iter_mut()
+            .for_each(|elem| {
+                *elem = 0;
+            });
+        let previous_full_batch = old_account
+            .queue_metadata
+            .batches
+            .get(previous_batch_index)
+            .unwrap();
+        let sequence_number = previous_full_batch.sequence_number;
+        let overlapping_roots_exits = sequence_number > old_account.sequence_number;
+        if overlapping_roots_exits {
+            let mut oldest_root_index = old_account.root_history.first_index();
+            // 2.1. Get, num of remaining roots.
+            //    Remaining roots have not been updated since
+            //    the update of the previous batch hence enable to prove
+            //    inclusion of values nullified in the previous batch.
+            let num_remaining_roots = sequence_number - old_account.sequence_number;
+            // 2.2. Zero out roots oldest to first safe root index.
+            //      Skip one iteration we don't need to zero out
+            //      the first safe root.
+            for _ in 1..num_remaining_roots {
+                old_account.root_history[oldest_root_index] = [0u8; 32];
+                oldest_root_index += 1;
+                oldest_root_index %= old_account.root_history.len();
+            }
+        }
+    }
     // Output queue update
     if let Some(mut old_queue_account) = old_queue_account {
         let queue_account = queue_account.unwrap();
@@ -1311,7 +1357,6 @@ fn assert_merkle_tree_update(
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
-        println!("old full batch {:?}", old_full_batch);
         old_full_batch
             .mark_as_inserted_in_merkle_tree(
                 account.sequence_number,
