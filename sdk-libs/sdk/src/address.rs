@@ -9,22 +9,6 @@ use solana_program::account_info::AccountInfo;
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
 
-// #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
-// pub struct NewAddressParams {
-//     pub seed: [u8; 32],
-//     pub address_queue_pubkey: Pubkey,
-//     pub address_merkle_tree_pubkey: Pubkey,
-//     pub address_merkle_tree_root_index: u16,
-// }
-
-// #[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
-// pub struct PackedNewAddressParams {
-//     pub seed: [u8; 32],
-//     pub address_queue_account_index: u8,
-//     pub address_merkle_tree_account_index: u8,
-//     pub address_merkle_tree_root_index: u16,
-// }
-
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],
     pub address_merkle_context: AddressMerkleContext,
