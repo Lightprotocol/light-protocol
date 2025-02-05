@@ -69,7 +69,7 @@ describe('mintTo', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
-        bob = await newAccountWithLamports(rpc, 1e9);
+        bob = getTestKeypair();
         mintAuthority = payer as Keypair;
         const mintKeypair = Keypair.generate();
 
@@ -91,6 +91,7 @@ describe('mintTo', () => {
             [mint, payer.publicKey],
         );
         lut = address;
+        console.log('setup alut: ', lut.toBase58());
     }, 80_000);
 
     it('should mint to bob', async () => {
