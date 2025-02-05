@@ -56,6 +56,22 @@ impl BatchMetadata {
         &self.batches[self.currently_processing_batch_index as usize]
     }
 
+    pub fn get_previous_batch_index(&self) -> usize {
+        if self.currently_processing_batch_index == 0 {
+            1
+        } else {
+            0
+        }
+    }
+
+    pub fn get_previous_batch(&self) -> &Batch {
+        &self.batches[self.get_previous_batch_index()]
+    }
+
+    pub fn get_previous_batch_mut(&mut self) -> &mut Batch {
+        &mut self.batches[self.get_previous_batch_index()]
+    }
+
     pub fn get_current_batch_mut(&mut self) -> &mut Batch {
         &mut self.batches[self.currently_processing_batch_index as usize]
     }
