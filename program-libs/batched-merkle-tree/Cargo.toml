@@ -12,13 +12,13 @@ anchor = ["anchor-lang", "solana"]
 solana = []
 
 [dependencies]
-aligned-sized = { workspace=true}
+aligned-sized = { workspace = true}
 solana-program = { workspace = true }
 light-zero-copy = { workspace=true, features = ["solana", "std"] }
-light-hasher = { workspace=true, features = ["solana"] }
-light-utils = { workspace=true, features = ["bytemuck-des"] }
-light-bloom-filter = { workspace=true, features = ["solana"] }
-light-verifier = { workspace=true, features = ["solana"] }
+light-hasher = { workspace= true, features = ["solana"] }
+light-utils = { workspace= true, features = ["bytemuck-des"] }
+light-bloom-filter = { workspace = true, features = ["solana"] }
+light-verifier = { workspace = true, features = ["solana"] }
 thiserror =  { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 borsh =  { workspace = true }
@@ -30,8 +30,8 @@ zerocopy =  { workspace = true }
 rand = { workspace = true }
 light-prover-client = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-tokio = {workspace = true}
-serial_test = {workspace = true}
+tokio = { workspace = true }
+serial_test = { workspace = true}
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

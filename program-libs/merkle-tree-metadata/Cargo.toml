@@ -14,7 +14,7 @@ solana = []
 [dependencies]
 thiserror = { workspace = true}
 borsh = { workspace = true }
-bytemuck = "1.21"
+bytemuck = { workspace = true }
 solana-program = { workspace = true }
 anchor-lang = { workspace = true , optional = true }
 zerocopy = {workspace = true, features = ["derive"]}

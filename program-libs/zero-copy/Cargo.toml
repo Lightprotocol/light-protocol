@@ -13,11 +13,9 @@ std = []
 
 [dependencies]
 solana-program = { workspace = true, optional = true }
-thiserror = {version="2.0", default-features = false}
-num-traits = { workspace = true }
+thiserror = { workspace = true, default-features = false}
 zerocopy = { workspace = true}
 
 [dev-dependencies]
-rand = "0.8"
-num-traits.workspace = true
+rand = { workspace = true }
 zerocopy = {workspace = true, features=["derive"]}
