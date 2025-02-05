@@ -2,7 +2,6 @@ import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 import { ActiveTreeBundle, TreeType } from './state/types';
-import { createLogger, format, transports } from 'winston';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -215,22 +214,3 @@ export const STATE_MERKLE_TREE_NETWORK_FEE = new BN(5000);
  * Is charged if the transaction creates at least one address.
  */
 export const ADDRESS_TREE_NETWORK_FEE = new BN(5000);
-
-/**
- * @internal
- * custom logger
- */
-export const logger = createLogger({
-    format: format.combine(
-        format.timestamp(),
-        format.printf(({ timestamp, level, message, ...meta }: any) => {
-            return `${timestamp} [${level}]: ${message} ${meta ? JSON.stringify(meta) : ''}`;
-        }),
-    ),
-    transports: [
-        new transports.Console(),
-        new transports.File({
-            filename: 'logs/compressed-token.log',
-        }),
-    ],
-});
