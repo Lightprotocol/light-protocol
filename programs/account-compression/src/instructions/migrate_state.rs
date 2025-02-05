@@ -54,7 +54,7 @@ pub struct MigrateLeafParams {
 /// 2. Migrate state
 ///     2.1 Nullifies a leaf in the state merkle tree.
 ///     2.2 Create a nullifier event.
-///     2.3 Inserts the leaf in the output queue.    
+///     2.3 Inserts the leaf in the output queue.
 /// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
@@ -124,10 +124,10 @@ fn migrate_state(
         nullified_leaves_indices: vec![migrate_leaf_params.leaf_index],
         seq: merkle_tree.sequence_number() as u64,
     };
-
+    let slot = Clock::get()?.slot;
     // 3. Inserts the leaf in the output queue.
     output_queue
-        .insert_into_current_batch(&migrate_leaf_params.leaf)
+        .insert_into_current_batch(&migrate_leaf_params.leaf, &slot)
         .map_err(ProgramError::from)?;
 
     Ok(MerkleTreeEvent::V2(nullify_event))

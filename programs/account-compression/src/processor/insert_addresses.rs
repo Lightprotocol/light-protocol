@@ -13,6 +13,7 @@ pub fn insert_addresses(
     num_queues: u8,
     addresses: &[InsertAddressInput],
     accounts: &mut [AcpAccount<'_, '_>],
+    current_slot: &u64,
 ) -> Result<()> {
     if addresses.is_empty() {
         return Ok(());
@@ -31,7 +32,7 @@ pub fn insert_addresses(
         match queue_account {
             AcpAccount::BatchedAddressTree(address_tree) => {
                 inserted_addresses +=
-                    process_address_v2(address_tree, addresses, current_queue_index)?;
+                    process_address_v2(address_tree, addresses, current_queue_index, current_slot)?;
             }
             AcpAccount::V1Queue(_) => {
                 let (queue_account, merkle_tree_account) = get_queue_and_tree_accounts(
@@ -86,6 +87,7 @@ fn process_address_v2(
     addresse_tree: &mut BatchedMerkleTreeAccount<'_>,
     addresses: &[InsertAddressInput],
     current_queue_index: u8,
+    current_slot: &u64,
 ) -> Result<usize> {
     let addresses = addresses
         .iter()
@@ -96,7 +98,7 @@ fn process_address_v2(
     for address in addresses {
         num_elements += 1;
         addresse_tree
-            .insert_address_into_current_batch(&address.address)
+            .insert_address_into_current_batch(&address.address, current_slot)
             .map_err(ProgramError::from)?;
         #[cfg(feature = "bench-sbf")]
         light_heap::bench_sbf_end!("acp_insert_address_into_queue_v2");

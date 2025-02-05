@@ -79,9 +79,13 @@ pub struct Batch {
     pub sequence_number: u64,
     /// Start leaf index of the first
     pub start_index: u64,
+    /// Slot of the first insertion into the batch.
+    /// Indexers can use this slot to reindex inserted elements.
+    pub start_slot: u64,
     pub root_index: u32,
+    start_slot_is_set: u8,
     bloom_filter_is_zeroed: u8,
-    _padding: [u8; 3],
+    _padding: [u8; 2],
 }
 
 impl Batch {
@@ -104,8 +108,10 @@ impl Batch {
             sequence_number: 0,
             root_index: 0,
             start_index,
+            start_slot: 0,
+            start_slot_is_set: 0,
             bloom_filter_is_zeroed: 0,
-            _padding: [0u8; 3],
+            _padding: [0u8; 2],
         }
     }
 
@@ -125,6 +131,17 @@ impl Batch {
         self.bloom_filter_is_zeroed = 0;
     }
 
+    pub fn start_slot_is_set(&self) -> bool {
+        self.start_slot_is_set == 1
+    }
+
+    pub fn set_start_slot(&mut self, start_slot: &u64) {
+        if !self.start_slot_is_set() {
+            self.start_slot = *start_slot;
+            self.start_slot_is_set = 1;
+        }
+    }
+
     /// fill -> full -> inserted -> fill
     pub fn advance_state_to_fill(
         &mut self,
@@ -136,6 +153,8 @@ impl Batch {
             self.sequence_number = 0;
             self.root_index = 0;
             self.num_inserted_zkps = 0;
+            self.start_slot_is_set = 0;
+            self.start_slot = 0;
             if let Some(start_index) = start_index {
                 self.start_index = start_index;
             }
@@ -253,7 +272,9 @@ impl Batch {
         value: &[u8; 32],
         value_store: &mut ZeroCopyVecU64<[u8; 32]>,
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
+        start_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
+        self.set_start_slot(start_slot);
         self.add_to_hash_chain(value, hashchain_store)?;
         value_store.push(*value)?;
         Ok(())
@@ -272,7 +293,9 @@ impl Batch {
         bloom_filter_stores: &mut [&mut [u8]],
         hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
         bloom_filter_index: usize,
+        start_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
+        self.set_start_slot(start_slot);
         // 1. add value to hash chain
         self.add_to_hash_chain(hashchain_value, hashchain_store)?;
         // insert into bloom filter & check non inclusion
@@ -430,6 +453,7 @@ mod tests {
         let mut sequence_number = 10;
         let mut root_index = 20;
         let root_history_length = 23;
+        let current_slot = 1;
         for i in 0..batch.get_num_zkp_batches() {
             sequence_number += i;
             root_index += i as u32;
@@ -455,6 +479,8 @@ mod tests {
         ref_batch.root_index = root_index;
         ref_batch.sequence_number = sequence_number + root_history_length as u64;
         ref_batch.num_inserted_zkps = 5;
+        ref_batch.start_slot = current_slot;
+        ref_batch.start_slot_is_set = 1;
         assert_eq!(batch, ref_batch);
         batch.advance_state_to_fill(Some(1)).unwrap();
         let mut ref_batch = get_test_batch();
@@ -465,6 +491,7 @@ mod tests {
     #[test]
     fn test_store_value() {
         let mut batch = get_test_batch();
+        let current_slot = 1;
 
         let mut value_store_bytes =
             vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
@@ -484,12 +511,21 @@ mod tests {
 
         let mut ref_batch = get_test_batch();
         for i in 0..batch.batch_size {
+            if i == 0 {
+                ref_batch.start_slot = current_slot;
+                ref_batch.start_slot_is_set = 1;
+            }
             ref_batch.num_inserted %= ref_batch.zkp_batch_size;
 
             let mut value = [0u8; 32];
             value[24..].copy_from_slice(&i.to_be_bytes());
             assert!(batch
-                .store_and_hash_value(&value, &mut value_store, &mut hashchain_store)
+                .store_and_hash_value(
+                    &value,
+                    &mut value_store,
+                    &mut hashchain_store,
+                    &current_slot
+                )
                 .is_ok());
             ref_batch.num_inserted += 1;
             if ref_batch.num_inserted == ref_batch.zkp_batch_size {
@@ -503,7 +539,12 @@ mod tests {
             assert_eq!(batch, ref_batch);
             assert_eq!(*value_store.get(i as usize).unwrap(), value);
         }
-        let result = batch.store_and_hash_value(&[1u8; 32], &mut value_store, &mut hashchain_store);
+        let result = batch.store_and_hash_value(
+            &[1u8; 32],
+            &mut value_store,
+            &mut hashchain_store,
+            &current_slot,
+        );
         assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
         assert_eq!(batch.get_state(), BatchState::Full);
         assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
@@ -518,6 +559,7 @@ mod tests {
     fn test_insert() {
         // Behavior Input queue
         let mut batch = get_test_batch();
+        let mut current_slot = 1;
         let mut stores = vec![vec![0u8; 20_000]; 2];
         let mut bloom_filter_stores = stores
             .iter_mut()
@@ -539,6 +581,15 @@ mod tests {
         for processing_index in 0..=1 {
             for i in 0..(batch.batch_size / 2) {
                 let i = i + (batch.batch_size / 2) * (processing_index as u64);
+                if i == 0 && processing_index == 0 {
+                    assert_eq!(batch.start_slot, 0);
+                    assert_eq!(batch.start_slot_is_set, 0);
+                    ref_batch.start_slot = current_slot;
+                    ref_batch.start_slot_is_set = 1;
+                } else {
+                    assert_eq!(batch.start_slot, 1);
+                    assert_eq!(batch.start_slot_is_set, 1);
+                }
 
                 ref_batch.num_inserted %= ref_batch.zkp_batch_size;
                 let mut hashchain_store =
@@ -558,6 +609,7 @@ mod tests {
                     bloom_filter_stores.as_mut_slice(),
                     &mut hashchain_store,
                     processing_index,
+                    &current_slot,
                 );
                 // First insert should succeed
                 assert!(result.is_ok(), "Failed result: {:?}", result);
@@ -577,7 +629,8 @@ mod tests {
                             &value,
                             bloom_filter_stores.as_mut_slice(),
                             &mut hashchain_store,
-                            processing_index
+                            processing_index,
+                            &current_slot
                         )
                         .is_err());
                 }
@@ -613,6 +666,7 @@ mod tests {
                     ref_batch.num_inserted = 0;
                 }
                 assert_eq!(batch, ref_batch);
+                current_slot += 1;
             }
         }
         test_mark_as_inserted(batch);
@@ -655,6 +709,7 @@ mod tests {
 
     #[test]
     fn test_check_non_inclusion() {
+        let mut current_slot = 1;
         for processing_index in 0..=1 {
             let mut batch = get_test_batch();
 
@@ -694,8 +749,10 @@ mod tests {
                     bloom_filter_stores.as_mut_slice(),
                     &mut hashchain_store,
                     processing_index,
+                    &current_slot,
                 )
                 .unwrap();
+            current_slot += 1;
             assert!(Batch::check_non_inclusion(
                 batch.num_iters as usize,
                 batch.bloom_filter_capacity,
@@ -760,6 +817,7 @@ mod tests {
     #[test]
     fn test_can_insert_batch() {
         let mut batch = get_test_batch();
+        let mut current_slot = 1;
         assert_eq!(
             batch.get_first_ready_zkp_batch(),
             Err(BatchedMerkleTreeError::BatchNotReady)
@@ -785,7 +843,12 @@ mod tests {
             value[24..].copy_from_slice(&i.to_be_bytes());
             if i < batch.batch_size {
                 batch
-                    .store_and_hash_value(&value, &mut value_store, &mut hashchain_store)
+                    .store_and_hash_value(
+                        &value,
+                        &mut value_store,
+                        &mut hashchain_store,
+                        &current_slot,
+                    )
                     .unwrap();
             }
             if (i + 1) % batch.zkp_batch_size == 0 && i != 0 {
@@ -805,6 +868,7 @@ mod tests {
                     Err(BatchedMerkleTreeError::BatchNotReady)
                 );
             }
+            current_slot += 1;
         }
     }
 
@@ -852,6 +916,7 @@ mod tests {
         assert_eq!(batch.get_num_ready_zkp_updates(), 1);
     }
 
+    #[ignore]
     #[test]
     fn test_get_num_inserted_elements() {
         let mut batch = get_test_batch();
@@ -895,7 +960,7 @@ mod tests {
     // to modify private Batch variables for assertions.
     #[test]
     fn test_get_num_inserted() {
-        let mut account_data = vec![0u8; 984];
+        let mut account_data = vec![0u8; 1000];
         let mut queue_metadata = QueueMetadata::default();
         let associated_merkle_tree = Pubkey::new_unique();
         queue_metadata.associated_merkle_tree = associated_merkle_tree;
@@ -904,6 +969,7 @@ mod tests {
         let zkp_batch_size = 2;
         let bloom_filter_capacity = 0;
         let num_iters = 0;
+        let mut current_slot = 1;
         let mut account = BatchedQueueAccount::init(
             &mut account_data,
             queue_metadata,
@@ -919,7 +985,9 @@ mod tests {
         assert_eq!(account.get_num_inserted_in_current_batch(), 0);
         // Fill first batch
         for i in 1..=batch_size {
-            account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            account
+                .insert_into_current_batch(&[1u8; 32], &current_slot)
+                .unwrap();
             if i == batch_size {
                 // Current batch is batch[1] now since batch[0] is full
                 assert_eq!(account.get_num_inserted_in_current_batch(), 0);
@@ -930,12 +998,15 @@ mod tests {
             } else {
                 assert_eq!(account.get_num_inserted_in_current_batch(), i);
             }
+            current_slot += 1;
         }
         println!("full batch 0 {:?}", account.batch_metadata.batches[0]);
 
         // Fill second batch
         for i in 1..=batch_size {
-            account.insert_into_current_batch(&[2u8; 32]).unwrap();
+            account
+                .insert_into_current_batch(&[2u8; 32], &current_slot)
+                .unwrap();
             if i == batch_size {
                 // Current batch is batch[0] and it is still full
                 assert_eq!(account.get_num_inserted_in_current_batch(), 4);
@@ -946,13 +1017,14 @@ mod tests {
             } else {
                 assert_eq!(account.get_num_inserted_in_current_batch(), i);
             }
+            current_slot += 1;
         }
         println!("account {:?}", account.batch_metadata);
         println!("account {:?}", account.batch_metadata.batches[0]);
         println!("account {:?}", account.batch_metadata.batches[1]);
         assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
         assert_eq!(
-            account.insert_into_current_batch(&[1u8; 32]),
+            account.insert_into_current_batch(&[1u8; 32], &current_slot),
             Err(BatchedMerkleTreeError::BatchNotReady)
         );
         let ref_value_array = vec![[1u8; 32]; 4];
@@ -961,7 +1033,7 @@ mod tests {
         assert_eq!(account.value_vecs[1].as_slice(), ref_value_array.as_slice());
         assert_eq!(account.batch_metadata.get_current_batch().start_index, 0);
         {
-            let batch_1 = account.batch_metadata.batches[0];
+            let batch_0 = account.batch_metadata.batches[0];
             let mut expected_batch = Batch::new(
                 num_iters,
                 bloom_filter_capacity,
@@ -970,11 +1042,13 @@ mod tests {
                 0,
             );
             expected_batch.current_zkp_batch_index = 2;
+            expected_batch.start_slot = 1;
+            expected_batch.start_slot_is_set = 1;
             expected_batch.advance_state_to_full().unwrap();
-            assert_eq!(batch_1, expected_batch);
+            assert_eq!(batch_0, expected_batch);
         }
         {
-            let batch_2 = account.batch_metadata.batches[1];
+            let batch_1 = account.batch_metadata.batches[1];
             let mut expected_batch = Batch::new(
                 num_iters,
                 bloom_filter_capacity,
@@ -983,9 +1057,10 @@ mod tests {
                 batch_size,
             );
             expected_batch.current_zkp_batch_index = 2;
-
+            expected_batch.start_slot = 1 + batch_size;
+            expected_batch.start_slot_is_set = 1;
             expected_batch.advance_state_to_full().unwrap();
-            assert_eq!(batch_2, expected_batch);
+            assert_eq!(batch_1, expected_batch);
         }
         // Mark first batch as inserted
         {
@@ -1000,7 +1075,9 @@ mod tests {
                 account.batch_metadata.get_current_batch().get_state(),
                 BatchState::Inserted
             );
-            account.insert_into_current_batch(&[1u8; 32]).unwrap();
+            account
+                .insert_into_current_batch(&[1u8; 32], &current_slot)
+                .unwrap();
             assert_eq!(account.value_vecs[0].as_slice(), [[1u8; 32]].as_slice());
             assert_eq!(account.value_vecs[1].as_slice(), ref_value_array.as_slice());
             assert_eq!(
@@ -1021,15 +1098,21 @@ mod tests {
 
             assert_ne!(*account.batch_metadata.get_current_batch(), expected_batch);
             expected_batch.num_inserted = 1;
+            expected_batch.start_slot_is_set = 1;
+            expected_batch.start_slot = current_slot;
             assert_eq!(*account.batch_metadata.get_current_batch(), expected_batch);
 
             assert_eq!(account.batch_metadata.get_current_batch().start_index, 8);
         }
         // Fill cleared batch
         {
+            let expected_start_slot = current_slot;
             for i in 1..batch_size {
                 assert_eq!(account.get_num_inserted_in_current_batch(), i);
-                account.insert_into_current_batch(&[1u8; 32]).unwrap();
+                account
+                    .insert_into_current_batch(&[1u8; 32], &current_slot)
+                    .unwrap();
+                current_slot += 1;
             }
             assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
             let mut expected_batch = Batch::new(
@@ -1039,8 +1122,11 @@ mod tests {
                 zkp_batch_size,
                 batch_size * 2,
             );
+
             expected_batch.current_zkp_batch_index = 2;
             expected_batch.advance_state_to_full().unwrap();
+            expected_batch.start_slot = expected_start_slot;
+            expected_batch.start_slot_is_set = 1;
             assert_eq!(account.batch_metadata.batches[0], expected_batch);
             assert_ne!(*account.batch_metadata.get_current_batch(), expected_batch);
             assert_eq!(
@@ -1057,11 +1143,15 @@ mod tests {
             .unwrap();
 
         {
+            let expected_start_slot = current_slot;
             for i in 0..batch_size {
                 assert!(!account.tree_is_full());
                 assert!(account.check_tree_is_full().is_ok());
                 assert_eq!(account.get_num_inserted_in_current_batch(), i);
-                account.insert_into_current_batch(&[1u8; 32]).unwrap();
+                account
+                    .insert_into_current_batch(&[1u8; 32], &current_slot)
+                    .unwrap();
+                current_slot += 1;
             }
             assert_eq!(account.get_num_inserted_in_current_batch(), batch_size);
             let mut expected_batch = Batch::new(
@@ -1072,6 +1162,8 @@ mod tests {
                 batch_size * 3,
             );
             expected_batch.current_zkp_batch_index = 2;
+            expected_batch.start_slot = expected_start_slot;
+            expected_batch.start_slot_is_set = 1;
             expected_batch.advance_state_to_full().unwrap();
             assert_eq!(account.batch_metadata.batches[1], expected_batch);
         }

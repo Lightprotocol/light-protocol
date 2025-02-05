@@ -59,6 +59,7 @@ fn test_output_queue_account() {
     let bloom_filter_capacity = 0;
     let bloom_filter_num_iters = 0;
     let queue_pubkey = Pubkey::new_unique();
+    let current_slot = 123;
     {
         let queue_type = QueueType::BatchedOutput;
         let (ref_account, mut account_data) =
@@ -77,10 +78,12 @@ fn test_output_queue_account() {
         assert_queue_zero_copy_inited(&mut account_data, ref_account);
         let mut account = BatchedQueueAccount::output_from_bytes(&mut account_data).unwrap();
         let value = [1u8; 32];
-        account.insert_into_current_batch(&value).unwrap();
-        if queue_type != QueueType::BatchedOutput {
-            assert!(account.insert_into_current_batch(&value).is_err());
-        }
+        account
+            .insert_into_current_batch(&value, &current_slot)
+            .unwrap();
+        let current_batch = account.batch_metadata.get_current_batch();
+        assert_eq!(current_batch.get_num_inserted_elements(), 1);
+        assert_eq!(current_batch.start_slot, current_slot);
     }
 }
 
@@ -99,13 +102,15 @@ fn test_value_exists_in_value_vec_present() {
         queue_pubkey,
     )
     .unwrap();
-
+    let current_slot = 2;
     let value = [1u8; 32];
     let value2 = [2u8; 32];
 
     // 1. Functional for 1 value
     {
-        account.insert_into_current_batch(&value).unwrap();
+        account
+            .insert_into_current_batch(&value, &current_slot)
+            .unwrap();
         assert_eq!(
             account.prove_inclusion_by_index(1, &value),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
@@ -126,6 +131,9 @@ fn test_value_exists_in_value_vec_present() {
         assert!(account
             .prove_inclusion_by_index_and_zero_out_leaf(0, &value, false)
             .is_ok());
+        let current_batch = account.batch_metadata.get_current_batch();
+        assert_eq!(current_batch.get_num_inserted_elements(), 1);
+        assert_eq!(current_batch.start_slot, current_slot);
     }
     // 2. Functional does not succeed on second invocation
     {
@@ -145,7 +153,9 @@ fn test_value_exists_in_value_vec_present() {
 
     // 3. Functional for value 2 with proof by index enforced
     {
-        account.insert_into_current_batch(&value2).unwrap();
+        account
+            .insert_into_current_batch(&value2, &current_slot)
+            .unwrap();
 
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, false),

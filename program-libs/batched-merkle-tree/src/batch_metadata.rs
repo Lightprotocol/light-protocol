@@ -297,7 +297,7 @@ fn test_output_queue_account_size() {
     // Metadata::size, value array (vec metadata + 10 *[u8;32])
     // + hash chain(vec metadata + 5 *[u8;32])
     // + hashed merkle tree pubkey + hashed queue pubkey
-    let queue_size = 472 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 32 + 32;
+    let queue_size = 488 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 32 + 32;
     assert_eq!(
         metadata
             .queue_account_size(QueueType::BatchedOutput as u64)

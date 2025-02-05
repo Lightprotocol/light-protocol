@@ -18,6 +18,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     start_output_appends: u8,
     num_output_queues: u8,
     accounts: &mut [AcpAccount<'a, 'info>],
+    current_slot: &u64,
 ) -> Result<()> {
     if leaves.is_empty() {
         return Ok(());
@@ -47,7 +48,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
             AcpAccount::OutputQueue(queue) => {
                 for leaf in leaves[start..end].iter() {
                     queue
-                        .insert_into_current_batch(&leaf.leaf)
+                        .insert_into_current_batch(&leaf.leaf, current_slot)
                         .map_err(ProgramError::from)?;
                 }
             }

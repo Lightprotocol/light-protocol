@@ -14,6 +14,7 @@ pub fn insert_nullifiers(
     tx_hash: [u8; 32],
     nullifiers: &[InsertNullifierInput],
     accounts: &mut [AcpAccount<'_, '_>],
+    current_slot: &u64,
 ) -> Result<()> {
     if nullifiers.is_empty() {
         return Ok(());
@@ -54,6 +55,7 @@ pub fn insert_nullifiers(
                     nullifiers,
                     queue_index,
                     tree_index,
+                    current_slot,
                 )?;
             }
             AcpAccount::V1Queue(queue_account_info) => {
@@ -99,6 +101,7 @@ fn process_nullifier_v2<'info>(
     nullifiers: &[InsertNullifierInput],
     current_queue_index: u8,
     current_tree_index: u8,
+    current_slot: &u64,
 ) -> Result<usize> {
     let nullifiers = nullifiers
         .iter()
@@ -130,7 +133,12 @@ fn process_nullifier_v2<'info>(
 
         // 5. Insert the nullifiers into the current input queue batch.
         merkle_tree
-            .insert_nullifier_into_current_batch(&nullifier.account_hash, leaf_index, tx_hash)
+            .insert_nullifier_into_current_batch(
+                &nullifier.account_hash,
+                leaf_index,
+                tx_hash,
+                current_slot,
+            )
             .map_err(ProgramError::from)?;
     }
     Ok(num_elements)
