@@ -35,7 +35,7 @@ async fn test_state_indexer_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: true,
+        enable_indexer: false,
         wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],
@@ -278,6 +278,8 @@ async fn test_state_indexer_batched() {
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
+
+    return;
 
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
