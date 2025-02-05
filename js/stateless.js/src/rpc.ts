@@ -1035,7 +1035,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithCursor<ParsedTokenAccount[]>> {
         if (!options) options = {};
 
-        return getCompressedTokenAccountsByOwnerOrDelegate(
+        return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             delegate,
             options,

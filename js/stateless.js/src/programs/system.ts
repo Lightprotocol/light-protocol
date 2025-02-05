@@ -380,6 +380,7 @@ export class LightSystemProgram {
             toAddress,
             lamports,
         );
+
         /// Pack accounts
         const {
             packedInputCompressedAccounts,
@@ -391,6 +392,7 @@ export class LightSystemProgram {
             outputCompressedAccounts,
             outputStateTrees,
         );
+
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
             proof: recentValidityProof,
@@ -402,6 +404,7 @@ export class LightSystemProgram {
             compressOrDecompressLamports: null,
             isCompress: false,
         };
+
         const data = encodeInstructionDataInvoke(rawInputs);
 
         const accounts = invokeAccountsLayout({
@@ -412,6 +415,7 @@ export class LightSystemProgram {
             decompressionRecipient: null,
             systemProgram: SystemProgram.programId,
         });
+
         const keys = [...accounts, ...toAccountMetas(remainingAccounts)];
 
         return new TransactionInstruction({

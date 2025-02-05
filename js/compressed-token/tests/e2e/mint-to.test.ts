@@ -91,6 +91,7 @@ describe('mintTo', () => {
             [mint, payer.publicKey],
         );
         lut = address;
+        console.log('setup alut: ', lut.toBase58());
     }, 80_000);
 
     it('should mint to bob', async () => {
