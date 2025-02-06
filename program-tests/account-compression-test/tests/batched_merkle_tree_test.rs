@@ -834,7 +834,6 @@ pub async fn create_nullify_batch_ix_data(
         &light_utils::pubkey::Pubkey::default(),
     )
     .unwrap();
-    println!("batches {:?}", zero_copy_account.queue_batches.batches);
 
     let next_full_batch = zero_copy_account
         .get_metadata()

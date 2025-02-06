@@ -320,7 +320,6 @@ impl Batch {
         {
             let other_bloom_filter_index = if bloom_filter_index == 0 { 1 } else { 0 };
 
-            println!("pre insert");
             // 3. Insert value into the bloom filter at bloom_filter_index.
             BloomFilter::new(
                 self.num_iters as usize,
@@ -328,7 +327,6 @@ impl Batch {
                 bloom_filter_stores[bloom_filter_index],
             )?
             .insert(bloom_filter_value)?;
-            println!("post insert");
             // 4. Check that value is not in any other bloom filter.
             Self::check_non_inclusion(
                 self.num_iters as usize,

@@ -808,22 +808,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let previous_batch_is_inserted = previous_pending_batch.get_state() == BatchState::Inserted;
         let previous_batch_is_ready =
             previous_batch_is_inserted && !previous_pending_batch.bloom_filter_is_zeroed();
-        println!(
-            "onchain previous_batch_is_inserted {}",
-            previous_batch_is_inserted
-        );
-        println!(
-            "onchain previous_pending_batch.bloom_filter_is_zeroed() {}",
-            previous_pending_batch.bloom_filter_is_zeroed()
-        );
-        println!(
-            "onchain current_batch_is_half_full {}",
-            current_batch_is_half_full
-        );
-        println!(
-            "onchain previous_pending_batch_index {}",
-            previous_pending_batch_index
-        );
 
         // Current batch is at least half full, previous batch is inserted, and not zeroed.
         if current_batch_is_half_full && previous_batch_is_ready {

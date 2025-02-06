@@ -36,8 +36,7 @@ impl InsertNullifierInput {
     KnownLayout, IntoBytes, Immutable, Copy, Clone, FromBytes, PartialEq, Debug, Unaligned,
 )]
 pub struct AppendLeavesInput {
-    // TODO: rename to account index
-    pub index: u8,
+    pub tree_account_index: u8,
     pub leaf: [u8; 32],
 }
 #[repr(C)]

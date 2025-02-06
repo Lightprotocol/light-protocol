@@ -73,7 +73,7 @@ pub fn create_insert_leaves_instruction(
     ix_data.num_output_queues = merkle_tree_pubkeys.len() as u8;
     for (i, (index, leaf)) in leaves.iter().enumerate() {
         ix_data.leaves[i].leaf = *leaf;
-        ix_data.leaves[i].index = *index;
+        ix_data.leaves[i].tree_account_index = *index;
     }
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };

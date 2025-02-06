@@ -105,7 +105,7 @@ pub mod system_cpi_test {
         inputs.num_output_queues = 1;
         inputs.num_address_queues = 1;
         inputs.leaves[0].leaf = [1u8; 32];
-        inputs.leaves[0].index = if is_batched { 1 } else { 0 };
+        inputs.leaves[0].tree_account_index = if is_batched { 1 } else { 0 };
         inputs.nullifiers[0].account_hash = [2u8; 32];
         inputs.nullifiers[0].leaf_index = 1.into();
         inputs.nullifiers[0].prove_by_index = 0;

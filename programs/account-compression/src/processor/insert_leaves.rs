@@ -31,12 +31,15 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     for i in start_output_appends..start_output_appends + num_output_queues {
         let account = &mut accounts[i as usize];
         // 2. get first leaves that points to current Merkle tree account
-        let start = match leaves.iter().position(|x| x.index == i) {
+        let start = match leaves.iter().position(|x| x.tree_account_index == i) {
             Some(pos) => Ok(pos),
             None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
         }?;
         // 3. get last leaf that points to current Merkle tree account
-        let end = match leaves[start..].iter().position(|x| x.index != i) {
+        let end = match leaves[start..]
+            .iter()
+            .position(|x| x.tree_account_index != i)
+        {
             Some(pos) => pos + start,
             None => leaves.len(),
         };
