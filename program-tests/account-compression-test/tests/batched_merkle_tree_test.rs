@@ -761,7 +761,7 @@ pub async fn create_append_batch_ix_data(
     let next_full_batch = output_zero_copy_account
         .get_metadata()
         .batch_metadata
-        .next_full_batch_index;
+        .pending_batch_index;
     let batch = output_zero_copy_account
         .batch_metadata
         .batches
@@ -805,7 +805,7 @@ pub async fn create_nullify_batch_ix_data(
     let next_full_batch = zero_copy_account
         .get_metadata()
         .queue_metadata
-        .next_full_batch_index;
+        .pending_batch_index;
     let batch = zero_copy_account
         .queue_metadata
         .batches
@@ -1957,7 +1957,7 @@ pub async fn update_batch_address_tree(
     let next_full_batch = zero_copy_account
         .get_metadata()
         .queue_metadata
-        .next_full_batch_index;
+        .pending_batch_index;
 
     let batch = zero_copy_account
         .queue_metadata

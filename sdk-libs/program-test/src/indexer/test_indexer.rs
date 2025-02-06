@@ -929,9 +929,11 @@ where
         let (merkle_tree_next_index, root) = {
             let mut merkle_tree_account =
                 rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-            let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                    .unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                merkle_tree_account.data.as_mut_slice(),
+                &merkle_tree_pubkey.into(),
+            )
+            .unwrap();
             (
                 merkle_tree.next_index as usize,
                 *merkle_tree.root_history.last().unwrap(),
@@ -1000,9 +1002,11 @@ where
             .unwrap();
 
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-        let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let batch = &merkle_tree.queue_metadata.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
@@ -1031,7 +1035,9 @@ where
         merkle_tree_pubkey: Pubkey,
         account_data: &mut [u8],
     ) {
-        let onchain_account = BatchedMerkleTreeAccount::address_from_bytes(account_data).unwrap();
+        let onchain_account =
+            BatchedMerkleTreeAccount::address_from_bytes(account_data, &merkle_tree_pubkey.into())
+                .unwrap();
         let address_tree = self
             .address_merkle_trees
             .iter_mut()
@@ -1422,6 +1428,7 @@ where
                 let mut merkle_tree_account = rpc.get_account(pubkey).await.unwrap().unwrap();
                 let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     merkle_tree_account.data.as_mut_slice(),
+                    &pubkey.into(),
                 )
                 .unwrap();
                 (
@@ -1509,9 +1516,11 @@ where
                     .await
                     .unwrap();
                 if let Some(mut account) = account {
-                    let account =
-                        BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice())
-                            .unwrap();
+                    let account = BatchedMerkleTreeAccount::address_from_bytes(
+                        account.data.as_mut_slice(),
+                        &address_merkle_tree_pubkeys[i].into(),
+                    )
+                    .unwrap();
                     address_root_indices.push(account.get_root_index() as u16);
                 } else {
                     panic!(

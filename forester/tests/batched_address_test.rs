@@ -160,8 +160,11 @@ async fn test_address_batched() {
         "merkle_tree_account.data {:?}",
         merkle_tree_account.data[..100].to_vec()
     );
-    let merkle_tree =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account.data).unwrap();
+    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        &mut merkle_tree_account.data,
+        &address_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
     for i in 0..merkle_tree.queue_metadata.batch_size {
         println!("===================== tx {} =====================", i);
@@ -190,9 +193,11 @@ async fn test_address_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &address_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
         let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -233,15 +238,17 @@ async fn test_address_batched() {
         .unwrap()
         .unwrap();
 
-    let merkle_tree =
-        BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-            .unwrap();
+    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        merkle_tree_account.data.as_mut_slice(),
+        &address_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
     assert!(
         merkle_tree
             .get_metadata()
             .queue_metadata
-            .next_full_batch_index
+            .pending_batch_index
             > 0,
         "No batches were processed"
     );
@@ -255,9 +262,11 @@ async fn test_address_batched() {
             .unwrap()
             .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &address_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
 
@@ -283,7 +292,7 @@ async fn test_address_batched() {
             merkle_tree
                 .get_metadata()
                 .queue_metadata
-                .next_full_batch_index,
+                .pending_batch_index,
             1
         );
 

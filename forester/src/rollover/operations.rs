@@ -107,7 +107,8 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedState => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data).unwrap();
+                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
+                    .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
                 merkle_tree.queue_metadata.batch_size
@@ -127,8 +128,8 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 merkle_tree.queue_metadata.zkp_batch_size
             );
             println!(
-                "queue next_full_batch_index: {:?}",
-                merkle_tree.queue_metadata.next_full_batch_index
+                "queue pending_batch_index: {:?}",
+                merkle_tree.queue_metadata.pending_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
@@ -157,7 +158,8 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedAddress => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data).unwrap();
+                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
+                    .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
                 merkle_tree.queue_metadata.batch_size
@@ -177,8 +179,8 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 merkle_tree.queue_metadata.zkp_batch_size
             );
             println!(
-                "queue next_full_batch_index: {:?}",
-                merkle_tree.queue_metadata.next_full_batch_index
+                "queue pending_batch_index: {:?}",
+                merkle_tree.queue_metadata.pending_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",

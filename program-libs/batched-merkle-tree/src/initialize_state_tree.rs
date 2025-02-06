@@ -3,7 +3,7 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata,
     merkle_tree::{MerkleTreeMetadata, TreeType},
     queue::{QueueMetadata, QueueType},
-    rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+    rollover::RolloverMetadata,
 };
 use light_utils::{
     account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee,
@@ -12,7 +12,6 @@ use light_utils::{
 use solana_program::{account_info::AccountInfo, msg};
 
 use crate::{
-    batch_metadata::BatchMetadata,
     constants::{
         DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
         DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
@@ -20,13 +19,18 @@ use crate::{
     errors::BatchedMerkleTreeError,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size, BatchedQueueAccount, BatchedQueueMetadata},
+    queue_batch_metadata::QueueBatches,
 };
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq)]
 pub struct InitStateTreeAccountsInstructionData {
+    /// Unchecked identifier of the state tree.
     pub index: u64,
+    /// Program owning the tree, enforced in the system program.
     pub program_owner: Option<Pubkey>,
+    /// Optional forester pubkey for trees not forested
+    /// by light foresters enforced in registry program.
     pub forester: Option<Pubkey>,
     pub additional_bytes: u64,
     pub input_queue_batch_size: u64,
@@ -38,6 +42,7 @@ pub struct InitStateTreeAccountsInstructionData {
     pub root_history_capacity: u32,
     pub network_fee: Option<u64>,
     pub rollover_threshold: Option<u64>,
+    /// Placeholder unimplemented.
     pub close_threshold: Option<u64>,
     pub height: u32,
 }
@@ -174,9 +179,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         let rollover_fee = match params.rollover_threshold {
             Some(rollover_threshold) => {
                 let rent = merkle_tree_rent + additional_bytes_rent + queue_rent;
-                let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)?;
-                check_rollover_fee_sufficient(rollover_fee, 0, rent, rollover_threshold, height)?;
-                rollover_fee
+                compute_rollover_fee(rollover_threshold, height, rent)?
             }
             None => 0,
         };
@@ -224,10 +227,10 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         associated_queue: output_queue_pubkey,
     };
 
-    // Note, the state Merkle tree account contains the input queue,
-    // because to insert a nullifier into the input queue the
-    // compressed state is spent. To spend compressed state we need
-    // to prove inclusion of this state for which we need a root from the tree account.
+    // The state Merkle tree account includes the input queue.
+    // A nullifier is inserted when compressed state is spent.
+    // Spending compressed state requires proving its inclusion,
+    // which needs a root from the tree account.
     BatchedMerkleTreeAccount::init(
         mt_account_data,
         &mt_pubkey,
@@ -298,8 +301,9 @@ pub fn get_state_merkle_tree_account_size_from_params(
 pub fn assert_state_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    pubkey: &Pubkey,
 ) {
-    let account = BatchedMerkleTreeAccount::state_from_bytes(account_data)
+    let account = BatchedMerkleTreeAccount::state_from_bytes(account_data, pubkey)
         .expect("from_bytes_unchecked_mut failed");
     _assert_mt_zero_copy_initialized::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
         account,
@@ -312,10 +316,11 @@ pub fn assert_state_mt_zero_copy_initialized(
 pub fn assert_address_mt_zero_copy_initialized(
     account_data: &mut [u8],
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    pubkey: &Pubkey,
 ) {
     use crate::{constants::BATCHED_ADDRESS_TREE_TYPE, merkle_tree::BatchedMerkleTreeAccount};
 
-    let account = BatchedMerkleTreeAccount::address_from_bytes(account_data)
+    let account = BatchedMerkleTreeAccount::address_from_bytes(account_data, pubkey)
         .expect("from_bytes_unchecked_mut failed");
     _assert_mt_zero_copy_initialized::<BATCHED_ADDRESS_TREE_TYPE>(
         account,
@@ -440,7 +445,7 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         associated_merkle_tree: params.associated_merkle_tree,
     };
     let batch_metadata =
-        BatchMetadata::new_output_queue(params.batch_size, params.zkp_batch_size).unwrap();
+        QueueBatches::new_output_queue(params.batch_size, params.zkp_batch_size).unwrap();
     BatchedQueueMetadata {
         metadata,
         batch_metadata,

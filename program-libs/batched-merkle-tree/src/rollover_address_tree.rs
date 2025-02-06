@@ -61,6 +61,7 @@ pub fn rollover_batched_address_tree<'a>(
     batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
     // 2. Rollover the old merkle tree.
+    // - Address don't have an associated queue account (Pubkey::default()).
     old_merkle_tree
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)?;
@@ -111,6 +112,7 @@ fn create_batched_address_tree_init_params(
 pub fn assert_address_mt_roll_over(
     mut old_mt_account_data: Vec<u8>,
     mut old_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    old_mt_pubkey: Pubkey,
     mut new_mt_account_data: Vec<u8>,
     new_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     new_mt_pubkey: Pubkey,
@@ -121,10 +123,12 @@ pub fn assert_address_mt_roll_over(
         .unwrap();
 
     let old_mt_account =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data).unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data, &old_mt_pubkey)
+            .unwrap();
     assert_eq!(*old_mt_account.get_metadata(), old_ref_mt_account);
     crate::initialize_state_tree::assert_address_mt_zero_copy_initialized(
         &mut new_mt_account_data,
         new_ref_mt_account,
+        &new_mt_pubkey,
     );
 }

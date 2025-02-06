@@ -10,11 +10,11 @@ use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
-    batch_metadata::BatchMetadata,
     constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE},
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
+    queue_batch_metadata::QueueBatches,
     BorshDeserialize, BorshSerialize,
 };
 
@@ -40,7 +40,10 @@ pub struct BatchedMerkleTreeMetadata {
     pub height: u32,
     pub root_history_capacity: u32,
     pub capacity: u64,
-    pub queue_metadata: BatchMetadata,
+    // TODO: rename queue_metadata -> queue_batches
+    pub queue_metadata: QueueBatches,
+    /// Hashed and truncated (big endian, 31 bytes
+    /// + 1 byte padding) Merkle tree pubkey.
     pub hashed_pubkey: [u8; 32],
 }
 
@@ -54,7 +57,7 @@ impl Default for BatchedMerkleTreeMetadata {
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
-            queue_metadata: BatchMetadata {
+            queue_metadata: QueueBatches {
                 currently_processing_batch_index: 0,
                 num_batches: NUM_BATCHES as u64,
                 batch_size: TEST_DEFAULT_BATCH_SIZE,
@@ -69,11 +72,11 @@ impl Default for BatchedMerkleTreeMetadata {
 
 impl BatchedMerkleTreeMetadata {
     pub fn get_account_size(&self) -> Result<usize, BatchedMerkleTreeError> {
-        let account_size = Self::LEN;
+        let metadata_size = Self::LEN;
         let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
             self.root_history_capacity as u64,
         );
-        let size = account_size
+        let size = metadata_size
             + root_history_size
             + self
                 .queue_metadata
@@ -143,7 +146,7 @@ impl BatchedMerkleTreeMetadata {
             next_index: 0,
             height,
             root_history_capacity,
-            queue_metadata: BatchMetadata::new_input_queue(
+            queue_metadata: QueueBatches::new_input_queue(
                 batch_size,
                 bloom_filter_capacity,
                 zkp_batch_size,

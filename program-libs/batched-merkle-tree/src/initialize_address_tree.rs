@@ -1,7 +1,7 @@
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     merkle_tree::{MerkleTreeMetadata, TreeType},
-    rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+    rollover::RolloverMetadata,
 };
 use light_utils::{
     account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
@@ -109,7 +109,6 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params.height,
     );
     let merkle_tree_rent = check_account_balance_is_rent_exempt(mt_account_info, mt_account_size)?;
-
     // 2. Initialized the address Merkle tree account.
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
@@ -136,9 +135,7 @@ pub fn init_batched_address_merkle_tree_account(
     let rollover_fee = match params.rollover_threshold {
         Some(rollover_threshold) => {
             let rent = merkle_tree_rent;
-            let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)?;
-            check_rollover_fee_sufficient(rollover_fee, 0, rent, rollover_threshold, height)?;
-            rollover_fee
+            compute_rollover_fee(rollover_threshold, height, rent)?
         }
         None => 0,
     };

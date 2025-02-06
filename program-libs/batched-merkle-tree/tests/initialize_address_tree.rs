@@ -32,7 +32,7 @@ fn test_account_init() {
     )
     .unwrap();
 
-    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
+    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account, &tree_pubkey);
 }
 
 #[test]
@@ -112,6 +112,6 @@ fn test_rnd_account_init() {
         let mt_params = CreateTreeParams::from_address_ix_params(params, owner, tree_pubkey);
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(mt_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
+        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account, &tree_pubkey);
     }
 }

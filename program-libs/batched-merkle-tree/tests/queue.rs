@@ -1,9 +1,9 @@
 use light_batched_merkle_tree::{
     batch::Batch,
-    batch_metadata::BatchMetadata,
     constants::NUM_BATCHES,
     errors::BatchedMerkleTreeError,
     queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
+    queue_batch_metadata::QueueBatches,
 };
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
@@ -27,11 +27,11 @@ pub fn get_test_account_and_account_data(
 
     let account = BatchedQueueMetadata {
         metadata,
-        batch_metadata: BatchMetadata {
+        batch_metadata: QueueBatches {
             batch_size,
             num_batches: NUM_BATCHES as u64,
             currently_processing_batch_index: 0,
-            next_full_batch_index: 0,
+            pending_batch_index: 0,
             bloom_filter_capacity,
             zkp_batch_size: 10,
             next_index: 0,
@@ -88,7 +88,7 @@ fn test_output_queue_account() {
 }
 
 #[test]
-fn test_value_exists_in_value_vec_present() {
+fn test_value_exists_in_value_vec() {
     let (account, mut account_data) =
         get_test_account_and_account_data(100, QueueType::BatchedOutput, 0);
     let queue_pubkey = Pubkey::new_unique();
@@ -113,15 +113,28 @@ fn test_value_exists_in_value_vec_present() {
             .unwrap();
         assert_eq!(
             account.prove_inclusion_by_index(1, &value),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            "With invalid index."
         );
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, false),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            "With invalid index."
+        );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, true),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            "With invalid index."
         );
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, false),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            "With invalid value."
+        );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, true),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            "With invalid value."
         );
         assert!(account.prove_inclusion_by_index(0, &value).is_ok());
         // prove inclusion for value out of range returns false
@@ -161,6 +174,10 @@ fn test_value_exists_in_value_vec_present() {
             account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, false),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, true),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
         assert!(account
             .prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true)
             .is_ok());
@@ -174,6 +191,10 @@ fn test_value_exists_in_value_vec_present() {
         );
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(1, &value2, true),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(1000, &value2, true),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
     }
