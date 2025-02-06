@@ -8,6 +8,7 @@ Method | HTTP request | Description
 [**get_compressed_account_post**](DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 [**get_compressed_account_proof_post**](DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
 [**get_compressed_accounts_by_owner_post**](DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
+[**get_compressed_accounts_by_owner_v2_post**](DefaultApi.md#get_compressed_accounts_by_owner_v2_post) | **POST** /getCompressedAccountsByOwnerV2 | 
 [**get_compressed_balance_by_owner_post**](DefaultApi.md#get_compressed_balance_by_owner_post) | **POST** /getCompressedBalanceByOwner | 
 [**get_compressed_mint_token_holders_post**](DefaultApi.md#get_compressed_mint_token_holders_post) | **POST** /getCompressedMintTokenHolders | 
 [**get_compressed_token_account_balance_post**](DefaultApi.md#get_compressed_token_account_balance_post) | **POST** /getCompressedTokenAccountBalance | 
@@ -135,6 +136,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetCompressedAccountsByOwnerPost200Response**](_getCompressedAccountsByOwner_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_compressed_accounts_by_owner_v2_post
+
+> models::GetCompressedAccountsByOwnerV2Post200Response get_compressed_accounts_by_owner_v2_post(get_compressed_accounts_by_owner_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_accounts_by_owner_v2_post_request** | [**GetCompressedAccountsByOwnerV2PostRequest**](GetCompressedAccountsByOwnerV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedAccountsByOwnerV2Post200Response**](_getCompressedAccountsByOwnerV2_post_200_response.md)
 
 ### Authorization
 
@@ -710,7 +739,7 @@ No authorization required
 
 ## get_proofs_by_indices_post
 
-> models::GetProofsByIndicesPost200Response get_proofs_by_indices_post(get_proofs_by_indices_post_request)
+> models::GetMultipleCompressedAccountProofsPost200Response get_proofs_by_indices_post(get_proofs_by_indices_post_request)
 
 
 ### Parameters
@@ -722,7 +751,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetProofsByIndicesPost200Response**](_getProofsByIndices_post_200_response.md)
+[**models::GetMultipleCompressedAccountProofsPost200Response**](_getMultipleCompressedAccountProofs_post_200_response.md)
 
 ### Authorization
 

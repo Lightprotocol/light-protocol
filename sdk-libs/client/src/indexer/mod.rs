@@ -188,7 +188,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    async fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
@@ -256,12 +256,12 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Result<Vec<ProofOfLeaf>, IndexerError>;
+    ) -> Result<Vec<MerkleProof>, IndexerError>;
 
     async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: usize,
+        zkp_batch_size: u64,
     ) -> Result<Vec<LeafIndexInfo>, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
@@ -369,6 +369,7 @@ impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
             lamports: self.compressed_account.lamports,
             data: account_data,
             owner: self.compressed_account.owner.to_string(),
+            queue_index: None, // TODO: implement
             seq: 0,
             slot_created: 0,
             leaf_index: self.merkle_context.leaf_index,

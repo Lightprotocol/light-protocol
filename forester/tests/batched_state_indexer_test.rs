@@ -181,12 +181,12 @@ async fn test_state_indexer_batched() {
         &forester_keypair.pubkey()
     );
     let compressed_balance_photon = photon_indexer
-        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
         .await
         .unwrap();
     let compressed_balance_test_indexer = e2e_env
         .indexer
-        .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
         .await
         .unwrap();
     for (photon_account, test_indexer_account) in compressed_balance_photon
@@ -212,12 +212,12 @@ async fn test_state_indexer_batched() {
             &forester_keypair.pubkey()
         );
         let compressed_balance_photon = photon_indexer
-            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
             .await
             .unwrap();
         let compressed_balance_test_indexer = e2e_env
             .indexer
-            .get_compressed_accounts_by_owner(&forester_keypair.pubkey())
+            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
             .await
             .unwrap();
         for (photon_account, test_indexer_account) in compressed_balance_photon
@@ -242,12 +242,12 @@ async fn test_state_indexer_batched() {
             to_pubkey
         );
         let compressed_balance_photon = photon_indexer
-            .get_compressed_accounts_by_owner(&to_pubkey)
+            .get_compressed_accounts_by_owner_v2(&to_pubkey)
             .await
             .unwrap();
         let compressed_balance_test_indexer = e2e_env
             .indexer
-            .get_compressed_accounts_by_owner(&to_pubkey)
+            .get_compressed_accounts_by_owner_v2(&to_pubkey)
             .await
             .unwrap();
         for (photon_account, test_indexer_account) in compressed_balance_photon
@@ -279,18 +279,16 @@ async fn test_state_indexer_batched() {
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
-    return;
-
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    drop(e2e_env.indexer);
+    // drop(e2e_env.indexer);
 
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(photon_indexer)),
+        Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,
         work_report_sender,
     ));

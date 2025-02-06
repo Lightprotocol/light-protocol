@@ -27,6 +27,7 @@ use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use light_client::indexer::Base58Conversions;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -275,7 +276,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             .await
             .unwrap();
         proofs.iter().for_each(|proof| {
-            old_leaves.push(proof.leaf);
+            old_leaves.push(light_client::indexer::Hash::from_base58(&*proof.hash.clone()).unwrap());
             merkle_proofs.push(proof.proof.clone());
         });
 
@@ -361,7 +362,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     };
 
     let leaf_indices_tx_hashes = indexer
-        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size as usize)
+        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size)
         .await
         .unwrap();
 
@@ -386,7 +387,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
         path_indices.push(leaf_info.leaf_index);
         leaves.push(leaf_info.leaf);
-        old_leaves.push(proof.leaf);
+        old_leaves.push(light_client::indexer::Hash::from_base58(&*proof.hash.clone()).unwrap());
         merkle_proofs.push(proof.proof.clone());
         tx_hashes.push(leaf_info.tx_hash);
         let index_bytes = leaf_info.leaf_index.to_be_bytes();

@@ -112,7 +112,7 @@ pub fn event_from_light_transaction(
             input_sequence_numbers,
             address_sequence_numbers,
         }))
-        } else {
+    } else {
         Ok(None)
     }
 }

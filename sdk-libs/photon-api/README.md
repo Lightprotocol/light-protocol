@@ -30,6 +30,7 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**get_compressed_account_post**](docs/DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 *DefaultApi* | [**get_compressed_account_proof_post**](docs/DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
 *DefaultApi* | [**get_compressed_accounts_by_owner_post**](docs/DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
+*DefaultApi* | [**get_compressed_accounts_by_owner_v2_post**](docs/DefaultApi.md#get_compressed_accounts_by_owner_v2_post) | **POST** /getCompressedAccountsByOwnerV2 | 
 *DefaultApi* | [**get_compressed_balance_by_owner_post**](docs/DefaultApi.md#get_compressed_balance_by_owner_post) | **POST** /getCompressedBalanceByOwner | 
 *DefaultApi* | [**get_compressed_mint_token_holders_post**](docs/DefaultApi.md#get_compressed_mint_token_holders_post) | **POST** /getCompressedMintTokenHolders | 
 *DefaultApi* | [**get_compressed_token_account_balance_post**](docs/DefaultApi.md#get_compressed_token_account_balance_post) | **POST** /getCompressedTokenAccountBalance | 
@@ -63,6 +64,7 @@ Class | Method | HTTP request | Description
  - [AccountData](docs/AccountData.md)
  - [AccountList](docs/AccountList.md)
  - [AccountState](docs/AccountState.md)
+ - [AccountV2](docs/AccountV2.md)
  - [AccountWithOptionalTokenData](docs/AccountWithOptionalTokenData.md)
  - [AddressWithTree](docs/AddressWithTree.md)
  - [CompressedProof](docs/CompressedProof.md)
@@ -87,6 +89,9 @@ Class | Method | HTTP request | Description
  - [GetCompressedAccountsByOwnerPost200ResponseResult](docs/GetCompressedAccountsByOwnerPost200ResponseResult.md)
  - [GetCompressedAccountsByOwnerPostRequest](docs/GetCompressedAccountsByOwnerPostRequest.md)
  - [GetCompressedAccountsByOwnerPostRequestParams](docs/GetCompressedAccountsByOwnerPostRequestParams.md)
+ - [GetCompressedAccountsByOwnerV2Post200Response](docs/GetCompressedAccountsByOwnerV2Post200Response.md)
+ - [GetCompressedAccountsByOwnerV2Post200ResponseResult](docs/GetCompressedAccountsByOwnerV2Post200ResponseResult.md)
+ - [GetCompressedAccountsByOwnerV2PostRequest](docs/GetCompressedAccountsByOwnerV2PostRequest.md)
  - [GetCompressedBalanceByOwnerPostRequest](docs/GetCompressedBalanceByOwnerPostRequest.md)
  - [GetCompressedBalanceByOwnerPostRequestParams](docs/GetCompressedBalanceByOwnerPostRequestParams.md)
  - [GetCompressedMintTokenHoldersPost200Response](docs/GetCompressedMintTokenHoldersPost200Response.md)
@@ -142,8 +147,6 @@ Class | Method | HTTP request | Description
  - [GetMultipleNewAddressProofsPost200ResponseResult](docs/GetMultipleNewAddressProofsPost200ResponseResult.md)
  - [GetMultipleNewAddressProofsPostRequest](docs/GetMultipleNewAddressProofsPostRequest.md)
  - [GetMultipleNewAddressProofsV2PostRequest](docs/GetMultipleNewAddressProofsV2PostRequest.md)
- - [GetProofsByIndicesPost200Response](docs/GetProofsByIndicesPost200Response.md)
- - [GetProofsByIndicesPost200ResponseResult](docs/GetProofsByIndicesPost200ResponseResult.md)
  - [GetProofsByIndicesPostRequest](docs/GetProofsByIndicesPostRequest.md)
  - [GetProofsByIndicesPostRequestParams](docs/GetProofsByIndicesPostRequestParams.md)
  - [GetQueueElementsPost200Response](docs/GetQueueElementsPost200Response.md)
@@ -169,8 +172,8 @@ Class | Method | HTTP request | Description
  - [OwnerBalanceList](docs/OwnerBalanceList.md)
  - [OwnerBalancesResponse](docs/OwnerBalancesResponse.md)
  - [PaginatedAccountList](docs/PaginatedAccountList.md)
+ - [PaginatedAccountListV2](docs/PaginatedAccountListV2.md)
  - [PaginatedSignatureInfoList](docs/PaginatedSignatureInfoList.md)
- - [ProofOfLeaf](docs/ProofOfLeaf.md)
  - [SignatureInfo](docs/SignatureInfo.md)
  - [SignatureInfoList](docs/SignatureInfoList.md)
  - [SignatureInfoListWithError](docs/SignatureInfoListWithError.md)
