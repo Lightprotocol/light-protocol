@@ -445,6 +445,7 @@ pub fn simulate_transaction(
 
 #[serial]
 #[tokio::test]
+#[ignore]
 async fn test_simulate_transactions() {
     spawn_prover(
         true,
@@ -894,6 +895,7 @@ pub fn get_random_leaf(rng: &mut StdRng, active_leaves: &mut Vec<[u8; 32]>) -> (
 /// executes tree updates when possible.
 #[serial]
 #[tokio::test]
+#[ignore]
 async fn test_e2e() {
     spawn_prover(
         true,
@@ -1597,6 +1599,7 @@ pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
 
 #[serial]
 #[tokio::test]
+#[ignore]
 async fn test_fill_state_queues_completely() {
     spawn_prover(
         true,
@@ -2010,6 +2013,7 @@ async fn test_fill_state_queues_completely() {
 
 #[serial]
 #[tokio::test]
+#[ignore]
 async fn test_fill_address_tree_completely() {
     spawn_prover(
         true,

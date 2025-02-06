@@ -718,3 +718,28 @@ fn test_check_is_associated() {
         assert!(!account.is_associated(&other_merkle_tree));
     }
 }
+
+#[test]
+fn test_pubkey() {
+    let mut account_data = vec![0u8; 1000];
+    let mut queue_metadata = QueueMetadata::default();
+    let associated_merkle_tree = Pubkey::new_unique();
+    queue_metadata.associated_merkle_tree = associated_merkle_tree;
+    queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+    let batch_size = 4;
+    let zkp_batch_size = 2;
+    let bloom_filter_capacity = 0;
+    let num_iters = 0;
+    let pubkey = Pubkey::new_unique();
+    let account = BatchedQueueAccount::init(
+        &mut account_data,
+        queue_metadata,
+        batch_size,
+        zkp_batch_size,
+        num_iters,
+        bloom_filter_capacity,
+        pubkey,
+    )
+    .unwrap();
+    assert_eq!(*account.pubkey(), pubkey);
+}
