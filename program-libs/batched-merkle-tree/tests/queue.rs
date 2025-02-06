@@ -113,17 +113,17 @@ fn test_value_exists_in_value_vec() {
             .unwrap();
         assert_eq!(
             account.prove_inclusion_by_index(1, &value),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            Err(BatchedMerkleTreeError::InvalidIndex),
             "With invalid index."
         );
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, false),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            Err(BatchedMerkleTreeError::InvalidIndex),
             "With invalid index."
         );
         assert_eq!(
             account.prove_inclusion_by_index_and_zero_out_leaf(1, &value, true),
-            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed),
+            Err(BatchedMerkleTreeError::InvalidIndex),
             "With invalid index."
         );
         assert_eq!(
@@ -137,10 +137,7 @@ fn test_value_exists_in_value_vec() {
             "With invalid value."
         );
         assert!(account.prove_inclusion_by_index(0, &value).is_ok());
-        // prove inclusion for value out of range returns false
-        assert!(!account
-            .prove_inclusion_by_index(100000, &[0u8; 32])
-            .unwrap());
+
         assert!(account
             .prove_inclusion_by_index_and_zero_out_leaf(0, &value, false)
             .is_ok());
@@ -194,8 +191,36 @@ fn test_value_exists_in_value_vec() {
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         );
         assert_eq!(
-            account.prove_inclusion_by_index_and_zero_out_leaf(1000, &value2, true),
+            account.prove_inclusion_by_index_and_zero_out_leaf(0, &value2, true),
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
+    }
+    for i in 0..254 {
+        if i == 197 {
+            account.batch_metadata.batches[0]
+                .advance_state_to_inserted()
+                .unwrap();
+        }
+        let mut value = [0; 32];
+        println!("i {}", i);
+        value[31] = i;
+        account
+            .insert_into_current_batch(&value, &current_slot)
+            .unwrap();
+    }
+    // Value out of range lower bound.
+    {
+        // prove inclusion for value out of range returns false
+        assert!(!account.prove_inclusion_by_index(3, &[0u8; 32]).unwrap());
+        let proof_by_index = true;
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(4, &[0u8; 32], proof_by_index),
+            Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
+        );
+        let proof_by_index = false;
+        assert_eq!(
+            account.prove_inclusion_by_index_and_zero_out_leaf(4, &[0u8; 32], proof_by_index),
+            Ok(())
         );
     }
 }
