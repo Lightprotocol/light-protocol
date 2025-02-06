@@ -668,8 +668,11 @@ async fn test_custom_forester_batched() {
                 .await
                 .unwrap()
                 .unwrap();
-            let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data).unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                &mut merkle_tree_account.data,
+                &state_merkle_tree_pubkey.into(),
+            )
+            .unwrap();
             // fill two output and one input batch
             for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
                 println!("\ntx {}", i);
@@ -2063,7 +2066,11 @@ async fn test_rollover_batch_address_tree() {
     );
     let zero_copy_account =
         BatchedMerkleTreeMetadata::new_address_tree(mt_params, account.lamports);
-    assert_address_mt_zero_copy_initialized(&mut account.data, zero_copy_account);
+    assert_address_mt_zero_copy_initialized(
+        &mut account.data,
+        zero_copy_account,
+        &new_merkle_tree_keypair.pubkey().into(),
+    );
     // Create one address to pay for rollover fees.
     perform_create_pda_with_event_rnd(&mut test_indexer, &mut rpc, &env, &payer)
         .await
