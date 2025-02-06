@@ -521,7 +521,7 @@ pub mod light_registry {
             ctx.accounts.merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
             // Reward for performed work is input queue batch size.
-            merkle_tree.queue_metadata.batch_size,
+            merkle_tree.queue_batches.batch_size,
         )?;
 
         process_batch_nullify(&ctx, bump, data)
@@ -587,7 +587,7 @@ pub mod light_registry {
             ctx.accounts.authority.key(),
             ctx.accounts.merkle_tree.key(),
             &mut ctx.accounts.registered_forester_pda,
-            account.queue_metadata.batch_size,
+            account.queue_batches.batch_size,
         )?;
 
         process_batch_update_address_tree(&ctx, bump, data)

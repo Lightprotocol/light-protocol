@@ -98,7 +98,7 @@ fn process_address_v2(
     for address in addresses {
         num_elements += 1;
         addresse_tree
-            .insert_address_into_current_batch(&address.address, current_slot)
+            .insert_address_into_queue(&address.address, current_slot)
             .map_err(ProgramError::from)?;
         #[cfg(feature = "bench-sbf")]
         light_heap::bench_sbf_end!("acp_insert_address_into_queue_v2");

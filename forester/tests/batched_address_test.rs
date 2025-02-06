@@ -166,7 +166,7 @@ async fn test_address_batched() {
     )
     .unwrap();
 
-    for i in 0..merkle_tree.queue_metadata.batch_size {
+    for i in 0..merkle_tree.queue_batches.batch_size {
         println!("===================== tx {} =====================", i);
 
         perform_create_pda_with_event_rnd(
@@ -245,11 +245,7 @@ async fn test_address_batched() {
     .unwrap();
 
     assert!(
-        merkle_tree
-            .get_metadata()
-            .queue_metadata
-            .pending_batch_index
-            > 0,
+        merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
         "No batches were processed"
     );
 
@@ -270,13 +266,13 @@ async fn test_address_batched() {
 
         let final_metadata = merkle_tree.get_metadata();
 
-        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
-        for batch_idx in 0..merkle_tree.queue_metadata.batches.len() {
-            let batch = merkle_tree.queue_metadata.batches.get(batch_idx).unwrap();
+        for batch_idx in 0..merkle_tree.queue_batches.batches.len() {
+            let batch = merkle_tree.queue_batches.batches.get(batch_idx).unwrap();
             if batch.get_state() == BatchState::Inserted {
                 completed_items += batch_size;
             }
@@ -289,10 +285,7 @@ async fn test_address_batched() {
         );
 
         assert_eq!(
-            merkle_tree
-                .get_metadata()
-                .queue_metadata
-                .pending_batch_index,
+            merkle_tree.get_metadata().queue_batches.pending_batch_index,
             1
         );
 

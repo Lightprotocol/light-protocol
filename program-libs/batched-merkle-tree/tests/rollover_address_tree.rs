@@ -100,6 +100,7 @@ fn test_rollover() {
     println!("pre 3");
     // 3. Functional: rollover address tree
     {
+        let pre_mt_data = mt_account_data.clone();
         let merkle_tree =
             &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                 .unwrap();
@@ -120,6 +121,11 @@ fn test_rollover() {
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
         let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << ref_rolledover_mt.height;
+        assert_eq!(
+            pre_mt_data[size_of::<BatchedMerkleTreeMetadata>()..],
+            mt_account_data[size_of::<BatchedMerkleTreeMetadata>()..],
+            "remainder of old_mt_account_data is not changed"
+        );
         assert_address_mt_roll_over(
             mt_account_data.to_vec(),
             ref_rolledover_mt,

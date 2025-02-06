@@ -266,8 +266,8 @@ impl Batch {
         self.batch_size / self.zkp_batch_size
     }
 
-    /// Returns the number of the hashchain stores.
-    pub fn get_num_hashchain_store(&self) -> usize {
+    /// Returns the number of the hash_chain stores.
+    pub fn get_num_hash_chain_store(&self) -> usize {
         self.get_num_zkp_batches() as usize
     }
 
@@ -308,18 +308,19 @@ impl Batch {
         bloom_filter_value: &[u8; 32],
         hash_chain_value: &[u8; 32],
         bloom_filter_stores: &mut [&mut [u8]],
-        hashchain_store: &mut ZeroCopyVecU64<[u8; 32]>,
+        hash_chain_store: &mut ZeroCopyVecU64<[u8; 32]>,
         bloom_filter_index: usize,
         start_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
         // 1. set start slot if not set.
         self.set_start_slot(start_slot);
         // 2. add value to hash chain
-        self.add_to_hash_chain(hash_chain_value, hashchain_store)?;
+        self.add_to_hash_chain(hash_chain_value, hash_chain_store)?;
         // insert into bloom filter & check non inclusion
         {
             let other_bloom_filter_index = if bloom_filter_index == 0 { 1 } else { 0 };
 
+            println!("pre insert");
             // 3. Insert value into the bloom filter at bloom_filter_index.
             BloomFilter::new(
                 self.num_iters as usize,
@@ -327,7 +328,7 @@ impl Batch {
                 bloom_filter_stores[bloom_filter_index],
             )?
             .insert(bloom_filter_value)?;
-
+            println!("post insert");
             // 4. Check that value is not in any other bloom filter.
             Self::check_non_inclusion(
                 self.num_iters as usize,
@@ -511,15 +512,15 @@ mod tests {
             vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
         let mut value_store =
             ZeroCopyVecU64::new(batch.batch_size, &mut value_store_bytes).unwrap();
-        let mut hashchain_store_bytes = vec![
+        let mut hash_chain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_num_hashchain_store() as u64
+                batch.get_num_hash_chain_store() as u64
             )
         ];
-        let mut hashchain_store = ZeroCopyVecU64::new(
-            batch.get_num_hashchain_store() as u64,
-            hashchain_store_bytes.as_mut_slice(),
+        let mut hash_chain_store = ZeroCopyVecU64::new(
+            batch.get_num_hash_chain_store() as u64,
+            hash_chain_store_bytes.as_mut_slice(),
         )
         .unwrap();
 
@@ -537,7 +538,7 @@ mod tests {
                 .store_and_hash_value(
                     &value,
                     &mut value_store,
-                    &mut hashchain_store,
+                    &mut hash_chain_store,
                     &current_slot
                 )
                 .is_ok());
@@ -556,7 +557,7 @@ mod tests {
         let result = batch.store_and_hash_value(
             &[1u8; 32],
             &mut value_store,
-            &mut hashchain_store,
+            &mut hash_chain_store,
             &current_slot,
         );
         assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
@@ -579,15 +580,15 @@ mod tests {
             .iter_mut()
             .map(|store| &mut store[..])
             .collect::<Vec<_>>();
-        let mut hashchain_store_bytes = vec![
+        let mut hash_chain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_num_hashchain_store() as u64
+                batch.get_num_hash_chain_store() as u64
             )
         ];
         ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_num_hashchain_store() as u64,
-            hashchain_store_bytes.as_mut_slice(),
+            batch.get_num_hash_chain_store() as u64,
+            hash_chain_store_bytes.as_mut_slice(),
         )
         .unwrap();
 
@@ -606,8 +607,8 @@ mod tests {
                 }
 
                 ref_batch.num_inserted %= ref_batch.zkp_batch_size;
-                let mut hashchain_store =
-                    ZeroCopyVecU64::<[u8; 32]>::from_bytes(hashchain_store_bytes.as_mut_slice())
+                let mut hash_chain_store =
+                    ZeroCopyVecU64::<[u8; 32]>::from_bytes(hash_chain_store_bytes.as_mut_slice())
                         .unwrap();
 
                 let mut value = [0u8; 32];
@@ -615,24 +616,24 @@ mod tests {
                 let ref_hash_chain = if i % batch.zkp_batch_size == 0 {
                     value
                 } else {
-                    Poseidon::hashv(&[hashchain_store.last().unwrap(), &value]).unwrap()
+                    Poseidon::hashv(&[hash_chain_store.last().unwrap(), &value]).unwrap()
                 };
                 let result = batch.insert(
                     &value,
                     &value,
                     bloom_filter_stores.as_mut_slice(),
-                    &mut hashchain_store,
+                    &mut hash_chain_store,
                     processing_index,
                     &current_slot,
                 );
                 // First insert should succeed
                 assert!(result.is_ok(), "Failed result: {:?}", result);
-                assert_eq!(*hashchain_store.last().unwrap(), ref_hash_chain);
+                assert_eq!(*hash_chain_store.last().unwrap(), ref_hash_chain);
 
                 {
-                    let mut cloned_hashchain_store = hashchain_store_bytes.clone();
-                    let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::from_bytes(
-                        cloned_hashchain_store.as_mut_slice(),
+                    let mut cloned_hash_chain_store = hash_chain_store_bytes.clone();
+                    let mut hash_chain_store = ZeroCopyVecU64::<[u8; 32]>::from_bytes(
+                        cloned_hash_chain_store.as_mut_slice(),
                     )
                     .unwrap();
                     let mut batch = batch;
@@ -642,7 +643,7 @@ mod tests {
                             &value,
                             &value,
                             bloom_filter_stores.as_mut_slice(),
-                            &mut hashchain_store,
+                            &mut hash_chain_store,
                             processing_index,
                             &current_slot
                         )
@@ -689,36 +690,36 @@ mod tests {
     #[test]
     fn test_add_to_hash_chain() {
         let mut batch = get_test_batch();
-        let mut hashchain_store_bytes = vec![
+        let mut hash_chain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_num_hashchain_store() as u64
+                batch.get_num_hash_chain_store() as u64
             )
         ];
-        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_num_hashchain_store() as u64,
-            hashchain_store_bytes.as_mut_slice(),
+        let mut hash_chain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_num_hash_chain_store() as u64,
+            hash_chain_store_bytes.as_mut_slice(),
         )
         .unwrap();
         let value = [1u8; 32];
 
         assert!(batch
-            .add_to_hash_chain(&value, &mut hashchain_store)
+            .add_to_hash_chain(&value, &mut hash_chain_store)
             .is_ok());
         let mut ref_batch = get_test_batch();
         let user_hash_chain = value;
         ref_batch.num_inserted = 1;
         assert_eq!(batch, ref_batch);
-        assert_eq!(hashchain_store[0], user_hash_chain);
+        assert_eq!(hash_chain_store[0], user_hash_chain);
         let value = [2u8; 32];
         let ref_hash_chain = Poseidon::hashv(&[&user_hash_chain, &value]).unwrap();
         assert!(batch
-            .add_to_hash_chain(&value, &mut hashchain_store)
+            .add_to_hash_chain(&value, &mut hash_chain_store)
             .is_ok());
 
         ref_batch.num_inserted = 2;
         assert_eq!(batch, ref_batch);
-        assert_eq!(hashchain_store[0], ref_hash_chain);
+        assert_eq!(hash_chain_store[0], ref_hash_chain);
     }
 
     #[test]
@@ -733,15 +734,15 @@ mod tests {
                 .iter_mut()
                 .map(|store| &mut store[..])
                 .collect::<Vec<_>>();
-            let mut hashchain_store_bytes = vec![
+            let mut hash_chain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_num_hashchain_store() as u64
+                batch.get_num_hash_chain_store() as u64
             )
         ];
-            let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-                batch.get_num_hashchain_store() as u64,
-                hashchain_store_bytes.as_mut_slice(),
+            let mut hash_chain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+                batch.get_num_hash_chain_store() as u64,
+                hash_chain_store_bytes.as_mut_slice(),
             )
             .unwrap();
 
@@ -761,7 +762,7 @@ mod tests {
                     &value,
                     &value,
                     bloom_filter_stores.as_mut_slice(),
-                    &mut hashchain_store,
+                    &mut hash_chain_store,
                     processing_index,
                     &current_slot,
                 )
@@ -790,7 +791,7 @@ mod tests {
     fn test_getters() {
         let mut batch = get_test_batch();
         assert_eq!(batch.get_num_zkp_batches(), 5);
-        assert_eq!(batch.get_num_hashchain_store(), 5);
+        assert_eq!(batch.get_num_hash_chain_store(), 5);
         assert_eq!(batch.get_state(), BatchState::Fill);
         assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
         assert_eq!(batch.get_current_zkp_batch_index(), 0);
@@ -840,15 +841,15 @@ mod tests {
             vec![0u8; ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(batch.batch_size)];
         let mut value_store =
             ZeroCopyVecU64::<[u8; 32]>::new(batch.batch_size, &mut value_store_bytes).unwrap();
-        let mut hashchain_store_bytes = vec![
+        let mut hash_chain_store_bytes = vec![
             0u8;
             ZeroCopyVecU64::<[u8; 32]>::required_size_for_capacity(
-                batch.get_num_hashchain_store() as u64
+                batch.get_num_hash_chain_store() as u64
             )
         ];
-        let mut hashchain_store = ZeroCopyVecU64::<[u8; 32]>::new(
-            batch.get_num_hashchain_store() as u64,
-            hashchain_store_bytes.as_mut_slice(),
+        let mut hash_chain_store = ZeroCopyVecU64::<[u8; 32]>::new(
+            batch.get_num_hash_chain_store() as u64,
+            hash_chain_store_bytes.as_mut_slice(),
         )
         .unwrap();
 
@@ -860,7 +861,7 @@ mod tests {
                     .store_and_hash_value(
                         &value,
                         &mut value_store,
-                        &mut hashchain_store,
+                        &mut hash_chain_store,
                         &current_slot,
                     )
                     .unwrap();

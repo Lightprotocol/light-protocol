@@ -1,6 +1,6 @@
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_utils::hashchain::create_hash_chain_from_array;
+use light_utils::hash_chain::create_hash_chain_from_array;
 use num_bigint::{BigInt, Sign};
 use serde::Serialize;
 

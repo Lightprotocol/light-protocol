@@ -4,7 +4,7 @@ use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
 use light_utils::{
-    hashchain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
+    hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     instruction::{
         compressed_proof::CompressedProof,
         instruction_data_zero_copy::{

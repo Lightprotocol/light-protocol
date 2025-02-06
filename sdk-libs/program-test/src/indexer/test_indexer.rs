@@ -54,7 +54,7 @@ use light_sdk::{
 };
 use light_utils::{
     bigint::bigint_to_be_bytes_array,
-    hashchain::{create_hash_chain_from_slice, create_tx_hash},
+    hash_chain::{create_hash_chain_from_slice, create_tx_hash},
     instruction::{
         compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
         compressed_proof::CompressedProof,
@@ -1008,7 +1008,7 @@ where
         )
         .unwrap();
 
-        let batch = &merkle_tree.queue_metadata.batches[batch_index];
+        let batch = &merkle_tree.queue_batches.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
             let batch_size = batch.zkp_batch_size;
             let leaf_indices_tx_hashes =

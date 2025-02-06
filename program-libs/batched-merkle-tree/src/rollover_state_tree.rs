@@ -185,11 +185,11 @@ impl From<&RolloverBatchStateTreeParams<'_>> for InitStateTreeAccountsInstructio
                 Pubkey::default(),
             ),
             height: params.old_merkle_tree.height,
-            input_queue_batch_size: params.old_merkle_tree.queue_metadata.batch_size,
-            input_queue_zkp_batch_size: params.old_merkle_tree.queue_metadata.zkp_batch_size,
-            bloom_filter_capacity: params.old_merkle_tree.queue_metadata.bloom_filter_capacity,
+            input_queue_batch_size: params.old_merkle_tree.queue_batches.batch_size,
+            input_queue_zkp_batch_size: params.old_merkle_tree.queue_batches.zkp_batch_size,
+            bloom_filter_capacity: params.old_merkle_tree.queue_batches.bloom_filter_capacity,
             // All num iters are the same.
-            bloom_filter_num_iters: params.old_merkle_tree.queue_metadata.batches[0].num_iters,
+            bloom_filter_num_iters: params.old_merkle_tree.queue_batches.batches[0].num_iters,
             root_history_capacity: params.old_merkle_tree.root_history_capacity,
             network_fee: params.network_fee,
             rollover_threshold: if_equals_none(
@@ -301,7 +301,6 @@ pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
     assert_mt_roll_over(params);
 }
 
-// TODO: assert that the rest of the rolled over account didn't change
 #[repr(C)]
 pub struct MtRollOverAssertParams {
     pub mt_account_data: Vec<u8>,

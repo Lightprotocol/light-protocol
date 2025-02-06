@@ -40,8 +40,7 @@ pub struct BatchedMerkleTreeMetadata {
     pub height: u32,
     pub root_history_capacity: u32,
     pub capacity: u64,
-    // TODO: rename queue_metadata -> queue_batches
-    pub queue_metadata: QueueBatches,
+    pub queue_batches: QueueBatches,
     /// Hashed and truncated (big endian, 31 bytes
     /// + 1 byte padding) Merkle tree pubkey.
     pub hashed_pubkey: [u8; 32],
@@ -57,7 +56,7 @@ impl Default for BatchedMerkleTreeMetadata {
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
-            queue_metadata: QueueBatches {
+            queue_batches: QueueBatches {
                 currently_processing_batch_index: 0,
                 num_batches: NUM_BATCHES as u64,
                 batch_size: TEST_DEFAULT_BATCH_SIZE,
@@ -79,7 +78,7 @@ impl BatchedMerkleTreeMetadata {
         let size = metadata_size
             + root_history_size
             + self
-                .queue_metadata
+                .queue_batches
                 .queue_account_size(QueueType::BatchedInput as u64)?;
         Ok(size)
     }
@@ -146,7 +145,7 @@ impl BatchedMerkleTreeMetadata {
             next_index: 0,
             height,
             root_history_capacity,
-            queue_metadata: QueueBatches::new_input_queue(
+            queue_batches: QueueBatches::new_input_queue(
                 batch_size,
                 bloom_filter_capacity,
                 zkp_batch_size,

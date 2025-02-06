@@ -337,8 +337,8 @@ fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
 ) {
     use light_hasher::Hasher;
 
-    let queue = account.queue_metadata;
-    let ref_queue = ref_account.queue_metadata;
+    let queue = account.queue_batches;
+    let ref_queue = ref_account.queue_batches;
     assert_eq!(*account, ref_account, "metadata mismatch");
 
     assert_eq!(
@@ -362,8 +362,8 @@ fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
     }
     assert_eq!(
         account.hash_chain_stores[0].capacity(),
-        ref_account.queue_metadata.get_num_zkp_batches() as usize,
-        "hashchain_store mismatch"
+        ref_account.queue_batches.get_num_zkp_batches() as usize,
+        "hash_chain_store mismatch"
     );
 
     let queue_type = if tree_type == TreeType::BatchedState as u64 {

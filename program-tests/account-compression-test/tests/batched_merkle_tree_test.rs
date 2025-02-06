@@ -24,7 +24,8 @@ use light_batched_merkle_tree::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    test_batch_forester::assert_perform_state_mt_roll_over, test_env::NOOP_PROGRAM_ID,
+    test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},
+    test_env::NOOP_PROGRAM_ID,
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::{
@@ -37,7 +38,7 @@ use light_test_utils::{
 };
 use light_utils::{
     bigint::bigint_to_be_bytes_array,
-    hashchain::create_tx_hash,
+    hash_chain::create_tx_hash,
     instruction::{
         compressed_proof::CompressedProof, insert_into_queues::AppendNullifyCreateAddressInputs,
     },
@@ -253,6 +254,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &invalid_payer,
+            None,
             TestMode::Functional,
         )
         .await;
@@ -265,6 +267,21 @@ async fn test_batch_state_merkle_tree() {
     }
     // 5. Failing Invalid Output queue - association (batch append)
     {
+        let new_keypair_mt = Keypair::new();
+        let new_keypair_queue = Keypair::new();
+        let payer = context.get_payer().insecure_clone();
+        create_batched_state_merkle_tree(
+            &payer,
+            false,
+            &mut context,
+            &new_keypair_mt,
+            &new_keypair_queue,
+            &Keypair::new(),
+            InitStateTreeAccountsInstructionData::test_default(),
+        )
+        .await
+        .unwrap();
+
         let mut mock_indexer = mock_indexer.clone();
         let result = perform_batch_append(
             &mut context,
@@ -272,6 +289,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            Some(new_keypair_queue.pubkey()),
             TestMode::InvalidOutputQueue,
         )
         .await;
@@ -291,6 +309,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::InvalidMerkleTree,
         )
         .await;
@@ -305,6 +324,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::InvalidRegisteredProgram,
         )
         .await;
@@ -319,6 +339,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::Functional,
         )
         .await
@@ -576,6 +597,7 @@ pub async fn perform_batch_append(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
+    invalid_output_queue: Option<Pubkey>,
     mode: TestMode,
 ) -> Result<Signature, RpcError> {
     let merkle_tree_account = &mut context
@@ -595,8 +617,9 @@ pub async fn perform_batch_append(
     let mut data = Vec::new();
     instruction_data.serialize(&mut data).unwrap();
     let (merkle_tree_pubkey, output_queue_pubkey, registered_program_pda) = match mode {
-        TestMode::Functional => (merkle_tree_pubkey, output_queue_pubkey, None),
-        TestMode::InvalidOutputQueue => (merkle_tree_pubkey, Pubkey::new_unique(), None),
+        TestMode::Functional | TestMode::InvalidOutputQueue => {
+            (merkle_tree_pubkey, output_queue_pubkey, None)
+        }
         TestMode::InvalidMerkleTree => (output_queue_pubkey, output_queue_pubkey, None),
         TestMode::InvalidRegisteredProgram => (
             merkle_tree_pubkey,
@@ -606,6 +629,11 @@ pub async fn perform_batch_append(
     };
 
     let instruction = account_compression::instruction::BatchAppend { data };
+    let output_queue_pubkey = if let Some(pubkey) = invalid_output_queue {
+        pubkey
+    } else {
+        output_queue_pubkey
+    };
     let accounts = account_compression::accounts::BatchAppend {
         authority: payer.pubkey(),
         registered_program_pda,
@@ -770,7 +798,7 @@ pub async fn create_append_batch_ix_data(
         .batches
         .get(next_full_batch as usize)
         .unwrap();
-    let leaves_hashchain = output_zero_copy_account
+    let leaves_hash_chain = output_zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -781,7 +809,7 @@ pub async fn create_append_batch_ix_data(
             next_index as usize,
             batch.get_num_inserted_zkps() as u32,
             batch.zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
             batch.get_num_zkp_batches() as u32,
         )
         .await
@@ -823,14 +851,14 @@ pub async fn create_nullify_batch_ix_data(
         zero_copy_account.hash_chain_stores
     );
     println!(
-        "hashchain store len {:?}",
+        "hash_chain store len {:?}",
         zero_copy_account.hash_chain_stores.len()
     );
     println!(
         "batch.get_num_inserted_zkps() as usize {:?}",
         batch.get_num_inserted_zkps() as usize
     );
-    let leaves_hashchain = zero_copy_account
+    let leaves_hash_chain = zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -842,7 +870,7 @@ pub async fn create_nullify_batch_ix_data(
                 .get_metadata()
                 .queue_metadata
                 .zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
         )
         .await
         .unwrap();
@@ -1985,7 +2013,7 @@ pub async fn update_batch_address_tree(
         .get(next_full_batch as usize)
         .unwrap();
     let batch_start_index = batch.start_index;
-    let leaves_hashchain = zero_copy_account
+    let leaves_hash_chain = zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -1998,7 +2026,7 @@ pub async fn update_batch_address_tree(
                 .get_metadata()
                 .queue_metadata
                 .zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
             start_index as usize,
             batch_start_index as usize,
             *current_root,

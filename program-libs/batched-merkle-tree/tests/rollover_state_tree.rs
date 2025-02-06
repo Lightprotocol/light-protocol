@@ -417,6 +417,7 @@ fn test_rollover() {
         println!("pre 8");
         // 8. Functional: rollover address tree with network fee 0 additional bytes 0
         {
+            let pre_mt_data = mt_account_data.clone();
             let merkle_tree =
                 &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
@@ -480,7 +481,11 @@ fn test_rollover() {
                 old_queue_pubkey: queue_pubkey,
                 slot: 1,
             };
-
+            assert_eq!(
+                pre_mt_data[size_of::<BatchedMerkleTreeMetadata>()..],
+                mt_account_data[size_of::<BatchedMerkleTreeMetadata>()..],
+                "remainder of old_mt_account_data is not changed"
+            );
             assert_state_mt_roll_over(assert_state_mt_roll_over_params);
         }
     }

@@ -2,7 +2,7 @@ use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use light_utils::{
-    bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice,
+    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
     instruction::compressed_proof::CompressedProof,
 };
 use num_bigint::BigUint;

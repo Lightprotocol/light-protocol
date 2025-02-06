@@ -178,10 +178,10 @@ async fn test_state_batched() {
         batch_size: {}",
         initial_next_index,
         initial_sequence_number,
-        merkle_tree.get_metadata().queue_metadata.batch_size
+        merkle_tree.get_metadata().queue_batches.batch_size
     );
 
-    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
+    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
         println!("\ntx {}", i);
 
         e2e_env
@@ -276,11 +276,7 @@ async fn test_state_batched() {
     .unwrap();
 
     assert!(
-        merkle_tree
-            .get_metadata()
-            .queue_metadata
-            .pending_batch_index
-            > 0,
+        merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
         "No batches were processed"
     );
 
@@ -311,8 +307,8 @@ async fn test_state_batched() {
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
                 .unwrap();
 
-        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
@@ -337,7 +333,7 @@ async fn test_state_batched() {
             zkp_batch_size,
             num_zkp_batches,
             completed_items,
-            final_metadata.queue_metadata,
+            final_metadata.queue_batches,
             output_queue.get_metadata().batch_metadata
         );
 
@@ -348,10 +344,7 @@ async fn test_state_batched() {
         );
 
         assert_eq!(
-            merkle_tree
-                .get_metadata()
-                .queue_metadata
-                .pending_batch_index,
+            merkle_tree.get_metadata().queue_batches.pending_batch_index,
             1
         );
 

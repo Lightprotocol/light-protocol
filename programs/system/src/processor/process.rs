@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, Bumps};
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::{
-    hashchain::create_tx_hash_from_hash_chains,
+    hash_chain::create_tx_hash_from_hash_chains,
     instruction::{
         compressed_proof::CompressedProof,
         insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},

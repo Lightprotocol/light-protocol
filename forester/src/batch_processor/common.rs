@@ -126,8 +126,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             Err(_) => return 0.0,
         };
 
-        let batch_index = tree.queue_metadata.pending_batch_index;
-        match tree.queue_metadata.batches.get(batch_index as usize) {
+        let batch_index = tree.queue_batches.pending_batch_index;
+        match tree.queue_batches.batches.get(batch_index as usize) {
             Some(batch) => Self::calculate_completion(batch),
             None => 0.0,
         }
@@ -208,9 +208,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         if let Ok(tree) = merkle_tree {
-            let batch_index = tree.queue_metadata.pending_batch_index;
+            let batch_index = tree.queue_batches.pending_batch_index;
             let full_batch = tree
-                .queue_metadata
+                .queue_batches
                 .batches
                 .get(batch_index as usize)
                 .unwrap();

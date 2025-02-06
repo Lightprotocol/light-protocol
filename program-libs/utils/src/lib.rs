@@ -15,7 +15,7 @@ use thiserror::Error;
 pub mod account;
 pub mod bigint;
 pub mod fee;
-pub mod hashchain;
+pub mod hash_chain;
 pub mod instruction;
 pub mod prime;
 pub mod pubkey;

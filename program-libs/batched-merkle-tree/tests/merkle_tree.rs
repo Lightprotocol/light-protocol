@@ -17,7 +17,7 @@ use light_batched_merkle_tree::{
         InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
-        assert_batch_append_event_event, assert_nullify_event,
+        assert_batch_adress_event, assert_batch_append_event_event, assert_nullify_event,
         get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
@@ -27,7 +27,7 @@ use light_batched_merkle_tree::{
         BatchedQueueAccount, BatchedQueueMetadata,
     },
 };
-use light_bloom_filter::BloomFilter;
+use light_bloom_filter::{BloomFilter, BloomFilterError};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_merkle_tree_reference::MerkleTree;
@@ -36,7 +36,7 @@ use light_prover_client::{
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_utils::{
-    hashchain::create_hash_chain_from_slice, instruction::compressed_proof::CompressedProof,
+    hash_chain::create_hash_chain_from_slice, instruction::compressed_proof::CompressedProof,
     pubkey::Pubkey,
 };
 use light_zero_copy::vec::ZeroCopyVecU64;
@@ -57,12 +57,12 @@ pub fn assert_nullifier_queue_insert(
     array_indices: Vec<usize>,
     current_slot: &u64,
 ) -> Result<(), BatchedMerkleTreeError> {
-    let mut leaf_hashchain_insert_values = vec![];
+    let mut leaf_hash_chain_insert_values = vec![];
     for (insert_value, leaf_index) in bloom_filter_insert_values.iter().zip(leaf_indices.iter()) {
         let nullifier =
             Poseidon::hashv(&[insert_value.as_slice(), &leaf_index.to_be_bytes(), &tx_hash])
                 .unwrap();
-        leaf_hashchain_insert_values.push(nullifier);
+        leaf_hash_chain_insert_values.push(nullifier);
     }
     assert_input_queue_insert(
         pre_account,
@@ -71,7 +71,7 @@ pub fn assert_nullifier_queue_insert(
         pre_hash_chains,
         merkle_tree_account,
         bloom_filter_insert_values,
-        leaf_hashchain_insert_values,
+        leaf_hash_chain_insert_values,
         input_is_in_tree,
         array_indices,
         current_slot,
@@ -88,7 +88,7 @@ pub fn assert_input_queue_insert(
     mut pre_hash_chains: [ZeroCopyVecU64<[u8; 32]>; 2],
     mut merkle_tree_account: BatchedMerkleTreeAccount,
     bloom_filter_insert_values: Vec<[u8; 32]>,
-    leaf_hashchain_insert_values: Vec<[u8; 32]>,
+    leaf_hash_chain_insert_values: Vec<[u8; 32]>,
     input_is_in_tree: Vec<bool>,
     array_indices: Vec<usize>,
     current_slot: &u64,
@@ -131,15 +131,15 @@ pub fn assert_input_queue_insert(
         }
 
         let inserted_batch_index =
-            pre_account.queue_metadata.currently_processing_batch_index as usize;
+            pre_account.queue_batches.currently_processing_batch_index as usize;
         let expected_batch = pre_account
-            .queue_metadata
+            .queue_batches
             .batches
             .get_mut(inserted_batch_index)
             .unwrap();
         // Address queue insertions append state, input queue insertions only nullify existing state
         if pre_account.tree_type == TreeType::BatchedAddress as u64 {
-            pre_account.queue_metadata.next_index += 1;
+            pre_account.queue_batches.next_index += 1;
         }
 
         println!(
@@ -181,8 +181,8 @@ pub fn assert_input_queue_insert(
         );
         // New value exists in the current batch bloom filter
         let mut bloom_filter = BloomFilter::new(
-            merkle_tree_account.queue_metadata.batches[inserted_batch_index].num_iters as usize,
-            merkle_tree_account.queue_metadata.batches[inserted_batch_index].bloom_filter_capacity,
+            merkle_tree_account.queue_batches.batches[inserted_batch_index].num_iters as usize,
+            merkle_tree_account.queue_batches.batches[inserted_batch_index].bloom_filter_capacity,
             merkle_tree_account.bloom_filter_stores[inserted_batch_index],
         )
         .unwrap();
@@ -191,13 +191,13 @@ pub fn assert_input_queue_insert(
             insert_value
         );
         assert!(bloom_filter.contains(insert_value));
-        let pre_hashchain = pre_hash_chains.get_mut(inserted_batch_index).unwrap();
-        expected_batch.add_to_hash_chain(&leaf_hashchain_insert_values[i], pre_hashchain)?;
+        let pre_hash_chain = pre_hash_chains.get_mut(inserted_batch_index).unwrap();
+        expected_batch.add_to_hash_chain(&leaf_hash_chain_insert_values[i], pre_hash_chain)?;
 
         let num_iters =
-            merkle_tree_account.queue_metadata.batches[inserted_batch_index].num_iters as usize;
+            merkle_tree_account.queue_batches.batches[inserted_batch_index].num_iters as usize;
         let bloom_filter_capacity =
-            merkle_tree_account.queue_metadata.batches[inserted_batch_index].bloom_filter_capacity;
+            merkle_tree_account.queue_batches.batches[inserted_batch_index].bloom_filter_capacity;
         // New value does not exist in the other batch bloom_filters
         for (i, store) in merkle_tree_account
             .bloom_filter_stores
@@ -216,23 +216,23 @@ pub fn assert_input_queue_insert(
         // update
         if expected_batch.get_current_zkp_batch_index() == expected_batch.get_num_zkp_batches() {
             assert_eq!(
-                merkle_tree_account.queue_metadata.batches
-                    [pre_account.queue_metadata.currently_processing_batch_index as usize]
+                merkle_tree_account.queue_batches.batches
+                    [pre_account.queue_batches.currently_processing_batch_index as usize]
                     .get_state(),
                 BatchState::Full
             );
-            pre_account.queue_metadata.currently_processing_batch_index += 1;
-            pre_account.queue_metadata.currently_processing_batch_index %=
-                pre_account.queue_metadata.num_batches;
+            pre_account.queue_batches.currently_processing_batch_index += 1;
+            pre_account.queue_batches.currently_processing_batch_index %=
+                pre_account.queue_batches.num_batches;
             assert_eq!(
-                merkle_tree_account.queue_metadata.batches[inserted_batch_index],
+                merkle_tree_account.queue_batches.batches[inserted_batch_index],
                 *expected_batch
             );
             assert_eq!(
                 merkle_tree_account.hash_chain_stores[inserted_batch_index]
                     .last()
                     .unwrap(),
-                pre_hashchain.last().unwrap(),
+                pre_hash_chain.last().unwrap(),
                 "Hashchain store inconsistent."
             );
         }
@@ -243,19 +243,19 @@ pub fn assert_input_queue_insert(
         pre_account,
         "BatchedMerkleTreeMetadata changed."
     );
-    let inserted_batch_index = pre_account.queue_metadata.currently_processing_batch_index as usize;
-    let mut expected_batch = pre_account.queue_metadata.batches[inserted_batch_index];
+    let inserted_batch_index = pre_account.queue_batches.currently_processing_batch_index as usize;
+    let mut expected_batch = pre_account.queue_batches.batches[inserted_batch_index];
     if should_be_zeroed {
         expected_batch.set_bloom_filter_to_zeroed();
     }
     assert_eq!(
-        merkle_tree_account.queue_metadata.batches[inserted_batch_index],
+        merkle_tree_account.queue_batches.batches[inserted_batch_index],
         expected_batch
     );
     let other_batch = if inserted_batch_index == 0 { 1 } else { 0 };
     assert_eq!(
-        merkle_tree_account.queue_metadata.batches[other_batch],
-        pre_account.queue_metadata.batches[other_batch]
+        merkle_tree_account.queue_batches.batches[other_batch],
+        pre_account.queue_batches.batches[other_batch]
     );
     assert_eq!(
         merkle_tree_account.hash_chain_stores, pre_hash_chains,
@@ -292,19 +292,19 @@ pub fn assert_output_queue_insert(
             pre_account.batch_metadata.currently_processing_batch_index as usize;
         let expected_batch = &mut pre_account.batch_metadata.batches[inserted_batch_index];
         let pre_value_store = pre_value_store.get_mut(inserted_batch_index).unwrap();
-        let pre_hashchain = pre_hash_chains.get_mut(inserted_batch_index).unwrap();
+        let pre_hash_chain = pre_hash_chains.get_mut(inserted_batch_index).unwrap();
         if expected_batch.get_state() == BatchState::Inserted {
             expected_batch
                 .advance_state_to_fill(Some(pre_account.batch_metadata.next_index))
                 .unwrap();
             pre_value_store.clear();
-            pre_hashchain.clear();
+            pre_hash_chain.clear();
         }
         pre_account.batch_metadata.next_index += 1;
         expected_batch.store_and_hash_value(
             insert_value,
             pre_value_store,
-            pre_hashchain,
+            pre_hash_chain,
             &current_slot,
         )?;
 
@@ -420,7 +420,7 @@ pub fn simulate_transaction(
             "sim tx input: \n {:?} \nleaf index : {:?}, \ntx hash {:?}",
             input, leaf_index, tx_hash,
         );
-        merkle_tree_account.insert_nullifier_into_current_batch(
+        merkle_tree_account.insert_nullifier_into_queue(
             input,
             leaf_index,
             &tx_hash,
@@ -582,7 +582,7 @@ async fn test_simulate_transactions() {
                     .unwrap();
             println!(
                 "input queue: {:?}",
-                merkle_tree_account.queue_metadata.batches[0].get_num_inserted_zkp_batch()
+                merkle_tree_account.queue_batches.batches[0].get_num_inserted_zkp_batch()
             );
 
             let mut pre_mt_data = mt_account_data.clone();
@@ -592,7 +592,7 @@ async fn test_simulate_transactions() {
                 BatchedQueueAccount::output_from_bytes(&mut pre_account_bytes).unwrap();
             let pre_output_metadata = *pre_output_account.get_metadata();
             let mut pre_output_value_stores = pre_output_account.value_vecs;
-            let pre_output_hashchains = pre_output_account.hash_chain_stores;
+            let pre_output_hash_chains = pre_output_account.hash_chain_stores;
 
             let mut pre_mt_account_bytes = mt_account_data.clone();
             let pre_merkle_tree_account =
@@ -604,7 +604,7 @@ async fn test_simulate_transactions() {
                 .iter()
                 .cloned()
                 .collect();
-            let pre_mt_hashchains = pre_merkle_tree_account.hash_chain_stores;
+            let pre_mt_hash_chains = pre_merkle_tree_account.hash_chain_stores;
 
             if !outputs.is_empty() || !inputs.is_empty() {
                 println!("Simulating tx with inputs: {:?}", instruction_data);
@@ -628,7 +628,7 @@ async fn test_simulate_transactions() {
                         pre_mt_account,
                         &mut pre_output_value_stores, // mut to remove values proven by index
                         pre_roots,
-                        pre_mt_hashchains,
+                        pre_mt_hash_chains,
                         merkle_tree_account,
                         inputs.clone(),
                         leaf_indices.clone(),
@@ -644,7 +644,7 @@ async fn test_simulate_transactions() {
                     assert_output_queue_insert(
                         pre_output_metadata,
                         pre_output_value_stores,
-                        pre_output_hashchains,
+                        pre_output_hash_chains,
                         BatchedQueueAccount::output_from_bytes(
                             &mut output_queue_account_data.clone(), // clone so that data cannot be modified
                         )
@@ -671,7 +671,7 @@ async fn test_simulate_transactions() {
                     BatchedMerkleTreeAccount::state_from_bytes(&mut pre_mt_data, &mt_pubkey)
                         .unwrap();
                 in_ready_for_update = merkle_tree_account
-                    .queue_metadata
+                    .queue_batches
                     .batches
                     .iter()
                     .any(|batch| batch.get_first_ready_zkp_batch().is_ok());
@@ -706,11 +706,11 @@ async fn test_simulate_transactions() {
                     &mt_pubkey,
                 )
                 .unwrap();
-                println!("batches {:?}", account.queue_metadata.batches);
+                println!("batches {:?}", account.queue_batches.batches);
 
-                let next_full_batch = account.get_metadata().queue_metadata.pending_batch_index;
+                let next_full_batch = account.get_metadata().queue_batches.pending_batch_index;
                 let batch = account
-                    .queue_metadata
+                    .queue_batches
                     .batches
                     .get(next_full_batch as usize)
                     .unwrap();
@@ -719,12 +719,12 @@ async fn test_simulate_transactions() {
                         .hash_chain_stores {:?}",
                     account.hash_chain_stores
                 );
-                println!("hashchain store len {:?}", account.hash_chain_stores.len());
+                println!("hash_chain store len {:?}", account.hash_chain_stores.len());
                 println!(
                     "batch.get_num_inserted_zkps() as usize {:?}",
                     batch.get_num_inserted_zkps() as usize
                 );
-                let leaves_hashchain = account
+                let leaves_hash_chain = account
                     .hash_chain_stores
                     .get(next_full_batch as usize)
                     .unwrap()
@@ -733,8 +733,8 @@ async fn test_simulate_transactions() {
 
                 let (proof, new_root) = mock_indexer
                     .get_batched_update_proof(
-                        account.get_metadata().queue_metadata.zkp_batch_size as u32,
-                        *leaves_hashchain,
+                        account.get_metadata().queue_batches.zkp_batch_size as u32,
+                        *leaves_hash_chain,
                     )
                     .await
                     .unwrap();
@@ -797,7 +797,7 @@ async fn test_simulate_transactions() {
                 .batches
                 .get(next_full_batch as usize)
                 .unwrap();
-            let leaves_hashchain = output_account
+            let leaves_hash_chain = output_account
                 .hash_chain_stores
                 .get(next_full_batch as usize)
                 .unwrap()
@@ -808,7 +808,7 @@ async fn test_simulate_transactions() {
                     next_index as usize,
                     batch.get_num_inserted_zkps() as u32,
                     batch.zkp_batch_size as u32,
-                    *leaves_hashchain,
+                    *leaves_hash_chain,
                     batch.get_num_zkp_batches() as u32,
                 )
                 .await
@@ -1022,7 +1022,7 @@ async fn test_e2e() {
                         .unwrap();
 
                 merkle_tree_account
-                    .insert_nullifier_into_current_batch(
+                    .insert_nullifier_into_queue(
                         &leaf.to_vec().try_into().unwrap(),
                         leaf_index as u64,
                         &tx_hash,
@@ -1060,7 +1060,7 @@ async fn test_e2e() {
                     .unwrap();
 
             in_ready_for_update = merkle_tree_account
-                .queue_metadata
+                .queue_batches
                 .batches
                 .iter()
                 .any(|batch| batch.get_state() == BatchState::Full);
@@ -1110,7 +1110,7 @@ async fn test_e2e() {
                 .unwrap()
                 .to_vec();
             println!("leaves {:?}", leaves.len());
-            let leaves_hashchain = output_account
+            let leaves_hash_chain = output_account
                 .hash_chain_stores
                 .get(next_full_batch as usize)
                 .unwrap()
@@ -1121,7 +1121,7 @@ async fn test_e2e() {
                     next_index as usize,
                     batch.get_num_inserted_zkps() as u32,
                     batch.zkp_batch_size as u32,
-                    *leaves_hashchain,
+                    *leaves_hash_chain,
                     batch.get_num_zkp_batches() as u32,
                 )
                 .await
@@ -1215,13 +1215,13 @@ pub async fn perform_input_update(
         let mut account =
             BatchedMerkleTreeAccount::state_from_bytes(mt_account_data, &mt_pubkey).unwrap();
 
-        let next_full_batch = account.get_metadata().queue_metadata.pending_batch_index;
+        let next_full_batch = account.get_metadata().queue_batches.pending_batch_index;
         let batch = account
-            .queue_metadata
+            .queue_batches
             .batches
             .get(next_full_batch as usize)
             .unwrap();
-        let leaves_hashchain = account
+        let leaves_hash_chain = account
             .hash_chain_stores
             .get(next_full_batch as usize)
             .unwrap()
@@ -1229,8 +1229,8 @@ pub async fn perform_input_update(
             .unwrap();
         let (proof, new_root) = mock_indexer
             .get_batched_update_proof(
-                account.get_metadata().queue_metadata.zkp_batch_size as u32,
-                *leaves_hashchain,
+                account.get_metadata().queue_batches.zkp_batch_size as u32,
+                *leaves_hash_chain,
             )
             .await
             .unwrap();
@@ -1267,7 +1267,6 @@ pub async fn perform_input_update(
 pub async fn perform_address_update(
     mt_account_data: &mut [u8],
     mock_indexer: &mut MockBatchedAddressForester<40>,
-    enable_assert: bool,
     mt_pubkey: Pubkey,
 ) {
     println!("pre address update -----------------------------");
@@ -1277,20 +1276,20 @@ pub async fn perform_address_update(
         &mt_pubkey,
     )
     .unwrap();
-    let (input_res, root, pre_next_full_batch) = {
+    let (input_res, new_root, pre_next_full_batch) = {
         let mut account =
             BatchedMerkleTreeAccount::address_from_bytes(mt_account_data, &mt_pubkey).unwrap();
 
-        let next_full_batch = account.get_metadata().queue_metadata.pending_batch_index;
+        let next_full_batch = account.get_metadata().queue_batches.pending_batch_index;
         let next_index = account.get_metadata().next_index;
         println!("next index {:?}", next_index);
         let batch = account
-            .queue_metadata
+            .queue_batches
             .batches
             .get(next_full_batch as usize)
             .unwrap();
         let batch_start_index = batch.start_index;
-        let leaves_hashchain = account
+        let leaves_hash_chain = account
             .hash_chain_stores
             .get(next_full_batch as usize)
             .unwrap()
@@ -1299,9 +1298,9 @@ pub async fn perform_address_update(
         let current_root = account.root_history.last().unwrap();
         let (proof, new_root) = mock_indexer
             .get_batched_address_proof(
-                account.get_metadata().queue_metadata.batch_size as u32,
-                account.get_metadata().queue_metadata.zkp_batch_size as u32,
-                *leaves_hashchain,
+                account.get_metadata().queue_batches.batch_size as u32,
+                account.get_metadata().queue_batches.zkp_batch_size as u32,
+                *leaves_hash_chain,
                 next_index as usize,
                 batch_start_index as usize,
                 *current_root,
@@ -1326,6 +1325,8 @@ pub async fn perform_address_update(
     println!("post address update -----------------------------");
     println!("res {:?}", input_res);
     assert!(input_res.is_ok());
+    let event = input_res.unwrap();
+    assert_batch_adress_event(event, new_root, &old_account, mt_pubkey);
 
     // assert Merkle tree
     // sequence number increased X
@@ -1338,7 +1339,7 @@ pub async fn perform_address_update(
 
     {
         let batch = account
-            .queue_metadata
+            .queue_batches
             .batches
             .get(pre_next_full_batch as usize)
             .unwrap();
@@ -1346,9 +1347,7 @@ pub async fn perform_address_update(
             mock_indexer.finalize_batch_address_update(batch.batch_size as usize);
         }
     }
-    if enable_assert {
-        assert_merkle_tree_update(old_account, account, None, None, root);
-    }
+    assert_address_merkle_tree_update(old_account, account, new_root);
 }
 
 fn assert_merkle_tree_update(
@@ -1359,20 +1358,20 @@ fn assert_merkle_tree_update(
     root: [u8; 32],
 ) {
     let input_queue_previous_batch_state =
-        old_account.queue_metadata.get_previous_batch().get_state();
-    let input_queue_current_batch = old_account.queue_metadata.get_current_batch();
-    let previous_batch_index = old_account.queue_metadata.get_previous_batch_index();
+        old_account.queue_batches.get_previous_batch().get_state();
+    let input_queue_current_batch = old_account.queue_batches.get_current_batch();
+    let previous_batch_index = old_account.queue_batches.get_previous_batch_index();
     let is_half_full = input_queue_current_batch.get_num_inserted_elements()
         >= input_queue_current_batch.batch_size / 2;
     if is_half_full
         && input_queue_previous_batch_state == BatchState::Inserted
         && !old_account
-            .queue_metadata
+            .queue_batches
             .get_previous_batch()
             .bloom_filter_is_zeroed()
     {
         old_account
-            .queue_metadata
+            .queue_batches
             .get_previous_batch_mut()
             .set_bloom_filter_to_zeroed();
         old_account.bloom_filter_stores[previous_batch_index]
@@ -1381,7 +1380,7 @@ fn assert_merkle_tree_update(
                 *elem = 0;
             });
         let previous_full_batch = old_account
-            .queue_metadata
+            .queue_batches
             .batches
             .get(previous_batch_index)
             .unwrap();
@@ -1431,16 +1430,16 @@ fn assert_merkle_tree_update(
         );
         assert_eq!(queue_account, old_queue_account);
         // Only the output queue appends state
-        let zkp_batch_size = old_account.queue_metadata.zkp_batch_size;
+        let zkp_batch_size = old_account.queue_batches.zkp_batch_size;
         old_account.next_index += zkp_batch_size;
     } else {
         // Input queue update
-        let old_full_batch_index = old_account.queue_metadata.pending_batch_index;
+        let old_full_batch_index = old_account.queue_batches.pending_batch_index;
         let history_capacity = old_account.root_history.capacity();
         let previous_full_batch_index = if old_full_batch_index == 0 { 1 } else { 0 };
 
         let old_full_batch = old_account
-            .queue_metadata
+            .queue_batches
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
@@ -1458,13 +1457,13 @@ fn assert_merkle_tree_update(
         );
 
         if old_full_batch.get_state() == BatchState::Inserted {
-            old_account.queue_metadata.pending_batch_index += 1;
-            old_account.queue_metadata.pending_batch_index %= 2;
+            old_account.queue_batches.pending_batch_index += 1;
+            old_account.queue_batches.pending_batch_index %= 2;
         }
-        let old_full_batch_index = old_account.queue_metadata.pending_batch_index;
+        let old_full_batch_index = old_account.queue_batches.pending_batch_index;
 
         let old_full_batch = old_account
-            .queue_metadata
+            .queue_batches
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
@@ -1472,15 +1471,14 @@ fn assert_merkle_tree_update(
             old_full_batch.get_num_inserted_elements() >= old_full_batch.batch_size / 2;
         println!("zeroed_batch: {:?}", zeroed_batch);
 
-        // let current_batch = old_account.queue_metadata.get_current_batch();
+        // let current_batch = old_account.queue_batches.get_current_batch();
 
-        let state = old_account.queue_metadata.batches[previous_full_batch_index].get_state();
+        let state = account.queue_batches.batches[previous_full_batch_index].get_state();
         let previous_batch = old_account
-            .queue_metadata
+            .queue_batches
             .batches
             .get_mut(previous_full_batch_index)
             .unwrap();
-
         if zeroed_batch && state == BatchState::Inserted {
             previous_batch.set_bloom_filter_to_zeroed();
             let sequence_number = previous_batch.sequence_number;
@@ -1512,6 +1510,85 @@ fn assert_merkle_tree_update(
     assert_eq!(*account.root_history.last().unwrap(), root);
 }
 
+fn assert_address_merkle_tree_update(
+    mut old_account: BatchedMerkleTreeAccount,
+    account: BatchedMerkleTreeAccount,
+    root: [u8; 32],
+) {
+    {
+        // Input queue update
+        let old_full_batch_index = old_account.queue_batches.pending_batch_index;
+        let history_capacity = old_account.root_history.capacity();
+
+        let old_full_batch = old_account
+            .queue_batches
+            .batches
+            .get_mut(old_full_batch_index as usize)
+            .unwrap();
+
+        old_full_batch
+            .mark_as_inserted_in_merkle_tree(
+                account.sequence_number,
+                account.root_history.last_index() as u32,
+                history_capacity as u32,
+            )
+            .unwrap();
+        if old_full_batch.get_state() == BatchState::Inserted {
+            old_account.queue_batches.pending_batch_index += 1;
+            old_account.queue_batches.pending_batch_index %= 2;
+        }
+        let old_full_batch_index = old_account.queue_batches.pending_batch_index;
+
+        let previous_full_batch_index = if old_full_batch_index == 0 { 1 } else { 0 };
+
+        let old_full_batch_index = old_account.queue_batches.pending_batch_index;
+
+        let old_full_batch = old_account
+            .queue_batches
+            .batches
+            .get_mut(old_full_batch_index as usize)
+            .unwrap();
+        let zeroed_batch =
+            old_full_batch.get_num_inserted_elements() >= old_full_batch.batch_size / 2;
+        println!("zeroed_batch: {:?}", zeroed_batch);
+        let state = account.queue_batches.batches[previous_full_batch_index].get_state();
+        let previous_batch = old_account
+            .queue_batches
+            .batches
+            .get_mut(previous_full_batch_index)
+            .unwrap();
+        if zeroed_batch && state == BatchState::Inserted {
+            previous_batch.set_bloom_filter_to_zeroed();
+            let sequence_number = previous_batch.sequence_number;
+            let overlapping_roots_exits = sequence_number > old_account.sequence_number;
+            if overlapping_roots_exits {
+                old_account.bloom_filter_stores[previous_full_batch_index]
+                    .iter_mut()
+                    .for_each(|elem| {
+                        *elem = 0;
+                    });
+
+                let mut oldest_root_index = old_account.root_history.first_index();
+
+                let num_remaining_roots = sequence_number - old_account.sequence_number;
+                for _ in 1..num_remaining_roots {
+                    println!("zeroing out root index: {}", oldest_root_index);
+                    old_account.root_history[oldest_root_index] = [0u8; 32];
+                    oldest_root_index += 1;
+                    oldest_root_index %= old_account.root_history.len();
+                }
+            }
+        }
+    }
+
+    old_account.sequence_number += 1;
+    old_account.next_index += old_account.queue_batches.zkp_batch_size;
+    old_account.root_history.push(root);
+    assert_eq!(account.get_metadata(), old_account.get_metadata());
+    assert_eq!(account, old_account);
+    assert_eq!(*account.root_history.last().unwrap(), root);
+}
+
 pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
     let mut rnd_bytes = rng.gen::<[u8; 32]>();
     rnd_bytes[0] = 0;
@@ -1533,7 +1610,7 @@ async fn test_fill_state_queues_completely() {
     )
     .await;
     let mut current_slot = 1;
-    let roothistory_capacity = vec![17, 80]; //
+    let roothistory_capacity = vec![17, 80];
     for root_history_capacity in roothistory_capacity {
         let mut mock_indexer =
             MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
@@ -1646,7 +1723,7 @@ async fn test_fill_state_queues_completely() {
                 .get(next_full_batch as usize)
                 .unwrap();
             let leaves = mock_indexer.output_queue_leaves.clone();
-            let leaves_hashchain = output_account
+            let leaves_hash_chain = output_account
                 .hash_chain_stores
                 .get(next_full_batch as usize)
                 .unwrap()
@@ -1657,7 +1734,7 @@ async fn test_fill_state_queues_completely() {
                     next_index as usize,
                     batch.get_num_inserted_zkps() as u32,
                     batch.zkp_batch_size as u32,
-                    *leaves_hashchain,
+                    *leaves_hash_chain,
                     batch.get_num_zkp_batches() as u32,
                 )
                 .await
@@ -1729,7 +1806,7 @@ async fn test_fill_state_queues_completely() {
                     .unwrap();
 
             merkle_tree_account
-                .insert_nullifier_into_current_batch(
+                .insert_nullifier_into_queue(
                     &leaf.to_vec().try_into().unwrap(),
                     leaf_index as u64,
                     &tx_hash,
@@ -1761,7 +1838,7 @@ async fn test_fill_state_queues_completely() {
                 let mut merkle_tree_account =
                     BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                         .unwrap();
-                let result = merkle_tree_account.insert_nullifier_into_current_batch(
+                let result = merkle_tree_account.insert_nullifier_into_queue(
                     &leaf.to_vec().try_into().unwrap(),
                     leaf_index as u64,
                     &tx_hash,
@@ -1781,7 +1858,7 @@ async fn test_fill_state_queues_completely() {
                 let mut merkle_tree_account =
                     BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                         .unwrap();
-                let result = merkle_tree_account.insert_nullifier_into_current_batch(
+                let result = merkle_tree_account.insert_nullifier_into_queue(
                     &first_value.to_vec().try_into().unwrap(),
                     leaf_index as u64,
                     &tx_hash,
@@ -1802,7 +1879,7 @@ async fn test_fill_state_queues_completely() {
                     .unwrap();
             let rnd_bytes = get_rnd_bytes(&mut rng);
             let tx_hash = get_rnd_bytes(&mut rng);
-            let result = merkle_tree_account.insert_nullifier_into_current_batch(
+            let result = merkle_tree_account.insert_nullifier_into_queue(
                 &rnd_bytes,
                 0,
                 &tx_hash,
@@ -1826,7 +1903,7 @@ async fn test_fill_state_queues_completely() {
                     &mt_pubkey,
                 )
                 .unwrap();
-                let batch = merkle_tree_account.queue_metadata.batches.first().unwrap();
+                let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(batch.bloom_filter_is_zeroed());
             } else {
                 let merkle_tree_account = &mut BatchedMerkleTreeAccount::state_from_bytes(
@@ -1834,7 +1911,7 @@ async fn test_fill_state_queues_completely() {
                     &mt_pubkey,
                 )
                 .unwrap();
-                let batch = merkle_tree_account.queue_metadata.batches.first().unwrap();
+                let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(!batch.bloom_filter_is_zeroed());
             }
             println!(
@@ -1862,12 +1939,7 @@ async fn test_fill_state_queues_completely() {
             let merkle_tree_account =
                 &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
-            for (i, batch) in merkle_tree_account
-                .queue_metadata
-                .batches
-                .iter()
-                .enumerate()
-            {
+            for (i, batch) in merkle_tree_account.queue_batches.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
                     assert!(batch.bloom_filter_is_zeroed());
@@ -1881,15 +1953,15 @@ async fn test_fill_state_queues_completely() {
             let merkle_tree_account =
                 &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
-            let pre_batch_zero = *merkle_tree_account.queue_metadata.batches.first().unwrap();
+            let pre_batch_zero = *merkle_tree_account.queue_batches.batches.first().unwrap();
 
             let value = &get_rnd_bytes(&mut rng);
             let tx_hash = &get_rnd_bytes(&mut rng);
             merkle_tree_account
-                .insert_nullifier_into_current_batch(value, 0, tx_hash, &current_slot)
+                .insert_nullifier_into_queue(value, 0, tx_hash, &current_slot)
                 .unwrap();
             {
-                let post_batch = *merkle_tree_account.queue_metadata.batches.first().unwrap();
+                let post_batch = *merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert_eq!(post_batch.get_state(), BatchState::Fill);
                 assert_eq!(post_batch.get_num_inserted_zkp_batch(), 1);
                 let bloom_filter_store =
@@ -1935,7 +2007,6 @@ async fn test_fill_state_queues_completely() {
         }
     }
 }
-// TODO: add test that we cannot insert a batch that is not ready
 
 #[serial]
 #[tokio::test]
@@ -1999,7 +2070,7 @@ async fn test_fill_address_tree_completely() {
                 BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
             merkle_tree_account
-                .insert_address_into_current_batch(&rnd_address, &current_slot)
+                .insert_address_into_queue(&rnd_address, &current_slot)
                 .unwrap();
             assert_input_queue_insert(
                 pre_account,
@@ -2025,13 +2096,25 @@ async fn test_fill_address_tree_completely() {
                 let mut merkle_tree_account =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                         .unwrap();
-                let result = merkle_tree_account
-                    .insert_address_into_current_batch(&rnd_address, &current_slot);
-                result.unwrap_err();
-                // assert_eq!(
-                //     result.unwrap_err(),
-                //     BatchedMerkleTreeError::BatchInsertFailed.into()
-                // );
+                let result =
+                    merkle_tree_account.insert_address_into_queue(&rnd_address, &current_slot);
+                println!("tx {}", tx);
+                println!("errors {:?}", result);
+                if tx == params.input_queue_batch_size as usize * 2 - 1 {
+                    // Error when the value is already inserted into the other batch.
+                    assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
+                } else if tx == params.input_queue_batch_size as usize - 1 {
+                    // Error when the value is already inserted into the other batch.
+                    // This occurs only when we switch the batch in this test.
+                    assert_eq!(
+                        result.unwrap_err(),
+                        BatchedMerkleTreeError::NonInclusionCheckFailed
+                    );
+                } else {
+                    // Error when inserting into the bloom filter directly twice.
+                    assert_eq!(result.unwrap_err(), BloomFilterError::Full.into());
+                }
+
                 current_slot += 1;
             }
             // Try to insert first value into any batch
@@ -2043,15 +2126,28 @@ async fn test_fill_address_tree_completely() {
                     BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                         .unwrap();
 
-                let result = merkle_tree_account.insert_address_into_current_batch(
+                let result = merkle_tree_account.insert_address_into_queue(
                     &first_value.to_vec().try_into().unwrap(),
                     &current_slot,
                 );
-                // assert_eq!(
-                //     result.unwrap_err(),
-                //     BatchedMerkleTreeError::BatchInsertFailed.into()
-                // );
-                result.unwrap_err();
+                println!("tx {}", tx);
+                println!("result {:?}", result);
+                if tx == params.input_queue_batch_size as usize * 2 - 1 {
+                    // Error when the value is already inserted into the other batch.
+                    assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
+                } else if tx >= params.input_queue_batch_size as usize - 1
+                // || tx == params.input_queue_batch_size as usize
+                {
+                    // Error when the value is already inserted into the other batch.
+                    // This occurs only when we switch the batch in this test.
+                    assert_eq!(
+                        result.unwrap_err(),
+                        BatchedMerkleTreeError::NonInclusionCheckFailed
+                    );
+                } else {
+                    // Error when inserting into the bloom filter directly twice.
+                    assert_eq!(result.unwrap_err(), BloomFilterError::Full.into());
+                }
                 current_slot += 1;
 
                 // assert_eq!(result.unwrap_err(), BloomFilterError::Full.into());
@@ -2063,8 +2159,7 @@ async fn test_fill_address_tree_completely() {
                 &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
             let rnd_bytes = get_rnd_bytes(&mut rng);
-            let result =
-                merkle_tree_account.insert_address_into_current_batch(&rnd_bytes, &current_slot);
+            let result = merkle_tree_account.insert_address_into_queue(&rnd_bytes, &current_slot);
             assert_eq!(result.unwrap_err(), BatchedMerkleTreeError::BatchNotReady);
         }
         // Root of the final batch of first input queue batch
@@ -2072,15 +2167,15 @@ async fn test_fill_address_tree_completely() {
         let num_updates = 10;
         for i in 0..num_updates {
             println!("address update ----------------------------- {}", i);
-            perform_address_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
+            perform_address_update(&mut mt_account_data, &mut mock_indexer, mt_pubkey).await;
             if i == 4 {
                 first_input_batch_update_root_value = mock_indexer.merkle_tree.root();
             }
             let merkle_tree_account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
-            let batch = merkle_tree_account.queue_metadata.batches.first().unwrap();
-            let batch_one = merkle_tree_account.queue_metadata.batches.get(1).unwrap();
+            let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
+            let batch_one = merkle_tree_account.queue_batches.batches.get(1).unwrap();
             assert!(!batch_one.bloom_filter_is_zeroed());
 
             // after 5 updates the first batch is completely inserted
@@ -2097,12 +2192,7 @@ async fn test_fill_address_tree_completely() {
             let merkle_tree_account =
                 &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
-            for (i, batch) in merkle_tree_account
-                .queue_metadata
-                .batches
-                .iter()
-                .enumerate()
-            {
+            for (i, batch) in merkle_tree_account.queue_batches.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
                     assert!(batch.bloom_filter_is_zeroed());
@@ -2116,7 +2206,7 @@ async fn test_fill_address_tree_completely() {
                 &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
             println!("root history {:?}", merkle_tree_account.root_history);
-            let pre_batch_zero = *merkle_tree_account.queue_metadata.batches.first().unwrap();
+            let pre_batch_zero = *merkle_tree_account.queue_batches.batches.first().unwrap();
 
             for root in merkle_tree_account.root_history.iter() {
                 println!("root {:?}", root);

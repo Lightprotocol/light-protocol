@@ -45,6 +45,12 @@ pub enum QueueType {
     BatchedOutput = 5,
 }
 
+pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
+pub const ADDRESS_QUEUE_TYPE: u64 = 2;
+pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
+pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
+pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
+
 impl From<u64> for QueueType {
     fn from(value: u64) -> Self {
         match value {

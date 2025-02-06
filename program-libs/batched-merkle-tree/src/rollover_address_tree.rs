@@ -87,10 +87,10 @@ fn create_batched_address_tree_init_params(
             Pubkey::default(),
         ),
         height: old_merkle_tree.height,
-        input_queue_batch_size: old_merkle_tree.queue_metadata.batch_size,
-        input_queue_zkp_batch_size: old_merkle_tree.queue_metadata.zkp_batch_size,
-        bloom_filter_capacity: old_merkle_tree.queue_metadata.bloom_filter_capacity,
-        bloom_filter_num_iters: old_merkle_tree.queue_metadata.batches[0].num_iters,
+        input_queue_batch_size: old_merkle_tree.queue_batches.batch_size,
+        input_queue_zkp_batch_size: old_merkle_tree.queue_batches.zkp_batch_size,
+        bloom_filter_capacity: old_merkle_tree.queue_batches.bloom_filter_capacity,
+        bloom_filter_num_iters: old_merkle_tree.queue_batches.batches[0].num_iters,
         root_history_capacity: old_merkle_tree.root_history_capacity,
         network_fee,
         rollover_threshold: if_equals_none(
@@ -107,7 +107,6 @@ fn create_batched_address_tree_init_params(
     }
 }
 
-// TODO: assert that remainder of old_mt_account_data is not changed
 #[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_roll_over(
     mut old_mt_account_data: Vec<u8>,
