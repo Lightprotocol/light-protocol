@@ -378,3 +378,40 @@ fn test_get_current_batch() {
         BatchState::Inserted
     );
 }
+
+#[test]
+fn test_get_current_batch_index_and_batch() {
+    let mut metadata = QueueBatches::new_output_queue(10, 2).unwrap();
+    {
+        let previous_batch_index = metadata.get_previous_batch_index();
+        assert_eq!(previous_batch_index, 1);
+        let previous_batch = metadata.get_previous_batch();
+        assert_eq!(previous_batch.start_index, 10);
+        let previous_batch = metadata.get_previous_batch_mut();
+        assert_eq!(previous_batch.start_index, 10);
+    }
+
+    {
+        metadata.currently_processing_batch_index = 1;
+        assert_eq!(metadata.get_previous_batch_index(), 0);
+        let previous_batch = metadata.get_previous_batch();
+        assert_eq!(previous_batch.start_index, 0);
+        let previous_batch = metadata.get_previous_batch_mut();
+        assert_eq!(previous_batch.start_index, 0);
+    }
+    {
+        metadata.currently_processing_batch_index = 0;
+        let previous_batch = metadata.get_previous_batch();
+        assert_eq!(previous_batch.start_index, 10);
+        let previous_batch = metadata.get_previous_batch_mut();
+        assert_eq!(previous_batch.start_index, 10);
+    }
+    {
+        metadata.currently_processing_batch_index = 1;
+        assert_eq!(metadata.get_previous_batch_index(), 0);
+        let previous_batch = metadata.get_previous_batch();
+        assert_eq!(previous_batch.start_index, 0);
+        let previous_batch = metadata.get_previous_batch_mut();
+        assert_eq!(previous_batch.start_index, 0);
+    }
+}

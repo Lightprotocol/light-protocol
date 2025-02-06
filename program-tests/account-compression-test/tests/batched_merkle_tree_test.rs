@@ -834,14 +834,14 @@ pub async fn create_nullify_batch_ix_data(
         &light_utils::pubkey::Pubkey::default(),
     )
     .unwrap();
-    println!("batches {:?}", zero_copy_account.queue_metadata.batches);
+    println!("batches {:?}", zero_copy_account.queue_batches.batches);
 
     let next_full_batch = zero_copy_account
         .get_metadata()
-        .queue_metadata
+        .queue_batches
         .pending_batch_index;
     let batch = zero_copy_account
-        .queue_metadata
+        .queue_batches
         .batches
         .get(next_full_batch as usize)
         .unwrap();
@@ -868,7 +868,7 @@ pub async fn create_nullify_batch_ix_data(
         .get_batched_update_proof(
             zero_copy_account
                 .get_metadata()
-                .queue_metadata
+                .queue_batches
                 .zkp_batch_size as u32,
             *leaves_hash_chain,
         )
@@ -1291,7 +1291,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         &old_merkle_tree_pubkey.into(),
     )
     .unwrap();
-    let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
+    let batch_zero = &old_merkle_tree.queue_batches.batches[0];
     let old_merkle_tree = old_merkle_tree.get_metadata();
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
@@ -2004,11 +2004,11 @@ pub async fn update_batch_address_tree(
     let current_root = zero_copy_account.root_history.last().unwrap();
     let next_full_batch = zero_copy_account
         .get_metadata()
-        .queue_metadata
+        .queue_batches
         .pending_batch_index;
 
     let batch = zero_copy_account
-        .queue_metadata
+        .queue_batches
         .batches
         .get(next_full_batch as usize)
         .unwrap();
@@ -2021,10 +2021,10 @@ pub async fn update_batch_address_tree(
         .unwrap();
     let (mut proof, mut new_root) = mock_indexer
         .get_batched_address_proof(
-            zero_copy_account.get_metadata().queue_metadata.batch_size as u32,
+            zero_copy_account.get_metadata().queue_batches.batch_size as u32,
             zero_copy_account
                 .get_metadata()
-                .queue_metadata
+                .queue_batches
                 .zkp_batch_size as u32,
             *leaves_hash_chain,
             start_index as usize,

@@ -674,7 +674,7 @@ async fn test_custom_forester_batched() {
             )
             .unwrap();
             // fill two output and one input batch
-            for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
+            for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
                 println!("\ntx {}", i);
 
                 e2e_env
@@ -688,7 +688,7 @@ async fn test_custom_forester_batched() {
                     )
                     .await
                     .unwrap();
-                if i == merkle_tree.get_metadata().queue_metadata.batch_size / 2 {
+                if i == merkle_tree.get_metadata().queue_batches.batch_size / 2 {
                     instruction_data = Some(
                         create_append_batch_ix_data(
                             &mut e2e_env.rpc,

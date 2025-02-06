@@ -893,7 +893,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 
     pub fn tree_is_full(&self) -> bool {
-        self.next_index == self.capacity
+        self.next_index >= self.capacity
     }
 
     pub fn check_queue_next_index_reached_tree_capacity(
@@ -1662,5 +1662,109 @@ mod test {
         for address in inserted_elements.iter() {
             account.check_input_queue_non_inclusion(address).unwrap();
         }
+    }
+
+    #[test]
+    fn test_tree_is_full() {
+        let mut account_data = vec![0u8; 3240];
+        let batch_size = 5;
+        let zkp_batch_size = 1;
+        let root_history_len = 10;
+        let num_iter = 1;
+        let bloom_filter_capacity = 8000;
+        let height = 4;
+        let mut account = BatchedMerkleTreeAccount::init(
+            &mut account_data,
+            &Pubkey::new_unique(),
+            MerkleTreeMetadata::default(),
+            root_history_len,
+            batch_size,
+            zkp_batch_size,
+            height,
+            num_iter,
+            bloom_filter_capacity,
+            TreeType::BatchedAddress,
+        )
+        .unwrap();
+        // 1. empty tree is not full
+        assert!(!account.tree_is_full());
+        assert!(account.check_tree_is_full().is_ok());
+        account.next_index = account.capacity - 1;
+        assert!(!account.tree_is_full());
+        assert!(account.check_tree_is_full().is_ok());
+        account.next_index = account.capacity;
+        assert!(account.tree_is_full());
+        assert!(account.check_tree_is_full().is_err());
+        account.next_index = account.capacity + 1;
+        assert!(account.tree_is_full());
+        assert!(account.check_tree_is_full().is_err());
+    }
+    #[test]
+    fn test_increment_next_index() {
+        let mut account_data = vec![0u8; 3240];
+        let batch_size = 5;
+        let zkp_batch_size = 1;
+        let root_history_len = 10;
+        let num_iter = 1;
+        let bloom_filter_capacity = 8000;
+        let height = 4;
+        let pubkey = Pubkey::new_unique();
+        let mut account = BatchedMerkleTreeAccount::init(
+            &mut account_data,
+            &pubkey,
+            MerkleTreeMetadata::default(),
+            root_history_len,
+            batch_size,
+            zkp_batch_size,
+            height,
+            num_iter,
+            bloom_filter_capacity,
+            TreeType::BatchedAddress,
+        )
+        .unwrap();
+        let previous_next_index = account.next_index;
+        let previous_queue_next_index = account.queue_batches.next_index;
+        account.increment_merkle_tree_next_index(10);
+        assert_eq!(account.next_index, previous_next_index + 10);
+        assert_eq!(account.queue_batches.next_index, previous_queue_next_index);
+        let previous_next_index = account.next_index;
+        let previous_queue_next_index = account.queue_batches.next_index;
+        account.increment_queue_next_index();
+        assert_eq!(account.next_index, previous_next_index);
+        assert_eq!(
+            account.queue_batches.next_index,
+            previous_queue_next_index + 1
+        );
+    }
+
+    #[test]
+    fn test_get_pubkey_and_associated_queue() {
+        let mut account_data = vec![0u8; 3240];
+        let batch_size = 5;
+        let zkp_batch_size = 1;
+        let root_history_len = 10;
+        let num_iter = 1;
+        let bloom_filter_capacity = 8000;
+        let height = 4;
+        let pubkey = Pubkey::new_unique();
+        let associated_queue = Pubkey::new_unique();
+        let account = BatchedMerkleTreeAccount::init(
+            &mut account_data,
+            &pubkey,
+            MerkleTreeMetadata {
+                associated_queue,
+                ..MerkleTreeMetadata::default()
+            },
+            root_history_len,
+            batch_size,
+            zkp_batch_size,
+            height,
+            num_iter,
+            bloom_filter_capacity,
+            TreeType::BatchedAddress,
+        )
+        .unwrap();
+        assert_eq!(*account.pubkey(), pubkey);
+        assert_eq!(*account.get_associated_queue(), associated_queue);
     }
 }
