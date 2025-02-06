@@ -195,13 +195,13 @@ pub async fn assert_accounts_by_owner<
     photon_indexer: &PhotonIndexer<R>,
 ) {
     let mut photon_accs = photon_indexer
-        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
         .await
         .unwrap();
     photon_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     let mut test_accs = indexer
-        .get_compressed_accounts_by_owner(&user.keypair.pubkey())
+        .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
         .await
         .unwrap();
     test_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
@@ -232,7 +232,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     photon_indexer: &PhotonIndexer<R>,
 ) {
     let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> =
-        indexer.get_compressed_accounts_by_owner(user_pubkey).await;
+        indexer.get_compressed_accounts_by_owner_v2(user_pubkey).await;
     for account in accs.unwrap() {
         let photon_result = photon_indexer
             .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])

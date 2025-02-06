@@ -19,7 +19,7 @@ use light_client::{
     indexer::{
         Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
         Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
-        NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
@@ -374,7 +374,7 @@ where
         Ok(proofs)
     }
 
-    async fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
@@ -575,7 +575,7 @@ where
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Result<Vec<ProofOfLeaf>, IndexerError> {
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
         Ok(indices
             .iter()
             .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
@@ -585,7 +585,7 @@ where
     async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: usize,
+        zkp_batch_size: u64,
     ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
@@ -593,7 +593,7 @@ where
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
-        Ok(state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec())
+        Ok(state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size as usize].to_vec())
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
@@ -890,7 +890,7 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
-    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof {
         let bundle = self
             .state_merkle_trees
             .iter_mut()
@@ -915,7 +915,13 @@ where
             .unwrap()
             .to_vec();
 
-        ProofOfLeaf { leaf, proof }
+        MerkleProof {
+            hash: bs58::encode(leaf).into_string(),
+            leaf_index: index,
+            merkle_tree: merkle_tree_pubkey.to_string(),
+            proof,
+            root_seq: bundle.merkle_tree.sequence_number as u64,
+        }
     }
 
     async fn update_test_indexer_after_append(
