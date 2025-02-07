@@ -12,9 +12,11 @@ use light_compressed_account::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
         data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
     },
+    pubkey::PubkeyTrait,
 };
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
+use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -187,12 +189,12 @@ pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
-    mint_pubkey: Pubkey,
-    pubkeys: &[Pubkey],
+    mint_pubkey: impl PubkeyTrait,
+    pubkeys: &[impl PubkeyTrait],
     delegate: Option<Pubkey>,
     is_delegate: Option<Vec<bool>>,
-    amounts: &[u64],
-    lamports: Option<Vec<Option<u64>>>,
+    amounts: &[impl ZeroCopyNumTrait],
+    lamports: Option<Vec<Option<impl ZeroCopyNumTrait>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
     remaining_accounts: &[AccountInfo<'_>],
@@ -227,9 +229,9 @@ pub fn create_output_compressed_accounts(
         let mut token_data_bytes = Vec::with_capacity(capacity);
         // 1,000 CU token data and serialize
         let token_data = TokenData {
-            mint: mint_pubkey,
-            owner: *owner,
-            amount: *amount,
+            mint: (mint_pubkey).to_anchor_pubkey(),
+            owner: (*owner).to_anchor_pubkey(),
+            amount: (*amount).into(),
             delegate,
             state: AccountState::Initialized,
             tlv: None,
@@ -237,22 +239,22 @@ pub fn create_output_compressed_accounts(
         // TODO: remove serialization, just write bytes.
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref());
+        let hashed_owner = hash_to_bn254_field_size_be(owner.trait_to_bytes().as_slice());
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes =
             &remaining_accounts[merkle_tree_indices[i] as usize].try_borrow_data()?[0..8];
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_le_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_le().as_slice());
                 Ok(())
             }
             BATCHED_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
                 Ok(())
             }
             OUTPUT_QUEUE_DISCRIMINATOR => {
-                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                amount_bytes[24..].copy_from_slice(amount.to_bytes_be().as_slice());
                 Ok(())
             }
             _ => {
@@ -281,12 +283,12 @@ pub fn create_output_compressed_accounts(
         let lamports = lamports
             .as_ref()
             .and_then(|lamports| lamports[i])
-            .unwrap_or(0);
-        sum_lamports += lamports;
+            .unwrap_or(0u64.into());
+        sum_lamports += lamports.into();
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
-                lamports,
+                lamports: lamports.into(),
                 data: Some(data),
                 address: None,
             },

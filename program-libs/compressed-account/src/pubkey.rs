@@ -56,6 +56,12 @@ impl Pubkey {
     }
 }
 
+impl AsRef<Pubkey> for Pubkey {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl<'a> Deserialize<'a> for Pubkey {
     type Output = Ref<&'a [u8], Pubkey>;
 
@@ -148,5 +154,40 @@ impl Pubkey {
 
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+}
+
+pub trait PubkeyTrait {
+    fn trait_to_bytes(&self) -> [u8; 32];
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey;
+}
+
+impl PubkeyTrait for Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey {
+        self.into()
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl PubkeyTrait for anchor_lang::prelude::Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> Self {
+        *self
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl PubkeyTrait for solana_program::pubkey::Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
     }
 }

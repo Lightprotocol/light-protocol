@@ -2,6 +2,7 @@
 
 pub mod cyclic_vec;
 pub mod errors;
+pub mod num_trait;
 pub mod slice;
 pub mod slice_mut;
 pub mod vec;
