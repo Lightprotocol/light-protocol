@@ -142,7 +142,7 @@ async fn test_state_indexer_batched() {
         .unwrap()
         .unwrap();
     let merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data).unwrap();
+        BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data, &batched_state_merkle_tree_pubkey.into()).unwrap();
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
@@ -153,7 +153,7 @@ async fn test_state_indexer_batched() {
             .unwrap();
 
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice(), &batched_state_merkle_tree_pubkey.into())
                 .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
@@ -173,7 +173,7 @@ async fn test_state_indexer_batched() {
         batch_size: {}",
         initial_next_index,
         initial_sequence_number,
-        merkle_tree.get_metadata().queue_metadata.batch_size
+        merkle_tree.get_metadata().queue_batches.batch_size
     );
 
     println!(
@@ -196,7 +196,7 @@ async fn test_state_indexer_batched() {
         assert_eq!(photon_account, test_indexer_account);
     }
 
-    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
+    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
         println!("\ntx {}", i);
 
         e2e_env
@@ -279,7 +279,7 @@ async fn test_state_indexer_batched() {
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
-    return;
+    // return;
 
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
@@ -331,14 +331,14 @@ async fn test_state_indexer_batched() {
         .unwrap();
 
     let merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+        BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice(), &batched_state_merkle_tree_pubkey.into())
             .unwrap();
 
     assert!(
         merkle_tree
             .get_metadata()
-            .queue_metadata
-            .next_full_batch_index
+            .queue_batches
+            .pending_batch_index
             > 0,
         "No batches were processed"
     );
@@ -353,7 +353,7 @@ async fn test_state_indexer_batched() {
             .unwrap();
 
         let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
+            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice(), &batched_state_merkle_tree_pubkey.into())
                 .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
@@ -368,8 +368,8 @@ async fn test_state_indexer_batched() {
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
                 .unwrap();
 
-        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
@@ -394,7 +394,7 @@ async fn test_state_indexer_batched() {
             zkp_batch_size,
             num_zkp_batches,
             completed_items,
-            final_metadata.queue_metadata,
+            final_metadata.queue_batches,
             output_queue.get_metadata().batch_metadata
         );
 
@@ -407,8 +407,8 @@ async fn test_state_indexer_batched() {
         assert_eq!(
             merkle_tree
                 .get_metadata()
-                .queue_metadata
-                .next_full_batch_index,
+                .queue_batches
+                .pending_batch_index,
             1
         );
 
