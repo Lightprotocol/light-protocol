@@ -368,7 +368,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                     }),
                 };
-
+                
+                println!("get_compressed_accounts_by_owner_v2: acc.queue: {:?}", acc.queue);
                 let nullifier_queue_pubkey = if let Some(queue) = acc.queue {
                     Pubkey::from(Hash::from_base58(&queue)?)
                 } else {

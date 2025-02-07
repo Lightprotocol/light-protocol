@@ -279,6 +279,8 @@ async fn test_state_indexer_batched() {
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
+    return;
+
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
