@@ -120,13 +120,14 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     }
 
     fn calculate_completion_from_tree(data: &mut [u8]) -> f64 {
-        let tree = match BatchedMerkleTreeAccount::state_from_bytes(data) {
+        let tree = match BatchedMerkleTreeAccount::state_from_bytes(data, &Pubkey::default().into())
+        {
             Ok(tree) => tree,
             Err(_) => return 0.0,
         };
 
-        let batch_index = tree.queue_metadata.next_full_batch_index;
-        match tree.queue_metadata.batches.get(batch_index as usize) {
+        let batch_index = tree.queue_batches.pending_batch_index;
+        match tree.queue_batches.batches.get(batch_index as usize) {
             Some(batch) => Self::calculate_completion(batch),
             None => 0.0,
         }
@@ -138,7 +139,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             Err(_) => return 0.0,
         };
 
-        let batch_index = queue.batch_metadata.next_full_batch_index;
+        let batch_index = queue.batch_metadata.pending_batch_index;
         match queue.batch_metadata.batches.get(batch_index as usize) {
             Some(batch) => Self::calculate_completion(batch),
             None => 0.0,
@@ -177,7 +178,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
                     .map_err(|e| BatchProcessError::QueueParsing(e.to_string()))?;
 
-            let batch_index = output_queue.batch_metadata.next_full_batch_index;
+            let batch_index = output_queue.batch_metadata.pending_batch_index;
             let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
 
             (
@@ -195,19 +196,21 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         let merkle_tree = match self.tree_type {
-            TreeType::BatchedAddress => {
-                BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice())
-            }
-            TreeType::BatchedState => {
-                BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice())
-            }
+            TreeType::BatchedAddress => BatchedMerkleTreeAccount::address_from_bytes(
+                account.data.as_mut_slice(),
+                &self.context.merkle_tree.into(),
+            ),
+            TreeType::BatchedState => BatchedMerkleTreeAccount::state_from_bytes(
+                account.data.as_mut_slice(),
+                &self.context.merkle_tree.into(),
+            ),
             _ => return false,
         };
 
         if let Ok(tree) = merkle_tree {
-            let batch_index = tree.queue_metadata.next_full_batch_index;
+            let batch_index = tree.queue_batches.pending_batch_index;
             let full_batch = tree
-                .queue_metadata
+                .queue_batches
                 .batches
                 .get(batch_index as usize)
                 .unwrap();
@@ -233,7 +236,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         if let Ok(queue) = output_queue {
-            let batch_index = queue.batch_metadata.next_full_batch_index;
+            let batch_index = queue.batch_metadata.pending_batch_index;
             let full_batch = queue
                 .batch_metadata
                 .batches

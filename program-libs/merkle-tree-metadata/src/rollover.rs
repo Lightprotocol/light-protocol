@@ -80,6 +80,7 @@ impl RolloverMetadata {
         }
         #[cfg(not(target_os = "solana"))]
         {
+            // Mock for testing.
             self.rolledover_slot = 1;
         }
         Ok(())

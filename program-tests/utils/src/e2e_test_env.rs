@@ -560,14 +560,14 @@ where
                                 .data;
                             let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                                 merkle_tree_account_data.as_mut_slice(),
+                                &merkle_tree_pubkey.into(),
                             )
                             .unwrap();
-                            let next_full_batch_index =
-                                merkle_tree.queue_metadata.next_full_batch_index;
+                            let pending_batch_index = merkle_tree.queue_batches.pending_batch_index;
                             let batch = merkle_tree
-                                .queue_metadata
+                                .queue_batches
                                 .batches
-                                .get(next_full_batch_index as usize)
+                                .get(pending_batch_index as usize)
                                 .unwrap();
                             let batch_state = batch.get_state();
                             println!(
@@ -575,7 +575,7 @@ where
                                 batch_state,
                                 batch.get_num_inserted_zkp_batch()
                                     + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
-                                next_full_batch_index
+                                pending_batch_index
                             );
                             println!("input batch_state {:?}", batch_state);
                             if batch_state == BatchState::Full {
@@ -612,12 +612,12 @@ where
                                 queue_account_data.as_mut_slice(),
                             )
                             .unwrap();
-                            let next_full_batch_index =
-                                output_queue.batch_metadata.next_full_batch_index;
+                            let pending_batch_index =
+                                output_queue.batch_metadata.pending_batch_index;
                             let batch = output_queue
                                 .batch_metadata
                                 .batches
-                                .get(next_full_batch_index as usize)
+                                .get(pending_batch_index as usize)
                                 .unwrap();
                             let batch_state = batch.get_state();
                             println!(
@@ -625,7 +625,7 @@ where
                                 batch_state,
                                 batch.get_num_inserted_zkp_batch()
                                     + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
-                                next_full_batch_index
+                                pending_batch_index
                             );
                             if batch_state == BatchState::Full {
                                 for _ in 0..output_queue.batch_metadata.get_num_zkp_batches() {
@@ -716,13 +716,14 @@ where
                         .data;
                     let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
                         merkle_tree_account_data.as_mut_slice(),
+                        &merkle_tree_pubkey.into(),
                     )
                     .unwrap();
-                    let next_full_batch_index = merkle_tree.queue_metadata.next_full_batch_index;
+                    let pending_batch_index = merkle_tree.queue_batches.pending_batch_index;
                     let batch = merkle_tree
-                        .queue_metadata
+                        .queue_batches
                         .batches
-                        .get(next_full_batch_index as usize)
+                        .get(pending_batch_index as usize)
                         .unwrap();
                     let batch_state = batch.get_state();
                     println!(
@@ -730,7 +731,7 @@ where
                         batch_state,
                         batch.get_num_inserted_zkp_batch()
                             + batch.get_current_zkp_batch_index() * batch.zkp_batch_size,
-                        next_full_batch_index
+                        pending_batch_index
                     );
                     println!("input batch_state {:?}", batch_state);
                     if batch_state == BatchState::Full {
@@ -743,16 +744,17 @@ where
                             .unwrap();
                         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
                             merkle_tree_account.data.as_mut_slice(),
+                            &merkle_tree_pubkey.into(),
                         )
                         .unwrap();
-                        for _ in 0..merkle_tree.queue_metadata.get_num_zkp_batches() {
+                        for _ in 0..merkle_tree.queue_batches.get_num_zkp_batches() {
                             let instruction_data = {
                                 let full_batch_index =
-                                    merkle_tree.queue_metadata.next_full_batch_index;
+                                    merkle_tree.queue_batches.pending_batch_index;
                                 let batch =
-                                    &merkle_tree.queue_metadata.batches[full_batch_index as usize];
+                                    &merkle_tree.queue_batches.batches[full_batch_index as usize];
                                 let zkp_batch_index = batch.get_num_inserted_zkps();
-                                let leaves_hashchain = merkle_tree.hash_chain_stores
+                                let leaves_hash_chain = merkle_tree.hash_chain_stores
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
                                 let batch_start_index = merkle_tree.next_index as usize;
@@ -767,9 +769,9 @@ where
                                     )
                                     .await
                                     .unwrap();
-                                // // local_leaves_hashchain is only used for a test assertion.
-                                // let local_nullifier_hashchain = create_hash_chain_from_array(&addresses);
-                                // assert_eq!(leaves_hashchain, local_nullifier_hashchain);
+                                // // local_leaves_hash_chain is only used for a test assertion.
+                                // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
+                                // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
                                 let start_index = merkle_tree.next_index as usize;
                                 assert!(
                                     start_index >= 2,
@@ -817,7 +819,7 @@ where
                                         .unwrap()
                                         .try_into()
                                         .unwrap(),
-                                    leaves_hashchain,
+                                    leaves_hash_chain,
                                     batch_start_index,
                                     batch.zkp_batch_size as usize,
                                 )

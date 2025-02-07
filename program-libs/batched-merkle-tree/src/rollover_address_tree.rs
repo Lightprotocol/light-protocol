@@ -61,6 +61,7 @@ pub fn rollover_batched_address_tree<'a>(
     batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
     // 2. Rollover the old merkle tree.
+    // - Address don't have an associated queue account (Pubkey::default()).
     old_merkle_tree
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)?;
@@ -86,10 +87,10 @@ fn create_batched_address_tree_init_params(
             Pubkey::default(),
         ),
         height: old_merkle_tree.height,
-        input_queue_batch_size: old_merkle_tree.queue_metadata.batch_size,
-        input_queue_zkp_batch_size: old_merkle_tree.queue_metadata.zkp_batch_size,
-        bloom_filter_capacity: old_merkle_tree.queue_metadata.bloom_filter_capacity,
-        bloom_filter_num_iters: old_merkle_tree.queue_metadata.batches[0].num_iters,
+        input_queue_batch_size: old_merkle_tree.queue_batches.batch_size,
+        input_queue_zkp_batch_size: old_merkle_tree.queue_batches.zkp_batch_size,
+        bloom_filter_capacity: old_merkle_tree.queue_batches.bloom_filter_capacity,
+        bloom_filter_num_iters: old_merkle_tree.queue_batches.batches[0].num_iters,
         root_history_capacity: old_merkle_tree.root_history_capacity,
         network_fee,
         rollover_threshold: if_equals_none(
@@ -106,11 +107,11 @@ fn create_batched_address_tree_init_params(
     }
 }
 
-// TODO: assert that remainder of old_mt_account_data is not changed
 #[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_roll_over(
     mut old_mt_account_data: Vec<u8>,
     mut old_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    old_mt_pubkey: Pubkey,
     mut new_mt_account_data: Vec<u8>,
     new_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     new_mt_pubkey: Pubkey,
@@ -121,10 +122,12 @@ pub fn assert_address_mt_roll_over(
         .unwrap();
 
     let old_mt_account =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data).unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data, &old_mt_pubkey)
+            .unwrap();
     assert_eq!(*old_mt_account.get_metadata(), old_ref_mt_account);
     crate::initialize_state_tree::assert_address_mt_zero_copy_initialized(
         &mut new_mt_account_data,
         new_ref_mt_account,
+        &new_mt_pubkey,
     );
 }

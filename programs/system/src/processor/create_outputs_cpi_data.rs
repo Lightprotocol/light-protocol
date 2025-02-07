@@ -170,7 +170,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                 &cpi_ix_data.output_leaf_indices[j].into(),
             )
             .map_err(ProgramError::from)?;
-        cpi_ix_data.leaves[j].index = index_merkle_tree_account_account - 1;
+        cpi_ix_data.leaves[j].tree_account_index = index_merkle_tree_account_account - 1;
 
         if !cpi_ix_data.nullifiers.is_empty() {
             if j == 0 {

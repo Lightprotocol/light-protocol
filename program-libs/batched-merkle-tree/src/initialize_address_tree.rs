@@ -1,7 +1,7 @@
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     merkle_tree::{MerkleTreeMetadata, TreeType},
-    rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+    rollover::RolloverMetadata,
 };
 use light_utils::{
     account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
@@ -109,7 +109,6 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params.height,
     );
     let merkle_tree_rent = check_account_balance_is_rent_exempt(mt_account_info, mt_account_size)?;
-
     // 2. Initialized the address Merkle tree account.
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
@@ -136,9 +135,7 @@ pub fn init_batched_address_merkle_tree_account(
     let rollover_fee = match params.rollover_threshold {
         Some(rollover_threshold) => {
             let rent = merkle_tree_rent;
-            let rollover_fee = compute_rollover_fee(rollover_threshold, height, rent)?;
-            check_rollover_fee_sufficient(rollover_fee, 0, rent, rollover_threshold, height)?;
-            rollover_fee
+            compute_rollover_fee(rollover_threshold, height, rent)?
         }
         None => 0,
     };
@@ -208,4 +205,106 @@ pub fn get_address_merkle_tree_account_size_from_params(
         params.root_history_capacity,
         params.height,
     )
+}
+
+#[test]
+fn test_validate_batched_address_tree_params() {
+    let params = InitAddressTreeAccountsInstructionData::default();
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic = "Input queue batch size must divisible by input_queue_zkp_batch_size."]
+fn test_input_queue_batch_size_not_divisible_by_zkp_batch_size() {
+    let params = InitAddressTreeAccountsInstructionData {
+        input_queue_batch_size: 11,
+        input_queue_zkp_batch_size: 10, // Not divisible
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic = "Input queue batch size must divisible by input_queue_zkp_batch_size."]
+fn test_invalid_zkp_batch_size() {
+    let params = InitAddressTreeAccountsInstructionData {
+        input_queue_zkp_batch_size: 7, // Unsupported size
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_bloom_filter_num_iters_zero() {
+    let params = InitAddressTreeAccountsInstructionData {
+        bloom_filter_num_iters: 0,
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_bloom_filter_capacity_too_small() {
+    let params = InitAddressTreeAccountsInstructionData {
+        input_queue_batch_size: InitAddressTreeAccountsInstructionData::default()
+            .input_queue_batch_size
+            * 8
+            - 1, // Too small
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_bloom_filter_capacity_not_divisible_by_8() {
+    let params = InitAddressTreeAccountsInstructionData {
+        bloom_filter_capacity: 7,
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_bloom_filter_capacity_zero() {
+    let params = InitAddressTreeAccountsInstructionData {
+        bloom_filter_capacity: 0,
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_root_history_capacity_zero() {
+    let params = InitAddressTreeAccountsInstructionData {
+        root_history_capacity: 0,
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_close_threshold_not_none() {
+    let params = InitAddressTreeAccountsInstructionData {
+        close_threshold: Some(10),
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
+}
+
+#[test]
+#[should_panic]
+fn test_height_not_40() {
+    let params = InitAddressTreeAccountsInstructionData {
+        height: 30,
+        ..InitAddressTreeAccountsInstructionData::default()
+    };
+    validate_batched_address_tree_params(params);
 }

@@ -24,7 +24,8 @@ use light_batched_merkle_tree::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    test_batch_forester::assert_perform_state_mt_roll_over, test_env::NOOP_PROGRAM_ID,
+    test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},
+    test_env::NOOP_PROGRAM_ID,
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::{
@@ -37,7 +38,7 @@ use light_test_utils::{
 };
 use light_utils::{
     bigint::bigint_to_be_bytes_array,
-    hashchain::create_tx_hash,
+    hash_chain::create_tx_hash,
     instruction::{
         compressed_proof::CompressedProof, insert_into_queues::AppendNullifyCreateAddressInputs,
     },
@@ -178,6 +179,7 @@ async fn test_batch_state_merkle_tree() {
         assert_state_mt_zero_copy_initialized(
             merkle_tree.account.data.as_mut_slice(),
             ref_mt_account,
+            &merkle_tree_pubkey.into(),
         );
         let output_queue_params = CreateOutputQueueParams::from(
             params,
@@ -252,6 +254,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &invalid_payer,
+            None,
             TestMode::Functional,
         )
         .await;
@@ -264,6 +267,21 @@ async fn test_batch_state_merkle_tree() {
     }
     // 5. Failing Invalid Output queue - association (batch append)
     {
+        let new_keypair_mt = Keypair::new();
+        let new_keypair_queue = Keypair::new();
+        let payer = context.get_payer().insecure_clone();
+        create_batched_state_merkle_tree(
+            &payer,
+            false,
+            &mut context,
+            &new_keypair_mt,
+            &new_keypair_queue,
+            &Keypair::new(),
+            InitStateTreeAccountsInstructionData::test_default(),
+        )
+        .await
+        .unwrap();
+
         let mut mock_indexer = mock_indexer.clone();
         let result = perform_batch_append(
             &mut context,
@@ -271,6 +289,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            Some(new_keypair_queue.pubkey()),
             TestMode::InvalidOutputQueue,
         )
         .await;
@@ -290,6 +309,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::InvalidMerkleTree,
         )
         .await;
@@ -304,6 +324,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::InvalidRegisteredProgram,
         )
         .await;
@@ -318,6 +339,7 @@ async fn test_batch_state_merkle_tree() {
             merkle_tree_pubkey,
             output_queue_pubkey,
             &payer,
+            None,
             TestMode::Functional,
         )
         .await
@@ -575,6 +597,7 @@ pub async fn perform_batch_append(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
+    invalid_output_queue: Option<Pubkey>,
     mode: TestMode,
 ) -> Result<Signature, RpcError> {
     let merkle_tree_account = &mut context
@@ -594,8 +617,9 @@ pub async fn perform_batch_append(
     let mut data = Vec::new();
     instruction_data.serialize(&mut data).unwrap();
     let (merkle_tree_pubkey, output_queue_pubkey, registered_program_pda) = match mode {
-        TestMode::Functional => (merkle_tree_pubkey, output_queue_pubkey, None),
-        TestMode::InvalidOutputQueue => (merkle_tree_pubkey, Pubkey::new_unique(), None),
+        TestMode::Functional | TestMode::InvalidOutputQueue => {
+            (merkle_tree_pubkey, output_queue_pubkey, None)
+        }
         TestMode::InvalidMerkleTree => (output_queue_pubkey, output_queue_pubkey, None),
         TestMode::InvalidRegisteredProgram => (
             merkle_tree_pubkey,
@@ -605,6 +629,11 @@ pub async fn perform_batch_append(
     };
 
     let instruction = account_compression::instruction::BatchAppend { data };
+    let output_queue_pubkey = if let Some(pubkey) = invalid_output_queue {
+        pubkey
+    } else {
+        output_queue_pubkey
+    };
     let accounts = account_compression::accounts::BatchAppend {
         authority: payer.pubkey(),
         registered_program_pda,
@@ -753,7 +782,9 @@ pub async fn create_append_batch_ix_data(
     mt_account_data: &mut [u8],
     output_queue_account_data: &mut [u8],
 ) -> InstructionDataBatchAppendInputs {
-    let zero_copy_account = BatchedMerkleTreeAccount::state_from_bytes(mt_account_data).unwrap();
+    let zero_copy_account =
+        BatchedMerkleTreeAccount::state_from_bytes(mt_account_data, &Pubkey::default().into())
+            .unwrap();
     let output_zero_copy_account =
         BatchedQueueAccount::output_from_bytes(output_queue_account_data).unwrap();
 
@@ -761,13 +792,13 @@ pub async fn create_append_batch_ix_data(
     let next_full_batch = output_zero_copy_account
         .get_metadata()
         .batch_metadata
-        .next_full_batch_index;
+        .pending_batch_index;
     let batch = output_zero_copy_account
         .batch_metadata
         .batches
         .get(next_full_batch as usize)
         .unwrap();
-    let leaves_hashchain = output_zero_copy_account
+    let leaves_hash_chain = output_zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -778,7 +809,7 @@ pub async fn create_append_batch_ix_data(
             next_index as usize,
             batch.get_num_inserted_zkps() as u32,
             batch.zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
             batch.get_num_zkp_batches() as u32,
         )
         .await
@@ -798,16 +829,18 @@ pub async fn create_nullify_batch_ix_data(
     mock_indexer: &mut MockBatchedForester<32>,
     account_data: &mut [u8],
 ) -> InstructionDataBatchNullifyInputs {
-    let zero_copy_account: BatchedMerkleTreeAccount =
-        BatchedMerkleTreeAccount::state_from_bytes(account_data).unwrap();
-    println!("batches {:?}", zero_copy_account.queue_metadata.batches);
+    let zero_copy_account: BatchedMerkleTreeAccount = BatchedMerkleTreeAccount::state_from_bytes(
+        account_data,
+        &light_utils::pubkey::Pubkey::default(),
+    )
+    .unwrap();
 
     let next_full_batch = zero_copy_account
         .get_metadata()
-        .queue_metadata
-        .next_full_batch_index;
+        .queue_batches
+        .pending_batch_index;
     let batch = zero_copy_account
-        .queue_metadata
+        .queue_batches
         .batches
         .get(next_full_batch as usize)
         .unwrap();
@@ -817,14 +850,14 @@ pub async fn create_nullify_batch_ix_data(
         zero_copy_account.hash_chain_stores
     );
     println!(
-        "hashchain store len {:?}",
+        "hash_chain store len {:?}",
         zero_copy_account.hash_chain_stores.len()
     );
     println!(
         "batch.get_num_inserted_zkps() as usize {:?}",
         batch.get_num_inserted_zkps() as usize
     );
-    let leaves_hashchain = zero_copy_account
+    let leaves_hash_chain = zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -834,9 +867,9 @@ pub async fn create_nullify_batch_ix_data(
         .get_batched_update_proof(
             zero_copy_account
                 .get_metadata()
-                .queue_metadata
+                .queue_batches
                 .zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
         )
         .await
         .unwrap();
@@ -901,7 +934,11 @@ async fn test_init_batch_state_merkle_trees() {
             BatchedMerkleTreeMetadata::new_state_tree(mt_params, output_queue_pubkey.into());
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_state_mt_zero_copy_initialized(tree_data.as_mut_slice(), ref_mt_account);
+        assert_state_mt_zero_copy_initialized(
+            tree_data.as_mut_slice(),
+            ref_mt_account,
+            &merkle_tree_pubkey.into(),
+        );
         let output_queue_params = CreateOutputQueueParams::from(
             *params,
             owner.into(),
@@ -1248,9 +1285,12 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let payer_pubkey = payer.pubkey();
     let mut account = rpc.get_account(old_merkle_tree_pubkey).await?.unwrap();
-    let old_merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
-    let batch_zero = &old_merkle_tree.queue_metadata.batches[0];
+    let old_merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+        account.data.as_mut_slice(),
+        &old_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
+    let batch_zero = &old_merkle_tree.queue_batches.batches[0];
     let old_merkle_tree = old_merkle_tree.get_metadata();
     let mt_account_size = get_merkle_tree_account_size(
         batch_zero.batch_size,
@@ -1454,7 +1494,11 @@ async fn test_init_batch_address_merkle_trees() {
         let ref_mt_account = BatchedMerkleTreeMetadata::new_address_tree(mt_params, mt_rent);
 
         let mut tree_data = merkle_tree.account.data.clone();
-        assert_address_mt_zero_copy_initialized(tree_data.as_mut_slice(), ref_mt_account);
+        assert_address_mt_zero_copy_initialized(
+            tree_data.as_mut_slice(),
+            ref_mt_account,
+            &merkle_tree_pubkey.into(),
+        );
     }
 }
 pub async fn perform_init_batch_address_merkle_tree(
@@ -1949,23 +1993,26 @@ pub async fn update_batch_address_tree(
         .unwrap()
         .data;
 
-    let zero_copy_account =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account_data).unwrap();
+    let zero_copy_account = BatchedMerkleTreeAccount::address_from_bytes(
+        &mut merkle_tree_account_data,
+        &address_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
     let start_index = zero_copy_account.get_metadata().next_index;
 
     let current_root = zero_copy_account.root_history.last().unwrap();
     let next_full_batch = zero_copy_account
         .get_metadata()
-        .queue_metadata
-        .next_full_batch_index;
+        .queue_batches
+        .pending_batch_index;
 
     let batch = zero_copy_account
-        .queue_metadata
+        .queue_batches
         .batches
         .get(next_full_batch as usize)
         .unwrap();
     let batch_start_index = batch.start_index;
-    let leaves_hashchain = zero_copy_account
+    let leaves_hash_chain = zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
         .unwrap()
@@ -1973,12 +2020,12 @@ pub async fn update_batch_address_tree(
         .unwrap();
     let (mut proof, mut new_root) = mock_indexer
         .get_batched_address_proof(
-            zero_copy_account.get_metadata().queue_metadata.batch_size as u32,
+            zero_copy_account.get_metadata().queue_batches.batch_size as u32,
             zero_copy_account
                 .get_metadata()
-                .queue_metadata
+                .queue_batches
                 .zkp_batch_size as u32,
-            *leaves_hashchain,
+            *leaves_hash_chain,
             start_index as usize,
             batch_start_index as usize,
             *current_root,

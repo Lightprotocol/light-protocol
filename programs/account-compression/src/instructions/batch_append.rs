@@ -60,11 +60,7 @@ pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
 
     // 3. Append leaves and check output queue account.
     let event = merkle_tree
-        .update_tree_from_output_queue_account_info(
-            &ctx.accounts.output_queue,
-            instruction_data,
-            ctx.accounts.merkle_tree.key().to_bytes(),
-        )
+        .update_tree_from_output_queue_account_info(&ctx.accounts.output_queue, instruction_data)
         .map_err(ProgramError::from)?;
     // 4. Emit indexer event.
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)

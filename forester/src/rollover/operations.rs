@@ -107,36 +107,37 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedState => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data).unwrap();
+                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
+                    .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.queue_metadata.batch_size
+                merkle_tree.queue_batches.batch_size
             );
 
             println!(
                 "queue currently_processing_batch_index: {:?}",
-                merkle_tree.queue_metadata.currently_processing_batch_index as usize
+                merkle_tree.queue_batches.currently_processing_batch_index as usize
             );
 
             println!(
                 "queue batch_size: {:?}",
-                merkle_tree.queue_metadata.batch_size
+                merkle_tree.queue_batches.batch_size
             );
             println!(
                 "queue zkp_batch_size: {:?}",
-                merkle_tree.queue_metadata.zkp_batch_size
+                merkle_tree.queue_batches.zkp_batch_size
             );
             println!(
-                "queue next_full_batch_index: {:?}",
-                merkle_tree.queue_metadata.next_full_batch_index
+                "queue pending_batch_index: {:?}",
+                merkle_tree.queue_batches.pending_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
-                merkle_tree.queue_metadata.bloom_filter_capacity
+                merkle_tree.queue_batches.bloom_filter_capacity
             );
             println!(
                 "queue num_batches: {:?}",
-                merkle_tree.queue_metadata.num_batches
+                merkle_tree.queue_batches.num_batches
             );
 
             println!("tree next_index: {:?}", merkle_tree.next_index);
@@ -157,36 +158,37 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedAddress => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data).unwrap();
+                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
+                    .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
-                merkle_tree.queue_metadata.batch_size
+                merkle_tree.queue_batches.batch_size
             );
 
             println!(
                 "queue currently_processing_batch_index: {:?}",
-                merkle_tree.queue_metadata.currently_processing_batch_index as usize
+                merkle_tree.queue_batches.currently_processing_batch_index as usize
             );
 
             println!(
                 "queue batch_size: {:?}",
-                merkle_tree.queue_metadata.batch_size
+                merkle_tree.queue_batches.batch_size
             );
             println!(
                 "queue zkp_batch_size: {:?}",
-                merkle_tree.queue_metadata.zkp_batch_size
+                merkle_tree.queue_batches.zkp_batch_size
             );
             println!(
-                "queue next_full_batch_index: {:?}",
-                merkle_tree.queue_metadata.next_full_batch_index
+                "queue pending_batch_index: {:?}",
+                merkle_tree.queue_batches.pending_batch_index
             );
             println!(
                 "queue bloom_filter_capacity: {:?}",
-                merkle_tree.queue_metadata.bloom_filter_capacity
+                merkle_tree.queue_batches.bloom_filter_capacity
             );
             println!(
                 "queue num_batches: {:?}",
-                merkle_tree.queue_metadata.num_batches
+                merkle_tree.queue_batches.num_batches
             );
 
             println!("tree next_index: {:?}", merkle_tree.next_index);

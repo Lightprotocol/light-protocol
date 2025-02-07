@@ -133,12 +133,7 @@ fn process_nullifier_v2<'info>(
 
         // 5. Insert the nullifiers into the current input queue batch.
         merkle_tree
-            .insert_nullifier_into_current_batch(
-                &nullifier.account_hash,
-                leaf_index,
-                tx_hash,
-                current_slot,
-            )
+            .insert_nullifier_into_queue(&nullifier.account_hash, leaf_index, tx_hash, current_slot)
             .map_err(ProgramError::from)?;
     }
     Ok(num_elements)

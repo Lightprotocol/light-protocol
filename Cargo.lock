@@ -7226,6 +7226,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "light-batched-merkle-tree",
+ "light-bloom-filter",
  "light-client",
  "light-hasher",
  "light-merkle-tree-metadata",

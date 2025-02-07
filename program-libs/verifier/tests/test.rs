@@ -13,7 +13,7 @@ mod test {
         init_merkle_tree::inclusion_merkle_tree_inputs,
     };
     use light_utils::{
-        hashchain::{
+        hash_chain::{
             create_hash_chain_from_array, create_hash_chain_from_slice,
             create_two_inputs_hash_chain,
         },

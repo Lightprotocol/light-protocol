@@ -152,10 +152,12 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
                     .unwrap()
                     .data
                     .clone();
-                let mut merkle_tree =
-                    BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account_data)
-                        .unwrap();
-                let mut batches = merkle_tree.queue_metadata.batches;
+                let mut merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                    &mut merkle_tree_account_data,
+                    &snapshots[i].accounts.merkle_tree.into(),
+                )
+                .unwrap();
+                let mut batches = merkle_tree.queue_batches.batches;
                 batches.iter_mut().enumerate().any(|(i, batch)| {
                     Batch::check_non_inclusion(
                         batch.num_iters as usize,
@@ -191,8 +193,9 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
-                    BatchedMerkleTreeAccount::address_from_bytes(&mut account_data).unwrap();
-                let mut batches = merkle_tree.queue_metadata.batches;
+                    BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey.into())
+                        .unwrap();
+                let mut batches = merkle_tree.queue_batches.batches;
                 // Must be included in one batch
                 batches.iter_mut().enumerate().any(|(i, batch)| {
                     Batch::check_non_inclusion(
@@ -454,8 +457,11 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
             }
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree_account_lamports = account_data.lamports;
-                let merkle_tree =
-                    BatchedMerkleTreeAccount::state_from_bytes(&mut account_data.data).unwrap();
+                let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                    &mut account_data.data,
+                    &account_bundle.merkle_tree.into(),
+                )
+                .unwrap();
                 let queue_account_lamports = match rpc
                     .get_account(account_bundle.nullifier_queue)
                     .await

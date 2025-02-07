@@ -9,7 +9,7 @@ use light_indexed_merkle_tree::{
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_utils::{
     bigint::bigint_to_be_bytes_array,
-    hashchain::{create_hash_chain_from_array, create_hash_chain_from_slice},
+    hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
 };
 use num_bigint::BigUint;
 

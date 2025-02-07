@@ -52,7 +52,7 @@ fn test_rollover() {
 
     let ref_mt_account =
         BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
+    assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account, &mt_pubkey);
 
     let mut new_mt_account_data = vec![0; mt_account_size];
     let new_mt_pubkey = Pubkey::new_unique();
@@ -61,7 +61,8 @@ fn test_rollover() {
     {
         let mut mt_account_data = mt_account_data.clone();
         let result = rollover_batched_address_tree(
-            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap(),
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
+                .unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -77,7 +78,8 @@ fn test_rollover() {
     {
         let mut mt_account_data = mt_account_data.clone();
         let merkle_tree =
-            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
+                .unwrap();
         merkle_tree
             .get_metadata_mut()
             .metadata
@@ -98,8 +100,10 @@ fn test_rollover() {
     println!("pre 3");
     // 3. Functional: rollover address tree
     {
+        let pre_mt_data = mt_account_data.clone();
         let merkle_tree =
-            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
+                .unwrap();
         merkle_tree.get_metadata_mut().next_index = 1 << merkle_tree.get_metadata().height;
 
         rollover_batched_address_tree(
@@ -117,9 +121,15 @@ fn test_rollover() {
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
         let mut ref_rolledover_mt = ref_mt_account;
         ref_rolledover_mt.next_index = 1 << ref_rolledover_mt.height;
+        assert_eq!(
+            pre_mt_data[size_of::<BatchedMerkleTreeMetadata>()..],
+            mt_account_data[size_of::<BatchedMerkleTreeMetadata>()..],
+            "remainder of old_mt_account_data is not changed"
+        );
         assert_address_mt_roll_over(
             mt_account_data.to_vec(),
             ref_rolledover_mt,
+            mt_pubkey,
             new_mt_account_data.to_vec(),
             new_ref_mt_account,
             new_mt_pubkey,
@@ -131,7 +141,8 @@ fn test_rollover() {
         let mut new_mt_account_data = vec![0; mt_account_size];
 
         let result = rollover_batched_address_tree(
-            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap(),
+            &mut BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
+                .unwrap(),
             &mut new_mt_account_data,
             merkle_tree_rent,
             new_mt_pubkey,
@@ -226,13 +237,13 @@ fn test_rnd_rollover() {
 
         let ref_mt_account =
             BatchedMerkleTreeMetadata::new_address_tree(create_tree_params, merkle_tree_rent);
-        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account);
+        assert_address_mt_zero_copy_initialized(&mut mt_account_data, ref_mt_account, &mt_pubkey);
         let mut new_mt_data = vec![0; mt_account_size];
         let new_mt_rent = merkle_tree_rent;
         let network_fee = params.network_fee;
         let new_mt_pubkey = Pubkey::new_unique();
         let mut zero_copy_old_mt =
-            BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data).unwrap();
+            BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey).unwrap();
         zero_copy_old_mt.get_metadata_mut().next_index = 1 << params.height;
         rollover_batched_address_tree(
             &mut zero_copy_old_mt,
@@ -253,6 +264,7 @@ fn test_rnd_rollover() {
         assert_address_mt_roll_over(
             mt_account_data,
             ref_rolled_over_account,
+            mt_pubkey,
             new_mt_data,
             new_ref_mt_account,
             new_mt_pubkey,

@@ -137,8 +137,8 @@ fn migrate_state(
 mod migrate_state_test {
     use light_batched_merkle_tree::{
         batch::Batch,
-        batch_metadata::BatchMetadata,
         queue::{BatchedQueueAccount, BatchedQueueMetadata},
+        queue_batch_metadata::QueueBatches,
     };
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
@@ -170,11 +170,11 @@ mod migrate_state_test {
         let batch_size = 1000;
         let account = BatchedQueueMetadata {
             metadata,
-            batch_metadata: BatchMetadata {
+            batch_metadata: QueueBatches {
                 batch_size,
                 num_batches: 2,
                 currently_processing_batch_index: 0,
-                next_full_batch_index: 0,
+                pending_batch_index: 0,
                 bloom_filter_capacity: 0,
                 zkp_batch_size: 10,
                 next_index: 0,
