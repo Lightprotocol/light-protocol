@@ -4,7 +4,10 @@ use core::{
 };
 use std::vec::Vec;
 
-use zerocopy::{little_endian::U32, FromBytes, Immutable, KnownLayout, Ref};
+use zerocopy::{
+    little_endian::{U16, U32, U64},
+    FromBytes, Immutable, KnownLayout, Ref,
+};
 
 use crate::errors::ZeroCopyError;
 
@@ -77,6 +80,7 @@ macro_rules! impl_deserialize_for_primitive {
 }
 
 impl_deserialize_for_primitive!(u16, i16, u32, i32, u64, i64);
+impl_deserialize_for_primitive!(U16, U32, U64);
 
 impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
     type Output = Vec<T::Output>;

@@ -3185,11 +3185,13 @@ dependencies = [
  "light-heap",
  "light-system-program",
  "light-utils",
+ "light-zero-copy",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
  "spl-token",
  "spl-token-2022 3.0.5",
+ "zerocopy 0.8.14",
 ]
 
 [[package]]
