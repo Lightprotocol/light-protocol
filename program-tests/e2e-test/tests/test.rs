@@ -69,7 +69,7 @@ async fn test_10_all() {
             &env_accounts,
             config,
             general_config,
-            10000,
+            10,
             None,
         )
         .await;
