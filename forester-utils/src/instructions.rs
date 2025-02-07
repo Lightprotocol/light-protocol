@@ -276,7 +276,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             .await
             .unwrap();
         proofs.iter().for_each(|proof| {
-            old_leaves.push(light_client::indexer::Hash::from_base58(&*proof.hash.clone()).unwrap());
+            old_leaves.push(light_client::indexer::Hash::from_base58(&proof.hash.clone()).unwrap());
             merkle_proofs.push(proof.proof.clone());
         });
 
