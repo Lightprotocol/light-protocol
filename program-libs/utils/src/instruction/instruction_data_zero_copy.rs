@@ -517,6 +517,10 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;
+    use rand::{
+        rngs::{StdRng, ThreadRng},
+        Rng,
+    };
 
     use super::*;
     use crate::{
@@ -545,6 +549,33 @@ mod test {
             compress_or_decompress_lamports: Some(1),
             is_compress: true,
             cpi_context: Some(get_cpi_context()),
+        }
+    }
+
+    fn get_rnd_instruction_data_invoke_cpi(rng: &mut StdRng) -> InstructionDataInvokeCpi {
+        InstructionDataInvokeCpi {
+            proof: Some(CompressedProof {
+                a: rng.gen(),
+                b: (0..64)
+                    .map(|_| rng.gen())
+                    .collect::<Vec<u8>>()
+                    .try_into()
+                    .unwrap(),
+                c: rng.gen(),
+            }),
+            new_address_params: vec![get_rnd_new_address_params(rng); rng.gen_range(0..10)],
+            input_compressed_accounts_with_merkle_context: vec![
+                get_rnd_test_input_account(rng);
+                rng.gen_range(0..10)
+            ],
+            output_compressed_accounts: vec![
+                get_rnd_test_output_account(rng);
+                rng.gen_range(0..10)
+            ],
+            relay_fee: None,
+            compress_or_decompress_lamports: rng.gen(),
+            is_compress: rng.gen(),
+            cpi_context: Some(get_rnd_cpi_context(rng)),
         }
     }
 
@@ -683,6 +714,14 @@ mod test {
         }
     }
 
+    fn get_rnd_cpi_context(rng: &mut StdRng) -> CompressedCpiContext {
+        CompressedCpiContext {
+            first_set_context: rng.gen(),
+            set_context: rng.gen(),
+            cpi_context_account_index: rng.gen(),
+        }
+    }
+
     #[test]
     fn test_cpi_context_deserialize() {
         let cpi_context = get_cpi_context();
@@ -713,6 +752,14 @@ mod test {
         }
     }
 
+    fn get_rnd_test_account_data(rng: &mut StdRng) -> CompressedAccountData {
+        CompressedAccountData {
+            discriminator: rng.gen(),
+            data: (0..100).map(|_| rng.gen()).collect::<Vec<u8>>(),
+            data_hash: rng.gen(),
+        }
+    }
+
     fn get_test_account() -> CompressedAccount {
         CompressedAccount {
             owner: solana_program::pubkey::Pubkey::new_unique(),
@@ -722,10 +769,26 @@ mod test {
         }
     }
 
+    fn get_rnd_test_account(rng: &mut StdRng) -> CompressedAccount {
+        CompressedAccount {
+            owner: solana_program::pubkey::Pubkey::new_unique(),
+            lamports: rng.gen(),
+            address: Some(Pubkey::new_unique().to_bytes()),
+            data: Some(get_rnd_test_account_data(rng)),
+        }
+    }
+
     fn get_test_output_account() -> OutputCompressedAccountWithPackedContext {
         OutputCompressedAccountWithPackedContext {
             compressed_account: get_test_account(),
             merkle_tree_index: 1,
+        }
+    }
+
+    fn get_rnd_test_output_account(rng: &mut StdRng) -> OutputCompressedAccountWithPackedContext {
+        OutputCompressedAccountWithPackedContext {
+            compressed_account: get_rnd_test_account(rng),
+            merkle_tree_index: rng.gen(),
         }
     }
 
@@ -774,6 +837,25 @@ mod test {
             read_only: false,
         }
     }
+
+    fn get_rnd_test_input_account(rng: &mut StdRng) -> PackedCompressedAccountWithMerkleContext {
+        PackedCompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: solana_program::pubkey::Pubkey::new_unique(),
+                lamports: 100,
+                address: Some(Pubkey::new_unique().to_bytes()),
+                data: Some(get_rnd_test_account_data(rng)),
+            },
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: rng.gen(),
+                nullifier_queue_pubkey_index: rng.gen(),
+                leaf_index: rng.gen(),
+                prove_by_index: rng.gen(),
+            },
+            root_index: rng.gen(),
+            read_only: false,
+        }
+    }
     #[test]
     fn test_input_account_deserialize() {
         let input_account = get_test_input_account();
@@ -794,6 +876,16 @@ mod test {
             address_queue_account_index: 1,
             address_merkle_tree_account_index: 2,
             address_merkle_tree_root_index: 3,
+        }
+    }
+
+    // get_instruction_data_invoke_cpi
+    fn get_rnd_new_address_params(rng: &mut StdRng) -> NewAddressParamsPacked {
+        NewAddressParamsPacked {
+            seed: rng.gen(),
+            address_queue_account_index: rng.gen(),
+            address_merkle_tree_account_index: rng.gen(),
+            address_merkle_tree_root_index: rng.gen(),
         }
     }
     #[test]
@@ -987,5 +1079,25 @@ mod test {
         }
 
         Ok(())
+    }
+
+    #[test]
+    fn test_instruction_data_invoke_cpi_rnd() {
+        use rand::{rngs::StdRng, Rng, SeedableRng};
+        let mut thread_rng = ThreadRng::default();
+        let seed = thread_rng.gen();
+        // Keep this print so that in case the test fails
+        // we can use the seed to reproduce the error.
+        println!("\n\ne2e test seed {}\n\n", seed);
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        let num_iters = 10000;
+        for _ in 0..num_iters {
+            let value = get_rnd_instruction_data_invoke_cpi(&mut rng);
+            let mut vec = Vec::new();
+            value.serialize(&mut vec).unwrap();
+            let (zero_copy, _) = ZInstructionDataInvokeCpi::zero_copy_at(&vec).unwrap();
+            compare_invoke_cpi_instruction_data(&value, &zero_copy).unwrap();
+        }
     }
 }
