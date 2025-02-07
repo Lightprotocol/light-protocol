@@ -88,6 +88,9 @@ pub mod light_compressed_token {
     pub fn batch_compress<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         inputs: Vec<u8>,
+        // pubkeys: Vec<Pubkey>,
+        // amounts: Vec<u64>,
+        // lamports: Option<u64>,
     ) -> Result<()> {
         let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
             .map_err(ProgramError::from)?;
