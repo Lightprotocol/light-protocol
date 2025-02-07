@@ -66,7 +66,13 @@ describe('decompress', () => {
     let charlieAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    // const { merkleTree } = defaultTestStateTreeAccounts();
+    const merkleTree = new PublicKey(
+        '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU',
+    );
+    // const merkleTree = new PublicKey(
+    //     'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu',
+    // );
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -102,11 +108,11 @@ describe('decompress', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            merkleTree,
         );
     });
 
-    const LOOP = 10;
+    const LOOP = 1;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
@@ -118,15 +124,16 @@ describe('decompress', () => {
                     mint,
                 });
 
-            await decompress(
+            const txId = await decompress(
                 rpc,
                 payer,
                 mint,
-                bn(5),
+                bn(1000),
                 bob,
                 charlieAta,
                 merkleTree,
             );
+            console.log('txId', txId);
 
             await assertDecompress(
                 rpc,

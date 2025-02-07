@@ -7,11 +7,15 @@ use light_system_program::program::LightSystemProgram;
 use {
     crate::process_transfer::create_output_compressed_accounts,
     crate::process_transfer::get_cpi_signer_seeds,
+    crate::spl_compression::spl_token_transfer,
     light_compressed_account::hash_to_bn254_field_size_be,
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
 };
 
 use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
+
+pub const COMPRESS: bool = false;
+pub const MINT_TO: bool = true;
 
 /// Mints tokens from an spl token mint to a list of compressed accounts and
 /// stores minted tokens in spl token pool account.
@@ -26,10 +30,10 @@ use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 ///    pre_compressed_acounts_pos.
 /// 5. Invoke system program to execute the compressed transaction.
 #[allow(unused_variables)]
-pub fn process_mint_to(
-    ctx: Context<MintToInstruction>,
-    recipient_pubkeys: Vec<Pubkey>,
-    amounts: Vec<u64>,
+pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
+    ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+    recipient_pubkeys: &[Pubkey],
+    amounts: &[u64],
     lamports: Option<u64>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
@@ -64,9 +68,23 @@ pub fn process_mint_to(
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
-        // 7,912 CU
-        mint_spl_to_pool_pda(&ctx, &amounts)?;
-
+        if IS_MINT_TO {
+            // 7,978 CU
+            mint_spl_to_pool_pda(&ctx, &amounts)?;
+        } else {
+            let amount = amounts.iter().sum();
+            check_spl_token_pool_derivation(
+                &ctx.accounts.token_pool_pda.key(),
+                &ctx.accounts.mint.key(),
+            )?;
+            spl_token_transfer(
+                ctx.remaining_accounts[0].to_account_info(),
+                ctx.accounts.token_pool_pda.to_account_info(),
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts.token_program.to_account_info(),
+                amount,
+            )?;
+        }
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
         let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
             .unwrap()
@@ -78,7 +96,7 @@ pub fn process_mint_to(
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.key(),
-            recipient_pubkeys.as_slice(),
+            recipient_pubkeys,
             None,
             None,
             &amounts,
@@ -320,11 +338,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        constraint = mint.mint_authority.unwrap() == authority.key()
-            @ crate::ErrorCode::InvalidAuthorityMint
-    )]
+    /// CHECK:
     pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: with check_spl_token_pool_derivation().
     #[account(mut)]
@@ -334,10 +348,9 @@ pub struct MintToInstruction<'info> {
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: (different program) checked in system and account compression
-    /// programs
+    /// programsu
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in account compression program
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID)]
+    /// CHECK:
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program
     pub account_compression_program: Program<'info, AccountCompression>,

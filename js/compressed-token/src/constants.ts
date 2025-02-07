@@ -10,6 +10,9 @@ export const CREATE_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
 export const MINT_TO_DISCRIMINATOR = Buffer.from([
     241, 34, 48, 186, 37, 179, 123, 192,
 ]);
+export const COMPRESS_V2_DISCRIMINATOR = Buffer.from([
+    65, 206, 101, 37, 147, 42, 221, 144,
+]);
 export const TRANSFER_DISCRIMINATOR = Buffer.from([
     163, 52, 200, 231, 140, 3, 69, 186,
 ]);

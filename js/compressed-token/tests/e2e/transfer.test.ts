@@ -137,7 +137,7 @@ describe('transfer', () => {
             })
         ).items;
 
-        await transfer(
+        const txId = await transfer(
             rpc,
             payer,
             mint,
@@ -146,6 +146,7 @@ describe('transfer', () => {
             charlie.publicKey,
             merkleTree,
         );
+        console.log('txId1', txId);
 
         await assertTransfer(
             rpc,
@@ -164,7 +165,7 @@ describe('transfer', () => {
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
             });
-        await transfer(
+        const txId2 = await transfer(
             rpc,
             payer,
             mint,
@@ -173,7 +174,7 @@ describe('transfer', () => {
             charlie.publicKey,
             merkleTree,
         );
-
+        console.log('txId2', txId2);
         await assertTransfer(
             rpc,
             bobPreCompressedTokenAccounts2.items,
@@ -192,7 +193,7 @@ describe('transfer', () => {
                 mint,
             });
 
-        await transfer(
+        const txId3 = await transfer(
             rpc,
             payer,
             mint,
@@ -201,7 +202,7 @@ describe('transfer', () => {
             bob.publicKey,
             merkleTree,
         );
-
+        console.log('txId3', txId3);
         await assertTransfer(
             rpc,
             charliePreCompressedTokenAccounts3.items,
@@ -219,8 +220,15 @@ describe('transfer', () => {
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
             });
-        await transfer(rpc, payer, mint, bn(700), charlie, bob.publicKey);
-
+        const txId4 = await transfer(
+            rpc,
+            payer,
+            mint,
+            bn(700),
+            charlie,
+            bob.publicKey,
+        );
+        console.log('txId4', txId4);
         await assertTransfer(
             rpc,
             charliePreCompressedTokenAccounts4.items,

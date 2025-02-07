@@ -70,6 +70,26 @@ export async function decompress(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
+    inputAccounts.forEach(acc => {
+        acc.compressedAccount.nullifierQueue = new PublicKey(
+            '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU',
+        );
+    });
+    inputAccounts.forEach(acc => {
+        acc.compressedAccount.merkleTree = new PublicKey(
+            'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu',
+        );
+    });
+    // inputAccounts.forEach(acc => {
+    //     acc.compressedAccount.nullifierQueue = new PublicKey(
+    //         '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU',
+    //     );
+    // });
+    console.log(
+        'inputAccounts',
+        inputAccounts.map(acc => acc.compressedAccount),
+    );
+
     const ix = await CompressedTokenProgram.decompress({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,

@@ -16,6 +16,8 @@ pub use instructions::*;
 pub mod burn;
 pub use burn::*;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+pub mod batch_compress;
+use light_utils::instruction::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
@@ -79,7 +81,40 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts, lamports)
+        process_mint_to::<MINT_TO>(ctx, public_keys.as_slice(), amounts.as_slice(), lamports)
+    }
+
+    // TODO: zerocopy ixdata fails with
+    /// Batch compress tokens to a list of compressed accounts.
+    pub fn batch_compress<'info>(
+        ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+        // inputs: Vec<u8>,
+        public_keys: Vec<Pubkey>,
+        amount: u64,
+        lamports: Option<u64>,
+    ) -> Result<()> {
+        let amounts: Vec<u64> = vec![amount; public_keys.len()];
+        process_mint_to::<COMPRESS>(ctx, public_keys.as_slice(), amounts.as_slice(), lamports)
+        // let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
+        //     .map_err(ProgramError::from)?;
+
+        // TODO: make types cleaner for example change types in the remaining code to match these.
+        // process_mint_to::<COMPRESS>(
+        //     ctx,
+        //     inputs
+        //         .pubkeys
+        //         .iter()
+        //         .map(|x| (*x).into())
+        //         .collect::<Vec<Pubkey>>()
+        //         .as_slice(),
+        //     inputs
+        //         .amounts
+        //         .iter()
+        //         .map(|x| (*x).into())
+        //         .collect::<Vec<u64>>()
+        //         .as_slice(),
+        //     inputs.lamports.map(|x| u64::from(*x)),
+        // )
     }
 
     /// Compresses the balance of an spl token account sub an optional remaining
