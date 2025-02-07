@@ -2,6 +2,8 @@ use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Result};
 use light_utils::hash_to_bn254_field_size_be;
 
+use crate::errors::SystemProgramError;
+
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
     pub accounts: Vec<AccountMeta>,
@@ -130,12 +132,62 @@ impl<'info> SystemContext<'info> {
         accounts: &[AccountInfo<'info>],
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
-        // TODO: if len is 1 don't do a cpi mutate lamports.
-        for (i, fee) in self.rollover_fee_payments.iter() {
-            msg!("paying fee: {:?}", fee);
-            msg!("to account: {:?}", accounts[*i as usize].key());
-            transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
+        msg!(
+            "self.rollover_fee_payments.len() {}",
+            self.rollover_fee_payments.len()
+        );
+        msg!("fee payer {}", fee_payer.key());
+        if self.rollover_fee_payments.len() == 1 {
+            transfer_lamports_borrow_account(
+                fee_payer,
+                &accounts[self.rollover_fee_payments[0].0 as usize],
+                self.rollover_fee_payments[0].1,
+            )?;
+        } else {
+            // TODO: if len is 1 don't do a cpi mutate lamports.
+            for (i, fee) in self.rollover_fee_payments.iter() {
+                msg!("paying fee: {:?}", fee);
+                msg!("to account: {:?}", accounts[*i as usize].key());
+                transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
+            }
         }
         Ok(())
     }
+}
+
+/// Probably doesn't work because the recipient is not owned by the program doing the transfer.
+pub fn transfer_lamports_borrow_account<'info>(
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
+    lamports: u64,
+) -> Result<()> {
+    msg!("lamports: {}", lamports);
+    {
+        msg!("pre from lamports {}", from.try_lamports()?);
+        msg!("pre to lamports {}", to.try_lamports()?);
+    }
+    {
+        // Get mutable references directly and modify them in place
+        // let mut from_lamports = from.try_borrow_mut_lamports()?;
+        // let mut to_lamports = to.try_borrow_mut_lamports()?;
+
+        // Perform subtraction and check for underflow
+        // **from_lamports -= lamports;
+        // // &mut (*from_lamports)
+        // // .checked_sub(lamports)
+        // // .ok_or(SystemProgramError::ComputeInputSumFailed)?;
+
+        // // Perform addition and check for overflow
+        // **to_lamports += lamports;
+        **from.try_borrow_mut_lamports()? -= lamports;
+        **to.try_borrow_mut_lamports()? += lamports;
+
+        // .checked_add(lamports)
+        // .ok_or(SystemProgramError::ComputeOutputSumFailed)?;
+    }
+    {
+        msg!("post from lamports {}", from.try_lamports()?);
+        msg!("post to lamports {}", to.try_lamports()?);
+    }
+    Ok(())
 }
