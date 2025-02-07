@@ -1529,6 +1529,7 @@ async fn test_decompression() {
             .get_compressed_token_accounts_by_owner(&sender.pubkey(), None)
             .await
             .unwrap();
+        println!("input_compressed_account = {:?}", input_compressed_account);
         decompress_test(
             &sender,
             &mut context,

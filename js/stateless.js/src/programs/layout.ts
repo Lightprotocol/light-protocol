@@ -45,7 +45,7 @@ export const MerkleContextLayout = struct(
         u8('merkleTreePubkeyIndex'),
         u8('nullifierQueuePubkeyIndex'),
         u32('leafIndex'),
-        option(struct([u8('queueId'), u16('index')]), 'queueIndex'),
+        bool('proveByIndex'),
     ],
     'merkleContext',
 );

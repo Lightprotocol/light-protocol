@@ -149,7 +149,7 @@ export function packCompressedAccounts(
                 merkleTreePubkeyIndex,
                 nullifierQueuePubkeyIndex,
                 leafIndex: account.leafIndex,
-                queueIndex: null,
+                proveByIndex: false,
             },
             rootIndex: inputStateRootIndices[index],
             readOnly: false,

@@ -885,6 +885,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
         .await
         .unwrap()
         .unwrap();
+    println!("_signature = {:?}", _signature);
     let slot = rpc.get_slot().await.unwrap();
     let (_, created_output_accounts) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());

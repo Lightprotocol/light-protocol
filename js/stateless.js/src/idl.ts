@@ -706,30 +706,8 @@ export type LightSystemProgram = {
                         type: 'u32';
                     },
                     {
-                        name: 'queueIndex';
-                        type: {
-                            option: {
-                                defined: 'QueueIndex';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'QueueIndex';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'queueId';
-                        docs: ['Id of queue in queue account.'];
-                        type: 'u8';
-                    },
-                    {
-                        name: 'index';
-                        docs: ['Index of compressed account hash in queue.'];
-                        type: 'u16';
+                        name: 'proveByIndex';
+                        type: 'bool';
                     },
                 ];
             };
@@ -1729,30 +1707,8 @@ export const IDL: LightSystemProgram = {
                         type: 'u32',
                     },
                     {
-                        name: 'queueIndex',
-                        type: {
-                            option: {
-                                defined: 'QueueIndex',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'QueueIndex',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'queueId',
-                        docs: ['Id of queue in queue account.'],
-                        type: 'u8',
-                    },
-                    {
-                        name: 'index',
-                        docs: ['Index of compressed account hash in queue.'],
-                        type: 'u16',
+                        name: 'proveByIndex',
+                        type: 'bool',
                     },
                 ],
             },
