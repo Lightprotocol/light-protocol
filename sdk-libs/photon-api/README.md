@@ -143,7 +143,7 @@ Class | Method | HTTP request | Description
  - [SignatureInfoList](docs/SignatureInfoList.md)
  - [SignatureInfoListWithError](docs/SignatureInfoListWithError.md)
  - [SignatureInfoWithError](docs/SignatureInfoWithError.md)
- - [TokenAcccount](docs/TokenAcccount.md)
+ - [TokenAccount](docs/TokenAccount.md)
  - [TokenAccountBalance](docs/TokenAccountBalance.md)
  - [TokenAccountList](docs/TokenAccountList.md)
  - [TokenBalance](docs/TokenBalance.md)
