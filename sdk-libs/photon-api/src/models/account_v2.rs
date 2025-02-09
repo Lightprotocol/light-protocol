@@ -30,19 +30,16 @@ pub struct AccountV2 {
     #[serde(rename = "queueIndex", skip_serializing_if = "Option::is_none")]
     pub queue_index: Option<u64>,
     #[serde(rename = "seq")]
-    pub seq: u64,
+    pub seq: Option<u64>,
     #[serde(rename = "slotCreated")]
     pub slot_created: u64,
-    /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
-    #[serde(rename = "queue")]
-    pub queue: Option<String>,
 
 }
 
 impl AccountV2 {
-    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, seq: u64, slot_created: u64, tree: String, queue: Option<String>) -> AccountV2 {
+    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, seq: Option<u64>, slot_created: u64, tree: String) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
@@ -54,7 +51,6 @@ impl AccountV2 {
             seq,
             slot_created,
             tree,
-            queue
         }
     }
 }
