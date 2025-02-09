@@ -368,17 +368,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                     }),
                 };
-                
-                println!("get_compressed_accounts_by_owner_v2: acc.queue: {:?}", acc.queue);
-                let nullifier_queue_pubkey = if let Some(queue) = acc.queue {
-                    Pubkey::from(Hash::from_base58(&queue)?)
-                } else {
-                    Pubkey::from(Hash::from_base58(&acc.tree)?)
-                };
 
                 let merkle_context = MerkleContext {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
-                    nullifier_queue_pubkey,
+                    nullifier_queue_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()), // TODO: replace tree with queue
                     leaf_index: acc.leaf_index,
                     prove_by_index: acc.queue_index.is_some(),
                 };
