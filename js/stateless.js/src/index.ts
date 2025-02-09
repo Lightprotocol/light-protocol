@@ -9,3 +9,4 @@ export * from './rpc-interface';
 export * from './rpc';
 export * from './test-helpers';
 export { LightSystemProgram as LightSystemProgramIDL, IDL } from './idl';
+export { ACP_IDL, AccountCompression } from './acp-idl';
