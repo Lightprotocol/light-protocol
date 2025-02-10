@@ -17,10 +17,12 @@ import { CompressedTokenProgram } from './program';
 import {
     CompressedTokenInstructionDataTransfer,
     CompressSplTokenAccountInstructionData,
+    CompressV2InstructionData,
     MintToInstructionData,
 } from './types';
 import {
     COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
+    COMPRESS_V2_DISCRIMINATOR,
     MINT_TO_DISCRIMINATOR,
     TRANSFER_DISCRIMINATOR,
 } from './constants';
@@ -87,11 +89,33 @@ export const mintToLayout = struct([
     option(u64(), 'lamports'),
 ]);
 
+export const compressV2InstructionDataLayout = struct([
+    vec(publicKey(), 'publicKeys'),
+    u64('amount'),
+    option(u64(), 'lamports'),
+]);
+
 export const compressSplTokenAccountInstructionDataLayout = struct([
     publicKey('owner'),
     option(u64(), 'remainingAmount'),
     option(CpiContextLayout, 'cpiContext'),
 ]);
+
+export function encodeCompressV2InstructionData(
+    data: CompressV2InstructionData,
+): Buffer {
+    const buffer = Buffer.alloc(1000);
+    const len = compressV2InstructionDataLayout.encode(
+        {
+            publicKeys: data.publicKeys,
+            amount: data.amount,
+            lamports: data.lamports,
+        },
+        buffer,
+    );
+
+    return Buffer.concat([COMPRESS_V2_DISCRIMINATOR, buffer.slice(0, len)]);
+}
 
 export function encodeMintToInstructionData(
     data: MintToInstructionData,
@@ -268,6 +292,61 @@ export const mintToAccountsLayout = (
         { pubkey: authority, isSigner: true, isWritable: false },
         { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: true },
+        { pubkey: tokenPoolPda, isSigner: false, isWritable: true },
+        { pubkey: tokenProgram, isSigner: false, isWritable: false },
+        { pubkey: lightSystemProgram, isSigner: false, isWritable: false },
+        { pubkey: registeredProgramPda, isSigner: false, isWritable: false },
+        { pubkey: noopProgram, isSigner: false, isWritable: false },
+        {
+            pubkey: accountCompressionAuthority,
+            isSigner: false,
+            isWritable: false,
+        },
+        {
+            pubkey: accountCompressionProgram,
+            isSigner: false,
+            isWritable: false,
+        },
+        { pubkey: merkleTree, isSigner: false, isWritable: true },
+        { pubkey: selfProgram, isSigner: false, isWritable: false },
+        { pubkey: systemProgram, isSigner: false, isWritable: false },
+        {
+            pubkey: solPoolPda ?? defaultPubkey,
+            isSigner: false,
+            isWritable: true,
+        },
+    ];
+
+    return accountsList;
+};
+
+export const compressV2AccountsLayout = (
+    accounts: mintToAccountsLayoutParams,
+): AccountMeta[] => {
+    const defaultPubkey = CompressedTokenProgram.programId;
+    const {
+        feePayer,
+        authority,
+        cpiAuthorityPda,
+        mint,
+        tokenPoolPda,
+        tokenProgram,
+        lightSystemProgram,
+        registeredProgramPda,
+        noopProgram,
+        accountCompressionAuthority,
+        accountCompressionProgram,
+        merkleTree,
+        selfProgram,
+        systemProgram,
+        solPoolPda,
+    } = accounts;
+
+    const accountsList: AccountMeta[] = [
+        { pubkey: feePayer, isSigner: true, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: false },
         { pubkey: tokenPoolPda, isSigner: false, isWritable: true },
         { pubkey: tokenProgram, isSigner: false, isWritable: false },
         { pubkey: lightSystemProgram, isSigner: false, isWritable: false },

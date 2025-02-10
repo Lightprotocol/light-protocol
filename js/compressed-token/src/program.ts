@@ -39,6 +39,8 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    encodeCompressV2InstructionData,
+    compressV2AccountsLayout,
 } from './layout';
 import {
     CompressedTokenInstructionDataTransfer,
@@ -283,6 +285,45 @@ export type MintToParams = {
      * The amount of compressed tokens to mint.
      */
     amount: BN | BN[] | number | number[];
+    /**
+     * Public key of the state tree to mint into. Defaults to a public state
+     * tree if unspecified.
+     */
+    merkleTree?: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
+};
+
+/**
+ * Create compressed token accounts
+ */
+export type CompressV2Params = {
+    /**
+     * Tx feepayer
+     */
+    feePayer: PublicKey;
+    /**
+     * Mint authority
+     */
+    authority: PublicKey;
+    /**
+     * Source token account
+     */
+    sourceTokenAccount: PublicKey;
+    /**
+     * Mint public key
+     */
+    mint: PublicKey;
+    /**
+     * The Solana Public Keys to compress to.
+     */
+    recipients: PublicKey[];
+    /**
+     * The amount of compressed tokens to mint.
+     */
+    amount: BN | number;
     /**
      * Public key of the state tree to mint into. Defaults to a public state
      * tree if unspecified.
@@ -727,6 +768,72 @@ export class CompressedTokenProgram {
         });
 
         return [splMintToInstruction, compressInstruction];
+    }
+
+    /**
+     * Construct mintTo instruction for compressed tokens
+     */
+    static async compressV2(
+        params: CompressV2Params,
+    ): Promise<TransactionInstruction> {
+        const systemKeys = defaultStaticAccountsStruct();
+
+        const {
+            mint,
+            feePayer,
+            authority,
+            merkleTree,
+            recipients,
+            amount,
+            tokenProgramId,
+            sourceTokenAccount,
+        } = params;
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+
+        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+
+        const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
+
+        if (amounts.length !== 1)
+            throw new Error(
+                `Amount must be a single value, got ${amounts.length}`,
+            );
+
+        const keys = compressV2AccountsLayout({
+            mint,
+            feePayer,
+            authority,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            tokenProgram,
+            tokenPoolPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: systemKeys.registeredProgramPda,
+            noopProgram: systemKeys.noopProgram,
+            accountCompressionAuthority: systemKeys.accountCompressionAuthority,
+            accountCompressionProgram: systemKeys.accountCompressionProgram,
+            merkleTree: merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            solPoolPda: null, // TODO: add lamports support
+        });
+
+        keys.push({
+            pubkey: sourceTokenAccount,
+            isSigner: false,
+            isWritable: true,
+        });
+
+        const data = encodeCompressV2InstructionData({
+            publicKeys: recipients,
+            amount: bn(amount),
+            lamports: null,
+        });
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
     /**
      * Construct transfer instruction for compressed tokens

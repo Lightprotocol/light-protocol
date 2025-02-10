@@ -38,7 +38,6 @@ pub(crate) fn try_from_account_info<'a, 'info>(
     context: &mut SystemContext<'info>,
     index: u8,
 ) -> std::result::Result<AcpAccount<'a, 'info>, SystemProgramError> {
-    msg!("try_from_account_info {}", account_info.key());
     let mut discriminator = [0u8; 8];
     {
         let data = account_info
@@ -54,7 +53,7 @@ pub(crate) fn try_from_account_info<'a, 'info>(
     let (account, program_owner) = match discriminator {
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
             let mut tree_type = [0u8; 8];
-            msg!("BatchedMerkleTreeAccount::DISCRIMINATOR");
+
             tree_type.copy_from_slice(
                 &account_info
                     .try_borrow_data()
@@ -108,18 +107,12 @@ pub(crate) fn try_from_account_info<'a, 'info>(
 
                 merkle_tree.metadata.access_metadata.program_owner
             };
-            msg!(
-                "state_merkle_tree_from_bytes_zero_copy_mut {}",
-                account_info.key()
-            );
-            msg!("merkle_tree.len() {}", account_info.data_len());
             let merkle_tree = account_info.try_borrow_mut_data();
             if merkle_tree.is_err() {
                 msg!("merkle_tree.is_err() {:?}", merkle_tree);
                 return Err(SystemProgramError::InvalidAccount);
             }
             let merkle_tree = &mut merkle_tree.map_err(|_| SystemProgramError::InvalidAccount)?;
-            msg!("here");
             let data_slice: &'info mut [u8] = unsafe {
                 std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
             };
@@ -139,7 +132,6 @@ pub(crate) fn try_from_account_info<'a, 'info>(
                 context.set_address_fee(merkle_tree.metadata.rollover_metadata.network_fee, index);
                 merkle_tree.metadata.access_metadata.program_owner
             };
-            msg!("address_merkle_tree_from_bytes_zero_copy_mut");
             let mut merkle_tree = account_info
                 .try_borrow_mut_data()
                 .map_err(|_| SystemProgramError::InvalidAccount)?;

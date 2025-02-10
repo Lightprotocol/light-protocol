@@ -72,6 +72,13 @@ export type MintToInstructionData = {
     amounts: BN[];
     lamports: BN | null;
 };
+
+export type CompressV2InstructionData = {
+    publicKeys: PublicKey[];
+    amount: BN;
+    lamports: BN | null;
+};
+
 export type CompressSplTokenAccountInstructionData = {
     owner: PublicKey;
     remainingAmount: BN | null;
