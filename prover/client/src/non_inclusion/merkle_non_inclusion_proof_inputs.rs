@@ -1,5 +1,5 @@
+use light_compressed_account::hash_chain::create_two_inputs_hash_chain;
 use light_indexed_merkle_tree::array::IndexedArray;
-use light_utils::hash_chain::create_two_inputs_hash_chain;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
 

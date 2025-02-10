@@ -1,17 +1,18 @@
 #![cfg(not(target_os = "solana"))]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_compressed_account::{
+    address::{add_and_get_remaining_account_indices, pack_new_address_params},
+    compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::NewAddressParams,
+    },
+};
 use light_compressed_token::process_transfer::{
     get_cpi_authority_pda,
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
-};
-use light_utils::instruction::{
-    address::{add_and_get_remaining_account_indices, pack_new_address_params},
-    compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
-    instruction_data::NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 

@@ -1,4 +1,4 @@
-use light_utils::hash_chain::create_two_inputs_hash_chain;
+use light_compressed_account::hash_chain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;

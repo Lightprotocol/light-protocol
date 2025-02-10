@@ -14,7 +14,9 @@ light-concurrent-merkle-tree = { workspace = true }
 light-hash-set = { workspace = true }
 light-hasher = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
+light-compressed-account = { workspace = true }
 light-utils = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
 num-bigint = { workspace = true }
 rand = { workspace = true }
 quote = "1.0"
@@ -22,8 +24,8 @@ sha2 = "0.10"
 solana-program = { workspace = true }
 tabled = "0.17"
 light-test-utils = { workspace = true }
-tokio = {workspace = true}
-solana-sdk = {workspace = true}
-light-program-test = {workspace = true}
-light-client = {workspace = true}
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+light-program-test = { workspace = true }
+light-client = { workspace = true }
 dirs = "6.0"

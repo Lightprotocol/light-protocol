@@ -1,5 +1,6 @@
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
+use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use light_utils::{account::check_account_balance_is_rent_exempt, pubkey::Pubkey};
 use solana_program::{account_info::AccountInfo, msg};
 
 use crate::{

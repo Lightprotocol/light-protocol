@@ -6,13 +6,12 @@ use light_client::{
     indexer::Indexer,
     rpc::{RpcConnection, RpcError},
 };
+use light_compressed_account::{
+    address::{derive_address, pack_new_address_params},
+    instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
+};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{indexer::TestIndexerExtensions, test_env::EnvAccounts};
-use light_utils::instruction::{
-    address::{derive_address, pack_new_address_params},
-    compressed_proof::CompressedProof,
-    instruction_data::NewAddressParams,
-};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[derive(Debug, Clone)]

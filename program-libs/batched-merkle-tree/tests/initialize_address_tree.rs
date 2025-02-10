@@ -7,7 +7,7 @@ use light_batched_merkle_tree::{
     merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
 };
-use light_utils::pubkey::Pubkey;
+use light_compressed_account::pubkey::Pubkey;
 use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::{rngs::StdRng, Rng};
 

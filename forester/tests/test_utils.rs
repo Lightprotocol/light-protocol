@@ -11,10 +11,10 @@ use light_client::{
     },
     rpc::RpcConnection,
 };
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
-use light_utils::instruction::compressed_account::CompressedAccountWithMerkleContext;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},

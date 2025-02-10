@@ -7,7 +7,7 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
     transaction_params::TransactionParams,
 };
-use light_utils::instruction::event::{event_from_light_transaction, PublicTransactionEvent};
+use light_compressed_account::event::{event_from_light_transaction, PublicTransactionEvent};
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;

@@ -7,23 +7,21 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::{
-    get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
-};
-// use light_sdk::{
-//     address::{pack_new_address_params, NewAddressParams},
-//     compressed_account::CompressedAccountWithMerkleContext,
-// };
-use light_system_program::utils::get_registered_program_pda;
-use light_utils::instruction::{
+use light_compressed_account::{
     address::{pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params},
     compressed_account::{
         CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
         ReadOnlyCompressedAccount,
     },
-    compressed_proof::CompressedProof,
-    instruction_data::{NewAddressParams, ReadOnlyAddress},
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        data::{NewAddressParams, ReadOnlyAddress},
+    },
 };
+use light_compressed_token::{
+    get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
+};
+use light_system_program::utils::get_registered_program_pda;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;

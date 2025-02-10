@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
-use light_utils::{
+use light_compressed_account::{
+    compressed_account::PackedCompressedAccountWithMerkleContext,
     hash_to_bn254_field_size_be,
-    instruction::{
-        compressed_account::PackedCompressedAccountWithMerkleContext,
+    instruction_data::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        instruction_data::OutputCompressedAccountWithPackedContext,
+        data::OutputCompressedAccountWithPackedContext,
     },
 };
 
@@ -266,7 +266,7 @@ pub mod sdk {
     use std::result::Result;
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_utils::instruction::compressed_account::{CompressedAccount, MerkleContext};
+    use light_compressed_account::compressed_account::{CompressedAccount, MerkleContext};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use super::*;
@@ -447,7 +447,7 @@ pub mod sdk {
 #[cfg(test)]
 mod test {
     use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_utils::instruction::compressed_account::PackedMerkleContext;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
 
     use super::*;
     use crate::{

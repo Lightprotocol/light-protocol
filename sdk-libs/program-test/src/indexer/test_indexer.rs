@@ -24,6 +24,13 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
 };
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array,
+    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+    event::PublicTransactionEvent,
+    hash_chain::{create_hash_chain_from_slice, create_tx_hash},
+    instruction_data::compressed_proof::CompressedProof,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
@@ -51,15 +58,6 @@ use light_sdk::{
     proof::{BatchedTreeProofRpcResult, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
     STATE_MERKLE_TREE_CANOPY_DEPTH,
-};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array,
-    hash_chain::{create_hash_chain_from_slice, create_tx_hash},
-    instruction::{
-        compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-        compressed_proof::CompressedProof,
-        event::PublicTransactionEvent,
-    },
 };
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};

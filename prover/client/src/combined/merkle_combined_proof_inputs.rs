@@ -1,4 +1,4 @@
-use light_utils::hash_chain::create_hash_chain_from_array;
+use light_compressed_account::hash_chain::create_hash_chain_from_array;
 use num_bigint::BigInt;
 
 use crate::{

@@ -19,8 +19,8 @@ use light_batched_merkle_tree::{
         StateMtRollOverAssertParams,
     },
 };
+use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_utils::pubkey::Pubkey;
 use light_zero_copy::errors::ZeroCopyError;
 use rand::{
     rngs::{StdRng, ThreadRng},

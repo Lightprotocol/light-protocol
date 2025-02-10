@@ -2,6 +2,9 @@ use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
     rpc::SolanaRpcConnection,
 };
+use light_compressed_account::{
+    compressed_account::CompressedAccount, hash_to_bn254_field_size_be,
+};
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
@@ -10,9 +13,6 @@ use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
 use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
-use light_utils::{
-    hash_to_bn254_field_size_be, instruction::compressed_account::CompressedAccount,
-};
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer, system_instruction,
     transaction::Transaction,

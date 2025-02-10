@@ -1,6 +1,6 @@
 use account_compression::{context::AcpAccount, insert_into_queues::get_queue_and_tree_accounts};
 use anchor_lang::prelude::*;
-use light_utils::instruction::instruction_data_zero_copy::ZPackedReadOnlyCompressedAccount;
+use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
 
 use crate::errors::SystemProgramError;
 

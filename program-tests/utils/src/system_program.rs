@@ -6,23 +6,25 @@ use light_client::{
     rpc::{errors::RpcError, RpcConnection},
     transaction_params::TransactionParams,
 };
-use light_hasher::Poseidon;
-use light_program_test::indexer::TestIndexerExtensions;
-use light_system_program::{
-    processor::sol_compression::SOL_POOL_PDA_SEED,
-    utils::{get_cpi_authority_pda, get_registered_program_pda},
-};
-use light_utils::instruction::{
+use light_compressed_account::{
     address::derive_address_legacy,
     compressed_account::{
         CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
         PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
     },
-    compressed_proof::CompressedProof,
     instruction_data::{
-        InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
-        OutputCompressedAccountWithPackedContext,
+        compressed_proof::CompressedProof,
+        data::{
+            InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
+            OutputCompressedAccountWithPackedContext,
+        },
     },
+};
+use light_hasher::Poseidon;
+use light_program_test::indexer::TestIndexerExtensions;
+use light_system_program::{
+    processor::sol_compression::SOL_POOL_PDA_SEED,
+    utils::{get_cpi_authority_pda, get_registered_program_pda},
 };
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},

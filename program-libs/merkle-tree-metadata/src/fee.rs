@@ -1,13 +1,13 @@
-use crate::UtilsError;
+use crate::errors::MerkleTreeMetadataError;
 
 pub fn compute_rollover_fee(
     rollover_threshold: u64,
     tree_height: u32,
     rent: u64,
-) -> Result<u64, UtilsError> {
+) -> Result<u64, MerkleTreeMetadataError> {
     let number_of_transactions = 1 << tree_height;
     if rollover_threshold > 100 {
-        return Err(UtilsError::InvalidRolloverThreshold);
+        return Err(MerkleTreeMetadataError::InvalidRolloverThreshold);
     }
     if rollover_threshold == 0 {
         return Ok(rent);

@@ -1,5 +1,5 @@
 use groth16_solana::errors::Groth16Error;
-use light_utils::UtilsError;
+use light_compressed_account::CompressedAccountError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -26,8 +26,8 @@ pub enum ProverClientError {
 
     #[error("Wrong number of UTXO's")]
     WrongNumberOfUtxos,
-    #[error("Utils error: {0}")]
-    UtilsError(#[from] UtilsError),
+    #[error("Compressed account error: {0}")]
+    CompressedAccountError(#[from] CompressedAccountError),
 }
 
 impl From<Groth16Error> for ProverClientError {

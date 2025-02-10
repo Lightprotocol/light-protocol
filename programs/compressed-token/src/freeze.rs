@@ -1,16 +1,15 @@
 use anchor_lang::prelude::*;
-use light_hasher::{DataHasher, Poseidon};
-use light_utils::{
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
     hash_to_bn254_field_size_be,
-    instruction::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        },
-        compressed_proof::CompressedProof,
-        cpi_context::CompressedCpiContext,
-        instruction_data::OutputCompressedAccountWithPackedContext,
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
     },
 };
+use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
@@ -199,9 +198,9 @@ pub struct CompressedTokenInstructionDataThaw {
 pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_utils::instruction::{
+    use light_compressed_account::{
         compressed_account::{CompressedAccount, MerkleContext},
-        compressed_proof::CompressedProof,
+        instruction_data::compressed_proof::CompressedProof,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -308,8 +307,8 @@ pub mod sdk {
 #[cfg(test)]
 pub mod test_freeze {
     use anchor_lang::solana_program::account_info::AccountInfo;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
     use light_hasher::{DataHasher, Poseidon};
-    use light_utils::instruction::compressed_account::PackedMerkleContext;
     use rand::Rng;
 
     use super::*;

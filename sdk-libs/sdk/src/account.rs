@@ -1,15 +1,15 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
-use light_hasher::{DataHasher, Discriminator, Poseidon};
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
-    instruction_data::{
+    instruction_data::data::{
         NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
     },
 };
+use light_hasher::{DataHasher, Discriminator, Poseidon};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{account_info::LightAccountInfo, account_meta::LightAccountMeta, error::LightSdkError};

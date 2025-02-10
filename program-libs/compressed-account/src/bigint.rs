@@ -1,17 +1,17 @@
 use num_bigint::BigUint;
 
-use crate::UtilsError;
+use crate::CompressedAccountError;
 
 /// Converts the given [`num_bigint::BigUint`](num_bigint::BigUint) into a little-endian
 /// byte array.
 pub fn bigint_to_le_bytes_array<const BYTES_SIZE: usize>(
     bigint: &BigUint,
-) -> Result<[u8; BYTES_SIZE], UtilsError> {
+) -> Result<[u8; BYTES_SIZE], CompressedAccountError> {
     let mut array = [0u8; BYTES_SIZE];
     let bytes = bigint.to_bytes_le();
 
     if bytes.len() > BYTES_SIZE {
-        return Err(UtilsError::InputTooLarge(BYTES_SIZE));
+        return Err(CompressedAccountError::InputTooLarge(BYTES_SIZE));
     }
 
     array[..bytes.len()].copy_from_slice(bytes.as_slice());
@@ -22,12 +22,12 @@ pub fn bigint_to_le_bytes_array<const BYTES_SIZE: usize>(
 /// byte array.
 pub fn bigint_to_be_bytes_array<const BYTES_SIZE: usize>(
     bigint: &BigUint,
-) -> Result<[u8; BYTES_SIZE], UtilsError> {
+) -> Result<[u8; BYTES_SIZE], CompressedAccountError> {
     let mut array = [0u8; BYTES_SIZE];
     let bytes = bigint.to_bytes_be();
 
     if bytes.len() > BYTES_SIZE {
-        return Err(UtilsError::InputTooLarge(BYTES_SIZE));
+        return Err(CompressedAccountError::InputTooLarge(BYTES_SIZE));
     }
 
     let start_pos = BYTES_SIZE - bytes.len();
@@ -244,147 +244,195 @@ mod test {
     #[test]
     fn test_bigint_conversion_invalid_size() {
         let b8 = BigUint::from_bytes_be(&[1; 8]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b8);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 7], UtilsError> = bigint_to_be_bytes_array(&b8);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(7))));
-        let res: Result<[u8; 8], UtilsError> = bigint_to_be_bytes_array(&b8);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b8);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 7], CompressedAccountError> = bigint_to_be_bytes_array(&b8);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(7))));
+        let res: Result<[u8; 8], CompressedAccountError> = bigint_to_be_bytes_array(&b8);
         assert!(res.is_ok());
 
         let b8 = BigUint::from_bytes_le(&[1; 8]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b8);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 7], UtilsError> = bigint_to_le_bytes_array(&b8);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(7))));
-        let res: Result<[u8; 8], UtilsError> = bigint_to_le_bytes_array(&b8);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b8);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 7], CompressedAccountError> = bigint_to_le_bytes_array(&b8);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(7))));
+        let res: Result<[u8; 8], CompressedAccountError> = bigint_to_le_bytes_array(&b8);
         assert!(res.is_ok());
 
         let b16 = BigUint::from_bytes_be(&[1; 16]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b16);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 15], UtilsError> = bigint_to_be_bytes_array(&b16);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(15))));
-        let res: Result<[u8; 16], UtilsError> = bigint_to_be_bytes_array(&b16);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b16);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 15], CompressedAccountError> = bigint_to_be_bytes_array(&b16);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(15))
+        ));
+        let res: Result<[u8; 16], CompressedAccountError> = bigint_to_be_bytes_array(&b16);
         assert!(res.is_ok());
 
         let b16 = BigUint::from_bytes_le(&[1; 16]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b16);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 15], UtilsError> = bigint_to_le_bytes_array(&b16);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(15))));
-        let res: Result<[u8; 16], UtilsError> = bigint_to_le_bytes_array(&b16);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b16);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 15], CompressedAccountError> = bigint_to_le_bytes_array(&b16);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(15))
+        ));
+        let res: Result<[u8; 16], CompressedAccountError> = bigint_to_le_bytes_array(&b16);
         assert!(res.is_ok());
 
         let b32 = BigUint::from_bytes_be(&[1; 32]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b32);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 31], UtilsError> = bigint_to_be_bytes_array(&b32);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(31))));
-        let res: Result<[u8; 32], UtilsError> = bigint_to_be_bytes_array(&b32);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b32);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 31], CompressedAccountError> = bigint_to_be_bytes_array(&b32);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(31))
+        ));
+        let res: Result<[u8; 32], CompressedAccountError> = bigint_to_be_bytes_array(&b32);
         assert!(res.is_ok());
 
         let b32 = BigUint::from_bytes_le(&[1; 32]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b32);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 31], UtilsError> = bigint_to_le_bytes_array(&b32);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(31))));
-        let res: Result<[u8; 32], UtilsError> = bigint_to_le_bytes_array(&b32);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b32);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 31], CompressedAccountError> = bigint_to_le_bytes_array(&b32);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(31))
+        ));
+        let res: Result<[u8; 32], CompressedAccountError> = bigint_to_le_bytes_array(&b32);
         assert!(res.is_ok());
 
         let b64 = BigUint::from_bytes_be(&[1; 64]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b64);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 63], UtilsError> = bigint_to_be_bytes_array(&b64);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(63))));
-        let res: Result<[u8; 64], UtilsError> = bigint_to_be_bytes_array(&b64);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b64);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 63], CompressedAccountError> = bigint_to_be_bytes_array(&b64);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(63))
+        ));
+        let res: Result<[u8; 64], CompressedAccountError> = bigint_to_be_bytes_array(&b64);
         assert!(res.is_ok());
 
         let b64 = BigUint::from_bytes_le(&[1; 64]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b64);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 63], UtilsError> = bigint_to_le_bytes_array(&b64);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(63))));
-        let res: Result<[u8; 64], UtilsError> = bigint_to_le_bytes_array(&b64);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b64);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 63], CompressedAccountError> = bigint_to_le_bytes_array(&b64);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(63))
+        ));
+        let res: Result<[u8; 64], CompressedAccountError> = bigint_to_le_bytes_array(&b64);
         assert!(res.is_ok());
 
         let b128 = BigUint::from_bytes_be(&[1; 128]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b128);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 127], UtilsError> = bigint_to_be_bytes_array(&b128);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(127))));
-        let res: Result<[u8; 128], UtilsError> = bigint_to_be_bytes_array(&b128);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b128);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 127], CompressedAccountError> = bigint_to_be_bytes_array(&b128);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(127))
+        ));
+        let res: Result<[u8; 128], CompressedAccountError> = bigint_to_be_bytes_array(&b128);
         assert!(res.is_ok());
 
         let b128 = BigUint::from_bytes_le(&[1; 128]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b128);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 127], UtilsError> = bigint_to_le_bytes_array(&b128);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(127))));
-        let res: Result<[u8; 128], UtilsError> = bigint_to_le_bytes_array(&b128);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b128);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 127], CompressedAccountError> = bigint_to_le_bytes_array(&b128);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(127))
+        ));
+        let res: Result<[u8; 128], CompressedAccountError> = bigint_to_le_bytes_array(&b128);
         assert!(res.is_ok());
 
         let b256 = BigUint::from_bytes_be(&[1; 256]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b256);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 255], UtilsError> = bigint_to_be_bytes_array(&b256);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(255))));
-        let res: Result<[u8; 256], UtilsError> = bigint_to_be_bytes_array(&b256);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b256);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 255], CompressedAccountError> = bigint_to_be_bytes_array(&b256);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(255))
+        ));
+        let res: Result<[u8; 256], CompressedAccountError> = bigint_to_be_bytes_array(&b256);
         assert!(res.is_ok());
 
         let b256 = BigUint::from_bytes_le(&[1; 256]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b256);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 255], UtilsError> = bigint_to_le_bytes_array(&b256);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(255))));
-        let res: Result<[u8; 256], UtilsError> = bigint_to_le_bytes_array(&b256);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b256);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 255], CompressedAccountError> = bigint_to_le_bytes_array(&b256);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(255))
+        ));
+        let res: Result<[u8; 256], CompressedAccountError> = bigint_to_le_bytes_array(&b256);
         assert!(res.is_ok());
 
         let b512 = BigUint::from_bytes_be(&[1; 512]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b512);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 511], UtilsError> = bigint_to_be_bytes_array(&b512);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(511))));
-        let res: Result<[u8; 512], UtilsError> = bigint_to_be_bytes_array(&b512);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b512);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 511], CompressedAccountError> = bigint_to_be_bytes_array(&b512);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(511))
+        ));
+        let res: Result<[u8; 512], CompressedAccountError> = bigint_to_be_bytes_array(&b512);
         assert!(res.is_ok());
 
         let b512 = BigUint::from_bytes_le(&[1; 512]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b512);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 511], UtilsError> = bigint_to_le_bytes_array(&b512);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(511))));
-        let res: Result<[u8; 512], UtilsError> = bigint_to_le_bytes_array(&b512);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b512);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 511], CompressedAccountError> = bigint_to_le_bytes_array(&b512);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(511))
+        ));
+        let res: Result<[u8; 512], CompressedAccountError> = bigint_to_le_bytes_array(&b512);
         assert!(res.is_ok());
 
         let b768 = BigUint::from_bytes_be(&[1; 768]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b768);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 767], UtilsError> = bigint_to_be_bytes_array(&b768);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(767))));
-        let res: Result<[u8; 768], UtilsError> = bigint_to_be_bytes_array(&b768);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b768);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 767], CompressedAccountError> = bigint_to_be_bytes_array(&b768);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(767))
+        ));
+        let res: Result<[u8; 768], CompressedAccountError> = bigint_to_be_bytes_array(&b768);
         assert!(res.is_ok());
 
         let b768 = BigUint::from_bytes_le(&[1; 768]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b768);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 767], UtilsError> = bigint_to_le_bytes_array(&b768);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(767))));
-        let res: Result<[u8; 768], UtilsError> = bigint_to_le_bytes_array(&b768);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b768);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 767], CompressedAccountError> = bigint_to_le_bytes_array(&b768);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(767))
+        ));
+        let res: Result<[u8; 768], CompressedAccountError> = bigint_to_le_bytes_array(&b768);
         assert!(res.is_ok());
 
         let b1024 = BigUint::from_bytes_be(&[1; 1024]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b1024);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 1023], UtilsError> = bigint_to_be_bytes_array(&b1024);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1023))));
-        let res: Result<[u8; 1024], UtilsError> = bigint_to_be_bytes_array(&b1024);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_be_bytes_array(&b1024);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 1023], CompressedAccountError> = bigint_to_be_bytes_array(&b1024);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(1023))
+        ));
+        let res: Result<[u8; 1024], CompressedAccountError> = bigint_to_be_bytes_array(&b1024);
         assert!(res.is_ok());
 
         let b1024 = BigUint::from_bytes_le(&[1; 1024]);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b1024);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 1023], UtilsError> = bigint_to_le_bytes_array(&b1024);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(1023))));
-        let res: Result<[u8; 1024], UtilsError> = bigint_to_le_bytes_array(&b1024);
+        let res: Result<[u8; 1], CompressedAccountError> = bigint_to_le_bytes_array(&b1024);
+        assert!(matches!(res, Err(CompressedAccountError::InputTooLarge(1))));
+        let res: Result<[u8; 1023], CompressedAccountError> = bigint_to_le_bytes_array(&b1024);
+        assert!(matches!(
+            res,
+            Err(CompressedAccountError::InputTooLarge(1023))
+        ));
+        let res: Result<[u8; 1024], CompressedAccountError> = bigint_to_le_bytes_array(&b1024);
         assert!(res.is_ok());
     }
 }

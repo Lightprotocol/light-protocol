@@ -20,17 +20,17 @@ default = ["custom-heap"]
 [dependencies]
 
 [dev-dependencies]
-light-test-utils = { workspace = true, features=["devenv"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
-light-prover-client = {workspace = true, features = ["devenv"] }
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
 anchor-lang = { workspace = true }
-forester-utils = {  workspace = true }
+forester-utils = { workspace = true }
 light-registry = { workspace = true }
-account-compression = { workspace = true  }
-light-hasher = {workspace = true}
-light-utils = {workspace = true}
+account-compression = { workspace = true }
+light-hasher = { workspace = true }
+light-compressed-account = { workspace = true }
 solana-sdk = { workspace = true }
 serial_test = { workspace = true }
 light-batched-merkle-tree = { workspace = true }

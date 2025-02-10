@@ -5,7 +5,7 @@ use anchor_lang::{
     solana_program::{account_info::AccountInfo, pubkey::Pubkey},
     Bumps,
 };
-use light_utils::instruction::instruction_data_zero_copy::ZInstructionDataInvoke;
+use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvoke;
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},

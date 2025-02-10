@@ -32,14 +32,14 @@ light-macros = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 account-compression = { workspace = true }
-light-utils = { workspace = true, features = ["anchor"] }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true, features = ["solana"] }
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true, features = ["solana"] }
 zerocopy = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
-
+light-account-checks = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 

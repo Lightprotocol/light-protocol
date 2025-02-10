@@ -8,9 +8,9 @@ pub mod escrow_with_pda;
 
 pub use escrow_with_compressed_pda::escrow::*;
 pub use escrow_with_pda::escrow::*;
-use light_utils::instruction::{
+use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-    instruction_data::NewAddressParamsPacked,
+    data::NewAddressParamsPacked,
 };
 
 #[error_code]

@@ -12,16 +12,14 @@ anchor = ["anchor-lang", "solana"]
 solana = []
 
 [dependencies]
-thiserror = { workspace = true}
+thiserror = { workspace = true }
 borsh = { workspace = true }
 bytemuck = { workspace = true }
 solana-program = { workspace = true }
-anchor-lang = { workspace = true , optional = true }
-zerocopy = {workspace = true, features = ["derive"]}
-light-utils = { workspace = true , features = ["bytemuck-des"] }
+anchor-lang = { workspace = true, optional = true }
+zerocopy = { workspace = true, features = ["derive"] }
+light-compressed-account = { workspace = true, features = ["bytemuck-des"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
-check-cfg = [
-    'cfg(target_os, values("solana"))',
-]
+check-cfg = ['cfg(target_os, values("solana"))']

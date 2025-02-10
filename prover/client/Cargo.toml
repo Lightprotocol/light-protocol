@@ -19,11 +19,13 @@ light-hasher = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-bounded-vec = { workspace = true }
-light-utils = { workspace = true }
+light-compressed-account = { workspace = true }
 # ark dependencies
 ark-serialize = { workspace = true }
 ark-bn254 = { workspace = true }
-ark-std = { workspace = true, default-features = false, features = ["parallel"] }
+ark-std = { workspace = true, default-features = false, features = [
+    "parallel",
+] }
 light-batched-merkle-tree = { workspace = true }
 
 # solana
@@ -39,7 +41,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 num-traits = { workspace = true }
 tokio = { workspace = true, optional = true }
-reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"], optional = true  }
+reqwest = { version = "0.11.24", features = [
+    "json",
+    "rustls-tls",
+], optional = true }
 sysinfo = "0.33"
 
 [dev-dependencies]

@@ -2,25 +2,26 @@ use std::collections::HashMap;
 
 use solana_program::pubkey::Pubkey;
 
-use super::{
-    compressed_account::{
-        pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
-    },
-    instruction_data::{
+use super::compressed_account::{
+    pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
+};
+use crate::{
+    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
+    instruction_data::data::{
         NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress, ReadOnlyAddress,
     },
+    CompressedAccountError,
 };
-use crate::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be, UtilsError};
 
 pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,
     seed: &[u8; 32],
-) -> Result<[u8; 32], UtilsError> {
+) -> Result<[u8; 32], CompressedAccountError> {
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
-        Some(hash) => Ok::<[u8; 32], UtilsError>(hash.0),
-        None => return Err(UtilsError::DeriveAddressError),
+        Some(hash) => Ok::<[u8; 32], CompressedAccountError>(hash.0),
+        None => return Err(CompressedAccountError::DeriveAddressError),
     }?;
 
     Ok(hash)

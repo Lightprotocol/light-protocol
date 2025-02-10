@@ -1,10 +1,10 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
-#[cfg(feature = "bench-sbf")]
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_utils::instruction::instruction_data_zero_copy::{
+use light_compressed_account::instruction_data::zero_copy::{
     ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
+#[cfg(feature = "bench-sbf")]
+use light_heap::{bench_sbf_end, bench_sbf_start};
 
 use crate::errors::SystemProgramError;
 /// Checks:

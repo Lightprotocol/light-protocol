@@ -1,9 +1,9 @@
 use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
 use anchor_lang::prelude::*;
-use light_utils::instruction::{
+use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     insert_into_queues::AppendNullifyCreateAddressInputs,
-    instruction_data_zero_copy::ZNewAddressParamsPacked,
+    instruction_data::zero_copy::ZNewAddressParamsPacked,
 };
 
 use crate::{context::SystemContext, errors::SystemProgramError};

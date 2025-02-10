@@ -1,5 +1,5 @@
 use anchor_lang::{solana_program::program_error::ProgramError, Result};
-use light_utils::instruction::instruction_data_zero_copy::{
+use light_compressed_account::instruction_data::zero_copy::{
     ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
 
@@ -71,13 +71,11 @@ pub fn sum_check(
 #[cfg(test)]
 mod test {
     use anchor_lang::AnchorSerialize;
-    use light_utils::{
-        instruction::{
-            compressed_account::{
-                CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
-            },
-            instruction_data::OutputCompressedAccountWithPackedContext,
+    use light_compressed_account::{
+        compressed_account::{
+            CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         },
+        instruction_data::data::OutputCompressedAccountWithPackedContext,
         pubkey::Pubkey,
     };
     use light_zero_copy::borsh::Deserialize;

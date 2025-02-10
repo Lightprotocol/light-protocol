@@ -2,24 +2,26 @@ use account_compression::{
     program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Discriminator};
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_hasher::{
-    errors::HasherError, DataHasher, Discriminator as LightDiscriminator, Poseidon,
-};
-use light_system_program::program::LightSystemProgram;
-use light_utils::instruction::{
+use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
         PackedReadOnlyCompressedAccount,
     },
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
+    hash_to_bn254_field_size_be,
     instruction_data::{
-        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{
+            NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+        },
+        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
     },
-    invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
 };
+use light_hasher::{errors::HasherError, DataHasher, Poseidon};
+use light_system_program::program::LightSystemProgram;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
@@ -520,10 +522,9 @@ pub struct RegisteredUser {
 
 impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let truncated_user_pubkey =
-            light_utils::hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
-                .unwrap()
-                .0;
+        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
+            .unwrap()
+            .0;
 
         H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }

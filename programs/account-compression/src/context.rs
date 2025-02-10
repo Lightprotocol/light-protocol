@@ -3,11 +3,12 @@ use anchor_lang::{
     solana_program::{msg, pubkey::Pubkey},
     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
+use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
-use light_hasher::{Discriminator, Poseidon};
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_merkle_tree_metadata::merkle_tree::TreeType;
 

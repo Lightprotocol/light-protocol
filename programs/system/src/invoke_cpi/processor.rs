@@ -1,9 +1,9 @@
 pub use anchor_lang::prelude::*;
-#[cfg(feature = "bench-sbf")]
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_utils::instruction::instruction_data_zero_copy::{
+use light_compressed_account::instruction_data::zero_copy::{
     ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
 };
+#[cfg(feature = "bench-sbf")]
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::slice::ZeroCopySliceBorsh;
 
 use super::verify_signer::cpi_signer_checks;

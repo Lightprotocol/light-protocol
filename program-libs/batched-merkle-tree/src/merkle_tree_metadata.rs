@@ -1,11 +1,12 @@
 use aligned_sized::aligned_sized;
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
+    fee::compute_rollover_fee,
     merkle_tree::{MerkleTreeMetadata, TreeType},
     queue::QueueType,
     rollover::RolloverMetadata,
 };
-use light_utils::{fee::compute_rollover_fee, hash_to_bn254_field_size_be, pubkey::Pubkey};
 use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 

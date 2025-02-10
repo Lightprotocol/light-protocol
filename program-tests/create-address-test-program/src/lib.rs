@@ -9,8 +9,8 @@ use anchor_lang::{
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
-use light_utils::instruction::{
-    compressed_proof::CompressedProof, instruction_data::NewAddressParamsPacked,
+use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
