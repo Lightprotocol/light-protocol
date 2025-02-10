@@ -211,22 +211,22 @@ async fn test_state_indexer_batched() {
             "get_compressed_accounts_by_owner({}) after compress_sol_deterministic",
             &forester_keypair.pubkey()
         );
-        // let compressed_balance_photon = photon_indexer
-        //     .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
-        //     .await
-        //     .unwrap();
-        // let compressed_balance_test_indexer = e2e_env
-        //     .indexer
-        //     .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
-        //     .await
-        //     .unwrap();
-        // TODO: update queue in merkle context to be able to compare
-        // for (photon_account, test_indexer_account) in compressed_balance_photon
-        //     .iter()
-        //     .zip(compressed_balance_test_indexer.iter())
-        // {
-        //     assert_eq!(photon_account, test_indexer_account);
-        // }
+        let compressed_balance_photon = photon_indexer
+            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .await
+            .unwrap();
+        let compressed_balance_test_indexer = e2e_env
+            .indexer
+            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .await
+            .unwrap();
+
+        for (photon_account, test_indexer_account) in compressed_balance_photon
+            .iter()
+            .zip(compressed_balance_test_indexer.iter())
+        {
+            assert_eq!(photon_account, test_indexer_account);
+        }
 
         let to_pubkey = Pubkey::new_unique();
         e2e_env
