@@ -78,18 +78,28 @@ export async function compressV2(
         merkleTree,
         tokenProgramId,
     });
-    console.log('ix LEN', ix.data.length);
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units:
+                    recipients.length <= 10
+                        ? 200_000
+                        : recipients.length <= 15
+                          ? 250_000
+                          : recipients.length <= 20
+                            ? 300_000
+                            : 350_000,
+            }),
+            ix,
+        ],
         payer,
         blockhash,
         additionalSigners,
         lookupTableAccountValue ? [lookupTableAccountValue] : [],
     );
-    console.log('tx LEN', tx.serialize().length);
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
