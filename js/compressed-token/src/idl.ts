@@ -209,6 +209,109 @@ export type LightCompressedToken = {
             ];
         },
         {
+            name: 'batchCompress';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: ['UNCHECKED: only pays fees.'];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'mint';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                    docs: ['programs'];
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'publicKeys';
+                    type: {
+                        vec: 'publicKey';
+                    };
+                },
+                {
+                    name: 'amounts';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+                {
+                    name: 'lamports';
+                    type: {
+                        option: 'u64';
+                    };
+                },
+            ];
+        },
+        {
             name: 'compressSplTokenAccount';
             docs: [
                 'Compresses the balance of an spl token account sub an optional remaining',
@@ -1865,6 +1968,109 @@ export const IDL: LightCompressedToken = {
                 {
                     name: 'mint',
                     isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                    docs: ['programs'],
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'publicKeys',
+                    type: {
+                        vec: 'publicKey',
+                    },
+                },
+                {
+                    name: 'amounts',
+                    type: {
+                        vec: 'u64',
+                    },
+                },
+                {
+                    name: 'lamports',
+                    type: {
+                        option: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'batchCompress',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: ['UNCHECKED: only pays fees.'],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: false,
                     isSigner: false,
                 },
                 {

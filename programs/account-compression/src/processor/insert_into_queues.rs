@@ -24,7 +24,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         return Err(AccountCompressionErrorCode::InputElementsEmpty.into());
     }
     let current_slot = Clock::get()?.slot;
-    msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");
     insert_nullifiers(
@@ -34,7 +33,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         context.remaining_accounts_mut(),
         &current_slot,
     )?;
-    msg!("append leaves {:?}", inputs.leaves.len());
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_nullifiers");
     #[cfg(feature = "bench-sbf")]
