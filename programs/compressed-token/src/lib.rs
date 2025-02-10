@@ -34,7 +34,6 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
-    use light_zero_copy::borsh::Deserialize;
     use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
@@ -84,7 +83,7 @@ pub mod light_compressed_token {
         process_mint_to::<MINT_TO>(ctx, public_keys.as_slice(), amounts.as_slice(), lamports)
     }
 
-    // TODO: zerocopy ixdata fails with 
+    // TODO: zerocopy ixdata fails with
     /// Batch compress tokens to a list of compressed accounts.
     pub fn batch_compress<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,

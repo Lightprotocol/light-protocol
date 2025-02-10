@@ -31,7 +31,6 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
-    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     #[cfg(feature = "bench-sbf")]
     use light_heap::{bench_sbf_end, bench_sbf_start};
