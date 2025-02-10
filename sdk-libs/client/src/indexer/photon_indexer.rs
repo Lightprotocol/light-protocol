@@ -371,7 +371,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
                 let merkle_context = MerkleContext {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
-                    nullifier_queue_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()), // TODO: replace tree with queue
+                    nullifier_queue_pubkey: Pubkey::from(Hash::from_base58(&acc.queue).unwrap()),
                     leaf_index: acc.leaf_index,
                     prove_by_index: acc.queue_index.is_some(),
                 };

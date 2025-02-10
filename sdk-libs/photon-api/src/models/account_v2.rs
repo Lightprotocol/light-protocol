@@ -27,19 +27,21 @@ pub struct AccountV2 {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
-    #[serde(rename = "queueIndex", skip_serializing_if = "Option::is_none")]
-    pub queue_index: Option<u64>,
     #[serde(rename = "seq")]
     pub seq: Option<u64>,
     #[serde(rename = "slotCreated")]
     pub slot_created: u64,
     #[serde(rename = "tree")]
     pub tree: String,
+    #[serde(rename = "queue")]
+    pub queue: String,
+    #[serde(rename = "inQueue")]
+    pub in_queue: bool,
 
 }
 
 impl AccountV2 {
-    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, seq: Option<u64>, slot_created: u64, tree: String) -> AccountV2 {
+    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, seq: Option<u64>, slot_created: u64, tree: String, queue: String, in_queue: bool) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
@@ -47,10 +49,11 @@ impl AccountV2 {
             lamports,
             leaf_index,
             owner,
-            queue_index: None,
             seq,
             slot_created,
             tree,
+            queue,
+            in_queue,
         }
     }
 }
