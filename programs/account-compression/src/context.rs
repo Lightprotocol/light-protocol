@@ -4,6 +4,7 @@ use anchor_lang::{
     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
 use light_account_checks::discriminator::Discriminator;
+use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -37,47 +38,6 @@ impl GroupAccess for BatchedQueueAccount<'_> {
     }
 }
 use super::RegisteredProgram;
-//
-// pub struct LightContext<'a, 'info> {
-//     pub accounts: Vec<AcpAccount<'a, 'info>>,
-// }
-
-// impl<'a, 'info> LightContext<'a, 'info> {
-//     #[inline(always)]
-//     pub fn new(
-//         authority: &'a AccountInfo<'info>,
-//         account_infos: &'info [AccountInfo<'info>],
-//         invoked_by_program: bool,
-//         bump: u8,
-//     ) -> Result<Self, AccountError> {
-//         let accounts =
-//             AcpAccount::from_account_infos(account_infos, authority, invoked_by_program, bump)?;
-//         Ok(LightContext { accounts })
-//     }
-
-//     pub fn authority(&self) -> &AccountInfo<'info> {
-//         match self.accounts[AUTHORITY_INDEX] {
-//             AcpAccount::Authority(account) => account,
-//             _ => panic!("Invalid fee payer account"),
-//         }
-//     }
-
-//     /// Index 0 : authority
-//     /// ... other accounts (registry program PDA is not added)
-//     #[inline(always)]
-//     pub fn tree_and_queue_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
-//         &mut self.accounts[1..]
-//     }
-
-//     /// Index 0 : authority
-//     /// ... other accounts (registry program PDA is not added)
-//     #[inline(always)]
-//     pub fn tree_and_queue_accounts(&self) -> &[AcpAccount<'a, 'info>] {
-//         &self.accounts[1..]
-//     }
-// }
-
-// const AUTHORITY_INDEX: usize = 0;
 
 /// AccountCompressionProgramAccount
 #[derive(Debug)]
@@ -100,12 +60,8 @@ pub enum AcpAccount<'a, 'info> {
     Unknown(),
 }
 
-use light_account_checks::error::AccountError;
 impl<'a, 'info> AcpAccount<'a, 'info> {
-    /// Account order:
-    /// 1. Authority
-    /// 2. Option<Registered program PDA>
-    ///     ... Merkle tree and queue accounts
+    /// Merkle tree and queue accounts
     #[inline(always)]
     pub fn from_account_infos(
         account_infos: &'info [AccountInfo<'info>],
@@ -163,17 +119,17 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         account_info: &'info AccountInfo<'info>,
         authority: &AcpAccount<'a, 'info>,
         registered_program_pda: &Option<(Pubkey, Pubkey)>,
-    ) -> std::result::Result<AcpAccount<'a, 'info>, ProgramError> {
+    ) -> anchor_lang::Result<AcpAccount<'a, 'info>> {
         if crate::ID != *account_info.owner {
             msg!("Invalid owner {:?}", account_info.owner);
             msg!("key {:?}", account_info.key());
-            return Err(AccountError::AccountOwnedByWrongProgram.into());
+            return Err(ProgramError::from(AccountError::AccountOwnedByWrongProgram).into());
         }
         let mut discriminator = [0u8; 8];
         {
             let data = account_info
                 .try_borrow_data()
-                .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
             discriminator.copy_from_slice(&data[..8]);
         }
         match discriminator {
@@ -182,15 +138,18 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 tree_type.copy_from_slice(
                     &account_info
                         .try_borrow_data()
-                        .map_err(|_| AccountError::BorrowAccountDataFailed)?[8..16],
+                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?
+                        [8..16],
                 );
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
                     TreeType::BatchedAddress => Ok(AcpAccount::BatchedAddressTree(
-                        BatchedMerkleTreeAccount::address_from_account_info(account_info)?,
+                        BatchedMerkleTreeAccount::address_from_account_info(account_info)
+                            .map_err(ProgramError::from)?,
                     )),
                     TreeType::BatchedState => {
-                        let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)?;
+                        let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)
+                            .map_err(ProgramError::from)?;
                         manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(
                             registered_program_pda,
                             authority,
@@ -200,7 +159,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
 
                         Ok(AcpAccount::BatchedStateTree(tree))
                     }
-                    _ => Err(AccountError::BorrowAccountDataFailed.into()),
+                    _ => Err(ProgramError::from(AccountError::BorrowAccountDataFailed).into()),
                 }
             }
             BatchedQueueAccount::DISCRIMINATOR => {
@@ -218,12 +177,13 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             }
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 {
-                    let merkle_tree =
-                        AccountLoader::<StateMerkleTreeAccount>::try_from(account_info)
-                            .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                    let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
+                        account_info,
+                    )
+                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
                     let merkle_tree = merkle_tree
                         .load()
-                        .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
 
                     manual_check_signer_is_registered_or_authority::<StateMerkleTreeAccount>(
                         registered_program_pda,
@@ -234,24 +194,25 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 }
                 let mut merkle_tree = account_info
                     .try_borrow_mut_data()
-                    .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::StateTree((
                     account_info.key(),
                     state_merkle_tree_from_bytes_zero_copy_mut(data_slice)
-                        .map_err(|_| AccountError::BorrowAccountDataFailed)?,
+                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?,
                 )))
             }
             AddressMerkleTreeAccount::DISCRIMINATOR => {
                 {
-                    let merkle_tree =
-                        AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info)
-                            .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                    let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
+                        account_info,
+                    )
+                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
                     let merkle_tree = merkle_tree
                         .load()
-                        .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
                     manual_check_signer_is_registered_or_authority::<AddressMerkleTreeAccount>(
                         registered_program_pda,
                         authority,
@@ -261,14 +222,14 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 }
                 let mut merkle_tree = account_info
                     .try_borrow_mut_data()
-                    .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::AddressTree((
                     account_info.key(),
                     address_merkle_tree_from_bytes_zero_copy_mut(data_slice)
-                        .map_err(|_| AccountError::BorrowAccountDataFailed)?,
+                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?,
                 )))
             }
             QueueAccount::DISCRIMINATOR => {
