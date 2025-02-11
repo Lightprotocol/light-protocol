@@ -140,7 +140,7 @@ pub fn match_account_compression_program_instruction(
                 .iter_mut()
                 .zip(data.leaves.iter())
                 .for_each(|(x, y)| {
-                    x.merkle_tree_index = y.tree_account_index;
+                    x.merkle_tree_index = y.account_index;
                 });
             data.addresses.iter().for_each(|x| {
                 if x.tree_index == x.queue_index {

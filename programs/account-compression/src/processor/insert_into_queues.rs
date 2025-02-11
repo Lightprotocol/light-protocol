@@ -15,8 +15,10 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
         .map_err(ProgramError::from)?;
     let authority = ctx.accounts.authority.to_account_info();
-    // 1. Checks accounts
-    //      1.1. Checks signer eligibility.
+    // Checks accounts for every account in remaining accounts:
+    // 1. program ownership
+    // 2. discriminator
+    // 3. signer eligibility
     let mut accounts = AcpAccount::from_account_infos(
         ctx.remaining_accounts,
         &authority,

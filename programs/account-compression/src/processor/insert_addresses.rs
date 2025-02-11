@@ -20,27 +20,38 @@ pub fn insert_addresses(
     }
 
     let mut inserted_addresses = 0;
-    let mut current_tree_index = addresses[0].tree_index;
-    let mut current_queue_index = addresses[0].queue_index;
-    msg!("current_tree_index {:?}", current_tree_index);
-    msg!("current_queue_index {:?}", current_queue_index);
-    msg!(" num queues {:?}", num_queues);
-    let mut dedup_vec = Vec::with_capacity(num_queues as usize);
-    for _ in 0..num_queues {
-        let queue_account = &mut accounts[current_queue_index as usize];
+    // 1. Gather unique (tree_index, queue_index) pairs in the order they appear,
+    //    capped at `num_queues`.
+    let mut visited = Vec::with_capacity(num_queues as usize);
+    // Always push the first one
+    visited.push((addresses[0].tree_index, addresses[0].queue_index));
+
+    for nf in addresses.iter().skip(1) {
+        // Stop once we have reached num_queues
+        if visited.len() == num_queues as usize {
+            break;
+        }
+        // Only insert if this queue_index hasn't been added yet
+        if visited.iter().all(|&(_, q)| q != nf.queue_index) {
+            visited.push((nf.tree_index, nf.queue_index));
+        }
+    }
+
+    for &(tree_index, queue_index) in &visited {
+        let queue_account = &mut accounts[queue_index as usize];
 
         match queue_account {
             AcpAccount::BatchedAddressTree(address_tree) => {
                 inserted_addresses +=
-                    process_address_v2(address_tree, addresses, current_queue_index, current_slot)?;
+                    batched_addresses(address_tree, addresses, queue_index, current_slot)?;
+                anchor_lang::Result::Ok(())
             }
             AcpAccount::V1Queue(_) => {
                 let (queue_account, merkle_tree_account) = get_queue_and_tree_accounts(
                     accounts,
-                    current_queue_index as usize,
-                    current_tree_index as usize,
-                )
-                .unwrap();
+                    queue_index as usize,
+                    tree_index as usize,
+                )?;
                 let queue_account_info =
                     if let AcpAccount::V1Queue(queue_account_info) = queue_account {
                         queue_account_info
@@ -52,27 +63,14 @@ pub fn insert_addresses(
                     merkle_tree_account,
                     queue_account_info,
                     addresses,
-                    current_queue_index,
+                    queue_index,
+                    tree_index,
                 )?;
+                Ok(())
             }
             AcpAccount::AddressTree(_) => unimplemented!("AddressTree"),
-            _ => unimplemented!(),
-        }
-
-        dedup_vec.push(current_queue_index);
-        if dedup_vec.len() == num_queues as usize {
-            break;
-        }
-        // find next tree index which doesn't exist in dedup vec yet
-        let input = addresses.iter().find(|x| {
-            !dedup_vec
-                .iter()
-                .any(|queue_index| *queue_index == x.queue_index)
-        });
-        if let Some(input) = input {
-            current_tree_index = input.tree_index;
-            current_queue_index = input.queue_index;
-        }
+            _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),
+        }?;
     }
     if inserted_addresses != addresses.len() {
         msg!("inserted_addresses {:?}", inserted_addresses);
@@ -83,18 +81,23 @@ pub fn insert_addresses(
 }
 
 /// Insert a batch of addresses into the address queue.
-fn process_address_v2(
+/// 1. Filter for addresses with the same queue indices.
+///     (Tree index is unused for batched address trees.)
+/// 2. Insert the addresses into the address queue.
+fn batched_addresses(
     addresse_tree: &mut BatchedMerkleTreeAccount<'_>,
     addresses: &[InsertAddressInput],
     current_queue_index: u8,
     current_slot: &u64,
 ) -> Result<usize> {
+    // 1. Filter for addresses with the same queue indices.
     let addresses = addresses
         .iter()
         .filter(|x| x.queue_index == current_queue_index);
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("acp_insert_address_into_queue_v2");
     let mut num_elements = 0;
+    // 2.  Insert the addresses into the address queue.
     for address in addresses {
         num_elements += 1;
         addresse_tree
@@ -106,16 +109,22 @@ fn process_address_v2(
     Ok(num_elements)
 }
 
+/// 1. Filter for addresses with the same queue and tree indices.
+/// 2. Unpack tree account, fail if account is not a tree account.
+/// 3. Check queue and Merkle tree are associated.
+/// 4. Insert the addresses into the queues hash set.
 fn process_address_v1<'info>(
     merkle_tree: &mut AcpAccount<'_, 'info>,
     address_queue: &mut AccountInfo<'info>,
     addresses: &[InsertAddressInput],
     current_queue_index: u8,
+    current_tree_index: u8,
 ) -> Result<usize> {
+    // 1. Filter for addresses with the same queue and tree indices.
     let addresses = addresses
         .iter()
-        .filter(|x| x.queue_index == current_queue_index);
-    msg!("addresses {:?}", addresses);
+        .filter(|x| x.queue_index == current_queue_index && x.tree_index == current_tree_index);
+    // 2. Unpack tree account, fail if account is not a tree account.
     let (merkle_pubkey, merkle_tree) = if let AcpAccount::AddressTree(tree) = merkle_tree {
         tree
     } else {
@@ -126,7 +135,7 @@ fn process_address_v1<'info>(
             .try_borrow_data()
             .map_err(ProgramError::from)?;
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
-        // 1. Check queue and Merkle tree are associated.
+        // 3. Check queue and Merkle tree are associated.
         if queue.metadata.associated_merkle_tree != (*merkle_pubkey).into() {
             msg!(
                 "Queue account {:?} is not associated with Merkle tree  {:?}",
@@ -137,11 +146,12 @@ fn process_address_v1<'info>(
         }
     }
     let mut num_elements = 0;
-    // 2. Insert the addresses into the queues hash set.
 
+    // 4. Insert the addresses into the queues hash set.
     let sequence_number = merkle_tree.sequence_number();
     let mut queue = address_queue.try_borrow_mut_data()?;
-    let mut queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue).unwrap() };
+    let mut queue =
+        unsafe { queue_from_bytes_zero_copy_mut(&mut queue).map_err(ProgramError::from)? };
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
     for address in addresses {

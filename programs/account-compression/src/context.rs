@@ -3,8 +3,7 @@ use anchor_lang::{
     solana_program::{msg, pubkey::Pubkey},
     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
-use light_account_checks::discriminator::Discriminator;
-use light_account_checks::error::AccountError;
+use light_account_checks::{discriminator::Discriminator, error::AccountError};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -14,7 +13,9 @@ use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use light_merkle_tree_metadata::merkle_tree::TreeType;
 
 use crate::{
-    address_merkle_tree_from_bytes_zero_copy_mut, state_merkle_tree_from_bytes_zero_copy_mut,
+    address_merkle_tree_from_bytes_zero_copy_mut,
+    errors::AccountCompressionErrorCode,
+    state_merkle_tree_from_bytes_zero_copy_mut,
     utils::{
         check_signer_is_registered_or_authority::{
             manual_check_signer_is_registered_or_authority, GroupAccess,
@@ -74,7 +75,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         let derived_address = match invoked_by_program {
             true => {
                 let account_info = &account_infos[0];
-                let data = account_info.try_borrow_data().unwrap();
+                let data = account_info.try_borrow_data()?;
                 if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
                     return Err(AccountError::InvalidDiscriminator.into());
                 }
@@ -84,8 +85,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 let derived_address = Pubkey::create_program_address(
                     &[CPI_AUTHORITY_PDA_SEED, &[bump]],
                     &account.registered_program_id,
-                )
-                .unwrap();
+                )?;
                 skip += 1;
                 Some((derived_address, account.group_authority_pda))
             }
@@ -127,20 +127,13 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         }
         let mut discriminator = [0u8; 8];
         {
-            let data = account_info
-                .try_borrow_data()
-                .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
+            let data = account_info.try_borrow_data()?;
             discriminator.copy_from_slice(&data[..8]);
         }
         match discriminator {
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let mut tree_type = [0u8; 8];
-                tree_type.copy_from_slice(
-                    &account_info
-                        .try_borrow_data()
-                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?
-                        [8..16],
-                );
+                tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
                     TreeType::BatchedAddress => Ok(AcpAccount::BatchedAddressTree(
@@ -154,8 +147,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                             registered_program_pda,
                             authority,
                             &tree,
-                        )
-                        .unwrap();
+                        )?;
 
                         Ok(AcpAccount::BatchedStateTree(tree))
                     }
@@ -170,73 +162,56 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     registered_program_pda,
                     authority,
                     &queue,
-                )
-                .unwrap();
+                )?;
 
                 Ok(AcpAccount::OutputQueue(queue))
             }
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 {
-                    let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
-                        account_info,
-                    )
-                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
-                    let merkle_tree = merkle_tree
-                        .load()
-                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
+                    let merkle_tree =
+                        AccountLoader::<StateMerkleTreeAccount>::try_from(account_info)?;
+                    let merkle_tree = merkle_tree.load()?;
 
                     manual_check_signer_is_registered_or_authority::<StateMerkleTreeAccount>(
                         registered_program_pda,
                         authority,
                         &merkle_tree,
-                    )
-                    .unwrap();
+                    )?;
                 }
-                let mut merkle_tree = account_info
-                    .try_borrow_mut_data()
-                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
+                let mut merkle_tree = account_info.try_borrow_mut_data()?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::StateTree((
                     account_info.key(),
-                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice)
-                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?,
+                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice)?,
                 )))
             }
             AddressMerkleTreeAccount::DISCRIMINATOR => {
                 {
-                    let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
-                        account_info,
-                    )
-                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
-                    let merkle_tree = merkle_tree
-                        .load()
-                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
+                    let merkle_tree =
+                        AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info)?;
+                    let merkle_tree = merkle_tree.load()?;
                     manual_check_signer_is_registered_or_authority::<AddressMerkleTreeAccount>(
                         registered_program_pda,
                         authority,
                         &merkle_tree,
-                    )
-                    .unwrap();
+                    )?;
                 }
-                let mut merkle_tree = account_info
-                    .try_borrow_mut_data()
-                    .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?;
+                let mut merkle_tree = account_info.try_borrow_mut_data()?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::AddressTree((
                     account_info.key(),
-                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice)
-                        .map_err(|_| ProgramError::from(AccountError::BorrowAccountDataFailed))?,
+                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice)?,
                 )))
             }
             QueueAccount::DISCRIMINATOR => {
                 msg!("queue account: {:?}", account_info.key());
                 Ok(AcpAccount::V1Queue(account_info.to_account_info()))
             }
-            _ => panic!("invalid account"),
+            _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),
         }
     }
 }

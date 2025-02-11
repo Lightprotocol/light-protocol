@@ -3,15 +3,14 @@ use light_compressed_account::insert_into_queues::AppendLeavesInput;
 
 use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 
-/// Perform batch appends to Merkle trees provided as remaining accounts. Leaves
-/// are assumed to be ordered by Merkle tree account.
-/// 1. Iterate over all remaining accounts (Merkle tree accounts)
-/// 2. get first leaves that points to current Merkle tree account
-/// 3. get last leaf that points to current Merkle tree account
+/// Perform batch appends to state Merkle trees and output queues.
+/// Leaves are assumed to be ordered by Merkle tree account.
+/// 1. Iterate over num_output_queues accounts
+/// 2. get first leaves that points to current account
+/// 3. get last leaf that points to current account
 /// 4. append batch to Merkle tree or insert into output queue
 ///     based on discriminator
-/// 5. transfer rollover fee
-/// 6. check if all leaves are processed
+/// 5. check that all leaves are processed
 ///     return Ok(()) if all leaves are processed
 pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
     leaves: &[AppendLeavesInput],
@@ -23,23 +22,18 @@ pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
     if leaves.is_empty() {
         return Ok(());
     }
-    if leaves.len() > u8::MAX as usize {
-        return err!(AccountCompressionErrorCode::TooManyLeaves);
-    }
+
     let mut leaves_processed: u8 = 0;
     // 1. Iterate over all remaining accounts (Merkle tree or output queue accounts)
     for i in start_output_appends..start_output_appends + num_output_queues {
         let account = &mut accounts[i as usize];
         // 2. get first leaves that points to current Merkle tree account
-        let start = match leaves.iter().position(|x| x.tree_account_index == i) {
+        let start = match leaves.iter().position(|x| x.account_index == i) {
             Some(pos) => Ok(pos),
             None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
         }?;
         // 3. get last leaf that points to current Merkle tree account
-        let end = match leaves[start..]
-            .iter()
-            .position(|x| x.tree_account_index != i)
-        {
+        let end = match leaves[start..].iter().position(|x| x.account_index != i) {
             Some(pos) => pos + start,
             None => leaves.len(),
         };
@@ -65,7 +59,6 @@ pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
                     )
                     .map_err(ProgramError::from)?;
             }
-
             _ => {
                 return err!(
                     AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
