@@ -1,11 +1,13 @@
 use crate::{BorshDeserialize, BorshSerialize};
 
-pub const BATCH_EVENT_DISCRIMINATOR: [u8; 8] = *b"BatchEvt";
+pub const BATCH_APPEND_EVENT_DISCRIMINATOR: u16 = 1;
+pub const BATCH_NULLIFY_EVENT_DISCRIMINATOR: u16 = 2;
+pub const BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR: u16 = 3;
 
 #[repr(C)]
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct BatchAppendEvent {
-    pub discriminator: [u8; 8],
+    pub discriminator: u16,
     pub tree_type: u64,
     pub merkle_tree_pubkey: [u8; 32],
     pub batch_index: u64,

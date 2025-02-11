@@ -34,7 +34,9 @@ use crate::{
     },
     errors::BatchedMerkleTreeError,
     event::{
-        BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent, BATCH_EVENT_DISCRIMINATOR,
+        BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent,
+        BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR, BATCH_APPEND_EVENT_DISCRIMINATOR,
+        BATCH_NULLIFY_EVENT_DISCRIMINATOR,
     },
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
@@ -431,7 +433,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
         // 6. Return the batch append event.
         Ok(BatchAppendEvent {
-            discriminator: BATCH_EVENT_DISCRIMINATOR,
+            discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
             tree_type: self.tree_type,
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             output_queue_pubkey: Some(queue_account.pubkey().to_bytes()),
@@ -550,10 +552,15 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Needs to be executed post mark_as_inserted_in_merkle_tree.
             self.zero_out_previous_batch_bloom_filter()?;
         }
+        let discriminator = if QueueType::from(QUEUE_TYPE) == QueueType::BatchedInput {
+            BATCH_NULLIFY_EVENT_DISCRIMINATOR
+        } else {
+            BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR
+        };
 
         // 6. Return the batch nullify/address append event.
         Ok(BatchNullifyEvent {
-            discriminator: BATCH_EVENT_DISCRIMINATOR,
+            discriminator,
             tree_type: self.tree_type,
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             batch_index: pending_batch_index as u64,
@@ -975,7 +982,7 @@ pub fn assert_nullify_event(
         .unwrap();
     let ref_event = BatchNullifyEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_EVENT_DISCRIMINATOR,
+        discriminator: BATCH_NULLIFY_EVENT_DISCRIMINATOR,
         tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
@@ -1006,7 +1013,7 @@ pub fn assert_batch_append_event_event(
         .unwrap();
     let ref_event = BatchAppendEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_EVENT_DISCRIMINATOR,
+        discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
         tree_type: old_account.tree_type,
         output_queue_pubkey: Some(old_output_queue_account.pubkey().to_bytes()),
         batch_index,
@@ -1036,7 +1043,7 @@ pub fn assert_batch_adress_event(
         .unwrap();
     let ref_event = BatchAppendEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_EVENT_DISCRIMINATOR,
+        discriminator: BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR,
         tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
