@@ -58,7 +58,7 @@ We provide `index.js.map` for debugging. Exclude in production:
 Light and ZK Compression are open source protocols and very much welcome contributions. If you have a contribution, do not hesitate to send a PR to the respective repository or discuss in the linked developer Discord servers.
 
 -   🐞 For bugs or feature requests, please open an
-    [issue](https://github.com/lightprotocol/lightprotocol/issues/new).
+    [issue](https://github.com/lightprotocol/light-protocol/issues/new).
 -   🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
 ## Additional Resources
