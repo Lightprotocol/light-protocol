@@ -1,6 +1,5 @@
 pub const ANCHOR_DISCRIMINATOR_LEN: usize = 8;
 
-// pub trait AnchorDiscriminator = Discriminator<[u8; 8]>;
 
 pub trait Discriminator<const T: usize> {
     const DISCRIMINATOR: [u8; T];
