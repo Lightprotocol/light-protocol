@@ -7,6 +7,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts},
     rpc::merkle_tree::MerkleTreeExt,
 };
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
@@ -24,7 +25,6 @@ use light_sdk::{
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 use light_test_utils::{RpcConnection, RpcError};
-use light_utils::instruction::compressed_account::CompressedAccountWithMerkleContext;
 use name_service_without_macros::{CustomError, NameRecord, RData};
 use solana_sdk::{
     instruction::{Instruction, InstructionError},

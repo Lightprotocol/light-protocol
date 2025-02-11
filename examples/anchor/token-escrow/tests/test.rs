@@ -11,6 +11,7 @@
 // release compressed tokens
 
 use light_client::indexer::Indexer;
+use light_compressed_account::compressed_account::MerkleContext;
 use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -23,7 +24,6 @@ use light_test_utils::{
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_utils::instruction::compressed_account::MerkleContext;
 use light_verifier::VerifierError;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
