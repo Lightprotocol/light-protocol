@@ -47,3 +47,4 @@ light-bloom-filter = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-zero-copy = { workspace = true }
+light-account-checks = { workspace = true }

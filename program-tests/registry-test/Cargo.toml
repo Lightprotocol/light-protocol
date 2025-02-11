@@ -34,3 +34,4 @@ light-compressed-account = { workspace = true }
 solana-sdk = { workspace = true }
 serial_test = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
+light-account-checks = { workspace = true }

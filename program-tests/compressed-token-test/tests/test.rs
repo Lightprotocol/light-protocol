@@ -10,6 +10,10 @@ use anchor_spl::{
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
 use light_client::indexer::Indexer;
+use light_compressed_account::{
+    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+    instruction_data::compressed_proof::CompressedProof,
+};
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
@@ -47,10 +51,6 @@ use light_test_utils::{
         revoke_test, thaw_test, BurnInstructionMode,
     },
     RpcConnection, RpcError,
-};
-use light_utils::instruction::{
-    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-    compressed_proof::CompressedProof,
 };
 use light_verifier::VerifierError;
 use rand::{seq::SliceRandom, thread_rng, Rng};
