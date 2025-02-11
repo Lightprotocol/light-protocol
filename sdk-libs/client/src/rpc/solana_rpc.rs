@@ -11,7 +11,7 @@ use solana_client::{
     rpc_client::RpcClient,
     rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig},
 };
-use solana_program::{clock::Slot, hash::Hash, pubkey::Pubkey};
+use solana_program::{clock::Slot, hash::Hash, instruction::InstructionError, pubkey::Pubkey};
 use solana_sdk::{
     account::{Account, AccountSharedData},
     bs58,
@@ -20,7 +20,7 @@ use solana_sdk::{
     epoch_info::EpochInfo,
     instruction::Instruction,
     signature::{Keypair, Signature},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_transaction_status::{
     option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
@@ -124,6 +124,19 @@ impl SolanaRpcConnection {
         }
     }
 
+    async fn should_retry(&self, error: &RpcError) -> bool {
+        match error {
+            RpcError::TransactionError(TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(6004),
+            )) => {
+                // Don't retry ForesterNotEligible error
+                false
+            }
+            _ => true,
+        }
+    }
+
     async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
@@ -139,6 +152,10 @@ impl SolanaRpcConnection {
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
+                    if !self.should_retry(&e).await {
+                        return Err(e);
+                    }
+
                     attempts += 1;
                     if attempts >= self.retry_config.max_retries
                         || start_time.elapsed() >= self.retry_config.timeout
@@ -170,6 +187,10 @@ impl SolanaRpcConnection {
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
+                    if !self.should_retry(&e).await {
+                        return Err(e);
+                    }
+
                     attempts += 1;
                     if attempts >= self.retry_config.max_retries
                         || start_time.elapsed() >= self.retry_config.timeout
@@ -269,12 +290,12 @@ impl RpcConnection for SolanaRpcConnection {
         self.rpc_rate_limiter = Some(rate_limiter);
     }
 
-    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.rpc_rate_limiter.as_ref()
-    }
-
     fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter) {
         self.send_tx_rate_limiter = Some(rate_limiter);
+    }
+
+    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
+        self.rpc_rate_limiter.as_ref()
     }
 
     fn send_tx_rate_limiter(&self) -> Option<&RateLimiter> {
@@ -434,6 +455,157 @@ impl RpcConnection for SolanaRpcConnection {
         Ok(result)
     }
 
+    async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
+        self.retry(|| async {
+            self.client
+                .confirm_transaction(&signature)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
+        self.retry(|| async {
+            self.client
+                .get_account_with_commitment(&address, self.client.commitment())
+                .map(|response| response.value)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    fn set_account(&mut self, _address: &Pubkey, _account: &AccountSharedData) {
+        unimplemented!()
+    }
+
+    async fn get_minimum_balance_for_rent_exemption(
+        &mut self,
+        data_len: usize,
+    ) -> Result<u64, RpcError> {
+        self.retry(|| async {
+            self.client
+                .get_minimum_balance_for_rent_exemption(data_len)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn airdrop_lamports(
+        &mut self,
+        to: &Pubkey,
+        lamports: u64,
+    ) -> Result<Signature, RpcError> {
+        self.retry(|| async {
+            let signature = self
+                .client
+                .request_airdrop(to, lamports)
+                .map_err(RpcError::ClientError)?;
+            self.retry(|| async {
+                if self
+                    .client
+                    .confirm_transaction_with_commitment(&signature, self.client.commitment())?
+                    .value
+                {
+                    Ok(())
+                } else {
+                    Err(RpcError::CustomError("Airdrop not confirmed".into()))
+                }
+            })
+            .await?;
+
+            Ok(signature)
+        })
+        .await
+    }
+
+    async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_balance(pubkey).map_err(RpcError::from) })
+            .await
+    }
+
+    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+        self.retry(|| async {
+            self.client
+                // Confirmed commitments land more reliably than finalized
+                // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
+                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
+                .map(|response| response.0)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn get_slot(&mut self) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
+            .await
+    }
+
+    async fn warp_to_slot(&mut self, _slot: Slot) -> Result<(), RpcError> {
+        Err(RpcError::CustomError(
+            "Warp to slot is not supported in SolanaRpcConnection".to_string(),
+        ))
+    }
+
+    async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
+        self.retry_with_tx_rate_limit(|| async {
+            self.client
+                .send_transaction_with_config(
+                    transaction,
+                    RpcSendTransactionConfig {
+                        skip_preflight: true,
+                        max_retries: Some(self.retry_config.max_retries as usize),
+                        ..Default::default()
+                    },
+                )
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn send_transaction_with_config(
+        &self,
+        transaction: &Transaction,
+        config: RpcSendTransactionConfig,
+    ) -> Result<Signature, RpcError> {
+        self.retry_with_tx_rate_limit(|| async {
+            self.client
+                .send_transaction_with_config(transaction, config)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
+    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
+        self.retry(|| async {
+            Ok(self
+                .client
+                .get_transaction_with_config(
+                    signature,
+                    RpcTransactionConfig {
+                        encoding: Some(UiTransactionEncoding::Base64),
+                        commitment: Some(self.client.commitment()),
+                        ..Default::default()
+                    },
+                )
+                .map_err(RpcError::from)?
+                .slot)
+        })
+        .await
+    }
+    async fn get_signature_statuses(
+        &self,
+        signatures: &[Signature],
+    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
+        self.client
+            .get_signature_statuses(signatures)
+            .map(|response| response.value)
+            .map_err(RpcError::from)
+    }
+
+    async fn get_block_height(&mut self) -> Result<u64, RpcError> {
+        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
+            .await
+    }
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instructions: &[Instruction],
@@ -569,157 +741,6 @@ impl RpcConnection for SolanaRpcConnection {
         }
         let event = parsed_event.map(|e| (e, signature, slot));
         Ok(event)
-    }
-
-    async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError> {
-        self.retry(|| async {
-            self.client
-                .confirm_transaction(&signature)
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-
-    async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        self.retry(|| async {
-            self.client
-                .get_account_with_commitment(&address, self.client.commitment())
-                .map(|response| response.value)
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-
-    fn set_account(&mut self, _address: &Pubkey, _account: &AccountSharedData) {
-        unimplemented!()
-    }
-
-    async fn get_minimum_balance_for_rent_exemption(
-        &mut self,
-        data_len: usize,
-    ) -> Result<u64, RpcError> {
-        self.retry(|| async {
-            self.client
-                .get_minimum_balance_for_rent_exemption(data_len)
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-
-    async fn airdrop_lamports(
-        &mut self,
-        to: &Pubkey,
-        lamports: u64,
-    ) -> Result<Signature, RpcError> {
-        self.retry(|| async {
-            let signature = self
-                .client
-                .request_airdrop(to, lamports)
-                .map_err(RpcError::ClientError)?;
-            self.retry(|| async {
-                if self
-                    .client
-                    .confirm_transaction_with_commitment(&signature, self.client.commitment())?
-                    .value
-                {
-                    Ok(())
-                } else {
-                    Err(RpcError::CustomError("Airdrop not confirmed".into()))
-                }
-            })
-            .await?;
-
-            Ok(signature)
-        })
-        .await
-    }
-
-    async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_balance(pubkey).map_err(RpcError::from) })
-            .await
-    }
-
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.retry(|| async {
-            self.client
-                // Confirmed commitments land more reliably than finalized
-                // https://www.helius.dev/blog/how-to-deal-with-blockhash-errors-on-solana#how-to-deal-with-blockhash-errors
-                .get_latest_blockhash_with_commitment(CommitmentConfig::confirmed())
-                .map(|response| response.0)
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-
-    async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_slot().map_err(RpcError::from) })
-            .await
-    }
-
-    async fn warp_to_slot(&mut self, _slot: Slot) -> Result<(), RpcError> {
-        Err(RpcError::CustomError(
-            "Warp to slot is not supported in SolanaRpcConnection".to_string(),
-        ))
-    }
-
-    async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
-        self.retry_with_tx_rate_limit(|| async {
-            self.client
-                .send_transaction_with_config(
-                    transaction,
-                    RpcSendTransactionConfig {
-                        skip_preflight: true,
-                        max_retries: Some(self.retry_config.max_retries as usize),
-                        ..Default::default()
-                    },
-                )
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-
-    async fn send_transaction_with_config(
-        &self,
-        transaction: &Transaction,
-        config: RpcSendTransactionConfig,
-    ) -> Result<Signature, RpcError> {
-        self.retry_with_tx_rate_limit(|| async {
-            self.client
-                .send_transaction_with_config(transaction, config)
-                .map_err(RpcError::from)
-        })
-        .await
-    }
-    async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
-        self.retry(|| async {
-            Ok(self
-                .client
-                .get_transaction_with_config(
-                    signature,
-                    RpcTransactionConfig {
-                        encoding: Some(UiTransactionEncoding::Base64),
-                        commitment: Some(self.client.commitment()),
-                        ..Default::default()
-                    },
-                )
-                .map_err(RpcError::from)?
-                .slot)
-        })
-        .await
-    }
-
-    async fn get_signature_statuses(
-        &self,
-        signatures: &[Signature],
-    ) -> Result<Vec<Option<TransactionStatus>>, RpcError> {
-        self.client
-            .get_signature_statuses(signatures)
-            .map(|response| response.value)
-            .map_err(RpcError::from)
-    }
-    async fn get_block_height(&mut self) -> Result<u64, RpcError> {
-        self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
-            .await
     }
 }
 
