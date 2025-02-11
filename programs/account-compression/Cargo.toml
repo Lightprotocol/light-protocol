@@ -17,7 +17,7 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = [ "test"]
+default = ["test"]
 test-sbf = []
 bench-sbf = ["custom-heap"]
 test = []
@@ -33,13 +33,14 @@ light-hasher = { workspace = true, features = ["solana"] }
 light-heap = { workspace = true, optional = true }
 light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
-light-utils = { workspace = true, features = ["anchor"] }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+light-account-checks = { workspace = true }
 num-bigint = { workspace = true }
 solana-security-txt = { workspace = true }
-light-batched-merkle-tree = {workspace = true, features = ["solana"] }
-light-merkle-tree-metadata = {workspace = true, features = ["anchor"] }
-light-zero-copy = {workspace = true, features = ["solana"] }
-zerocopy = {workspace = true, features = ["derive"] }
+light-batched-merkle-tree = { workspace = true, features = ["solana"] }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-zero-copy = { workspace = true, features = ["solana"] }
+zerocopy = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

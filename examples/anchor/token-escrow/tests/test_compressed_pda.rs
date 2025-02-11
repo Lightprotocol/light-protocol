@@ -15,6 +15,10 @@
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::merkle_tree::MerkleTreeExt};
+use light_compressed_account::{
+    address::derive_address_legacy, compressed_account::MerkleContext,
+    instruction_data::data::NewAddressParams,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -25,10 +29,6 @@ use light_test_utils::{
     conversions::sdk_to_program_token_data,
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
-};
-use light_utils::instruction::{
-    address::derive_address_legacy, compressed_account::MerkleContext,
-    instruction_data::NewAddressParams,
 };
 use solana_sdk::{
     instruction::{Instruction, InstructionError},

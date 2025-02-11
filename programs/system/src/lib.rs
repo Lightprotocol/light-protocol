@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_hasher::Discriminator as LightDiscriminator;
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 
 mod check_accounts;
 pub mod invoke_cpi;
@@ -33,11 +33,11 @@ pub mod light_system_program {
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
     use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-    #[cfg(feature = "bench-sbf")]
-    use light_heap::{bench_sbf_end, bench_sbf_start};
-    use light_utils::instruction::instruction_data_zero_copy::{
+    use light_compressed_account::instruction_data::zero_copy::{
         ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
     };
+    #[cfg(feature = "bench-sbf")]
+    use light_heap::{bench_sbf_end, bench_sbf_start};
     use light_zero_copy::borsh::Deserialize;
 
     use self::invoke_cpi::processor::process_invoke_cpi;

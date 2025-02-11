@@ -8,14 +8,13 @@ use zerocopy::{
 
 use super::invoke_cpi::InstructionDataInvokeCpi;
 use crate::{
-    instruction::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-            PackedMerkleContext,
-        },
-        compressed_proof::CompressedProof,
-        cpi_context::CompressedCpiContext,
-        instruction_data::OutputCompressedAccountWithPackedContext,
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
     },
     pubkey::Pubkey,
 };
@@ -524,15 +523,15 @@ mod test {
 
     use super::*;
     use crate::{
-        instruction::{
-            compressed_account::{
-                CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-                PackedMerkleContext,
-            },
-            instruction_data::{InstructionDataInvoke, NewAddressParamsPacked},
+        compressed_account::{
+            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+            PackedMerkleContext,
+        },
+        instruction_data::{
+            data::{InstructionDataInvoke, NewAddressParamsPacked},
             invoke_cpi::InstructionDataInvokeCpi,
         },
-        UtilsError,
+        CompressedAccountError,
     };
 
     fn get_instruction_data_invoke_cpi() -> InstructionDataInvokeCpi {
@@ -582,14 +581,14 @@ mod test {
     fn compare_invoke_cpi_instruction_data(
         reference: &InstructionDataInvokeCpi,
         z_copy: &ZInstructionDataInvokeCpi,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         if reference.proof.is_some() && z_copy.proof.is_none() {
             println!("proof is none");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.proof.is_none() && z_copy.proof.is_some() {
             println!("proof is some");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.proof.is_some()
             && z_copy.proof.is_some()
@@ -598,7 +597,7 @@ mod test {
             || reference.proof.as_ref().unwrap().c != z_copy.proof.as_ref().unwrap().c
         {
             println!("proof is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference
             .input_compressed_accounts_with_merkle_context
@@ -606,7 +605,7 @@ mod test {
             != z_copy.input_compressed_accounts_with_merkle_context.len()
         {
             println!("input_compressed_accounts_with_merkle_context is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_input, z_input) in reference
             .input_compressed_accounts_with_merkle_context
@@ -617,7 +616,7 @@ mod test {
         }
         if reference.output_compressed_accounts.len() != z_copy.output_compressed_accounts.len() {
             println!("output_compressed_accounts is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_output, z_output) in reference
             .output_compressed_accounts
@@ -628,11 +627,11 @@ mod test {
         }
         if reference.relay_fee != z_copy.relay_fee.map(|x| (*x).into()) {
             println!("relay_fee is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.new_address_params.len() != z_copy.new_address_params.len() {
             println!("new_address_params is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_params, z_params) in reference
             .new_address_params
@@ -641,44 +640,44 @@ mod test {
         {
             if ref_params.seed != z_params.seed {
                 println!("seed is not equal");
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_queue_account_index != z_params.address_queue_account_index {
                 println!("address_queue_account_index is not equal");
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_account_index
                 != z_params.address_merkle_tree_account_index
             {
                 println!("address_merkle_tree_account_index is not equal");
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_root_index
                 != u16::from(z_params.address_merkle_tree_root_index)
             {
                 println!("address_merkle_tree_root_index is not equal");
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
         }
         if reference.compress_or_decompress_lamports
             != z_copy.compress_or_decompress_lamports.map(|x| (*x).into())
         {
             println!("compress_or_decompress_lamports is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.is_compress != z_copy.is_compress {
             println!("is_compress is not equal");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.cpi_context.is_some() && z_copy.cpi_context.is_none() {
             println!("cpi_context is none");
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.cpi_context.is_none() && z_copy.cpi_context.is_some() {
             println!("cpi_context is some");
             println!("reference: {:?}", reference.cpi_context);
             println!("z_copy: {:?}", z_copy.cpi_context);
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.cpi_context.is_some() && z_copy.cpi_context.is_some() {
             let reference = reference.cpi_context.as_ref().unwrap();
@@ -689,7 +688,7 @@ mod test {
             {
                 println!("reference: {:?}", reference);
                 println!("z_copy: {:?}", zcopy);
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
         }
         Ok(())
@@ -807,10 +806,10 @@ mod test {
     fn compare_compressed_output_account(
         reference: &OutputCompressedAccountWithPackedContext,
         z_copy: &ZOutputCompressedAccountWithPackedContext,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         compare_compressed_account(&reference.compressed_account, &z_copy.compressed_account)?;
         if reference.merkle_tree_index != z_copy.merkle_tree_index {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         Ok(())
     }
@@ -935,12 +934,12 @@ mod test {
     fn compare_instruction_data(
         reference: &InstructionDataInvoke,
         z_copy: &ZInstructionDataInvoke,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         if reference.proof.is_some() && z_copy.proof.is_none() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.proof.is_none() && z_copy.proof.is_some() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.proof.is_some()
             && z_copy.proof.is_some()
@@ -948,14 +947,14 @@ mod test {
             || reference.proof.as_ref().unwrap().b != z_copy.proof.as_ref().unwrap().b
             || reference.proof.as_ref().unwrap().c != z_copy.proof.as_ref().unwrap().c
         {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference
             .input_compressed_accounts_with_merkle_context
             .len()
             != z_copy.input_compressed_accounts_with_merkle_context.len()
         {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_input, z_input) in reference
             .input_compressed_accounts_with_merkle_context
@@ -965,7 +964,7 @@ mod test {
             compare_packed_compressed_account_with_merkle_context(ref_input, z_input)?;
         }
         if reference.output_compressed_accounts.len() != z_copy.output_compressed_accounts.len() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_output, z_output) in reference
             .output_compressed_accounts
@@ -975,10 +974,10 @@ mod test {
             compare_compressed_output_account(ref_output, z_output)?;
         }
         if reference.relay_fee != z_copy.relay_fee.map(|x| (*x).into()) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.new_address_params.len() != z_copy.new_address_params.len() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         for (ref_params, z_params) in reference
             .new_address_params
@@ -986,20 +985,20 @@ mod test {
             .zip(z_copy.new_address_params.iter())
         {
             if ref_params.seed != z_params.seed {
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_queue_account_index != z_params.address_queue_account_index {
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_account_index
                 != z_params.address_merkle_tree_account_index
             {
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
             if ref_params.address_merkle_tree_root_index
                 != u16::from(z_params.address_merkle_tree_root_index)
             {
-                return Err(UtilsError::InvalidArgument);
+                return Err(CompressedAccountError::InvalidArgument);
             }
         }
         Ok(())
@@ -1008,15 +1007,15 @@ mod test {
     fn compare_compressed_account_data(
         reference: &CompressedAccountData,
         z_copy: &ZCompressedAccountData,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         if reference.discriminator.as_slice() != z_copy.discriminator.as_slice() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.data != z_copy.data {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.data_hash.as_slice() != z_copy.data_hash.as_slice() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         Ok(())
     }
@@ -1024,21 +1023,21 @@ mod test {
     fn compare_compressed_account(
         reference: &CompressedAccount,
         z_copy: &ZCompressedAccount,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         if reference.owner != z_copy.owner.into() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.lamports != u64::from(z_copy.lamports) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.address != z_copy.address.map(|x| *x) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.data.is_some() && z_copy.data.is_none() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.data.is_none() && z_copy.data.is_some() {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.data.is_some() && z_copy.data.is_some() {
             compare_compressed_account_data(
@@ -1052,18 +1051,18 @@ mod test {
     fn compare_merkle_context(
         reference: PackedMerkleContext,
         z_copy: ZPackedMerkleContext,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         if reference.merkle_tree_pubkey_index != z_copy.merkle_tree_pubkey_index {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.nullifier_queue_pubkey_index != z_copy.nullifier_queue_pubkey_index {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.leaf_index != u32::from(z_copy.leaf_index) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.prove_by_index != (z_copy.prove_by_index == 1) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
         Ok(())
     }
@@ -1071,11 +1070,11 @@ mod test {
     fn compare_packed_compressed_account_with_merkle_context(
         reference: &PackedCompressedAccountWithMerkleContext,
         z_copy: &ZPackedCompressedAccountWithMerkleContext,
-    ) -> Result<(), UtilsError> {
+    ) -> Result<(), CompressedAccountError> {
         compare_compressed_account(&reference.compressed_account, &z_copy.compressed_account)?;
         compare_merkle_context(reference.merkle_context, z_copy.merkle_context)?;
         if reference.root_index != u16::from(z_copy.root_index) {
-            return Err(UtilsError::InvalidArgument);
+            return Err(CompressedAccountError::InvalidArgument);
         }
 
         Ok(())

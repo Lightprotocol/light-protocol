@@ -2,8 +2,21 @@
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
+use light_compressed_account::{
+    address::{derive_address, derive_address_legacy},
+    compressed_account::{
+        CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParams, ReadOnlyAddress},
+    },
+};
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
@@ -24,19 +37,6 @@ use light_test_utils::{
     spl::{create_mint_helper, mint_tokens_helper},
     system_program::transfer_compressed_sol_test,
     RpcConnection, RpcError,
-};
-use light_utils::{
-    hash_to_bn254_field_size_be,
-    instruction::{
-        address::{derive_address, derive_address_legacy},
-        compressed_account::{
-            CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
-            PackedMerkleContext,
-        },
-        cpi_context::CompressedCpiContext,
-        instruction_data::{NewAddressParams, ReadOnlyAddress},
-    },
-    UtilsError,
 };
 use light_verifier::VerifierError;
 use serial_test::serial;
@@ -383,7 +383,7 @@ async fn test_read_only_accounts() {
         )
         .await;
 
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     println!("post 6");
 

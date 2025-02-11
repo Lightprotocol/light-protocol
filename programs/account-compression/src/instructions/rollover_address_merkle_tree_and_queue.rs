@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_utils::account::check_account_balance_is_rent_exempt;
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,

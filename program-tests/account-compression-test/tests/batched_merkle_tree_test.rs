@@ -5,6 +5,7 @@ use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
 };
 use anchor_spl::token::Mint;
+use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -22,6 +23,11 @@ use light_batched_merkle_tree::{
         BatchedQueueMetadata,
     },
 };
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array, hash_chain::create_tx_hash,
+    insert_into_queues::AppendNullifyCreateAddressInputs,
+    instruction_data::compressed_proof::CompressedProof,
+};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},
@@ -35,14 +41,6 @@ use light_prover_client::{
 use light_test_utils::{
     address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
     spl::create_initialize_mint_instructions, AccountZeroCopy, RpcConnection, RpcError,
-};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array,
-    hash_chain::create_tx_hash,
-    instruction::{
-        compressed_proof::CompressedProof, insert_into_queues::AppendNullifyCreateAddressInputs,
-    },
-    UtilsError,
 };
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
@@ -313,7 +311,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     // 7. Failing Invalid Registered Program (batch append)
     {
@@ -503,7 +501,7 @@ async fn test_batch_state_merkle_tree() {
             TestMode::InvalidMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     // 14. Failing Invalid registered program (batch nullify)
     {
@@ -831,7 +829,7 @@ pub async fn create_nullify_batch_ix_data(
 ) -> InstructionDataBatchNullifyInputs {
     let zero_copy_account: BatchedMerkleTreeAccount = BatchedMerkleTreeAccount::state_from_bytes(
         account_data,
-        &light_utils::pubkey::Pubkey::default(),
+        &light_compressed_account::pubkey::Pubkey::default(),
     )
     .unwrap();
 
@@ -1118,7 +1116,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(result, 2, AccountError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 3. failing - queue invalid program owner
     {
@@ -1134,7 +1132,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidProgramOwnerQueue,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(result, 2, AccountError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 4. failing - state tree invalid discriminator
     {
@@ -1150,7 +1148,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorMerkleTree,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 2, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     // 5. failing - queue invalid discriminator
     {
@@ -1166,7 +1164,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             BatchStateMerkleTreeRollOverTestMode::InvalidDiscriminatorQueue,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 2, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     // 6. failing -  merkle tree and queue not associated
     {
@@ -1738,7 +1736,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     let mint = Keypair::new();
     // 11. Failing: invalid tree account (invalid program owner)
@@ -1767,7 +1765,7 @@ async fn test_batch_address_merkle_trees() {
             UpdateBatchAddressTreeTestMode::Functional,
         )
         .await;
-        assert_rpc_error(result, 0, UtilsError::AccountOwnedByWrongProgram.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::AccountOwnedByWrongProgram.into()).unwrap();
     }
     // 12. functional: rollover
     {
@@ -1851,7 +1849,7 @@ async fn test_batch_address_merkle_trees() {
             RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeSmall,
         )
         .await;
-        assert_rpc_error(result, 1, UtilsError::InvalidAccountSize.into()).unwrap();
+        assert_rpc_error(result, 1, AccountError::InvalidAccountSize.into()).unwrap();
     }
     // 15. Failing: Account too large
     {
@@ -1862,7 +1860,7 @@ async fn test_batch_address_merkle_trees() {
             RolloverBatchAddressTreeTestMode::InvalidNewAccountSizeLarge,
         )
         .await;
-        assert_rpc_error(result, 1, UtilsError::InvalidAccountSize.into()).unwrap();
+        assert_rpc_error(result, 1, AccountError::InvalidAccountSize.into()).unwrap();
     }
     // 16. invalid network fee
     {

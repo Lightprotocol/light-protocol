@@ -1,12 +1,15 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::PackedCompressedAccountWithMerkleContext,
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
     instruction_data::{
-        NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{
+            NewAddressParamsPacked as PackedNewAddressParams,
+            OutputCompressedAccountWithPackedContext,
+        },
+        invoke_cpi::InstructionDataInvokeCpi,
     },
-    invoke_cpi::InstructionDataInvokeCpi,
 };
 
 use crate::PROGRAM_ID_ACCOUNT_COMPRESSION;

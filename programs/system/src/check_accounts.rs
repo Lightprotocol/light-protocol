@@ -8,12 +8,12 @@ use anchor_lang::{
     solana_program::msg,
     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
+use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_hasher::Discriminator;
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
 use light_merkle_tree_metadata::{merkle_tree::TreeType, queue::QueueType};
-use light_utils::{hash_to_bn254_field_size_be, pubkey::Pubkey};
 
 use crate::{
     context::{MerkleTreeContext, SystemContext},

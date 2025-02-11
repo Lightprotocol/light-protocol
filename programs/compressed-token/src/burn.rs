@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
-use light_utils::{
+use light_compressed_account::{
+    compressed_account::PackedCompressedAccountWithMerkleContext,
     hash_to_bn254_field_size_be,
-    instruction::{
-        compressed_account::PackedCompressedAccountWithMerkleContext,
+    instruction_data::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        instruction_data::OutputCompressedAccountWithPackedContext,
+        data::OutputCompressedAccountWithPackedContext,
     },
 };
 
@@ -190,9 +190,9 @@ pub fn create_input_and_output_accounts_burn(
 pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_utils::instruction::{
+    use light_compressed_account::{
         compressed_account::{CompressedAccount, MerkleContext},
-        compressed_proof::CompressedProof,
+        instruction_data::compressed_proof::CompressedProof,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -316,7 +316,7 @@ pub mod sdk {
 mod test {
 
     use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_utils::instruction::compressed_account::PackedMerkleContext;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
     use rand::Rng;
 
     use super::*;

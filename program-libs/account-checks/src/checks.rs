@@ -1,19 +1,17 @@
-use light_hasher::Discriminator;
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 #[cfg(target_os = "solana")]
 use solana_program::{rent::Rent, sysvar::Sysvar};
 
-use crate::UtilsError;
-
-// TODO: move discriminator trait to light-utils
-pub const DISCRIMINATOR_LEN: usize = 8;
+use crate::{discriminator::Discriminator, error::AccountError};
 
 /// Sets discriminator in account data.
-pub fn account_info_init<T: Discriminator>(account_info: &AccountInfo) -> Result<(), UtilsError> {
-    set_discriminator::<T>(
+pub fn account_info_init<T: Discriminator<U>, const U: usize>(
+    account_info: &AccountInfo,
+) -> Result<(), AccountError> {
+    set_discriminator::<T, U>(
         &mut account_info
             .try_borrow_mut_data()
-            .map_err(|_| UtilsError::BorrowAccountDataFailed)?,
+            .map_err(|_| AccountError::BorrowAccountDataFailed)?,
     )?;
     Ok(())
 }
@@ -22,76 +20,80 @@ pub fn account_info_init<T: Discriminator>(account_info: &AccountInfo) -> Result
 /// 1. account is mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_mut<T: Discriminator>(
+pub fn check_account_info_mut<T: Discriminator<U>, const U: usize>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
-) -> Result<(), UtilsError> {
+) -> Result<(), AccountError> {
     if !account_info.is_writable {
-        return Err(UtilsError::AccountNotMutable);
+        return Err(AccountError::AccountNotMutable);
     }
-    check_account_info::<T>(program_id, account_info)
+    check_account_info::<T, U>(program_id, account_info)
 }
 
 /// Checks:
 /// 1. account is not mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_non_mut<T: Discriminator>(
+pub fn check_account_info_non_mut<T: Discriminator<U>, const U: usize>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
-) -> Result<(), UtilsError> {
+) -> Result<(), AccountError> {
     if account_info.is_writable {
-        return Err(UtilsError::AccountMutable);
+        return Err(AccountError::AccountMutable);
     }
-    check_account_info::<T>(program_id, account_info)
+    check_account_info::<T, U>(program_id, account_info)
 }
 
 /// Checks:
 /// 1. account owned by program_id
 /// 2. account discriminator
-pub fn check_account_info<T: Discriminator>(
+pub fn check_account_info<T: Discriminator<U>, const U: usize>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
-) -> Result<(), UtilsError> {
+) -> Result<(), AccountError> {
     if *program_id != *account_info.owner {
-        return Err(UtilsError::AccountOwnedByWrongProgram);
+        return Err(AccountError::AccountOwnedByWrongProgram);
     }
 
     let account_data = &account_info
         .try_borrow_data()
-        .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
-    check_discriminator::<T>(account_data)
+        .map_err(|_| AccountError::BorrowAccountDataFailed)?;
+    check_discriminator::<T, U>(account_data)
 }
 
 /// Checks:
 /// 1. discriminator is uninitialized
 /// 2. sets discriminator
-pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), UtilsError> {
-    if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
+pub fn set_discriminator<T: Discriminator<U>, const U: usize>(
+    bytes: &mut [u8],
+) -> Result<(), AccountError> {
+    if bytes[0..U] != [0; U] {
         #[cfg(target_os = "solana")]
         solana_program::msg!("Discriminator bytes must be zero for initialization.");
-        return Err(UtilsError::AlreadyInitialized);
+        return Err(AccountError::AlreadyInitialized);
     }
-    bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
+    bytes[0..U].copy_from_slice(&T::DISCRIMINATOR);
     Ok(())
 }
 
 /// Checks:
-/// 1. account size is at least DISCRIMINATOR_LEN
+/// 1. account size is at least U
 /// 2. account discriminator
-pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), UtilsError> {
-    if bytes.len() < DISCRIMINATOR_LEN {
-        return Err(UtilsError::InvalidAccountSize);
+pub fn check_discriminator<T: Discriminator<U>, const U: usize>(
+    bytes: &[u8],
+) -> Result<(), AccountError> {
+    if bytes.len() < U {
+        return Err(AccountError::InvalidAccountSize);
     }
 
-    if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
+    if T::DISCRIMINATOR != bytes[0..U] {
         #[cfg(target_os = "solana")]
         solana_program::msg!(
             "Expected discriminator: {:?}, actual {:?} ",
             T::DISCRIMINATOR,
-            bytes[0..DISCRIMINATOR_LEN].to_vec()
+            bytes[0..U].to_vec()
         );
-        return Err(UtilsError::InvalidDiscriminator);
+        return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
 }
@@ -100,7 +102,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), UtilsEr
 pub fn check_account_balance_is_rent_exempt(
     account_info: &AccountInfo,
     expected_size: usize,
-) -> Result<u64, UtilsError> {
+) -> Result<u64, AccountError> {
     let account_size = account_info.data_len();
     if account_size != expected_size {
         #[cfg(target_os = "solana")]
@@ -110,12 +112,12 @@ pub fn check_account_balance_is_rent_exempt(
             account_size,
             expected_size
         );
-        return Err(UtilsError::InvalidAccountSize);
+        return Err(AccountError::InvalidAccountSize);
     }
     let lamports = account_info.lamports();
     #[cfg(target_os = "solana")]
     {
-        let rent_exemption = (Rent::get().map_err(|_| UtilsError::FailedBorrowRentSysvar))?
+        let rent_exemption = (Rent::get().map_err(|_| AccountError::FailedBorrowRentSysvar))?
             .minimum_balance(expected_size);
         if lamports != rent_exemption {
             solana_program::msg!(
@@ -124,7 +126,7 @@ pub fn check_account_balance_is_rent_exempt(
             lamports,
             rent_exemption
         );
-            return Err(UtilsError::InvalidAccountBalance);
+            return Err(AccountError::InvalidAccountBalance);
         }
     }
     #[cfg(not(target_os = "solana"))]
@@ -145,7 +147,7 @@ mod check_account_tests {
     pub struct MyStruct {
         pub data: u64,
     }
-    impl Discriminator for MyStruct {
+    impl Discriminator<8> for MyStruct {
         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
     }
 
@@ -160,20 +162,20 @@ mod check_account_tests {
 
         // Test 1 functional set discriminator.
         assert_eq!(bytes[0..8], [0; 8]);
-        set_discriminator::<MyStruct>(&mut bytes).unwrap();
+        set_discriminator::<MyStruct, 8>(&mut bytes).unwrap();
         assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
         // Test 2 failing set discriminator.
         assert_eq!(
-            set_discriminator::<MyStruct>(&mut bytes),
-            Err(UtilsError::AlreadyInitialized)
+            set_discriminator::<MyStruct, 8>(&mut bytes),
+            Err(AccountError::AlreadyInitialized)
         );
         // Test 3 functional check discriminator.
-        assert!(check_discriminator::<MyStruct>(&bytes).is_ok());
+        assert!(check_discriminator::<MyStruct, 8>(&bytes).is_ok());
         // Test 4 failing check discriminator.
         bytes[0] = 0;
         assert_eq!(
-            check_discriminator::<MyStruct>(&bytes),
-            Err(UtilsError::InvalidDiscriminator)
+            check_discriminator::<MyStruct, 8>(&bytes),
+            Err(AccountError::InvalidDiscriminator)
         );
     }
 
@@ -227,63 +229,64 @@ mod check_account_tests {
         // Test 1 functional check_account_info.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             assert!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()).is_ok()
+                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()).is_ok()
             );
         }
         // Test 2 failing AccountOwnedByWrongProgram.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             account.owner = Pubkey::new_unique();
             assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(UtilsError::AccountOwnedByWrongProgram)
+                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                Err(AccountError::AccountOwnedByWrongProgram)
             );
         }
         // Test 3 failing empty discriminator (InvalidDiscriminator).
         {
             let mut account = TestAccount::new(key, program_id, size);
             assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(UtilsError::InvalidDiscriminator)
+                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                Err(AccountError::InvalidDiscriminator)
             );
         }
         // Test 4 failing InvalidDiscriminator.
         {
             let mut account = TestAccount::new(key, program_id, size - 1);
-            account.data[0..DISCRIMINATOR_LEN].copy_from_slice(&[1; 8]);
+            account.data[0..8].copy_from_slice(&[1; 8]);
             assert_eq!(
-                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(UtilsError::InvalidDiscriminator)
+                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                Err(AccountError::InvalidDiscriminator)
             );
         }
         // Test 5 functional check_account_info_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
-            assert!(
-                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info())
-                    .is_ok()
-            );
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            assert!(check_account_info_mut::<MyStruct, 8>(
+                &program_id,
+                &account.get_account_info()
+            )
+            .is_ok());
         }
         // Test 6 failing AccountNotMutable with check_account_info_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             account.writable = false;
             assert_eq!(
-                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(UtilsError::AccountNotMutable)
+                check_account_info_mut::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                Err(AccountError::AccountNotMutable)
             );
         }
         // Test 7 functional check_account_info_non_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             account.writable = false;
-            assert!(check_account_info_non_mut::<MyStruct>(
+            assert!(check_account_info_non_mut::<MyStruct, 8>(
                 &program_id,
                 &account.get_account_info()
             )
@@ -292,24 +295,24 @@ mod check_account_tests {
         // Test 8 failing AccountMutable with check_account_info_non_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             assert_eq!(
-                check_account_info_non_mut::<MyStruct>(&program_id, &account.get_account_info()),
-                Err(UtilsError::AccountMutable)
+                check_account_info_non_mut::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                Err(AccountError::AccountMutable)
             );
         }
         // Test 9 functional account_info_init
         {
             let mut account = TestAccount::new(key, program_id, size);
-            assert!(account_info_init::<MyStruct>(&account.get_account_info()).is_ok());
+            assert!(account_info_init::<MyStruct, 8>(&account.get_account_info()).is_ok());
         }
         // Test 10 failing account_info_init
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
             assert_eq!(
-                account_info_init::<MyStruct>(&account.get_account_info()),
-                Err(UtilsError::AlreadyInitialized)
+                account_info_init::<MyStruct, 8>(&account.get_account_info()),
+                Err(AccountError::AlreadyInitialized)
             );
         }
     }

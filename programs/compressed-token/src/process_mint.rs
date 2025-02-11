@@ -1,15 +1,15 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
 use light_system_program::program::LightSystemProgram;
-use light_utils::instruction::instruction_data::OutputCompressedAccountWithPackedContext;
 #[cfg(target_os = "solana")]
 use {
     crate::process_transfer::create_output_compressed_accounts,
     crate::process_transfer::get_cpi_signer_seeds,
     crate::spl_compression::spl_token_transfer,
+    light_compressed_account::hash_to_bn254_field_size_be,
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
-    light_utils::hash_to_bn254_field_size_be,
 };
 
 use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
@@ -501,12 +501,13 @@ pub mod mint_sdk {
 
 #[cfg(test)]
 mod test {
-    use light_hasher::Poseidon;
-    use light_utils::instruction::{
+    use light_compressed_account::{
         compressed_account::{CompressedAccount, CompressedAccountData},
-        instruction_data::OutputCompressedAccountWithPackedContext,
-        invoke_cpi::InstructionDataInvokeCpi,
+        instruction_data::{
+            data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
+        },
     };
+    use light_hasher::Poseidon;
 
     use super::*;
     use crate::{

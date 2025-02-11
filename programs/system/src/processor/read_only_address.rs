@@ -1,6 +1,6 @@
 use account_compression::context::AcpAccount;
 use anchor_lang::prelude::*;
-use light_utils::instruction::instruction_data_zero_copy::ZPackedReadOnlyAddress;
+use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
 
 use crate::errors::SystemProgramError;
 

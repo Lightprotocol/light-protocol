@@ -3,12 +3,13 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::RpcConnection,
 };
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
+use light_hasher::Poseidon;
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 

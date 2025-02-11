@@ -1,7 +1,8 @@
+use light_account_checks::error::AccountError;
 use light_bloom_filter::BloomFilterError;
+use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_utils::UtilsError;
 use light_verifier::VerifierError;
 use light_zero_copy::errors::ZeroCopyError;
 use solana_program::program_error::ProgramError;
@@ -25,8 +26,8 @@ pub enum BatchedMerkleTreeError {
     InclusionProofByIndexFailed,
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
-    #[error("Utils error {0}")]
-    Utils(#[from] UtilsError),
+    #[error("Compressed Account error {0}")]
+    CompressedAccountError(#[from] CompressedAccountError),
     #[error("Zero copy error {0}")]
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Merkle tree metadata error {0}")]
@@ -47,6 +48,8 @@ pub enum BatchedMerkleTreeError {
     NonInclusionCheckFailed,
     #[error("Bloom filter must be zeroed prior to reusing a batch.")]
     BloomFilterNotZeroed,
+    #[error("Account error {0}")]
+    AccountError(#[from] AccountError),
 }
 
 #[cfg(feature = "solana")]
@@ -70,8 +73,9 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),
             BatchedMerkleTreeError::BloomFilter(e) => e.into(),
             BatchedMerkleTreeError::VerifierErrorError(e) => e.into(),
-            BatchedMerkleTreeError::Utils(e) => e.into(),
+            BatchedMerkleTreeError::CompressedAccountError(e) => e.into(),
             BatchedMerkleTreeError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
+            BatchedMerkleTreeError::AccountError(e) => e.into(),
         }
     }
 }

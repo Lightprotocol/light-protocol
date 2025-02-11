@@ -1,11 +1,11 @@
 [workspace]
-resolver = "2"
 members = [
+    "program-libs/account-checks",
+    "program-libs/compressed-account",
     "program-libs/aligned-sized",
     "program-libs/batched-merkle-tree",
     "program-libs/bloom-filter",
     "program-libs/hasher",
-    "program-libs/utils",
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
     "program-libs/zero-copy",
@@ -40,6 +40,8 @@ members = [
     "forester",
 ]
 
+resolver = "2"
+
 [profile.release]
 overflow-checks = true
 
@@ -61,7 +63,9 @@ solana-rpc = "=1.18.22"
 solana-rpc-client-api = "=1.18.22"
 solana-security-txt = "1.1.1"
 spl-token = "=4.0.0"
-spl-token-2022 = {version="3.0.5", no-default-features = true, features = ["no-entrypoint"]}
+spl-token-2022 = { version = "3.0.5", no-default-features = true, features = [
+    "no-entrypoint",
+] }
 
 # Anchor
 anchor-lang = "=0.29.0"
@@ -98,7 +102,7 @@ ark-std = "0.5"
 # Light Protocol
 light-hash-set = { version = "1.2.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "1.1.0", path = "program-libs/indexed-merkle-tree" }
-light-concurrent-merkle-tree = { version = "1.1.0" , path= "program-libs/concurrent-merkle-tree"}
+light-concurrent-merkle-tree = { version = "1.1.0", path = "program-libs/concurrent-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.9.1" }
 light-hasher = { path = "program-libs/hasher", version = "1.1.0" }
 light-macros = { path = "program-libs/macros", version = "1.1.0" }
@@ -107,16 +111,28 @@ light-heap = { path = "program-libs/heap", version = "1.1.0" }
 light-prover-client = { path = "prover/client", version = "1.2.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.11.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
-light-utils = { path = "program-libs/utils", version = "1.1.0" }
+light-utils = { version = "1.1.0" }
+light-compressed-account = { path = "program-libs/compressed-account", version = "0.1.0" }
+light-account-checks = { path = "program-libs/account-checks", version = "0.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.1.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.45.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
-account-compression = { path = "programs/account-compression", version = "1.2.0", features = ["cpi"] }
-light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = ["cpi"] }
-light-system-program = { path = "programs/system", version = "1.2.0", features = ["cpi"] }
-light-registry = { path = "programs/registry", version = "1.2.0",  features = ["cpi"]}
-create-address-test-program = { path = "program-tests/create-address-test-program", version = "1.0.0", features = ["cpi"] }
+account-compression = { path = "programs/account-compression", version = "1.2.0", features = [
+    "cpi",
+] }
+light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = [
+    "cpi",
+] }
+light-system-program = { path = "programs/system", version = "1.2.0", features = [
+    "cpi",
+] }
+light-registry = { path = "programs/registry", version = "1.2.0", features = [
+    "cpi",
+] }
+create-address-test-program = { path = "program-tests/create-address-test-program", version = "1.0.0", features = [
+    "cpi",
+] }
 light-program-test = { path = "sdk-libs/program-test", version = "0.1.0" }
 light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.1.0" }
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.1.0" }
@@ -133,7 +149,7 @@ bytemuck = { version = "1.19.0" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
-zerocopy = { version = "0.8.14"}
+zerocopy = { version = "0.8.14" }
 base64 = "0.13"
 
 # HTTP client

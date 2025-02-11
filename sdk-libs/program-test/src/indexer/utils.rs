@@ -6,11 +6,11 @@ use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
+    fee::compute_rollover_fee,
     queue::{QueueMetadata, QueueType},
     rollover::RolloverMetadata,
 };
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
-use light_utils::fee::compute_rollover_fee;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},

@@ -1,21 +1,19 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
+    },
+};
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
-use light_utils::{
-    hash_to_bn254_field_size_be,
-    instruction::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-            PackedMerkleContext,
-        },
-        compressed_proof::CompressedProof,
-        cpi_context::CompressedCpiContext,
-        instruction_data::OutputCompressedAccountWithPackedContext,
-        invoke_cpi::InstructionDataInvokeCpi,
-    },
-};
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -595,9 +593,9 @@ pub mod transfer_sdk {
 
     use anchor_lang::{error_code, AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::{token::Token, token_2022::Token2022};
-    use light_utils::instruction::{
+    use light_compressed_account::{
         compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
-        compressed_proof::CompressedProof,
+        instruction_data::compressed_proof::CompressedProof,
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},

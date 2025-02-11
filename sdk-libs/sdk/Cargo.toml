@@ -32,12 +32,12 @@ borsh = { workspace = true }
 
 light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
-light-hasher = { workspace = true, features=["solana"] }
+light-hasher = { workspace = true, features = ["solana"] }
 light-heap = { workspace = true, optional = true }
 light-indexed-merkle-tree = { workspace = true }
-account-compression = { workspace = true , optional = true }
-light-system-program = { workspace = true , optional = true }
-light-utils = { workspace = true , features = ["anchor"] }
+account-compression = { workspace = true, optional = true }
+light-system-program = { workspace = true, optional = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

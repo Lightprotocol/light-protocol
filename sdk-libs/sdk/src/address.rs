@@ -1,9 +1,7 @@
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_utils::{
+use light_compressed_account::{
     hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
-    instruction::instruction_data::{
-        NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams,
-    },
+    instruction_data::data::{NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams},
 };
 use solana_program::account_info::AccountInfo;
 

@@ -5,6 +5,9 @@ use light_client::{
     rpc::{errors::RpcError, RpcConnection},
     transaction_params::TransactionParams,
 };
+use light_compressed_account::{
+    compressed_account::MerkleContext, instruction_data::compressed_proof::CompressedProof,
+};
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     constants::NUM_MAX_POOL_ACCOUNTS,
@@ -26,9 +29,6 @@ use light_compressed_token::{
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_sdk::token::TokenDataWithMerkleContext;
-use light_utils::instruction::{
-    compressed_account::MerkleContext, compressed_proof::CompressedProof,
-};
 use solana_program_test::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,

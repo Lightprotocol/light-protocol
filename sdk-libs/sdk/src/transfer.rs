@@ -36,7 +36,7 @@ pub fn transfer_compressed_sol(
 
 #[cfg(test)]
 mod tests {
-    use light_utils::instruction::compressed_account::PackedMerkleContext;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
     use solana_program::pubkey::Pubkey;
 
     use super::*;

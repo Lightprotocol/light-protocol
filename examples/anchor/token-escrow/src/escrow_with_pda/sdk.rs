@@ -1,6 +1,11 @@
 #![cfg(not(target_os = "solana"))]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_compressed_account::{
+    address::add_and_get_remaining_account_indices,
+    compressed_account::{CompressedAccount, MerkleContext},
+    instruction_data::compressed_proof::CompressedProof,
+};
 use light_compressed_token::process_transfer::{
     get_cpi_authority_pda,
     transfer_sdk::{
@@ -8,11 +13,6 @@ use light_compressed_token::process_transfer::{
         to_account_metas,
     },
     TokenTransferOutputData,
-};
-use light_utils::instruction::{
-    address::add_and_get_remaining_account_indices,
-    compressed_account::{CompressedAccount, MerkleContext},
-    compressed_proof::CompressedProof,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 

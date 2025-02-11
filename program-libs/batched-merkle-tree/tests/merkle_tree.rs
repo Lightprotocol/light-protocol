@@ -28,16 +28,16 @@ use light_batched_merkle_tree::{
     },
 };
 use light_bloom_filter::{BloomFilter, BloomFilterError};
+use light_compressed_account::{
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
+    pubkey::Pubkey,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
-};
-use light_utils::{
-    hash_chain::create_hash_chain_from_slice, instruction::compressed_proof::CompressedProof,
-    pubkey::Pubkey,
 };
 use light_zero_copy::vec::ZeroCopyVecU64;
 use rand::{rngs::StdRng, Rng};

@@ -96,6 +96,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 #[cfg(test)]
 mod tests {
     use light_bounded_vec::BoundedVec;
+    use light_compressed_account::bigint::bigint_to_be_bytes_array;
     use light_concurrent_merkle_tree::event::RawIndexedElement;
     use light_hasher::Poseidon;
     use light_indexed_merkle_tree::{
@@ -103,7 +104,6 @@ mod tests {
         changelog::IndexedChangelogEntry,
         reference::IndexedMerkleTree,
     };
-    use light_utils::bigint::bigint_to_be_bytes_array;
     use num_bigint::BigUint;
 
     use super::*;

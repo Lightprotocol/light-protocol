@@ -3,9 +3,9 @@ use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
 
 use super::{discriminators::*, insert_into_queues::AppendNullifyCreateAddressInputsIndexer};
-use crate::instruction::{
-    instruction_data::OutputCompressedAccountWithPackedContext,
-    instruction_data_zero_copy::{
+use crate::instruction_data::{
+    data::OutputCompressedAccountWithPackedContext,
+    zero_copy::{
         ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
     },
 };

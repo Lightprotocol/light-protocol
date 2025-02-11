@@ -16,7 +16,7 @@ pub use instructions::*;
 pub mod burn;
 pub use burn::*;
 pub mod batch_compress;
-use light_utils::instruction::cpi_context::CompressedCpiContext;
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");

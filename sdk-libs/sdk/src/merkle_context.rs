@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
-use light_utils::instruction::compressed_account::{MerkleContext, PackedMerkleContext};
+use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
 
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]

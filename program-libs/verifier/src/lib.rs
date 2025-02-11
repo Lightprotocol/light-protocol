@@ -47,7 +47,7 @@ impl From<VerifierError> for solana_program::program_error::ProgramError {
     }
 }
 
-use light_utils::instruction::compressed_proof::CompressedProof;
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use VerifierError::*;
 
 pub fn verify_create_addresses_proof(

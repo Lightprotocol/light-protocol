@@ -1,6 +1,6 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_indexed_merkle_tree::array::IndexedElement;
-use light_utils::instruction::compressed_proof::CompressedProof;
 use num_bigint::BigUint;
 use solana_program::pubkey::Pubkey;
 

@@ -1,13 +1,11 @@
 use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
 use anchor_lang::prelude::*;
-use light_hasher::{Hasher, Poseidon};
-use light_utils::{
+use light_compressed_account::{
     hash_to_bn254_field_size_be,
-    instruction::{
-        insert_into_queues::{AppendNullifyCreateAddressInputs, MerkleTreeSequenceNumber},
-        instruction_data_zero_copy::ZOutputCompressedAccountWithPackedContext,
-    },
+    insert_into_queues::{AppendNullifyCreateAddressInputs, MerkleTreeSequenceNumber},
+    instruction_data::zero_copy::ZOutputCompressedAccountWithPackedContext,
 };
+use light_hasher::{Hasher, Poseidon};
 
 use crate::{context::SystemContext, errors::SystemProgramError};
 
@@ -45,7 +43,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
     let number_of_merkle_trees =
         output_compressed_accounts.last().unwrap().merkle_tree_index as usize + 1;
     let mut merkle_tree_pubkeys =
-        Vec::<light_utils::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
+        Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
     let mut rollover_fee = 0;
 

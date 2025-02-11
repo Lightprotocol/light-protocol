@@ -44,7 +44,7 @@ mod tests {
     ///   - test_truncation_longer_array: assert_ne! between different long string hashes
     ///   - test_multiple_truncates: assert_ne! between multiple truncated field hashes
     ///   - test_nested_with_truncate: assert_eq! nested + truncated field hash matches manual hash
-    ///   
+    ///
     ///   b. Nested (Success):
     ///   - test_recursive_nesting: assert_eq! recursive nested struct hash matches manual hash
     ///   - test_nested_option: assert_eq! Option<NestedStruct> hash matches manual hash
@@ -114,7 +114,7 @@ mod tests {
             let manual_nested_bytes: Vec<Vec<u8>> = vec![
                 nested_struct.a.to_le_bytes().to_vec(),
                 nested_struct.b.to_le_bytes().to_vec(),
-                light_utils::hash_to_bn254_field_size_be(nested_struct.c.as_bytes())
+                light_compressed_account::hash_to_bn254_field_size_be(nested_struct.c.as_bytes())
                     .unwrap()
                     .0
                     .to_vec(),
@@ -139,7 +139,7 @@ mod tests {
                 vec![u8::from(account.a)],
                 account.b.to_le_bytes().to_vec(),
                 account.c.hash::<Poseidon>().unwrap().to_vec(),
-                light_utils::hash_to_bn254_field_size_be(&account.d)
+                light_compressed_account::hash_to_bn254_field_size_be(&account.d)
                     .unwrap()
                     .0
                     .to_vec(),
@@ -176,7 +176,7 @@ mod tests {
                 vec![u8::from(zero_account.a)],
                 zero_account.b.to_le_bytes().to_vec(),
                 zero_account.c.hash::<Poseidon>().unwrap().to_vec(),
-                light_utils::hash_to_bn254_field_size_be(&zero_account.d)
+                light_compressed_account::hash_to_bn254_field_size_be(&zero_account.d)
                     .unwrap()
                     .0
                     .to_vec(),
@@ -299,9 +299,11 @@ mod tests {
 
                 let manual_hash = Poseidon::hashv(&[
                     &test_struct.inner.hash::<Poseidon>().unwrap(),
-                    &light_utils::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
-                        .unwrap()
-                        .0,
+                    &light_compressed_account::hash_to_bn254_field_size_be(
+                        test_struct.data.as_bytes(),
+                    )
+                    .unwrap()
+                    .0,
                 ])
                 .unwrap();
 
@@ -655,22 +657,24 @@ mod tests {
             };
 
             let manual_some_bytes = vec![
-                light_utils::hash_to_bn254_field_size_be("".as_bytes())
+                light_compressed_account::hash_to_bn254_field_size_be("".as_bytes())
                     .unwrap()
                     .0
                     .to_vec(),
-                light_utils::hash_to_bn254_field_size_be("test".as_bytes())
+                light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes())
                     .unwrap()
                     .0
                     .to_vec(),
-                light_utils::hash_to_bn254_field_size_be("a".repeat(100).as_bytes())
+                light_compressed_account::hash_to_bn254_field_size_be("a".repeat(100).as_bytes())
                     .unwrap()
                     .0
                     .to_vec(),
-                light_utils::hash_to_bn254_field_size_be(&test_struct.large_array.unwrap())
-                    .unwrap()
-                    .0
-                    .to_vec(),
+                light_compressed_account::hash_to_bn254_field_size_be(
+                    &test_struct.large_array.unwrap(),
+                )
+                .unwrap()
+                .0
+                .to_vec(),
             ];
 
             assert_eq!(test_struct.as_byte_vec(), manual_some_bytes);
@@ -804,11 +808,11 @@ mod tests {
                     bytes.extend_from_slice(&42u32.to_le_bytes());
                     bytes
                 },
-                light_utils::hash_to_bn254_field_size_be("test".as_bytes())
+                light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes())
                     .unwrap()
                     .0
                     .to_vec(),
-                light_utils::hash_to_bn254_field_size_be(&[42u8; 64])
+                light_compressed_account::hash_to_bn254_field_size_be(&[42u8; 64])
                     .unwrap()
                     .0
                     .to_vec(),
@@ -1128,11 +1132,11 @@ mod tests {
         };
 
         let manual_bytes = vec![
-            light_utils::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
+            light_compressed_account::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
                 .unwrap()
                 .0
                 .to_vec(),
-            light_utils::hash_to_bn254_field_size_be(&test_struct.array)
+            light_compressed_account::hash_to_bn254_field_size_be(&test_struct.array)
                 .unwrap()
                 .0
                 .to_vec(),
@@ -1172,10 +1176,13 @@ mod tests {
         };
         let with_none = OptionTruncate { opt: None };
 
-        let manual_some = vec![light_utils::hash_to_bn254_field_size_be("test".as_bytes())
-            .unwrap()
-            .0
-            .to_vec()];
+        let manual_some =
+            vec![
+                light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes())
+                    .unwrap()
+                    .0
+                    .to_vec(),
+            ];
         let manual_none = vec![vec![0]];
 
         assert_eq!(with_some.as_byte_vec(), manual_some);
@@ -1237,7 +1244,7 @@ mod tests {
                 bytes.extend_from_slice(&42u64.to_le_bytes());
                 bytes
             },
-            light_utils::hash_to_bn254_field_size_be("test".as_bytes())
+            light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes())
                 .unwrap()
                 .0
                 .to_vec(),

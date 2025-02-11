@@ -1,6 +1,6 @@
 use light_hasher::{Hasher, Poseidon};
 
-use crate::UtilsError;
+use crate::CompressedAccountError;
 
 /// Creates a hash chain from an array of [u8;32] arrays.
 ///
@@ -8,10 +8,10 @@ use crate::UtilsError;
 /// - `inputs`: An array of [u8;32] arrays to be hashed.
 ///
 /// # Returns
-/// - `Result<[u8; 32], UtilsError>`: The resulting hash chain or an error.
+/// - `Result<[u8; 32], CompressedAccountError>`: The resulting hash chain or an error.
 pub fn create_hash_chain_from_array<const T: usize>(
     inputs: [[u8; 32]; T],
-) -> Result<[u8; 32], UtilsError> {
+) -> Result<[u8; 32], CompressedAccountError> {
     create_hash_chain_from_slice(&inputs)
 }
 
@@ -21,8 +21,10 @@ pub fn create_hash_chain_from_array<const T: usize>(
 /// - `inputs`: A slice of [u8;32] array to be hashed.
 ///
 /// # Returns
-/// - `Result<[u8; 32], UtilsError>`: The resulting hash chain or an error.
-pub fn create_hash_chain_from_slice(inputs: &[[u8; 32]]) -> Result<[u8; 32], UtilsError> {
+/// - `Result<[u8; 32], CompressedAccountError>`: The resulting hash chain or an error.
+pub fn create_hash_chain_from_slice(
+    inputs: &[[u8; 32]],
+) -> Result<[u8; 32], CompressedAccountError> {
     if inputs.is_empty() {
         return Ok([0u8; 32]);
     }
@@ -44,14 +46,14 @@ pub fn create_hash_chain_from_slice(inputs: &[[u8; 32]]) -> Result<[u8; 32], Uti
 /// - `hashes_second`: A slice of [u8;32] arrays to be hashed second.
 ///
 /// # Returns
-/// - `Result<[u8; 32], UtilsError>`: The resulting hash chain or an error.
+/// - `Result<[u8; 32], CompressedAccountError>`: The resulting hash chain or an error.
 pub fn create_two_inputs_hash_chain(
     hashes_first: &[[u8; 32]],
     hashes_second: &[[u8; 32]],
-) -> Result<[u8; 32], UtilsError> {
+) -> Result<[u8; 32], CompressedAccountError> {
     let first_len = hashes_first.len();
     if first_len != hashes_second.len() {
-        return Err(UtilsError::InvalidInputLength);
+        return Err(CompressedAccountError::InvalidInputLength);
     }
     if hashes_first.is_empty() {
         return Ok([0u8; 32]);
@@ -78,7 +80,7 @@ pub fn create_tx_hash(
     input_compressed_account_hashes: &[[u8; 32]],
     output_compressed_account_hashes: &[[u8; 32]],
     current_slot: u64,
-) -> Result<[u8; 32], UtilsError> {
+) -> Result<[u8; 32], CompressedAccountError> {
     let version = [0u8; 32];
     let mut current_slot_bytes = [0u8; 32];
     current_slot_bytes[24..].copy_from_slice(&current_slot.to_be_bytes());
@@ -97,7 +99,7 @@ pub fn create_tx_hash_from_hash_chains(
     inputs_hash_chain: &[u8; 32],
     outputs_hash_chain: &[u8; 32],
     current_slot: u64,
-) -> Result<[u8; 32], UtilsError> {
+) -> Result<[u8; 32], CompressedAccountError> {
     let version = [0u8; 32];
     let mut current_slot_bytes = [0u8; 32];
     current_slot_bytes[24..].copy_from_slice(&current_slot.to_be_bytes());
@@ -225,7 +227,7 @@ mod hash_chain_tests {
             let huge_input = vec![modulus_bytes, modulus_bytes];
             let result = create_hash_chain_from_slice(&huge_input);
             assert!(
-                matches!(result, Err(UtilsError::HasherError(error)) if error  == HasherError::Poseidon(PoseidonError::InputLargerThanModulus) ),
+                matches!(result, Err(CompressedAccountError::HasherError(error)) if error  == HasherError::Poseidon(PoseidonError::InputLargerThanModulus) ),
             );
         }
     }
@@ -349,7 +351,7 @@ mod hash_chain_tests {
             let hashes_second: &[[u8; 32]] = &[[2u8; 32], [3u8; 32]];
             let result = create_two_inputs_hash_chain(hashes_first, hashes_second);
             assert!(
-                matches!(result, Err(UtilsError::InvalidInputLength)),
+                matches!(result, Err(CompressedAccountError::InvalidInputLength)),
                 "Invalid input length for hashes_first test failed"
             );
         }
@@ -360,7 +362,7 @@ mod hash_chain_tests {
             let hashes_second: &[[u8; 32]] = &[[3u8; 32]];
             let result = create_two_inputs_hash_chain(hashes_first, hashes_second);
             assert!(
-                matches!(result, Err(UtilsError::InvalidInputLength)),
+                matches!(result, Err(CompressedAccountError::InvalidInputLength)),
                 "Invalid input length for hashes_second test failed"
             );
         }
