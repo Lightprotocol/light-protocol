@@ -93,11 +93,27 @@ use light_client::{
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::{FeeConfig, TransactionParams},
 };
-use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 // TODO: implement traits for context object and indexer that we can implement with an rpc as well
 // context trait: send_transaction -> return transaction result, get_account_info -> return account info
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
+use light_compressed_account::{
+    address::{
+        derive_address, pack_new_address_params, pack_read_only_accounts,
+        pack_read_only_address_params,
+    },
+    bigint::bigint_to_be_bytes_array,
+    compressed_account::{
+        pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
+        CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
+    },
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        data::{NewAddressParams, ReadOnlyAddress},
+        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+    },
+};
+use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
@@ -125,23 +141,6 @@ use light_registry::{
     ForesterConfig,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array,
-    instruction::{
-        address::{
-            derive_address, pack_new_address_params, pack_read_only_accounts,
-            pack_read_only_address_params,
-        },
-        compressed_account::{
-            pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
-            CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
-        },
-        compressed_proof::CompressedProof,
-        instruction_data::{NewAddressParams, ReadOnlyAddress},
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
-    },
-    rand::gen_prime,
-};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -1231,7 +1230,7 @@ where
         };
         println!("merkle tree config: {:?}", merkle_tree_config);
         let queue_config = if !self.keypair_action_config.fee_assert {
-            let capacity: u32 = gen_prime(&mut self.rng, 1..10000).unwrap();
+            let capacity: u32 = self.rng.gen_range(1..10000);
             NullifierQueueConfig {
                 capacity: capacity as u16,
                 sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,

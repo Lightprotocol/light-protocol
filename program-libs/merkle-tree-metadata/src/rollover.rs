@@ -117,9 +117,8 @@ pub fn check_rollover_fee_sufficient(
 
 #[cfg(test)]
 mod tests {
-    use light_utils::fee::compute_rollover_fee;
-
     use super::*;
+    use crate::fee::compute_rollover_fee;
 
     #[test]
     fn test_rollover_metadata() {

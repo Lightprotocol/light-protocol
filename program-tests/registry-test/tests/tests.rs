@@ -10,6 +10,7 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use forester_utils::{
     airdrop_lamports, forester_epoch::get_epoch_phases, get_concurrent_merkle_tree,
 };
+use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
@@ -77,7 +78,6 @@ use light_test_utils::{
     update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
     TreeAccounts, TreeType, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
-use light_utils::UtilsError;
 use serial_test::serial;
 use solana_sdk::{
     account::WritableAccount,
@@ -1565,7 +1565,7 @@ async fn test_migrate_state() {
                 &[&env_accounts.forester],
             )
             .await;
-        assert_rpc_error(result, 0, UtilsError::InvalidDiscriminator.into()).unwrap();
+        assert_rpc_error(result, 0, AccountError::InvalidDiscriminator.into()).unwrap();
     }
     // 4. Failing - invalid state Merkle tree
     {

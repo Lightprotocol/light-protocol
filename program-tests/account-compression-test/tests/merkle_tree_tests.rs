@@ -11,6 +11,11 @@ use account_compression::{
     StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
+use light_account_checks::error::AccountError;
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array, insert_into_queues::AppendNullifyCreateAddressInputs,
+    instruction_data::data::pack_pubkey,
+};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
@@ -35,13 +40,6 @@ use light_test_utils::{
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
     },
     RpcConnection, RpcError,
-};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array,
-    instruction::{
-        insert_into_queues::AppendNullifyCreateAddressInputs, instruction_data::pack_pubkey,
-    },
-    UtilsError,
 };
 use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
@@ -703,7 +701,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
+    assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap();
     let result = perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
@@ -716,7 +714,7 @@ async fn test_init_and_rollover_state_merkle_tree(
     )
     .await;
 
-    assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
+    assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap();
 
     set_state_merkle_tree_next_index(
         &mut context,
@@ -1538,7 +1536,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
                 None,
             )
             .await;
-            assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap();
+            assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap();
         }
     }
 }

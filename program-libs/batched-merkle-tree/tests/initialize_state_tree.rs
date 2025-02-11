@@ -12,7 +12,7 @@ use light_batched_merkle_tree::{
         get_output_queue_account_size_default, BatchedQueueMetadata,
     },
 };
-use light_utils::pubkey::Pubkey;
+use light_compressed_account::pubkey::Pubkey;
 use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::{rngs::StdRng, Rng};
 #[test]

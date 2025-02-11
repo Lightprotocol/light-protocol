@@ -44,7 +44,8 @@ jobs:
               aligned-sized
               light-bloom-filter
               light-hasher
-              light-utils
+              light-compressed-account
+              light-account-checks
               light-verifier
               light-merkle-tree-metadata
               light-zero-copy
@@ -58,13 +59,13 @@ jobs:
               light-program-test
               light-client
               light-batched-merkle-tree
-              
+
       fail-fast: false
     name: Test ${{ matrix.group.name }}
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
@@ -82,7 +83,7 @@ jobs:
             echo "Packages: ${{ matrix.group.packages }}"
           echo "Rust version: $(rustc --version)"
           } >> "$GITHUB_STEP_SUMMARY"
-          
+
           # Function to format time duration
           format_duration() {
             local duration="$1"
@@ -90,20 +91,20 @@ jobs:
             local seconds=$((duration % 60))
             echo "${minutes}m ${seconds}s"
           }
-          
+
           # Record group start time
           group_start=$(date +%s)
-          
+
           # Convert space-separated packages into array
           readarray -t packages <<< "$(echo "${{ matrix.group.packages }}" | tr ' ' '\n')"
-          
+
           # Test each package and measure time
           for pkg in "${packages[@]}"; do
             if [[ -n "$pkg" ]]; then  # Skip empty lines
               echo "::group::Testing ${pkg}"
               start=$(date +%s)
-              echo "${name}" 
-              echo "${{ matrix.group.name }}" 
+              echo "${name}"
+              echo "${{ matrix.group.name }}"
 
 
               if [ "${pkg}" == "light-batched-merkle-tree" ]; then
@@ -117,10 +118,10 @@ jobs:
                   # execute all tests except test_simulate_transactions and test_e2e
                   cargo test -p "${pkg}" -- --test test_simulate_transactions || exit 1
                 fi
-              else 
+              else
                 cargo test -p "${pkg}" || exit 1
               fi
-                            
+
               end=$(date +%s)
               duration=$((end - start))
               formatted_time=$(format_duration "$duration")
@@ -128,16 +129,16 @@ jobs:
               echo "::endgroup::"
             fi
           done
-          
+
           # Record and print group total time
           group_end=$(date +%s)
           group_duration=$((group_end - group_start))
           formatted_group_time=$(format_duration "$group_duration")
-          
+
           # Create timing report with simplified output
           echo "timing=${{ matrix.group.name }}:${formatted_group_time}" >> "$GITHUB_OUTPUT"
           echo "Group ${{ matrix.group.name }} total time: ${formatted_group_time}" >> "$GITHUB_STEP_SUMMARY"
-  
+
   collect-times:
     needs: test
     runs-on: ubuntu-latest

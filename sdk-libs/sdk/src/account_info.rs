@@ -1,12 +1,12 @@
 use std::{cell::RefCell, rc::Rc};
 
 use anchor_lang::prelude::Result;
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
         PackedMerkleContext,
     },
-    instruction_data::{
+    instruction_data::data::{
         NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
     },
 };

@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };
-use light_utils::instruction::compressed_proof::CompressedProof;
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithPda, EscrowError,

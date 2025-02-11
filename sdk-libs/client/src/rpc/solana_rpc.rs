@@ -5,7 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use light_utils::instruction::event::{event_from_light_transaction, PublicTransactionEvent};
+use light_compressed_account::event::{event_from_light_transaction, PublicTransactionEvent};
 use log::warn;
 use solana_client::{
     rpc_client::RpcClient,

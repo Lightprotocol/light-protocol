@@ -4,16 +4,18 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
 use super::{
+    cpi_context::CompressedCpiContext,
+    data::{
+        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+    },
+    zero_copy::ZInstructionDataInvokeCpi,
+};
+use crate::{
     compressed_account::{
         PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
     },
-    cpi_context::CompressedCpiContext,
-    instruction_data::{
-        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
-    },
-    instruction_data_zero_copy::ZInstructionDataInvokeCpi,
+    instruction_data::compressed_proof::CompressedProof,
 };
-use crate::instruction::compressed_proof::CompressedProof;
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
@@ -62,11 +64,13 @@ mod tests {
     use light_zero_copy::borsh::Deserialize;
 
     use super::*;
-    use crate::instruction::{
+    use crate::{
         compressed_account::PackedCompressedAccountWithMerkleContext,
-        instruction_data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
-        instruction_data_zero_copy::ZInstructionDataInvokeCpi,
-        invoke_cpi::InstructionDataInvokeCpi,
+        instruction_data::{
+            data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+            invoke_cpi::InstructionDataInvokeCpi,
+            zero_copy::ZInstructionDataInvokeCpi,
+        },
     };
 
     // test combine instruction data transfer

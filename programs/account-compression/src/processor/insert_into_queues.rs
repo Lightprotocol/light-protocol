@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_utils::instruction::insert_into_queues::deserialize_insert_into_queues;
+use light_compressed_account::insert_into_queues::deserialize_insert_into_queues;
 
 use super::{
     insert_addresses::insert_addresses, insert_leaves::process_append_leaves_to_merkle_trees,

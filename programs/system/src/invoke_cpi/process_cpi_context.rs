@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_utils::instruction::instruction_data_zero_copy::ZInstructionDataInvokeCpi;
+use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvokeCpi;
 
 use super::account::{deserialize_cpi_context_account, CpiContextAccount};
 use crate::errors::SystemProgramError;

@@ -3,7 +3,7 @@ use anchor_lang::{
     prelude::{AccountMeta, Context, Pubkey},
     Bumps, InstructionData, Key, Result, ToAccountInfo,
 };
-use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
+use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},

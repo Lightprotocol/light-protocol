@@ -8,7 +8,7 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
-use light_utils::fee::compute_rollover_fee;
+use light_merkle_tree_metadata::fee::compute_rollover_fee;
 use solana_program::rent::Rent;
 use tabled::{Table, Tabled};
 

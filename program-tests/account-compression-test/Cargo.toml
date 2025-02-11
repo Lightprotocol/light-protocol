@@ -22,24 +22,24 @@ default = ["custom-heap"]
 [dev-dependencies]
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
-solana-program-test =  { workspace = true}
-light-test-utils = { workspace = true, features=["devenv"] }
+solana-program-test = { workspace = true }
+light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
 tokio = { workspace = true }
-light-prover-client = {workspace = true }
+light-prover-client = { workspace = true }
 num-bigint = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
 account-compression = { workspace = true }
-light-hasher = {workspace = true}
-light-hash-set = { workspace = true}
-light-concurrent-merkle-tree = {workspace = true}
-light-indexed-merkle-tree = {workspace = true}
-light-merkle-tree-reference = {workspace = true}
-light-bounded-vec = {workspace = true}
-light-utils = {workspace = true}
-light-verifier = {workspace = true}
+light-hasher = { workspace = true }
+light-hash-set = { workspace = true }
+light-concurrent-merkle-tree = { workspace = true }
+light-indexed-merkle-tree = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
+light-bounded-vec = { workspace = true }
+light-compressed-account = { workspace = true }
+light-verifier = { workspace = true }
 rand = { workspace = true }
 solana-sdk = { workspace = true }
 serial_test = { workspace = true }
@@ -47,3 +47,4 @@ light-bloom-filter = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-zero-copy = { workspace = true }
+light-account-checks = { workspace = true }

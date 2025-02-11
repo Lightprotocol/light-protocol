@@ -1,5 +1,14 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
+use light_compressed_account::{
+    address::derive_address_legacy,
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+    },
+};
 use light_compressed_token::{
     process_transfer::{
         CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
@@ -10,13 +19,6 @@ use light_compressed_token::{
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
     legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
-};
-use light_utils::instruction::{
-    address::derive_address_legacy,
-    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
-    instruction_data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
 };
 
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};

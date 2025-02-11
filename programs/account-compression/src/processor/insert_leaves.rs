@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_utils::instruction::insert_into_queues::AppendLeavesInput;
+use light_compressed_account::insert_into_queues::AppendLeavesInput;
 
 use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 

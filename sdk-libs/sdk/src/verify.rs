@@ -1,8 +1,8 @@
 use anchor_lang::{prelude::*, Bumps};
-use light_hasher::{DataHasher, Discriminator};
-use light_utils::instruction::{
+use light_compressed_account::instruction_data::{
     cpi_context::CompressedCpiContext, invoke_cpi::InstructionDataInvokeCpi,
 };
+use light_hasher::{DataHasher, Discriminator};
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{

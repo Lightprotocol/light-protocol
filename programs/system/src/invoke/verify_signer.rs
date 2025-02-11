@@ -3,7 +3,7 @@ use anchor_lang::{
     solana_program::{msg, pubkey::Pubkey},
     Result,
 };
-use light_utils::instruction::instruction_data_zero_copy::ZPackedCompressedAccountWithMerkleContext;
+use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
 
 use crate::errors::SystemProgramError;
 
@@ -38,7 +38,7 @@ pub fn input_compressed_accounts_signer_check(
 #[cfg(test)]
 mod test {
     use anchor_lang::prelude::borsh::BorshSerialize;
-    use light_utils::instruction::compressed_account::{
+    use light_compressed_account::compressed_account::{
         CompressedAccount, PackedCompressedAccountWithMerkleContext,
     };
     use light_zero_copy::borsh::Deserialize;

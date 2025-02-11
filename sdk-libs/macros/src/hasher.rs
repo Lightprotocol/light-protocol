@@ -32,7 +32,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         .map(|field| {
             let field_name = &field.ident;
             let truncate = field.attrs.iter().any(|attr| attr.path().is_ident("truncate"));
-            let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested")); 
+            let nested = field.attrs.iter().any(|attr| attr.path().is_ident("nested"));
             if truncate && nested {
                 return Err(Error::new_spanned(
                     field,
@@ -68,7 +68,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     match &self.#field_name {
                         Some(value) => {
                             let bytes = value.as_byte_vec().into_iter().flatten().collect::<Vec<_>>();
-                            let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                            let (bytes, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes)
                                 .expect("Could not truncate to BN254 field size");
                             result.push(bytes.to_vec());
                         }
@@ -95,7 +95,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     let bytes = {
                         let value = &self.#field_name;
                         let bytes = value.as_byte_vec();
-                        let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])
+                        let (hash, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes[0])
                             .expect("Could not truncate to BN254 field size");
                         result.push(hash.to_vec());
                     };
@@ -252,7 +252,7 @@ impl ::light_hasher::DataHasher for OuterStruct {
         let bytes = {
             let value = &self.b;
             let bytes = value.as_byte_vec();
-            let (hash, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes[0])
+            let (hash, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes[0])
                 .expect("Could not truncate to BN254 field size");
             result.push(hash.to_vec());
         };
@@ -346,7 +346,7 @@ impl ::light_hasher::DataHasher for OptionStruct {
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>();
-                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                let (bytes, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes)
                     .expect("Could not truncate to BN254 field size");
                 result.push(bytes.to_vec());
             }
@@ -456,7 +456,7 @@ impl ::light_hasher::DataHasher for NestedOptionStruct {
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>();
-                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                let (bytes, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes)
                     .expect("Could not truncate to BN254 field size");
                 result.push(bytes.to_vec());
             }
@@ -527,7 +527,7 @@ impl ::light_hasher::DataHasher for MixedOptionsStruct {
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>();
-                let (bytes, _) = ::light_utils::hash_to_bn254_field_size_be(&bytes)
+                let (bytes, _) = ::light_compressed_account::hash_to_bn254_field_size_be(&bytes)
                     .expect("Could not truncate to BN254 field size");
                 result.push(bytes.to_vec());
             }

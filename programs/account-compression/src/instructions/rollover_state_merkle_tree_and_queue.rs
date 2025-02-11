@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_utils::account::check_account_balance_is_rent_exempt;
 
 use crate::{
     processor::{

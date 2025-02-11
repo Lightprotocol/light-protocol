@@ -1,5 +1,12 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+use light_compressed_account::{
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
+    },
+};
 use light_compressed_token::{
     delegation::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke},
     freeze::{CompressedTokenInstructionDataFreeze, CompressedTokenInstructionDataThaw},
@@ -10,13 +17,6 @@ use light_compressed_token::{
     CompressedTokenInstructionDataBurn,
 };
 use light_system_program::program::LightSystemProgram;
-use light_utils::instruction::{
-    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
-    instruction_data::OutputCompressedAccountWithPackedContext,
-    invoke_cpi::InstructionDataInvokeCpi,
-};
 
 use crate::ID;
 

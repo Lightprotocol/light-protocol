@@ -1,16 +1,16 @@
 use anchor_lang::{prelude::*, Bumps};
-#[cfg(feature = "bench-sbf")]
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_utils::{
+use light_compressed_account::{
     hash_chain::create_tx_hash_from_hash_chains,
-    instruction::{
+    insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
+    instruction_data::{
         compressed_proof::CompressedProof,
-        insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
-        instruction_data_zero_copy::{
+        zero_copy::{
             ZInstructionDataInvoke, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
     },
 };
+#[cfg(feature = "bench-sbf")]
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{slice::ZeroCopySliceBorsh, slice_mut::ZeroCopySliceMut};
 
 #[cfg(feature = "readonly")]

@@ -8,6 +8,17 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData, queue::BatchedQueueAccount,
 };
 use light_client::indexer::Indexer;
+use light_compressed_account::{
+    address::{derive_address, derive_address_legacy},
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+    },
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        data::{InstructionDataInvoke, NewAddressParams},
+    },
+};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
@@ -35,18 +46,6 @@ use light_test_utils::{
         transfer_compressed_sol_test,
     },
     FeeConfig, RpcConnection, RpcError, TransactionParams,
-};
-use light_utils::{
-    hash_to_bn254_field_size_be,
-    instruction::{
-        address::{derive_address, derive_address_legacy},
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-            MerkleContext,
-        },
-        compressed_proof::CompressedProof,
-        instruction_data::{InstructionDataInvoke, NewAddressParams},
-    },
 };
 use light_verifier::VerifierError;
 use quote::format_ident;

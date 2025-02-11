@@ -1,15 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
 use aligned_sized::aligned_sized;
-use light_hasher::Discriminator;
+use light_account_checks::{
+    checks::{check_account_info, set_discriminator},
+    discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
+};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
     queue::{QueueMetadata, QueueType},
-};
-use light_utils::{
-    account::{check_account_info, set_discriminator, DISCRIMINATOR_LEN},
-    hash_to_bn254_field_size_be,
-    pubkey::Pubkey,
 };
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
@@ -140,7 +139,7 @@ pub struct BatchedQueueAccount<'a> {
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
-impl Discriminator for BatchedQueueAccount<'_> {
+impl Discriminator<ANCHOR_DISCRIMINATOR_LEN> for BatchedQueueAccount<'_> {
     const DISCRIMINATOR: [u8; 8] = *b"queueacc";
 }
 
@@ -164,7 +163,7 @@ impl<'a> BatchedQueueAccount<'a> {
         program_id: &solana_program::pubkey::Pubkey,
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info::<Self>(program_id, account_info)?;
+        check_account_info::<Self, ANCHOR_DISCRIMINATOR_LEN>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
         // Necessary to convince the borrow checker.
         let account_data: &'a mut [u8] = unsafe {
@@ -180,9 +179,10 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_bytes(
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        light_utils::account::check_discriminator::<BatchedQueueAccount>(
-            &account_data[..DISCRIMINATOR_LEN],
-        )?;
+        light_account_checks::checks::check_discriminator::<
+            BatchedQueueAccount,
+            ANCHOR_DISCRIMINATOR_LEN,
+        >(account_data)?;
         Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
     }
 
@@ -190,7 +190,7 @@ impl<'a> BatchedQueueAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: Pubkey,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
+        let (_discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
@@ -223,8 +223,8 @@ impl<'a> BatchedQueueAccount<'a> {
         pubkey: Pubkey,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
-        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
-        set_discriminator::<Self>(discriminator)?;
+        let (discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
+        set_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(discriminator)?;
 
         let (mut account_metadata, account_data) =
             Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data)

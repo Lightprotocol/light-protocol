@@ -1,6 +1,7 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
 use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::{
     batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
 };
@@ -8,12 +9,12 @@ use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts},
     rpc::RpcConnection,
 };
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
-use light_program_test::indexer::TestIndexerExtensions;
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
 };
+use light_hasher::Poseidon;
+use light_program_test::indexer::TestIndexerExtensions;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_sdk::{account::ReadableAccount, pubkey::Pubkey};

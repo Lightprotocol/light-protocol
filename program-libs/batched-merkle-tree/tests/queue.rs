@@ -5,12 +5,12 @@ use light_batched_merkle_tree::{
     queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
     queue_batch_metadata::QueueBatches,
 };
+use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     queue::{QueueMetadata, QueueType},
     rollover::RolloverMetadata,
 };
-use light_utils::pubkey::Pubkey;
 
 pub fn get_test_account_and_account_data(
     batch_size: u64,

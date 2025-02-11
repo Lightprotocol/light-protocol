@@ -1,6 +1,9 @@
 use std::{fmt::Debug, str::FromStr};
 
 use async_trait::async_trait;
+use light_compressed_account::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+};
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
@@ -10,9 +13,6 @@ use light_merkle_tree_reference::MerkleTree;
 use light_sdk::{
     proof::ProofRpcResult,
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
-};
-use light_utils::instruction::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
 use num_bigint::BigUint;
 use photon_api::models::{Account, CompressedProofWithContext, TokenAccountList, TokenBalanceList};

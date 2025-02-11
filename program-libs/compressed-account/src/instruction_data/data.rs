@@ -6,8 +6,10 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
-use super::compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext};
-use crate::instruction::compressed_proof::CompressedProof;
+use crate::{
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    instruction_data::compressed_proof::CompressedProof,
+};
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct InstructionDataInvoke {

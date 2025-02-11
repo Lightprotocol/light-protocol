@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_utils::instruction::insert_into_queues::InsertNullifierInput;
+use light_compressed_account::insert_into_queues::InsertNullifierInput;
 use num_bigint::BigUint;
 
 use crate::{

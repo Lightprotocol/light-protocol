@@ -1,7 +1,7 @@
 //! Types used
 
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-use light_utils::instruction::compressed_account::{
+use light_compressed_account::compressed_account::{
     CompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use solana_program::pubkey::Pubkey;

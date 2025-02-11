@@ -1,6 +1,6 @@
 use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Result};
-use light_utils::hash_to_bn254_field_size_be;
+use light_compressed_account::hash_to_bn254_field_size_be;
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,

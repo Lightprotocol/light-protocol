@@ -7,6 +7,9 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array, instruction_data::compressed_proof::CompressedProof,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -19,9 +22,6 @@ use light_prover_client::{
         constants::{PROVE_PATH, SERVER_ADDRESS},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
-};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array, instruction::compressed_proof::CompressedProof,
 };
 use log::{error, info};
 use reqwest::Client;

@@ -5,7 +5,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
+use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,

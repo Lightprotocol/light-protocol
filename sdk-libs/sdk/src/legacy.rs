@@ -3,10 +3,10 @@
 //! Legacy types re-imported from programs which should be removed as soon as
 //! possible.
 
-use light_utils::instruction::{
+use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
-    instruction_data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+    data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
     invoke_cpi::InstructionDataInvokeCpi,
 };
 /// Helper function to create data for creating a single PDA.

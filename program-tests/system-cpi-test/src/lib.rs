@@ -9,13 +9,15 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 pub use invalidate_not_owned_account::*;
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::{
         PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
     },
-    compressed_proof::CompressedProof,
-    cpi_context::CompressedCpiContext,
-    instruction_data::{NewAddressParamsPacked, PackedReadOnlyAddress},
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsPacked, PackedReadOnlyAddress},
+    },
 };
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
@@ -23,7 +25,7 @@ declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 #[program]
 pub mod system_cpi_test {
 
-    use light_utils::instruction::insert_into_queues::AppendNullifyCreateAddressInputs;
+    use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
 
     use super::*;
 

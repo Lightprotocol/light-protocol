@@ -25,11 +25,12 @@ anchor-spl = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program = { workspace = true }
 light-registry = { workspace = true }
-account-compression = { workspace = true  }
+account-compression = { workspace = true }
 light-hasher = { workspace = true }
-light-utils = { workspace = true }
+light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
+light-account-checks = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -37,14 +38,13 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 light-client = { workspace = true }
 light-sdk = { workspace = true }
-light-program-test = { workspace = true, features=["devenv"]}
-light-test-utils = { workspace = true, features=["devenv"] }
+light-program-test = { workspace = true, features = ["devenv"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
 light-verifier = { workspace = true }
 anchor-spl = { workspace = true }
 serial_test = { workspace = true }
-
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

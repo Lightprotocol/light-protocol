@@ -7,10 +7,10 @@ use light_client::{
     },
     rpc::RpcConnection,
 };
-use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
-use light_utils::instruction::{
+use light_compressed_account::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
+use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
 use solana_sdk::signature::Keypair;
 
 #[async_trait]

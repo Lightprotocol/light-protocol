@@ -2,7 +2,7 @@ use account_compression::StateMerkleTreeAccount;
 use forester_utils::{get_concurrent_merkle_tree, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
 use light_hasher::Poseidon;
-use light_utils::fee::compute_rollover_fee;
+use light_merkle_tree_metadata::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 
 #[allow(clippy::too_many_arguments)]

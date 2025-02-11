@@ -1,11 +1,10 @@
+use light_account_checks::{checks::check_account_balance_is_rent_exempt, error::AccountError};
+use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
+    fee::compute_rollover_fee,
     merkle_tree::{MerkleTreeMetadata, TreeType},
     rollover::RolloverMetadata,
-};
-use light_utils::{
-    account::check_account_balance_is_rent_exempt, fee::compute_rollover_fee, pubkey::Pubkey,
-    UtilsError,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
@@ -112,7 +111,7 @@ pub fn init_batched_address_merkle_tree_from_account_info(
     // 2. Initialized the address Merkle tree account.
     let mt_data = &mut mt_account_info
         .try_borrow_mut_data()
-        .map_err(|_| UtilsError::BorrowAccountDataFailed)?;
+        .map_err(|_| AccountError::BorrowAccountDataFailed)?;
     init_batched_address_merkle_tree_account(
         owner,
         params,
