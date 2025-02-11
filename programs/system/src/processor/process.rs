@@ -119,6 +119,7 @@ pub fn process<
         });
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
+    #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let mut cpi_ix_data = AppendNullifyCreateAddressInputs::new(
@@ -406,6 +407,7 @@ pub fn process<
     cpi_account_compression_program(context, cpi_ix_bytes)
 }
 
+#[cfg(feature = "debug")]
 #[inline(always)]
 fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
     if vec.capacity() != expected_capacity {
