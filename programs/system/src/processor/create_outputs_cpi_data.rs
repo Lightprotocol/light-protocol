@@ -2,7 +2,7 @@ use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCo
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
-    insert_into_queues::{AppendNullifyCreateAddressInputs, MerkleTreeSequenceNumber},
+    insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
     instruction_data::zero_copy::ZOutputCompressedAccountWithPackedContext,
 };
 use light_hasher::{Hasher, Poseidon};
@@ -27,7 +27,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
     output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'a>],
     remaining_accounts: &'info [AccountInfo<'info>],
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'a>,
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
     accounts: &[AcpAccount<'a, 'info>],
 ) -> Result<[u8; 32]> {
     if output_compressed_accounts.is_empty() {

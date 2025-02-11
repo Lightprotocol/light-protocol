@@ -1,25 +1,29 @@
 use anchor_lang::prelude::*;
-use light_compressed_account::insert_into_queues::deserialize_insert_into_queues;
+use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionData;
+use light_zero_copy::borsh::Deserialize;
 
 use super::{
-    insert_addresses::insert_addresses, insert_leaves::process_append_leaves_to_merkle_trees,
+    insert_addresses::insert_addresses, insert_leaves::insert_leaves,
     insert_nullifiers::insert_nullifiers,
 };
-use crate::{context::LightContext, errors::AccountCompressionErrorCode, GenericInstruction};
+use crate::{context::AcpAccount, errors::AccountCompressionErrorCode, GenericInstruction};
 
 pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     bytes: Vec<u8>,
 ) -> Result<()> {
+    let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
+        .map_err(ProgramError::from)?;
     let authority = ctx.accounts.authority.to_account_info();
-    let mut bytes = bytes;
-    let inputs = deserialize_insert_into_queues(bytes.as_mut_slice()).unwrap();
-    let mut context = LightContext::new(
-        &authority,
+    // 1. Checks accounts
+    //      1.1. Checks signer eligibility.
+    let mut accounts = AcpAccount::from_account_infos(
         ctx.remaining_accounts,
+        &authority,
         inputs.is_invoked_by_program(),
         inputs.bump,
-    );
+    )
+    .map_err(ProgramError::from)?;
     if inputs.nullifiers.is_empty() && inputs.addresses.is_empty() && inputs.leaves.is_empty() {
         return Err(AccountCompressionErrorCode::InputElementsEmpty.into());
     }
@@ -31,7 +35,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         inputs.num_queues,
         inputs.tx_hash,
         inputs.nullifiers.as_slice(),
-        context.remaining_accounts_mut(),
+        &mut accounts,
         &current_slot,
     )?;
     msg!("append leaves {:?}", inputs.leaves.len());
@@ -39,11 +43,11 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     light_heap::bench_sbf_end!("insert_nullifiers");
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("append_leaves");
-    process_append_leaves_to_merkle_trees(
+    insert_leaves(
         inputs.leaves.as_slice(),
         inputs.start_output_appends,
         inputs.num_output_queues,
-        context.remaining_accounts_mut(),
+        &mut accounts,
         &current_slot,
     )?;
     #[cfg(feature = "bench-sbf")]
@@ -54,7 +58,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     insert_addresses(
         inputs.num_address_queues,
         inputs.addresses.as_slice(),
-        context.remaining_accounts_mut(),
+        &mut accounts,
         &current_slot,
     )?;
     #[cfg(feature = "bench-sbf")]

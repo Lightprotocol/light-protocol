@@ -13,7 +13,7 @@ use crate::{context::AcpAccount, errors::AccountCompressionErrorCode};
 /// 5. transfer rollover fee
 /// 6. check if all leaves are processed
 ///     return Ok(()) if all leaves are processed
-pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
+pub fn insert_leaves<'a, 'b, 'c: 'info, 'info>(
     leaves: &[AppendLeavesInput],
     start_output_appends: u8,
     num_output_queues: u8,

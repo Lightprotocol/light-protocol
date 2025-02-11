@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, Bumps};
 use light_compressed_account::{
     hash_chain::create_tx_hash_from_hash_chains,
-    insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
+    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
     instruction_data::{
         compressed_proof::CompressedProof,
         zero_copy::{
@@ -122,7 +122,7 @@ pub fn process<
     #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
-    let mut cpi_ix_data = AppendNullifyCreateAddressInputs::new(
+    let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut cpi_ix_bytes,
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
