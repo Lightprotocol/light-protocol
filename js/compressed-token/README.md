@@ -28,7 +28,7 @@ npm install --save \
 
 ### Documentation and examples
 
--   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/compressed-token)
+-   [Latest Source code](https://github.com/lightprotocol/light-protocol/tree/main/js/compressed-token)
 -   [Creating and sending compressed tokens](https://www.zkcompression.com/developers/typescript-client#creating-minting-and-transferring-a-compressed-token)
 
 ### Getting help
@@ -54,7 +54,7 @@ Light and ZK Compression are open protocols and contributions are welcome. If
 you have a contribution, please open a PR on the respective repository.
 
 If you found a bug or would like to request a feature, please file an
-[issue](https://github.com/lightprotocol/lightprotocol/issues/new).
+[issue](https://github.com/lightprotocol/light-protocol/issues/new).
 
 If you found a security vulnerability, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
