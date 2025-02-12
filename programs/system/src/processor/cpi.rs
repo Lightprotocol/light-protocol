@@ -50,7 +50,6 @@ pub fn create_cpi_data_and_context<
             accounts,
             account_infos,
             hashed_pubkeys: Vec::with_capacity(hashed_pubkeys_capacity),
-            // TODO: init with capacity.
             addresses: Vec::with_capacity((num_nullifiers + num_new_addresses) as usize),
             rollover_fee_payments: Vec::new(),
             address_fee_is_set: false,

@@ -7,8 +7,6 @@ pub struct SystemContext<'info> {
     pub accounts: Vec<AccountMeta>,
     // Would be better to store references.
     pub account_infos: Vec<AccountInfo<'info>>,
-    // TODO: switch to store account indices once we have new context.
-    // TODO: switch to (u8, [u8; 32])
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
     // Addresses for deduplication.
     // Try to find a way without storing the addresses.
@@ -130,7 +128,6 @@ impl<'info> SystemContext<'info> {
         accounts: &[AccountInfo<'info>],
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
-        // TODO: if len is 1 don't do a cpi mutate lamports.
         for (i, fee) in self.rollover_fee_payments.iter() {
             msg!("paying fee: {:?}", fee);
             msg!("to account: {:?}", accounts[*i as usize].key());

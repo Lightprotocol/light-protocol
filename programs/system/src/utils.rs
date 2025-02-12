@@ -2,7 +2,6 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::solana_program::pubkey::Pubkey;
 
 use crate::processor::sol_compression::SOL_POOL_PDA_SEED;
-// TODO: move file to sdk or test-utils
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[program_id.to_bytes().as_slice()],
