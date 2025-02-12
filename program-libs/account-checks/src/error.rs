@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Clone, Copy, Error, PartialEq)]
 pub enum AccountError {
     #[error("Account owned by wrong program.")]
     AccountOwnedByWrongProgram,
@@ -20,6 +20,8 @@ pub enum AccountError {
     InvalidAccountBalance,
     #[error("Failed to borrow rent sysvar.")]
     FailedBorrowRentSysvar,
+    #[error("Invalid Signer")]
+    InvalidSigner,
 }
 
 // TODO: reconfigure error codes
@@ -35,6 +37,7 @@ impl From<AccountError> for u32 {
             AccountError::AlreadyInitialized => 12012,
             AccountError::InvalidAccountBalance => 12013,
             AccountError::FailedBorrowRentSysvar => 12014,
+            AccountError::InvalidSigner => 12015,
         }
     }
 }

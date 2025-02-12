@@ -7,8 +7,6 @@ pub struct SystemContext<'info> {
     pub accounts: Vec<AccountMeta>,
     // Would be better to store references.
     pub account_infos: Vec<AccountInfo<'info>>,
-    // TODO: switch to store account indices once we have new context.
-    // TODO: switch to (u8, [u8; 32])
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
     // Addresses for deduplication.
     // Try to find a way without storing the addresses.
@@ -39,9 +37,6 @@ impl SystemContext<'_> {
     }
 
     pub fn set_address_fee(&mut self, fee: u64, index: u8) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", index);
-        msg!("fee: {:?}", fee);
         if !self.address_fee_is_set {
             self.address_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
@@ -49,9 +44,6 @@ impl SystemContext<'_> {
     }
 
     pub fn set_network_fee(&mut self, fee: u64, index: u8) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", index);
-        msg!("fee: {:?}", fee);
         if !self.network_fee_is_set {
             self.network_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
@@ -102,9 +94,6 @@ impl<'info> SystemContext<'info> {
     }
 
     pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", ix_data_index);
-        msg!("fee: {:?}", fee);
         let payment = self
             .rollover_fee_payments
             .iter_mut()
@@ -130,7 +119,6 @@ impl<'info> SystemContext<'info> {
         accounts: &[AccountInfo<'info>],
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
-        // TODO: if len is 1 don't do a cpi mutate lamports.
         for (i, fee) in self.rollover_fee_payments.iter() {
             msg!("paying fee: {:?}", fee);
             msg!("to account: {:?}", accounts[*i as usize].key());

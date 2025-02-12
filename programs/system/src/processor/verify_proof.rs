@@ -205,7 +205,6 @@ pub fn verify_proof(
             // inclusion proof
             create_two_inputs_hash_chain(roots, leaves).map_err(ProgramError::from)?
         } else {
-            // TODO: compute with addresses
             // non-inclusion proof
             create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         };

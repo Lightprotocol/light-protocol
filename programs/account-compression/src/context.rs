@@ -1,9 +1,9 @@
 use anchor_lang::{
-    prelude::{AccountInfo, AccountLoader},
+    prelude::{AccountInfo, AccountLoader, ProgramError},
     solana_program::{msg, pubkey::Pubkey},
     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
 };
-use light_account_checks::discriminator::Discriminator;
+use light_account_checks::{discriminator::Discriminator, error::AccountError};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
@@ -38,50 +38,9 @@ impl GroupAccess for BatchedQueueAccount<'_> {
             .into()
     }
 }
-
 use super::RegisteredProgram;
-pub struct LightContext<'a, 'info> {
-    pub accounts: Vec<AcpAccount<'a, 'info>>,
-}
 
-impl<'a, 'info> LightContext<'a, 'info> {
-    #[inline(always)]
-    pub fn new(
-        authority: &'a AccountInfo<'info>,
-        account_infos: &'info [AccountInfo<'info>],
-        invoked_by_program: bool,
-        bump: u8,
-    ) -> LightContext<'a, 'info> {
-        let accounts =
-            AcpAccount::from_account_infos(account_infos, authority, invoked_by_program, bump)
-                .unwrap();
-        LightContext { accounts }
-    }
-
-    pub fn authority(&self) -> &AccountInfo<'info> {
-        match self.accounts[AUTHORITY_INDEX] {
-            AcpAccount::Authority(account) => account,
-            _ => panic!("Invalid fee payer account"),
-        }
-    }
-
-    /// Index 0 : authority
-    /// ... other accounts (registry program PDA is not added)
-    #[inline(always)]
-    pub fn remaining_accounts_mut(&mut self) -> &mut [AcpAccount<'a, 'info>] {
-        &mut self.accounts[1..]
-    }
-
-    /// Index 0 : authority
-    /// ... other accounts (registry program PDA is not added)
-    #[inline(always)]
-    pub fn remaining_accounts(&self) -> &[AcpAccount<'a, 'info>] {
-        &self.accounts[1..]
-    }
-}
-
-const AUTHORITY_INDEX: usize = 0;
-
+/// AccountCompressionProgramAccount
 #[derive(Debug)]
 pub enum AcpAccount<'a, 'info> {
     Authority(&'a AccountInfo<'info>),
@@ -98,34 +57,27 @@ pub enum AcpAccount<'a, 'info> {
         ),
     ),
     AddressQueue(Pubkey, AccountInfo<'info>),
-    // NullifierQueue(AccountInfo<'info>),
     V1Queue(AccountInfo<'info>),
     Unknown(),
 }
 
 impl<'a, 'info> AcpAccount<'a, 'info> {
-    /// Account order:
-    /// 1. Fee payer
-    /// 2. Authority
-    /// 3. Option<Registered program PDA>
-    ///     ... other accounts
+    /// Merkle tree and queue accounts
     #[inline(always)]
     pub fn from_account_infos(
         account_infos: &'info [AccountInfo<'info>],
         authority: &'a AccountInfo<'info>,
         invoked_by_program: bool,
         bump: u8,
-    ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, AccountCompressionErrorCode> {
-        // TODO: remove + 1 and pass in fee_payer once we removed anchor.
-        let mut vec = Vec::with_capacity(account_infos.len() + 1);
-        vec.push(AcpAccount::Authority(authority));
+    ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, ProgramError> {
+        let mut vec = Vec::with_capacity(account_infos.len());
         let mut skip = 0;
         let derived_address = match invoked_by_program {
             true => {
                 let account_info = &account_infos[0];
-                let data = account_info.try_borrow_data().unwrap();
+                let data = account_info.try_borrow_data()?;
                 if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
-                    panic!("Invalid discriminator");
+                    return Err(AccountError::InvalidDiscriminator.into());
                 }
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
                 // 1,670 CU
@@ -133,133 +85,133 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 let derived_address = Pubkey::create_program_address(
                     &[CPI_AUTHORITY_PDA_SEED, &[bump]],
                     &account.registered_program_id,
-                )
-                .unwrap();
+                )?;
                 skip += 1;
                 Some((derived_address, account.group_authority_pda))
             }
             false => None,
         };
 
-        account_infos.iter().skip(skip).for_each(|account_info| {
-            let account =
-                AcpAccount::try_from_account_info(account_info, &vec[0], &derived_address).unwrap();
-            vec.push(account);
-        });
+        account_infos.iter().skip(skip).try_for_each(
+            |account_info| -> Result<(), ProgramError> {
+                let account = AcpAccount::try_from_account_info(
+                    account_info,
+                    &AcpAccount::Authority(authority),
+                    &derived_address,
+                )?;
+                vec.push(account);
+                Ok(())
+            },
+        )?;
         Ok(vec)
     }
 
+    /// Try to deserialize and check account info:
+    /// 1. Owner is crate::ID
+    /// 2. match discriminator
+    /// 3. check signer is registered program or authority
+    ///     (Unless the account is a v1 queue account.
+    ///      v1 queue accounts are always used in combination
+    ///      with a v1 Merkle tree and are checked that these
+    ///      are associated to it.)
     #[inline(always)]
     pub(crate) fn try_from_account_info(
         account_info: &'info AccountInfo<'info>,
         authority: &AcpAccount<'a, 'info>,
         registered_program_pda: &Option<(Pubkey, Pubkey)>,
-    ) -> std::result::Result<AcpAccount<'a, 'info>, AccountCompressionErrorCode> {
+    ) -> anchor_lang::Result<AcpAccount<'a, 'info>> {
         if crate::ID != *account_info.owner {
             msg!("Invalid owner {:?}", account_info.owner);
             msg!("key {:?}", account_info.key());
-            return Err(AccountCompressionErrorCode::InputDeserializationFailed);
+            return Err(ProgramError::from(AccountError::AccountOwnedByWrongProgram).into());
         }
         let mut discriminator = [0u8; 8];
         {
-            let data = account_info
-                .try_borrow_data()
-                .map_err(|_| AccountCompressionErrorCode::InvalidAccount)?;
+            let data = account_info.try_borrow_data()?;
             discriminator.copy_from_slice(&data[..8]);
         }
         match discriminator {
             BatchedMerkleTreeAccount::DISCRIMINATOR => {
                 let mut tree_type = [0u8; 8];
-                tree_type.copy_from_slice(
-                    &account_info
-                        .try_borrow_data()
-                        .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?
-                        [8..16],
-                );
+                tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
                     TreeType::BatchedAddress => Ok(AcpAccount::BatchedAddressTree(
-                        BatchedMerkleTreeAccount::address_from_account_info(account_info).unwrap(),
+                        BatchedMerkleTreeAccount::address_from_account_info(account_info)
+                            .map_err(ProgramError::from)?,
                     )),
                     TreeType::BatchedState => {
                         let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)
-                            .unwrap();
+                            .map_err(ProgramError::from)?;
                         manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(
                             registered_program_pda,
                             authority,
                             &tree,
-                        )
-                        .unwrap();
+                        )?;
 
                         Ok(AcpAccount::BatchedStateTree(tree))
                     }
-                    _ => Err(AccountCompressionErrorCode::InputDeserializationFailed),
+                    _ => Err(ProgramError::from(AccountError::BorrowAccountDataFailed).into()),
                 }
             }
             BatchedQueueAccount::DISCRIMINATOR => {
-                let queue = BatchedQueueAccount::output_from_account_info(account_info).unwrap();
+                let queue = BatchedQueueAccount::output_from_account_info(account_info)
+                    .map_err(ProgramError::from)?;
 
                 manual_check_signer_is_registered_or_authority::<BatchedQueueAccount>(
                     registered_program_pda,
                     authority,
                     &queue,
-                )
-                .unwrap();
+                )?;
 
                 Ok(AcpAccount::OutputQueue(queue))
             }
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 {
                     let merkle_tree =
-                        AccountLoader::<StateMerkleTreeAccount>::try_from(account_info).unwrap();
-                    let merkle_tree = merkle_tree.load().unwrap();
+                        AccountLoader::<StateMerkleTreeAccount>::try_from(account_info)?;
+                    let merkle_tree = merkle_tree.load()?;
 
                     manual_check_signer_is_registered_or_authority::<StateMerkleTreeAccount>(
                         registered_program_pda,
                         authority,
                         &merkle_tree,
-                    )
-                    .unwrap();
+                    )?;
                 }
-                let mut merkle_tree = account_info
-                    .try_borrow_mut_data()
-                    .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+                let mut merkle_tree = account_info.try_borrow_mut_data()?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::StateTree((
                     account_info.key(),
-                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
+                    state_merkle_tree_from_bytes_zero_copy_mut(data_slice)?,
                 )))
             }
             AddressMerkleTreeAccount::DISCRIMINATOR => {
                 {
                     let merkle_tree =
-                        AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info).unwrap();
-                    let merkle_tree = merkle_tree.load().unwrap();
+                        AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info)?;
+                    let merkle_tree = merkle_tree.load()?;
                     manual_check_signer_is_registered_or_authority::<AddressMerkleTreeAccount>(
                         registered_program_pda,
                         authority,
                         &merkle_tree,
-                    )
-                    .unwrap();
+                    )?;
                 }
-                let mut merkle_tree = account_info
-                    .try_borrow_mut_data()
-                    .map_err(|_| AccountCompressionErrorCode::InputDeserializationFailed)?;
+                let mut merkle_tree = account_info.try_borrow_mut_data()?;
                 let data_slice: &'info mut [u8] = unsafe {
                     std::slice::from_raw_parts_mut(merkle_tree.as_mut_ptr(), merkle_tree.len())
                 };
                 Ok(AcpAccount::AddressTree((
                     account_info.key(),
-                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
+                    address_merkle_tree_from_bytes_zero_copy_mut(data_slice)?,
                 )))
             }
             QueueAccount::DISCRIMINATOR => {
                 msg!("queue account: {:?}", account_info.key());
                 Ok(AcpAccount::V1Queue(account_info.to_account_info()))
             }
-            _ => panic!("invalid account"),
+            _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),
         }
     }
 }

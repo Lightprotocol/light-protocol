@@ -5,7 +5,7 @@ use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
+use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -55,14 +55,14 @@ pub fn create_insert_leaves_instruction(
 ) -> Instruction {
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             leaves.len() as u8,
             0,
             0,
             merkle_tree_pubkeys.len() as u8,
         )
     ];
-    let mut ix_data = AppendNullifyCreateAddressInputs::new(
+    let mut ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut bytes,
         leaves.len() as u8,
         0,
@@ -73,7 +73,7 @@ pub fn create_insert_leaves_instruction(
     ix_data.num_output_queues = merkle_tree_pubkeys.len() as u8;
     for (i, (index, leaf)) in leaves.iter().enumerate() {
         ix_data.leaves[i].leaf = *leaf;
-        ix_data.leaves[i].tree_account_index = *index;
+        ix_data.leaves[i].account_index = *index;
     }
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };

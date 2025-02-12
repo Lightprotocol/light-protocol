@@ -2,7 +2,7 @@ use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCo
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
-    insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
+    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
     instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext,
 };
 use light_hasher::{Hasher, Poseidon};
@@ -17,7 +17,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     remaining_accounts: &'info [AccountInfo<'info>],
     input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'a>,
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
     accounts: &[AcpAccount<'a, 'info>],
 ) -> Result<[u8; 32]> {
     if input_compressed_accounts_with_merkle_context.is_empty() {
@@ -35,7 +35,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut current_hashed_mt = [0u8; 32];
     let mut hash_chain = [0u8; 32];
 
-    let mut current_mt_index: i16 = -1;
+    let mut current_mt_index: u8 = 0;
+    let mut is_first_iter = true;
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -52,22 +53,24 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         if current_mt_index
             != input_compressed_account_with_context
                 .merkle_context
-                .merkle_tree_pubkey_index as i16
+                .merkle_tree_pubkey_index
+            || is_first_iter
         {
+            is_first_iter = false;
             current_mt_index = input_compressed_account_with_context
                 .merkle_context
-                .merkle_tree_pubkey_index as i16;
+                .merkle_tree_pubkey_index;
             current_hashed_mt = match &accounts[current_mt_index as usize] {
                 AcpAccount::BatchedStateTree(tree) => {
                     context.set_network_fee(
                         tree.metadata.rollover_metadata.network_fee,
-                        current_mt_index as u8,
+                        current_mt_index,
                     );
                     tree.hashed_pubkey
                 }
                 AcpAccount::StateTree(_) => {
                     context
-                        .get_legacy_merkle_context(current_mt_index as u8)
+                        .get_legacy_merkle_context(current_mt_index)
                         .unwrap()
                         .hashed_pubkey
                 }

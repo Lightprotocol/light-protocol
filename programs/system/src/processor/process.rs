@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, Bumps};
 use light_compressed_account::{
     hash_chain::create_tx_hash_from_hash_chains,
-    insert_into_queues::{AppendNullifyCreateAddressInputs, InsertNullifierInput},
+    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
     instruction_data::{
         compressed_proof::CompressedProof,
         zero_copy::{
@@ -119,9 +119,10 @@ pub fn process<
         });
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
+    #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
-    let mut cpi_ix_data = AppendNullifyCreateAddressInputs::new(
+    let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut cpi_ix_bytes,
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
@@ -139,7 +140,7 @@ pub fn process<
     let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
 
     let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
-    // 5 Read address roots ---------------------------------------------------
+    // 5. Read address roots ---------------------------------------------------
     let address_tree_height = read_address_roots(
         &accounts,
         inputs.new_address_params.as_slice(),
@@ -406,6 +407,7 @@ pub fn process<
     cpi_account_compression_program(context, cpi_ix_bytes)
 }
 
+#[cfg(feature = "debug")]
 #[inline(always)]
 fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
     if vec.capacity() != expected_capacity {

@@ -106,6 +106,7 @@ pub mod light_system_program {
         Ok(())
     }
 
+    #[allow(unused_variables)]
     pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
@@ -113,28 +114,32 @@ pub mod light_system_program {
         #[cfg(not(feature = "readonly"))]
         {
             msg!("Readonly feature is not enabled.");
+
             return Err(SystemProgramError::InstructionNotCallable.into());
         }
         #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
-        let (inputs, _) =
-            ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(inputs.as_slice()).unwrap();
-        #[cfg(feature = "bench-sbf")]
-        bench_sbf_end!("cpda_deserialize");
-        // disable set cpi context because cpi context account uses InvokeCpiInstruction
-        if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
-            if cpi_context.set_context() {
-                msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
-                msg!("Please use invoke_cpi instead.");
-                return Err(SystemProgramError::InstructionNotCallable.into());
+        #[allow(unreachable_code)]
+        {
+            let (inputs, _) =
+                ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(inputs.as_slice()).unwrap();
+            #[cfg(feature = "bench-sbf")]
+            bench_sbf_end!("cpda_deserialize");
+            // disable set cpi context because cpi context account uses InvokeCpiInstruction
+            if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
+                if cpi_context.set_context() {
+                    msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
+                    msg!("Please use invoke_cpi instead.");
+                    return Err(SystemProgramError::InstructionNotCallable.into());
+                }
             }
+            process_invoke_cpi(
+                ctx,
+                inputs.invoke_cpi,
+                inputs.read_only_addresses,
+                inputs.read_only_accounts,
+            )
         }
-        process_invoke_cpi(
-            ctx,
-            inputs.invoke_cpi,
-            inputs.read_only_addresses,
-            inputs.read_only_accounts,
-        )
     }
 
     // /// This function is a stub to allow Anchor to include the input types in

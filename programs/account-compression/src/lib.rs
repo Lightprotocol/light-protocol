@@ -147,6 +147,8 @@ pub mod account_compression {
         )
     }
 
+    /// Inserts nullifiers, leaves, and addresses
+    /// into v1 and batched Merkle trees.
     pub fn insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
         bytes: Vec<u8>,

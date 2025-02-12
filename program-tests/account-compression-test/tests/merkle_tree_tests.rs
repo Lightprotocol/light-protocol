@@ -13,7 +13,7 @@ use account_compression::{
 use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
 use light_account_checks::error::AccountError;
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, insert_into_queues::AppendNullifyCreateAddressInputs,
+    bigint::bigint_to_be_bytes_array, insert_into_queues::InsertIntoQueuesInstructionDataMut,
     instruction_data::data::pack_pubkey,
 };
 use light_concurrent_merkle_tree::{
@@ -1338,7 +1338,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
 ) -> Result<Signature, RpcError> {
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             0,
             elements.len() as u8,
             0,
@@ -1346,7 +1346,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
         )
     ];
     let mut ix_data =
-        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
     ix_data.num_queues = 1;
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
         ix_nf.account_hash = elements[i];
@@ -1388,7 +1388,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     let mut hash_set = HashMap::<Pubkey, u8>::new();
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             0,
             elements.len() as u8,
             0,
@@ -1396,7 +1396,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         )
     ];
     let mut ix_data =
-        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, elements.len() as u8, 0, 0).unwrap();
 
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
         ix_nf.account_hash = elements[i];
@@ -1800,14 +1800,14 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             leaves.len() as u8,
             0,
             0,
             merkle_tree_pubkeys.len() as u8,
         )
     ];
-    let mut ix_data = AppendNullifyCreateAddressInputs::new(
+    let mut ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut bytes,
         leaves.len() as u8,
         0,
@@ -1819,7 +1819,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
 
     for (i, (index, leaf)) in leaves.iter().enumerate() {
         ix_data.leaves[i].leaf = *leaf;
-        ix_data.leaves[i].tree_account_index = *index;
+        ix_data.leaves[i].account_index = *index;
     }
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 
@@ -1932,11 +1932,11 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
         .await
         .unwrap();
     let mut bytes =
-        vec![0u8; AppendNullifyCreateAddressInputs::required_size_for_capacity(1, 0, 0, 1)];
-    let mut ix_data = AppendNullifyCreateAddressInputs::new(&mut bytes, 1, 0, 0, 1).unwrap();
+        vec![0u8; InsertIntoQueuesInstructionDataMut::required_size_for_capacity(1, 0, 0, 1)];
+    let mut ix_data = InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 0, 0, 1).unwrap();
     ix_data.num_output_queues = 1;
     ix_data.leaves[0].leaf = [1; 32];
-    ix_data.leaves[0].tree_account_index = 0;
+    ix_data.leaves[0].account_index = 0;
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {

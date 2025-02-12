@@ -2,7 +2,7 @@ use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCo
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
-    insert_into_queues::AppendNullifyCreateAddressInputs,
+    insert_into_queues::InsertIntoQueuesInstructionDataMut,
     instruction_data::zero_copy::ZNewAddressParamsPacked,
 };
 
@@ -13,7 +13,7 @@ pub fn derive_new_addresses<'info>(
     num_input_compressed_accounts: usize,
     remaining_accounts: &'info [AccountInfo<'info>],
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut AppendNullifyCreateAddressInputs<'_>,
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
     accounts: &[AcpAccount<'_, 'info>],
 ) -> Result<()> {
     let invoking_program_id_bytes = context

@@ -25,7 +25,7 @@ use light_batched_merkle_tree::{
 };
 use light_compressed_account::{
     bigint::bigint_to_be_bytes_array, hash_chain::create_tx_hash,
-    insert_into_queues::AppendNullifyCreateAddressInputs,
+    insert_into_queues::InsertIntoQueuesInstructionDataMut,
     instruction_data::compressed_proof::CompressedProof,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
@@ -543,7 +543,7 @@ pub async fn perform_insert_into_output_queue(
 ) -> Result<Signature, RpcError> {
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             num_of_leaves as u8,
             0,
             0,
@@ -551,7 +551,7 @@ pub async fn perform_insert_into_output_queue(
         )
     ];
     let mut ix_data =
-        AppendNullifyCreateAddressInputs::new(&mut bytes, num_of_leaves as u8, 0, 0, 1).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, num_of_leaves as u8, 0, 0, 1).unwrap();
     ix_data.num_output_queues = 1;
     for i in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
@@ -729,7 +729,7 @@ pub async fn perform_insert_into_input_queue(
     });
     let mut bytes = vec![
         0u8;
-        AppendNullifyCreateAddressInputs::required_size_for_capacity(
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             0,
             num_of_leaves as u8,
             0,
@@ -737,7 +737,7 @@ pub async fn perform_insert_into_input_queue(
         )
     ];
     let mut ix_data =
-        AppendNullifyCreateAddressInputs::new(&mut bytes, 0, num_of_leaves as u8, 0, 1).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, num_of_leaves as u8, 0, 1).unwrap();
     ix_data.num_queues = 1;
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
         ix_nf.account_hash = leaves[i];
@@ -1631,7 +1631,12 @@ async fn test_batch_address_merkle_trees() {
             addresses.clone(),
         )
         .await;
-        assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
 
         let result = insert_addresses(
             &mut context,
@@ -1640,7 +1645,12 @@ async fn test_batch_address_merkle_trees() {
             addresses.clone(),
         )
         .await;
-        assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidTreeType.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
     // fill address queue batch
     {
