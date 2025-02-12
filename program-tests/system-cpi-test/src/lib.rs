@@ -80,6 +80,7 @@ pub mod system_cpi_test {
     pub fn insert_into_queues<'info>(
         ctx: Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
         is_batched: bool,
+        cpi_bump: u8,
     ) -> Result<()> {
         let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
         let accounts = account_compression::cpi::accounts::GenericInstruction {
@@ -117,70 +118,12 @@ pub mod system_cpi_test {
         inputs.addresses[0].address = [3u8; 32];
         inputs.addresses[0].queue_index = 3;
         inputs.addresses[0].tree_index = 2;
+        inputs.set_invoked_by_program(true);
+        inputs.bump = cpi_bump;
         account_compression::cpi::insert_into_queues(cpi_context, bytes)?;
 
         Ok(())
     }
-
-    // pub fn insert_into_address_queue<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
-    // ) -> Result<()> {
-    //     let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
-    //     let accounts = account_compression::cpi::accounts::InsertIntoQueues {
-    //         authority: ctx.accounts.cpi_signer.to_account_info(),
-    //         fee_payer: ctx.accounts.signer.to_account_info(),
-    //         registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
-    //         system_program: ctx.accounts.system_program.to_account_info(),
-    //     };
-    //     let bump = &[bump];
-    //     let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
-    //     let mut cpi_context = CpiContext::new_with_signer(
-    //         ctx.accounts.account_compression_program.to_account_info(),
-    //         accounts,
-    //         &seeds,
-    //     );
-    //     cpi_context.remaining_accounts = vec![
-    //         ctx.accounts.queue.to_account_info(),
-    //         ctx.accounts.merkle_tree.to_account_info(),
-    //     ];
-
-    //     account_compression::cpi::insert_addresses(cpi_context, vec![[1u8; 32]])?;
-
-    //     Ok(())
-    // }
-
-    // pub fn insert_into_nullifier_queue<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, InsertIntoQueues<'info>>,
-    // ) -> Result<()> {
-    //     let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
-    //     let accounts = account_compression::cpi::accounts::InsertIntoQueues {
-    //         authority: ctx.accounts.cpi_signer.to_account_info(),
-    //         fee_payer: ctx.accounts.signer.to_account_info(),
-    //         registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
-    //         system_program: ctx.accounts.system_program.to_account_info(),
-    //     };
-    //     let bump = &[bump];
-    //     let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
-    //     let mut cpi_context = CpiContext::new_with_signer(
-    //         ctx.accounts.account_compression_program.to_account_info(),
-    //         accounts,
-    //         &seeds,
-    //     );
-    //     cpi_context.remaining_accounts = vec![
-    //         ctx.accounts.queue.to_account_info(),
-    //         ctx.accounts.merkle_tree.to_account_info(),
-    //     ];
-
-    //     account_compression::cpi::insert_into_nullifier_queues(
-    //         cpi_context,
-    //         vec![[1u8; 32]],
-    //         vec![],
-    //         vec![false],
-    //         [1u8; 32],
-    //     )?;
-
-    //     Ok(())
-    // }
 
     #[allow(clippy::too_many_arguments)]
     pub fn initialize_address_merkle_tree(

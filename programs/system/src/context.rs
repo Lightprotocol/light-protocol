@@ -37,9 +37,6 @@ impl SystemContext<'_> {
     }
 
     pub fn set_address_fee(&mut self, fee: u64, index: u8) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", index);
-        msg!("fee: {:?}", fee);
         if !self.address_fee_is_set {
             self.address_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
@@ -47,9 +44,6 @@ impl SystemContext<'_> {
     }
 
     pub fn set_network_fee(&mut self, fee: u64, index: u8) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", index);
-        msg!("fee: {:?}", fee);
         if !self.network_fee_is_set {
             self.network_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
@@ -100,9 +94,6 @@ impl<'info> SystemContext<'info> {
     }
 
     pub fn set_rollover_fee(&mut self, ix_data_index: u8, fee: u64) {
-        msg!("set_rollover_fee");
-        msg!("ix_data_index: {:?}", ix_data_index);
-        msg!("fee: {:?}", fee);
         let payment = self
             .rollover_fee_payments
             .iter_mut()

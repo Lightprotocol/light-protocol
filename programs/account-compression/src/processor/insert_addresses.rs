@@ -69,7 +69,9 @@ pub fn insert_addresses(
                 Ok(())
             }
             AcpAccount::AddressTree(_) => unimplemented!("AddressTree"),
-            _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),
+            _ => Err(
+                AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            ),
         }?;
     }
     if inserted_addresses != addresses.len() {

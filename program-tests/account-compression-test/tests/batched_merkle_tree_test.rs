@@ -1631,7 +1631,12 @@ async fn test_batch_address_merkle_trees() {
             addresses.clone(),
         )
         .await;
-        assert_rpc_error(result, 0, ErrorCode::AccountDiscriminatorMismatch.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
 
         let result = insert_addresses(
             &mut context,
@@ -1640,7 +1645,12 @@ async fn test_batch_address_merkle_trees() {
             addresses.clone(),
         )
         .await;
-        assert_rpc_error(result, 0, MerkleTreeMetadataError::InvalidTreeType.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
     // fill address queue batch
     {
