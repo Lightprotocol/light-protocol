@@ -216,3 +216,76 @@ impl DerefMut for InsertIntoQueuesInstructionDataMut<'_> {
         &mut self.meta
     }
 }
+
+#[test]
+fn test_rnd_insert_into_queues_ix_data() {
+    use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+    let seed = thread_rng().gen();
+    println!("seed {}", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
+    let num_iters = 1000;
+
+    for _ in 0..num_iters {
+        let leaves_capacity: u8 = rng.gen();
+        let nullifiers_capacity: u8 = rng.gen();
+        let addresses_capacity: u8 = rng.gen();
+        let num_output_trees: u8 = rng.gen();
+        let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+            leaves_capacity,
+            nullifiers_capacity,
+            addresses_capacity,
+            num_output_trees,
+        );
+        let mut bytes = vec![0u8; size];
+        let mut new_data = InsertIntoQueuesInstructionDataMut::new(
+            &mut bytes,
+            leaves_capacity,
+            nullifiers_capacity,
+            addresses_capacity,
+            num_output_trees,
+        )
+        .unwrap();
+        *new_data.meta = InsertIntoQueuesInstructionDataMeta {
+            is_invoked_by_program: rng.gen(),
+            bump: rng.gen(),
+            num_queues: rng.gen(),
+            num_output_queues: rng.gen(),
+            start_output_appends: rng.gen(),
+            num_address_queues: rng.gen(),
+            tx_hash: rng.gen(),
+        };
+        for i in 0..leaves_capacity {
+            new_data.leaves[i as usize] = AppendLeavesInput {
+                account_index: rng.gen(),
+                leaf: rng.gen(),
+            };
+        }
+        for i in 0..nullifiers_capacity {
+            new_data.nullifiers[i as usize] = InsertNullifierInput {
+                account_hash: rng.gen(),
+                leaf_index: rng.gen::<u32>().into(),
+                prove_by_index: rng.gen(),
+                tree_index: rng.gen(),
+                queue_index: rng.gen(),
+            };
+        }
+        for i in 0..addresses_capacity {
+            new_data.addresses[i as usize] = InsertAddressInput {
+                address: rng.gen(),
+                tree_index: rng.gen(),
+                queue_index: rng.gen(),
+            };
+        }
+        let nullifiers = new_data.nullifiers.to_vec();
+        let leaves = new_data.leaves.to_vec();
+        let addresses = new_data.addresses.to_vec();
+        let meta = *new_data.meta;
+        let zero_copy = InsertIntoQueuesInstructionData::zero_copy_at(&bytes)
+            .unwrap()
+            .0;
+        assert_eq!(meta, *zero_copy.meta);
+        assert_eq!(leaves.as_slice(), zero_copy.leaves.as_slice());
+        assert_eq!(nullifiers.as_slice(), zero_copy.nullifiers.as_slice());
+        assert_eq!(addresses.as_slice(), zero_copy.addresses.as_slice());
+    }
+}

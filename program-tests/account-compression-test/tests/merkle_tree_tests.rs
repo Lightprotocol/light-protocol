@@ -1819,7 +1819,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
 
     for (i, (index, leaf)) in leaves.iter().enumerate() {
         ix_data.leaves[i].leaf = *leaf;
-        ix_data.leaves[i].tree_account_index = *index;
+        ix_data.leaves[i].account_index = *index;
     }
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 
@@ -1936,7 +1936,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
     let mut ix_data = InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 0, 0, 1).unwrap();
     ix_data.num_output_queues = 1;
     ix_data.leaves[0].leaf = [1; 32];
-    ix_data.leaves[0].tree_account_index = 0;
+    ix_data.leaves[0].account_index = 0;
 
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
     let accounts = account_compression::accounts::GenericInstruction {
