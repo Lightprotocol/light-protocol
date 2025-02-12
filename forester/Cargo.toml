@@ -38,15 +38,16 @@ borsh = { workspace = true }
 bs58 = "0.5.1"
 env_logger = { workspace = true }
 async-trait = { workspace = true }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
-tracing-appender = "0.2.3"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+anyhow = { workspace = true }
+
 prometheus = "0.13"
 lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
-anyhow = { workspace = true }
 itertools = "0.14.0"
 
 [dev-dependencies]

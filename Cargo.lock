@@ -3171,9 +3171,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-system-program",
  "light-test-utils",
- "log",
  "num-bigint 0.4.6",
  "photon-api",
  "rand 0.8.5",
@@ -3185,6 +3183,7 @@ dependencies = [
  "spl-token",
  "thiserror 2.0.11",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

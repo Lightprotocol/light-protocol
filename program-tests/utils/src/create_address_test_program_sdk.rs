@@ -120,7 +120,8 @@ pub async fn perform_create_pda_with_event<
             Some(vec![address_merkle_tree_pubkey]),
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let new_address_params = NewAddressParams {
         seed,

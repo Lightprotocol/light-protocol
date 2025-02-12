@@ -61,6 +61,7 @@ pub struct TransactionConfig {
     pub batch_size: usize,
     pub max_concurrent_batches: usize,
     pub cu_limit: u32,
+    pub enable_priority_fees: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +98,7 @@ impl Default for TransactionConfig {
             batch_size: 1,
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
+            enable_priority_fees: false,
         }
     }
 }
@@ -174,6 +176,7 @@ impl ForesterConfig {
                 batch_size: args.transaction_batch_size,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
                 cu_limit: args.cu_limit,
+                enable_priority_fees: args.enable_priority_fees,
             },
             general_config: GeneralConfig {
                 rpc_pool_size: args.rpc_pool_size,
@@ -217,7 +220,7 @@ impl ForesterConfig {
             general_config: GeneralConfig {
                 rpc_pool_size: 10,
                 slot_update_interval_seconds: 10,
-                tree_discovery_interval_seconds: 5,
+                tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
             },
             registry_pubkey: Pubkey::default(),

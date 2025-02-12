@@ -50,6 +50,7 @@ async fn test_priority_fee_request() {
         transaction_batch_size: 1,
         transaction_max_concurrent_batches: 20,
         cu_limit: 1_000_000,
+        enable_priority_fees: true,
         rpc_pool_size: 20,
         slot_update_interval_seconds: 10,
         tree_discovery_interval_seconds: 5,

@@ -40,7 +40,6 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
             index,
         })
         .collect();
-    debug!("Queue data fetched: {:?}", filtered_queue);
     Ok(filtered_queue)
 }
 

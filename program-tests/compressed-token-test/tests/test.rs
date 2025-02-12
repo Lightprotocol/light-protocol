@@ -266,12 +266,7 @@ async fn test_failing_create_token_pool() {
         let result = rpc
             .create_and_send_transaction(&instructions, &payer_pubkey, &[&payer, &mint])
             .await;
-        assert_rpc_error(
-            result,
-            3,
-            light_compressed_token::ErrorCode::MintWithInvalidExtension.into(),
-        )
-        .unwrap();
+        assert_rpc_error(result, 3, ErrorCode::MintWithInvalidExtension.into()).unwrap();
     }
     // functional create token pool account with token 2022 mint with allowed metadata pointer extension
     {
@@ -338,7 +333,7 @@ async fn test_failing_create_token_pool() {
 #[serial]
 #[tokio::test]
 async fn failing_tests_add_token_pool() {
-    for is_token_22 in vec![false, true] {
+    for is_token_22 in [false, true] {
         let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
         let payer = rpc.get_payer().insecure_clone();
 
@@ -593,7 +588,7 @@ async fn test_wrapped_sol() {
     )
     .await;
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
-    for is_token_22 in vec![false] {
+    for is_token_22 in [false] {
         let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
         let payer = rpc.get_payer().insecure_clone();
         let mut test_indexer =
@@ -864,7 +859,7 @@ async fn test_5_mint_to() {
 #[serial]
 #[tokio::test]
 async fn test_10_mint_to() {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     // Make sure that the tokal token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..10).map(|_| rng.gen_range(0..(u64::MAX / 10))).collect();
     test_mint_to(amounts, 1, Some(1_000_000)).await
@@ -873,7 +868,7 @@ async fn test_10_mint_to() {
 #[serial]
 #[tokio::test]
 async fn test_20_mint_to() {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     // Make sure that the total token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..20).map(|_| rng.gen_range(0..(u64::MAX / 20))).collect();
     test_mint_to(amounts, 1, Some(1_000_000)).await
@@ -882,7 +877,7 @@ async fn test_20_mint_to() {
 #[serial]
 #[tokio::test]
 async fn test_25_mint_to() {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     // Make sure that the total token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..25)
         .map(|_| rng.gen_range(0..(u64::MAX / (25 * 10))))
@@ -914,14 +909,14 @@ async fn test_25_mint_to_zeros() {
 #[serial]
 #[tokio::test]
 async fn test_mint_to_failing() {
-    for is_token_22 in vec![false, true] {
+    for is_token_22 in [false, true] {
         const MINTS: usize = 10;
 
         let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
         let payer_1 = rpc.get_payer().insecure_clone();
         let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = thread_rng();
 
         let payer_2 = Keypair::new();
         airdrop_lamports(&mut rpc, &payer_2.pubkey(), 1_000_000_000)
@@ -1482,7 +1477,7 @@ async fn test_decompression() {
         },
     )
     .await;
-    for is_token_22 in vec![false, true] {
+    for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let (mut context, env) = setup_test_programs_with_accounts(None).await;
         let payer = context.get_payer().insecure_clone();
@@ -1562,6 +1557,7 @@ async fn test_decompression() {
     kill_prover();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn mint_tokens_to_all_token_pools<
     R: RpcConnection,
     I: Indexer<R> + TestIndexerExtensions<R>,
@@ -1611,7 +1607,7 @@ pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
     mint: &Pubkey,
 ) -> Result<(), RpcError> {
     for bump in 0..NUM_MAX_POOL_ACCOUNTS {
-        let token_pool_pda = get_token_pool_pda_with_index(&mint, bump);
+        let token_pool_pda = get_token_pool_pda_with_index(mint, bump);
         let mut token_pool_account = rpc.get_account(token_pool_pda).await?.unwrap();
         let token_pool_data =
             TokenAccount::try_deserialize_unchecked(&mut &*token_pool_account.data.as_mut_slice())
@@ -1633,7 +1629,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
         },
     )
     .await;
-    for is_token_22 in vec![false, true] {
+    for is_token_22 in [false, true] {
         let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
         let payer = rpc.get_payer().insecure_clone();
         let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1711,8 +1707,8 @@ async fn test_multiple_decompression() {
         },
     )
     .await;
-    let rng = &mut rand::thread_rng();
-    for is_token_22 in vec![false, true] {
+    let rng = &mut thread_rng();
+    for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let (mut context, env) = setup_test_programs_with_accounts(None).await;
         let payer = context.get_payer().insecure_clone();
@@ -1829,7 +1825,7 @@ async fn test_multiple_decompression() {
                 .map(|x| x.token_data.amount)
                 .sum();
             let mut add_token_pool_accounts = (0..4)
-                .map(|x| get_token_pool_pda_with_index(&mint, x.clone()))
+                .map(|x| get_token_pool_pda_with_index(&mint, x))
                 .collect::<Vec<_>>();
             add_token_pool_accounts.shuffle(rng);
             decompress_test(
@@ -2314,7 +2310,8 @@ async fn test_approve_failing() {
             None,
             &mut rpc,
         )
-        .await;
+        .await
+        .unwrap();
     let mint = input_compressed_accounts[0].token_data.mint;
 
     // 1. Invalid delegated compressed account Merkle tree.
@@ -2345,7 +2342,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof.clone(),
+            proof: proof_rpc_result.proof,
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2753,7 +2750,8 @@ async fn test_revoke_failing() {
             None,
             &mut rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     // 1. Invalid root indices.
     {
@@ -3734,7 +3732,8 @@ async fn test_failing_freeze() {
                 None,
                 &mut rpc,
             )
-            .await;
+            .await
+            .unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
 
         // 1. Invalid authority.
@@ -3903,7 +3902,8 @@ async fn test_failing_freeze() {
                     None,
                     &mut rpc,
                 )
-                .await;
+                .await
+                .unwrap();
             let inputs = CreateInstructionInputs {
                 fee_payer: rpc.get_payer().pubkey(),
                 authority: payer.pubkey(),
@@ -4040,7 +4040,8 @@ async fn test_failing_thaw() {
                 None,
                 &mut rpc,
             )
-            .await;
+            .await
+            .unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
 
         // 1. Invalid authority.
@@ -4189,7 +4190,8 @@ async fn test_failing_thaw() {
                     None,
                     &mut rpc,
                 )
-                .await;
+                .await
+                .unwrap();
             let inputs = CreateInstructionInputs {
                 fee_payer: rpc.get_payer().pubkey(),
                 authority: payer.pubkey(),
@@ -4252,7 +4254,7 @@ async fn test_failing_decompression() {
         },
     )
     .await;
-    for is_token_22 in vec![false, true] {
+    for is_token_22 in [false, true] {
         let (mut context, env) = setup_test_programs_with_accounts(None).await;
         let payer = context.get_payer().insecure_clone();
         let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -4825,7 +4827,8 @@ pub async fn failing_compress_decompress<
                 None,
                 rpc,
             )
-            .await;
+            .await
+            .unwrap();
         (proof_rpc_result.root_indices, Some(proof_rpc_result.proof))
     } else {
         (Vec::new(), None)
@@ -4979,7 +4982,8 @@ async fn test_invalid_inputs() {
             None,
             &mut rpc,
         )
-        .await;
+        .await
+        .unwrap();
     let proof = Some(proof_rpc_result.proof);
 
     let change_out_compressed_account_0 = TokenTransferOutputData {
@@ -5007,7 +5011,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &&Some(proof_rpc_result.proof),
+            &Some(proof_rpc_result.proof),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -5032,7 +5036,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
+            &Some(proof_rpc_result.proof),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -5105,7 +5109,7 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &&Some(proof_rpc_result.proof),
+            &Some(proof_rpc_result.proof),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,
             false,
@@ -5295,7 +5299,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     root_indices: &[Option<u16>],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     invalid_mint: bool,
-) -> Result<solana_sdk::signature::Signature, RpcError> {
+) -> Result<Signature, RpcError> {
     let input_compressed_account_token_data: Vec<TokenData> = input_compressed_accounts
         .iter()
         .map(|x| {

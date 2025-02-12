@@ -23,18 +23,79 @@ use crate::rpc::RpcConnection;
 
 pub mod photon_indexer;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum IndexerError {
-    #[error("RPC Error: {0}")]
-    RpcError(#[from] Box<solana_client::client_error::ClientError>),
-    #[error("failed to deserialize account data")]
+    #[error("Photon API error in {context}: {message}")]
+    PhotonError { context: String, message: String },
+
+    #[error("Failed to deserialize account data: {0}")]
     DeserializeError(#[from] solana_sdk::program_error::ProgramError),
-    #[error("failed to copy merkle tree")]
-    CopyMerkleTreeError(#[from] std::io::Error),
-    #[error("error: {0:?}")]
-    Custom(String),
-    #[error("unknown error")]
-    Unknown,
+
+    #[error("API error: {0}")]
+    ApiError(String),
+
+    #[error("Missing result from {context}: {message}")]
+    MissingResult { context: String, message: String },
+
+    #[error("Account not found")]
+    AccountNotFound,
+
+    #[error("Base58 decode error: {field} - {message}")]
+    Base58DecodeError { field: String, message: String },
+
+    #[error("Invalid parameters: {0}")]
+    InvalidParameters(String),
+
+    #[error("Data decode error: {field} - {message}")]
+    DataDecodeError { field: String, message: String },
+
+    #[error("Method not implemented: {0}")]
+    NotImplemented(String),
+
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+}
+
+impl IndexerError {
+    pub fn missing_result(context: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::MissingResult {
+            context: context.into(),
+            message: message.into(),
+        }
+    }
+
+    pub fn api_error(error: impl std::fmt::Display) -> Self {
+        Self::ApiError(error.to_string())
+    }
+
+    pub fn decode_error(field: impl Into<String>, error: impl std::fmt::Display) -> Self {
+        Self::DataDecodeError {
+            field: field.into(),
+            message: error.to_string(),
+        }
+    }
+
+    pub fn base58_decode_error(field: impl Into<String>, error: impl std::fmt::Display) -> Self {
+        Self::Base58DecodeError {
+            field: field.into(),
+            message: error.to_string(),
+        }
+    }
+}
+
+impl<T> From<photon_api::apis::Error<T>> for IndexerError {
+    fn from(error: photon_api::apis::Error<T>) -> Self {
+        match error {
+            photon_api::apis::Error::Reqwest(e) => {
+                IndexerError::ApiError(format!("Request error: {}", e))
+            }
+            photon_api::apis::Error::Serde(e) => {
+                IndexerError::ApiError(format!("Serialization error: {}", e))
+            }
+            photon_api::apis::Error::Io(e) => IndexerError::ApiError(format!("IO error: {}", e)),
+            _ => IndexerError::ApiError("Unknown API error".to_string()),
+        }
+    }
 }
 
 pub struct ProofOfLeaf {
@@ -71,13 +132,13 @@ impl Base58Conversions for [u8; 32] {
 
         let len = bs58::decode(s)
             .into(&mut result)
-            .map_err(|e| IndexerError::Custom(format!("Base58 decoding error: {}", e)))?;
+            .map_err(|e| IndexerError::base58_decode_error(s, e))?;
 
         if len != 32 {
-            return Err(IndexerError::Custom(format!(
-                "Invalid length: expected 32 bytes, got {}",
-                len
-            )));
+            return Err(IndexerError::Base58DecodeError {
+                field: s.to_string(),
+                message: "Invalid length".to_string(),
+            });
         }
 
         Ok(result)
@@ -117,7 +178,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult;
+    ) -> Result<ProofRpcResult, IndexerError>;
 
     async fn get_multiple_compressed_account_proofs(
         &self,
