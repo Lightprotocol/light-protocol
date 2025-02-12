@@ -38,7 +38,6 @@ pub struct ZCpiContextAccount<'a> {
     pub context: Vec<ZInstructionDataInvokeCpi<'a>>,
 }
 
-// TODO: test
 pub fn deserialize_cpi_context_account<'info, 'a>(
     account_info: &AccountInfo<'info>,
 ) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
@@ -51,7 +50,6 @@ pub fn deserialize_cpi_context_account<'info, 'a>(
     let (len, data) = Ref::<&'a mut [u8], U32>::from_prefix(data)?;
     let mut data = &*data;
     let mut context = Vec::new();
-
     for _ in 0..(u64::from(*len)) as usize {
         let (context_item, new_data) = ZInstructionDataInvokeCpi::zero_copy_at(data)?;
         context.push(context_item);

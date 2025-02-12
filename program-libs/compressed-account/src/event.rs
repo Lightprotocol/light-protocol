@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
 
-use super::{discriminators::*, insert_into_queues::AppendNullifyCreateAddressInputsIndexer};
+use super::{discriminators::*, insert_into_queues::InsertIntoQueuesInstructionData};
 use crate::instruction_data::{
     data::OutputCompressedAccountWithPackedContext,
     zero_copy::{
@@ -116,7 +116,7 @@ pub fn match_account_compression_program_instruction(
     match instruction_discriminator {
         DISCRIMINATOR_INSERT_INTO_QUEUES => {
             let (_, instruction) = instruction.split_at(12);
-            let (data, _) = AppendNullifyCreateAddressInputsIndexer::zero_copy_at(instruction)?;
+            let (data, _) = InsertIntoQueuesInstructionData::zero_copy_at(instruction)?;
             event.input_compressed_account_hashes =
                 data.nullifiers.iter().map(|x| x.account_hash).collect();
             event.output_compressed_account_hashes = data.leaves.iter().map(|x| x.leaf).collect();
@@ -140,7 +140,7 @@ pub fn match_account_compression_program_instruction(
                 .iter_mut()
                 .zip(data.leaves.iter())
                 .for_each(|(x, y)| {
-                    x.merkle_tree_index = y.tree_account_index;
+                    x.merkle_tree_index = y.account_index;
                 });
             data.addresses.iter().for_each(|x| {
                 if x.tree_index == x.queue_index {

@@ -3,7 +3,7 @@ use anchor_lang::{
     prelude::{AccountMeta, Context, Pubkey},
     Bumps, InstructionData, Key, Result, ToAccountInfo,
 };
-use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
+use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
@@ -37,7 +37,7 @@ pub fn create_cpi_data_and_context<
     ];
     let account_indices =
         Vec::<u8>::with_capacity((num_nullifiers + num_leaves + num_new_addresses) as usize);
-    let bytes_size = AppendNullifyCreateAddressInputs::required_size_for_capacity(
+    let bytes_size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
         num_leaves,
         num_nullifiers,
         num_new_addresses,
@@ -50,7 +50,6 @@ pub fn create_cpi_data_and_context<
             accounts,
             account_infos,
             hashed_pubkeys: Vec::with_capacity(hashed_pubkeys_capacity),
-            // TODO: init with capacity.
             addresses: Vec::with_capacity((num_nullifiers + num_new_addresses) as usize),
             rollover_fee_payments: Vec::new(),
             address_fee_is_set: false,

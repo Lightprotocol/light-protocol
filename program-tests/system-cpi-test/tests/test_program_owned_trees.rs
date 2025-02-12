@@ -225,6 +225,7 @@ async fn test_invalid_registered_program() {
         register_program(&mut rpc, &payer, &program_id_keypair, &invalid_group_pda)
             .await
             .unwrap();
+
     let invalid_group_state_merkle_tree = Keypair::new();
     let invalid_group_nullifier_queue = Keypair::new();
     create_state_merkle_tree_and_queue_account(
@@ -264,8 +265,8 @@ async fn test_invalid_registered_program() {
     // invoke account compression program through system cpi test
     // 1. the program is registered with a different group than the Merkle tree
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
+        let (derived_address, bump) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
         let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: invalid_group_registered_program_pda,
@@ -281,7 +282,10 @@ async fn test_invalid_registered_program() {
             address_queue,
         };
 
-        let instruction_data = system_cpi_test::instruction::InsertIntoQueues { is_batched: false };
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: false,
+            cpi_bump: bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -320,10 +324,15 @@ async fn test_invalid_registered_program() {
     )
     .await
     .unwrap();
+    let (_, token_program_registered_program_bump) = Pubkey::find_program_address(
+        &[CPI_AUTHORITY_PDA_SEED],
+        &other_program_id_keypair.pubkey(),
+    );
     // 4. use registered_program_pda of other program
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
+
         let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
@@ -338,8 +347,10 @@ async fn test_invalid_registered_program() {
             address_tree,
             address_queue,
         };
-
-        let instruction_data = system_cpi_test::instruction::InsertIntoQueues { is_batched: false };
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: false,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -579,8 +590,8 @@ async fn test_invalid_registered_program() {
     }
     // 9. insert into batched trees with invalid group
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
         let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
@@ -596,7 +607,10 @@ async fn test_invalid_registered_program() {
             address_tree: env.batch_address_merkle_tree,
         };
 
-        let instruction_data = system_cpi_test::instruction::InsertIntoQueues { is_batched: true };
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: true,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -612,8 +626,8 @@ async fn test_invalid_registered_program() {
     }
     // 10. insert into batched trees with invalid group
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
         let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
@@ -629,7 +643,10 @@ async fn test_invalid_registered_program() {
             address_tree: env.batch_address_merkle_tree,
         };
 
-        let instruction_data = system_cpi_test::instruction::InsertIntoQueues { is_batched: true };
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: true,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),

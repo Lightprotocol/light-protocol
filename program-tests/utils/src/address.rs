@@ -1,7 +1,7 @@
 use account_compression::instruction::InsertIntoQueues;
 use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
 use light_client::rpc::{RpcConnection, RpcError};
-use light_compressed_account::insert_into_queues::AppendNullifyCreateAddressInputs;
+use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -19,10 +19,10 @@ pub async fn insert_addresses<R: RpcConnection>(
     let mut bytes =
         vec![
             0u8;
-            AppendNullifyCreateAddressInputs::required_size_for_capacity(0, 0, num_addresses, 0,)
+            InsertIntoQueuesInstructionDataMut::required_size_for_capacity(0, 0, num_addresses, 0,)
         ];
     let ix_data =
-        &mut AppendNullifyCreateAddressInputs::new(&mut bytes, 0, 0, num_addresses, 0).unwrap();
+        &mut InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, 0, num_addresses, 0).unwrap();
     ix_data.num_address_queues = 1;
     let is_batched = address_queue_pubkey == address_merkle_tree_pubkey;
 

@@ -63,10 +63,10 @@ pub fn manual_check_signer_is_registered_or_authority<'a, A: GroupAccess>(
     derived_address: &Option<(Pubkey, Pubkey)>,
     authority: &AcpAccount<'a, '_>,
     checked_account: &'a A,
-) -> Result<()> {
+) -> std::result::Result<(), AccountCompressionErrorCode> {
     let authority = match authority {
         AcpAccount::Authority(authority) => authority,
-        _ => return Err(AccountCompressionErrorCode::InvalidAuthority.into()),
+        _ => return Err(AccountCompressionErrorCode::InvalidAuthority),
     };
     match derived_address {
         Some((derived_address, group_authority_pda)) => {
@@ -84,14 +84,14 @@ pub fn manual_check_signer_is_registered_or_authority<'a, A: GroupAccess>(
                 msg!("derived_address: {:?}", derived_address);
                 msg!("signing_address: {:?}", authority.key());
                 msg!("group_authority_pda: {:?}", group_authority_pda.to_bytes());
-                Err(AccountCompressionErrorCode::InvalidAuthority.into())
+                Err(AccountCompressionErrorCode::InvalidAuthority)
             }
         }
         None => {
             if authority.key() == checked_account.get_owner() {
                 Ok(())
             } else {
-                Err(AccountCompressionErrorCode::InvalidAuthority.into())
+                Err(AccountCompressionErrorCode::InvalidAuthority)
             }
         }
     }

@@ -16,15 +16,11 @@ pub struct InvokeInstruction<'info> {
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK: this account
-    // #[account(
-    // seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
-    // )]
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: is checked when emitting the event.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program.
     /// This pda is used to invoke the account compression program.
-    // #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: Account compression program is used to update state and address
     /// Merkle trees.

@@ -48,7 +48,7 @@ pub fn insert_nullifiers(
         // Dispatch to v1 / v2 / ... based on the account type
         match queue_account {
             AcpAccount::OutputQueue(queue) => {
-                inserted_nullifiers += process_nullifier_v2(
+                inserted_nullifiers += batched_nullifiers(
                     merkle_tree_account,
                     queue,
                     &tx_hash,
@@ -57,30 +57,32 @@ pub fn insert_nullifiers(
                     tree_index,
                     current_slot,
                 )?;
+                anchor_lang::Result::Ok(())
             }
             AcpAccount::V1Queue(queue_account_info) => {
-                inserted_nullifiers += process_nullifier_v1(
+                inserted_nullifiers += process_nullifiers_v1(
                     merkle_tree_account,
                     queue_account_info,
                     nullifiers,
                     queue_index,
                     tree_index,
                 )?;
+                Ok(())
             }
             AcpAccount::BatchedStateTree(_) => {
-                msg!("BatchedStateTree");
-                unimplemented!();
+                msg!("BatchedStateTree, expected output queue.");
+                Err(AccountCompressionErrorCode::InvalidAccount.into())
             }
             AcpAccount::StateTree(_) => {
-                msg!("StateTree");
-                unimplemented!();
+                msg!("StateTree, expected v1 nullifier queue.");
+                Err(AccountCompressionErrorCode::InvalidAccount.into())
             }
             AcpAccount::BatchedAddressTree(_) => {
-                msg!("BatchedAddressTree");
-                unimplemented!();
+                msg!("BatchedAddressTree, expected v1 nullifier or output queue.");
+                Err(AccountCompressionErrorCode::InvalidAccount.into())
             }
-            _ => unimplemented!(),
-        }
+            _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),
+        }?;
     }
 
     // 3. Verify we inserted a nullifier for all items
@@ -93,8 +95,15 @@ pub fn insert_nullifiers(
     Ok(())
 }
 
+/// Steps:
+/// 1. filter for nullifiers with the same queue and tree indices
+/// 2. unpack tree account, fail if account is not a tree account
+/// 3. check queue and tree are associated
+/// 4. check for every value whether it exists in the queue and zero it out.
+///     If checked fail if the value is not in the queue.
+/// 5. Insert the nullifiers into the current input queue batch.
 #[inline(always)]
-fn process_nullifier_v2<'info>(
+fn batched_nullifiers<'info>(
     merkle_tree: &mut AcpAccount<'_, 'info>,
     output_queue: &mut BatchedQueueAccount<'info>,
     tx_hash: &[u8; 32],
@@ -103,6 +112,7 @@ fn process_nullifier_v2<'info>(
     current_tree_index: u8,
     current_slot: &u64,
 ) -> Result<usize> {
+    // 1. filter for nullifiers with the same queue and tree indices
     let nullifiers = nullifiers
         .iter()
         .filter(|x| x.queue_index == current_queue_index && x.tree_index == current_tree_index);
@@ -139,7 +149,12 @@ fn process_nullifier_v2<'info>(
     Ok(num_elements)
 }
 
-fn process_nullifier_v1<'info>(
+/// Steps:
+/// 1. filter for nullifiers with the same queue and tree indices
+/// 2. unpack tree account, fail if account is not a tree account
+/// 3. check queue and tree are associated
+/// 4. Insert the nullifiers into the queues hash set.
+fn process_nullifiers_v1<'info>(
     merkle_tree: &mut AcpAccount<'_, 'info>,
     nullifier_queue: &mut AccountInfo<'info>,
     nullifiers: &[InsertNullifierInput],
@@ -159,6 +174,7 @@ fn process_nullifier_v1<'info>(
         let queue_data = nullifier_queue
             .try_borrow_data()
             .map_err(ProgramError::from)?;
+        // Discriminator is already checked in try_from_account_infos.
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
         // 3. Check queue and Merkle tree are associated.
         if queue.metadata.associated_merkle_tree != (*merkle_pubkey).into() {
@@ -171,17 +187,11 @@ fn process_nullifier_v1<'info>(
         }
     }
     let mut num_elements = 0;
-    // 5. Insert the nullifiers into the queues hash set.
+    // 4. Insert the nullifiers into the queues hash set.
 
-    let sequence_number = {
-        // let merkle_tree = merkle_tree.try_borrow_data()?;
-        // let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
-        merkle_tree.sequence_number()
-    };
+    let sequence_number = merkle_tree.sequence_number();
     let mut queue = nullifier_queue.try_borrow_mut_data()?;
     let mut queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue).unwrap() };
-    #[cfg(feature = "bench-sbf")]
-    light_heap::bench_sbf_end!("acp_prep_insertion");
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
     for nullifier in nullifiers {

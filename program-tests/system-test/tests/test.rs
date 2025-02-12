@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
-use anchor_lang::{error::ErrorCode, AnchorSerialize, InstructionData, ToAccountMetas};
+use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -534,7 +534,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            ErrorCode::AccountDiscriminatorMismatch.into(),
+            AccountCompressionErrorCode::InvalidAccount.into(),
         )
         .await
         .unwrap();
@@ -674,7 +674,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
+            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();

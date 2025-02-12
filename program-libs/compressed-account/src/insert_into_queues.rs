@@ -36,7 +36,7 @@ impl InsertNullifierInput {
     KnownLayout, IntoBytes, Immutable, Copy, Clone, FromBytes, PartialEq, Debug, Unaligned,
 )]
 pub struct AppendLeavesInput {
-    pub tree_account_index: u8,
+    pub account_index: u8,
     pub leaf: [u8; 32],
 }
 #[repr(C)]
@@ -60,26 +60,33 @@ pub struct MerkleTreeSequenceNumber {
 }
 
 #[derive(Debug, Clone)]
-pub struct AppendNullifyCreateAddressInputsIndexer<'a> {
-    meta: Ref<&'a [u8], AppendNullifyCreateAddressInputsMeta>,
+pub struct InsertIntoQueuesInstructionData<'a> {
+    meta: Ref<&'a [u8], InsertIntoQueuesInstructionDataMeta>,
     pub leaves: ZeroCopySlice<'a, u8, AppendLeavesInput, false>,
     pub nullifiers: ZeroCopySlice<'a, u8, InsertNullifierInput, false>,
     pub addresses: ZeroCopySlice<'a, u8, InsertAddressInput, false>,
     pub sequence_numbers: ZeroCopySlice<'a, u8, MerkleTreeSequenceNumber, false>,
     pub output_leaf_indices: ZeroCopySlice<'a, u8, U32, false>,
 }
-impl Deref for AppendNullifyCreateAddressInputsIndexer<'_> {
-    type Target = AppendNullifyCreateAddressInputsMeta;
+
+impl InsertIntoQueuesInstructionData<'_> {
+    pub fn is_invoked_by_program(&self) -> bool {
+        self.meta.is_invoked_by_program == 1
+    }
+}
+
+impl Deref for InsertIntoQueuesInstructionData<'_> {
+    type Target = InsertIntoQueuesInstructionDataMeta;
 
     fn deref(&self) -> &Self::Target {
         &self.meta
     }
 }
 
-impl<'a> Deserialize<'a> for AppendNullifyCreateAddressInputsIndexer<'a> {
+impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
     type Output = Self;
     fn zero_copy_at(bytes: &'a [u8]) -> std::result::Result<(Self, &'a [u8]), ZeroCopyError> {
-        let (meta, bytes) = Ref::<&[u8], AppendNullifyCreateAddressInputsMeta>::from_prefix(bytes)?;
+        let (meta, bytes) = Ref::<&[u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
 
         let (leaves, bytes) = ZeroCopySlice::<u8, AppendLeavesInput, false>::from_bytes_at(bytes)?;
 
@@ -94,7 +101,7 @@ impl<'a> Deserialize<'a> for AppendNullifyCreateAddressInputsIndexer<'a> {
         let output_leaf_indices =
             ZeroCopySlice::<u8, zerocopy::little_endian::U32, false>::from_bytes(bytes)?;
         Ok((
-            AppendNullifyCreateAddressInputsIndexer {
+            InsertIntoQueuesInstructionData {
                 meta,
                 leaves,
                 nullifiers,
@@ -111,7 +118,7 @@ impl<'a> Deserialize<'a> for AppendNullifyCreateAddressInputsIndexer<'a> {
 #[derive(
     FromBytes, IntoBytes, KnownLayout, Immutable, Copy, Clone, PartialEq, Debug, Unaligned,
 )]
-pub struct AppendNullifyCreateAddressInputsMeta {
+pub struct InsertIntoQueuesInstructionDataMeta {
     is_invoked_by_program: u8,
     pub bump: u8,
     pub num_queues: u8,
@@ -122,8 +129,8 @@ pub struct AppendNullifyCreateAddressInputsMeta {
 }
 
 #[derive(Debug)]
-pub struct AppendNullifyCreateAddressInputs<'a> {
-    meta: Ref<&'a mut [u8], AppendNullifyCreateAddressInputsMeta>,
+pub struct InsertIntoQueuesInstructionDataMut<'a> {
+    meta: Ref<&'a mut [u8], InsertIntoQueuesInstructionDataMeta>,
     pub leaves: ZeroCopySliceMut<'a, u8, AppendLeavesInput, false>,
     pub nullifiers: ZeroCopySliceMut<'a, u8, InsertNullifierInput, false>,
     pub addresses: ZeroCopySliceMut<'a, u8, InsertAddressInput, false>,
@@ -131,7 +138,7 @@ pub struct AppendNullifyCreateAddressInputs<'a> {
     pub output_leaf_indices: ZeroCopySliceMut<'a, u8, U32, false>,
 }
 
-impl<'a> AppendNullifyCreateAddressInputs<'a> {
+impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
     pub fn is_invoked_by_program(&self) -> bool {
         self.meta.is_invoked_by_program == 1
     }
@@ -146,7 +153,7 @@ impl<'a> AppendNullifyCreateAddressInputs<'a> {
         addresses_capacity: u8,
         num_output_trees: u8,
     ) -> usize {
-        size_of::<AppendNullifyCreateAddressInputsMeta>()
+        size_of::<InsertIntoQueuesInstructionDataMeta>()
             + ZeroCopySliceMut::<u8, AppendLeavesInput, false>::required_size_for_capacity(
                 leaves_capacity,
             )
@@ -170,7 +177,7 @@ impl<'a> AppendNullifyCreateAddressInputs<'a> {
         num_output_trees: u8,
     ) -> std::result::Result<Self, ZeroCopyError> {
         let (meta, bytes) =
-            Ref::<&mut [u8], AppendNullifyCreateAddressInputsMeta>::from_prefix(bytes)?;
+            Ref::<&mut [u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
         let (leaves, bytes) =
             ZeroCopySliceMut::<u8, AppendLeavesInput, false>::new_at(leaves_capacity, bytes)?;
         let (nullifiers, bytes) = ZeroCopySliceMut::<u8, InsertNullifierInput, false>::new_at(
@@ -185,7 +192,7 @@ impl<'a> AppendNullifyCreateAddressInputs<'a> {
                 bytes,
             )?;
         let output_leaf_indices = ZeroCopySliceMut::<u8, U32, false>::new(leaves_capacity, bytes)?;
-        Ok(AppendNullifyCreateAddressInputs {
+        Ok(InsertIntoQueuesInstructionDataMut {
             meta,
             leaves,
             nullifiers,
@@ -196,38 +203,89 @@ impl<'a> AppendNullifyCreateAddressInputs<'a> {
     }
 }
 
-impl Deref for AppendNullifyCreateAddressInputs<'_> {
-    type Target = AppendNullifyCreateAddressInputsMeta;
+impl Deref for InsertIntoQueuesInstructionDataMut<'_> {
+    type Target = InsertIntoQueuesInstructionDataMeta;
 
     fn deref(&self) -> &Self::Target {
         &self.meta
     }
 }
 
-impl DerefMut for AppendNullifyCreateAddressInputs<'_> {
+impl DerefMut for InsertIntoQueuesInstructionDataMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.meta
     }
 }
 
-pub fn deserialize_insert_into_queues(
-    bytes: &mut [u8],
-) -> std::result::Result<AppendNullifyCreateAddressInputs<'_>, ZeroCopyError> {
-    let (meta, bytes) = Ref::<&mut [u8], AppendNullifyCreateAddressInputsMeta>::from_prefix(bytes)?;
-    let (leaves, bytes) = ZeroCopySliceMut::<u8, AppendLeavesInput, false>::from_bytes_at(bytes)?;
-    let (nullifiers, bytes) =
-        ZeroCopySliceMut::<u8, InsertNullifierInput, false>::from_bytes_at(bytes)?;
-    let (addresses, bytes) =
-        ZeroCopySliceMut::<u8, InsertAddressInput, false>::from_bytes_at(bytes)?;
-    let (sequence_numbers, bytes) =
-        ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
-    let output_leaf_indices = ZeroCopySliceMut::<u8, U32, false>::from_bytes(bytes)?;
-    Ok(AppendNullifyCreateAddressInputs {
-        meta,
-        leaves,
-        nullifiers,
-        addresses,
-        sequence_numbers,
-        output_leaf_indices,
-    })
+#[test]
+fn test_rnd_insert_into_queues_ix_data() {
+    use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+    let seed = thread_rng().gen();
+    println!("seed {}", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
+    let num_iters = 1000;
+
+    for _ in 0..num_iters {
+        let leaves_capacity: u8 = rng.gen();
+        let nullifiers_capacity: u8 = rng.gen();
+        let addresses_capacity: u8 = rng.gen();
+        let num_output_trees: u8 = rng.gen();
+        let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+            leaves_capacity,
+            nullifiers_capacity,
+            addresses_capacity,
+            num_output_trees,
+        );
+        let mut bytes = vec![0u8; size];
+        let mut new_data = InsertIntoQueuesInstructionDataMut::new(
+            &mut bytes,
+            leaves_capacity,
+            nullifiers_capacity,
+            addresses_capacity,
+            num_output_trees,
+        )
+        .unwrap();
+        *new_data.meta = InsertIntoQueuesInstructionDataMeta {
+            is_invoked_by_program: rng.gen(),
+            bump: rng.gen(),
+            num_queues: rng.gen(),
+            num_output_queues: rng.gen(),
+            start_output_appends: rng.gen(),
+            num_address_queues: rng.gen(),
+            tx_hash: rng.gen(),
+        };
+        for i in 0..leaves_capacity {
+            new_data.leaves[i as usize] = AppendLeavesInput {
+                account_index: rng.gen(),
+                leaf: rng.gen(),
+            };
+        }
+        for i in 0..nullifiers_capacity {
+            new_data.nullifiers[i as usize] = InsertNullifierInput {
+                account_hash: rng.gen(),
+                leaf_index: rng.gen::<u32>().into(),
+                prove_by_index: rng.gen(),
+                tree_index: rng.gen(),
+                queue_index: rng.gen(),
+            };
+        }
+        for i in 0..addresses_capacity {
+            new_data.addresses[i as usize] = InsertAddressInput {
+                address: rng.gen(),
+                tree_index: rng.gen(),
+                queue_index: rng.gen(),
+            };
+        }
+        let nullifiers = new_data.nullifiers.to_vec();
+        let leaves = new_data.leaves.to_vec();
+        let addresses = new_data.addresses.to_vec();
+        let meta = *new_data.meta;
+        let zero_copy = InsertIntoQueuesInstructionData::zero_copy_at(&bytes)
+            .unwrap()
+            .0;
+        assert_eq!(meta, *zero_copy.meta);
+        assert_eq!(leaves.as_slice(), zero_copy.leaves.as_slice());
+        assert_eq!(nullifiers.as_slice(), zero_copy.nullifiers.as_slice());
+        assert_eq!(addresses.as_slice(), zero_copy.addresses.as_slice());
+    }
 }
