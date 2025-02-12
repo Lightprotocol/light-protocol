@@ -140,7 +140,7 @@ pub fn process<
     let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
 
     let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
-    // 5 Read address roots ---------------------------------------------------
+    // 5. Read address roots ---------------------------------------------------
     let address_tree_height = read_address_roots(
         &accounts,
         inputs.new_address_params.as_slice(),
