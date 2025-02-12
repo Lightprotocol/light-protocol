@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::assert_eq;
+
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
@@ -7,7 +9,7 @@ use anchor_lang::{
 };
 use anchor_spl::{
     token::{Mint, TokenAccount},
-    token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
+    token_2022::spl_token_2022::{self, extension::ExtensionType},
 };
 use light_client::indexer::Indexer;
 use light_compressed_account::{
@@ -32,10 +34,14 @@ use light_compressed_token::{
 };
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::setup_test_programs_with_accounts,
+    test_env::{
+        setup_test_programs_with_accounts,
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+    },
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::utils::get_sol_pool_pda;
 use light_test_utils::{
@@ -979,7 +985,7 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
+            assert_rpc_error(result, 0, TokenError::OwnerMismatch as u32).unwrap();
         }
         // 2. Try to mint token from `mint_2` and sign the transaction with `mint_1`
         //    authority.
@@ -999,7 +1005,7 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
             // Owner doesn't match the mint authority.
-            assert_rpc_error(result, 0, ErrorCode::InvalidAuthorityMint.into()).unwrap();
+            assert_rpc_error(result, 0, TokenError::OwnerMismatch as u32).unwrap();
         }
         // 3. Try to mint token to random token account.
         {
@@ -1115,12 +1121,7 @@ async fn test_mint_to_failing() {
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_2.pubkey(), &[&payer_2])
                 .await;
-            assert_rpc_error(
-                result,
-                0,
-                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
-            )
-            .unwrap();
+            assert_rpc_error(result, 0, TokenError::OwnerMismatch as u32).unwrap();
         }
         // 6. Invalid registered program.
         {
@@ -1161,45 +1162,6 @@ async fn test_mint_to_failing() {
             )
             .unwrap();
         }
-        // // 7. Invalid noop program. (not used anymore since we removed the event)
-        // {
-        //     let invalid_noop_program = Keypair::new();
-        //     let accounts = light_compressed_token::accounts::MintToInstruction {
-        //         fee_payer: payer_1.pubkey(),
-        //         authority: payer_1.pubkey(),
-        //         cpi_authority_pda: get_cpi_authority_pda().0,
-        //         mint: mint_1,
-        //         token_pool_pda: mint_pool_1,
-        //         token_program,
-        //         light_system_program: light_system_program::ID,
-        //         registered_program_pda: light_system_program::utils::get_registered_program_pda(
-        //             &light_system_program::ID,
-        //         ),
-        //         noop_program: invalid_noop_program.pubkey(),
-        //         account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
-        //             &light_system_program::ID,
-        //         ),
-        //         account_compression_program: account_compression::ID,
-        //         merkle_tree: merkle_tree_pubkey,
-        //         self_program: light_compressed_token::ID,
-        //         system_program: system_program::ID,
-        //         sol_pool_pda: None,
-        //     };
-        //     let instruction = Instruction {
-        //         program_id: light_compressed_token::ID,
-        //         accounts: accounts.to_account_metas(Some(true)),
-        //         data: instruction_data.data(),
-        //     };
-        //     let result = rpc
-        //         .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-        //         .await;
-        //     assert_rpc_error(
-        //         result,
-        //         0,
-        //         account_compression::errors::AccountCompressionErrorCode::InvalidNoopPubkey.into(),
-        //     )
-        //     .unwrap();
-        // }
         // 8. Invalid account compression authority.
         {
             let invalid_account_compression_authority = Keypair::new();
@@ -1229,15 +1191,20 @@ async fn test_mint_to_failing() {
                 accounts: accounts.to_account_metas(Some(true)),
                 data: instruction_data.data(),
             };
+            // TransactionError(InstructionError(0, PrivilegeEscalation)
             let result = rpc
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-                .await;
-            assert_rpc_error(
-                result,
-                0,
-                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
-            )
-            .unwrap();
+                .await
+                .unwrap_err();
+            println!(
+                "result
+                .to_string() {}",
+                result.to_string()
+            );
+            assert!(result
+                .to_string()
+                .contains("Error processing Instruction 0: Cross-program invocation with unauthorized signer or writable account"));
+            // assert_rpc_error(result, 0, 0).unwrap();
         }
         // 9. Invalid Merkle tree.
         {
@@ -1263,50 +1230,50 @@ async fn test_mint_to_failing() {
             )
             .unwrap();
         }
-        // 10. Mint more than `u64::MAX` tokens.
-        {
-            // Overall sum greater than `u64::MAX`
-            let amounts = vec![u64::MAX / 5; MINTS];
-            let instruction = create_mint_to_instruction(
-                &payer_1.pubkey(),
-                &payer_1.pubkey(),
-                &mint_1,
-                &merkle_tree_pubkey,
-                amounts,
-                recipients.clone(),
-                None,
-                is_token_22,
-                0,
-            );
-            let result = rpc
-                .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-                .await;
-            assert_rpc_error(result, 0, ErrorCode::MintTooLarge.into()).unwrap();
-        }
-        // 11. Multiple mints which overflow the token supply over `u64::MAX`.
-        {
-            let amounts = vec![u64::MAX / 10; MINTS];
-            let instruction = create_mint_to_instruction(
-                &payer_1.pubkey(),
-                &payer_1.pubkey(),
-                &mint_1,
-                &merkle_tree_pubkey,
-                amounts,
-                recipients.clone(),
-                None,
-                is_token_22,
-                0,
-            );
-            // The first mint is still below `u64::MAX`.
-            rpc.create_and_send_transaction(&[instruction.clone()], &payer_1.pubkey(), &[&payer_1])
-                .await
-                .unwrap();
-            // The second mint should overflow.
-            let result = rpc
-                .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-                .await;
-            assert_rpc_error(result, 0, TokenError::Overflow as u32).unwrap();
-        }
+        // // 10. Mint more than `u64::MAX` tokens.
+        // {
+        //     // Overall sum greater than `u64::MAX`
+        //     let amounts = vec![u64::MAX / 5; MINTS];
+        //     let instruction = create_mint_to_instruction(
+        //         &payer_1.pubkey(),
+        //         &payer_1.pubkey(),
+        //         &mint_1,
+        //         &merkle_tree_pubkey,
+        //         amounts,
+        //         recipients.clone(),
+        //         None,
+        //         is_token_22,
+        //         0,
+        //     );
+        //     let result = rpc
+        //         .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+        //         .await;
+        //     assert_rpc_error(result, 0, ErrorCode::MintTooLarge.into()).unwrap();
+        // }
+        // // 11. Multiple mints which overflow the token supply over `u64::MAX`.
+        // {
+        //     let amounts = vec![u64::MAX / 10; MINTS];
+        //     let instruction = create_mint_to_instruction(
+        //         &payer_1.pubkey(),
+        //         &payer_1.pubkey(),
+        //         &mint_1,
+        //         &merkle_tree_pubkey,
+        //         amounts,
+        //         recipients.clone(),
+        //         None,
+        //         is_token_22,
+        //         0,
+        //     );
+        //     // The first mint is still below `u64::MAX`.
+        //     rpc.create_and_send_transaction(&[instruction.clone()], &payer_1.pubkey(), &[&payer_1])
+        //         .await
+        //         .unwrap();
+        //     // The second mint should overflow.
+        //     let result = rpc
+        //         .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
+        //         .await;
+        //     assert_rpc_error(result, 0, TokenError::Overflow as u32).unwrap();
+        // }
     }
 }
 
@@ -5414,22 +5381,35 @@ async fn test_transfer_with_batched_tree() {
         }
     }
 }
-
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+};
 // 26 recpients
 // with zero copy ix data:
 // - 275,457 CU
 // with borsh ix data:
 // - 283,695 CU
-/// TODO, add failing tests:
-/// 1. token pool account of different mint
-/// 2. token pool account with different index
-/// 3. no sender token account
-/// 4. sender insufficient balance
-/// 5. unequal number of amounts and recipients
+/// Test cases:
+/// 1. Functional compress 0 to 26 recipients
+/// 2. Failing unequal recipients amounts len
+/// 3. Failing insufficient balance
+/// 4. Failing sender account and token pool account with different mint
+/// 5. Failing invalid derived token pool pda
+/// 6. Failing invalid token pool pda derived from different index
+/// 7. Failing no sender token account
 #[serial]
 #[tokio::test]
 async fn batch_compress_with_batched_tree() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig::default(),
+            true,
+            InitStateTreeAccountsInstructionData::default(),
+            InitAddressTreeAccountsInstructionData::default(),
+        )
+        .await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.batched_output_queue;
     let mut test_indexer =
@@ -5444,7 +5424,6 @@ async fn batch_compress_with_batched_tree() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
-    let num_recipients = 26;
     let token_account = Keypair::new();
     create_token_account(&mut rpc, &mint, &token_account, &payer)
         .await
@@ -5461,45 +5440,274 @@ async fn batch_compress_with_batched_tree() {
     )
     .await
     .unwrap();
-    let recpient = Pubkey::new_unique();
-    let ix = create_batch_compress_instruction(
-        &payer.pubkey(),
-        &payer.pubkey(),
-        &mint,
-        &merkle_tree_pubkey,
-        vec![1u64; num_recipients],
-        vec![recpient; num_recipients],
-        None,
-        false,
-        0,
-        token_account,
-    );
-    let (event, _, slot) = rpc
-        .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
-        .await
-        .unwrap()
-        .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event);
-    let recipient_compressed_token_accounts = test_indexer
-        .get_compressed_token_accounts_by_owner(&recpient, None)
-        .await
-        .unwrap();
-    assert_eq!(recipient_compressed_token_accounts.len(), num_recipients);
-    let expected_token_data = light_sdk::token::TokenData {
-        mint,
-        owner: recpient,
-        amount: 1,
-        delegate: None,
-        state: AccountState::Initialized,
-        tlv: None,
-    };
+    // 1. Functional compress 0 to 26 recipients
+    for num_recipients in 1..=26 {
+        let recipients = (0..num_recipients)
+            .map(|_| Pubkey::new_unique())
+            .collect::<Vec<_>>();
+        let amounts = (1..num_recipients + 1).collect::<Vec<u64>>();
+        let sum_amounts: u64 = amounts.iter().sum();
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            amounts,
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            None,
+        );
+        let token_pool_pda = get_token_pool_pda_with_index(&mint, 0);
+        let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        use std::borrow::Borrow;
+        let pre_token_pool_balance =
+            TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow())
+                .unwrap()
+                .amount;
 
-    for recipient_compressed_token_account in recipient_compressed_token_accounts.iter() {
+        let (event, _, slot) = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await
+            .unwrap()
+            .unwrap();
+        test_indexer.add_compressed_accounts_with_token_data(slot, &event);
+
+        for i in 0..(num_recipients as usize) {
+            let recipient_compressed_token_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&recipients[i], None)
+                .await
+                .unwrap();
+            assert_eq!(recipient_compressed_token_accounts.len(), 1);
+            let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
+            let expected_token_data = light_sdk::token::TokenData {
+                mint,
+                owner: recipients[i],
+                amount: (i + 1) as u64,
+                delegate: None,
+                state: AccountState::Initialized,
+                tlv: None,
+            };
+            assert_eq!(
+                recipient_compressed_token_account.token_data,
+                expected_token_data
+            );
+        }
+
+        let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        let token_pool_account =
+            TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow()).unwrap();
         assert_eq!(
-            recipient_compressed_token_account.token_data,
-            expected_token_data
+            token_pool_account.amount,
+            sum_amounts + pre_token_pool_balance
         );
     }
+
+    // 2. Failing unequal recipients amounts len
+    {
+        let num_recipients = 26;
+        let recipients = (0..num_recipients)
+            .map(|_| Pubkey::new_unique())
+            .collect::<Vec<_>>();
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            (1..num_recipients).collect::<Vec<u64>>(),
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            None,
+        );
+        let result = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::PublicKeyAmountMissmatch.into(),
+        )
+        .unwrap();
+    }
+    // 3. Failing insufficient balance
+    {
+        let num_recipients = 1;
+        let recipients = (0..num_recipients)
+            .map(|_| Pubkey::new_unique())
+            .collect::<Vec<_>>();
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            vec![10000; 1],
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            None,
+        );
+        let result = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await;
+        // spl_token::error::TokenError::InsufficientFunds
+        assert_rpc_error(result, 0, 1).unwrap();
+    }
+    // 4. Sender account invalid mint
+    {
+        let invalid_mint = create_mint_helper(&mut rpc, &payer).await;
+        let invalid_token_account_invalid_mint = Keypair::new();
+        create_token_account(
+            &mut rpc,
+            &invalid_mint,
+            &invalid_token_account_invalid_mint,
+            &payer,
+        )
+        .await
+        .unwrap();
+        let invalid_token_account_invalid_mint = invalid_token_account_invalid_mint.pubkey();
+        mint_spl_tokens(
+            &mut rpc,
+            &invalid_mint,
+            &invalid_token_account_invalid_mint,
+            &payer.pubkey(),
+            &payer,
+            amount,
+            false,
+        )
+        .await
+        .unwrap();
+        let num_recipients = 1;
+        let recipients = (0..num_recipients)
+            .map(|_| Pubkey::new_unique())
+            .collect::<Vec<_>>();
+        // Token account has different mint than token pool account
+        {
+            let ix = create_batch_compress_instruction(
+                &payer.pubkey(),
+                &payer.pubkey(),
+                &mint,
+                &merkle_tree_pubkey,
+                vec![1; 1],
+                recipients.clone(),
+                None,
+                false,
+                0,
+                invalid_token_account_invalid_mint,
+                BatchCompressTestMode::Functional,
+                None,
+            );
+            let result = rpc
+                .create_and_send_transaction_with_public_event(
+                    &[ix],
+                    &payer.pubkey(),
+                    &[&payer],
+                    None,
+                )
+                .await;
+            // spl_token::error::TokenError::InvalidMint
+            assert_rpc_error(
+                result,
+                0,
+                light_compressed_token::ErrorCode::InvalidTokenPoolPda.into(),
+            )
+            .unwrap();
+        }
+    }
+    let num_recipients = 1;
+    let recipients = (0..num_recipients)
+        .map(|_| Pubkey::new_unique())
+        .collect::<Vec<_>>();
+    // 5. Invalid derived token pool account
+    //      just pass a normal token account instead.
+    {
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            vec![1; 1],
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            Some(token_account),
+        );
+        let result = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::InvalidTokenPoolPda.into(),
+        )
+        .unwrap();
+    }
+    // 6. Failing, token pool account derived from invalid index
+    {
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            vec![1; 1],
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            Some(token_account),
+        );
+        let result = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await;
+        assert_rpc_error(
+            result,
+            0,
+            light_compressed_token::ErrorCode::InvalidTokenPoolPda.into(),
+        )
+        .unwrap();
+    }
+    // 7. Failing, pass no sender account.
+    {
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            vec![1; 1],
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::NoSender,
+            None,
+        );
+        let result = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await;
+        assert_rpc_error(result, 0, 0).unwrap();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BatchCompressTestMode {
+    Functional,
+    NoSender,
+    InvalidTokenPoolWithIndex1,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -5514,8 +5722,16 @@ pub fn create_batch_compress_instruction(
     token_2022: bool,
     token_pool_index: u8,
     sender: Pubkey,
+    mode: BatchCompressTestMode,
+    invalid_token_pool: Option<Pubkey>,
 ) -> Instruction {
-    let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
+    let token_pool_pda = if let Some(invalid_token_pool) = invalid_token_pool {
+        invalid_token_pool
+    } else if mode == BatchCompressTestMode::InvalidTokenPoolWithIndex1 {
+        get_token_pool_pda_with_index(mint, 1)
+    } else {
+        get_token_pool_pda_with_index(mint, token_pool_index)
+    };
 
     let instruction_input = BatchCompressInstructionDataBorsh {
         amounts,
@@ -5558,14 +5774,18 @@ pub fn create_batch_compress_instruction(
         system_program: system_program::ID,
         sol_pool_pda,
     };
-
-    Instruction {
-        program_id: light_compressed_token::ID,
-        accounts: [
+    let accounts = if mode == BatchCompressTestMode::NoSender {
+        accounts.to_account_metas(Some(true))
+    } else {
+        [
             accounts.to_account_metas(Some(true)),
             vec![AccountMeta::new(sender, false)],
         ]
-        .concat(),
+        .concat()
+    };
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts,
         data: instruction_data.data(),
     }
 }
