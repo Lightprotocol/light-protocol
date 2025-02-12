@@ -15,6 +15,7 @@ pub mod instructions;
 pub use instructions::*;
 pub mod burn;
 pub use burn::*;
+pub mod batch_compress;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
@@ -80,36 +81,29 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to::<MINT_TO>(ctx, public_keys.as_slice(), amounts.as_slice(), lamports)
+        process_mint_to::<MINT_TO>(
+            ctx,
+            public_keys.as_slice(),
+            amounts.as_slice(),
+            lamports,
+            None,
+        )
     }
 
     /// Batch compress tokens to a list of compressed accounts.
     pub fn batch_compress<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         inputs: Vec<u8>,
-        // pubkeys: Vec<Pubkey>,
-        // amounts: Vec<u64>,
-        // lamports: Option<u64>,
     ) -> Result<()> {
         let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
             .map_err(ProgramError::from)?;
 
-        // TODO: make types cleaner for example change types in the remaining code to match these.
         process_mint_to::<COMPRESS>(
             ctx,
-            inputs
-                .pubkeys
-                .iter()
-                .map(|x| (*x).into())
-                .collect::<Vec<Pubkey>>()
-                .as_slice(),
-            inputs
-                .amounts
-                .iter()
-                .map(|x| (*x).into())
-                .collect::<Vec<u64>>()
-                .as_slice(),
-            inputs.lamports.map(|x| u64::from(*x)),
+            inputs.pubkeys.as_slice(),
+            inputs.amounts.as_slice(),
+            inputs.lamports.map(|x| (*x).into()),
+            Some(inputs.index),
         )
     }
 

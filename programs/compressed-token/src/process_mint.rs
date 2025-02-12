@@ -1,16 +1,21 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
+use light_compressed_account::{
+    instruction_data::data::OutputCompressedAccountWithPackedContext,
+    pubkey::{PubkeyTrait, ZeroCopyNumTrait},
+};
 use light_system_program::program::LightSystemProgram;
 #[cfg(target_os = "solana")]
 use {
-    crate::process_transfer::create_output_compressed_accounts,
-    crate::process_transfer::get_cpi_signer_seeds,
+    crate::{
+        check_spl_token_pool_derivation_with_index,
+        process_transfer::create_output_compressed_accounts,
+        process_transfer::get_cpi_signer_seeds, spl_compression::spl_token_transfer,
+    },
     light_compressed_account::hash_to_bn254_field_size_be,
     light_heap::{bench_sbf_end, bench_sbf_start, GLOBAL_ALLOCATOR},
 };
-crate::spl_compression::spl_token_transfer,
 
 use crate::{check_spl_token_pool_derivation, program::LightCompressedToken};
 
@@ -32,9 +37,10 @@ pub const MINT_TO: bool = true;
 #[allow(unused_variables)]
 pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    recipient_pubkeys: &[Pubkey],
-    amounts: &[u64],
+    recipient_pubkeys: &[impl PubkeyTrait],
+    amounts: &[impl ZeroCopyNumTrait],
     lamports: Option<u64>,
+    index: Option<u8>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
         msg!(
@@ -68,14 +74,27 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
         let pre_compressed_acounts_pos = GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
 
-        if IS_MINT_TO {
+        let mint = if IS_MINT_TO {
             // 7,978 CU
             mint_spl_to_pool_pda(&ctx, &amounts)?;
+            ctx.accounts.mint.as_ref().unwrap().key()
         } else {
-            let amount = amounts.iter().sum();
-            check_spl_token_pool_derivation(
+            let mut amount = 0u64;
+            for a in amounts {
+                amount += (*a).into();
+            }
+            let index = if let Some(index) = index {
+                index
+            } else {
+                panic!("No index provided for batch compress.");
+            };
+            let mint =
+                TokenAccount::try_deserialize(&mut &ctx.remaining_accounts[0].data.borrow()[..])?
+                    .mint;
+            check_spl_token_pool_derivation_with_index(
                 &ctx.accounts.token_pool_pda.key(),
-                &ctx.accounts.mint.key(),
+                &mint,
+                index,
             )?;
             spl_token_transfer(
                 ctx.remaining_accounts[0].to_account_info(),
@@ -84,18 +103,16 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
                 ctx.accounts.token_program.to_account_info(),
                 amount,
             )?;
-        }
-        bench_sbf_end!("tm_mint_spl_to_pool_pda");
-        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
-            .unwrap()
-            .0;
-        bench_sbf_start!("tm_output_compressed_accounts");
+            mint
+        };
+        let hashed_mint = hash_to_bn254_field_size_be(mint.as_ref()).unwrap().0;
+
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
         let lamports_vec = lamports.map(|_| vec![lamports; amounts.len()]);
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
-            ctx.accounts.mint.key(),
+            mint,
             recipient_pubkeys,
             None,
             None,
@@ -292,18 +309,27 @@ pub fn serialize_mint_to_cpi_instruction_data(
 }
 
 #[inline(never)]
-pub fn mint_spl_to_pool_pda(ctx: &Context<MintToInstruction>, amounts: &[u64]) -> Result<()> {
-    check_spl_token_pool_derivation(&ctx.accounts.token_pool_pda.key(), &ctx.accounts.mint.key())?;
+pub fn mint_spl_to_pool_pda(
+    ctx: &Context<MintToInstruction>,
+    amounts: &[impl ZeroCopyNumTrait],
+) -> Result<()> {
+    check_spl_token_pool_derivation(
+        &ctx.accounts.token_pool_pda.key(),
+        &ctx.accounts.mint.as_ref().unwrap().key(),
+    )?;
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
         mint_amount = mint_amount
-            .checked_add(*amount)
+            .checked_add((*amount).into())
             .ok_or(crate::ErrorCode::MintTooLarge)?;
     }
 
-    let pre_token_balance = ctx.accounts.token_pool_pda.amount;
+    let pre_token_balance = TokenAccount::try_deserialize(
+        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
+    )?
+    .amount;
     let cpi_accounts = anchor_spl::token_interface::MintTo {
-        mint: ctx.accounts.mint.to_account_info(),
+        mint: ctx.accounts.mint.as_ref().unwrap().to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
         authority: ctx.accounts.authority.to_account_info(),
     };
@@ -335,20 +361,20 @@ pub struct MintToInstruction<'info> {
     pub fee_payer: Signer<'info>,
     /// CHECK: is checked by mint account macro.
     pub authority: Signer<'info>,
-    /// CHECK:
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    /// CHECK: checked implicitly by signing the cpi
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    /// CHECK:
-    pub mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: implicitly by invoking spl token program
+    #[account(mut)]
+    pub mint: Option<UncheckedAccount<'info>>,
     /// CHECK: with check_spl_token_pool_derivation().
     #[account(mut)]
-    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub token_pool_pda: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: (different program) checked in system and account compression
-    /// programsu
+    /// programs
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK:
     pub account_compression_authority: UncheckedAccount<'info>,
@@ -471,7 +497,7 @@ pub mod mint_sdk {
             fee_payer: *fee_payer,
             authority: *authority,
             cpi_authority_pda: get_cpi_authority_pda().0,
-            mint: *mint,
+            mint: Some(*mint),
             token_pool_pda,
             token_program,
             light_system_program: light_system_program::ID,

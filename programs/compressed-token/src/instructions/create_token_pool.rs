@@ -118,6 +118,21 @@ pub fn check_spl_token_pool_derivation(token_pool_pda: &Pubkey, mint: &Pubkey) -
     }
 }
 
+#[inline(always)]
+pub fn check_spl_token_pool_derivation_with_index(
+    token_pool_pda: &Pubkey,
+    mint: &Pubkey,
+    index: u8,
+) -> Result<()> {
+    let mint_bytes = mint.to_bytes();
+    let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index]);
+    if !is_valid {
+        err!(crate::ErrorCode::InvalidTokenPoolPda)
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

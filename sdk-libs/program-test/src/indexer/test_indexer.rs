@@ -1698,13 +1698,11 @@ where
         let mut new_addresses = vec![];
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
-            println!("output compressed account {:?}", compressed_account);
             if let Some(address) = compressed_account.compressed_account.address {
                 if !input_addresses.iter().any(|x| x == &address) {
                     new_addresses.push(address);
                 }
             }
-            println!("event {:?}", event);
 
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
@@ -1822,15 +1820,6 @@ where
                     .push(event.output_compressed_account_hashes[i]);
             }
         }
-        println!("new addresses {:?}", new_addresses);
-        println!("event.pubkey_array {:?}", event.pubkey_array);
-        println!(
-            "address merkle trees {:?}",
-            self.address_merkle_trees
-                .iter()
-                .map(|x| x.accounts.merkle_tree)
-                .collect::<Vec<_>>()
-        );
         // checks whether there are addresses in outputs which don't exist in inputs.
         // if so check pubkey_array for the first address Merkle tree and append to the bundles queue elements.
         // Note:

@@ -31,7 +31,7 @@ light-system-program = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-hasher = { workspace = true }
 light-heap = { workspace = true, optional = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
 light-zero-copy = { workspace = true }
 zerocopy = { workspace = true }

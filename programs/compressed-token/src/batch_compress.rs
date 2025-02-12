@@ -7,12 +7,14 @@ pub struct BatchCompressInstructionDataBorsh {
     pub pubkeys: Vec<Pubkey>,
     pub amounts: Vec<u64>,
     pub lamports: Option<u64>,
+    pub index: u8,
 }
 
 pub struct BatchCompressInstructionData<'a> {
-    pub pubkeys: ZeroCopySliceBorsh<'a, light_utils::pubkey::Pubkey>,
+    pub pubkeys: ZeroCopySliceBorsh<'a, light_compressed_account::pubkey::Pubkey>,
     pub amounts: ZeroCopySliceBorsh<'a, U64>,
     pub lamports: Option<Ref<&'a [u8], U64>>,
+    pub index: u8,
 }
 
 impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
@@ -22,11 +24,13 @@ impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
         let (pubkeys, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (amounts, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (lamports, bytes) = Option::<U64>::zero_copy_at(bytes)?;
+        let (index, bytes) = u8::zero_copy_at(bytes)?;
         Ok((
             Self {
                 pubkeys,
                 amounts,
                 lamports,
+                index,
             },
             bytes,
         ))
@@ -42,6 +46,7 @@ mod test {
             pubkeys: vec![Pubkey::new_unique(), Pubkey::new_unique()],
             amounts: vec![1, 2],
             lamports: Some(3),
+            index: 1,
         };
         let mut vec = Vec::new();
         data.serialize(&mut vec).unwrap();
@@ -55,6 +60,7 @@ mod test {
         for (i, amount) in decoded_data.amounts.iter().enumerate() {
             assert_eq!(amount.get(), data.amounts[i]);
         }
+        assert_eq!(decoded_data.index, 1);
     }
 
     #[test]
@@ -63,6 +69,7 @@ mod test {
             pubkeys: vec![Pubkey::new_unique(), Pubkey::new_unique()],
             amounts: vec![1, 2],
             lamports: None,
+            index: 0,
         };
         let mut vec = Vec::new();
         data.serialize(&mut vec).unwrap();
@@ -76,5 +83,6 @@ mod test {
         for (i, amount) in decoded_data.amounts.iter().enumerate() {
             assert_eq!(amount.get(), data.amounts[i]);
         }
+        assert_eq!(decoded_data.index, 0);
     }
 }

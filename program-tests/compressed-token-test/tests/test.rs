@@ -15,6 +15,7 @@ use light_compressed_account::{
     instruction_data::compressed_proof::CompressedProof,
 };
 use light_compressed_token::{
+    batch_compress::BatchCompressInstructionDataBorsh,
     constants::NUM_MAX_POOL_ACCOUNTS,
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
@@ -27,8 +28,7 @@ use light_compressed_token::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },
     spl_compression::check_spl_token_pool_derivation_with_index,
-    token_data::TokenData,
-    ErrorCode,
+    ErrorCode, TokenData,
 };
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -37,6 +37,7 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+use light_system_program::utils::get_sol_pool_pda;
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
     conversions::sdk_to_program_token_data,
@@ -44,8 +45,8 @@ use light_test_utils::{
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
         compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
-        create_mint_22_helper, create_mint_helper, create_token_2022_account, decompress_test,
-        freeze_test, mint_spl_tokens, mint_tokens_22_helper_with_lamports,
+        create_mint_22_helper, create_mint_helper, create_token_2022_account, create_token_account,
+        decompress_test, freeze_test, mint_spl_tokens, mint_tokens_22_helper_with_lamports,
         mint_tokens_22_helper_with_lamports_and_bump, mint_tokens_helper,
         mint_tokens_helper_with_lamports, mint_wrapped_sol, perform_compress_spl_token_account,
         revoke_test, thaw_test, BurnInstructionMode,
@@ -1016,7 +1017,7 @@ async fn test_mint_to_failing() {
                 fee_payer: payer_1.pubkey(),
                 authority: payer_1.pubkey(),
                 cpi_authority_pda: get_cpi_authority_pda().0,
-                mint: mint_1,
+                mint: Some(mint_1),
                 token_pool_pda: token_account_keypair.pubkey(),
                 token_program,
                 light_system_program: light_system_program::ID,
@@ -1051,7 +1052,7 @@ async fn test_mint_to_failing() {
                 fee_payer: payer_2.pubkey(),
                 authority: payer_2.pubkey(),
                 cpi_authority_pda: get_cpi_authority_pda().0,
-                mint: mint_2,
+                mint: Some(mint_2),
                 token_pool_pda: mint_pool_1,
                 token_program,
                 light_system_program: light_system_program::ID,
@@ -1087,7 +1088,7 @@ async fn test_mint_to_failing() {
                 fee_payer: payer_2.pubkey(),
                 authority: payer_2.pubkey(),
                 cpi_authority_pda: invalid_cpi_authority_pda.pubkey(),
-                mint: mint_1,
+                mint: Some(mint_1),
                 token_pool_pda: mint_pool_1,
                 token_program,
                 light_system_program: light_system_program::ID,
@@ -1128,7 +1129,7 @@ async fn test_mint_to_failing() {
                 fee_payer: payer_1.pubkey(),
                 authority: payer_1.pubkey(),
                 cpi_authority_pda: get_cpi_authority_pda().0,
-                mint: mint_1,
+                mint: Some(mint_1),
                 token_pool_pda: mint_pool_1,
                 token_program,
                 light_system_program: light_system_program::ID,
@@ -1206,7 +1207,7 @@ async fn test_mint_to_failing() {
                 fee_payer: payer_1.pubkey(),
                 authority: payer_1.pubkey(),
                 cpi_authority_pda: get_cpi_authority_pda().0,
-                mint: mint_1,
+                mint: Some(mint_1),
                 token_pool_pda: mint_pool_1,
                 token_program,
                 light_system_program: light_system_program::ID,
@@ -5411,5 +5412,160 @@ async fn test_transfer_with_batched_tree() {
             );
             perform_transfer_22_test(input_num, output_num, 10_000, false, false, true).await
         }
+    }
+}
+
+// 26 recpients
+// with zero copy ix data:
+// - 275,457 CU
+// with borsh ix data:
+// - 283,695 CU
+/// TODO, add failing tests:
+/// 1. token pool account of different mint
+/// 2. token pool account with different index
+/// 3. no sender token account
+/// 4. sender insufficient balance
+/// 5. unequal number of amounts and recipients
+#[serial]
+#[tokio::test]
+async fn batch_compress_with_batched_tree() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.batched_output_queue;
+    let mut test_indexer =
+        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    let num_recipients = 26;
+    let token_account = Keypair::new();
+    create_token_account(&mut rpc, &mint, &token_account, &payer)
+        .await
+        .unwrap();
+    let token_account = token_account.pubkey();
+    mint_spl_tokens(
+        &mut rpc,
+        &mint,
+        &token_account,
+        &payer.pubkey(),
+        &payer,
+        amount,
+        false,
+    )
+    .await
+    .unwrap();
+    let recpient = Pubkey::new_unique();
+    let ix = create_batch_compress_instruction(
+        &payer.pubkey(),
+        &payer.pubkey(),
+        &mint,
+        &merkle_tree_pubkey,
+        vec![1u64; num_recipients],
+        vec![recpient; num_recipients],
+        None,
+        false,
+        0,
+        token_account,
+    );
+    let (event, _, slot) = rpc
+        .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+        .await
+        .unwrap()
+        .unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(slot, &event);
+    let recipient_compressed_token_accounts = test_indexer
+        .get_compressed_token_accounts_by_owner(&recpient, None)
+        .await
+        .unwrap();
+    assert_eq!(recipient_compressed_token_accounts.len(), num_recipients);
+    let expected_token_data = light_sdk::token::TokenData {
+        mint,
+        owner: recpient,
+        amount: 1,
+        delegate: None,
+        state: AccountState::Initialized,
+        tlv: None,
+    };
+
+    for recipient_compressed_token_account in recipient_compressed_token_accounts.iter() {
+        assert_eq!(
+            recipient_compressed_token_account.token_data,
+            expected_token_data
+        );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn create_batch_compress_instruction(
+    fee_payer: &Pubkey,
+    authority: &Pubkey,
+    mint: &Pubkey,
+    merkle_tree: &Pubkey,
+    amounts: Vec<u64>,
+    public_keys: Vec<Pubkey>,
+    lamports: Option<u64>,
+    token_2022: bool,
+    token_pool_index: u8,
+    sender: Pubkey,
+) -> Instruction {
+    let token_pool_pda = get_token_pool_pda_with_index(mint, token_pool_index);
+
+    let instruction_input = BatchCompressInstructionDataBorsh {
+        amounts,
+        pubkeys: public_keys,
+        lamports,
+        index: token_pool_index,
+    };
+    let mut bytes = Vec::new();
+    instruction_input.serialize(&mut bytes).unwrap();
+    let instruction_data = light_compressed_token::instruction::BatchCompress { inputs: bytes };
+    let sol_pool_pda = if lamports.is_some() {
+        Some(get_sol_pool_pda())
+    } else {
+        None
+    };
+    let token_program = if token_2022 {
+        anchor_spl::token_2022::ID
+    } else {
+        anchor_spl::token::ID
+    };
+
+    let accounts = light_compressed_token::accounts::MintToInstruction {
+        fee_payer: *fee_payer,
+        authority: *authority,
+        cpi_authority_pda: get_cpi_authority_pda().0,
+        mint: None,
+        token_pool_pda,
+        token_program,
+        light_system_program: light_system_program::ID,
+        registered_program_pda: light_system_program::utils::get_registered_program_pda(
+            &light_system_program::ID,
+        ),
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+            &light_system_program::ID,
+        ),
+        account_compression_program: account_compression::ID,
+        merkle_tree: *merkle_tree,
+        self_program: light_compressed_token::ID,
+        system_program: system_program::ID,
+        sol_pool_pda,
+    };
+
+    Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: [
+            accounts.to_account_metas(Some(true)),
+            vec![AccountMeta::new(sender, false)],
+        ]
+        .concat(),
+        data: instruction_data.data(),
     }
 }

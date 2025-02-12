@@ -236,13 +236,6 @@ pub fn spl_token_transfer<'info>(
     token_program: AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    // let accounts = token_interface::Transfer {
-    //         from,
-    //         to,
-    //         authority,
-    //     };
-    //     let cpi_ctx = CpiContext::new(token_program, accounts);
-    //     anchor_spl::token_interface::transfer(cpi_ctx, amount)
     anchor_lang::solana_program::program::invoke(
         &spl_token::instruction::transfer(
             token_program.key,
