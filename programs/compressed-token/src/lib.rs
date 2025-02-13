@@ -97,11 +97,21 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
             .map_err(ProgramError::from)?;
+        if inputs.amounts.is_some() && inputs.amount.is_some() {
+            return Err(crate::ErrorCode::AmountsAndAmountProvided.into());
+        }
+        let amounts = if let Some(amount) = inputs.amount {
+            vec![*amount; inputs.pubkeys.len()]
+        } else if let Some(amounts) = inputs.amounts {
+            amounts.to_vec()
+        } else {
+            return Err(crate::ErrorCode::NoAmount.into());
+        };
 
         process_mint_to::<COMPRESS>(
             ctx,
             inputs.pubkeys.as_slice(),
-            inputs.amounts.as_slice(),
+            amounts.as_slice(),
             inputs.lamports.map(|x| (*x).into()),
             Some(inputs.index),
         )
@@ -259,4 +269,6 @@ pub enum ErrorCode {
     FailedToDecompress,
     FailedToBurnSplTokensFromTokenPool,
     NoMatchingBumpFound,
+    NoAmount,
+    AmountsAndAmountProvided,
 }

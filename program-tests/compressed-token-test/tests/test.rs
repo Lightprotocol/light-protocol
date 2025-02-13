@@ -5452,7 +5452,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            amounts,
+            Some(amounts),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5504,6 +5505,70 @@ async fn batch_compress_with_batched_tree() {
             sum_amounts + pre_token_pool_balance
         );
     }
+    for num_recipients in 1..=26 {
+        let recipients = (0..num_recipients)
+            .map(|_| Pubkey::new_unique())
+            .collect::<Vec<_>>();
+        let amount = 1;
+        let sum_amounts: u64 = recipients.len() as u64;
+        let ix = create_batch_compress_instruction(
+            &payer.pubkey(),
+            &payer.pubkey(),
+            &mint,
+            &merkle_tree_pubkey,
+            None,
+            Some(amount),
+            recipients.clone(),
+            None,
+            false,
+            0,
+            token_account,
+            BatchCompressTestMode::Functional,
+            None,
+        );
+        let token_pool_pda = get_token_pool_pda_with_index(&mint, 0);
+        let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        use std::borrow::Borrow;
+        let pre_token_pool_balance =
+            TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow())
+                .unwrap()
+                .amount;
+
+        let (event, _, slot) = rpc
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .await
+            .unwrap()
+            .unwrap();
+        test_indexer.add_compressed_accounts_with_token_data(slot, &event);
+
+        for i in 0..(num_recipients as usize) {
+            let recipient_compressed_token_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&recipients[i], None)
+                .await
+                .unwrap();
+            assert_eq!(recipient_compressed_token_accounts.len(), 1);
+            let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
+            let expected_token_data = light_sdk::token::TokenData {
+                mint,
+                owner: recipients[i],
+                amount: amount as u64,
+                delegate: None,
+                state: AccountState::Initialized,
+                tlv: None,
+            };
+            assert_eq!(
+                recipient_compressed_token_account.token_data,
+                expected_token_data
+            );
+        }
+        let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        let token_pool_account =
+            TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow()).unwrap();
+        assert_eq!(
+            token_pool_account.amount,
+            sum_amounts + pre_token_pool_balance
+        );
+    }
 
     // 2. Failing unequal recipients amounts len
     {
@@ -5516,7 +5581,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            (1..num_recipients).collect::<Vec<u64>>(),
+            Some((1..num_recipients).collect::<Vec<u64>>()),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5546,7 +5612,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            vec![10000; 1],
+            Some(vec![10000; 1]),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5596,7 +5663,8 @@ async fn batch_compress_with_batched_tree() {
                 &payer.pubkey(),
                 &mint,
                 &merkle_tree_pubkey,
-                vec![1; 1],
+                Some(vec![1; 1]),
+                None,
                 recipients.clone(),
                 None,
                 false,
@@ -5634,7 +5702,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            vec![1; 1],
+            Some(vec![1; 1]),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5660,7 +5729,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            vec![1; 1],
+            Some(vec![1; 1]),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5686,7 +5756,8 @@ async fn batch_compress_with_batched_tree() {
             &payer.pubkey(),
             &mint,
             &merkle_tree_pubkey,
-            vec![1; 1],
+            Some(vec![1; 1]),
+            None,
             recipients.clone(),
             None,
             false,
@@ -5715,7 +5786,8 @@ pub fn create_batch_compress_instruction(
     authority: &Pubkey,
     mint: &Pubkey,
     merkle_tree: &Pubkey,
-    amounts: Vec<u64>,
+    amounts: Option<Vec<u64>>,
+    amount: Option<u64>,
     public_keys: Vec<Pubkey>,
     lamports: Option<u64>,
     token_2022: bool,
@@ -5734,6 +5806,7 @@ pub fn create_batch_compress_instruction(
 
     let instruction_input = BatchCompressInstructionDataBorsh {
         amounts,
+        amount,
         pubkeys: public_keys,
         lamports,
         index: token_pool_index,
