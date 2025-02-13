@@ -129,7 +129,9 @@ where
                 [start_offset as usize..end_offset as usize]
                 .to_vec());
         }
-        Err(IndexerError::Custom("Merkle tree not found".to_string()))
+        Err(IndexerError::InvalidParameters(
+            "Merkle tree not found".to_string(),
+        ))
     }
 
     fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
@@ -148,7 +150,9 @@ where
             if let Some(state_tree_bundle) = state_tree_bundle {
                 Ok(state_tree_bundle.merkle_tree.get_subtrees())
             } else {
-                Err(IndexerError::Custom("Merkle tree not found".to_string()))
+                Err(IndexerError::InvalidParameters(
+                    "Merkle tree not found".to_string(),
+                ))
             }
         }
     }
@@ -160,7 +164,7 @@ where
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> Result<ProofRpcResult, IndexerError> {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.as_ref().unwrap().len())
@@ -316,7 +320,7 @@ where
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
                 let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
-                return ProofRpcResult {
+                return Ok(ProofRpcResult {
                     root_indices,
                     address_root_indices: address_root_indices.clone(),
                     proof: CompressedProof {
@@ -324,7 +328,7 @@ where
                         b: proof_b,
                         c: proof_c,
                     },
-                };
+                });
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -394,7 +398,7 @@ where
                     .map_or(false, |acc_hash| acc_hash == hash)
             }),
             (None, None) => {
-                return Err(IndexerError::Custom(
+                return Err(IndexerError::InvalidParameters(
                     "Either address or hash must be provided".to_string(),
                 ))
             }
@@ -402,7 +406,7 @@ where
 
         account
             .map(|acc| acc.clone().into_photon_account())
-            .ok_or_else(|| IndexerError::Custom("Account not found".to_string()))
+            .ok_or(IndexerError::AccountNotFound)
     }
 
     async fn get_compressed_token_accounts_by_owner(
@@ -453,7 +457,7 @@ where
                     .map_or(false, |acc_hash| acc_hash == hash)
             }),
             (None, None) => {
-                return Err(IndexerError::Custom(
+                return Err(IndexerError::InvalidParameters(
                     "Either address or hash must be provided".to_string(),
                 ))
             }
@@ -461,7 +465,7 @@ where
 
         account
             .map(|acc| acc.token_data.amount)
-            .ok_or_else(|| IndexerError::Custom("Token account not found".to_string()))
+            .ok_or(IndexerError::AccountNotFound)
     }
 
     async fn get_multiple_compressed_accounts(
@@ -499,7 +503,7 @@ where
                     .collect();
                 Ok(accounts)
             }
-            (None, None) => Err(IndexerError::Custom(
+            (None, None) => Err(IndexerError::InvalidParameters(
                 "Either addresses or hashes must be provided".to_string(),
             )),
         }
@@ -796,14 +800,14 @@ where
         } else {
             None
         };
-        let address_root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-            rpc_result.address_root_indices.clone()
+        let address_root_indices = if let Some(rpc_result) = rpc_result.clone() {
+            rpc_result.unwrap().address_root_indices.clone()
         } else {
             Vec::new()
         };
         let root_indices = {
-            let mut root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-                rpc_result.root_indices.clone()
+            let mut root_indices = if let Some(rpc_result) = rpc_result.clone() {
+                rpc_result.unwrap().root_indices.clone()
             } else {
                 Vec::new()
             };
@@ -814,7 +818,7 @@ where
         };
         println!("root_indices {:?}", root_indices);
         BatchedTreeProofRpcResult {
-            proof: rpc_result.map(|x| x.proof),
+            proof: rpc_result.map(|x| x.unwrap().proof),
             root_indices,
             address_root_indices,
         }

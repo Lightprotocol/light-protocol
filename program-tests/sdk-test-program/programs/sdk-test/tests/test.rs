@@ -170,7 +170,8 @@ where
             Some(vec![env.address_merkle_tree_pubkey]),
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
@@ -253,7 +254,8 @@ where
             None,
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,

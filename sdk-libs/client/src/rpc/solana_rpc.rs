@@ -6,12 +6,11 @@ use std::{
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_compressed_account::event::{event_from_light_transaction, PublicTransactionEvent};
-use log::warn;
 use solana_client::{
     rpc_client::RpcClient,
     rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig},
 };
-use solana_program::{clock::Slot, hash::Hash, instruction::InstructionError, pubkey::Pubkey};
+use solana_program::{clock::Slot, hash::Hash, pubkey::Pubkey};
 use solana_sdk::{
     account::{Account, AccountSharedData},
     bs58,
@@ -20,12 +19,13 @@ use solana_sdk::{
     epoch_info::EpochInfo,
     instruction::Instruction,
     signature::{Keypair, Signature},
-    transaction::{Transaction, TransactionError},
+    transaction::Transaction,
 };
 use solana_transaction_status::{
     option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
 };
 use tokio::time::{sleep, Instant};
+use tracing::warn;
 
 use crate::{
     rate_limiter::RateLimiter,
@@ -124,19 +124,6 @@ impl SolanaRpcConnection {
         }
     }
 
-    async fn should_retry(&self, error: &RpcError) -> bool {
-        match error {
-            RpcError::TransactionError(TransactionError::InstructionError(
-                _,
-                InstructionError::Custom(6004),
-            )) => {
-                // Don't retry ForesterNotEligible error
-                false
-            }
-            _ => true,
-        }
-    }
-
     async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
@@ -152,7 +139,7 @@ impl SolanaRpcConnection {
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    if !self.should_retry(&e).await {
+                    if !self.should_retry(&e) {
                         return Err(e);
                     }
 
@@ -187,7 +174,7 @@ impl SolanaRpcConnection {
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    if !self.should_retry(&e).await {
+                    if !self.should_retry(&e) {
                         return Err(e);
                     }
 
@@ -705,11 +692,8 @@ impl RpcConnection for SolanaRpcConnection {
                 }
             }
         }
-        println!("vec: {:?}", vec);
-        println!("vec_accounts {:?}", vec_accounts);
         let (parsed_event, _new_addresses) =
             event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
-        println!("event: {:?}", parsed_event);
 
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();

@@ -66,6 +66,9 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
+    #[arg(long, env = "FORESTER_ENABLE_PRIORITY_FEES", default_value = "false")]
+    pub enable_priority_fees: bool,
+
     #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "98")]
     pub rpc_pool_size: usize,
 

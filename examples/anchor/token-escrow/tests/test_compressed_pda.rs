@@ -258,7 +258,8 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
             Some(vec![env.address_merkle_tree_pubkey]),
             context,
         )
-        .await;
+        .await
+        .unwrap();
 
     let new_address_params = NewAddressParams {
         seed,
@@ -482,7 +483,8 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
             None,
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let create_withdrawal_ix_inputs = CreateCompressedPdaWithdrawalInstructionInputs {
         input_token_data: &[sdk_to_program_token_data(token_escrow.token_data.clone())],

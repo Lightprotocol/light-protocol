@@ -1947,7 +1947,8 @@ pub async fn perform_with_input_accounts<
             None,
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let token_transfer_data = match token_account {
         Some(token_account) => Some(TokenTransferData {

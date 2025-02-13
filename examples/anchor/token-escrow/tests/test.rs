@@ -254,7 +254,8 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
             None,
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
         input_token_data: &[sdk_to_program_token_data(
@@ -422,7 +423,8 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
             None,
             context,
         )
-        .await;
+        .await
+        .unwrap();
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
         input_token_data: &[sdk_to_program_token_data(

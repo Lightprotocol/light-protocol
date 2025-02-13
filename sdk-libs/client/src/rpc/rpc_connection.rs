@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_compressed_account::event::PublicTransactionEvent;
 use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_program::{clock::Slot, instruction::Instruction};
+use solana_program::{
+    clock::Slot,
+    instruction::{Instruction, InstructionError},
+};
 use solana_sdk::{
     account::{Account, AccountSharedData},
     commitment_config::CommitmentConfig,
@@ -12,7 +15,7 @@ use solana_sdk::{
     hash::Hash,
     pubkey::Pubkey,
     signature::{Keypair, Signature},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_transaction_status::TransactionStatus;
 
@@ -25,6 +28,19 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self
     where
         Self: Sized;
+
+    fn should_retry(&self, error: &RpcError) -> bool {
+        match error {
+            RpcError::TransactionError(TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(6004),
+            )) => {
+                // Don't retry ForesterNotEligible error
+                false
+            }
+            _ => true,
+        }
+    }
 
     fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter);
     fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter);

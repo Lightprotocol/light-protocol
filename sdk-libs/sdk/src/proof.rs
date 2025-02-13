@@ -29,7 +29,7 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<Option<u16>>,
