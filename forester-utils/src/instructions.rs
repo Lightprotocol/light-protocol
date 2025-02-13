@@ -28,6 +28,7 @@ use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 use light_client::indexer::Base58Conversions;
+use crate::forester_epoch::TreeType;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -229,7 +230,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
     };
 
-    let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hash_chain) = {
+    let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hash_chain/*, leaves*/) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
         let output_queue =
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
@@ -244,11 +245,18 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
 
+        // let leaves = output_queue
+        //     .value_vecs
+        //     .get(full_batch_index as usize)
+        //     .unwrap()
+        //     .to_vec();
+
         (
             zkp_batch_size,
             full_batch_index,
             num_inserted_zkps,
             leaves_hash_chain,
+            // leaves
         )
     };
     let start = num_inserted_zkps as usize * zkp_batch_size as usize;
@@ -263,14 +271,18 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .await
         .unwrap();
-
+    let first_leaf_index = 0; // TODO: response....
     info!("Leaves: {:?}", leaves);
+    let first_index = merkle_tree_next_index  as usize - first_leaf_index as usize;
+    let last_index = first_index + zkp_batch_size as usize;
+    let leaves = leaves[first_index..last_index].to_vec();
 
     let (old_leaves, merkle_proofs) = {
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
-        let indices =
-            (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
+
+        let indices = (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
+
         let proofs = indexer
             .get_proofs_by_indices(merkle_tree_pubkey, &indices)
             .await
