@@ -10,7 +10,7 @@ pub struct BatchCompressInstructionDataBorsh {
 }
 
 pub struct BatchCompressInstructionData<'a> {
-    pub pubkeys: ZeroCopySliceBorsh<'a, light_utils::pubkey::Pubkey>,
+    pub pubkeys: ZeroCopySliceBorsh<'a, light_compressed_account::pubkey::Pubkey>,
     pub amounts: ZeroCopySliceBorsh<'a, U64>,
     pub lamports: Option<Ref<&'a [u8], U64>>,
 }
