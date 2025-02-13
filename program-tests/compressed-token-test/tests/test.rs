@@ -5496,7 +5496,6 @@ async fn batch_compress_with_batched_tree() {
                 expected_token_data
             );
         }
-
         let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
         let token_pool_account =
             TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow()).unwrap();

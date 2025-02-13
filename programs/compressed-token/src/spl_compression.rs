@@ -236,15 +236,28 @@ pub fn spl_token_transfer<'info>(
     token_program: AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    anchor_lang::solana_program::program::invoke(
-        &spl_token::instruction::transfer(
+    let instruction = match *token_program.key {
+        spl_token_2022::ID => spl_token_2022::instruction::transfer(
             token_program.key,
             from.key,
             to.key,
             authority.key,
             &[],
             amount,
-        )?,
+        ),
+        spl_token::ID => spl_token::instruction::transfer(
+            token_program.key,
+            from.key,
+            to.key,
+            authority.key,
+            &[],
+            amount,
+        ),
+        _ => return Err(anchor_lang::error::ErrorCode::InvalidProgramId.into()),
+    }?;
+
+    anchor_lang::solana_program::program::invoke(
+        &instruction,
         &[from, to, authority, token_program],
     )?;
     Ok(())
