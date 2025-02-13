@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey;
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
+use zerocopy::{little_endian::U64, FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 #[cfg(feature = "bytemuck-des")]
 #[derive(
     Pod,
@@ -51,6 +51,12 @@ impl Pubkey {
         let mut array = [0u8; 32];
         array.copy_from_slice(slice);
         Self(array)
+    }
+}
+
+impl AsRef<Pubkey> for Pubkey {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
@@ -113,6 +119,7 @@ impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
         Self(pubkey.to_bytes())
     }
 }
+
 impl Pubkey {
     pub fn new_unique() -> Self {
         Self(pubkey::Pubkey::new_unique().to_bytes())
@@ -120,5 +127,71 @@ impl Pubkey {
 
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+}
+
+pub trait PubkeyTrait {
+    fn trait_to_bytes(&self) -> [u8; 32];
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey;
+}
+
+impl PubkeyTrait for Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey {
+        self.into()
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl PubkeyTrait for anchor_lang::prelude::Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+
+    #[cfg(feature = "anchor")]
+    fn to_anchor_pubkey(&self) -> Self {
+        *self
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl PubkeyTrait for solana_program::pubkey::Pubkey {
+    fn trait_to_bytes(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+}
+
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
+pub trait ZeroCopyNumTrait:
+    Add
+    + Sub
+    + AddAssign
+    + SubAssign
+    + Div
+    + DivAssign
+    + Mul
+    + MulAssign
+    + std::marker::Sized
+    + From<u64>
+    + Into<u64>
+    + Copy
+    + std::convert::TryFrom<u64>
+{
+    fn to_bytes_le(&self) -> [u8; 8];
+}
+
+impl ZeroCopyNumTrait for u64 {
+    fn to_bytes_le(&self) -> [u8; 8] {
+        self.to_le_bytes()
+    }
+}
+
+impl ZeroCopyNumTrait for U64 {
+    fn to_bytes_le(&self) -> [u8; 8] {
+        self.to_bytes()
     }
 }

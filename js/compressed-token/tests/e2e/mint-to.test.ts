@@ -108,9 +108,10 @@ describe('mintTo', () => {
         await assertMintTo(rpc, mint, amount, bob.publicKey);
 
         /// wrong authority
+        /// is not checked in cToken program, so it throws invalid owner inside spl token program.
         await expect(
             mintTo(rpc, payer, mint, bob.publicKey, Keypair.generate(), amount),
-        ).rejects.toThrowError(/custom program error: 0x1782/);
+        ).rejects.toThrowError(/custom program error: 0x4/);
 
         /// with output state merkle tree defined
         await mintTo(

@@ -10,6 +10,7 @@ use light_compressed_account::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
         data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
     },
+    pubkey::{PubkeyTrait, ZeroCopyNumTrait},
 };
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -185,18 +186,18 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 #[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
-    mint_pubkey: Pubkey,
-    pubkeys: &[Pubkey],
+    mint_pubkey: impl PubkeyTrait,
+    pubkeys: &[impl PubkeyTrait],
     delegate: Option<Pubkey>,
     is_delegate: Option<Vec<bool>>,
-    amounts: &[u64],
-    lamports: Option<Vec<Option<u64>>>,
+    amounts: &[impl ZeroCopyNumTrait],
+    lamports: Option<Vec<Option<impl ZeroCopyNumTrait>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
 ) -> Result<u64> {
     let mut sum_lamports = 0;
     let hashed_delegate_store = if let Some(delegate) = delegate {
-        hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+        hash_to_bn254_field_size_be(delegate.trait_to_bytes().as_slice())
             .unwrap()
             .0
     } else {
@@ -226,17 +227,19 @@ pub fn create_output_compressed_accounts(
         let mut token_data_bytes = Vec::with_capacity(capacity);
         // 1,000 CU token data and serialize
         let token_data = TokenData {
-            mint: mint_pubkey,
-            owner: *owner,
-            amount: *amount,
+            mint: (mint_pubkey).to_anchor_pubkey(),
+            owner: (*owner).to_anchor_pubkey(),
+            amount: (*amount).into(),
             delegate,
             state: AccountState::Initialized,
             tlv: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
-        let amount_bytes = amount.to_le_bytes();
+        let hashed_owner = hash_to_bn254_field_size_be(&owner.trait_to_bytes())
+            .unwrap()
+            .0;
+        let amount_bytes = amount.to_bytes_le();
         let data_hash = TokenData::hash_with_hashed_values::<Poseidon>(
             hashed_mint,
             &hashed_owner,
@@ -254,12 +257,12 @@ pub fn create_output_compressed_accounts(
         let lamports = lamports
             .as_ref()
             .and_then(|lamports| lamports[i])
-            .unwrap_or(0);
-        sum_lamports += lamports;
+            .unwrap_or(0u64.into());
+        sum_lamports += lamports.into();
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
-                lamports,
+                lamports: lamports.into(),
                 data: Some(data),
                 address: None,
             },

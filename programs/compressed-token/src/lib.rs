@@ -15,6 +15,7 @@ pub mod instructions;
 pub use instructions::*;
 pub mod burn;
 pub use burn::*;
+pub mod batch_compress;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
@@ -33,6 +34,7 @@ solana_security_txt::security_txt! {
 pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
+    use light_zero_copy::borsh::Deserialize;
     use spl_compression::check_spl_token_pool_derivation_with_index;
 
     use super::*;
@@ -79,7 +81,40 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts, lamports)
+        process_mint_to::<MINT_TO>(
+            ctx,
+            public_keys.as_slice(),
+            amounts.as_slice(),
+            lamports,
+            None,
+        )
+    }
+
+    /// Batch compress tokens to a list of compressed accounts.
+    pub fn batch_compress<'info>(
+        ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        let (inputs, _) = batch_compress::BatchCompressInstructionData::zero_copy_at(&inputs)
+            .map_err(ProgramError::from)?;
+        if inputs.amounts.is_some() && inputs.amount.is_some() {
+            return Err(crate::ErrorCode::AmountsAndAmountProvided.into());
+        }
+        let amounts = if let Some(amount) = inputs.amount {
+            vec![*amount; inputs.pubkeys.len()]
+        } else if let Some(amounts) = inputs.amounts {
+            amounts.to_vec()
+        } else {
+            return Err(crate::ErrorCode::NoAmount.into());
+        };
+
+        process_mint_to::<COMPRESS>(
+            ctx,
+            inputs.pubkeys.as_slice(),
+            amounts.as_slice(),
+            inputs.lamports.map(|x| (*x).into()),
+            Some(inputs.index),
+        )
     }
 
     /// Compresses the balance of an spl token account sub an optional remaining
@@ -234,4 +269,6 @@ pub enum ErrorCode {
     FailedToDecompress,
     FailedToBurnSplTokensFromTokenPool,
     NoMatchingBumpFound,
+    NoAmount,
+    AmountsAndAmountProvided,
 }

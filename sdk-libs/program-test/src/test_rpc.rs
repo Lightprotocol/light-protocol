@@ -451,11 +451,9 @@ impl RpcConnection for ProgramTestRpcConnection {
                     None::<PublicTransactionEvent>
                 })
             });
-        println!("vec: {:?}", vec);
-        println!("vec_accounts {:?}", vec_accounts);
+
         let (event, _new_addresses) =
             event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
-        println!("event: {:?}", event);
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
             let result = self
