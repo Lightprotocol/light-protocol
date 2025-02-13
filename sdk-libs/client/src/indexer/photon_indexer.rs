@@ -356,6 +356,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
 
             for acc in accs.items {
+                println!("Acc: {:?}", acc);
                 let compressed_account = CompressedAccount {
                     owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
                     lamports: acc.lamports,
@@ -373,7 +374,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
                     nullifier_queue_pubkey: Pubkey::from(Hash::from_base58(&acc.queue).unwrap()),
                     leaf_index: acc.leaf_index,
-                    prove_by_index: acc.queue_index.is_some(),
+                    prove_by_index: acc.in_queue
                 };
 
                 let account = CompressedAccountWithMerkleContext {
@@ -769,7 +770,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                             .iter()
                             .map(|x| {
                                 let mut proof_result_value = x.proof.clone();
-                                proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
+                                // proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
                                 let proof: Vec<[u8; 32]> = proof_result_value
                                     .iter()
                                     .map(|x| Hash::from_base58(x).unwrap())

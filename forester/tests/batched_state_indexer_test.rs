@@ -292,7 +292,8 @@ async fn test_state_indexer_batched() {
         Arc::from(config.clone()),
         None,
         None,
-        Arc::new(Mutex::new(e2e_env.indexer)),
+        Arc::new(Mutex::new(photon_indexer)),
+        // Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,
         work_report_sender,
     ));
