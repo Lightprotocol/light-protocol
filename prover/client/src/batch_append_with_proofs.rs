@@ -1,8 +1,9 @@
 use light_bounded_vec::BoundedVec;
+use log::info;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
 use serde::Serialize;
-
+use light_compressed_account::hash_chain::create_hash_chain_from_array;
 use crate::{
     errors::ProverClientError,
     helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},

@@ -15,11 +15,11 @@ pub struct GetQueueElementsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: Vec<String>,
+    pub value: Vec<models::QueueElement>,
 }
 
 impl GetQueueElementsPost200ResponseResult {
-    pub fn new(context: models::Context, value: Vec<String>) -> GetQueueElementsPost200ResponseResult {
+    pub fn new(context: models::Context, value: Vec<models::QueueElement>) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {
             context: Box::new(context),
             value,

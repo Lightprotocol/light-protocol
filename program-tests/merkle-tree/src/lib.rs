@@ -1,4 +1,5 @@
 pub mod sparse_merkle_tree;
+pub mod photon_merkle_tree;
 
 use std::marker::PhantomData;
 
@@ -190,6 +191,27 @@ where
         }
 
         Ok(proof)
+    }
+
+    pub fn get_proof_by_indices(&self, indices: &[i32]) -> Vec<Vec<[u8; 32]>> {
+        let mut proofs = Vec::new();
+        for &index in indices {
+            let mut index = index as usize;
+            let mut proof = Vec::with_capacity(self.height);
+
+            for level in 0..self.height {
+                let is_left = index % 2 == 0;
+                let sibling_index = if is_left { index + 1 } else { index - 1 };
+                let node = self.layers[level]
+                    .get(sibling_index)
+                    .cloned()
+                    .unwrap_or(H::zero_bytes()[level]);
+                proof.push(node);
+                index /= 2;
+            }
+            proofs.push(proof);
+        }
+        proofs
     }
 
     pub fn get_canopy(&self) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {

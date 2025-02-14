@@ -795,7 +795,7 @@ No authorization required
 
 ## get_subtrees_post
 
-> models::GetQueueElementsPost200Response get_subtrees_post(get_subtrees_post_request)
+> models::GetSubtreesPost200Response get_subtrees_post(get_subtrees_post_request)
 
 
 ### Parameters
@@ -807,7 +807,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetQueueElementsPost200Response**](_getQueueElements_post_200_response.md)
+[**models::GetSubtreesPost200Response**](_getSubtrees_post_200_response.md)
 
 ### Authorization
 

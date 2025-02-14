@@ -840,15 +840,17 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .merkle_tree
         .rightmost_index;
 
-    let addresses = indexer
+    let addresses: Vec<[u8; 32]> = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
             0,
             batch.batch_size,
         )
         .await
-        .unwrap();
+        .unwrap()
+        .iter()
+        .map(|x| x.1)
+        .collect();
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

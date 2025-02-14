@@ -59,6 +59,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     .await
     .expect("Failed to update test indexer after append");
 
+    println!("batch append completed");
     Ok(())
 }
 
