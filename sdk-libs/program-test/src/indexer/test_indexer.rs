@@ -595,7 +595,8 @@ where
     async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: u64,
+        start_offset: u64,
+        end_offset: u64,
     ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
@@ -603,7 +604,7 @@ where
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
-        Ok(state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size as usize].to_vec())
+        Ok(state_merkle_tree_bundle.input_leaf_indices[start_offset as usize..end_offset as usize].to_vec())
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {

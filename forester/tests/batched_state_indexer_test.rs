@@ -221,6 +221,9 @@ async fn test_state_indexer_batched() {
             .await
             .unwrap();
 
+        println!("test_indexer_account: {:?}", compressed_balance_test_indexer);
+        println!("photon_account: {:?}", compressed_balance_photon);
+
         for (photon_account, test_indexer_account) in compressed_balance_photon
             .iter()
             .zip(compressed_balance_test_indexer.iter())

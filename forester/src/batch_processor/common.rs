@@ -55,9 +55,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 _ => Err(BatchProcessError::UnsupportedTreeType(self.tree_type)),
             },
             BatchReadyState::ReadyForNullify => {
-                // self.process_state_nullify().await
-                println!("skipping process_state_nullify");
-                Ok(0)
+                println!("process_state_nullify");
+                self.process_state_nullify().await
             },
             BatchReadyState::NotReady => {
                 println!("BatchReadyState::NotReady");
@@ -103,13 +102,12 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 );
                 // TODO: restore
                 // Prioritize the queue that is more full
-                // if input_fill > output_fill {
-                //     BatchReadyState::ReadyForNullify
-                // } else {
-                //     BatchReadyState::ReadyForAppend
-                // }
-
-                BatchReadyState::ReadyForAppend
+                if input_fill > output_fill {
+                    BatchReadyState::ReadyForNullify
+                } else {
+                    BatchReadyState::ReadyForAppend
+                }
+                // BatchReadyState::ReadyForAppend
             }
             (true, false) => BatchReadyState::ReadyForNullify,
             (false, true) => BatchReadyState::ReadyForAppend,

@@ -56,6 +56,10 @@ impl QueueBatches {
         &self.batches[self.currently_processing_batch_index as usize]
     }
 
+    pub fn get_current_batch_index(&self) -> usize {
+        self.currently_processing_batch_index as usize
+    }
+
     pub fn get_previous_batch_index(&self) -> usize {
         if self.currently_processing_batch_index == 0 {
             1

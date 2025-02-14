@@ -858,13 +858,14 @@ pub async fn get_leaf_info_post(configuration: &configuration::Configuration, ge
         local_var_req_builder = local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
     }
     local_var_req_builder = local_var_req_builder.json(&get_leaf_info_post_request);
+    println!("request {:?}", local_var_req_builder);
 
     let local_var_req = local_var_req_builder.build()?;
     let local_var_resp = local_var_client.execute(local_var_req).await?;
 
     let local_var_status = local_var_resp.status();
     let local_var_content = local_var_resp.text().await?;
-
+    println!("get_leaf_info raw response {}", local_var_content);
     if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
         serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
