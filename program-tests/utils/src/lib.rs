@@ -29,7 +29,7 @@ pub mod test_forester;
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
     airdrop_lamports, create_account_instruction,
-    forester_epoch::{Epoch, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, TreeAccounts},
     get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
     registry::{
         create_rollover_address_merkle_tree_instructions,

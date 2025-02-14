@@ -75,7 +75,7 @@ use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
     airdrop_lamports,
-    forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, Forester, TreeAccounts},
     registry::register_test_forester,
     AccountZeroCopy,
 };
@@ -118,6 +118,7 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},

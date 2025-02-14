@@ -9,15 +9,14 @@ use std::{
 
 use anyhow::Context;
 use dashmap::DashMap;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-};
+use forester_utils::forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule};
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_registry::{
     protocol_config::state::ProtocolConfig,
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},

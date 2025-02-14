@@ -26,7 +26,6 @@ light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
 url = "2.2"
 bb8 = { workspace = true }
-log = { workspace = true }
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -49,6 +48,7 @@ warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
+prettytable-rs = "0.10.0"
 
 [dev-dependencies]
 serial_test = { workspace = true }
