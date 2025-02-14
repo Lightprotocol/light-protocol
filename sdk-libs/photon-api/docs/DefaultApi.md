@@ -1,6 +1,6 @@
 # \DefaultApi
 
-All URIs are relative to *https://devnet.helius-rpc.com?api-key=<api_key>*
+All URIs are relative to *https://devnet.helius-rpc.com/?api-key=<api_key>*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
@@ -228,7 +228,7 @@ No authorization required
 
 ## get_compressed_token_accounts_by_owner_post
 
-> models::GetCompressedTokenAccountsByDelegatePost200Response get_compressed_token_accounts_by_owner_post(get_compressed_token_accounts_by_owner_post_request)
+> models::GetCompressedTokenAccountsByOwnerPost200Response get_compressed_token_accounts_by_owner_post(get_compressed_token_accounts_by_owner_post_request)
 
 
 ### Parameters
