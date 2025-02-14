@@ -11,7 +11,6 @@ use crate::{context::SystemContext, errors::SystemProgramError};
 
 pub fn derive_new_addresses<'info>(
     new_address_params: &[ZNewAddressParamsPacked],
-    num_input_compressed_accounts: usize,
     remaining_accounts: &'info [AccountInfo<'info>],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
@@ -21,6 +20,7 @@ pub fn derive_new_addresses<'info>(
         .invoking_program_id
         .as_ref()
         .map(|invoking_program_id| invoking_program_id.to_bytes());
+    let mut seq_index = 0;
     new_address_params
         .iter()
         .enumerate()
@@ -71,9 +71,10 @@ pub fn derive_new_addresses<'info>(
                             tree.metadata.rollover_metadata.network_fee,
                             new_address_params.address_merkle_tree_account_index,
                         );
-                        msg!(
-                            "batched address tree fee {:?}",
-                            tree.metadata.rollover_metadata.rollover_fee
+                        cpi_ix_data.insert_address_sequence_number(
+                            &mut seq_index,
+                            tree.pubkey(),
+                            tree.queue_batches.next_index,
                         );
 
                         (
@@ -91,16 +92,6 @@ pub fn derive_new_addresses<'info>(
                     )
                     }
                 };
-            msg!(
-                "i + num_input_compressed_accounts: {:?}",
-                i + num_input_compressed_accounts
-            );
-            msg!("address: {:?}", address);
-            msg!("i: {:?}", i);
-            msg!(
-                "num_input_compressed_accounts: {:?}",
-                num_input_compressed_accounts
-            );
             // We are inserting addresses into two vectors to avoid unwrapping
             // the option in following functions.
             context.addresses.push(Some(address));

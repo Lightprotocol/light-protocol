@@ -39,6 +39,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
 
     let mut current_mt_index: u8 = 0;
     let mut is_first_iter = true;
+    let mut seq_index = 0;
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -67,6 +68,12 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                     context.set_network_fee(
                         tree.metadata.rollover_metadata.network_fee,
                         current_mt_index,
+                    );
+                    // We only set sequence number for batched input queues.
+                    cpi_ix_data.insert_input_sequence_number(
+                        &mut seq_index,
+                        tree.pubkey(),
+                        tree.queue_batches.next_index,
                     );
                     tree.hashed_pubkey
                 }

@@ -67,7 +67,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
-                    cpi_ix_data.sequence_numbers[index_merkle_tree_account as usize] =
+                    cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
                             pubkey: *output_queue.pubkey(),
                             seq: output_queue.batch_metadata.next_index.into(),
@@ -76,7 +76,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     *output_queue.pubkey()
                 }
                 AcpAccount::StateTree((pubkey, tree)) => {
-                    cpi_ix_data.sequence_numbers[index_merkle_tree_account as usize] =
+                    cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
                             pubkey: (*pubkey).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),

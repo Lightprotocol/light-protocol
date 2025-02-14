@@ -102,8 +102,12 @@ pub mod system_cpi_test {
         ];
 
         let mut bytes =
-            vec![0u8; InsertIntoQueuesInstructionDataMut::required_size_for_capacity(1, 1, 1, 1)];
-        let mut inputs = InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 1, 1, 1).unwrap();
+            vec![
+                0u8;
+                InsertIntoQueuesInstructionDataMut::required_size_for_capacity(1, 1, 1, 1, 1, 1)
+            ];
+        let mut inputs =
+            InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 1, 1, 1, 1, 1).unwrap();
         inputs.num_queues = 1;
         inputs.num_output_queues = 1;
         inputs.num_address_queues = 1;

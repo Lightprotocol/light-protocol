@@ -692,9 +692,7 @@ impl RpcConnection for SolanaRpcConnection {
                 }
             }
         }
-        let (parsed_event, _new_addresses) =
-            event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
-
+        let parsed_event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();
@@ -723,7 +721,7 @@ impl RpcConnection for SolanaRpcConnection {
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
         }
-        let event = parsed_event.map(|e| (e, signature, slot));
+        let event = parsed_event.map(|e| (e.event, signature, slot));
         Ok(event)
     }
 }

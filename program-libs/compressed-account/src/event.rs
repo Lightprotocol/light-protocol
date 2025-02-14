@@ -31,10 +31,18 @@ pub struct PublicTransactionEvent {
     pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
 }
-
+#[derive(Debug, Clone)]
 pub struct NewAddress {
     pub address: [u8; 32],
     pub mt_pubkey: Pubkey,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatchPublicTransactionEvent {
+    pub event: PublicTransactionEvent,
+    pub new_addresses: Vec<NewAddress>,
+    pub input_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
+    pub address_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 }
 
 // TODO: remove unwraps
@@ -54,7 +62,7 @@ pub struct NewAddress {
 pub fn event_from_light_transaction(
     instructions: &[Vec<u8>],
     remaining_accounts: Vec<Vec<Pubkey>>,
-) -> Result<(Option<PublicTransactionEvent>, Option<Vec<NewAddress>>), ZeroCopyError> {
+) -> Result<Option<BatchPublicTransactionEvent>, ZeroCopyError> {
     let mut event = PublicTransactionEvent::default();
     let mut ix_set_cpi_context = false;
     let found_event = instructions.iter().any(|x| {
@@ -62,7 +70,7 @@ pub fn event_from_light_transaction(
     });
     println!("found event {}", found_event);
     if !found_event {
-        return Ok((None, None));
+        return Ok(None);
     }
     println!("ix_set_cpi_context {}", ix_set_cpi_context);
     // If an instruction set the cpi context add the instructions that set the cpi context.
@@ -74,6 +82,8 @@ pub fn event_from_light_transaction(
     }
     // New addresses in batched trees.
     let mut new_addresses = Vec::new();
+    let mut input_sequence_numbers = Vec::new();
+    let mut address_sequence_numbers = Vec::new();
     let pos = instructions.iter().enumerate().position(|(i, x)| {
         if remaining_accounts[i].len() < 3 {
             return false;
@@ -82,6 +92,8 @@ pub fn event_from_light_transaction(
             x,
             &mut event,
             &mut new_addresses,
+            &mut input_sequence_numbers,
+            &mut address_sequence_numbers,
             &remaining_accounts[i][2..],
         )
         .unwrap()
@@ -92,14 +104,16 @@ pub fn event_from_light_transaction(
         println!("remaining accounts {:?}", remaining_accounts);
         event.pubkey_array = remaining_accounts[pos][2..].to_vec().clone();
         println!("event pubkey array {:?}", event.pubkey_array);
-        let new_addresses = if new_addresses.is_empty() {
-            None
-        } else {
-            Some(new_addresses)
-        };
-        Ok((Some(event), new_addresses))
+        println!("input_sequence_numbers {:?}", input_sequence_numbers);
+        println!("address_sequence_numbers {:?}", address_sequence_numbers);
+        Ok(Some(BatchPublicTransactionEvent {
+            event,
+            new_addresses,
+            input_sequence_numbers,
+            address_sequence_numbers,
+        }))
     } else {
-        Ok((None, None))
+        Ok(None)
     }
 }
 
@@ -107,6 +121,8 @@ pub fn match_account_compression_program_instruction(
     instruction: &[u8],
     event: &mut PublicTransactionEvent,
     new_addresses: &mut Vec<NewAddress>,
+    input_sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
+    address_sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
     accounts: &[Pubkey],
 ) -> Result<bool, ZeroCopyError> {
     if instruction.len() < 8 {
@@ -122,7 +138,7 @@ pub fn match_account_compression_program_instruction(
                 data.nullifiers.iter().map(|x| x.account_hash).collect();
             event.output_compressed_account_hashes = data.leaves.iter().map(|x| x.leaf).collect();
             event.sequence_numbers = data
-                .sequence_numbers
+                .output_sequence_numbers
                 .iter()
                 .map(|x| MerkleTreeSequenceNumber {
                     pubkey: x.pubkey.into(),
@@ -148,6 +164,22 @@ pub fn match_account_compression_program_instruction(
                     new_addresses.push(NewAddress {
                         address: x.address,
                         mt_pubkey: accounts[x.queue_index as usize],
+                    });
+                }
+            });
+            data.input_sequence_numbers.iter().for_each(|x| {
+                if x.pubkey != Pubkey::default().into() {
+                    input_sequence_numbers.push(MerkleTreeSequenceNumber {
+                        pubkey: x.pubkey.into(),
+                        seq: x.seq.into(),
+                    });
+                }
+            });
+            data.address_sequence_numbers.iter().for_each(|x| {
+                if x.pubkey != Pubkey::default().into() {
+                    address_sequence_numbers.push(MerkleTreeSequenceNumber {
+                        pubkey: x.pubkey.into(),
+                        seq: x.seq.into(),
                     });
                 }
             });
