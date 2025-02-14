@@ -62,7 +62,7 @@ use light_sdk::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::TokenBalance;
+use photon_api::models::{AccountV1, TokenBalance};
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -106,28 +106,38 @@ where
     async fn get_queue_elements(
         &self,
         pubkey: [u8; 32],
-        _batch: u64,
         start_offset: u64,
         end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+    ) -> Result<Vec<(u64, [u8; 32])>, IndexerError> {
         let pubkey = Pubkey::new_from_array(pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
             .iter()
             .find(|x| x.accounts.merkle_tree == pubkey);
         if let Some(address_tree_bundle) = address_tree_bundle {
-            return Ok(address_tree_bundle.queue_elements
+            let elements: Vec<[u8; 32]> = address_tree_bundle.queue_elements
                 [start_offset as usize..end_offset as usize]
-                .to_vec());
+                .to_vec();
+
+            let result = elements
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (i as u64, *x))
+                .collect();
+            return Ok(result);
         }
         let state_tree_bundle = self
             .state_merkle_trees
             .iter()
             .find(|x| x.accounts.merkle_tree == pubkey);
         if let Some(state_tree_bundle) = state_tree_bundle {
-            return Ok(state_tree_bundle.output_queue_elements
+            let result = state_tree_bundle.output_queue_elements
                 [start_offset as usize..end_offset as usize]
-                .to_vec());
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (i as u64, *x))
+                .collect();
+            return Ok(result);
         }
         Err(IndexerError::InvalidParameters(
             "Merkle tree not found".to_string(),
@@ -385,7 +395,7 @@ where
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<photon_api::models::account::Account, IndexerError> {
+    ) -> Result<AccountV1, IndexerError> {
         let account = match (address, hash) {
             (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
                 acc.compressed_account
@@ -475,7 +485,7 @@ where
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<photon_api::models::account::Account>, IndexerError> {
+    ) -> Result<Vec<AccountV1>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self

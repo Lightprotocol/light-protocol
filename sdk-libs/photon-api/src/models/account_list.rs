@@ -13,11 +13,11 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AccountList {
     #[serde(rename = "items")]
-    pub items: Vec<models::Account>,
+    pub items: Vec<models::AccountV1>,
 }
 
 impl AccountList {
-    pub fn new(items: Vec<models::Account>) -> AccountList {
+    pub fn new(items: Vec<models::AccountV1>) -> AccountList {
         AccountList {
             items,
         }

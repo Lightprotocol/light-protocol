@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
+use log::info;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
@@ -8,7 +9,7 @@ use light_sdk::{proof::ProofRpcResult, token::TokenDataWithMerkleContext};
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{
-        Account, CompressedProofWithContext, GetCompressedAccountsByOwnerPostRequestParams,
+        AccountV1, CompressedProofWithContext, GetCompressedAccountsByOwnerPostRequestParams,
         TokenBalanceList,
     },
 };
@@ -173,34 +174,35 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_queue_elements(
         &self,
         queue: [u8; 32],
-        batch: u64,
         start_offset: u64,
         end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+    ) -> Result<Vec<(u64, [u8; 32])>, IndexerError> {
         self.rate_limited_request(|| async {
             let request: photon_api::models::GetQueueElementsPostRequest =
                 photon_api::models::GetQueueElementsPostRequest {
                     params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                        merkle_tree: bs58::encode(queue).into_string(), // TODO: think queue or tree
-                        batch,
+                        merkle_tree: bs58::encode(queue).into_string(), // TODO: queue or tree?
                         start_offset,
                         end_offset,
                     }),
                     ..Default::default()
                 };
+            info!("Request: {:?}", request);
 
             let result = photon_api::apis::default_api::get_queue_elements_post(
                 &self.configuration,
                 request,
             )
-            .await;
+                .await;
+
+            println!("get_queue_elements result: {:?}", result);
 
             match result {
                 Ok(response) => match response.result {
                     Some(result) => Ok(result
                         .value
                         .iter()
-                        .map(|x| Hash::from_base58(x).unwrap())
+                        .map(|x| (x.leaf_index, Hash::from_bytes(&x.hash).unwrap()))
                         .collect()),
                     None => {
                         let error = response.error.unwrap();
@@ -370,9 +372,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }),
                 };
 
+                // TODO: do not use tree as a queue?
+                let nullifier_queue_pubkey = Pubkey::from(Hash::from_base58(&acc.queue.unwrap_or(acc.tree.clone())).unwrap());
+
                 let merkle_context = MerkleContext {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
-                    nullifier_queue_pubkey: Pubkey::from(Hash::from_base58(&acc.queue).unwrap()),
+                    nullifier_queue_pubkey,
                     leaf_index: acc.leaf_index,
                     prove_by_index: acc.in_queue
                 };
@@ -393,7 +398,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<Account, IndexerError> {
+    ) -> Result<AccountV1, IndexerError> {
         self.rate_limited_request(|| async {
             let params = self.build_account_params(address, hash)?;
             let request = photon_api::models::GetCompressedAccountPostRequest {
@@ -502,7 +507,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<Account>, IndexerError> {
+    ) -> Result<Vec<AccountV1>, IndexerError> {
         self.rate_limited_request(|| async {
             let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
                 params: Box::new(
@@ -755,12 +760,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }),
                     ..Default::default()
                 };
+            println!("get_proofs_by_indices Request: {:?}", request);
 
             let result = photon_api::apis::default_api::get_proofs_by_indices_post(
                 &self.configuration,
                 request,
             )
             .await;
+
+            println!("get_proofs_by_indices Result: {:?}", result);
 
             match result {
                 Ok(response) => match response.result {
@@ -769,7 +777,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                             .value
                             .iter()
                             .map(|x| {
-                                let mut proof_result_value = x.proof.clone();
+                                let proof_result_value = x.proof.clone();
                                 // proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
                                 let proof: Vec<[u8; 32]> = proof_result_value
                                     .iter()

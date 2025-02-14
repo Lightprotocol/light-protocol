@@ -10,7 +10,7 @@
 
 
 use reqwest;
-
+use log::info;
 use crate::{apis::ResponseContent, models};
 use super::{Error, configuration};
 
@@ -417,7 +417,6 @@ pub async fn get_compressed_accounts_by_owner_v2_post(configuration: &configurat
     let local_var_status = local_var_resp.status();
     let local_var_content = local_var_resp.text().await?;
 
-    println!("get_compressed_accounts_by_owner_v2_post response: {:?}", local_var_content);
     if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
         serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
@@ -1033,7 +1032,7 @@ pub async fn get_queue_elements_post(configuration: &configuration::Configuratio
 
     let local_var_status = local_var_resp.status();
     let local_var_content = local_var_resp.text().await?;
-
+    println!("get_queue_elements raw data: {}", local_var_content);
     if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
         serde_json::from_str(&local_var_content).map_err(Error::from)
     } else {
@@ -1043,7 +1042,7 @@ pub async fn get_queue_elements_post(configuration: &configuration::Configuratio
     }
 }
 
-pub async fn get_subtrees_post(configuration: &configuration::Configuration, get_subtrees_post_request: models::GetSubtreesPostRequest) -> Result<models::GetQueueElementsPost200Response, Error<GetSubtreesPostError>> {
+pub async fn get_subtrees_post(configuration: &configuration::Configuration, get_subtrees_post_request: models::GetSubtreesPostRequest) -> Result<models::GetSubtreesPost200Response, Error<GetSubtreesPostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;

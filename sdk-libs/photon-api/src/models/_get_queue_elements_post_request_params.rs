@@ -12,24 +12,21 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsPostRequestParams {
-    #[serde(rename = "batch")]
-    pub batch: u64,
-    #[serde(rename = "endOffset")]
-    pub end_offset: u64,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
     #[serde(rename = "startOffset")]
     pub start_offset: u64,
+    #[serde(rename = "endOffset")]
+    pub end_offset: u64,
 }
 
 impl GetQueueElementsPostRequestParams {
-    pub fn new(batch: u64, end_offset: u64, merkle_tree: String, start_offset: u64) -> GetQueueElementsPostRequestParams {
+    pub fn new(merkle_tree: String, start_offset: u64, end_offset: u64) -> GetQueueElementsPostRequestParams {
         GetQueueElementsPostRequestParams {
-            batch,
-            end_offset,
             merkle_tree,
             start_offset,
+            end_offset,
         }
     }
 }

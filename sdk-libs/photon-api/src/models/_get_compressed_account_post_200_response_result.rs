@@ -15,7 +15,7 @@ pub struct GetCompressedAccountPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value", skip_serializing_if = "Option::is_none")]
-    pub value: Option<Box<models::Account>>,
+    pub value: Option<Box<models::AccountV1>>,
 }
 
 impl GetCompressedAccountPost200ResponseResult {

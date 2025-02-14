@@ -31,6 +31,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     }
     let current_slot = Clock::get()?.slot;
     msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
+    msg!("inputs {:?}", inputs);
+    msg!("remaining_accounts {:?}", ctx.remaining_accounts.iter().map(|a| a.key).collect::<Vec<_>>());
+
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");
     insert_nullifiers(

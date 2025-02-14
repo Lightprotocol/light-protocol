@@ -20,40 +20,52 @@ pub struct AccountV2 {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
+    #[serde(rename = "inQueue")]
+    pub in_queue: bool,
     #[serde(rename = "lamports")]
     pub lamports: u64,
     #[serde(rename = "leafIndex")]
     pub leaf_index: u32,
+    /// A 32-byte hash represented as a base58 string.
+    #[serde(rename = "nullifier", skip_serializing_if = "Option::is_none")]
+    pub nullifier: Option<String>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
-    #[serde(rename = "seq")]
+    /// A Solana public key represented as a base58 string.
+    #[serde(rename = "queue", skip_serializing_if = "Option::is_none")]
+    pub queue: Option<String>,
+    #[serde(rename = "seq", skip_serializing_if = "Option::is_none")]
     pub seq: Option<u64>,
     #[serde(rename = "slotCreated")]
     pub slot_created: u64,
+    #[serde(rename = "spent")]
+    pub spent: bool,
+    /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
-    #[serde(rename = "queue")]
-    pub queue: String,
-    #[serde(rename = "inQueue")]
-    pub in_queue: bool,
-
+    /// A 32-byte hash represented as a base58 string.
+    #[serde(rename = "txHash", skip_serializing_if = "Option::is_none")]
+    pub tx_hash: Option<String>,
 }
 
 impl AccountV2 {
-    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, seq: Option<u64>, slot_created: u64, tree: String, queue: String, in_queue: bool) -> AccountV2 {
+    pub fn new(hash: String, in_queue: bool, lamports: u64, leaf_index: u32, owner: String, slot_created: u64, spent: bool, tree: String) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
             hash,
+            in_queue,
             lamports,
             leaf_index,
+            nullifier: None,
             owner,
-            seq,
+            queue: None,
+            seq: None,
             slot_created,
+            spent,
             tree,
-            queue,
-            in_queue,
+            tx_hash: None,
         }
     }
 }

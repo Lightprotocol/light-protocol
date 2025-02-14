@@ -1,5 +1,6 @@
 use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
+use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 use light_merkle_tree_reference::MerkleTree;
 
 fn append<H>(canopy_depth: usize)
@@ -729,4 +730,47 @@ fn test_sequence_number() {
     let leaf2 = Poseidon::hash(&[2u8; 32]).unwrap();
     merkle_tree.update(&leaf2, 0).unwrap();
     assert_eq!(merkle_tree.sequence_number, 2);
+}
+
+
+#[test]
+fn test_get_proof_by_indices_for_existent_or_non_existent_leaves() {
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(4, 0);
+
+    let indices = [0];
+    let proof = merkle_tree.get_proof_by_indices(&indices);
+    assert_eq!(proof.len(), 1);
+    assert_eq!(proof[0].len(), 4);
+
+    for level in 0..4 {
+        assert_eq!(proof[0][level], ZERO_BYTES[level]);
+    }
+
+    let mut leaf_1 = [0u8; 32];
+    leaf_1[31] = 1;
+    let mut leaf_2 = [0u8; 32];
+    leaf_2[31] = 2;
+
+    merkle_tree.append(&leaf_1).unwrap();
+    merkle_tree.append(&leaf_2).unwrap();
+
+    // Test proofs for existing leaves
+    let indices = [0];
+    let proof = merkle_tree.get_proof_by_indices(&indices);
+    assert_eq!(proof.len(), 1);
+    assert_eq!(proof[0].len(), 4);
+
+    // Test proofs for non-existent leaf (index 3)
+    let indices = [3];
+    let proof = merkle_tree.get_proof_by_indices(&indices);
+    assert_eq!(proof.len(), 1);
+    assert_eq!(proof[0].len(), 4);
+
+    // Test multiple indices at once
+    let indices = [0, 1, 2, 3];
+    let proof = merkle_tree.get_proof_by_indices(&indices);
+    assert_eq!(proof.len(), 4);
+    for p in proof.iter() {
+        assert_eq!(p.len(), 4);
+    }
 }

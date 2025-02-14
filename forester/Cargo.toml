@@ -49,6 +49,7 @@ warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
+console-subscriber = "0.4.1"
 
 [dev-dependencies]
 serial_test = { workspace = true }
@@ -57,3 +58,6 @@ light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 dotenvy = "0.15"
 light-compressed-account = { workspace = true }
+
+[build]
+rustflags = ["--cfg", "tokio_unstable"]

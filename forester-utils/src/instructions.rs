@@ -28,7 +28,6 @@ use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 use light_client::indexer::Base58Conversions;
-use crate::forester_epoch::TreeType;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -95,10 +94,9 @@ where
         .merkle_tree
         .rightmost_index;
 
-    let addresses = indexer
+    let addresses: Vec<[u8; 32]> = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
             0,
             batch_size as u64,
         )
@@ -109,7 +107,10 @@ where
                 e
             );
             ForesterUtilsError::IndexerError("Failed to get queue elements".into())
-        })?;
+        })?
+        .iter()
+        .map(|x| x.1.clone())
+        .collect();
 
     let batch_size = addresses.len();
 
@@ -262,19 +263,27 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let start = num_inserted_zkps as usize * zkp_batch_size as usize;
     let end = start + zkp_batch_size as usize;
 
-    let leaves = indexer
+    let mut leaves = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            start as u64,
-            end as u64,
+            merkle_tree_next_index, // from leaf_index
+            merkle_tree_next_index + zkp_batch_size,  // to leaf_index
         )
         .await
         .unwrap();
-    let first_leaf_index = 0; // TODO: response....
-    info!("Leaves: {:?}", leaves);
+    // sort leaves where leave is (u64, vec<u8>) by u64
+    leaves.sort_by(|a, b| a.0.cmp(&b.0));
+    let first_leaf_index = leaves.first().unwrap().0;
+    let last_leaf_index = leaves.last().unwrap().0;
+    info!("First leaf index: {:?}", first_leaf_index);
+    info!("Last leaf index: {:?}", last_leaf_index);
+
     let first_index = merkle_tree_next_index  as usize - first_leaf_index as usize;
     let last_index = first_index + zkp_batch_size as usize;
+
+    info!("First index: {:?}", first_index);
+    info!("Last index: {:?}", last_index);
+
     let leaves = leaves[first_index..last_index].to_vec();
 
     let (old_leaves, merkle_proofs) = {
@@ -302,7 +311,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 current_root,
                 merkle_tree_next_index as u32,
-                leaves,
+                leaves.iter().map(|x| x.1.clone()).collect(),
                 leaves_hash_chain,
                 old_leaves,
                 merkle_proofs,
