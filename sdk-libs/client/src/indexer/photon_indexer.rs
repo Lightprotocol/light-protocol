@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use log::info;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
@@ -15,13 +14,13 @@ use photon_api::{
 };
 use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
-use tracing::{debug, error};
+use tracing::{info, debug, error};
 
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
         FromPhotonTokenAccountList, Hash, Indexer, IndexerError, LeafIndexInfo, MerkleProof,
-        NewAddressProofWithContext, ProofOfLeaf,
+        NewAddressProofWithContext,
     },
     rate_limiter::{RateLimiter, UseRateLimiter},
     rpc::RpcConnection,
@@ -104,7 +103,7 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         }
     }
 
-    fn convert_account_data(acc: &Account) -> Result<Option<CompressedAccountData>, IndexerError> {
+    fn convert_account_data(acc: &AccountV1) -> Result<Option<CompressedAccountData>, IndexerError> {
         match &acc.data {
             Some(data) => {
                 let data_hash = Hash::from_base58(&data.data_hash)
@@ -122,7 +121,7 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         }
 
     fn convert_to_compressed_account(
-        acc: &Account,
+        acc: &AccountV1,
     ) -> Result<CompressedAccountWithMerkleContext, IndexerError> {
         let owner = Pubkey::from(
             Hash::from_base58(&acc.owner)
@@ -206,10 +205,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         .collect()),
                     None => {
                         let error = response.error.unwrap();
-                        Err(IndexerError::Custom(error.message.unwrap()))
+                        Err(IndexerError::PhotonError {
+                            context: "get_queue_elements".to_string(),
+                            message: error.message.unwrap(),
+                        })
                     }
                 },
-                Err(e) => Err(IndexerError::Custom(e.to_string())),
+                Err(e) =>  Err(IndexerError::PhotonError {
+                    context: "get_queue_elements".to_string(),
+                    message: e.to_string(),
+                })
             }
         })
         .await
@@ -241,10 +246,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         .collect()),
                     None => {
                         let error = response.error.unwrap();
-                        Err(IndexerError::Custom(error.message.unwrap()))
+                        Err(IndexerError::PhotonError {
+                            context: "get_subtrees".to_string(),
+                            message: error.message.unwrap(),
+                        })
                     }
                 },
-                Err(e) => Err(IndexerError::Custom(e.to_string())),
+                Err(e) => Err(IndexerError::PhotonError {
+                    context: "get_subtrees".to_string(),
+                    message: e.to_string(),
+                })
             }
         })
         .await
@@ -796,10 +807,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }
                     None => {
                         let error = response.error.unwrap();
-                        Err(IndexerError::Custom(error.message.unwrap()))
+                        Err(IndexerError::PhotonError {
+                            context: "get_proofs_by_indices".to_string(),
+                            message: error.message.unwrap(),
+                        })
                     }
                 },
-                Err(e) => Err(IndexerError::Custom(e.to_string())),
+                Err(e) => Err(IndexerError::PhotonError {
+                    context: "get_proofs_by_indices".to_string(),
+                    message: e.to_string(),
+                })
             }
         })
         .await
@@ -845,10 +862,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }
                     None => {
                         let error = response.error.unwrap();
-                        Err(IndexerError::Custom(error.message.unwrap()))
+                        Err(IndexerError::PhotonError {
+                            context: "get_leaf_indices_tx_hashes".to_string(),
+                            message: error.message.unwrap(),
+                        })
                     }
                 },
-                Err(e) => Err(IndexerError::Custom(e.to_string())),
+                Err(e) => Err(IndexerError::PhotonError {
+                    context: "get_leaf_indices_tx_hashes".to_string(),
+                    message: e.to_string(),
+                }),
             }
         })
         .await
