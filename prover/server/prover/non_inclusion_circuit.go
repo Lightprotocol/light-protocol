@@ -36,7 +36,6 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 
 		LeafLowerRangeValues:  circuit.LeafLowerRangeValues,
 		LeafHigherRangeValues: circuit.LeafHigherRangeValues,
-		NextIndices:           circuit.NextIndices,
 
 		InPathElements: circuit.InPathElements,
 		InPathIndices:  circuit.InPathIndices,

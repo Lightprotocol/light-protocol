@@ -12,10 +12,10 @@ structure Range : Type where
   hi : Address
   valid : hi > lo
 
-instance : Membership Address Range where
-  mem r x := r.lo < x ∧ x < r.hi
+instance : Membership Nat Range where
+  mem r x := r.lo.val < x ∧ x < r.hi.val
 
-instance : Membership Address (Option Range) where
+instance : Membership Nat (Option Range) where
   mem r x := match r with
     | none => false
     | some r => x ∈ r
@@ -25,7 +25,7 @@ instance : HasSubset Range where
 
 def Range.disjoint (r₁ r₂ : Range) : Prop := r₁.hi ≤ r₂.lo ∨ r₂.hi ≤ r₁.lo
 
-lemma Range.not_mem_of_mem_and_disjoint {r₁ r₂ : Range} {v : Address} (h₁ : v ∈ r₁) (h₂ : r₁.disjoint r₂): v ∉ r₂ := by
+lemma Range.not_mem_of_mem_and_disjoint {r₁ r₂ : Range} {v : Nat} (h₁ : v ∈ r₁) (h₂ : r₁.disjoint r₂): v ∉ r₂ := by
   intro hmem
   cases hmem
   cases h₁
@@ -38,7 +38,7 @@ lemma Range.not_mem_of_mem_and_disjoint {r₁ r₂ : Range} {v : Address} (h₁ 
     assumption
   · apply lt_irrefl (a := v)
     apply lt_trans
-    case b => exact r₂.hi
+    case b => exact r₂.hi.val
     assumption
     apply lt_of_le_of_lt
     assumption
@@ -53,19 +53,19 @@ lemma Range.disjoint_of_disjoint_subset {r r₁ r₂ : Range} (h₁ : r₁ ⊆ r
   · apply Or.inr
     apply le_trans <;> assumption
 
-lemma isSome_of_mem {v : Address} {r : Option Range} (h: v ∈ r): r.isSome := by
+lemma isSome_of_mem {v : Nat} {r : Option Range} (h: v ∈ r): r.isSome := by
   cases r
   simp [Membership.mem] at h
   rfl
 
-lemma mem_of_mem {v : Address} {r : Range}: v ∈ some r → v ∈ r := by
+lemma mem_of_mem {v : Nat} {r : Range}: v ∈ some r → v ∈ r := by
   simp [Membership.mem]
 
-lemma hi_ne_zero_of_mem {v:  Address} {r: Range} : v ∈ r → r.hi ≠ 0 := by
+lemma hi_ne_zero_of_mem {v:  Nat} {r: Range} : v ∈ r → r.hi ≠ 0 := by
   intro ⟨_, _⟩
   apply Fin.ne_zero_of_lt
+  apply Fin.mk_lt_of_lt_val
   assumption
-
 
 structure RangeVector (l: ℕ): Type where
   ranges : Fin l → Option Range
@@ -75,39 +75,39 @@ structure RangeVector (l: ℕ): Type where
       | none => True
       | some rj => ri.disjoint rj
 
-instance {l : ℕ} : Membership Address (RangeVector l) where
+instance {l : ℕ} : Membership Nat (RangeVector l) where
   mem rv x := ∃(j: Fin l) (r:Range), x ∈ r ∧ some r = rv.ranges j
 
-def Range.remove (r : Range) (v : Address) (hmem : v ∈ r) : (Range × Range) := (rlo, rhi) where
-  rlo := {r with hi := v, valid := hmem.1}
-  rhi := {r with lo := v, valid := hmem.2}
+def Range.remove (r : Range) (v : Nat) (hmem : v ∈ r) : (Range × Range) := (rlo, rhi) where
+  rlo := {r with hi := ⟨v, lt_trans (hmem.2) (r.hi.prop)⟩, valid := hmem.1 }
+  rhi := {r with lo := ⟨v, lt_trans (hmem.2) (r.hi.prop)⟩, valid := hmem.2}
 
 theorem Range.remove_1_subset : (Range.remove r v hmem).1 ⊆ r := by
   apply And.intro
   · cases hmem
-    have := Fin.ne_zero_of_lt (b:=v) (by assumption)
     simp [remove, remove.rlo, *]
   · cases hmem
+    apply Fin.le_def.mpr
     simp [remove, remove.rlo, le_of_lt, *]
 
 theorem Range.remove_2_subset : (Range.remove r v hmem).2 ⊆ r := by
   apply And.intro <;> {
     cases hmem
-    simp [remove, remove.rhi, *, le_of_lt]
+    simp [remove, remove.rhi, *, le_of_lt, Fin.le_def]
   }
 
 theorem Range.disjoint_comm {r₁ r₂ : Range} : r₁.disjoint r₂ ↔ r₂.disjoint r₁ := by
   unfold disjoint
   apply Or.comm
 
-theorem Range.remove_disjoint {r : Range} {v : Address} {hmem : v ∈ r} : (Range.remove r v hmem).1.disjoint (Range.remove r v hmem).2 := by
+theorem Range.remove_disjoint {r : Range} {v : Nat} {hmem : v ∈ r} : (Range.remove r v hmem).1.disjoint (Range.remove r v hmem).2 := by
   simp only [Range.remove, remove.rlo, remove.rhi]
   cases hmem
   simp [disjoint]
 
 def RangeVector.remove
     (r : RangeVector l)
-    (v : Fin (2^248))
+    (v : Nat)
     (currentIndex : Fin l)
     (emptyIndex : Fin l)
     (currentIndex_valid : v ∈ r.ranges currentIndex)
@@ -191,7 +191,7 @@ theorem RangeVector.not_member_remove {v} {r : RangeVector l} {ci ei civ eiv} : 
     rw [hp] at civ
     cases civ
     cases vin
-    apply Fin.lt_irrefl v
+    apply lt_irrefl v
     apply lt_trans
     assumption
     apply lt_of_le_of_lt
@@ -201,7 +201,7 @@ theorem RangeVector.not_member_remove {v} {r : RangeVector l} {ci ei civ eiv} : 
     rw [hp] at civ
     cases civ
     cases vin
-    apply Fin.lt_irrefl v
+    apply lt_irrefl v
     apply lt_trans
     rename_i h _ _
     exact h
@@ -287,12 +287,58 @@ theorem RangeVector.members_same {v v'} {r : RangeVector l} {ci ei civ eiv} (hvv
         assumption
 
 
-def Range.hash : Range → F := fun r => poseidon₃ vec![r.lo, r.nextIndex, r.hi]
+def Range.hash : Range → F := fun r => poseidon₂ vec![r.lo, r.hi]
 
-def RangeTree (d : ℕ) : Type := { t: MerkleTree F poseidon₂ d // ∀ (i : Fin (2^d)), ∃ range, t.itemAtFin i = Range.hash range }
+def Range.hashOpt : Option Range → F := fun r => r.map Range.hash |>.getD 0
 
-def rangeTreeMem {d} : Range → RangeTree d → Prop := fun r t => r.hash ∈ t.val
+def poseidon₂_no_zero_preimage : Prop := ∀(a b : F), poseidon₂ vec![a, b] ≠ 0
 
 
-instance {d} : Membership F (RangeTree d) where
-  mem t x := ∃(r:Range), rangeTreeMem r t ∧ x ∈ r
+def MerkleTree.ofFn (H: Hash α 2) (emb : β → α) (f : Fin (2^d) → β): MerkleTree α H d := match d with
+  | 0 => leaf (emb (f 0))
+  | Nat.succ d' => bin (MerkleTree.ofFn H emb (fun i => f i)) (MerkleTree.ofFn H emb (fun i => f (i + 2^d')))
+
+lemma Fin.lt_of_msb_zero {x : Fin (2^(d+1))} (h : Fin.msb x = false): x.val < 2^d := by
+  rw [Fin.msbs_lsbs_decomposition (v:=x)]
+  simp_all
+
+-- lemma x : Fin.val (n := n+1) (2^d) = (2^d % (n+1)) := by
+--   induction d with
+--   | zero => rfl
+--   | succ d ih =>
+--     simp [pow_succ, Fin.val_mul, ih]
+
+
+lemma MerkleTree.ofFn_itemAtFin {fn : Fin (2^d) → α} : (ofFn H emb fn |>.itemAtFin idx) = emb (fn idx) := by
+  induction d with
+  | zero =>
+    fin_cases idx
+    rfl
+  | succ d ih =>
+    simp only [itemAtFin] at *
+    simp only [Fin.toBitsBE, itemAt, ofFn]
+    conv => rhs; rw [Fin.msbs_lsbs_decomposition (v := idx)]
+    cases h: idx.msb
+    · have := Fin.lt_of_msb_zero h
+      simp [treeFor, left, ih, Fin.natCast_def, Nat.mod_eq_of_lt, *]
+    · simp [treeFor, right, ih, add_comm, Fin.add_def]
+      congr
+      rw [Nat.mod_eq_of_lt]
+      congr
+      sorry
+      sorry
+
+
+
+def rangeTree (r : RangeVector (2^d)) : MerkleTree F poseidon₂ d :=
+    MerkleTree.ofFn poseidon₂ Range.hashOpt r.ranges
+
+def RangeVector.root (r : RangeVector (2^d)) : F := rangeTree r |>.root
+
+-- def RangeTree (d : ℕ) : Type := { t: MerkleTree F poseidon₂ d // ∀ (i : Fin (2^d)), ∃ range, t.itemAtFin i = Range.hash range }
+
+-- def rangeTreeMem {d} : Range → RangeTree d → Prop := fun r t => r.hash ∈ t.val
+
+
+-- instance {d} : Membership F (RangeTree d) where
+--   mem t x := ∃(r:Range), rangeTreeMem r t ∧ x ∈ r

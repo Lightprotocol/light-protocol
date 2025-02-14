@@ -54,7 +54,6 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),
 		LeafLowerRangeValues:       make([]frontend.Variable, numberOfCompressedAccounts),
 		LeafHigherRangeValues:      make([]frontend.Variable, numberOfCompressedAccounts),
-		NextIndices:                make([]frontend.Variable, numberOfCompressedAccounts),
 		InPathIndices:              make([]frontend.Variable, numberOfCompressedAccounts),
 		InPathElements:             nonInclusionInPathElements,
 	}

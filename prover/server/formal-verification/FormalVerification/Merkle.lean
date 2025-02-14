@@ -185,9 +185,9 @@ theorem InclusionCircuit_correct [Fact (CollisionResistant poseidon₂)] {ih : F
   simp [InclusionCircuit_rw, InclusionProof_correct]
 
 lemma LeafHashGadget_rw {r : Range} {v : F} {k : F → Prop}:
-  LightProver.LeafHashGadget r.lo r.index r.hi v k ↔ v ∈ r ∧ k r.hash := by
+  LightProver.LeafHashGadget r.lo r.hi v k ↔ v.val ∈ r ∧ k r.hash := by
   unfold LightProver.LeafHashGadget
-  simp only [Poseidon3_iff_uniqueAssignment]
+  simp only [Poseidon2_iff_uniqueAssignment]
   apply Iff.intro
   . rintro ⟨lo, hi, cont⟩
     apply And.intro _ cont
@@ -237,59 +237,130 @@ theorem MerkleRootGadget_eq_rw [Fact (CollisionResistant poseidon₂)] {h i : F}
   rw [InclusionProofStep_rw]
   simp [and_comm]
 
-lemma LeafHashGadget_hashing {p : F → Prop} : (LightProver.LeafHashGadget lo nxt hi leaf p) → p (poseidon₃ vec![lo, nxt, hi]) := by
+lemma LeafHashGadget_hashing {p : F → Prop} : (LightProver.LeafHashGadget lo hi leaf p) → p (poseidon₂ vec![lo, hi]) := by
   simp [LightProver.LeafHashGadget]
 
-lemma LeafHashGadget_in_tree [Fact (CollisionResistant poseidon₃)] {p : F → Prop} {tree : RangeTree 26} (p_in_tree : ∀ r, p r → ∃i, r = tree.val.itemAtFin i) :
-  (LightProver.LeafHashGadget lo nxt hi leaf p) → ∃(r:Range), lo = r.lo ∧ hi = r.hi ∧ nxt = r.index := by
-  intro h
-  have := p_in_tree _ $ LeafHashGadget_hashing h
-  rcases this with ⟨i, heq⟩
-  rcases tree.prop i with ⟨r, h⟩
-  rw [h] at heq
-  simp [Range.hash, List.Vector.eq_cons] at heq
-  apply Exists.intro r
-  simp [heq]
+-- lemma LeafHashGadget_in_tree [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {p : F → Prop} {tree : RangeVector (2^26)}
+--     (p_in_tree : ∀ r, p r → ∃i, r = (Range.hashOpt <| tree.ranges i)) :
+--     (LightProver.LeafHashGadget lo hi leaf p) → ∃(r:Range), lo = r.lo ∧ hi = r.hi := by
+--   intro h
+--   have := p_in_tree _ $ LeafHashGadget_hashing h
+--   rcases this with ⟨i, heq⟩
+--   sorry
 
-theorem MerkleTreeRoot_LeafHashGadget_rw [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)] {lo hi nxt leaf ind proof} {k : F → Prop } {tree : RangeTree 26}:
-  (LightProver.LeafHashGadget lo nxt hi leaf fun r =>
+-- lemma LeafHashGadget_in_tree' [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {p : F → Prop}
+--     (h : LightProver.LeafHashGadget lo hi leaf p)
+--     (hp : ∀ r, p r → ∃ rg, r = Range.hashOpt rg) :
+--     lo.val < 2^248 ∧ hi.val < 2^248 ∧ lo.val < leaf.val ∧ leaf.val < hi.val := by
+--   have := hp _ $ LeafHashGadget_hashing h
+--   rcases this with ⟨rg, this⟩
+--   cases rg
+--   · simp only [Range.hashOpt, Option.map, Option.getD] at this
+--     have ne : poseidon₂_no_zero_preimage := Fact.elim inferInstance
+--     unfold poseidon₂_no_zero_preimage at ne
+--     have := ne _ _ this
+--     exfalso
+--     assumption
+--   · rename_i rg
+--     cases rg
+--     simp only [Range.hashOpt, Option.map, Option.getD, Range.hash, CollisionResistant_def, List.Vector.eq_cons, and_true] at this
+--     cases this
+--     subst_vars
+--     simp
+
+-- lemma LeafHashGadget_rw' : (LightProver.LeafHashGadget lo hi v k) ↔ (∃(r:Range), lo.val = r.lo.val ∧ hi.val = r.hi.val ∧ v.val ∈ r) := by
+--   apply Iff.intro
+
+theorem Range.hashOpt_eq_poseidon_iff_is_some {lo hi} [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)]:
+    (Range.hashOpt r = poseidon₂ vec![lo, hi]) ↔ ∃(h:r.isSome), lo.val = (r.get h).lo.val ∧ hi.val = (r.get h).hi.val := by
+  have : poseidon₂_no_zero_preimage := Fact.elim inferInstance
+  unfold poseidon₂_no_zero_preimage at this
+  apply Iff.intro
+  · intro h
+    cases r
+    · simp only [hashOpt, Option.map, Option.getD] at h
+      rw [eq_comm] at h
+      have := this _ _ h
+      cases this
+    · simp only [hashOpt, Option.map, Option.getD, hash, CollisionResistant_def, List.Vector.eq_cons, and_true] at h
+      cases h
+      subst_vars
+      simp
+      rw [Nat.mod_eq_of_lt, Nat.mod_eq_of_lt]
+      · simp
+      · apply lt_trans (Fin.prop _) (by decide)
+      · apply lt_trans (Fin.prop _) (by decide)
+  · rintro ⟨h, hlo, hhi⟩
+    cases r
+    · cases h
+    simp only [Option.get] at hlo hhi
+    simp only [hashOpt, Range.hash, Option.map, Option.getD]
+    congr
+    · rw [←hlo]
+      simp
+    · rw [←hhi]
+      simp
+
+theorem MerkleTreeRoot_LeafHashGadget_rw [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)] {lo hi leaf ind proof} {k : F → Prop } {ranges : RangeVector (2^26)}:
+  (LightProver.LeafHashGadget lo hi leaf fun r =>
     ∃lv, Gates.to_binary ind 26 lv ∧
-    LightProver.MerkleRootGadget_26_26_26 r lv proof fun root => Gates.eq root tree.val.root ∧ k root)
-  ↔ ∃(range : Range) (h: ind.val < 2^26), tree.val.itemAtFin ⟨ind.val, h⟩ = range.hash ∧ lo = range.lo ∧ nxt = range.index ∧ hi = range.hi ∧ proof.reverse = tree.val.proofAtFin ⟨ind.val, h⟩ ∧ leaf ∈ range ∧ k tree.val.root := by
+    LightProver.MerkleRootGadget_26_26_26 r lv proof fun root => Gates.eq root ranges.root ∧ k root)
+  ↔ ∃(range : Range) (h: ind.val < 2^26), ranges.ranges ⟨ind.val, h⟩ = range ∧ lo = range.lo ∧ hi = range.hi ∧ proof.reverse = (rangeTree ranges).proofAtFin ⟨ind.val, h⟩ ∧ leaf.val ∈ range ∧ k ranges.root := by
   apply Iff.intro
   . intro h
-    simp only [MerkleRootGadget_eq_rw] at h
-    have := LeafHashGadget_in_tree (tree := tree) (by
+    simp only [MerkleRootGadget_eq_rw, RangeVector.root, rangeTree, MerkleTree.ofFn_itemAtFin] at h
+    unfold LightProver.LeafHashGadget at h
+    simp only [Poseidon2_iff_uniqueAssignment] at h
+    rcases h with ⟨lv, hv, ⟨ilt, hhash, hproof⟩, hk⟩
+    rw [eq_comm, Range.hashOpt_eq_poseidon_iff_is_some] at hhash
+    rcases hhash with ⟨hsome, hlo, hhi⟩
+    exists (ranges.ranges ⟨ind.val, ilt⟩).get hsome
+    exists ilt
+    apply And.intro
+    · simp
+    apply And.intro
+    · rw [←hlo]
       simp
-      intro r hp r_eq _ _
-      apply Exists.intro ⟨ind.val, hp⟩
-      exact r_eq
-    ) h
-    rcases this with ⟨r, ⟨_⟩, ⟨_⟩, ⟨_⟩⟩
-    rw [LeafHashGadget_rw] at h
-    rcases h with ⟨_, ⟨hlt, _, _⟩ , _⟩
-    apply Exists.intro r
-    apply Exists.intro hlt
-    simp [*]
-  . rintro ⟨r, h, _, ⟨_⟩, ⟨_⟩, ⟨_⟩, _, _, _⟩
+    apply And.intro
+    · rw [←hhi]
+      simp
+    apply And.intro
+    · rw [hproof]
+      simp [rangeTree]
+    apply And.intro
+    · have := AssertIsLess_range ?_ ⟨lv, hv⟩
+      · rcases this with ⟨lo, hi⟩
+        rw [hlo] at lo
+        rw [hhi] at hi
+        apply And.intro <;> assumption
+      · rw [hlo]
+        exact Fin.prop _
+    · exact hk
+  . rintro ⟨r, hind, hrget, rfl, rfl, hproof, hleaf, hk⟩
+    simp only [RangeVector.root, rangeTree]
+    simp only [RangeVector.root, rangeTree] at hk
     rw [LeafHashGadget_rw, MerkleRootGadget_eq_rw]
-    simp [*]
-    apply h
+    apply And.intro (by assumption)
+    apply And.intro ?_ (by assumption)
+    apply Exists.intro hind
+    apply And.intro
+    · rw [MerkleTree.ofFn_itemAtFin, hrget]
+      rfl
+    · assumption
 
-def NonInclusionProof_rec {n : Nat} (lo nxt hi leaf inds roots : List.Vector F n) (proofs : List.Vector (List.Vector F 26) n) (k : List.Vector F n → Prop): Prop :=
+def NonInclusionProof_rec {n : Nat} (lo hi leaf inds roots : List.Vector F n) (proofs : List.Vector (List.Vector F 26) n) (k : List.Vector F n → Prop): Prop :=
   match n with
   | 0 => k List.Vector.nil
-  | _ + 1 => LightProver.LeafHashGadget lo.head nxt.head hi.head leaf.head fun r =>
+  | _ + 1 => LightProver.LeafHashGadget lo.head hi.head leaf.head fun r =>
     ∃lv, Gates.to_binary inds.head 26 lv ∧
     LightProver.MerkleRootGadget_26_26_26 r lv proofs.head fun root =>
-    Gates.eq root roots.head ∧ NonInclusionProof_rec lo.tail nxt.tail hi.tail leaf.tail inds.tail roots.tail proofs.tail fun rs => k (root ::ᵥ rs)
+    Gates.eq root roots.head ∧ NonInclusionProof_rec lo.tail hi.tail leaf.tail inds.tail roots.tail proofs.tail fun rs => k (root ::ᵥ rs)
 
-lemma NonInclusionProof_rec_equiv {lo nxt hi leaf inds roots proofs k}:
-  NonInclusionProof_rec lo nxt hi leaf inds roots proofs k ↔
-  LightProver.NonInclusionProof_8_8_8_8_8_8_26_8_8_26 roots leaf lo hi nxt inds proofs k := by
+lemma NonInclusionProof_rec_equiv {lo hi leaf inds roots proofs k}:
+  NonInclusionProof_rec lo hi leaf inds roots proofs k ↔
+  LightProver.NonInclusionProof_8_8_8_8_8_26_8_8_26 roots leaf lo hi inds proofs k := by
   rw [ ←List.Vector.ofFn_get (v:=roots)
      , ←List.Vector.ofFn_get (v:=lo)
-     , ←List.Vector.ofFn_get (v:=nxt)
      , ←List.Vector.ofFn_get (v:=hi)
      , ←List.Vector.ofFn_get (v:=leaf)
      , ←List.Vector.ofFn_get (v:=inds)
@@ -297,9 +368,9 @@ lemma NonInclusionProof_rec_equiv {lo nxt hi leaf inds roots proofs k}:
      ]
   rfl
 
-theorem NonInclusionCircuit_rec_correct [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)] {n : Nat} {trees : List.Vector (RangeTree 26) n} {leaves : List.Vector F n} {k : List.Vector F n → Prop}:
-  (∃lo hi nxt inds proofs, NonInclusionProof_rec lo nxt hi leaves inds (trees.map (·.val.root)) proofs k) ↔
-  k (trees.map (·.val.root)) ∧ ∀i (_: i∈[0:n]), leaves[i] ∈ trees[i] := by
+theorem NonInclusionCircuit_rec_correct [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)] {n : Nat} {trees : List.Vector (RangeVector (2^26)) n} {leaves : List.Vector F n} {k : List.Vector F n → Prop}:
+  (∃lo hi inds proofs, NonInclusionProof_rec lo hi leaves inds (trees.map (·.root)) proofs k) ↔
+  k (trees.map (·.root)) ∧ ∀i (_: i∈[0:n]), leaves[i].val ∈ trees[i] := by
   induction n with
   | zero =>
     cases trees using List.Vector.casesOn
@@ -308,87 +379,105 @@ theorem NonInclusionCircuit_rec_correct [Fact (CollisionResistant poseidon₃)] 
     linarith [k.2]
   | succ n ih =>
     apply Iff.intro
-    . intro ⟨lo, hi, nxt, inds, proofs, hp⟩
+    . intro ⟨lo, hi, inds, proofs, hp⟩
       cases lo using List.Vector.casesOn with | cons hlo tlo =>
       cases hi using List.Vector.casesOn with | cons hhi thi =>
-      cases nxt using List.Vector.casesOn with | cons hnxt tnxt =>
       cases leaves using List.Vector.casesOn with | cons hleaf tleaf =>
       cases inds using List.Vector.casesOn with | cons hinds tinds =>
       cases proofs using List.Vector.casesOn with | cons hproof tproof =>
       cases trees using List.Vector.casesOn with | cons htree ttree =>
       simp [NonInclusionProof_rec, MerkleTreeRoot_LeafHashGadget_rw] at hp
-      rcases hp with ⟨range, _, hinc, ⟨_⟩, ⟨_⟩, ⟨_⟩, _, hlr, hp⟩
-      have := ih.mp $ Exists.intro _ $ Exists.intro _ $ Exists.intro _ $ Exists.intro _ $ Exists.intro _ hp
+      rcases hp with ⟨range, _, hsome, ⟨_⟩, ⟨_⟩, hproof, hmem, hp⟩
+      have := ih.mp $ Exists.intro _ $ Exists.intro _ $ Exists.intro _ $ Exists.intro _ hp
+      rcases this with ⟨hl, hr⟩
       apply And.intro
-      . simp [*]
+      . simpa [*];
       . intro i ir
         cases i with
         | zero =>
-          simp [Membership.mem, rangeTreeMem]
-          simp [Membership.mem] at hlr
+          simp [Membership.mem]
+          apply Exists.intro ⟨hinds.val, by assumption⟩
           apply Exists.intro range
-          apply And.intro
-          . exact Exists.intro _ hinc
-          . assumption
+          apply And.intro ?_ (eq_comm.mp hsome)
+          simp only [Membership.mem] at hmem
+          assumption
         | succ i =>
           rcases ir with ⟨l, r⟩
           simp
-          exact this.2 i ⟨by simp, by simp [Nat.mod_one]; linarith⟩
+          exact hr i ⟨by simp, by simp [Nat.mod_one]; linarith⟩
     . intro ⟨hk, hmem⟩
       cases trees using List.Vector.casesOn with | cons htree ttree =>
       cases leaves using List.Vector.casesOn with | cons hleaf tleaf =>
-      have := (ih (trees := ttree) (leaves := tleaf) (k := fun roots => k $ htree.val.root ::ᵥ roots)).mpr $ by
+      have := (ih (trees := ttree) (leaves := tleaf) (k := fun roots => k $ htree.root ::ᵥ roots)).mpr $ by
         simp at hk
         apply And.intro hk
         intro i ir
         have := hmem (i+1) ⟨by simp, by simp [Nat.mod_one]; linarith [ir.2]⟩
         simp at this
         exact this
-      rcases this with ⟨lo, hi, nxt, inds, proofs, hp⟩
+      rcases this with ⟨lo, hi, inds, proofs, hp⟩
       have := hmem 0 ⟨by simp, by simp⟩
       simp at this
       simp [NonInclusionProof_rec, MerkleTreeRoot_LeafHashGadget_rw]
-      rcases this with ⟨r, ⟨ix, hitem⟩, hlo, hhi⟩
+      rcases this with ⟨ix, r, hmem, hsome⟩
       use r.lo ::ᵥ lo
       use r.hi ::ᵥ hi
-      use r.index ::ᵥ nxt
       use ix ::ᵥ inds
-      use (htree.val.proofAtFin ix).reverse ::ᵥ proofs
+      use ((rangeTree htree).proofAtFin ix).reverse ::ᵥ proofs
       use r
       have : (ZMod.val (ix.val : F)) = ix.val := by
         rw [ZMod.val_natCast, Nat.mod_eq_of_lt]
         exact Nat.lt_trans ix.prop (by decide)
       apply Exists.intro
-      simp [*, Membership.mem]
-      simp
+      simp [*]
+      convert hp
+      simp only [ZMod.val_natCast, List.Vector.head_cons]
       rw [Nat.mod_eq_of_lt]
       · exact Fin.prop _
       · apply Nat.lt_trans
         . exact ix.prop
         . decide
 
-theorem NonInclusionCircuit_correct [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)] {trees : List.Vector (RangeTree 26) 8} {leaves : List.Vector F 8}:
-    (∃lo hi nxt inds proofs, LightProver.NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 h (trees.map (·.val.root)) leaves lo hi nxt inds proofs) ↔
-    h = inputHash poseidon₂ poseidon₃ (trees.map (·.val.root)) leaves ∧ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i] := by
+theorem NonInclusionCircuit_correct [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)] {trees : List.Vector (RangeVector (2^26)) 8} {leaves : List.Vector F 8}:
+    (∃lo hi inds proofs, LightProver.NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 h (trees.map (·.root)) leaves lo hi nxt inds proofs) ↔
+    h = inputHash poseidon₂ poseidon₃ (trees.map (·.root)) leaves ∧ ∀i (_: i∈[0:8]), leaves[i].val ∈ trees[i] := by
   unfold LightProver.NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26
-  simp [←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct, Gates, GatesGnark8, TwoInputsHashChain_rw]
+  simp only [←NonInclusionProof_rec_equiv]
+  simp only [TwoInputsHashChain_rw]
+  simp [Gates, GatesGnark8, GatesDef.eq]
+  intro
+  apply Iff.intro
+  · rintro ⟨_, _, _, _, hp⟩
+    apply And.right
+    apply NonInclusionCircuit_rec_correct.mp
+    repeat apply Exists.intro
+    exact hp
+  · intro hp
+    apply NonInclusionCircuit_rec_correct.mpr
+    simp only [true_and]
+    exact hp
 
 lemma InclusionProof_swap_ex {k : α → List.Vector F 8 → Prop} : (∃ a, LightProver.InclusionProof_8_8_8_26_8_8_26 x y z w fun r => k a r) ↔
   LightProver.InclusionProof_8_8_8_26_8_8_26 x y z w fun r => ∃a, k a r := by
   simp [InclusionProof_rw]
 
-theorem CombinedCircuit_correct [Fact (CollisionResistant poseidon₃)] [Fact (CollisionResistant poseidon₂)]
-  {inclusionTrees : List.Vector (MerkleTree F poseidon₂ 26) 8} { nonInclusionTrees : List.Vector (RangeTree 26) 8}
+theorem CombinedCircuit_correct [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)]
+  {inclusionTrees : List.Vector (MerkleTree F poseidon₂ 26) 8} { nonInclusionTrees : List.Vector (RangeVector (2^26)) 8}
   {inclusionLeaves nonInclusionLeaves : List.Vector F 8}:
-  (∃a b c d e f g, LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8 h (inclusionTrees.map (·.root)) inclusionLeaves a b (nonInclusionTrees.map (·.val.root)) nonInclusionLeaves c d e f g) ↔
-  h = poseidon₂ vec![inputHash poseidon₂ poseidon₃ (inclusionTrees.map (·.root)) inclusionLeaves, inputHash poseidon₂ poseidon₃ (nonInclusionTrees.map (·.val.root)) nonInclusionLeaves] ∧
-  ∀i (_: i∈[0:8]), inclusionLeaves[i] ∈ inclusionTrees[i] ∧ nonInclusionLeaves[i] ∈ nonInclusionTrees[i] := by
-  unfold LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_8_26_8
+  (∃a b c e f g, LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 h (inclusionTrees.map (·.root)) inclusionLeaves a b (nonInclusionTrees.map (·.root)) nonInclusionLeaves c e f g) ↔
+  h = poseidon₂ vec![inputHash poseidon₂ poseidon₃ (inclusionTrees.map (·.root)) inclusionLeaves, inputHash poseidon₂ poseidon₃ (nonInclusionTrees.map (·.root)) nonInclusionLeaves] ∧
+  ∀i (_: i∈[0:8]), inclusionLeaves[i] ∈ inclusionTrees[i] ∧ nonInclusionLeaves[i].val ∈ nonInclusionTrees[i] := by
+  unfold LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8
   simp [InclusionProof_swap_ex, InclusionProof_correct, ←NonInclusionProof_rec_equiv, NonInclusionCircuit_rec_correct, TwoInputsHashChain_rw, Gates, GatesGnark8, GatesDef.eq]
   rintro _
   apply Iff.intro
-  . tauto
+  . rintro ⟨l, r⟩
+    intro i hi
+    apply And.intro (r i hi)
+    have := NonInclusionCircuit_rec_correct.mp l
+    exact this.2 i hi
   . intro hp
     apply And.intro
-    . exact fun i ir => (hp i ir).2
+    . apply NonInclusionCircuit_rec_correct.mpr
+      simp_all
     . exact fun i ir => (hp i ir).1

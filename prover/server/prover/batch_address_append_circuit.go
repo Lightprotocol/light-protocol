@@ -24,11 +24,10 @@ type BatchAddressTreeAppendCircuit struct {
 	HashchainHash frontend.Variable `gnark:",private"`
 	StartIndex    frontend.Variable `gnark:",private"`
 
-	LowElementValues      []frontend.Variable   `gnark:",private"`
-	LowElementNextIndices []frontend.Variable   `gnark:",private"`
-	LowElementNextValues  []frontend.Variable   `gnark:",private"`
-	LowElementIndices     []frontend.Variable   `gnark:",private"`
-	LowElementProofs      [][]frontend.Variable `gnark:",private"`
+	LowElementValues     []frontend.Variable   `gnark:",private"`
+	LowElementNextValues []frontend.Variable   `gnark:",private"`
+	LowElementIndices    []frontend.Variable   `gnark:",private"`
+	LowElementProofs     [][]frontend.Variable `gnark:",private"`
 
 	NewElementValues []frontend.Variable   `gnark:",private"`
 	NewElementProofs [][]frontend.Variable `gnark:",private"`
@@ -43,16 +42,13 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	for i := uint32(0); i < circuit.BatchSize; i++ {
 		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
 			LeafLowerRangeValue:  circuit.LowElementValues[i],
-			NextIndex:            circuit.LowElementNextIndices[i],
 			LeafHigherRangeValue: circuit.LowElementNextValues[i],
 			Value:                circuit.NewElementValues[i],
 		})
 
-		newLowLeafNextIndex := api.Add(circuit.StartIndex, i)
-		lowLeafHash := abstractor.Call(api, poseidon.Poseidon3{
+		lowLeafHash := abstractor.Call(api, poseidon.Poseidon2{
 			In1: circuit.LowElementValues[i],
-			In2: newLowLeafNextIndex,
-			In3: circuit.NewElementValues[i],
+			In2: circuit.NewElementValues[i],
 		})
 
 		pathIndexBits := api.ToBinary(circuit.LowElementIndices[i], int(circuit.TreeHeight))
@@ -68,10 +64,9 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 		// value = new value
 		// next value is low leaf next value
 		// next index is new value next index
-		newLeafHash := abstractor.Call(api, poseidon.Poseidon3{
+		newLeafHash := abstractor.Call(api, poseidon.Poseidon2{
 			In1: circuit.NewElementValues[i],
-			In2: circuit.LowElementNextIndices[i],
-			In3: circuit.LowElementNextValues[i],
+			In2: circuit.LowElementNextValues[i],
 		})
 
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
@@ -118,7 +113,6 @@ func InitBatchAddressTreeAppendCircuit(treeHeight uint32, batchSize uint32) Batc
 		Msg("Initializing batch address append circuit")
 
 	lowElementValues := make([]frontend.Variable, batchSize)
-	lowElementNextIndices := make([]frontend.Variable, batchSize)
 	lowElementNextValues := make([]frontend.Variable, batchSize)
 	lowElementIndices := make([]frontend.Variable, batchSize)
 	lowElementProofs := make([][]frontend.Variable, batchSize)
@@ -131,20 +125,19 @@ func InitBatchAddressTreeAppendCircuit(treeHeight uint32, batchSize uint32) Batc
 	}
 
 	return BatchAddressTreeAppendCircuit{
-		BatchSize:             batchSize,
-		TreeHeight:            treeHeight,
-		PublicInputHash:       frontend.Variable(0),
-		OldRoot:               frontend.Variable(0),
-		NewRoot:               frontend.Variable(0),
-		HashchainHash:         frontend.Variable(0),
-		StartIndex:            frontend.Variable(0),
-		LowElementValues:      lowElementValues,
-		LowElementNextIndices: lowElementNextIndices,
-		LowElementNextValues:  lowElementNextValues,
-		LowElementIndices:     lowElementIndices,
-		LowElementProofs:      lowElementProofs,
-		NewElementValues:      newElementValues,
-		NewElementProofs:      newElementProofs,
+		BatchSize:            batchSize,
+		TreeHeight:           treeHeight,
+		PublicInputHash:      frontend.Variable(0),
+		OldRoot:              frontend.Variable(0),
+		NewRoot:              frontend.Variable(0),
+		HashchainHash:        frontend.Variable(0),
+		StartIndex:           frontend.Variable(0),
+		LowElementValues:     lowElementValues,
+		LowElementNextValues: lowElementNextValues,
+		LowElementIndices:    lowElementIndices,
+		LowElementProofs:     lowElementProofs,
+		NewElementValues:     newElementValues,
+		NewElementProofs:     newElementProofs,
 	}
 }
 
@@ -157,20 +150,19 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 	}
 
 	circuit := &BatchAddressTreeAppendCircuit{
-		BatchSize:             params.BatchSize,
-		TreeHeight:            params.TreeHeight,
-		PublicInputHash:       frontend.Variable(params.PublicInputHash),
-		OldRoot:               frontend.Variable(params.OldRoot),
-		NewRoot:               frontend.Variable(params.NewRoot),
-		HashchainHash:         frontend.Variable(params.HashchainHash),
-		StartIndex:            frontend.Variable(params.StartIndex),
-		LowElementValues:      make([]frontend.Variable, params.BatchSize),
-		LowElementNextIndices: make([]frontend.Variable, params.BatchSize),
-		LowElementNextValues:  make([]frontend.Variable, params.BatchSize),
-		LowElementIndices:     make([]frontend.Variable, params.BatchSize),
-		NewElementValues:      make([]frontend.Variable, params.BatchSize),
-		LowElementProofs:      make([][]frontend.Variable, params.BatchSize),
-		NewElementProofs:      make([][]frontend.Variable, params.BatchSize),
+		BatchSize:            params.BatchSize,
+		TreeHeight:           params.TreeHeight,
+		PublicInputHash:      frontend.Variable(params.PublicInputHash),
+		OldRoot:              frontend.Variable(params.OldRoot),
+		NewRoot:              frontend.Variable(params.NewRoot),
+		HashchainHash:        frontend.Variable(params.HashchainHash),
+		StartIndex:           frontend.Variable(params.StartIndex),
+		LowElementValues:     make([]frontend.Variable, params.BatchSize),
+		LowElementNextValues: make([]frontend.Variable, params.BatchSize),
+		LowElementIndices:    make([]frontend.Variable, params.BatchSize),
+		NewElementValues:     make([]frontend.Variable, params.BatchSize),
+		LowElementProofs:     make([][]frontend.Variable, params.BatchSize),
+		NewElementProofs:     make([][]frontend.Variable, params.BatchSize),
 	}
 
 	for i := uint32(0); i < params.BatchSize; i++ {
@@ -180,7 +172,6 @@ func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAp
 
 	for i := uint32(0); i < params.BatchSize; i++ {
 		circuit.LowElementValues[i] = frontend.Variable(&params.LowElementValues[i])
-		circuit.LowElementNextIndices[i] = frontend.Variable(&params.LowElementNextIndices[i])
 		circuit.LowElementNextValues[i] = frontend.Variable(&params.LowElementNextValues[i])
 		circuit.LowElementIndices[i] = frontend.Variable(&params.LowElementIndices[i])
 		circuit.NewElementValues[i] = frontend.Variable(&params.NewElementValues[i])
