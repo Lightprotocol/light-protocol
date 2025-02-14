@@ -657,6 +657,15 @@ pub mod transfer_sdk {
             lamports_change_account_merkle_tree,
             additional_token_pools,
         );
+        println!(
+            "sw-input_compressed_accounts: {:?}",
+            input_compressed_accounts
+        );
+        println!(
+            "sw-output_compressed_accounts: {:?}",
+            output_compressed_accounts
+        );
+        println!("sw-inputs_struct: {:?}", inputs_struct);
         if sort {
             inputs_struct
                 .output_compressed_accounts
@@ -681,6 +690,7 @@ pub mod transfer_sdk {
         } else {
             Some(Token::id())
         };
+        println!("sw-token_program: {:?}", token_program);
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,

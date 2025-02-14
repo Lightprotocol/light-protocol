@@ -339,6 +339,7 @@ pub struct MintToInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK:
+    #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
     /// CHECK: with check_spl_token_pool_derivation().
     #[account(mut)]
