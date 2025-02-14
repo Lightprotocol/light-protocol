@@ -260,7 +260,8 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: u64,
+        start_offset: u64,
+        end_offset: u64,
     ) -> Result<Vec<LeafIndexInfo>, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;

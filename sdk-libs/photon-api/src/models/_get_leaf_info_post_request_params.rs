@@ -15,15 +15,18 @@ pub struct GetLeafInfoPostRequestParams {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
-    #[serde(rename = "zkpBatchSize")]
-    pub zkp_batch_size: u64,
+    #[serde(rename = "startOffset")]
+    pub start_offset: u64,
+    #[serde(rename = "endOffset")]
+    pub end_offset: u64,
 }
 
 impl GetLeafInfoPostRequestParams {
-    pub fn new(merkle_tree: String, zkp_batch_size: u64) -> GetLeafInfoPostRequestParams {
+    pub fn new(merkle_tree: String, start_offset: u64, end_offset: u64) -> GetLeafInfoPostRequestParams {
         GetLeafInfoPostRequestParams {
             merkle_tree,
-            zkp_batch_size,
+            start_offset,
+            end_offset,
         }
     }
 }

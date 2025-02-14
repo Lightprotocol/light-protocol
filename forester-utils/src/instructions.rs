@@ -366,7 +366,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    let (zkp_batch_size, old_root, leaves_hash_chain) = {
+    let (zkp_batch_size, old_root, leaves_hash_chain, start_offset) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
@@ -375,15 +375,27 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
+        let batch_size = merkle_tree.queue_batches.batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size, root, hash_chain)
+        let current_batch_index = merkle_tree.queue_batches.get_current_batch_index();
+        let mut start_offset = merkle_tree.queue_batches.next_index / batch_size;
+        if current_batch_index == batch_idx {
+            start_offset = merkle_tree.queue_batches.next_index - merkle_tree.queue_batches.next_index % batch_size;
+            start_offset += zkp_idx * zkp_size;
+        } else {
+            start_offset = merkle_tree.queue_batches.next_index - merkle_tree.queue_batches.next_index % batch_size - batch_size;
+            start_offset += zkp_idx * zkp_size;
+        }
+
+        (zkp_size, root, hash_chain, start_offset)
     };
 
+
     let leaf_indices_tx_hashes = indexer
-        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size)
+        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, start_offset, start_offset + zkp_batch_size)
         .await
         .unwrap();
 
