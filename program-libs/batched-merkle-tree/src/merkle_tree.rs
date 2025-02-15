@@ -287,6 +287,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Root for binary Merkle tree with all zero leaves.
             root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
         } else if tree_type == TreeType::BatchedAddress {
+            // Sanity check since init value is hardcoded.
+            #[cfg(not(test))]
+            if height != 40 {
+                return Err(MerkleTreeMetadataError::InvalidHeight.into());
+            }
             // Initialized indexed Merkle tree root.
             // See https://github.com/Lightprotocol/light-protocol/blob/c143c24f95c901e2eac96bc2bd498719958192cf/program-libs/indexed-merkle-tree/src/reference.rs#L69
             root_history.push(ADDRESS_TREE_INIT_ROOT_40);
@@ -1130,7 +1135,7 @@ mod test {
             root_history_len,
             batch_size,
             zkp_batch_size,
-            10,
+            40,
             num_iter,
             bloom_filter_capacity,
             TreeType::BatchedAddress,
@@ -1569,7 +1574,7 @@ mod test {
         let num_iter = 1;
         let mut current_slot = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let mut account = BatchedMerkleTreeAccount::init(
             &mut account_data,
             &Pubkey::new_unique(),
@@ -1703,7 +1708,7 @@ mod test {
         let root_history_len = 10;
         let num_iter = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let pubkey = Pubkey::new_unique();
         let mut account = BatchedMerkleTreeAccount::init(
             &mut account_data,
@@ -1741,7 +1746,7 @@ mod test {
         let root_history_len = 10;
         let num_iter = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let pubkey = Pubkey::new_unique();
         let associated_queue = Pubkey::new_unique();
         let account = BatchedMerkleTreeAccount::init(

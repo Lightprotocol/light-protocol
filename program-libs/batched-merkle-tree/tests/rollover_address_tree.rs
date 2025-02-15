@@ -187,7 +187,7 @@ fn test_rnd_rollover() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            height: rng.gen_range(1..32),
+            height: 40,
         };
         if forester.is_some() {
             params.network_fee = None;
@@ -307,7 +307,7 @@ fn test_batched_tree_is_ready_for_rollover() {
         height,
         num_iter,
         bloom_filter_capacity,
-        TreeType::BatchedAddress,
+        TreeType::BatchedState,
     )
     .unwrap();
 
@@ -318,7 +318,7 @@ fn test_batched_tree_is_ready_for_rollover() {
     );
 
     let tree_capacity = 2u64.pow(height);
-    let start_index = 2;
+    let start_index = 0;
     let rollover_threshold =
         tree_capacity * metadata.rollover_metadata.rollover_threshold / 100 - start_index;
     // fill tree almost to the rollover threshold

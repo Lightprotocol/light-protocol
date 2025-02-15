@@ -18,6 +18,8 @@ pub enum MerkleTreeMetadataError {
     InvalidTreeType,
     #[error("Invalid Rollover Threshold.")]
     InvalidRolloverThreshold,
+    #[error("Invalid Height.")]
+    InvalidHeight,
 }
 
 #[cfg(feature = "solana")]
@@ -32,6 +34,7 @@ impl From<MerkleTreeMetadataError> for u32 {
             MerkleTreeMetadataError::NotReadyForRollover => 14006,
             MerkleTreeMetadataError::InvalidTreeType => 14007,
             MerkleTreeMetadataError::InvalidRolloverThreshold => 14008,
+            MerkleTreeMetadataError::InvalidHeight => 14009,
         }
     }
 }

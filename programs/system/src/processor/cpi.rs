@@ -39,6 +39,7 @@ pub fn create_cpi_data_and_context<
     ];
     let account_indices =
         Vec::<u8>::with_capacity((num_nullifiers + num_leaves + num_new_addresses) as usize);
+    // Min (remaining accounts or num values) for there cannot be more trees than accounts or values.
     let bytes_size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
         num_leaves,
         num_nullifiers,
