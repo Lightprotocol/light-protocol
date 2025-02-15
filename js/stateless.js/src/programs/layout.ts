@@ -331,12 +331,28 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         addresses.push(address);
         offset += InsertAddressInputLayout.span;
     }
-    const sequenceNumbersCount = buffer.readUInt8(offset);
+    const outputSequenceNumbersCount = buffer.readUInt8(offset);
     offset += 1;
-    const sequence_numbers = [];
-    for (let i = 0; i < sequenceNumbersCount; i++) {
+    const output_sequence_numbers = [];
+    for (let i = 0; i < outputSequenceNumbersCount; i++) {
         const seq = MerkleTreeSequenceNumberLayout.decode(buffer, offset);
-        sequence_numbers.push(seq);
+        output_sequence_numbers.push(seq);
+        offset += MerkleTreeSequenceNumberLayout.span;
+    }
+    const inputSequenceNumbersCount = buffer.readUInt8(offset);
+    offset += 1;
+    const inputSequence_numbers = [];
+    for (let i = 0; i < inputSequenceNumbersCount; i++) {
+        const seq = MerkleTreeSequenceNumberLayout.decode(buffer, offset);
+        inputSequence_numbers.push(seq);
+        offset += MerkleTreeSequenceNumberLayout.span;
+    }
+    const addressSequenceNumbersCount = buffer.readUInt8(offset);
+    offset += 1;
+    const addressSequence_numbers = [];
+    for (let i = 0; i < addressSequenceNumbersCount; i++) {
+        const seq = MerkleTreeSequenceNumberLayout.decode(buffer, offset);
+        addressSequence_numbers.push(seq);
         offset += MerkleTreeSequenceNumberLayout.span;
     }
     const outputLeafIndicesCount = buffer.readUInt8(offset);
@@ -352,7 +368,7 @@ export function deserializeAppendNullifyCreateAddressInputsIndexer(
         leaves,
         nullifiers,
         addresses,
-        sequence_numbers,
+        sequence_numbers: output_sequence_numbers,
         output_leaf_indices,
     };
 }

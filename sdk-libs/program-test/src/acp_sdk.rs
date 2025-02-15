@@ -60,6 +60,8 @@ pub fn create_insert_leaves_instruction(
             0,
             0,
             merkle_tree_pubkeys.len() as u8,
+            0,
+            0,
         )
     ];
     let mut ix_data = InsertIntoQueuesInstructionDataMut::new(
@@ -68,6 +70,8 @@ pub fn create_insert_leaves_instruction(
         0,
         0,
         merkle_tree_pubkeys.len() as u8,
+        0,
+        0,
     )
     .unwrap();
     ix_data.num_output_queues = merkle_tree_pubkeys.len() as u8;

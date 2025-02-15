@@ -65,7 +65,9 @@ pub struct InsertIntoQueuesInstructionData<'a> {
     pub leaves: ZeroCopySlice<'a, u8, AppendLeavesInput, false>,
     pub nullifiers: ZeroCopySlice<'a, u8, InsertNullifierInput, false>,
     pub addresses: ZeroCopySlice<'a, u8, InsertAddressInput, false>,
-    pub sequence_numbers: ZeroCopySlice<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub output_sequence_numbers: ZeroCopySlice<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub input_sequence_numbers: ZeroCopySlice<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub address_sequence_numbers: ZeroCopySlice<'a, u8, MerkleTreeSequenceNumber, false>,
     pub output_leaf_indices: ZeroCopySlice<'a, u8, U32, false>,
 }
 
@@ -95,9 +97,12 @@ impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
 
         let (addresses, bytes) =
             ZeroCopySlice::<u8, InsertAddressInput, false>::from_bytes_at(bytes)?;
-        let (sequence_numbers, bytes) =
+        let (output_sequence_numbers, bytes) =
             ZeroCopySlice::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
-
+        let (input_sequence_numbers, bytes) =
+            ZeroCopySlice::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
+        let (address_sequence_numbers, bytes) =
+            ZeroCopySlice::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
         let output_leaf_indices =
             ZeroCopySlice::<u8, zerocopy::little_endian::U32, false>::from_bytes(bytes)?;
         Ok((
@@ -106,7 +111,9 @@ impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
                 leaves,
                 nullifiers,
                 addresses,
-                sequence_numbers,
+                output_sequence_numbers,
+                input_sequence_numbers,
+                address_sequence_numbers,
                 output_leaf_indices,
             },
             bytes,
@@ -134,7 +141,9 @@ pub struct InsertIntoQueuesInstructionDataMut<'a> {
     pub leaves: ZeroCopySliceMut<'a, u8, AppendLeavesInput, false>,
     pub nullifiers: ZeroCopySliceMut<'a, u8, InsertNullifierInput, false>,
     pub addresses: ZeroCopySliceMut<'a, u8, InsertAddressInput, false>,
-    pub sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub output_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub input_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
+    pub address_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
     pub output_leaf_indices: ZeroCopySliceMut<'a, u8, U32, false>,
 }
 
@@ -147,11 +156,35 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         self.meta.is_invoked_by_program = value as u8;
     }
 
+    pub fn insert_input_sequence_number(&mut self, index: &mut usize, pubkey: &Pubkey, seq: u64) {
+        Self::insert_sequence_number(&mut self.input_sequence_numbers, index, pubkey, seq);
+    }
+
+    pub fn insert_address_sequence_number(&mut self, index: &mut usize, pubkey: &Pubkey, seq: u64) {
+        Self::insert_sequence_number(&mut self.address_sequence_numbers, index, pubkey, seq);
+    }
+
+    fn insert_sequence_number(
+        sequence_numbers: &mut ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
+        index: &mut usize,
+        pubkey: &Pubkey,
+        seq: u64,
+    ) {
+        let pos = sequence_numbers.iter().position(|x| x.pubkey == *pubkey);
+        if pos.is_none() {
+            sequence_numbers[*index].pubkey = *pubkey;
+            sequence_numbers[*index].seq = seq.into();
+            *index += 1;
+        }
+    }
+
     pub fn required_size_for_capacity(
         leaves_capacity: u8,
         nullifiers_capacity: u8,
         addresses_capacity: u8,
         num_output_trees: u8,
+        num_input_trees: u8,
+        num_address_trees: u8,
     ) -> usize {
         size_of::<InsertIntoQueuesInstructionDataMeta>()
             + ZeroCopySliceMut::<u8, AppendLeavesInput, false>::required_size_for_capacity(
@@ -166,6 +199,12 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             + ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::required_size_for_capacity(
                 num_output_trees,
             )
+            + ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::required_size_for_capacity(
+                num_input_trees,
+            )
+            + ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::required_size_for_capacity(
+                num_address_trees,
+            )
             + ZeroCopySliceMut::<u8, U32, false>::required_size_for_capacity(leaves_capacity)
     }
 
@@ -175,6 +214,8 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         nullifiers_capacity: u8,
         addresses_capacity: u8,
         num_output_trees: u8,
+        num_input_trees: u8,
+        num_address_trees: u8,
     ) -> std::result::Result<Self, ZeroCopyError> {
         let (meta, bytes) =
             Ref::<&mut [u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
@@ -186,18 +227,30 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         )?;
         let (addresses, bytes) =
             ZeroCopySliceMut::<u8, InsertAddressInput, false>::new_at(addresses_capacity, bytes)?;
-        let (sequence_numbers, bytes) =
-            ZeroCopySliceMut::<u8, MerkleTreeSequenceNumber, false>::new_at(
-                num_output_trees,
-                bytes,
-            )?;
+        let (output_sequence_numbers, bytes) = ZeroCopySliceMut::<
+            u8,
+            MerkleTreeSequenceNumber,
+            false,
+        >::new_at(num_output_trees, bytes)?;
+        let (input_sequence_numbers, bytes) = ZeroCopySliceMut::<
+            u8,
+            MerkleTreeSequenceNumber,
+            false,
+        >::new_at(num_input_trees, bytes)?;
+        let (address_sequence_numbers, bytes) = ZeroCopySliceMut::<
+            u8,
+            MerkleTreeSequenceNumber,
+            false,
+        >::new_at(num_address_trees, bytes)?;
         let output_leaf_indices = ZeroCopySliceMut::<u8, U32, false>::new(leaves_capacity, bytes)?;
         Ok(InsertIntoQueuesInstructionDataMut {
             meta,
             leaves,
             nullifiers,
             addresses,
-            sequence_numbers,
+            output_sequence_numbers,
+            input_sequence_numbers,
+            address_sequence_numbers,
             output_leaf_indices,
         })
     }
@@ -230,11 +283,15 @@ fn test_rnd_insert_into_queues_ix_data() {
         let nullifiers_capacity: u8 = rng.gen();
         let addresses_capacity: u8 = rng.gen();
         let num_output_trees: u8 = rng.gen();
+        let num_input_trees: u8 = rng.gen();
+        let num_address_trees: u8 = rng.gen();
         let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
             leaves_capacity,
             nullifiers_capacity,
             addresses_capacity,
             num_output_trees,
+            num_input_trees,
+            num_address_trees,
         );
         let mut bytes = vec![0u8; size];
         let mut new_data = InsertIntoQueuesInstructionDataMut::new(
@@ -243,6 +300,8 @@ fn test_rnd_insert_into_queues_ix_data() {
             nullifiers_capacity,
             addresses_capacity,
             num_output_trees,
+            num_input_trees,
+            num_address_trees,
         )
         .unwrap();
         *new_data.meta = InsertIntoQueuesInstructionDataMeta {

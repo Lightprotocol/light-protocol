@@ -668,7 +668,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             Some(compressed_account_hash),
             None,
             current_slot,
-        )
+        )?;
+        // Increment queue next index so that the indexer can use it like a sequence number.
+        self.increment_queue_next_index();
+        Ok(())
     }
 
     pub fn insert_address_into_queue(

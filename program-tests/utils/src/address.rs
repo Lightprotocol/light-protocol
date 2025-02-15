@@ -16,13 +16,20 @@ pub async fn insert_addresses<R: RpcConnection>(
     addresses: Vec<[u8; 32]>,
 ) -> Result<Signature, RpcError> {
     let num_addresses = addresses.len() as u8;
-    let mut bytes =
-        vec![
-            0u8;
-            InsertIntoQueuesInstructionDataMut::required_size_for_capacity(0, 0, num_addresses, 0,)
-        ];
+    let mut bytes = vec![
+        0u8;
+        InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+            0,
+            0,
+            num_addresses,
+            0,
+            0,
+            1
+        )
+    ];
     let ix_data =
-        &mut InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, 0, num_addresses, 0).unwrap();
+        &mut InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, 0, num_addresses, 0, 0, 1)
+            .unwrap();
     ix_data.num_address_queues = 1;
     let is_batched = address_queue_pubkey == address_merkle_tree_pubkey;
 

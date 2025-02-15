@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use anchor_lang::{prelude::*, Bumps};
 use light_compressed_account::{
     hash_chain::create_tx_hash_from_hash_chains,
@@ -127,7 +129,9 @@ pub fn process<
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
         num_new_addresses as u8,
-        num_output_compressed_accounts as u8,
+        min(ctx.remaining_accounts.len(), num_output_compressed_accounts) as u8,
+        min(ctx.remaining_accounts.len(), num_input_compressed_accounts) as u8,
+        min(ctx.remaining_accounts.len(), num_new_addresses) as u8,
     )
     .map_err(ProgramError::from)?;
     cpi_ix_data.set_invoked_by_program(true);
@@ -152,7 +156,6 @@ pub fn process<
     if num_new_addresses != 0 {
         derive_new_addresses(
             inputs.new_address_params.as_slice(),
-            num_input_compressed_accounts,
             ctx.remaining_accounts,
             &mut context,
             &mut cpi_ix_data,

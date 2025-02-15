@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{
     prelude::{AccountMeta, Context, Pubkey},
@@ -41,7 +43,9 @@ pub fn create_cpi_data_and_context<
         num_leaves,
         num_nullifiers,
         num_new_addresses,
-        num_leaves,
+        min(ctx.remaining_accounts.len() as u8, num_leaves),
+        min(ctx.remaining_accounts.len() as u8, num_nullifiers),
+        min(ctx.remaining_accounts.len() as u8, num_new_addresses),
     );
     let bytes = vec![0u8; bytes_size];
     Ok((
