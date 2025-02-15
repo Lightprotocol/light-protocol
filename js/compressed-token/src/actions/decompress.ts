@@ -16,7 +16,7 @@ import {
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
-import { selectMinCompressedTokenAccountsForTransfer } from './transfer';
+import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 
 /**
  * Decompress compressed tokens
