@@ -1204,7 +1204,6 @@ async fn test_mint_to_failing() {
             assert!(result
                 .to_string()
                 .contains("Error processing Instruction 0: Cross-program invocation with unauthorized signer or writable account"));
-            // assert_rpc_error(result, 0, 0).unwrap();
         }
         // 9. Invalid Merkle tree.
         {
@@ -1230,50 +1229,6 @@ async fn test_mint_to_failing() {
             )
             .unwrap();
         }
-        // // 10. Mint more than `u64::MAX` tokens.
-        // {
-        //     // Overall sum greater than `u64::MAX`
-        //     let amounts = vec![u64::MAX / 5; MINTS];
-        //     let instruction = create_mint_to_instruction(
-        //         &payer_1.pubkey(),
-        //         &payer_1.pubkey(),
-        //         &mint_1,
-        //         &merkle_tree_pubkey,
-        //         amounts,
-        //         recipients.clone(),
-        //         None,
-        //         is_token_22,
-        //         0,
-        //     );
-        //     let result = rpc
-        //         .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-        //         .await;
-        //     assert_rpc_error(result, 0, ErrorCode::MintTooLarge.into()).unwrap();
-        // }
-        // // 11. Multiple mints which overflow the token supply over `u64::MAX`.
-        // {
-        //     let amounts = vec![u64::MAX / 10; MINTS];
-        //     let instruction = create_mint_to_instruction(
-        //         &payer_1.pubkey(),
-        //         &payer_1.pubkey(),
-        //         &mint_1,
-        //         &merkle_tree_pubkey,
-        //         amounts,
-        //         recipients.clone(),
-        //         None,
-        //         is_token_22,
-        //         0,
-        //     );
-        //     // The first mint is still below `u64::MAX`.
-        //     rpc.create_and_send_transaction(&[instruction.clone()], &payer_1.pubkey(), &[&payer_1])
-        //         .await
-        //         .unwrap();
-        //     // The second mint should overflow.
-        //     let result = rpc
-        //         .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
-        //         .await;
-        //     assert_rpc_error(result, 0, TokenError::Overflow as u32).unwrap();
-        // }
     }
 }
 
@@ -5385,11 +5340,6 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-// 26 recpients
-// with zero copy ix data:
-// - 275,457 CU
-// with borsh ix data:
-// - 283,695 CU
 /// Test cases:
 /// 1. Functional compress 0 to 26 recipients
 /// 2. Failing unequal recipients amounts len
@@ -5625,8 +5575,7 @@ async fn batch_compress_with_batched_tree() {
         let result = rpc
             .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
             .await;
-        // spl_token::error::TokenError::InsufficientFunds
-        assert_rpc_error(result, 0, 1).unwrap();
+        assert_rpc_error(result, 0, TokenError::InsufficientFunds as u32).unwrap();
     }
     // 4. Sender account invalid mint
     {
