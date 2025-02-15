@@ -13,7 +13,6 @@ import {
     any,
     nullable,
     Struct,
-    object,
 } from 'superstruct';
 import {
     BN254,
@@ -202,49 +201,13 @@ const BN254FromString = coerce(instance(BN), string(), value => {
 });
 
 /**
- * @internal
- */
-function convertBigNumberObjectToBN(obj: any) {
-    const { s, e, c } = obj;
-
-    // Basic validation
-    if (s !== 1 && s !== -1) {
-        throw new Error('Invalid sign value');
-    }
-    if (!Number.isInteger(e)) {
-        throw new Error('Exponent must be an integer');
-    }
-    if (!Array.isArray(c) || !c.every(Number.isInteger)) {
-        throw new Error('Coefficient must be an array of integers');
-    }
-
-    // Calculate the full number as a string
-    let numberStr = c.join('');
-    const decimalShift = e + 1 - numberStr.length;
-
-    if (decimalShift > 0) {
-        numberStr += '0'.repeat(decimalShift);
-    } else if (decimalShift < 0) {
-        numberStr =
-            numberStr.slice(0, decimalShift) +
-            '.' +
-            numberStr.slice(decimalShift);
-    }
-
-    if (s === -1) {
-        numberStr = '-' + numberStr;
-    }
-
-    return new BN(numberStr.replace('.', ''), 10);
-}
-
-/**
  *
  * @internal
+ * expects bigints to be supplied as strings.
  */
 const BNFromStringOrNumberOrBigNumber = coerce(
     instance(BN),
-    union([string(), number(), object()]),
+    union([string(), number()]),
     value => {
         if (typeof value === 'number') {
             if (!Number.isSafeInteger(value)) {
@@ -252,19 +215,12 @@ const BNFromStringOrNumberOrBigNumber = coerce(
             }
             return new BN(value); // Safe number → BN
         }
-        if (typeof value === 'object') {
-            if (value instanceof BN) {
-                return value;
-            } else if ('s' in value && 'e' in value && 'c' in value) {
-                return convertBigNumberObjectToBN(value);
-            } else {
-                throw new Error(`Invalid value: ${value}`);
-            }
-        }
         return new BN(value, 10); // String → BN
     },
 );
+
 /**
+ *
  * @internal
  */
 const Base64EncodedCompressedAccountDataResult = coerce(

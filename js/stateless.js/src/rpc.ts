@@ -74,7 +74,6 @@ import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { ActiveTreeBundle } from './state/types';
 
-const JSONbig = require('json-bigint');
 /** @internal */
 export function parseAccountData({
     discriminator,
@@ -280,6 +279,26 @@ export function createRpc(
     return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
 }
 
+/**
+ * Helper function to preprocess the response to wrap numbers as strings
+ * @param {string} text - The JSON string to preprocess
+ * @returns {string} - The preprocessed JSON string with numbers wrapped as strings
+ */
+export function wrapBigNumbersAsStrings(text: any) {
+    return text.replace(
+        /(":\s*)(-?\d+)(\s*[,\}])/g,
+        (match: any, p1: any, p2: any, p3: any) => {
+            const num = Number(p2);
+            if (
+                !Number.isNaN(num) &&
+                (num > Number.MAX_SAFE_INTEGER || num < Number.MIN_SAFE_INTEGER)
+            ) {
+                return `${p1}"${p2}"${p3}`;
+            }
+            return match;
+        },
+    );
+}
 /** @internal */
 export const rpcRequest = async (
     rpcEndpoint: string,
@@ -322,11 +341,13 @@ export const rpcRequest = async (
 
     const text = await response.text();
 
+    const wrappedJsonString = wrapBigNumbersAsStrings(text);
+
     if (convertToCamelCase) {
-        return toCamelCase(JSONbig.parse(text));
+        return toCamelCase(JSON.parse(wrappedJsonString));
     }
 
-    return JSONbig.parse(text);
+    return JSON.parse(wrappedJsonString);
 };
 
 /** @internal */
