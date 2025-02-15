@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_compressed_account::insert_into_queues::InsertAddressInput;
+use light_compressed_account::instruction_data::insert_into_queues::InsertAddressInput;
 use num_bigint::BigUint;
 
 use crate::{

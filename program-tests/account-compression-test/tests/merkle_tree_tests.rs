@@ -13,8 +13,8 @@ use account_compression::{
 use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
 use light_account_checks::error::AccountError;
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, insert_into_queues::InsertIntoQueuesInstructionDataMut,
-    instruction_data::data::pack_pubkey,
+    bigint::bigint_to_be_bytes_array,
+    instruction_data::{data::pack_pubkey, insert_into_queues::InsertIntoQueuesInstructionDataMut},
 };
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,

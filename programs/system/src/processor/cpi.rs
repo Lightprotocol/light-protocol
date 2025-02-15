@@ -3,7 +3,7 @@ use anchor_lang::{
     prelude::{AccountMeta, Context, Pubkey},
     Bumps, InstructionData, Key, Result, ToAccountInfo,
 };
-use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
+use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},

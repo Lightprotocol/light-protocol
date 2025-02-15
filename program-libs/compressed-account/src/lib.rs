@@ -12,10 +12,8 @@ pub mod compressed_account;
 pub mod discriminators;
 pub mod event;
 pub mod hash_chain;
-pub mod insert_into_queues;
 pub mod instruction_data;
 pub mod pubkey;
-pub mod z_compressed_account;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {

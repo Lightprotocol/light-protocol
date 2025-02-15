@@ -2,9 +2,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
 
-use super::{discriminators::*, insert_into_queues::InsertIntoQueuesInstructionData};
+use super::discriminators::*;
 use crate::instruction_data::{
     data::OutputCompressedAccountWithPackedContext,
+    insert_into_queues::InsertIntoQueuesInstructionData,
     zero_copy::{
         ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
     },

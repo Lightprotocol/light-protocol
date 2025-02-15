@@ -25,7 +25,7 @@ declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 #[program]
 pub mod system_cpi_test {
 
-    use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
+    use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 
     use super::*;
 

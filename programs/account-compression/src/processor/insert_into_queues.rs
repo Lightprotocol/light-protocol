@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionData;
+use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionData;
 use light_zero_copy::borsh::Deserialize;
 
 use super::{

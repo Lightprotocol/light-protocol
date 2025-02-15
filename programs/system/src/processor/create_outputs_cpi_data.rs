@@ -2,8 +2,10 @@ use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCo
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
-    insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-    instruction_data::zero_copy::ZOutputCompressedAccountWithPackedContext,
+    instruction_data::{
+        insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
+        zero_copy::ZOutputCompressedAccountWithPackedContext,
+    },
 };
 use light_hasher::{Hasher, Poseidon};
 
