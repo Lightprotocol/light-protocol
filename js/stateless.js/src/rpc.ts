@@ -73,6 +73,7 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { ActiveTreeBundle } from './state/types';
+
 const JSONbig = require('json-bigint');
 /** @internal */
 export function parseAccountData({
@@ -321,12 +322,11 @@ export const rpcRequest = async (
 
     const text = await response.text();
 
-    let res = JSONbig.parse(text);
-
     if (convertToCamelCase) {
-        res = toCamelCase(res);
+        return toCamelCase(JSONbig.parse(text));
     }
-    return res;
+
+    return JSONbig.parse(text);
 };
 
 /** @internal */

@@ -97,12 +97,12 @@ export function toCamelCase(
 ): Array<any> | unknown | any {
     if (Array.isArray(obj)) {
         return obj.map(v => toCamelCase(v));
-    } else if (obj !== null && obj.constructor === Object) {
-        return Object.keys(obj).reduce((result, key) => {
+    } else if (obj !== null && typeof obj === 'object') {
+        return Object.entries(obj).reduce((result, [key, value]) => {
             const camelCaseKey = key.replace(/([-_][a-z])/gi, $1 => {
                 return $1.toUpperCase().replace('-', '').replace('_', '');
             });
-            result[camelCaseKey] = toCamelCase(obj[key]);
+            result[camelCaseKey] = toCamelCase(value);
             return result;
         }, {} as any);
     }
