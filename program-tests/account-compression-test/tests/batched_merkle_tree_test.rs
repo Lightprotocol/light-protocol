@@ -549,11 +549,14 @@ pub async fn perform_insert_into_output_queue(
             num_of_leaves as u8,
             0,
             0,
-            1
+            1,
+            0,
+            0
         )
     ];
     let mut ix_data =
-        InsertIntoQueuesInstructionDataMut::new(&mut bytes, num_of_leaves as u8, 0, 0, 1).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, num_of_leaves as u8, 0, 0, 1, 0, 0)
+            .unwrap();
     ix_data.num_output_queues = 1;
     for i in 0..num_of_leaves {
         let mut leaf = [0u8; 32];
@@ -735,11 +738,14 @@ pub async fn perform_insert_into_input_queue(
             0,
             num_of_leaves as u8,
             0,
-            1
+            1,
+            0,
+            0,
         )
     ];
     let mut ix_data =
-        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, num_of_leaves as u8, 0, 1).unwrap();
+        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, num_of_leaves as u8, 0, 1, 0, 0)
+            .unwrap();
     ix_data.num_queues = 1;
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
         ix_nf.account_hash = leaves[i];
