@@ -234,11 +234,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         bloom_filter_capacity: u64,
         tree_type: TreeType,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        #[cfg(not(test))]
-        if tree_type == TreeType::BatchedAddress && height != 40 {
-            return Err(MerkleTreeMetadataError::InvalidHeight.into());
-        }
-
         let account_data_len = account_data.len();
         let (discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
         set_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(discriminator)?;
@@ -292,6 +287,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Root for binary Merkle tree with all zero leaves.
             root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
         } else if tree_type == TreeType::BatchedAddress {
+            // Sanity check since init value is hardcoded.
+            #[cfg(not(test))]
+            if height != 40 {
+                return Err(MerkleTreeMetadataError::InvalidHeight.into());
+            }
             // Initialized indexed Merkle tree root.
             // See https://github.com/Lightprotocol/light-protocol/blob/c143c24f95c901e2eac96bc2bd498719958192cf/program-libs/indexed-merkle-tree/src/reference.rs#L69
             root_history.push(ADDRESS_TREE_INIT_ROOT_40);
