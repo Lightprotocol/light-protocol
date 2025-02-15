@@ -205,7 +205,7 @@ const BN254FromString = coerce(instance(BN), string(), value => {
  * @internal
  * expects bigints to be supplied as strings.
  */
-const BNFromStringOrNumberOrBigNumber = coerce(
+const BNFromStringOrNumber = coerce(
     instance(BN),
     union([string(), number()]),
     value => {
@@ -303,21 +303,21 @@ export const CompressedAccountResult = pick({
         pick({
             data: Base64EncodedCompressedAccountDataResult,
             dataHash: BN254FromString,
-            discriminator: BNFromStringOrNumberOrBigNumber,
+            discriminator: BNFromStringOrNumber,
         }),
     ),
-    lamports: BNFromStringOrNumberOrBigNumber,
+    lamports: BNFromStringOrNumber,
     owner: PublicKeyFromString,
     leafIndex: number(),
     tree: PublicKeyFromString,
-    seq: nullable(BNFromStringOrNumberOrBigNumber),
-    slotCreated: BNFromStringOrNumberOrBigNumber,
+    seq: nullable(BNFromStringOrNumber),
+    slotCreated: BNFromStringOrNumber,
 });
 
 export const TokenDataResult = pick({
     mint: PublicKeyFromString,
     owner: PublicKeyFromString,
-    amount: BNFromStringOrNumberOrBigNumber,
+    amount: BNFromStringOrNumber,
     delegate: nullable(PublicKeyFromString),
     state: string(),
 });
@@ -450,13 +450,13 @@ export const MultipleMerkleProofsResult = array(MerkeProofResult);
  * @internal
  */
 export const BalanceResult = pick({
-    amount: BNFromStringOrNumberOrBigNumber,
+    amount: BNFromStringOrNumber,
 });
 
-export const NativeBalanceResult = BNFromStringOrNumberOrBigNumber;
+export const NativeBalanceResult = BNFromStringOrNumber;
 
 export const TokenBalanceResult = pick({
-    balance: BNFromStringOrNumberOrBigNumber,
+    balance: BNFromStringOrNumber,
     mint: PublicKeyFromString,
 });
 
@@ -474,7 +474,7 @@ export const CompressedMintTokenHoldersResult = pick({
     cursor: nullable(string()),
     items: array(
         pick({
-            balance: BNFromStringOrNumberOrBigNumber,
+            balance: BNFromStringOrNumber,
             owner: PublicKeyFromString,
         }),
     ),
