@@ -33,7 +33,6 @@ use light_compressed_account::{
     pubkey::Pubkey,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
@@ -132,16 +131,13 @@ pub fn assert_input_queue_insert(
 
         let inserted_batch_index =
             pre_account.queue_batches.currently_processing_batch_index as usize;
-        pre_account.queue_batches.next_index += 1;
         let expected_batch = pre_account
             .queue_batches
             .batches
             .get_mut(inserted_batch_index)
             .unwrap();
-        // Address queue insertions append state, input queue insertions only nullify existing state
-        if pre_account.tree_type == TreeType::BatchedAddress as u64 {
-            pre_account.queue_batches.next_index += 1;
-        }
+
+        pre_account.queue_batches.next_index += 1;
 
         println!(
             "assert input queue batch update: expected_batch: {:?}",
