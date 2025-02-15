@@ -284,21 +284,19 @@ export function createRpc(
  * @param {string} text - The JSON string to preprocess
  * @returns {string} - The preprocessed JSON string with numbers wrapped as strings
  */
-export function wrapBigNumbersAsStrings(text: any) {
-    return text.replace(
-        /(":\s*)(-?\d+)(\s*[,\}])/g,
-        (match: any, p1: any, p2: any, p3: any) => {
-            const num = Number(p2);
-            if (
-                !Number.isNaN(num) &&
-                (num > Number.MAX_SAFE_INTEGER || num < Number.MIN_SAFE_INTEGER)
-            ) {
-                return `${p1}"${p2}"${p3}`;
-            }
-            return match;
-        },
-    );
+export function wrapBigNumbersAsStrings(text: string): string {
+    return text.replace(/(":\s*)(-?\d+)(\s*[},])/g, (match, p1, p2, p3) => {
+        const num = Number(p2);
+        if (
+            !Number.isNaN(num) &&
+            (num > Number.MAX_SAFE_INTEGER || num < Number.MIN_SAFE_INTEGER)
+        ) {
+            return `${p1}"${p2}"${p3}`;
+        }
+        return match;
+    });
 }
+
 /** @internal */
 export const rpcRequest = async (
     rpcEndpoint: string,
