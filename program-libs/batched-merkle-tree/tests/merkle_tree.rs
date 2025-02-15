@@ -132,6 +132,7 @@ pub fn assert_input_queue_insert(
 
         let inserted_batch_index =
             pre_account.queue_batches.currently_processing_batch_index as usize;
+        pre_account.queue_batches.next_index += 1;
         let expected_batch = pre_account
             .queue_batches
             .batches
