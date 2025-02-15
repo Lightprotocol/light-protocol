@@ -6,7 +6,7 @@ import {
 } from '../../src';
 import { create } from 'superstruct';
 
-var JSONbig = require('json-bigint');
+const JSONbig = require('json-bigint');
 
 describe('safely convert json response', async () => {
     it('should convert unsafe integer responses safely', async () => {
