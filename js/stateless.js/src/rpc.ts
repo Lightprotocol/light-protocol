@@ -73,7 +73,7 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { ActiveTreeBundle } from './state/types';
-
+const JSONbig = require('json-bigint');
 /** @internal */
 export function parseAccountData({
     discriminator,
@@ -262,15 +262,11 @@ export function createRpc(
         compressionApiEndpoint =
             compressionApiEndpoint || localCompressionApiEndpoint;
         proverEndpoint = proverEndpoint || localProverEndpoint;
-    }
-    // 1
-    else if (typeof endpointOrWeb3JsConnection === 'string') {
+    } else if (typeof endpointOrWeb3JsConnection === 'string') {
         endpoint = endpointOrWeb3JsConnection;
         compressionApiEndpoint = compressionApiEndpoint || endpoint;
         proverEndpoint = proverEndpoint || endpoint;
-    }
-    // 2
-    else if (endpointOrWeb3JsConnection instanceof Connection) {
+    } else if (endpointOrWeb3JsConnection instanceof Connection) {
         endpoint = endpointOrWeb3JsConnection.rpcEndpoint;
         compressionApiEndpoint = compressionApiEndpoint || endpoint;
         proverEndpoint = proverEndpoint || endpoint;
@@ -323,11 +319,14 @@ export const rpcRequest = async (
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
+    const text = await response.text();
+
+    let res = JSONbig.parse(text);
+
     if (convertToCamelCase) {
-        const res = await response.json();
-        return toCamelCase(res);
+        res = toCamelCase(res);
     }
-    return await response.json();
+    return res;
 };
 
 /** @internal */
