@@ -375,13 +375,37 @@ def NonInclusionProof_8_8_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Values: List
     Gates.eq gate_30 Roots[7] ∧
     k vec![gate_2, gate_6, gate_10, gate_14, gate_18, gate_22, gate_26, gate_30]
 
+def HashChain_3 (Hashes: List.Vector F 3) (k: F -> Prop): Prop :=
+    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
+    k gate_0
+
+def HashChain_8 (Hashes: List.Vector F 8) (k: F -> Prop): Prop :=
+    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
+    Poseidon2 gate_0 Hashes[3] fun gate_1 =>
+    Poseidon2 gate_1 Hashes[4] fun gate_2 =>
+    Poseidon2 gate_2 Hashes[5] fun gate_3 =>
+    Poseidon2 gate_3 Hashes[6] fun gate_4 =>
+    Poseidon2 gate_4 Hashes[7] fun gate_5 =>
+    k gate_5
+
+def MerkleRootUpdateGadget_26_26_26 (OldRoot: F) (OldLeaf: F) (NewLeaf: F) (PathIndex: List.Vector F 26) (MerkleProof: List.Vector F 26) (k: F -> Prop): Prop :=
+    MerkleRootGadget_26_26_26 OldLeaf PathIndex MerkleProof fun gate_0 =>
+    Gates.eq gate_0 OldRoot ∧
+    MerkleRootGadget_26_26_26 NewLeaf PathIndex MerkleProof fun gate_2 =>
+    k gate_2
+
+def HashChain_4 (Hashes: List.Vector F 4) (k: F -> Prop): Prop :=
+    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
+    Poseidon2 gate_0 Hashes[3] fun gate_1 =>
+    k gate_1
+
 def InclusionCircuit_8_8_8_26_8_8_26 (PublicInputHash: F) (Roots: List.Vector F 8) (Leaves: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     TwoInputsHashChain_8_8 Roots Leaves fun gate_0 =>
     Gates.eq PublicInputHash gate_0 ∧
     InclusionProof_8_8_8_26_8_8_26 Roots Leaves InPathIndices InPathElements fun _ =>
     True
 
-def NonInclusionCircuit_8_8_8_8_8_8_26_8_8_26 (PublicInputHash: F) (Roots: List.Vector F 8) (Values: List.Vector F 8) (LeafLowerRangeValues: List.Vector F 8) (LeafHigherRangeValues: List.Vector F 8) (NextIndices: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
+def NonInclusionCircuit_8_8_8_8_8_26_8_8_26 (PublicInputHash: F) (Roots: List.Vector F 8) (Values: List.Vector F 8) (LeafLowerRangeValues: List.Vector F 8) (LeafHigherRangeValues: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     TwoInputsHashChain_8_8 Roots Values fun gate_0 =>
     Gates.eq PublicInputHash gate_0 ∧
     NonInclusionProof_8_8_8_8_8_26_8_8_26 Roots Values LeafLowerRangeValues LeafHigherRangeValues InPathIndices InPathElements fun _ =>
@@ -394,6 +418,110 @@ def CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 (PublicInputHash: F) (Inclusion_Ro
     Gates.eq PublicInputHash gate_2 ∧
     InclusionProof_8_8_8_26_8_8_26 Inclusion_Roots Inclusion_Leaves Inclusion_InPathIndices Inclusion_InPathElements fun _ =>
     NonInclusionProof_8_8_8_8_8_26_8_8_26 NonInclusion_Roots NonInclusion_Values NonInclusion_LeafLowerRangeValues NonInclusion_LeafHigherRangeValues NonInclusion_InPathIndices NonInclusion_InPathElements fun _ =>
+    True
+
+def BatchUpdateCircuit_8_8_8_26_8_8_26_8 (PublicInputHash: F) (OldRoot: F) (NewRoot: F) (LeavesHashchainHash: F) (TxHashes: List.Vector F 8) (Leaves: List.Vector F 8) (OldLeaves: List.Vector F 8) (MerkleProofs: List.Vector (List.Vector F 26) 8) (PathIndices: List.Vector F 8): Prop :=
+    HashChain_3 vec![OldRoot, NewRoot, LeavesHashchainHash] fun gate_0 =>
+    Gates.eq gate_0 PublicInputHash ∧
+    Poseidon3 Leaves[0] PathIndices[0] TxHashes[0] fun gate_2 =>
+    Poseidon3 Leaves[1] PathIndices[1] TxHashes[1] fun gate_3 =>
+    Poseidon3 Leaves[2] PathIndices[2] TxHashes[2] fun gate_4 =>
+    Poseidon3 Leaves[3] PathIndices[3] TxHashes[3] fun gate_5 =>
+    Poseidon3 Leaves[4] PathIndices[4] TxHashes[4] fun gate_6 =>
+    Poseidon3 Leaves[5] PathIndices[5] TxHashes[5] fun gate_7 =>
+    Poseidon3 Leaves[6] PathIndices[6] TxHashes[6] fun gate_8 =>
+    Poseidon3 Leaves[7] PathIndices[7] TxHashes[7] fun gate_9 =>
+    HashChain_8 vec![gate_2, gate_3, gate_4, gate_5, gate_6, gate_7, gate_8, gate_9] fun gate_10 =>
+    Gates.eq gate_10 LeavesHashchainHash ∧
+    ∃gate_12, Gates.to_binary PathIndices[0] 26 gate_12 ∧
+    MerkleRootUpdateGadget_26_26_26 OldRoot OldLeaves[0] gate_2 gate_12 MerkleProofs[0] fun gate_13 =>
+    ∃gate_14, Gates.to_binary PathIndices[1] 26 gate_14 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_13 OldLeaves[1] gate_3 gate_14 MerkleProofs[1] fun gate_15 =>
+    ∃gate_16, Gates.to_binary PathIndices[2] 26 gate_16 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_15 OldLeaves[2] gate_4 gate_16 MerkleProofs[2] fun gate_17 =>
+    ∃gate_18, Gates.to_binary PathIndices[3] 26 gate_18 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_17 OldLeaves[3] gate_5 gate_18 MerkleProofs[3] fun gate_19 =>
+    ∃gate_20, Gates.to_binary PathIndices[4] 26 gate_20 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_19 OldLeaves[4] gate_6 gate_20 MerkleProofs[4] fun gate_21 =>
+    ∃gate_22, Gates.to_binary PathIndices[5] 26 gate_22 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_21 OldLeaves[5] gate_7 gate_22 MerkleProofs[5] fun gate_23 =>
+    ∃gate_24, Gates.to_binary PathIndices[6] 26 gate_24 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_23 OldLeaves[6] gate_8 gate_24 MerkleProofs[6] fun gate_25 =>
+    ∃gate_26, Gates.to_binary PathIndices[7] 26 gate_26 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_25 OldLeaves[7] gate_9 gate_26 MerkleProofs[7] fun gate_27 =>
+    Gates.eq gate_27 NewRoot ∧
+    True
+
+def BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 (PublicInputHash: F) (OldRoot: F) (NewRoot: F) (HashchainHash: F) (StartIndex: F) (LowElementValues: List.Vector F 8) (LowElementNextValues: List.Vector F 8) (LowElementIndices: List.Vector F 8) (LowElementProofs: List.Vector (List.Vector F 26) 8) (NewElementValues: List.Vector F 8) (NewElementProofs: List.Vector (List.Vector F 26) 8): Prop :=
+    LeafHashGadget LowElementValues[0] LowElementNextValues[0] NewElementValues[0] fun gate_0 =>
+    Poseidon2 LowElementValues[0] NewElementValues[0] fun gate_1 =>
+    ∃gate_2, Gates.to_binary LowElementIndices[0] 26 gate_2 ∧
+    MerkleRootUpdateGadget_26_26_26 OldRoot gate_0 gate_1 gate_2 LowElementProofs[0] fun gate_3 =>
+    Poseidon2 NewElementValues[0] LowElementNextValues[0] fun gate_4 =>
+    ∃gate_5, gate_5 = Gates.add StartIndex (0:F) ∧
+    ∃gate_6, Gates.to_binary gate_5 26 gate_6 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_3 (0:F) gate_4 gate_6 NewElementProofs[0] fun gate_7 =>
+    LeafHashGadget LowElementValues[1] LowElementNextValues[1] NewElementValues[1] fun gate_8 =>
+    Poseidon2 LowElementValues[1] NewElementValues[1] fun gate_9 =>
+    ∃gate_10, Gates.to_binary LowElementIndices[1] 26 gate_10 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_7 gate_8 gate_9 gate_10 LowElementProofs[1] fun gate_11 =>
+    Poseidon2 NewElementValues[1] LowElementNextValues[1] fun gate_12 =>
+    ∃gate_13, gate_13 = Gates.add StartIndex (1:F) ∧
+    ∃gate_14, Gates.to_binary gate_13 26 gate_14 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_11 (0:F) gate_12 gate_14 NewElementProofs[1] fun gate_15 =>
+    LeafHashGadget LowElementValues[2] LowElementNextValues[2] NewElementValues[2] fun gate_16 =>
+    Poseidon2 LowElementValues[2] NewElementValues[2] fun gate_17 =>
+    ∃gate_18, Gates.to_binary LowElementIndices[2] 26 gate_18 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_15 gate_16 gate_17 gate_18 LowElementProofs[2] fun gate_19 =>
+    Poseidon2 NewElementValues[2] LowElementNextValues[2] fun gate_20 =>
+    ∃gate_21, gate_21 = Gates.add StartIndex (2:F) ∧
+    ∃gate_22, Gates.to_binary gate_21 26 gate_22 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_19 (0:F) gate_20 gate_22 NewElementProofs[2] fun gate_23 =>
+    LeafHashGadget LowElementValues[3] LowElementNextValues[3] NewElementValues[3] fun gate_24 =>
+    Poseidon2 LowElementValues[3] NewElementValues[3] fun gate_25 =>
+    ∃gate_26, Gates.to_binary LowElementIndices[3] 26 gate_26 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_23 gate_24 gate_25 gate_26 LowElementProofs[3] fun gate_27 =>
+    Poseidon2 NewElementValues[3] LowElementNextValues[3] fun gate_28 =>
+    ∃gate_29, gate_29 = Gates.add StartIndex (3:F) ∧
+    ∃gate_30, Gates.to_binary gate_29 26 gate_30 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_27 (0:F) gate_28 gate_30 NewElementProofs[3] fun gate_31 =>
+    LeafHashGadget LowElementValues[4] LowElementNextValues[4] NewElementValues[4] fun gate_32 =>
+    Poseidon2 LowElementValues[4] NewElementValues[4] fun gate_33 =>
+    ∃gate_34, Gates.to_binary LowElementIndices[4] 26 gate_34 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_31 gate_32 gate_33 gate_34 LowElementProofs[4] fun gate_35 =>
+    Poseidon2 NewElementValues[4] LowElementNextValues[4] fun gate_36 =>
+    ∃gate_37, gate_37 = Gates.add StartIndex (4:F) ∧
+    ∃gate_38, Gates.to_binary gate_37 26 gate_38 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_35 (0:F) gate_36 gate_38 NewElementProofs[4] fun gate_39 =>
+    LeafHashGadget LowElementValues[5] LowElementNextValues[5] NewElementValues[5] fun gate_40 =>
+    Poseidon2 LowElementValues[5] NewElementValues[5] fun gate_41 =>
+    ∃gate_42, Gates.to_binary LowElementIndices[5] 26 gate_42 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_39 gate_40 gate_41 gate_42 LowElementProofs[5] fun gate_43 =>
+    Poseidon2 NewElementValues[5] LowElementNextValues[5] fun gate_44 =>
+    ∃gate_45, gate_45 = Gates.add StartIndex (5:F) ∧
+    ∃gate_46, Gates.to_binary gate_45 26 gate_46 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_43 (0:F) gate_44 gate_46 NewElementProofs[5] fun gate_47 =>
+    LeafHashGadget LowElementValues[6] LowElementNextValues[6] NewElementValues[6] fun gate_48 =>
+    Poseidon2 LowElementValues[6] NewElementValues[6] fun gate_49 =>
+    ∃gate_50, Gates.to_binary LowElementIndices[6] 26 gate_50 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_47 gate_48 gate_49 gate_50 LowElementProofs[6] fun gate_51 =>
+    Poseidon2 NewElementValues[6] LowElementNextValues[6] fun gate_52 =>
+    ∃gate_53, gate_53 = Gates.add StartIndex (6:F) ∧
+    ∃gate_54, Gates.to_binary gate_53 26 gate_54 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_51 (0:F) gate_52 gate_54 NewElementProofs[6] fun gate_55 =>
+    LeafHashGadget LowElementValues[7] LowElementNextValues[7] NewElementValues[7] fun gate_56 =>
+    Poseidon2 LowElementValues[7] NewElementValues[7] fun gate_57 =>
+    ∃gate_58, Gates.to_binary LowElementIndices[7] 26 gate_58 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_55 gate_56 gate_57 gate_58 LowElementProofs[7] fun gate_59 =>
+    Poseidon2 NewElementValues[7] LowElementNextValues[7] fun gate_60 =>
+    ∃gate_61, gate_61 = Gates.add StartIndex (7:F) ∧
+    ∃gate_62, Gates.to_binary gate_61 26 gate_62 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_59 (0:F) gate_60 gate_62 NewElementProofs[7] fun gate_63 =>
+    Gates.eq NewRoot gate_63 ∧
+    HashChain_8 NewElementValues fun gate_65 =>
+    Gates.eq HashchainHash gate_65 ∧
+    HashChain_4 vec![OldRoot, NewRoot, HashchainHash, StartIndex] fun gate_67 =>
+    Gates.eq PublicInputHash gate_67 ∧
     True
 
 end LightProver

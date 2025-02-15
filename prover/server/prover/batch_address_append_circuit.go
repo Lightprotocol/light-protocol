@@ -19,25 +19,24 @@ import (
 type BatchAddressTreeAppendCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 
-	OldRoot       frontend.Variable `gnark:",private"`
-	NewRoot       frontend.Variable `gnark:",private"`
-	HashchainHash frontend.Variable `gnark:",private"`
-	StartIndex    frontend.Variable `gnark:",private"`
+	OldRoot       frontend.Variable `gnark:",secret"`
+	NewRoot       frontend.Variable `gnark:",secret"`
+	HashchainHash frontend.Variable `gnark:",secret"`
+	StartIndex    frontend.Variable `gnark:",secret"`
 
-	LowElementValues     []frontend.Variable   `gnark:",private"`
-	LowElementNextValues []frontend.Variable   `gnark:",private"`
-	LowElementIndices    []frontend.Variable   `gnark:",private"`
-	LowElementProofs     [][]frontend.Variable `gnark:",private"`
+	LowElementValues     []frontend.Variable   `gnark:",secret"`
+	LowElementNextValues []frontend.Variable   `gnark:",secret"`
+	LowElementIndices    []frontend.Variable   `gnark:",secret"`
+	LowElementProofs     [][]frontend.Variable `gnark:",secret"`
 
-	NewElementValues []frontend.Variable   `gnark:",private"`
-	NewElementProofs [][]frontend.Variable `gnark:",private"`
+	NewElementValues []frontend.Variable   `gnark:",secret"`
+	NewElementProofs [][]frontend.Variable `gnark:",secret"`
 	BatchSize        uint32
 	TreeHeight       uint32
 }
 
 func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 	currentRoot := circuit.OldRoot
-	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.TreeHeight))
 
 	for i := uint32(0); i < circuit.BatchSize; i++ {
 		oldLowLeafHash := abstractor.Call(api, LeafHashGadget{
@@ -69,6 +68,7 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			In2: circuit.LowElementNextValues[i],
 		})
 
+		indexBits := api.ToBinary(api.Add(circuit.StartIndex, i), int(circuit.TreeHeight))
 		currentRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     currentRoot,
 			OldLeaf:     getZeroValue(0),
@@ -77,11 +77,6 @@ func (circuit *BatchAddressTreeAppendCircuit) Define(api frontend.API) error {
 			MerkleProof: circuit.NewElementProofs[i],
 			Height:      int(circuit.TreeHeight),
 		})
-
-		indexBits = incrementBits(
-			api,
-			indexBits,
-		)
 	}
 
 	api.AssertIsEqual(circuit.NewRoot, currentRoot)

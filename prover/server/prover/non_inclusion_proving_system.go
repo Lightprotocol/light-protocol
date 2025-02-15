@@ -56,7 +56,6 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 
 	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
-	nextIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
@@ -73,7 +72,6 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 		Values:                     values,
 		LeafLowerRangeValues:       leafLowerRangeValues,
 		LeafHigherRangeValues:      leafHigherRangeValues,
-		NextIndices:                nextIndices,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 	}
@@ -131,7 +129,6 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*P
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,
 		LeafHigherRangeValues: leafHigherRangeValues,
-		NextIndices:           nextIndices,
 		InPathIndices:         inPathIndices,
 		InPathElements:        inPathElements,
 	}

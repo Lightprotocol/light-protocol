@@ -17,7 +17,6 @@ type NonInclusionCircuit struct {
 	// private inputs
 	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
 	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
-	NextIndices           []frontend.Variable `gnark:"input"`
 
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
@@ -53,7 +52,6 @@ func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint3
 
 	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
-	leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
@@ -69,7 +67,6 @@ func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint3
 		Values:                     values,
 		LeafLowerRangeValues:       leafLowerRangeValues,
 		LeafHigherRangeValues:      leafHigherRangeValues,
-		NextIndices:                leafIndices,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 	}

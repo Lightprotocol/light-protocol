@@ -12,10 +12,16 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	// Initialising MerkleProofs slice with correct dimensions
 	inclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 	nonInclusionInPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+	addressAppendLowProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
+	addressAppendEmptyProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
+	batchUpdateProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
 		nonInclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
+		addressAppendLowProofs[i] = make([]frontend.Variable, treeHeight)
+		addressAppendEmptyProofs[i] = make([]frontend.Variable, treeHeight)
+		batchUpdateProofs[i] = make([]frontend.Variable, treeHeight)
 	}
 
 	inclusionCircuit := InclusionCircuit{
@@ -34,7 +40,6 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),
 		LeafLowerRangeValues:       make([]frontend.Variable, numberOfCompressedAccounts),
 		LeafHigherRangeValues:      make([]frontend.Variable, numberOfCompressedAccounts),
-		NextIndices:                make([]frontend.Variable, numberOfCompressedAccounts),
 		InPathIndices:              make([]frontend.Variable, numberOfCompressedAccounts),
 		InPathElements:             nonInclusionInPathElements,
 	}
@@ -63,5 +68,26 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		NonInclusion: nonInclusionProof,
 	}
 
-	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit, &combinedCircuit)
+	indexedUpdateCircuit := BatchAddressTreeAppendCircuit{
+		LowElementValues:     make([]frontend.Variable, numberOfCompressedAccounts),
+		LowElementNextValues: make([]frontend.Variable, numberOfCompressedAccounts),
+		LowElementIndices:    make([]frontend.Variable, numberOfCompressedAccounts),
+		LowElementProofs:     addressAppendLowProofs,
+		NewElementValues:     make([]frontend.Variable, numberOfCompressedAccounts),
+		NewElementProofs:     addressAppendEmptyProofs,
+		BatchSize:            numberOfCompressedAccounts,
+		TreeHeight:           treeHeight,
+	}
+
+	batchUpdateCircuit := BatchUpdateCircuit{
+		TxHashes:     make([]frontend.Variable, numberOfCompressedAccounts),
+		Leaves:       make([]frontend.Variable, numberOfCompressedAccounts),
+		OldLeaves:    make([]frontend.Variable, numberOfCompressedAccounts),
+		MerkleProofs: batchUpdateProofs,
+		PathIndices:  make([]frontend.Variable, numberOfCompressedAccounts),
+		Height:       treeHeight,
+		BatchSize:    numberOfCompressedAccounts,
+	}
+
+	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit, &combinedCircuit, &batchUpdateCircuit, &indexedUpdateCircuit)
 }

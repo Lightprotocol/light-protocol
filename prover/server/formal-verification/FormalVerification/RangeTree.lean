@@ -302,12 +302,9 @@ lemma Fin.lt_of_msb_zero {x : Fin (2^(d+1))} (h : Fin.msb x = false): x.val < 2^
   rw [Fin.msbs_lsbs_decomposition (v:=x)]
   simp_all
 
--- lemma x : Fin.val (n := n+1) (2^d) = (2^d % (n+1)) := by
---   induction d with
---   | zero => rfl
---   | succ d ih =>
---     simp [pow_succ, Fin.val_mul, ih]
-
+lemma MerkleTree.ofFn_cond {fn : Fin (2^d) → α} {v k} :
+  MerkleTree.ofFn H emb (fun i => if i = k then v else fn i) = (MerkleTree.ofFn H emb fn |>.setAtFin k (emb v)) := by
+  sorry
 
 lemma MerkleTree.ofFn_itemAtFin {fn : Fin (2^d) → α} : (ofFn H emb fn |>.itemAtFin idx) = emb (fn idx) := by
   induction d with

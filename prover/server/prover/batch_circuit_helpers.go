@@ -10,13 +10,21 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-func createHashChain(api frontend.API, hashes []frontend.Variable) frontend.Variable {
-	if len(hashes) == 0 {
+type HashChain struct {
+	Hashes []frontend.Variable
+}
+
+func (gadget HashChain) DefineGadget(api frontend.API) interface{} {
+	if len(gadget.Hashes) == 0 {
 		return frontend.Variable(0)
 	}
 
-	initialHash := hashes[0]
-	return computeHashChain(api, initialHash, hashes)
+	initialHash := gadget.Hashes[0]
+	return computeHashChain(api, initialHash, gadget.Hashes[1:])
+}
+
+func createHashChain(api frontend.API, hashes []frontend.Variable) frontend.Variable {
+	return abstractor.Call(api, HashChain{hashes})
 }
 
 type TwoInputsHashChain struct {
@@ -52,5 +60,5 @@ func computeHashChain(api frontend.API, initialHash frontend.Variable, hashes []
 
 // getZeroValue returns the zero value for a given tree level
 func getZeroValue(level int) frontend.Variable {
-	return frontend.Variable(new(big.Int).SetBytes(merkletree.ZERO_BYTES[level][:]))
+	return frontend.Variable(*new(big.Int).SetBytes(merkletree.ZERO_BYTES[level][:]))
 }
