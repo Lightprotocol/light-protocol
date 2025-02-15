@@ -1,7 +1,7 @@
 use account_compression::instruction::InsertIntoQueues;
 use anchor_lang::{prelude::AccountMeta, InstructionData, ToAccountMetas};
 use light_client::rpc::{RpcConnection, RpcError};
-use light_compressed_account::insert_into_queues::InsertIntoQueuesInstructionDataMut;
+use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,

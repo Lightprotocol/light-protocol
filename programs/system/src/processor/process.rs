@@ -1,9 +1,9 @@
 use anchor_lang::{prelude::*, Bumps};
 use light_compressed_account::{
     hash_chain::create_tx_hash_from_hash_chains,
-    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
     instruction_data::{
         compressed_proof::CompressedProof,
+        insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
         zero_copy::{
             ZInstructionDataInvoke, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },

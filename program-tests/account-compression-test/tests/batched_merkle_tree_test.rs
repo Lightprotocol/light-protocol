@@ -24,9 +24,11 @@ use light_batched_merkle_tree::{
     },
 };
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_tx_hash,
-    insert_into_queues::InsertIntoQueuesInstructionDataMut,
-    instruction_data::compressed_proof::CompressedProof,
+    bigint::bigint_to_be_bytes_array,
+    hash_chain::create_tx_hash,
+    instruction_data::{
+        compressed_proof::CompressedProof, insert_into_queues::InsertIntoQueuesInstructionDataMut,
+    },
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
