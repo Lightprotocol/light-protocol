@@ -69,7 +69,7 @@ fn test_rnd_account_init() {
             rollover_threshold: Some(rng.gen_range(0..100)),
             close_threshold: None,
             root_history_capacity: rng.gen_range(1..1000),
-            height: rng.gen_range(1..32),
+            height: 40,
         };
 
         let mt_account_size = get_merkle_tree_account_size(

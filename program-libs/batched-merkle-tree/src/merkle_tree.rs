@@ -234,6 +234,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         bloom_filter_capacity: u64,
         tree_type: TreeType,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
+        #[cfg(not(test))]
+        if tree_type == TreeType::BatchedAddress && height != 40 {
+            return Err(MerkleTreeMetadataError::InvalidHeight.into());
+        }
+
         let account_data_len = account_data.len();
         let (discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
         set_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(discriminator)?;
@@ -1130,7 +1135,7 @@ mod test {
             root_history_len,
             batch_size,
             zkp_batch_size,
-            10,
+            40,
             num_iter,
             bloom_filter_capacity,
             TreeType::BatchedAddress,
@@ -1569,7 +1574,7 @@ mod test {
         let num_iter = 1;
         let mut current_slot = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let mut account = BatchedMerkleTreeAccount::init(
             &mut account_data,
             &Pubkey::new_unique(),
@@ -1703,7 +1708,7 @@ mod test {
         let root_history_len = 10;
         let num_iter = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let pubkey = Pubkey::new_unique();
         let mut account = BatchedMerkleTreeAccount::init(
             &mut account_data,
@@ -1741,7 +1746,7 @@ mod test {
         let root_history_len = 10;
         let num_iter = 1;
         let bloom_filter_capacity = 8000;
-        let height = 4;
+        let height = 40;
         let pubkey = Pubkey::new_unique();
         let associated_queue = Pubkey::new_unique();
         let account = BatchedMerkleTreeAccount::init(
