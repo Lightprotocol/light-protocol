@@ -285,6 +285,56 @@ describe('safely convert json response', async () => {
                     "items": [
                         {
                             "account": {
+                                "hash": "u2JbcatZ1LwQTAeqhtKebDQz6rpoynY7T7xMED75SkS",
+                                "address": null,
+                                "data": {
+                                "discriminator": 2,
+                                "data": "NF3Ab9WWSk3xXineM02bJDYrYxrT81Ic+honfH21uPrRZHI+RYopNP+1f7oYgg5ZnC5+yaxEh7KPpQVdvMquQTIAAAAAAAAAAAAA",
+                                "dataHash": "3FR7ziRtG5SadCZfuZJ4unHaqQiUUvH37wKTrd2WpWfH"
+                                },
+                                "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+                                "lamports": 0,
+                                "tree": "smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT",
+                                "leafIndex": 56910290,
+                                "seq": 57043968,
+                                "slotCreated": 320678665
+                            },
+                            "tokenData": {
+                                "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
+                                "owner": "F6P3Z54AG7qj9bBn5MFDZ63V6mejxRRY7QVThnJzmUhN",
+                                "amount": 50492492432742222242222,
+                                "delegate": null,
+                                "state": "initialized",
+                                "tlv": null
+                            }
+                        },
+                        {
+                            "account": {
+                                "hash": "2KMeKsaJq6uJwXbgBmEUB9GjtXgcPYqfeBUCDyHn5sp2",
+                                "address": null,
+                                "data": {
+                                "discriminator": 2,
+                                "data": "NF3Ab9WWSk3xXineM02bJDYrYxrT81Ic+honfH21uPrRZHI+RYopNP+1f7oYgg5ZnC5+yaxEh7KPpQVdvMquQTIAAAAAAAAAAAAA",
+                                "dataHash": "3FR7ziRtG5SadCZfuZJ4unHaqQiUUvH37wKTrd2WpWfH"
+                                },
+                                "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+                                "lamports": 0,
+                                "tree": "smt6ukQDSPPYHSshQovmiRUjG9jGFq2hW9vgrDFk5Yz",
+                                "leafIndex": 72303,
+                                "seq": 86934,
+                                "slotCreated": 320679057
+                            },
+                            "tokenData": {
+                                "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
+                                "owner": "F6P3Z54AG7qj9bBn5MFDZ63V6mejxRRY7QVThnJzmUhN",
+                                "amount": 50,
+                                "delegate": null,
+                                "state": "initialized",
+                                "tlv": null
+                            }
+                        },
+                        {
+                            "account": {
                                 "hash": "34ovj4DVU1qCFKqsiPrYz4zK58Sze6Cg2RwQD22eb5UB",
                                 "address": null,
                                 "data": {
@@ -303,6 +353,31 @@ describe('safely convert json response', async () => {
                                 "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
                                 "owner": "F6P3Z54AG7qj9bBn5MFDZ63V6mejxRRY7QVThnJzmUhN",
                                 "amount": 24000000000000050,
+                                "delegate": null,
+                                "state": "initialized",
+                                "tlv": null
+                            }
+                        },
+                        {
+                            "account": {
+                                "hash": "34ovj4DVU1qCFKqsiPrYz4zK58Sze6Cg2RwQD22eb5UB",
+                                "address": null,
+                                "data": {
+                                    "discriminator": 2,
+                                    "data": "NF3Ab9WWSk3xXineM02bJDYrYxrT81Ic+honfH21uPrRZHI+RYopNP+1f7oYgg5ZnC5+yaxEh7KPpQVdvMquQTIAnHLfQ1UAAAAA",
+                                    "dataHash": "FK438LjvH1CmsV7bLBYZudzv4XB2xy7SkcfjJSVn2xg"
+                                },
+                                "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
+                                "lamports": 0,
+                                "tree": "smt9ReAYRF5eFjTd5gBJMn5aKwNRcmp3ub2CQr2vW7j",
+                                "leafIndex": 72930,
+                                "seq": 87904,
+                                "slotCreated": 320848741
+                            },
+                            "tokenData": {
+                                "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
+                                "owner": "F6P3Z54AG7qj9bBn5MFDZ63V6mejxRRY7QVThnJzmUhN",
+                                "amount": 18446744073709551615,
                                 "delegate": null,
                                 "state": "initialized",
                                 "tlv": null
@@ -329,6 +404,12 @@ describe('safely convert json response', async () => {
         expect(unsafeRes.result.value.items[0].account.data.discriminator).toBe(
             2,
         );
+        expect(unsafeRes.result.value.items[1].account.data.discriminator).toBe(
+            2,
+        );
+        expect(unsafeRes.result.value.items[2].account.data.discriminator).toBe(
+            2,
+        );
 
         const res = create(
             unsafeRes,
@@ -344,8 +425,14 @@ describe('safely convert json response', async () => {
             throw new Error('not implemented: NULL result');
         }
 
-        const tokenAmount = res.result.value.items[0].tokenData.amount;
+        const tokenAmount0 = res.result.value.items[0].tokenData.amount;
+        const tokenAmount1 = res.result.value.items[1].tokenData.amount;
+        const tokenAmount2 = res.result.value.items[2].tokenData.amount;
+        const tokenAmount3 = res.result.value.items[3].tokenData.amount;
 
-        expect(tokenAmount.toString()).toBe('24000000000000050');
+        expect(tokenAmount0.toString()).toBe('50492492432742222242222');
+        expect(tokenAmount1.toString()).toBe('50');
+        expect(tokenAmount2.toString()).toBe('24000000000000050');
+        expect(tokenAmount3.toString()).toBe('18446744073709551615');
     });
 });
