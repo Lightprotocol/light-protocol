@@ -191,10 +191,6 @@ func (p *BatchAddressAppendParameters) ValidateShape() error {
 		return fmt.Errorf("wrong number of low element indices: %d, expected: %d",
 			len(p.LowElementIndices), expectedArrayLen)
 	}
-	if len(p.LowElementNextIndices) != expectedArrayLen {
-		return fmt.Errorf("wrong number of low element next indices: %d, expected: %d",
-			len(p.LowElementNextIndices), expectedArrayLen)
-	}
 	if len(p.LowElementNextValues) != expectedArrayLen {
 		return fmt.Errorf("wrong number of low element next values: %d, expected: %d",
 			len(p.LowElementNextValues), expectedArrayLen)
@@ -236,10 +232,9 @@ type BatchAddressAppendParameters struct {
 	HashchainHash   *big.Int
 	StartIndex      uint64
 
-	LowElementValues      []big.Int
-	LowElementIndices     []big.Int
-	LowElementNextIndices []big.Int
-	LowElementNextValues  []big.Int
+	LowElementValues     []big.Int
+	LowElementIndices    []big.Int
+	LowElementNextValues []big.Int
 
 	NewElementValues []big.Int
 

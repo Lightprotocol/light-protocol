@@ -21,7 +21,6 @@ type NonInclusionInputs struct {
 
 	LeafLowerRangeValue  big.Int
 	LeafHigherRangeValue big.Int
-	NextIndex            uint32
 }
 
 type NonInclusionParameters struct {
@@ -105,7 +104,6 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*P
 
 	leafLowerRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
-	nextIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
 	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
@@ -115,7 +113,6 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*P
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 		leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
-		nextIndices[i] = params.Inputs[i].NextIndex
 		inPathIndices[i] = params.Inputs[i].PathIndex
 		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeHeight)
 		for j := 0; j < int(ps.NonInclusionTreeHeight); j++ {

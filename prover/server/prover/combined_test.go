@@ -70,7 +70,6 @@ func TestCombined(t *testing.T) {
 		nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
-		nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
@@ -82,7 +81,6 @@ func TestCombined(t *testing.T) {
 			nonInclusionValues[i] = v.Value
 			nonInclusionLeafLowerRangeValues[i] = v.LeafLowerRangeValue
 			nonInclusionLeafHigherRangeValues[i] = v.LeafHigherRangeValue
-			nonInclusionLeafIndices[i] = v.NextIndex
 			nonInclusionInPathIndices[i] = v.PathIndex
 			for j, v2 := range v.PathElements {
 				nonInclusionInPathElements[i][j] = v2

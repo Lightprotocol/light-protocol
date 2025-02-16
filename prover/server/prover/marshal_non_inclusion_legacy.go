@@ -13,7 +13,6 @@ type LegacyNonInclusionProofInputsJSON struct {
 	PathElements         []string `json:"pathElements"`
 	LeafLowerRangeValue  string   `json:"leafLowerRangeValue"`
 	LeafHigherRangeValue string   `json:"leafHigherRangeValue"`
-	NextIndex            uint32   `json:"nextIndex"`
 }
 
 type LegacyNonInclusionParametersJSON struct {
@@ -49,7 +48,6 @@ func (p *LegacyNonInclusionParameters) LegacyCreateNonInclusionParametersJSON() 
 		}
 		paramsJson.Inputs[i].LeafLowerRangeValue = toHex(&p.Inputs[i].LeafLowerRangeValue)
 		paramsJson.Inputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
-		paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
 	}
 	return paramsJson
 }
@@ -94,7 +92,6 @@ func (p *LegacyNonInclusionParameters) UpdateWithJSON(params LegacyNonInclusionP
 		if err != nil {
 			return err
 		}
-		p.Inputs[i].NextIndex = params.Inputs[i].NextIndex
 	}
 	return nil
 }

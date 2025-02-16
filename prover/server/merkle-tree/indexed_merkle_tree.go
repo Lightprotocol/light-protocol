@@ -1,7 +1,6 @@
 package merkle_tree
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math/big"
 
@@ -11,7 +10,6 @@ import (
 type IndexedArray struct {
 	Elements         []IndexedElement
 	CurrentNodeIndex uint32
-	HighestNodeIndex uint32
 }
 
 type IndexedElement struct {
@@ -40,7 +38,6 @@ func NewIndexedMerkleTree(height uint32) (*IndexedMerkleTree, error) {
 			Index:     0,
 		}},
 		CurrentNodeIndex: 0,
-		HighestNodeIndex: 0,
 	}
 
 	return &IndexedMerkleTree{
@@ -58,7 +55,6 @@ func (ia *IndexedArray) Init() error {
 		Index:     0,
 	}}
 	ia.CurrentNodeIndex = 0
-	ia.HighestNodeIndex = 0
 
 	return nil
 }
@@ -89,7 +85,7 @@ func (ia *IndexedArray) Append(value *big.Int) error {
 	return nil
 }
 func (ia *IndexedArray) FindLowElementIndex(value *big.Int) (uint32, error) {
-	
+
 	for i, element := range ia.Elements {
 
 		// Check if value falls between current and next
@@ -105,8 +101,7 @@ func (imt *IndexedMerkleTree) Append(value *big.Int) error {
 	lowElementIndex, _ := imt.IndexArray.FindLowElementIndex(value)
 	lowElement := imt.IndexArray.Get(lowElementIndex)
 
-	nextElement := imt.IndexArray.Get(lowElement.NextIndex)
-	if value.Cmp(nextElement.Value) >= 0 {
+	if value.Cmp(lowElement.NextValue) >= 0 {
 		return fmt.Errorf("new value must be less than next element value")
 	}
 
@@ -116,13 +111,11 @@ func (imt *IndexedMerkleTree) Append(value *big.Int) error {
 		NewLowElement: IndexedElement{
 			Value:     lowElement.Value,
 			NextValue: value,
-			NextIndex: newElementIndex,
 			Index:     lowElement.Index,
 		},
 		NewElement: IndexedElement{
 			Value:     value,
-			NextValue: nextElement.Value,
-			NextIndex: lowElement.NextIndex,
+			NextValue: lowElement.NextValue,
 			Index:     newElementIndex,
 		},
 	}
@@ -143,9 +136,6 @@ func (imt *IndexedMerkleTree) Append(value *big.Int) error {
 	imt.IndexArray.Elements[lowElement.Index] = bundle.NewLowElement
 	imt.IndexArray.Elements = append(imt.IndexArray.Elements, bundle.NewElement)
 	imt.IndexArray.CurrentNodeIndex = newElementIndex
-	if lowElement.NextIndex == 0 {
-		imt.IndexArray.HighestNodeIndex = newElementIndex
-	}
 
 	return nil
 }
@@ -153,47 +143,27 @@ func (imt *IndexedMerkleTree) Append(value *big.Int) error {
 func (imt *IndexedMerkleTree) Init() error {
 	maxAddr := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
-	bundle := IndexedElementBundle{
-		NewLowElement: IndexedElement{
-			Value:     big.NewInt(0),
-			NextValue: maxAddr,
-			NextIndex: 1,
-			Index:     0,
-		},
-		NewElement: IndexedElement{
-			Value:     maxAddr,
-			NextValue: big.NewInt(0),
-			NextIndex: 0,
-			Index:     1,
-		},
+	newLowElement := IndexedElement{
+		Value:     big.NewInt(0),
+		NextValue: maxAddr,
+		Index:     0,
 	}
 
-	lowLeafHash, err := HashIndexedElement(&bundle.NewLowElement)
+	lowLeafHash, err := HashIndexedElement(&newLowElement)
 	if err != nil {
 		return fmt.Errorf("failed to hash low leaf: %v", err)
 	}
 	imt.Tree.Update(0, *lowLeafHash)
 
-	maxLeafHash, err := HashIndexedElement(&bundle.NewElement)
-	if err != nil {
-		return fmt.Errorf("failed to hash max leaf: %v", err)
-	}
-	imt.Tree.Update(1, *maxLeafHash)
-
-	imt.IndexArray.Elements = []IndexedElement{bundle.NewLowElement, bundle.NewElement}
+	imt.IndexArray.Elements = []IndexedElement{newLowElement}
 	imt.IndexArray.CurrentNodeIndex = 1
-	imt.IndexArray.HighestNodeIndex = 1
 
 	return nil
 }
 
 func HashIndexedElement(element *IndexedElement) (*big.Int, error) {
-	indexBytes := make([]byte, 32)
-	binary.BigEndian.PutUint32(indexBytes[28:], element.NextIndex)
-
 	hash, err := poseidon.Hash([]*big.Int{
 		element.Value,
-		new(big.Int).SetBytes(indexBytes),
 		element.NextValue,
 	})
 	if err != nil {
@@ -213,7 +183,6 @@ func (imt *IndexedMerkleTree) DeepCopy() *IndexedMerkleTree {
 		elementsCopy[i] = IndexedElement{
 			Value:     new(big.Int).Set(element.Value),
 			NextValue: new(big.Int).Set(element.NextValue),
-			NextIndex: element.NextIndex,
 			Index:     element.Index,
 		}
 	}
@@ -221,7 +190,6 @@ func (imt *IndexedMerkleTree) DeepCopy() *IndexedMerkleTree {
 	indexArrayCopy := &IndexedArray{
 		Elements:         elementsCopy,
 		CurrentNodeIndex: imt.IndexArray.CurrentNodeIndex,
-		HighestNodeIndex: imt.IndexArray.HighestNodeIndex,
 	}
 
 	return &IndexedMerkleTree{

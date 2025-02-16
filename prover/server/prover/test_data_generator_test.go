@@ -276,10 +276,6 @@ func MakeTestNonInclusionTrees(height int, numberOfCompressedAccounts int) []Non
 	invalidRootTree.Inputs[0].Root = *big.NewInt(999)
 	invalidRootPair := NonInclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
 
-	invalidNextIndex := BuildValidTestNonInclusionTree(height, numberOfCompressedAccounts, true)
-	invalidNextIndex.Inputs[0].NextIndex = 999
-	invalidNextIndexPair := NonInclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
-
 	invalidLowValueTree := BuildTestNonInclusionTree(height, numberOfCompressedAccounts, true, false, true)
 	invalidLowValuePair := NonInclusionTreeValidPair{Tree: invalidLowValueTree, Valid: false}
 
@@ -300,7 +296,6 @@ func MakeTestNonInclusionTrees(height int, numberOfCompressedAccounts int) []Non
 
 	trees = append(trees, validPair)
 	trees = append(trees, invalidRootPair)
-	trees = append(trees, invalidNextIndexPair)
 	trees = append(trees, invalidLowValuePair)
 	trees = append(trees, invalidHighValuePair)
 	trees = append(trees, invalidInPathIndicesPairAddOne)

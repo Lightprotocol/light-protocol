@@ -6,22 +6,21 @@ import (
 )
 
 type BatchAddressAppendParametersJSON struct {
-	CircuitType           CircuitType `json:"circuitType"`
-	StateTreeHeight       uint32      `json:"stateTreeHeight"`
-	PublicInputHash       string      `json:"publicInputHash"`
-	OldRoot               string      `json:"oldRoot"`
-	NewRoot               string      `json:"newRoot"`
-	HashchainHash         string      `json:"hashchainHash"`
-	StartIndex            uint64      `json:"startIndex"`
-	LowElementValues      []string    `json:"lowElementValues"`
-	LowElementIndices     []string    `json:"lowElementIndices"`
-	LowElementNextIndices []string    `json:"lowElementNextIndices"`
-	LowElementNextValues  []string    `json:"lowElementNextValues"`
-	NewElementValues      []string    `json:"newElementValues"`
-	LowElementProofs      [][]string  `json:"lowElementProofs"`
-	NewElementProofs      [][]string  `json:"newElementProofs"`
-	TreeHeight            uint32      `json:"treeHeight"`
-	BatchSize             uint32      `json:"batchSize"`
+	CircuitType          CircuitType `json:"circuitType"`
+	StateTreeHeight      uint32      `json:"stateTreeHeight"`
+	PublicInputHash      string      `json:"publicInputHash"`
+	OldRoot              string      `json:"oldRoot"`
+	NewRoot              string      `json:"newRoot"`
+	HashchainHash        string      `json:"hashchainHash"`
+	StartIndex           uint64      `json:"startIndex"`
+	LowElementValues     []string    `json:"lowElementValues"`
+	LowElementIndices    []string    `json:"lowElementIndices"`
+	LowElementNextValues []string    `json:"lowElementNextValues"`
+	NewElementValues     []string    `json:"newElementValues"`
+	LowElementProofs     [][]string  `json:"lowElementProofs"`
+	NewElementProofs     [][]string  `json:"newElementProofs"`
+	TreeHeight           uint32      `json:"treeHeight"`
+	BatchSize            uint32      `json:"batchSize"`
 }
 
 func ParseBatchAddressAppendInput(inputJSON string) (BatchAddressAppendParameters, error) {
@@ -86,11 +85,6 @@ func (p *BatchAddressAppendParameters) CreateBatchAddressAppendParametersJSON() 
 		paramsJson.LowElementIndices[i] = toHex(&p.LowElementIndices[i])
 	}
 
-	paramsJson.LowElementNextIndices = make([]string, len(p.LowElementNextIndices))
-	for i := 0; i < len(p.LowElementNextIndices); i++ {
-		paramsJson.LowElementNextIndices[i] = toHex(&p.LowElementNextIndices[i])
-	}
-
 	paramsJson.LowElementNextValues = make([]string, len(p.LowElementNextValues))
 	for i := 0; i < len(p.LowElementNextValues); i++ {
 		paramsJson.LowElementNextValues[i] = toHex(&p.LowElementNextValues[i])
@@ -139,10 +133,6 @@ func (p *BatchAddressAppendParameters) UpdateWithJSON(params BatchAddressAppendP
 		return err
 	}
 	p.LowElementIndices, err = convertStringSliceToBigIntSlice(params.LowElementIndices)
-	if err != nil {
-		return err
-	}
-	p.LowElementNextIndices, err = convertStringSliceToBigIntSlice(params.LowElementNextIndices)
 	if err != nil {
 		return err
 	}
