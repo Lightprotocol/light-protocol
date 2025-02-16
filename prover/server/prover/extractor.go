@@ -15,6 +15,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	addressAppendLowProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
 	addressAppendEmptyProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
 	batchUpdateProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
+	batchUpdateWithProofsProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
@@ -22,6 +23,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		addressAppendLowProofs[i] = make([]frontend.Variable, treeHeight)
 		addressAppendEmptyProofs[i] = make([]frontend.Variable, treeHeight)
 		batchUpdateProofs[i] = make([]frontend.Variable, treeHeight)
+		batchUpdateWithProofsProofs[i] = make([]frontend.Variable, treeHeight)
 	}
 
 	inclusionCircuit := InclusionCircuit{
@@ -89,5 +91,22 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		BatchSize:    numberOfCompressedAccounts,
 	}
 
-	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit, &combinedCircuit, &batchUpdateCircuit, &indexedUpdateCircuit)
+	batchAppendWithProofsCircuit := BatchAppendWithProofsCircuit{
+		OldLeaves:    make([]frontend.Variable, numberOfCompressedAccounts),
+		Leaves:       make([]frontend.Variable, numberOfCompressedAccounts),
+		MerkleProofs: batchUpdateWithProofsProofs,
+		Height:       treeHeight,
+		BatchSize:    numberOfCompressedAccounts,
+	}
+
+	return extractor.ExtractCircuits(
+		"LightProver",
+		ecc.BN254,
+		&inclusionCircuit,
+		&nonInclusionCircuit,
+		&combinedCircuit,
+		&batchUpdateCircuit,
+		&indexedUpdateCircuit,
+		&batchAppendWithProofsCircuit,
+	)
 }

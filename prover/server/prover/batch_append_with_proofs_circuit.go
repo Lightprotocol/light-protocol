@@ -53,9 +53,9 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 	api.AssertIsEqual(leavesHashchainHash, circuit.LeavesHashchainHash)
 
 	newRoot := circuit.OldRoot
-	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.Height))
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
+		indexBits := api.ToBinary(api.Add(circuit.StartIndex, i), int(circuit.Height))
 		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
 			OldLeaf:     circuit.OldLeaves[i],
@@ -64,7 +64,6 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
 		})
-		indexBits = incrementBits(api, indexBits)
 	}
 
 	api.AssertIsEqual(newRoot, circuit.NewRoot)

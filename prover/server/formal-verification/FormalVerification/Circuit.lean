@@ -524,4 +524,52 @@ def BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 (PublicInputHash: F) (O
     Gates.eq PublicInputHash gate_67 ∧
     True
 
+def BatchAppendWithProofsCircuit_8_8_26_8_26_8 (PublicInputHash: F) (OldRoot: F) (NewRoot: F) (LeavesHashchainHash: F) (StartIndex: F) (OldLeaves: List.Vector F 8) (Leaves: List.Vector F 8) (MerkleProofs: List.Vector (List.Vector F 26) 8): Prop :=
+    HashChain_4 vec![OldRoot, NewRoot, LeavesHashchainHash, StartIndex] fun gate_0 =>
+    Gates.eq gate_0 PublicInputHash ∧
+    ∃gate_2, Gates.is_zero OldLeaves[0] gate_2 ∧
+    ∃gate_3, Gates.select gate_2 Leaves[0] OldLeaves[0] gate_3 ∧
+    ∃gate_4, Gates.is_zero OldLeaves[1] gate_4 ∧
+    ∃gate_5, Gates.select gate_4 Leaves[1] OldLeaves[1] gate_5 ∧
+    ∃gate_6, Gates.is_zero OldLeaves[2] gate_6 ∧
+    ∃gate_7, Gates.select gate_6 Leaves[2] OldLeaves[2] gate_7 ∧
+    ∃gate_8, Gates.is_zero OldLeaves[3] gate_8 ∧
+    ∃gate_9, Gates.select gate_8 Leaves[3] OldLeaves[3] gate_9 ∧
+    ∃gate_10, Gates.is_zero OldLeaves[4] gate_10 ∧
+    ∃gate_11, Gates.select gate_10 Leaves[4] OldLeaves[4] gate_11 ∧
+    ∃gate_12, Gates.is_zero OldLeaves[5] gate_12 ∧
+    ∃gate_13, Gates.select gate_12 Leaves[5] OldLeaves[5] gate_13 ∧
+    ∃gate_14, Gates.is_zero OldLeaves[6] gate_14 ∧
+    ∃gate_15, Gates.select gate_14 Leaves[6] OldLeaves[6] gate_15 ∧
+    ∃gate_16, Gates.is_zero OldLeaves[7] gate_16 ∧
+    ∃gate_17, Gates.select gate_16 Leaves[7] OldLeaves[7] gate_17 ∧
+    HashChain_8 Leaves fun gate_18 =>
+    Gates.eq gate_18 LeavesHashchainHash ∧
+    ∃gate_20, gate_20 = Gates.add StartIndex (0:F) ∧
+    ∃gate_21, Gates.to_binary gate_20 26 gate_21 ∧
+    MerkleRootUpdateGadget_26_26_26 OldRoot OldLeaves[0] gate_3 gate_21 MerkleProofs[0] fun gate_22 =>
+    ∃gate_23, gate_23 = Gates.add StartIndex (1:F) ∧
+    ∃gate_24, Gates.to_binary gate_23 26 gate_24 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_22 OldLeaves[1] gate_5 gate_24 MerkleProofs[1] fun gate_25 =>
+    ∃gate_26, gate_26 = Gates.add StartIndex (2:F) ∧
+    ∃gate_27, Gates.to_binary gate_26 26 gate_27 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_25 OldLeaves[2] gate_7 gate_27 MerkleProofs[2] fun gate_28 =>
+    ∃gate_29, gate_29 = Gates.add StartIndex (3:F) ∧
+    ∃gate_30, Gates.to_binary gate_29 26 gate_30 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_28 OldLeaves[3] gate_9 gate_30 MerkleProofs[3] fun gate_31 =>
+    ∃gate_32, gate_32 = Gates.add StartIndex (4:F) ∧
+    ∃gate_33, Gates.to_binary gate_32 26 gate_33 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_31 OldLeaves[4] gate_11 gate_33 MerkleProofs[4] fun gate_34 =>
+    ∃gate_35, gate_35 = Gates.add StartIndex (5:F) ∧
+    ∃gate_36, Gates.to_binary gate_35 26 gate_36 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_34 OldLeaves[5] gate_13 gate_36 MerkleProofs[5] fun gate_37 =>
+    ∃gate_38, gate_38 = Gates.add StartIndex (6:F) ∧
+    ∃gate_39, Gates.to_binary gate_38 26 gate_39 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_37 OldLeaves[6] gate_15 gate_39 MerkleProofs[6] fun gate_40 =>
+    ∃gate_41, gate_41 = Gates.add StartIndex (7:F) ∧
+    ∃gate_42, Gates.to_binary gate_41 26 gate_42 ∧
+    MerkleRootUpdateGadget_26_26_26 gate_40 OldLeaves[7] gate_17 gate_42 MerkleProofs[7] fun gate_43 =>
+    Gates.eq gate_43 NewRoot ∧
+    True
+
 end LightProver
