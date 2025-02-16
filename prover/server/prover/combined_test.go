@@ -108,7 +108,6 @@ func TestCombined(t *testing.T) {
 		circuit.NonInclusion.Values = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.LeafLowerRangeValues = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.LeafHigherRangeValues = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
-		circuit.NonInclusion.NextIndices = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.InPathIndices = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		circuit.NonInclusion.InPathElements = make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
@@ -133,7 +132,6 @@ func TestCombined(t *testing.T) {
 				Values:                     nonInclusionValues,
 				LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
 				LeafHigherRangeValues:      nonInclusionLeafHigherRangeValues,
-				NextIndices:                nonInclusionLeafIndices,
 				InPathIndices:              nonInclusionInPathIndices,
 				InPathElements:             nonInclusionInPathElements,
 				NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,

@@ -23,7 +23,6 @@ func (circuit *LeafHashGadgetCircuit) Define(api frontend.API) error {
 		LeafLowerRangeValue:  circuit.LeafLowerRangeValue,
 		LeafHigherRangeValue: circuit.LeafHigherRangeValue,
 		Value:                circuit.Value,
-		NextIndex:            circuit.NextIndex,
 	}
 	output := LeafHashGadget(input).DefineGadget(api)
 	api.AssertIsEqual(circuit.ExpectedHash, output)

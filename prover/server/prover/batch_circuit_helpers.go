@@ -20,7 +20,7 @@ func (gadget HashChain) DefineGadget(api frontend.API) interface{} {
 	}
 
 	initialHash := gadget.Hashes[0]
-	return computeHashChain(api, initialHash, gadget.Hashes[1:])
+	return computeHashChain(api, initialHash, gadget.Hashes)
 }
 
 func createHashChain(api frontend.API, hashes []frontend.Variable) frontend.Variable {

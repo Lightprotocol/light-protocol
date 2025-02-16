@@ -17,7 +17,6 @@ type IndexedArray struct {
 type IndexedElement struct {
 	Value     *big.Int
 	NextValue *big.Int
-	NextIndex uint32
 	Index     uint32
 }
 
@@ -38,7 +37,6 @@ func NewIndexedMerkleTree(height uint32) (*IndexedMerkleTree, error) {
 		Elements: []IndexedElement{{
 			Value:     big.NewInt(0),
 			NextValue: big.NewInt(0),
-			NextIndex: 0,
 			Index:     0,
 		}},
 		CurrentNodeIndex: 0,
@@ -54,25 +52,13 @@ func NewIndexedMerkleTree(height uint32) (*IndexedMerkleTree, error) {
 func (ia *IndexedArray) Init() error {
 	maxAddr := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
-	bundle := IndexedElementBundle{
-		NewLowElement: IndexedElement{
-			Value:     big.NewInt(0),
-			NextValue: maxAddr,
-			NextIndex: 1,
-			Index:     0,
-		},
-		NewElement: IndexedElement{
-			Value:     maxAddr,
-			NextValue: big.NewInt(0),
-			NextIndex: 0,
-			Index:     1,
-		},
-		NewElementNextValue: big.NewInt(0),
-	}
-
-	ia.Elements = []IndexedElement{bundle.NewLowElement, bundle.NewElement}
-	ia.CurrentNodeIndex = 1
-	ia.HighestNodeIndex = 1
+	ia.Elements = []IndexedElement{{
+		Value:     big.NewInt(0),
+		NextValue: maxAddr,
+		Index:     0,
+	}}
+	ia.CurrentNodeIndex = 0
+	ia.HighestNodeIndex = 0
 
 	return nil
 }
@@ -88,54 +74,26 @@ func (ia *IndexedArray) Append(value *big.Int) error {
 	lowElementIndex, _ := ia.FindLowElementIndex(value)
 	lowElement := ia.Elements[lowElementIndex]
 
-	if lowElement.NextIndex != 0 {
-		nextElement := ia.Elements[lowElement.NextIndex]
-		if value.Cmp(nextElement.Value) >= 0 {
-			return fmt.Errorf("new value must be less than next element value")
-		}
-	}
-
 	newElementIndex := uint32(len(ia.Elements))
 	newElement := IndexedElement{
 		Value:     value,
 		NextValue: lowElement.NextValue,
-		NextIndex: lowElement.NextIndex,
 		Index:     newElementIndex,
 	}
 
-	ia.Elements[lowElementIndex].NextIndex = newElementIndex
 	ia.Elements[lowElementIndex].NextValue = value
 
 	ia.Elements = append(ia.Elements, newElement)
 	ia.CurrentNodeIndex = newElementIndex
-	if lowElement.NextIndex == 0 {
-		ia.HighestNodeIndex = newElementIndex
-	}
 
 	return nil
 }
 func (ia *IndexedArray) FindLowElementIndex(value *big.Int) (uint32, error) {
-	maxAddr := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
-
-	// If we only have initial elements (0 and maxAddr)
-	if len(ia.Elements) == 2 {
-		// Always return the first element (0) as low element
-		return 0, nil
-	}
-
+	
 	for i, element := range ia.Elements {
-		// Skip the max element
-		if element.Value.Cmp(maxAddr) == 0 {
-			continue
-		}
-
-		nextElement := ia.Get(element.NextIndex)
-		if nextElement == nil {
-			continue
-		}
 
 		// Check if value falls between current and next
-		if element.Value.Cmp(value) < 0 && nextElement.Value.Cmp(value) > 0 {
+		if element.Value.Cmp(value) < 0 && element.NextValue.Cmp(value) > 0 {
 			return uint32(i), nil
 		}
 	}

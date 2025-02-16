@@ -376,17 +376,19 @@ def NonInclusionProof_8_8_8_8_8_26_8_8_26 (Roots: List.Vector F 8) (Values: List
     k vec![gate_2, gate_6, gate_10, gate_14, gate_18, gate_22, gate_26, gate_30]
 
 def HashChain_3 (Hashes: List.Vector F 3) (k: F -> Prop): Prop :=
-    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
-    k gate_0
+    Poseidon2 Hashes[0] Hashes[1] fun gate_0 =>
+    Poseidon2 gate_0 Hashes[2] fun gate_1 =>
+    k gate_1
 
 def HashChain_8 (Hashes: List.Vector F 8) (k: F -> Prop): Prop :=
-    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
-    Poseidon2 gate_0 Hashes[3] fun gate_1 =>
-    Poseidon2 gate_1 Hashes[4] fun gate_2 =>
-    Poseidon2 gate_2 Hashes[5] fun gate_3 =>
-    Poseidon2 gate_3 Hashes[6] fun gate_4 =>
-    Poseidon2 gate_4 Hashes[7] fun gate_5 =>
-    k gate_5
+    Poseidon2 Hashes[0] Hashes[1] fun gate_0 =>
+    Poseidon2 gate_0 Hashes[2] fun gate_1 =>
+    Poseidon2 gate_1 Hashes[3] fun gate_2 =>
+    Poseidon2 gate_2 Hashes[4] fun gate_3 =>
+    Poseidon2 gate_3 Hashes[5] fun gate_4 =>
+    Poseidon2 gate_4 Hashes[6] fun gate_5 =>
+    Poseidon2 gate_5 Hashes[7] fun gate_6 =>
+    k gate_6
 
 def MerkleRootUpdateGadget_26_26_26 (OldRoot: F) (OldLeaf: F) (NewLeaf: F) (PathIndex: List.Vector F 26) (MerkleProof: List.Vector F 26) (k: F -> Prop): Prop :=
     MerkleRootGadget_26_26_26 OldLeaf PathIndex MerkleProof fun gate_0 =>
@@ -395,9 +397,10 @@ def MerkleRootUpdateGadget_26_26_26 (OldRoot: F) (OldLeaf: F) (NewLeaf: F) (Path
     k gate_2
 
 def HashChain_4 (Hashes: List.Vector F 4) (k: F -> Prop): Prop :=
-    Poseidon2 Hashes[0] Hashes[2] fun gate_0 =>
-    Poseidon2 gate_0 Hashes[3] fun gate_1 =>
-    k gate_1
+    Poseidon2 Hashes[0] Hashes[1] fun gate_0 =>
+    Poseidon2 gate_0 Hashes[2] fun gate_1 =>
+    Poseidon2 gate_1 Hashes[3] fun gate_2 =>
+    k gate_2
 
 def InclusionCircuit_8_8_8_26_8_8_26 (PublicInputHash: F) (Roots: List.Vector F 8) (Leaves: List.Vector F 8) (InPathIndices: List.Vector F 8) (InPathElements: List.Vector (List.Vector F 26) 8): Prop :=
     TwoInputsHashChain_8_8 Roots Leaves fun gate_0 =>
