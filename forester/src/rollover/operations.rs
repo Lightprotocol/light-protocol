@@ -4,9 +4,7 @@ use account_compression::{
 };
 use forester_utils::{
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
-    create_account_instruction,
-    forester_epoch::TreeType,
-    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    create_account_instruction, get_concurrent_merkle_tree, get_indexed_merkle_tree,
     registry::RentExemption,
 };
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -15,6 +13,7 @@ use light_client::{
     rpc::{RpcConnection, RpcError},
 };
 use light_hasher::Poseidon;
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::{
         create_rollover_address_merkle_tree_instruction,
@@ -287,7 +286,7 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
         epoch,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
@@ -324,7 +323,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
         epoch,
     )
     .await;
-    let blockhash = context.get_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
@@ -479,7 +478,7 @@ pub async fn get_rent_exemption_for_state_merkle_tree_and_queue<R: RpcConnection
         .get_minimum_balance_for_rent_exemption(queue_size)
         .await
         .unwrap();
-    let tree_size = account_compression::state::StateMerkleTreeAccount::size(
+    let tree_size = StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
         merkle_tree_config.roots_size as usize,

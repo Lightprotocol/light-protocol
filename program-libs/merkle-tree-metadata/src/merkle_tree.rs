@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -9,7 +11,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
 
 #[repr(u64)]
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Ord, PartialOrd)]
 pub enum TreeType {
     State = 1,
     Address = 2,
@@ -26,6 +28,17 @@ impl From<u64> for TreeType {
             3 => TreeType::BatchedState,
             4 => TreeType::BatchedAddress,
             _ => panic!("Invalid TreeType"),
+        }
+    }
+}
+
+impl Display for TreeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeType::Address => write!(f, "address"),
+            TreeType::State => write!(f, "state"),
+            TreeType::BatchedState => write!(f, "batched state"),
+            TreeType::BatchedAddress => write!(f, "batched address"),
         }
     }
 }

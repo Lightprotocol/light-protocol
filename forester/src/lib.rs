@@ -25,13 +25,14 @@ use std::{sync::Arc, time::Duration};
 
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
     indexer::Indexer,
     rate_limiter::RateLimiter,
     rpc::{RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
@@ -76,8 +77,8 @@ pub async fn run_queue_info(
             .with_label_values(&[&*queue_type.to_string(), &tree_data.merkle_tree.to_string()])
             .set(queue_length as i64);
         println!(
-            "{:?} queue {} length: {}",
-            queue_type, tree_data.queue, queue_length
+            "{:?} queue {} tree {} length: {}",
+            queue_type, tree_data.queue, tree_data.merkle_tree, queue_length
         );
     }
 }

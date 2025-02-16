@@ -1,10 +1,8 @@
-use std::fmt::Display;
-
-// TODO: move into separate forester utils crate
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
 use light_client::rpc::{RpcConnection, RpcError};
+use light_merkle_tree_metadata::merkle_tree::TreeType;
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
@@ -76,26 +74,6 @@ impl TreeAccounts {
             queue,
             tree_type,
             is_rolledover,
-        }
-    }
-}
-
-// TODO: unify with light-merkle-tree-metadata
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum TreeType {
-    Address,
-    State,
-    BatchedState,
-    BatchedAddress,
-}
-
-impl Display for TreeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TreeType::Address => write!(f, "address"),
-            TreeType::State => write!(f, "state"),
-            TreeType::BatchedState => write!(f, "batched state"),
-            TreeType::BatchedAddress => write!(f, "batched address"),
         }
     }
 }
