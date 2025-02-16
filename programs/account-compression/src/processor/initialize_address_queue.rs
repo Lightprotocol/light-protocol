@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
+    fee::compute_rollover_fee,
     queue::QueueType,
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
-use light_utils::fee::compute_rollover_fee;
 
 use crate::state::{queue_from_bytes_zero_copy_init, QueueAccount};
 

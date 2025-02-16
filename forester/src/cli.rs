@@ -66,7 +66,10 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_CU_LIMIT", default_value = "1000000")]
     pub cu_limit: u32,
 
-    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "20")]
+    #[arg(long, env = "FORESTER_ENABLE_PRIORITY_FEES", default_value = "false")]
+    pub enable_priority_fees: bool,
+
+    #[arg(long, env = "FORESTER_RPC_POOL_SIZE", default_value = "98")]
     pub rpc_pool_size: usize,
 
     #[arg(
@@ -111,6 +114,15 @@ pub struct StartArgs {
         default_value = "28807"
     )]
     pub address_queue_processing_length: u16,
+
+    #[arg(long, env = "FORESTER_RPC_RATE_LIMIT")]
+    pub rpc_rate_limit: Option<u32>,
+
+    #[arg(long, env = "FORESTER_PHOTON_RATE_LIMIT")]
+    pub photon_rate_limit: Option<u32>,
+
+    #[arg(long, env = "FORESTER_SEND_TRANSACTION_RATE_LIMIT")]
+    pub send_tx_rate_limit: Option<u32>,
 }
 
 #[derive(Parser, Clone, Debug)]

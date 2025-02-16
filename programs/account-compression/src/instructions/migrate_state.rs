@@ -54,7 +54,7 @@ pub struct MigrateLeafParams {
 /// 2. Migrate state
 ///     2.1 Nullifies a leaf in the state merkle tree.
 ///     2.2 Create a nullifier event.
-///     2.3 Inserts the leaf in the output queue.    
+///     2.3 Inserts the leaf in the output queue.
 /// 3. Emit nullifier event
 pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
@@ -124,10 +124,10 @@ fn migrate_state(
         nullified_leaves_indices: vec![migrate_leaf_params.leaf_index],
         seq: merkle_tree.sequence_number() as u64,
     };
-
+    let slot = Clock::get()?.slot;
     // 3. Inserts the leaf in the output queue.
     output_queue
-        .insert_into_current_batch(&migrate_leaf_params.leaf)
+        .insert_into_current_batch(&migrate_leaf_params.leaf, &slot)
         .map_err(ProgramError::from)?;
 
     Ok(MerkleTreeEvent::V2(nullify_event))
@@ -137,8 +137,8 @@ fn migrate_state(
 mod migrate_state_test {
     use light_batched_merkle_tree::{
         batch::Batch,
-        batch_metadata::BatchMetadata,
         queue::{BatchedQueueAccount, BatchedQueueMetadata},
+        queue_batch_metadata::QueueBatches,
     };
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
@@ -170,11 +170,11 @@ mod migrate_state_test {
         let batch_size = 1000;
         let account = BatchedQueueMetadata {
             metadata,
-            batch_metadata: BatchMetadata {
+            batch_metadata: QueueBatches {
                 batch_size,
                 num_batches: 2,
                 currently_processing_batch_index: 0,
-                next_full_batch_index: 0,
+                pending_batch_index: 0,
                 bloom_filter_capacity: 0,
                 zkp_batch_size: 10,
                 next_index: 0,
@@ -184,7 +184,10 @@ mod migrate_state_test {
                 ],
             },
             tree_capacity: 2u64.pow(32),
+            hashed_merkle_tree_pubkey: [0u8; 32],
+            hashed_queue_pubkey: [0u8; 32],
         };
+        let queue_pubkey = Pubkey::new_unique();
         let account_data: Vec<u8> = vec![
             0;
             account
@@ -209,6 +212,7 @@ mod migrate_state_test {
             account.batch_metadata.zkp_batch_size,
             3,
             account.batch_metadata.bloom_filter_capacity,
+            queue_pubkey.into(),
         )
         .unwrap();
         mock_account.account = Some(output_queue);

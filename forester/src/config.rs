@@ -1,14 +1,11 @@
 use std::{str::FromStr, time::Duration};
 
-use account_compression::{
-    initialize_address_merkle_tree::Pubkey,
-    utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES},
-};
+use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 use anchor_lang::Id;
 use forester_utils::forester_epoch::{Epoch, TreeAccounts, TreeForesterSchedule};
 use light_client::rpc::RetryConfig;
 use light_registry::{EpochPda, ForesterEpochPda};
-use solana_sdk::signature::Keypair;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
 use crate::{
     cli::{StartArgs, StatusArgs},
@@ -40,6 +37,9 @@ pub struct ExternalServicesConfig {
     pub photon_api_key: Option<String>,
     pub pushgateway_url: Option<String>,
     pub pagerduty_routing_key: Option<String>,
+    pub rpc_rate_limit: Option<u32>,
+    pub photon_rate_limit: Option<u32>,
+    pub send_tx_rate_limit: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -61,6 +61,7 @@ pub struct TransactionConfig {
     pub batch_size: usize,
     pub max_concurrent_batches: usize,
     pub cu_limit: u32,
+    pub enable_priority_fees: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -97,6 +98,7 @@ impl Default for TransactionConfig {
             batch_size: 1,
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
+            enable_priority_fees: false,
         }
     }
 }
@@ -151,6 +153,9 @@ impl ForesterConfig {
                 photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
+                rpc_rate_limit: args.rpc_rate_limit,
+                photon_rate_limit: args.photon_rate_limit,
+                send_tx_rate_limit: args.send_tx_rate_limit,
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -171,6 +176,7 @@ impl ForesterConfig {
                 batch_size: args.transaction_batch_size,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
                 cu_limit: args.cu_limit,
+                enable_priority_fees: args.enable_priority_fees,
             },
             general_config: GeneralConfig {
                 rpc_pool_size: args.rpc_pool_size,
@@ -203,15 +209,18 @@ impl ForesterConfig {
                 photon_api_key: None,
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
+                rpc_rate_limit: None,
+                photon_rate_limit: None,
+                send_tx_rate_limit: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: QueueConfig::default(),
             indexer_config: IndexerConfig::default(),
             transaction_config: TransactionConfig::default(),
             general_config: GeneralConfig {
-                rpc_pool_size: 1,
+                rpc_pool_size: 10,
                 slot_update_interval_seconds: 10,
-                tree_discovery_interval_seconds: 5,
+                tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
             },
             registry_pubkey: Pubkey::default(),

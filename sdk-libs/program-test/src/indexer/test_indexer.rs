@@ -17,12 +17,19 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{
-        AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, IndexerError, LeafIndexInfo,
-        MerkleProof, NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle,
+        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
+        Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
+        NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
+};
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array,
+    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+    event::PublicTransactionEvent,
+    hash_chain::{create_hash_chain_from_slice, create_tx_hash},
+    instruction_data::compressed_proof::CompressedProof,
 };
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
@@ -48,20 +55,14 @@ use light_prover_client::{
     non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
 use light_sdk::{
-    compressed_account::CompressedAccountWithMerkleContext,
-    event::PublicTransactionEvent,
-    merkle_context::MerkleContext,
-    proof::{BatchedTreeProofRpcResult, CompressedProof, ProofRpcResult},
+    proof::{BatchedTreeProofRpcResult, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
     STATE_MERKLE_TREE_CANOPY_DEPTH,
-};
-use light_utils::{
-    bigint::bigint_to_be_bytes_array,
-    hashchain::{create_hash_chain_from_slice, create_tx_hash},
 };
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
+use photon_api::models::TokenBalance;
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -128,7 +129,9 @@ where
                 [start_offset as usize..end_offset as usize]
                 .to_vec());
         }
-        Err(IndexerError::Custom("Merkle tree not found".to_string()))
+        Err(IndexerError::InvalidParameters(
+            "Merkle tree not found".to_string(),
+        ))
     }
 
     fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
@@ -147,7 +150,9 @@ where
             if let Some(state_tree_bundle) = state_tree_bundle {
                 Ok(state_tree_bundle.merkle_tree.get_subtrees())
             } else {
-                Err(IndexerError::Custom("Merkle tree not found".to_string()))
+                Err(IndexerError::InvalidParameters(
+                    "Merkle tree not found".to_string(),
+                ))
             }
         }
     }
@@ -159,7 +164,7 @@ where
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
-    ) -> ProofRpcResult {
+    ) -> Result<ProofRpcResult, IndexerError> {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.as_ref().unwrap().len())
@@ -315,7 +320,7 @@ where
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
                 let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
-                return ProofRpcResult {
+                return Ok(ProofRpcResult {
                     root_indices,
                     address_root_indices: address_root_indices.clone(),
                     proof: CompressedProof {
@@ -323,7 +328,7 @@ where
                         b: proof_b,
                         c: proof_c,
                     },
-                };
+                });
             } else {
                 warn!("Error: {}", response_result.text().await.unwrap());
                 tokio::time::sleep(Duration::from_secs(1)).await;
@@ -369,15 +374,169 @@ where
     async fn get_compressed_accounts_by_owner(
         &self,
         owner: &Pubkey,
-    ) -> Result<Vec<String>, IndexerError> {
-        let result = self.get_compressed_accounts_with_merkle_context_by_owner(owner);
-        let mut hashes: Vec<String> = Vec::new();
-        for account in result.iter() {
-            let hash = account.hash().unwrap();
-            let bs58_hash = bs58::encode(hash).into_string();
-            hashes.push(bs58_hash);
+    ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
+        Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
+    }
+
+    async fn get_compressed_account(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<photon_api::models::account::Account, IndexerError> {
+        let account = match (address, hash) {
+            (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .address
+                    .map_or(false, |acc_addr| acc_addr == address)
+            }),
+            (_, Some(hash)) => self.compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .hash::<Poseidon>(
+                        &acc.merkle_context.merkle_tree_pubkey,
+                        &acc.merkle_context.leaf_index,
+                    )
+                    .map_or(false, |acc_hash| acc_hash == hash)
+            }),
+            (None, None) => {
+                return Err(IndexerError::InvalidParameters(
+                    "Either address or hash must be provided".to_string(),
+                ))
+            }
+        };
+
+        account
+            .map(|acc| acc.clone().into_photon_account())
+            .ok_or(IndexerError::AccountNotFound)
+    }
+
+    async fn get_compressed_token_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        let accounts = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+            })
+            .cloned()
+            .collect();
+
+        Ok(accounts)
+    }
+
+    async fn get_compressed_account_balance(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<u64, IndexerError> {
+        let account = self.get_compressed_account(address, hash).await?;
+        Ok(account.lamports)
+    }
+
+    async fn get_compressed_token_account_balance(
+        &self,
+        address: Option<Address>,
+        hash: Option<Hash>,
+    ) -> Result<u64, IndexerError> {
+        let account = match (address, hash) {
+            (Some(address), _) => self.token_compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .compressed_account
+                    .address
+                    .map_or(false, |acc_addr| acc_addr == address)
+            }),
+            (_, Some(hash)) => self.token_compressed_accounts.iter().find(|acc| {
+                acc.compressed_account
+                    .compressed_account
+                    .hash::<Poseidon>(
+                        &acc.compressed_account.merkle_context.merkle_tree_pubkey,
+                        &acc.compressed_account.merkle_context.leaf_index,
+                    )
+                    .map_or(false, |acc_hash| acc_hash == hash)
+            }),
+            (None, None) => {
+                return Err(IndexerError::InvalidParameters(
+                    "Either address or hash must be provided".to_string(),
+                ))
+            }
+        };
+
+        account
+            .map(|acc| acc.token_data.amount)
+            .ok_or(IndexerError::AccountNotFound)
+    }
+
+    async fn get_multiple_compressed_accounts(
+        &self,
+        addresses: Option<Vec<Address>>,
+        hashes: Option<Vec<Hash>>,
+    ) -> Result<Vec<photon_api::models::account::Account>, IndexerError> {
+        match (addresses, hashes) {
+            (Some(addresses), _) => {
+                let accounts = self
+                    .compressed_accounts
+                    .iter()
+                    .filter(|acc| {
+                        acc.compressed_account
+                            .address
+                            .map_or(false, |addr| addresses.contains(&addr))
+                    })
+                    .map(|acc| acc.clone().into_photon_account())
+                    .collect();
+                Ok(accounts)
+            }
+            (_, Some(hashes)) => {
+                let accounts = self
+                    .compressed_accounts
+                    .iter()
+                    .filter(|acc| {
+                        acc.compressed_account
+                            .hash::<Poseidon>(
+                                &acc.merkle_context.merkle_tree_pubkey,
+                                &acc.merkle_context.leaf_index,
+                            )
+                            .map_or(false, |hash| hashes.contains(&hash))
+                    })
+                    .map(|acc| acc.clone().into_photon_account())
+                    .collect();
+                Ok(accounts)
+            }
+            (None, None) => Err(IndexerError::InvalidParameters(
+                "Either addresses or hashes must be provided".to_string(),
+            )),
         }
-        Ok(hashes)
+    }
+
+    async fn get_compressed_token_balances_by_owner(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<photon_api::models::token_balance_list::TokenBalanceList, IndexerError> {
+        let balances: Vec<TokenBalance> = self
+            .token_compressed_accounts
+            .iter()
+            .filter(|acc| {
+                acc.token_data.owner == *owner && mint.map_or(true, |m| acc.token_data.mint == m)
+            })
+            .map(|acc| TokenBalance {
+                balance: acc.token_data.amount,
+                mint: acc.token_data.mint.to_string(),
+            })
+            .collect();
+
+        Ok(photon_api::models::token_balance_list::TokenBalanceList {
+            cursor: None,
+            token_balances: balances,
+        })
+    }
+
+    async fn get_compression_signatures_for_account(
+        &self,
+        _hash: Hash,
+    ) -> Result<Vec<String>, IndexerError> {
+        todo!()
     }
 
     async fn get_multiple_new_address_proofs(
@@ -396,6 +555,17 @@ where
     ) -> Result<Vec<NewAddressProofWithContext<40>>, IndexerError> {
         self._get_multiple_new_address_proofs(merkle_tree_pubkey, addresses, true)
             .await
+    }
+
+    async fn get_validity_proof(
+        &self,
+        _hashes: Vec<Hash>,
+        _new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<
+        photon_api::models::compressed_proof_with_context::CompressedProofWithContext,
+        IndexerError,
+    > {
+        todo!()
     }
 
     fn get_proofs_by_indices(
@@ -550,7 +720,8 @@ where
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
         let mut indices_to_remove = Vec::new();
-
+        println!("compressed account: {:?}", compressed_accounts);
+        println!("state Merkle tree pubkeys: {:?}", state_merkle_tree_pubkeys);
         // for all accounts in batched trees, check whether values are in tree or queue
         let (compressed_accounts, state_merkle_tree_pubkeys) =
             if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
@@ -564,19 +735,30 @@ where
                     let accounts = self.state_merkle_trees.iter().find(|x| {
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
                     });
+                    println!("state_merkle_tree_pubkey {:?}", state_merkle_tree_pubkey);
+                    println!("accounts {}", accounts.is_some());
                     if let Some(accounts) = accounts {
-                        let output_queue_pubkey = accounts.accounts.nullifier_queue;
-                        let mut queue =
-                            AccountZeroCopy::<BatchedQueueMetadata>::new(rpc, output_queue_pubkey)
-                                .await;
-                        let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
-                            queue.account.data.as_mut_slice(),
-                        )
-                        .unwrap();
-                        for value_array in queue_zero_copy.value_vecs.iter() {
-                            let index = value_array.iter().position(|x| *x == *compressed_account);
-                            if index.is_some() {
-                                indices_to_remove.push(i);
+                        let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
+                        println!("leaf index {:?} ", leaf_index);
+                        println!("compressed_account {:?}", compressed_account);
+                        if leaf_index.is_none() {
+                            let output_queue_pubkey = accounts.accounts.nullifier_queue;
+                            let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
+                                rpc,
+                                output_queue_pubkey,
+                            )
+                            .await;
+                            let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
+                                queue.account.data.as_mut_slice(),
+                            )
+                            .unwrap();
+                            for value_array in queue_zero_copy.value_vecs.iter() {
+                                let index =
+                                    value_array.iter().position(|x| *x == *compressed_account);
+                                println!("index {:?}", index);
+                                if index.is_some() {
+                                    indices_to_remove.push(i);
+                                }
                             }
                         }
                     }
@@ -618,14 +800,14 @@ where
         } else {
             None
         };
-        let address_root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-            rpc_result.address_root_indices.clone()
+        let address_root_indices = if let Some(rpc_result) = rpc_result.clone() {
+            rpc_result.unwrap().address_root_indices.clone()
         } else {
             Vec::new()
         };
         let root_indices = {
-            let mut root_indices = if let Some(rpc_result) = rpc_result.as_ref() {
-                rpc_result.root_indices.clone()
+            let mut root_indices = if let Some(rpc_result) = rpc_result.clone() {
+                rpc_result.unwrap().root_indices.clone()
             } else {
                 Vec::new()
             };
@@ -634,8 +816,9 @@ where
             }
             root_indices
         };
+        println!("root_indices {:?}", root_indices);
         BatchedTreeProofRpcResult {
-            proof: rpc_result.map(|x| x.proof),
+            proof: rpc_result.map(|x| x.unwrap().proof),
             root_indices,
             address_root_indices,
         }
@@ -670,17 +853,6 @@ where
         self.compressed_accounts
             .iter()
             .filter(|x| x.compressed_account.owner == *owner)
-            .cloned()
-            .collect()
-    }
-
-    fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<TokenDataWithMerkleContext> {
-        self.token_compressed_accounts
-            .iter()
-            .filter(|x| x.token_data.owner == *owner)
             .cloned()
             .collect()
     }
@@ -759,9 +931,11 @@ where
         let (merkle_tree_next_index, root) = {
             let mut merkle_tree_account =
                 rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-            let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                    .unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                merkle_tree_account.data.as_mut_slice(),
+                &merkle_tree_pubkey.into(),
+            )
+            .unwrap();
             (
                 merkle_tree.next_index as usize,
                 *merkle_tree.root_history.last().unwrap(),
@@ -787,7 +961,6 @@ where
         let batch_update_leaves = leaves[start..end].to_vec();
 
         for (i, _) in batch_update_leaves.iter().enumerate() {
-            // if leaves[i] == [0u8; 32] {
             let index = merkle_tree_next_index + i - zkp_batch_size as usize;
             // This is dangerous it should call self.get_leaf_by_index() but it
             // can t for mutable borrow
@@ -831,11 +1004,13 @@ where
             .unwrap();
 
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-        let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
-        let batch = &merkle_tree.queue_metadata.batches[batch_index];
+        let batch = &merkle_tree.queue_batches.batches[batch_index];
         if batch.get_state() == BatchState::Inserted || batch.get_state() == BatchState::Full {
             let batch_size = batch.zkp_batch_size;
             let leaf_indices_tx_hashes =
@@ -859,12 +1034,12 @@ where
 
     async fn finalize_batched_address_tree_update(
         &mut self,
-        rpc: &mut R,
         merkle_tree_pubkey: Pubkey,
+        account_data: &mut [u8],
     ) {
-        let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let onchain_account =
-            BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice()).unwrap();
+            BatchedMerkleTreeAccount::address_from_bytes(account_data, &merkle_tree_pubkey.into())
+                .unwrap();
         let address_tree = self
             .address_merkle_trees
             .iter_mut()
@@ -874,7 +1049,7 @@ where
         let onchain_next_index = onchain_account.next_index;
         let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
         let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
-
+        println!("diff_onchain_indexer {:?}", diff_onchain_indexer);
         for _ in 0..diff_onchain_indexer {
             address_tree.queue_elements.remove(0);
         }
@@ -1204,8 +1379,11 @@ where
                     .iter()
                     .find(|x| x.accounts.merkle_tree == pubkey)
                     .unwrap();
+                println!("merkle tree {:?}", bundle.accounts.merkle_tree);
+                println!("account {:?}", account);
                 let merkle_tree = &bundle.merkle_tree;
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
+                println!("leaf index {:?}", leaf_index);
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
                 // Convert proof to owned data that implements Send
@@ -1252,6 +1430,7 @@ where
                 let mut merkle_tree_account = rpc.get_account(pubkey).await.unwrap().unwrap();
                 let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     merkle_tree_account.data.as_mut_slice(),
+                    &pubkey.into(),
                 )
                 .unwrap();
                 (
@@ -1339,9 +1518,11 @@ where
                     .await
                     .unwrap();
                 if let Some(mut account) = account {
-                    let account =
-                        BatchedMerkleTreeAccount::address_from_bytes(account.data.as_mut_slice())
-                            .unwrap();
+                    let account = BatchedMerkleTreeAccount::address_from_bytes(
+                        account.data.as_mut_slice(),
+                        &address_merkle_tree_pubkeys[i].into(),
+                    )
+                    .unwrap();
                     address_root_indices.push(account.get_root_index() as u16);
                 } else {
                     panic!(
@@ -1527,6 +1708,7 @@ where
                     new_addresses.push(address);
                 }
             }
+            println!("event {:?}", event);
 
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
@@ -1568,7 +1750,7 @@ where
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
                                         nullifier_queue_pubkey,
-                                        queue_index: None,
+                                        prove_by_index: false,
                                     },
                                 },
                             };
@@ -1582,7 +1764,7 @@ where
                                 leaf_index: event.output_leaf_indices[i],
                                 merkle_tree_pubkey,
                                 nullifier_queue_pubkey,
-                                queue_index: None,
+                                prove_by_index: false,
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -1596,39 +1778,24 @@ where
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
                             nullifier_queue_pubkey,
-                            queue_index: None,
+                            prove_by_index: false,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-            let seq = event
-                .sequence_numbers
-                .iter()
-                .find(|x| x.pubkey == merkle_tree_pubkey);
-            let seq = if let Some(seq) = seq {
-                seq
-            } else {
-                event
-                    .sequence_numbers
-                    .iter()
-                    .find(|x| x.pubkey == nullifier_queue_pubkey)
-                    .unwrap()
-            };
-            let is_batched = seq.seq == u64::MAX;
+
+            let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
+                x.accounts.merkle_tree
+                    == event.pubkey_array
+                        [event.output_compressed_accounts[i].merkle_tree_index as usize]
+            });
+            let is_batched = merkle_tree.is_none();
 
             println!("Output is batched {:?}", is_batched);
-            if !is_batched {
-                let merkle_tree = &mut self
-                    .state_merkle_trees
-                    .iter_mut()
-                    .find(|x| {
-                        x.accounts.merkle_tree
-                            == event.pubkey_array
-                                [event.output_compressed_accounts[i].merkle_tree_index as usize]
-                    })
-                    .unwrap();
+            if merkle_tree.is_some() {
+                let merkle_tree = merkle_tree.as_mut().unwrap();
                 merkle_tree
                     .merkle_tree
                     .append(

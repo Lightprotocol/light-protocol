@@ -1,7 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
-    sdk::create_insert_leaves_instruction,
     utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES},
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueAccount,
     StateMerkleTreeAccount, StateMerkleTreeConfig,
@@ -10,6 +9,7 @@ use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_program_test::{
+    acp_sdk::create_insert_leaves_instruction,
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{
         initialize_new_group, register_program_with_registry_program,
@@ -106,7 +106,7 @@ async fn test_program_owned_merkle_tree() {
     >(&mut rpc, program_owned_merkle_tree_pubkey)
     .await;
     let event = rpc
-        .create_and_send_transaction_with_event(
+        .create_and_send_transaction_with_public_event(
             &[instruction],
             &payer_pubkey,
             &[&payer],
@@ -225,6 +225,7 @@ async fn test_invalid_registered_program() {
         register_program(&mut rpc, &payer, &program_id_keypair, &invalid_group_pda)
             .await
             .unwrap();
+
     let invalid_group_state_merkle_tree = Keypair::new();
     let invalid_group_nullifier_queue = Keypair::new();
     create_state_merkle_tree_and_queue_account(
@@ -256,14 +257,17 @@ async fn test_invalid_registered_program() {
     .await
     .unwrap();
 
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let state_merkle_tree = env.merkle_tree_pubkey;
+    let nullifier_queue = env.nullifier_queue_pubkey;
+    let address_tree = env.address_merkle_tree_pubkey;
+    let address_queue = env.address_merkle_tree_queue_pubkey;
 
     // invoke account compression program through system cpi test
     // 1. the program is registered with a different group than the Merkle tree
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
-        let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
+        let (derived_address, bump) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
+        let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: invalid_group_registered_program_pda,
             noop_program: Pubkey::new_from_array(
@@ -272,12 +276,16 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            merkle_tree: merkle_tree_pubkey,
-            queue: merkle_tree_pubkey, // not used in this ix
+            state_merkle_tree,
+            nullifier_queue, // not used in this ix
+            address_tree,
+            address_queue,
         };
 
-        let instruction_data =
-            system_cpi_test::instruction::AppendLeavesAccountCompressionProgram {};
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: false,
+            cpi_bump: bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -297,7 +305,7 @@ async fn test_invalid_registered_program() {
             vec![(0, [1u8; 32])],
             payer.pubkey(),
             payer.pubkey(),
-            vec![merkle_tree_pubkey],
+            vec![state_merkle_tree],
         );
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
@@ -316,11 +324,16 @@ async fn test_invalid_registered_program() {
     )
     .await
     .unwrap();
+    let (_, token_program_registered_program_bump) = Pubkey::find_program_address(
+        &[CPI_AUTHORITY_PDA_SEED],
+        &other_program_id_keypair.pubkey(),
+    );
     // 4. use registered_program_pda of other program
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
-        let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
+
+        let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
             noop_program: Pubkey::new_from_array(
@@ -329,12 +342,15 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            merkle_tree: merkle_tree_pubkey,
-            queue: merkle_tree_pubkey, // not used in this ix
+            state_merkle_tree,
+            nullifier_queue, // not used in this ix
+            address_tree,
+            address_queue,
         };
-
-        let instruction_data =
-            system_cpi_test::instruction::AppendLeavesAccountCompressionProgram {};
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: false,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -572,11 +588,11 @@ async fn test_invalid_registered_program() {
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
-    // 9. insert into address queue with invalid group
+    // 9. insert into batched trees with invalid group
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
-        let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
+        let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
             noop_program: Pubkey::new_from_array(
@@ -585,11 +601,16 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            merkle_tree: env.address_merkle_tree_pubkey,
-            queue: env.address_merkle_tree_queue_pubkey,
+            state_merkle_tree: env.batched_state_merkle_tree,
+            nullifier_queue: env.batched_output_queue,
+            address_queue: env.batch_address_merkle_tree,
+            address_tree: env.batch_address_merkle_tree,
         };
 
-        let instruction_data = system_cpi_test::instruction::InsertIntoAddressQueue {};
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: true,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),
@@ -603,11 +624,11 @@ async fn test_invalid_registered_program() {
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
-    // 10. insert into nullifier queue with invalid group
+    // 10. insert into batched trees with invalid group
     {
-        let derived_address =
-            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
-        let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
+        let (derived_address, _) =
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID);
+        let accounts = system_cpi_test::accounts::InsertIntoQueues {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
             noop_program: Pubkey::new_from_array(
@@ -616,11 +637,16 @@ async fn test_invalid_registered_program() {
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
             system_program: system_program::ID,
-            merkle_tree: env.merkle_tree_pubkey,
-            queue: env.nullifier_queue_pubkey,
+            state_merkle_tree: env.batched_state_merkle_tree,
+            nullifier_queue: env.batched_output_queue,
+            address_queue: env.batch_address_merkle_tree,
+            address_tree: env.batch_address_merkle_tree,
         };
 
-        let instruction_data = system_cpi_test::instruction::InsertIntoNullifierQueue {};
+        let instruction_data = system_cpi_test::instruction::InsertIntoQueues {
+            is_batched: true,
+            cpi_bump: token_program_registered_program_bump,
+        };
         let instruction = Instruction {
             program_id: system_cpi_test::ID,
             accounts: [accounts.to_account_metas(Some(true))].concat(),

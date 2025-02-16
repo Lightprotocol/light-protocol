@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::prelude::*;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_address_tree::rollover_batched_address_tree_from_account_info,
@@ -17,7 +17,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct RolloverBatchedAddressMerkleTree<'info> {
     #[account(mut)]
-    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    /// Signer used to receive rollover accounts rent exemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
@@ -49,11 +49,20 @@ pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverBatchedAddressMerkleTree<'info>>,
     network_fee: Option<u64>,
 ) -> Result<()> {
+    msg!(
+        "old address tree pubkey {:?}",
+        ctx.accounts.old_address_merkle_tree.key()
+    );
+    msg!(
+        "new address tree pubkey {:?}",
+        ctx.accounts.new_address_merkle_tree.key()
+    );
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let old_merkle_tree_account = &mut BatchedMerkleTreeAccount::address_from_account_info(
         &ctx.accounts.old_address_merkle_tree,
     )
     .map_err(ProgramError::from)?;
+    msg!("here");
     // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<
         RolloverBatchedAddressMerkleTree,
@@ -68,7 +77,11 @@ pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         network_fee,
     )
     .map_err(ProgramError::from)?;
-
+    msg!("here2 new mt rent {}", merkle_tree_rent);
+    msg!(
+        "old mt balance {}",
+        ctx.accounts.old_address_merkle_tree.lamports()
+    );
     // 4. Transfer rent exemption for new Merkle tree
     //     from old address Merkle tree to fee payer.
     transfer_lamports(

@@ -65,6 +65,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -174,6 +176,8 @@ async fn test_epoch_monitor_with_test_indexer_and_1_forester() {
     // Run the forester as pipeline
     let service_handle = tokio::spawn(run_pipeline(
         config.clone(),
+        None,
+        None,
         Arc::new(Mutex::new(env.indexer)),
         shutdown_receiver,
         work_report_sender,
@@ -311,6 +315,8 @@ async fn test_epoch_monitor_with_2_foresters() {
         config1.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config1.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -463,12 +469,16 @@ async fn test_epoch_monitor_with_2_foresters() {
 
     let service_handle1 = tokio::spawn(run_pipeline(
         config1.clone(),
+        None,
+        None,
         indexer.clone(),
         shutdown_receiver1,
         work_report_sender1,
     ));
     let service_handle2 = tokio::spawn(run_pipeline(
         config2.clone(),
+        None,
+        None,
         indexer,
         shutdown_receiver2,
         work_report_sender2,
@@ -656,6 +666,8 @@ async fn test_epoch_double_registration() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -715,6 +727,8 @@ async fn test_epoch_double_registration() {
         // Run the forester pipeline
         let service_handle = tokio::spawn(run_pipeline(
             config.clone(),
+            None,
+            None,
             indexer.clone(),
             shutdown_receiver,
             work_report_sender.clone(),

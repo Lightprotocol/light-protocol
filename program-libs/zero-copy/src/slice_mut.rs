@@ -7,7 +7,7 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::Ref;
+use zerocopy::{little_endian::U32, Ref};
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -15,6 +15,7 @@ pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
 pub type ZeroCopySliceMutU16<'a, T> = ZeroCopySliceMut<'a, u16, T>;
 pub type ZeroCopySliceMutU8<'a, T> = ZeroCopySliceMut<'a, u8, T>;
+pub type ZeroCopySliceMutBorsh<'a, T> = ZeroCopySliceMut<'a, U32, T, false>;
 
 pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
 where
@@ -48,28 +49,7 @@ where
             }
             Ref::<&mut [u8], L>::write(&mut len, length);
         }
-        let (meta_data, bytes) = bytes.split_at_mut(Self::metadata_size());
-        let (len, _padding) = Ref::<&[u8], L>::from_prefix(meta_data)?;
-        let len_usize: usize = u64::from(length) as usize;
-
-        let (bytes, remaining_bytes) =
-            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, len_usize)?;
-        Ok((Self { length: len, bytes }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn new_at_multiple(
-        num_slices: usize,
-        capacity: L,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = Self::new_at(capacity, bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
+        Self::from_bytes_at(bytes)
     }
 
     #[inline]
@@ -81,41 +61,27 @@ where
     pub fn from_bytes_at(
         bytes: &'a mut [u8],
     ) -> Result<(ZeroCopySliceMut<'a, L, T, PAD>, &'a mut [u8]), ZeroCopyError> {
-        let meta_data_size = Self::metadata_size();
-        if bytes.len() < meta_data_size {
+        let metadata_size = Self::metadata_size();
+        if bytes.len() < metadata_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
                 bytes.len(),
-                meta_data_size,
+                metadata_size,
             ));
         }
 
-        let (meta_data, bytes) = bytes.split_at_mut(meta_data_size);
+        let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
         let (length, _padding) = Ref::<&[u8], L>::from_prefix(meta_data)?;
         let usize_len: usize = u64::from(*length) as usize;
         let full_vector_size = Self::data_size(*length);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
-                bytes.len(),
-                full_vector_size + meta_data_size,
+                bytes.len() + metadata_size,
+                full_vector_size + metadata_size,
             ));
         }
         let (bytes, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((ZeroCopySliceMut { length, bytes }, remaining_bytes))
-    }
-
-    #[cfg(feature = "std")]
-    pub fn from_bytes_at_multiple(
-        num_slices: usize,
-        mut bytes: &'a mut [u8],
-    ) -> Result<(Vec<Self>, &'a mut [u8]), ZeroCopyError> {
-        let mut slices = Vec::with_capacity(num_slices);
-        for _ in 0..num_slices {
-            let (slice, _bytes) = Self::from_bytes_at(bytes)?;
-            bytes = _bytes;
-            slices.push(slice);
-        }
-        Ok((slices, bytes))
     }
 
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {

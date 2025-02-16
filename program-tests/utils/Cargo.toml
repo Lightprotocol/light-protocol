@@ -18,9 +18,9 @@ num-traits = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 thiserror = { workspace = true }
-account-compression = { workspace = true  }
-light-compressed-token = { workspace = true  }
-light-system-program = { workspace = true  }
+account-compression = { workspace = true }
+light-compressed-token = { workspace = true }
+light-system-program = { workspace = true }
 light-registry = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 light-prover-client = { workspace = true }
@@ -28,8 +28,8 @@ light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-light-utils = { workspace = true }
-light-program-test = { workspace =  true }
+light-compressed-account = { workspace = true }
+light-program-test = { workspace = true }
 forester-utils = { workspace = true }
 light-sdk = { workspace = true }
 rand = { workspace = true }
@@ -39,3 +39,6 @@ create-address-test-program = { workspace = true }
 spl-token-2022 = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
+light-verifier = { workspace = true }
+reqwest = { workspace = true }
+light-account-checks = { workspace = true }

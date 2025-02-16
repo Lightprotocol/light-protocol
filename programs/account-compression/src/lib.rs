@@ -5,10 +5,9 @@ pub mod instructions;
 pub use instructions::*;
 pub mod state;
 pub use state::*;
+pub mod context;
 pub mod processor;
 pub mod utils;
-pub use processor::*;
-pub mod sdk;
 use anchor_lang::prelude::*;
 use errors::AccountCompressionErrorCode;
 use light_batched_merkle_tree::{
@@ -27,13 +26,12 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
+
 #[program]
 pub mod account_compression {
 
-    use light_merkle_tree_metadata::queue::QueueType;
-
-    use self::insert_into_queues::{process_insert_into_queues, InsertIntoQueues};
     use super::*;
+    use crate::processor::insert_into_queues::process_insert_into_queues;
 
     pub fn initialize_address_merkle_tree_and_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
@@ -50,19 +48,6 @@ pub mod account_compression {
             forester,
             address_merkle_tree_config,
             address_queue_config,
-        )
-    }
-
-    pub fn insert_addresses<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-        addresses: Vec<[u8; 32]>,
-    ) -> Result<()> {
-        process_insert_into_queues(
-            ctx,
-            addresses.as_slice(),
-            Vec::new(),
-            QueueType::AddressQueue,
-            None,
         )
     }
 
@@ -162,11 +147,13 @@ pub mod account_compression {
         )
     }
 
-    pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-        leaves: Vec<(u8, [u8; 32])>,
+    /// Inserts nullifiers, leaves, and addresses
+    /// into v1 and batched Merkle trees.
+    pub fn insert_into_queues<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
+        bytes: Vec<u8>,
     ) -> Result<()> {
-        process_append_leaves_to_merkle_trees(ctx, leaves)
+        process_insert_into_queues(&ctx, bytes)
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
@@ -182,21 +169,6 @@ pub mod account_compression {
             &leaves_queue_indices,
             &leaf_indices,
             &proofs,
-        )
-    }
-
-    pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-        nullifiers: Vec<[u8; 32]>,
-        leaf_indices: Vec<u32>,
-        tx_hash: Option<[u8; 32]>,
-    ) -> Result<()> {
-        process_insert_into_queues(
-            ctx,
-            &nullifiers,
-            leaf_indices,
-            QueueType::NullifierQueue,
-            tx_hash,
         )
     }
 
@@ -242,7 +214,7 @@ pub mod account_compression {
     /// 2. update address tree
     ///     The address tree is updated with the instruction
     ///     batch_update_address_tree.
-    pub fn intialize_batched_address_merkle_tree<'info>(
+    pub fn initialize_batched_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeBatchedAddressMerkleTree<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {

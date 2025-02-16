@@ -8,6 +8,7 @@ default = []
 devenv = []
 
 [dependencies]
+base64 = "0.2"
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
@@ -18,8 +19,9 @@ light-hasher = { workspace = true }
 light-registry = { workspace = true }
 light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
-light-utils = { workspace = true }
-account-compression = { workspace = true  }
+light-compressed-account = { workspace = true }
+photon-api = { workspace = true }
+account-compression = { workspace = true }
 forester-utils = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
@@ -36,3 +38,4 @@ light-verifier = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }
+light-zero-copy = { workspace = true }

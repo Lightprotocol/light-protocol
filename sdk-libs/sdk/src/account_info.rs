@@ -1,18 +1,18 @@
 use std::{cell::RefCell, rc::Rc};
 
 use anchor_lang::prelude::Result;
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
+    instruction_data::data::{
+        NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
+    },
+};
 use solana_program::pubkey::Pubkey;
 
-use crate::{
-    account_meta::LightAccountMeta,
-    address::PackedNewAddressParams,
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
-        PackedCompressedAccountWithMerkleContext,
-    },
-    error::LightSdkError,
-    merkle_context::PackedMerkleContext,
-};
+use crate::{account_meta::LightAccountMeta, error::LightSdkError};
 
 /// Information about compressed account which is being initialized.
 #[derive(Debug)]

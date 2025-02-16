@@ -1,13 +1,9 @@
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
-use super::processor::CompressedProof;
 use crate::{
-    invoke::sol_compression::SOL_POOL_PDA_SEED,
-    sdk::{
-        accounts::{InvokeAccounts, SignerAccounts},
-        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    },
+    account_traits::{InvokeAccounts, SignerAccounts},
+    processor::sol_compression::SOL_POOL_PDA_SEED,
 };
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
@@ -20,15 +16,11 @@ pub struct InvokeInstruction<'info> {
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK: this account
-    #[account(
-    seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
-    )]
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: is checked when emitting the event.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program.
     /// This pda is used to invoke the account compression program.
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: Account compression program is used to update state and address
     /// Merkle trees.
@@ -86,58 +78,4 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     fn get_decompression_recipient(&self) -> Option<&AccountInfo<'info>> {
         self.decompression_recipient.as_ref()
     }
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InstructionDataInvoke {
-    pub proof: Option<CompressedProof>,
-    pub input_compressed_accounts_with_merkle_context:
-        Vec<PackedCompressedAccountWithMerkleContext>,
-    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
-    pub relay_fee: Option<u64>,
-    pub new_address_params: Vec<NewAddressParamsPacked>,
-    pub compress_or_decompress_lamports: Option<u64>,
-    pub is_compress: bool,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct OutputCompressedAccountWithContext {
-    pub compressed_account: CompressedAccount,
-    pub merkle_tree: Pubkey,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct OutputCompressedAccountWithPackedContext {
-    pub compressed_account: CompressedAccount,
-    pub merkle_tree_index: u8,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
-pub struct NewAddressParamsPacked {
-    pub seed: [u8; 32],
-    pub address_queue_account_index: u8,
-    pub address_merkle_tree_account_index: u8,
-    pub address_merkle_tree_root_index: u16,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct NewAddressParams {
-    pub seed: [u8; 32],
-    pub address_queue_pubkey: Pubkey,
-    pub address_merkle_tree_pubkey: Pubkey,
-    pub address_merkle_tree_root_index: u16,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
-pub struct PackedReadOnlyAddress {
-    pub address: [u8; 32],
-    pub address_merkle_tree_account_index: u8,
-    pub address_merkle_tree_root_index: u16,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct ReadOnlyAddress {
-    pub address: [u8; 32],
-    pub address_merkle_tree_pubkey: Pubkey,
-    pub address_merkle_tree_root_index: u16,
 }

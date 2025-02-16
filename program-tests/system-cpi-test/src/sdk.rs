@@ -7,23 +7,21 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeConfig,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_compressed_account::{
+    address::{pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params},
+    compressed_account::{
+        CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+        ReadOnlyCompressedAccount,
+    },
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        data::{NewAddressParams, ReadOnlyAddress},
+    },
+};
 use light_compressed_token::{
     get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
 };
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        address::{
-            pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params,
-        },
-        compressed_account::{
-            CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
-            ReadOnlyCompressedAccount,
-        },
-    },
-    utils::get_registered_program_pda,
-    NewAddressParams, ReadOnlyAddress,
-};
+use light_system_program::utils::get_registered_program_pda;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;
@@ -85,7 +83,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         });
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
-        proof: Some(input_params.proof.clone()),
+        proof: Some(*input_params.proof),
         new_address_parameters: new_address_params[0],
         owner_program: *input_params.owner_program,
         bump,
@@ -149,7 +147,7 @@ pub fn create_invalidate_not_owned_account_instruction(
     remaining_accounts.insert(*input_params.invalid_fee_payer, 3);
 
     let instruction_data = crate::instruction::WithInputAccounts {
-        proof: Some(input_params.proof.clone()),
+        proof: Some(*input_params.proof),
         compressed_account: input_params.compressed_account.clone(),
         bump,
         mode,

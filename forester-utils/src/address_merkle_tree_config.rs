@@ -3,12 +3,13 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use anchor_lang::Discriminator;
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::RpcConnection,
 };
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
+use light_hasher::Poseidon;
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 
@@ -169,8 +170,11 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
             (tree.next_index(), tree_meta_data, 26)
         }
         BatchedMerkleTreeAccount::DISCRIMINATOR => {
-            let tree_meta_data =
-                BatchedMerkleTreeAccount::state_from_bytes(account.data.as_mut_slice()).unwrap();
+            let tree_meta_data = BatchedMerkleTreeAccount::state_from_bytes(
+                account.data.as_mut_slice(),
+                &merkle_tree.into(),
+            )
+            .unwrap();
 
             (
                 tree_meta_data.next_index as usize,

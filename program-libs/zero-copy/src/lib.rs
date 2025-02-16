@@ -2,9 +2,12 @@
 
 pub mod cyclic_vec;
 pub mod errors;
+pub mod slice;
 pub mod slice_mut;
 pub mod vec;
 use core::mem::{align_of, size_of};
+#[cfg(feature = "std")]
+pub mod borsh;
 
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 

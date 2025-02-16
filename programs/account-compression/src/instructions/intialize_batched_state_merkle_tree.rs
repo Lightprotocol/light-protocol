@@ -56,7 +56,7 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     };
     let merkle_tree_account_info = ctx.accounts.merkle_tree.to_account_info();
     let queue_account_info = ctx.accounts.queue.to_account_info();
-    let additional_bytes_rent = (Rent::get()?).minimum_balance(params.additional_bytes as usize);
+    let additional_bytes_rent = Rent::get()?.minimum_balance(params.additional_bytes as usize);
     init_batched_state_merkle_tree_from_account_info(
         params,
         owner,

@@ -1,13 +1,8 @@
 use std::path::PathBuf;
 
 use account_compression::{
-    sdk::{
-        create_initialize_address_merkle_tree_and_queue_instruction,
-        create_initialize_merkle_tree_instruction,
-    },
-    utils::constants::GROUP_AUTHORITY_SEED,
-    AddressMerkleTreeConfig, AddressQueueConfig, GroupAuthority, NullifierQueueConfig,
-    RegisteredProgram, StateMerkleTreeConfig,
+    utils::constants::GROUP_AUTHORITY_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
+    GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
 };
 use forester_utils::{
     airdrop_lamports, create_account_instruction,
@@ -43,6 +38,10 @@ use solana_sdk::{
 };
 
 use crate::{
+    acp_sdk::{
+        create_initialize_address_merkle_tree_and_queue_instruction,
+        create_initialize_merkle_tree_instruction,
+    },
     env_accounts,
     test_batch_forester::{create_batch_address_merkle_tree, create_batched_state_merkle_tree},
     test_rpc::ProgramTestRpcConnection,
@@ -570,7 +569,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     batched_address_tree_init_params: InitAddressTreeAccountsInstructionData,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,
@@ -602,7 +601,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     let context = setup_test_programs(additional_programs).await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let keypairs = EnvAccountKeypairs::program_test_default();
     airdrop_lamports(
         &mut context,
@@ -1199,7 +1198,7 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
     governance_authority: &Keypair,
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,
-) -> Result<Pubkey, light_client::rpc::errors::RpcError> {
+) -> Result<Pubkey, RpcError> {
     let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_deregister_program_instruction(
         governance_authority.pubkey(),
@@ -1207,7 +1206,7 @@ pub async fn deregister_program_with_registry_program<R: RpcConnection>(
         *group_pda,
         program_id_keypair.pubkey(),
     );
-    let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
+    let cpi_authority_pda = get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
         &governance_authority.pubkey(),
         &cpi_authority_pda.0,

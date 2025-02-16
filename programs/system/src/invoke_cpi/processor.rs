@@ -1,25 +1,29 @@
 pub use anchor_lang::prelude::*;
+use light_compressed_account::instruction_data::zero_copy::{
+    ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+};
+#[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_zero_copy::slice::ZeroCopySliceBorsh;
 
 use super::verify_signer::cpi_signer_checks;
 use crate::{
-    invoke::processor::process,
-    invoke_cpi::instruction::InvokeCpiInstruction,
-    sdk::{accounts::SignerAccounts, compressed_account::PackedReadOnlyCompressedAccount},
-    InstructionDataInvoke, InstructionDataInvokeCpi, PackedReadOnlyAddress,
+    account_traits::SignerAccounts, invoke_cpi::instruction::InvokeCpiInstruction,
+    processor::process::process,
 };
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:
-/// 1. signer checks (inputs), writeaccess (outputs) (cpi_signer_checks)
+/// 1. signer checks (inputs), write access (outputs) (cpi_signer_checks)
 /// 2. sets or gets cpi context (process_cpi_context)
 #[allow(unused_mut)]
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
-    inputs: InstructionDataInvokeCpi,
-    read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
-    read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+    inputs: ZInstructionDataInvokeCpi<'a>,
+    read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
+    read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
 ) -> Result<()> {
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(
         &ctx.accounts.invoking_program.key(),
@@ -27,7 +31,9 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
     )?;
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
     #[allow(unused)]
     let mut cpi_context_inputs_len = if let Some(value) = ctx.accounts.cpi_context_account.as_ref()
@@ -46,20 +52,11 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
+    #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
 
-    let data = InstructionDataInvoke {
-        input_compressed_accounts_with_merkle_context: inputs
-            .input_compressed_accounts_with_merkle_context,
-        output_compressed_accounts: inputs.output_compressed_accounts,
-        relay_fee: inputs.relay_fee,
-        proof: inputs.proof,
-        new_address_params: inputs.new_address_params,
-        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
-        is_compress: inputs.is_compress,
-    };
     process(
-        data,
+        inputs.into(),
         Some(ctx.accounts.invoking_program.key()),
         ctx,
         cpi_context_inputs_len,

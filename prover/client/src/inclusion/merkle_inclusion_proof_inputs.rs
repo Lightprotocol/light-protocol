@@ -1,4 +1,4 @@
-use light_utils::hashchain::create_two_inputs_hash_chain;
+use light_compressed_account::hash_chain::create_two_inputs_hash_chain;
 use num_bigint::BigInt;
 
 use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};

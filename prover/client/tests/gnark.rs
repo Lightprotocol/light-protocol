@@ -1,4 +1,9 @@
-use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
+use light_batched_merkle_tree::constants::{
+    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
+};
+use light_compressed_account::{
+    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
@@ -21,7 +26,6 @@ use light_prover_client::{
     },
     helpers::init_logger,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, hashchain::create_hash_chain_from_slice};
 use log::info;
 use num_bigint::ToBigUint;
 use reqwest::Client;
@@ -359,8 +363,6 @@ async fn prove_batch_address_append() {
     )
     .await;
 
-    const TREE_HEIGHT: usize = 40;
-
     // Initialize test data
     let mut new_element_values = vec![];
     let zkp_batch_size = 10;
@@ -372,7 +374,8 @@ async fn prove_batch_address_append() {
     let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
     relayer_indexing_array.init().unwrap();
     let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(TREE_HEIGHT, 0).unwrap();
+        IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
+            .unwrap();
     relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
@@ -406,25 +409,26 @@ async fn prove_batch_address_append() {
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
     let batch_start_index = start_index;
     // Generate circuit inputs
-    let inputs = get_batch_address_append_circuit_inputs::<TREE_HEIGHT>(
-        start_index,
-        current_root,
-        low_element_values,
-        low_element_next_values,
-        low_element_indices,
-        low_element_next_indices,
-        low_element_proofs,
-        new_element_values,
-        relayer_merkle_tree
-            .merkle_tree
-            .get_subtrees()
-            .try_into()
-            .unwrap(),
-        hash_chain,
-        batch_start_index,
-        zkp_batch_size,
-    )
-    .unwrap();
+    let inputs =
+        get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
+            start_index,
+            current_root,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs,
+            new_element_values,
+            relayer_merkle_tree
+                .merkle_tree
+                .get_subtrees()
+                .try_into()
+                .unwrap(),
+            hash_chain,
+            batch_start_index,
+            zkp_batch_size,
+        )
+        .unwrap();
     // Convert inputs to JSON format
     let inputs_json = to_json(&inputs);
     // Send proof request to server

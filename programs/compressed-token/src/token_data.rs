@@ -3,8 +3,8 @@ use std::vec;
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
+use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, DataHasher};
-use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]

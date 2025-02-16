@@ -3,7 +3,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use light_utils::pubkey::Pubkey;
+use light_compressed_account::pubkey::Pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
@@ -16,6 +16,20 @@ pub enum TreeType {
     BatchedState = 3,
     BatchedAddress = 4,
 }
+
+// from u64
+impl From<u64> for TreeType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => TreeType::State,
+            2 => TreeType::Address,
+            3 => TreeType::BatchedState,
+            4 => TreeType::BatchedAddress,
+            _ => panic!("Invalid TreeType"),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(
     AnchorDeserialize,

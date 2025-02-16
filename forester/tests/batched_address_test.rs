@@ -59,6 +59,8 @@ async fn test_address_batched() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -121,35 +123,14 @@ async fn test_address_batched() {
     )
     .await;
 
-    let address_trees: Vec<AddressMerkleTreeAccounts> = env
+    let (_address_merkle_tree_index, address_merkle_tree_pubkey) = env
         .indexer
         .address_merkle_trees
         .iter()
-        .map(|x| x.accounts)
-        .collect();
-
-    println!("Address trees: {:?}", address_trees);
-    for tree in address_trees {
-        let is_v2 = tree.merkle_tree == tree.queue;
-        println!("Tree {:?} is_v2: {}", tree, is_v2);
-    }
-
-    println!("Removing trees...");
-    env.indexer.address_merkle_trees.clear();
-
-    println!("Creating new address batch tree...");
-
-    let merkle_tree_keypair = Keypair::new();
-    env.indexer
-        .add_address_merkle_tree(
-            &mut env.rpc,
-            &merkle_tree_keypair,
-            &merkle_tree_keypair,
-            None,
-            2,
-        )
-        .await;
-    env_accounts.batch_address_merkle_tree = merkle_tree_keypair.pubkey();
+        .enumerate()
+        .find(|(_index, tree)| tree.accounts.merkle_tree == tree.accounts.queue)
+        .map(|(index, tree)| (index, tree.accounts.merkle_tree))
+        .unwrap();
 
     let address_trees: Vec<AddressMerkleTreeAccounts> = env
         .indexer
@@ -163,17 +144,29 @@ async fn test_address_batched() {
         let is_v2 = tree.merkle_tree == tree.queue;
         println!("Tree {:?} is_v2: {}", tree, is_v2);
     }
-
+    println!(
+        "env.batch_address_merkle_tree , {}",
+        env_accounts.batch_address_merkle_tree
+    );
     let mut merkle_tree_account = env
         .rpc
-        .get_account(merkle_tree_keypair.pubkey())
+        .get_account(address_merkle_tree_pubkey)
         .await
         .unwrap()
         .unwrap();
-    let merkle_tree =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut merkle_tree_account.data).unwrap();
+    println!("address_merkle_tree_pubkey {}", address_merkle_tree_pubkey);
+    println!("merkle_tree_account {}", merkle_tree_account.owner);
+    println!(
+        "merkle_tree_account.data {:?}",
+        merkle_tree_account.data[..100].to_vec()
+    );
+    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        &mut merkle_tree_account.data,
+        &address_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
-    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
+    for i in 0..merkle_tree.queue_batches.batch_size {
         println!("===================== tx {} =====================", i);
 
         perform_create_pda_with_event_rnd(
@@ -188,19 +181,23 @@ async fn test_address_batched() {
         sleep(Duration::from_millis(100)).await;
     }
 
-    let merkle_tree_pubkey = env.indexer.address_merkle_trees[0].accounts.merkle_tree;
-
     let zkp_batches = tree_params.input_queue_batch_size / tree_params.input_queue_zkp_batch_size;
 
     println!("zkp_batches: {}", zkp_batches);
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
-        let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+        let mut merkle_tree_account = rpc
+            .get_account(address_merkle_tree_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &address_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
         let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -217,6 +214,8 @@ async fn test_address_batched() {
 
     let service_handle = tokio::spawn(run_pipeline(
         config.clone(),
+        None,
+        None,
         Arc::new(Mutex::new(env.indexer)),
         shutdown_receiver,
         work_report_sender,
@@ -233,18 +232,20 @@ async fn test_address_batched() {
     }
 
     let mut rpc = pool.get_connection().await.unwrap();
-    let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+    let mut merkle_tree_account = rpc
+        .get_account(address_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
 
-    let merkle_tree =
-        BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-            .unwrap();
+    let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+        merkle_tree_account.data.as_mut_slice(),
+        &address_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
     assert!(
-        merkle_tree
-            .get_metadata()
-            .queue_metadata
-            .next_full_batch_index
-            > 0,
+        merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
         "No batches were processed"
     );
 
@@ -252,24 +253,26 @@ async fn test_address_batched() {
         let mut rpc = pool.get_connection().await.unwrap();
 
         let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_keypair.pubkey())
+            .get_account(address_merkle_tree_pubkey)
             .await
             .unwrap()
             .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::address_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &address_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
 
-        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
-        for batch_idx in 0..merkle_tree.queue_metadata.batches.len() {
-            let batch = merkle_tree.queue_metadata.batches.get(batch_idx).unwrap();
+        for batch_idx in 0..merkle_tree.queue_batches.batches.len() {
+            let batch = merkle_tree.queue_batches.batches.get(batch_idx).unwrap();
             if batch.get_state() == BatchState::Inserted {
                 completed_items += batch_size;
             }
@@ -282,10 +285,7 @@ async fn test_address_batched() {
         );
 
         assert_eq!(
-            merkle_tree
-                .get_metadata()
-                .queue_metadata
-                .next_full_batch_index,
+            merkle_tree.get_metadata().queue_batches.pending_batch_index,
             1
         );
 

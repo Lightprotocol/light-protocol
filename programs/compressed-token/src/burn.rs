@@ -1,11 +1,13 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
-    OutputCompressedAccountWithPackedContext,
+use light_compressed_account::{
+    compressed_account::PackedCompressedAccountWithMerkleContext,
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+    },
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     constants::NOT_FROZEN,
@@ -35,7 +37,6 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
         CompressedTokenInstructionDataBurn::deserialize(&mut inputs.as_slice())?;
-
     burn_spl_from_pool_pda(&ctx, &inputs)?;
     let mint = ctx.accounts.mint.key();
     let (compressed_input_accounts, output_compressed_accounts) =
@@ -189,9 +190,9 @@ pub fn create_input_and_output_accounts_burn(
 pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext},
+    use light_compressed_account::{
+        compressed_account::{CompressedAccount, MerkleContext},
+        instruction_data::compressed_proof::CompressedProof,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -315,7 +316,7 @@ pub mod sdk {
 mod test {
 
     use anchor_lang::solana_program::account_info::AccountInfo;
-    use light_system_program::sdk::compressed_account::PackedMerkleContext;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
     use rand::Rng;
 
     use super::*;
@@ -369,7 +370,7 @@ mod test {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(1),
@@ -550,7 +551,7 @@ mod test {
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
                 leaf_index: 1,
-                queue_index: None,
+                prove_by_index: false,
             },
             root_index: 0,
             delegate_index: Some(1),

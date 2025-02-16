@@ -1,0 +1,12 @@
+{
+  "name": "@lightprotocol/anchor-examples",
+  "version": "0.1.0",
+  "description": "Anchor examples",
+  "scripts": {
+    "test": "pnpm test-counter && pnpm test-memo && pnpm test-name-service && pnpm test-token-escrow",
+    "test-counter": "cargo test-sbf -p counter -- --test-threads 1",
+    "test-memo": "cargo test-sbf -p memo -- --test-threads 1",
+    "test-name-service": "cargo test-sbf -p name-service-without-macros -- --test-threads 1",
+    "test-token-escrow": "cargo test-sbf -p token-escrow -- --test-threads 1"
+  }
+}

@@ -1,8 +1,9 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::prelude::*;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::rollover_batched_state_tree_from_account_info,
 };
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 
 use crate::{
     utils::{
@@ -17,7 +18,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct RolloverBatchedStateMerkleTree<'info> {
     #[account(mut)]
-    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    /// Signer used to receive rollover accounts rent exemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
@@ -56,6 +57,10 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<()> {
+    msg!(
+        "old state Merkle tree {:?}",
+        ctx.accounts.old_state_merkle_tree.key()
+    );
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let old_merkle_tree_account =
         &mut BatchedMerkleTreeAccount::state_from_account_info(&ctx.accounts.old_state_merkle_tree)
@@ -85,6 +90,8 @@ pub fn process_rollover_batched_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.fee_payer.to_account_info(),
         rent,
     )?;
-
+    if ctx.accounts.old_output_queue.to_account_info().lamports() == 0 {
+        return Err(ProgramError::from(MerkleTreeMetadataError::NotReadyForRollover).into());
+    }
     Ok(())
 }

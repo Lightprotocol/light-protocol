@@ -1,6 +1,13 @@
 #[cfg(test)]
 mod test {
 
+    use light_compressed_account::{
+        hash_chain::{
+            create_hash_chain_from_array, create_hash_chain_from_slice,
+            create_two_inputs_hash_chain,
+        },
+        instruction_data::compressed_proof::CompressedProof,
+    };
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -12,10 +19,7 @@ mod test {
         inclusion::merkle_tree_info::MerkleTreeInfo,
         init_merkle_tree::inclusion_merkle_tree_inputs,
     };
-    use light_utils::hashchain::{
-        create_hash_chain_from_array, create_hash_chain_from_slice, create_two_inputs_hash_chain,
-    };
-    use light_verifier::{select_verifying_key, verify, CompressedProof};
+    use light_verifier::{select_verifying_key, verify};
     use reqwest::Client;
     use serial_test::serial;
 

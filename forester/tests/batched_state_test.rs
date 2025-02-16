@@ -57,6 +57,8 @@ async fn test_state_batched() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
+        None,
+        None,
     )
     .await
     .unwrap();
@@ -103,47 +105,61 @@ async fn test_state_batched() {
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
 
-    let merkle_tree_keypair = Keypair::new();
-    let nullifier_queue_keypair = Keypair::new();
-    let cpi_context_keypair = Keypair::new();
-
     let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>;
 
     e2e_env = init_program_test_env(rpc, &env, false).await;
-    e2e_env.indexer.state_merkle_trees.clear();
-    e2e_env
-        .indexer
-        .add_state_merkle_tree(
-            &mut e2e_env.rpc,
-            &merkle_tree_keypair,
-            &nullifier_queue_keypair,
-            &cpi_context_keypair,
-            None,
-            None,
-            2,
-        )
-        .await;
-    let state_merkle_tree_pubkey = e2e_env.indexer.state_merkle_trees[0].accounts.merkle_tree;
+
+    for tree in e2e_env.indexer.state_merkle_trees.iter() {
+        println!("====================");
+        println!("state merkle tree pub key: {}", tree.accounts.merkle_tree);
+        println!("output queue pub key: {}", tree.accounts.nullifier_queue);
+        println!("version: {}", tree.version);
+    }
+
+    let (batched_state_merkle_tree_index, batched_state_merkle_tree_pubkey, nullifier_queue_pubkey) =
+        e2e_env
+            .indexer
+            .state_merkle_trees
+            .iter()
+            .enumerate()
+            .find(|(_, tree)| tree.version == 2)
+            .map(|(index, tree)| {
+                (
+                    index,
+                    tree.accounts.merkle_tree,
+                    tree.accounts.nullifier_queue,
+                )
+            })
+            .unwrap();
+
+    // TODO: regenerate batched state merkle tree with rollover_fee = 1
+    e2e_env.indexer.state_merkle_trees[batched_state_merkle_tree_index].rollover_fee = 1;
+
     let mut merkle_tree_account = e2e_env
         .rpc
-        .get_account(state_merkle_tree_pubkey)
+        .get_account(batched_state_merkle_tree_pubkey)
         .await
         .unwrap()
         .unwrap();
-    let merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(&mut merkle_tree_account.data).unwrap();
+    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+        &mut merkle_tree_account.data,
+        &batched_state_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
         let mut rpc = pool.get_connection().await.unwrap();
         let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_keypair.pubkey())
+            .get_account(batched_state_merkle_tree_pubkey)
             .await
             .unwrap()
             .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &batched_state_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let initial_next_index = merkle_tree.get_metadata().next_index;
         let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -162,23 +178,31 @@ async fn test_state_batched() {
         batch_size: {}",
         initial_next_index,
         initial_sequence_number,
-        merkle_tree.get_metadata().queue_metadata.batch_size
+        merkle_tree.get_metadata().queue_batches.batch_size
     );
 
-    for i in 0..merkle_tree.get_metadata().queue_metadata.batch_size {
+    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
         println!("\ntx {}", i);
 
         e2e_env
-            .compress_sol_deterministic(&forester_keypair, 1_000_000, None)
+            .compress_sol_deterministic(
+                &forester_keypair,
+                1_000_000,
+                Some(batched_state_merkle_tree_index),
+            )
             .await;
         e2e_env
-            .transfer_sol_deterministic(&forester_keypair, &Pubkey::new_unique(), None)
+            .transfer_sol_deterministic(
+                &forester_keypair,
+                &Pubkey::new_unique(),
+                Some(batched_state_merkle_tree_index),
+            )
             .await
             .unwrap();
     }
     let (state_merkle_tree_bundle, _, _) = (
-        e2e_env.indexer.state_merkle_trees[0].clone(),
-        e2e_env.indexer.address_merkle_trees[0].clone(),
+        e2e_env.indexer.state_merkle_trees[batched_state_merkle_tree_index].clone(),
+        e2e_env.indexer.address_merkle_trees[batched_state_merkle_tree_index].clone(),
         e2e_env.rpc,
     );
 
@@ -203,6 +227,8 @@ async fn test_state_batched() {
 
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
+        None,
+        None,
         Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,
         work_report_sender,
@@ -238,21 +264,19 @@ async fn test_state_batched() {
 
     let mut rpc = pool.get_connection().await.unwrap();
     let mut merkle_tree_account = rpc
-        .get_account(merkle_tree_keypair.pubkey())
+        .get_account(batched_state_merkle_tree_pubkey)
         .await
         .unwrap()
         .unwrap();
 
-    let merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-            .unwrap();
+    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+        merkle_tree_account.data.as_mut_slice(),
+        &batched_state_merkle_tree_pubkey.into(),
+    )
+    .unwrap();
 
     assert!(
-        merkle_tree
-            .get_metadata()
-            .queue_metadata
-            .next_full_batch_index
-            > 0,
+        merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
         "No batches were processed"
     );
 
@@ -260,19 +284,21 @@ async fn test_state_batched() {
         let mut rpc = pool.get_connection().await.unwrap();
 
         let mut merkle_tree_account = rpc
-            .get_account(merkle_tree_keypair.pubkey())
+            .get_account(batched_state_merkle_tree_pubkey)
             .await
             .unwrap()
             .unwrap();
 
-        let merkle_tree =
-            BatchedMerkleTreeAccount::state_from_bytes(merkle_tree_account.data.as_mut_slice())
-                .unwrap();
+        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &batched_state_merkle_tree_pubkey.into(),
+        )
+        .unwrap();
 
         let final_metadata = merkle_tree.get_metadata();
 
         let mut output_queue_account = rpc
-            .get_account(nullifier_queue_keypair.pubkey())
+            .get_account(nullifier_queue_pubkey)
             .await
             .unwrap()
             .unwrap();
@@ -281,8 +307,8 @@ async fn test_state_batched() {
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
                 .unwrap();
 
-        let batch_size = merkle_tree.get_metadata().queue_metadata.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_metadata.zkp_batch_size;
+        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
+        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
         let num_zkp_batches = batch_size / zkp_batch_size;
 
         let mut completed_items = 0;
@@ -307,7 +333,7 @@ async fn test_state_batched() {
             zkp_batch_size,
             num_zkp_batches,
             completed_items,
-            final_metadata.queue_metadata,
+            final_metadata.queue_batches,
             output_queue.get_metadata().batch_metadata
         );
 
@@ -318,10 +344,7 @@ async fn test_state_batched() {
         );
 
         assert_eq!(
-            merkle_tree
-                .get_metadata()
-                .queue_metadata
-                .next_full_batch_index,
+            merkle_tree.get_metadata().queue_batches.pending_batch_index,
             1
         );
 

@@ -3,19 +3,12 @@
 //! Legacy types re-imported from programs which should be removed as soon as
 //! possible.
 
-pub use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
-            PackedCompressedAccountWithMerkleContext, PackedMerkleContext, QueueIndex,
-        },
-        CompressedCpiContext,
-    },
-    InstructionDataInvokeCpi, NewAddressParams, NewAddressParamsPacked,
-    OutputCompressedAccountWithPackedContext,
+use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof,
+    cpi_context::CompressedCpiContext,
+    data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+    invoke_cpi::InstructionDataInvokeCpi,
 };
-
 /// Helper function to create data for creating a single PDA.
 pub fn create_cpi_inputs_for_new_account(
     proof: CompressedProof,

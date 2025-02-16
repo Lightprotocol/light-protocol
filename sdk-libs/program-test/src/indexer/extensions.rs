@@ -1,4 +1,4 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
+use anchor_lang::solana_program::pubkey::Pubkey;
 use async_trait::async_trait;
 use light_client::{
     indexer::{
@@ -7,10 +7,10 @@ use light_client::{
     },
     rpc::RpcConnection,
 };
-use light_sdk::{
+use light_compressed_account::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext,
 };
+use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
 use solana_sdk::signature::Keypair;
 
 #[async_trait]
@@ -69,11 +69,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         owner: &Pubkey,
     ) -> Vec<CompressedAccountWithMerkleContext>;
 
-    fn get_compressed_token_accounts_by_owner(
-        &self,
-        owner: &Pubkey,
-    ) -> Vec<TokenDataWithMerkleContext>;
-
     fn add_state_bundle(&mut self, state_bundle: StateMerkleTreeBundle);
 
     fn add_event_and_compressed_accounts(
@@ -104,7 +99,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
 
     async fn finalize_batched_address_tree_update(
         &mut self,
-        rpc: &mut R,
         merkle_tree_pubkey: Pubkey,
+        account_data: &mut [u8],
     );
 }

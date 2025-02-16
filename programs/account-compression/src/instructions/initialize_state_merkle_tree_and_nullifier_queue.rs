@@ -1,12 +1,14 @@
 use std::default;
 
 use anchor_lang::prelude::*;
-use light_utils::account::check_account_balance_is_rent_exempt;
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
 
 use crate::{
     errors::AccountCompressionErrorCode,
-    initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
-    initialize_nullifier_queue::process_initialize_nullifier_queue,
+    processor::{
+        initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
+        initialize_nullifier_queue::process_initialize_nullifier_queue,
+    },
     state::{QueueAccount, StateMerkleTreeAccount},
     utils::{
         check_signer_is_registered_or_authority::{

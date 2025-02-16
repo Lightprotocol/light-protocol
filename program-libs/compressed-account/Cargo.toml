@@ -1,0 +1,32 @@
+[package]
+name = "light-compressed-account"
+version = "0.1.0"
+description = "Compressed account struct and common utility functions used in Light Protocol."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[features]
+default = []
+anchor = ["anchor-lang"]
+solana = []
+bytemuck-des = ["bytemuck"]
+
+[dependencies]
+anyhow = { workspace = true }
+ark-ff = { workspace = true }
+ark-bn254 = { workspace = true }
+light-hasher = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }
+thiserror = { workspace = true }
+solana-program = { workspace = true }
+rand = { workspace = true }
+zerocopy = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
+bytemuck = { workspace = true, optional = true }
+anchor-lang = { workspace = true, optional = true }
+light-zero-copy = { workspace = true }
+
+[dev-dependencies]
+light-poseidon = { workspace = true }
+borsh = { workspace = true }

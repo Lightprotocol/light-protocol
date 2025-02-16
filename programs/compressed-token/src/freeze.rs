@@ -1,16 +1,15 @@
 use anchor_lang::prelude::*;
-use light_hasher::{DataHasher, Poseidon};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::{
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        },
-        CompressedCpiContext,
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
-    OutputCompressedAccountWithPackedContext,
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+    },
 };
-use light_utils::hash_to_bn254_field_size_be;
+use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
@@ -165,7 +164,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             state,
             tlv: None,
         };
-        token_data.serialize(&mut token_data_bytes).unwrap();
+        token_data.serialize(&mut token_data_bytes)?;
 
         let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
         let data: CompressedAccountData = CompressedAccountData {
@@ -199,9 +198,9 @@ pub struct CompressedTokenInstructionDataThaw {
 pub mod sdk {
 
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use light_system_program::{
-        invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext},
+    use light_compressed_account::{
+        compressed_account::{CompressedAccount, MerkleContext},
+        instruction_data::compressed_proof::CompressedProof,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -308,10 +307,8 @@ pub mod sdk {
 #[cfg(test)]
 pub mod test_freeze {
     use anchor_lang::solana_program::account_info::AccountInfo;
+    use light_compressed_account::compressed_account::PackedMerkleContext;
     use light_hasher::{DataHasher, Poseidon};
-    use light_system_program::sdk::compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedMerkleContext,
-    };
     use rand::Rng;
 
     use super::*;
@@ -374,7 +371,7 @@ pub mod test_freeze {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 1,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: None,
@@ -388,7 +385,7 @@ pub mod test_freeze {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: 2,
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: 0,
                 delegate_index: Some(2),
@@ -530,7 +527,7 @@ pub mod test_freeze {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                     leaf_index: rng.gen_range(0..1_000_000_000),
-                    queue_index: None,
+                    prove_by_index: false,
                 },
                 root_index: rng.gen_range(0..=65_535),
                 delegate_index,

@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 
 #[test]
 fn test_cyclic_bounded_vec_with_capacity() {
-    for capacity in 0..1024 {
+    for capacity in 1..1024 {
         let mut data = vec![0; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(capacity)];
         let mut cyclic_bounded_vec = ZeroCopyCyclicVecU64::<u32>::new(capacity, &mut data).unwrap();
 
@@ -38,6 +38,9 @@ fn test_cyclic_bounded_vec_is_empty() {
     assert_eq!(vec.as_mut_slice(), ref_vec.as_mut_slice());
     let array: [u32; 1000] = vec.try_into_array().unwrap();
     assert_eq!(array, <[u32; 1000]>::try_from(ref_vec).unwrap());
+
+    let res: Result<[u32; 999], _> = vec.try_into_array();
+    assert_eq!(res, Err(ZeroCopyError::ArraySize(999, 1000)));
 }
 
 #[test]
@@ -559,30 +562,6 @@ fn test_deserialize_pass() {
     assert_eq!(deserialized_vec.capacity(), 4);
     assert_eq!(deserialized_vec.len(), 0);
 }
-
-#[test]
-fn test_deserialize_multiple_pass() {
-    let mut account_data =
-        vec![0u8; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(4) * 2];
-
-    {
-        // Initialize data for multiple ZeroCopyCyclicVecs
-        let (_, account_data) = ZeroCopyCyclicVecU64::<u64>::new_at(4, &mut account_data).unwrap();
-        ZeroCopyCyclicVecU64::<u64>::new_at(4, account_data).unwrap();
-    }
-    // Deserialize multiple ZeroCopyCyclicVecs
-    let (deserialized_vecs, _) =
-        ZeroCopyCyclicVecU64::<u64>::from_bytes_at_multiple(2, &mut account_data)
-            .expect("Failed to deserialize multiple ZeroCopyCyclicVecs");
-
-    assert_eq!(deserialized_vecs.len(), 2);
-    for vec in deserialized_vecs.iter() {
-        assert_eq!(vec.capacity(), 4);
-        assert_eq!(vec.len(), 0);
-        assert_eq!(vec.to_vec(), vec![]);
-    }
-}
-
 #[test]
 fn test_init_pass() {
     let mut account_data = vec![0u8; 64];
@@ -596,27 +575,6 @@ fn test_init_pass() {
         vec.push(i as u64);
         assert_eq!(*vec.get(i).unwrap(), i as u64);
         assert!(vec.len() == i + 1);
-    }
-}
-
-#[test]
-fn test_init_multiple_pass() {
-    let mut account_data = vec![0u8; 128];
-    let (mut initialized_vecs, _) =
-        ZeroCopyCyclicVecU64::<u64>::new_at_multiple(2, 4, &mut account_data).unwrap();
-
-    assert_eq!(initialized_vecs.len(), 2);
-    assert_eq!(initialized_vecs[0].capacity(), 4);
-    assert_eq!(initialized_vecs[1].capacity(), 4);
-    assert_eq!(initialized_vecs[0].len(), 0);
-    assert_eq!(initialized_vecs[1].len(), 0);
-    for i in 0..4 {
-        for vec in initialized_vecs.iter_mut() {
-            assert!(vec.get(i).is_none());
-            vec.push(i as u64);
-            assert_eq!(*vec.get(i).unwrap(), i as u64);
-            assert!(vec.len() == i + 1);
-        }
     }
 }
 
@@ -691,7 +649,16 @@ fn test_partial_eq() {
 #[test]
 fn test_new_memory_not_zeroed() {
     let capacity = 5;
+    // Test if metadata is not zeroed
     let mut data = vec![1; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(capacity)];
+    let vec = ZeroCopyCyclicVecU64::<u64>::new(capacity, &mut data);
+    assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
+    // Test if current index is not zeroed
+    let mut data = [
+        vec![0; 8],
+        vec![1; ZeroCopyCyclicVecU64::<u64>::required_size_for_capacity(capacity)],
+    ]
+    .concat();
     let vec = ZeroCopyCyclicVecU64::<u64>::new(capacity, &mut data);
     assert!(matches!(vec, Err(ZeroCopyError::MemoryNotZeroed)));
 }
@@ -759,8 +726,40 @@ fn test_from_bytes_at_failing() {
     assert_eq!(
         result,
         Err(ZeroCopyError::InsufficientMemoryAllocated(
-            data_len - 1,
-            data_len,
+            metadata_len + data_len - 1,
+            metadata_len + data_len,
         ))
     );
+}
+
+#[test]
+fn test_to_vec() {
+    let length: u64 = 4;
+    let mut buffer = vec![0u8; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(length)];
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice, _) = ZeroCopyCyclicVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in values.iter() {
+        slice.push(*value);
+    }
+
+    let vec = slice.to_vec();
+    assert_eq!(vec, values);
+}
+
+#[test]
+fn test_to_array() {
+    let length: u64 = 4;
+    let mut buffer = vec![0u8; ZeroCopyCyclicVecU64::<u32>::required_size_for_capacity(length)];
+    let values = [1u32, 2, 3, 4];
+
+    let (mut slice, _) = ZeroCopyCyclicVecU64::<u32>::new_at(length, &mut buffer)
+        .expect("Failed to create ZeroCopyVeceMut");
+    for value in values.iter() {
+        slice.push(*value);
+    }
+
+    let array = slice.try_into_array().unwrap();
+    assert_eq!(array, values);
 }

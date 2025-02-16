@@ -22,23 +22,23 @@ light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true }
+light-compressed-account = { workspace = true }
 photon-api = { workspace = true }
 
 borsh = { workspace = true }
 tokio = { workspace = true }
 async-trait = { workspace = true }
 bb8 = { workspace = true }
-log = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
-num-traits = { workspace = true }
-reqwest = { workspace = true }
+base64 = { workspace = true }
+
+governor = { workspace = true }
+tracing = { workspace = true}
 
 [dev-dependencies]
-light-test-utils = { workspace = true, features=["devenv"]}
+light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true }
-light-system-program = { workspace = true }
 light-compressed-token = { workspace = true }
 spl-token = { workspace = true }
 rand = { workspace = true }
-light-utils = { workspace = true }

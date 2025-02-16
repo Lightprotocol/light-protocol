@@ -1,25 +1,23 @@
 use std::ops::{Deref, DerefMut};
 
 use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
+use light_compressed_account::{
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
+    instruction_data::data::{
+        NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
+    },
+};
 use light_hasher::{DataHasher, Discriminator, Poseidon};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
-use crate::{
-    account_info::LightAccountInfo,
-    account_meta::LightAccountMeta,
-    address::PackedNewAddressParams,
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, OutputCompressedAccountWithPackedContext,
-        PackedCompressedAccountWithMerkleContext,
-    },
-    error::LightSdkError,
-};
-
+use crate::{account_info::LightAccountInfo, account_meta::LightAccountMeta, error::LightSdkError};
 pub trait LightAccounts<'a>: Sized {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
 }
 
-// TODO(vadorovsky): Implment `LightAccountLoader`.
+// TODO(vadorovsky): Implement `LightAccountLoader`.
 
 /// A wrapper which abstracts away the UTXO model.
 pub struct LightAccount<'info, T>

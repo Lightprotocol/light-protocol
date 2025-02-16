@@ -3,7 +3,9 @@ use std::{any::Any, sync::Arc};
 use async_trait::async_trait;
 use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
-    indexer::{Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle},
+    indexer::{
+        photon_indexer::PhotonIndexer, Indexer, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+    },
     rpc::RpcConnection,
 };
 use light_hasher::Poseidon;
@@ -17,7 +19,6 @@ use tracing::info;
 
 use crate::{
     errors::ForesterError,
-    photon_indexer::PhotonIndexer,
     rollover::{perform_address_merkle_tree_rollover, perform_state_merkle_tree_rollover_forester},
     ForesterConfig,
 };
@@ -116,11 +117,15 @@ impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerTy
     async fn finalize_batch_address_tree_update(
         rpc: &mut R,
         indexer: &mut impl Indexer<R>,
-        new_merkle_tree_pubkey: Pubkey,
+        merkle_tree_pubkey: Pubkey,
     ) {
         if let Some(test_indexer) = (indexer as &mut dyn Any).downcast_mut::<TestIndexer<R>>() {
+            let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
             test_indexer
-                .finalize_batched_address_tree_update(rpc, new_merkle_tree_pubkey)
+                .finalize_batched_address_tree_update(
+                    merkle_tree_pubkey,
+                    account.data.as_mut_slice(),
+                )
                 .await;
         }
     }

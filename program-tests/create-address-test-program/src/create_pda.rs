@@ -1,16 +1,18 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use light_hasher::{errors::HasherError, DataHasher, Poseidon};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    program::LightSystemProgram,
-    sdk::{
-        address::derive_address,
-        compressed_account::{CompressedAccount, CompressedAccountData},
-        CompressedCpiContext,
+use light_compressed_account::{
+    address::derive_address,
+    compressed_account::{CompressedAccount, CompressedAccountData},
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+        invoke_cpi::InstructionDataInvokeCpi,
     },
-    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
+use light_hasher::{errors::HasherError, DataHasher, Poseidon};
+use light_system_program::program::LightSystemProgram;
 
 pub fn process_create_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
@@ -132,10 +134,9 @@ pub struct RegisteredUser {
 
 impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let truncated_user_pubkey =
-            light_utils::hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
-                .unwrap()
-                .0;
+        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
+            .unwrap()
+            .0;
 
         H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }

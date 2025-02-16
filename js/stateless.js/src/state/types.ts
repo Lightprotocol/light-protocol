@@ -108,6 +108,28 @@ export interface InstructionDataInvoke {
     isCompress: boolean; // bool
 }
 
+export interface InstructionDataInvokeCpi {
+    proof: CompressedProof | null; // Option<CompressedProof>
+    inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+    outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
+    relayFee: BN | null; // Option<u64>
+    newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
+    compressOrDecompressLamports: BN | null; // Option<u64>
+    isCompress: boolean; // bool
+    compressedCpiContext: CompressedCpiContext | null;
+}
+
+export interface CompressedCpiContext {
+    /// Is set by the program that is invoking the CPI to signal that is should
+    /// set the cpi context.
+    set_context: boolean;
+    /// Is set to wipe the cpi context since someone could have set it before
+    /// with unrelated data.
+    first_set_context: boolean;
+    /// Index of cpi context account in remaining accounts.
+    cpi_context_account_index: number;
+}
+
 export interface CompressedProof {
     a: number[]; // [u8; 32]
     b: number[]; // [u8; 64]

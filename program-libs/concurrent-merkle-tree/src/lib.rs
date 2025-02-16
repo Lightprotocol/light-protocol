@@ -18,6 +18,7 @@ pub mod copy;
 pub mod errors;
 pub mod event;
 pub mod hash;
+pub mod offset;
 pub mod zero_copy;
 
 use crate::{

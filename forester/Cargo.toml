@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anchor-lang = { workspace = true }
-clap = {version = "4.5.23", features = ["derive", "env"]}
+clap = { version = "4.5.27", features = ["derive", "env"] }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
@@ -16,36 +16,38 @@ light-system-program = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-registry = { workspace = true}
+light-registry = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-sdk = { workspace = true }
-light-program-test = { workspace = true}
+light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
 url = "2.2"
 bb8 = { workspace = true }
+log = { workspace = true }
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = { workspace = true, features = ["json", "rustls-tls", "blocking"]  }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "blocking"] }
 futures = "0.3.31"
 thiserror = { workspace = true }
 borsh = { workspace = true }
 bs58 = "0.5.1"
 env_logger = { workspace = true }
-async-trait = { workspace = true}
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
-tracing-appender = "0.2.3"
+async-trait = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }
+anyhow = { workspace = true }
+
 prometheus = "0.13"
 lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
-anyhow = { workspace = true }
 itertools = "0.14.0"
 
 [dev-dependencies]
@@ -54,3 +56,4 @@ light-prover-client = { workspace = true }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 dotenvy = "0.15"
+light-compressed-account = { workspace = true }

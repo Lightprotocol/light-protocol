@@ -1,10 +1,12 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_utils::account::check_account_balance_is_rent_exempt;
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy,
-    initialize_address_merkle_tree::process_initialize_address_merkle_tree,
-    initialize_address_queue::process_initialize_address_queue,
+    processor::{
+        initialize_address_merkle_tree::process_initialize_address_merkle_tree,
+        initialize_address_queue::process_initialize_address_queue,
+    },
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
         check_signer_is_registered_or_authority::{
@@ -18,7 +20,7 @@ use crate::{
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     #[account(mut)]
-    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    /// Signer used to receive rollover accounts rent exemption reimbursement.
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
@@ -115,8 +117,20 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             &ctx.accounts.new_address_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
             merkle_tree_metadata.access_metadata.owner.into(),
-            Some(merkle_tree_metadata.access_metadata.program_owner.into()),
-            Some(merkle_tree_metadata.access_metadata.forester.into()),
+            Some(
+                merkle_tree_metadata
+                    .access_metadata
+                    .program_owner
+                    .to_bytes()
+                    .into(),
+            ),
+            Some(
+                merkle_tree_metadata
+                    .access_metadata
+                    .forester
+                    .to_bytes()
+                    .into(),
+            ),
             merkle_tree.height as u32,
             merkle_tree.changelog.capacity() as u64,
             merkle_tree.roots.capacity() as u64,
@@ -139,7 +153,13 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             &ctx.accounts.new_queue,
             queue_metadata.rollover_metadata.index,
             queue_metadata.access_metadata.owner.into(),
-            Some(queue_metadata.access_metadata.program_owner.into()),
+            Some(
+                queue_metadata
+                    .access_metadata
+                    .program_owner
+                    .to_bytes()
+                    .into(),
+            ),
             Some(queue_metadata.access_metadata.forester.into()),
             ctx.accounts.new_address_merkle_tree.key(),
             queue.hash_set.get_capacity() as u16,

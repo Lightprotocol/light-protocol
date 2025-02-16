@@ -56,7 +56,7 @@ pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     )?;
     // 3. Nullify leaves from the input queue to the state Merkle tree.
     let event = merkle_tree
-        .update_tree_from_input_queue(instruction_data, ctx.accounts.merkle_tree.key().to_bytes())
+        .update_tree_from_input_queue(instruction_data)
         .map_err(ProgramError::from)?;
     // 4. Emit indexer event.
     emit_indexer_event(event.try_to_vec()?, &ctx.accounts.log_wrapper)

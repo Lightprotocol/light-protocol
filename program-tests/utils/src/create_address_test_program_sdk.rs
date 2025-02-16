@@ -6,16 +6,13 @@ use light_client::{
     indexer::Indexer,
     rpc::{RpcConnection, RpcError},
 };
+use light_compressed_account::{
+    address::{derive_address, pack_new_address_params},
+    instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
+};
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{indexer::TestIndexerExtensions, test_env::EnvAccounts};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    sdk::address::{derive_address, pack_new_address_params},
-    NewAddressParams,
-};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
-
-use crate::conversions::sdk_to_program_compressed_proof;
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaInstructionInputs<'a> {
@@ -42,7 +39,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 
     let instruction_data = create_address_test_program::instruction::CreateCompressedPda {
         data: input_params.data,
-        proof: Some(input_params.proof.clone()),
+        proof: Some(*input_params.proof),
         new_address_parameters: new_address_params[0],
         bump,
     };
@@ -123,7 +120,8 @@ pub async fn perform_create_pda_with_event<
             Some(vec![address_merkle_tree_pubkey]),
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let new_address_params = NewAddressParams {
         seed,
@@ -135,7 +133,7 @@ pub async fn perform_create_pda_with_event<
         data: *data,
         signer: &payer.pubkey(),
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &sdk_to_program_compressed_proof(rpc_result.proof),
+        proof: &rpc_result.proof,
         new_address_params,
 
         registered_program_pda: &env.registered_program_pda,
@@ -147,7 +145,12 @@ pub async fn perform_create_pda_with_event<
         .queue_elements
         .len();
     let event = rpc
-        .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
+        .create_and_send_transaction_with_public_event(
+            &[instruction],
+            &payer.pubkey(),
+            &[payer],
+            None,
+        )
         .await?
         .unwrap();
     let slot: u64 = rpc.get_slot().await.unwrap();

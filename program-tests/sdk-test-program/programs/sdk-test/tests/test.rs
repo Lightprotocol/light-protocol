@@ -5,6 +5,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts},
     rpc::merkle_tree::MerkleTreeExt,
 };
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
@@ -14,7 +15,6 @@ use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     account_meta::LightAccountMeta,
     address::derive_address,
-    compressed_account::CompressedAccountWithMerkleContext,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
     utils::get_cpi_authority_pda,
@@ -170,7 +170,8 @@ where
             Some(vec![env.address_merkle_tree_pubkey]),
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
@@ -215,7 +216,12 @@ where
     };
 
     let event = rpc
-        .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
+        .create_and_send_transaction_with_public_event(
+            &[instruction],
+            &payer.pubkey(),
+            &[payer],
+            None,
+        )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
     test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
@@ -248,7 +254,8 @@ where
             None,
             rpc,
         )
-        .await;
+        .await
+        .unwrap();
 
     let compressed_account = LightAccountMeta::new_mut(
         compressed_account,
@@ -290,7 +297,12 @@ where
     };
 
     let event = rpc
-        .create_and_send_transaction_with_event(&[instruction], &payer.pubkey(), &[payer], None)
+        .create_and_send_transaction_with_public_event(
+            &[instruction],
+            &payer.pubkey(),
+            &[payer],
+            None,
+        )
         .await?;
     let slot = rpc.get_slot().await.unwrap();
     test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);

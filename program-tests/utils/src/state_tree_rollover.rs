@@ -3,17 +3,20 @@
 use std::mem;
 
 use account_compression::{
-    self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount, NullifierQueueConfig,
-    StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
+    self, state::QueueAccount, NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig,
+    ID,
 };
-use anchor_lang::{Discriminator, InstructionData, Lamports, ToAccountMetas};
+use anchor_lang::{
+    prelude::AccountLoader, Discriminator, InstructionData, Lamports, ToAccountMetas,
+};
 use forester_utils::{create_account_instruction, get_hash_set};
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::{errors::RpcError, RpcConnection};
 use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
-use light_hasher::{Discriminator as LightDiscriminator, Poseidon};
+use light_hasher::Poseidon;
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,

@@ -1,5 +1,5 @@
 use account_compression::{
-    instruction::{InsertAddresses, UpdateAddressMerkleTree},
+    instruction::UpdateAddressMerkleTree,
     state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS},
     AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,
@@ -10,6 +10,7 @@ use light_client::{
     indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
     rpc::{errors::RpcError, RpcConnection},
 };
+use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
@@ -22,7 +23,6 @@ use light_registry::{
     utils::get_forester_epoch_pda_from_authority,
     ForesterEpochPda, RegisterForester,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
 use log::debug;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},

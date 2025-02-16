@@ -10,6 +10,7 @@ import { compress, decompress, transfer } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { createRpc } from '../../src';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
@@ -82,6 +83,7 @@ describe('test-rpc', () => {
     });
 
     it('getCompressedAccountProof for refPayer', async () => {
+        const slot = await rpc.getSlot();
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );

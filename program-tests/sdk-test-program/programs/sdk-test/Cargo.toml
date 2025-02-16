@@ -3,7 +3,7 @@ name = "sdk-test"
 version = "0.7.0"
 description = "Test program for Light SDK and Light Macros"
 edition = "2021"
-rust-version = "1.75.0" 
+rust-version = "1.75.0"
 license = "Apache-2.0"
 
 [lib]
@@ -21,7 +21,7 @@ bench-sbf = []
 idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
-anchor-lang = { workspace=true}
+anchor-lang = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
 light-sdk = { workspace = true }
 
@@ -29,8 +29,9 @@ light-sdk = { workspace = true }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
-light-client = { workspace = true , features = ["devenv"]}
+light-client = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-prover-client = { workspace = true }
 tokio = { workspace = true }
+light-compressed-account = { workspace = true }

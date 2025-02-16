@@ -1,5 +1,8 @@
+use light_account_checks::checks::check_account_balance_is_rent_exempt;
+use light_compressed_account::pubkey::Pubkey;
+#[cfg(target_os = "solana")]
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_merkle_tree_metadata::utils::if_equals_none;
-use light_utils::{account::check_account_balance_is_rent_exempt, pubkey::Pubkey};
 use solana_program::account_info::AccountInfo;
 
 use crate::{
@@ -10,13 +13,16 @@ use crate::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
-
 pub fn rollover_batched_address_tree_from_account_info<'a>(
     old_account: &AccountInfo<'a>,
     new_account: &AccountInfo<'a>,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
     let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
+    #[cfg(target_os = "solana")]
+    if old_account.lamports().checked_sub(new_mt_rent).unwrap() == 0 {
+        return Err(MerkleTreeMetadataError::NotReadyForRollover.into());
+    }
     let mut old_merkle_tree = BatchedMerkleTreeAccount::address_from_account_info(old_account)?;
     let mut new_mt_data = new_account.try_borrow_mut_data()?;
     rollover_batched_address_tree(
@@ -56,6 +62,7 @@ pub fn rollover_batched_address_tree<'a>(
     batched_tree_is_ready_for_rollover(old_merkle_tree, &network_fee)?;
 
     // 2. Rollover the old merkle tree.
+    // - Address don't have an associated queue account (Pubkey::default()).
     old_merkle_tree
         .metadata
         .rollover(Pubkey::default(), new_mt_pubkey)?;
@@ -63,7 +70,7 @@ pub fn rollover_batched_address_tree<'a>(
     // 3. Initialize the new address merkle tree.
     let params = create_batched_address_tree_init_params(old_merkle_tree, network_fee);
     let owner = old_merkle_tree.metadata.access_metadata.owner;
-    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent)
+    init_batched_address_merkle_tree_account(owner, params, new_mt_data, new_mt_rent, new_mt_pubkey)
 }
 
 fn create_batched_address_tree_init_params(
@@ -81,10 +88,10 @@ fn create_batched_address_tree_init_params(
             Pubkey::default(),
         ),
         height: old_merkle_tree.height,
-        input_queue_batch_size: old_merkle_tree.queue_metadata.batch_size,
-        input_queue_zkp_batch_size: old_merkle_tree.queue_metadata.zkp_batch_size,
-        bloom_filter_capacity: old_merkle_tree.queue_metadata.bloom_filter_capacity,
-        bloom_filter_num_iters: old_merkle_tree.queue_metadata.batches[0].num_iters,
+        input_queue_batch_size: old_merkle_tree.queue_batches.batch_size,
+        input_queue_zkp_batch_size: old_merkle_tree.queue_batches.zkp_batch_size,
+        bloom_filter_capacity: old_merkle_tree.queue_batches.bloom_filter_capacity,
+        bloom_filter_num_iters: old_merkle_tree.queue_batches.batches[0].num_iters,
         root_history_capacity: old_merkle_tree.root_history_capacity,
         network_fee,
         rollover_threshold: if_equals_none(
@@ -101,11 +108,11 @@ fn create_batched_address_tree_init_params(
     }
 }
 
-// TODO: assert that remainder of old_mt_account_data is not changed
 #[cfg(not(target_os = "solana"))]
 pub fn assert_address_mt_roll_over(
     mut old_mt_account_data: Vec<u8>,
     mut old_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    old_mt_pubkey: Pubkey,
     mut new_mt_account_data: Vec<u8>,
     new_ref_mt_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     new_mt_pubkey: Pubkey,
@@ -116,10 +123,12 @@ pub fn assert_address_mt_roll_over(
         .unwrap();
 
     let old_mt_account =
-        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data).unwrap();
+        BatchedMerkleTreeAccount::address_from_bytes(&mut old_mt_account_data, &old_mt_pubkey)
+            .unwrap();
     assert_eq!(*old_mt_account.get_metadata(), old_ref_mt_account);
-    crate::initialize_state_tree::assert_address_mt_zero_copy_inited(
+    crate::initialize_state_tree::assert_address_mt_zero_copy_initialized(
         &mut new_mt_account_data,
         new_ref_mt_account,
+        &new_mt_pubkey,
     );
 }

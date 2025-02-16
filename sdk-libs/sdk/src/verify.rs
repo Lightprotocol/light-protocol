@@ -1,15 +1,14 @@
 use anchor_lang::{prelude::*, Bumps};
+use light_compressed_account::instruction_data::{
+    cpi_context::CompressedCpiContext, invoke_cpi::InstructionDataInvokeCpi,
+};
 use light_hasher::{DataHasher, Discriminator};
 use solana_program::{instruction::Instruction, program::invoke_signed};
 
 use crate::{
     account::LightAccount,
-    address::PackedNewAddressParams,
-    compressed_account::{
-        OutputCompressedAccountWithPackedContext, PackedCompressedAccountWithMerkleContext,
-    },
     error::LightSdkError,
-    proof::{CompressedProof, ProofRpcResult},
+    proof::ProofRpcResult,
     traits::{
         InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
         SignerAccounts,
@@ -19,31 +18,6 @@ use crate::{
 
 pub fn find_cpi_signer(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), program_id).0
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct CompressedCpiContext {
-    /// Is set by the program that is invoking the CPI to signal that is should
-    /// set the cpi context.
-    pub set_context: bool,
-    /// Is set to clear the cpi context since someone could have set it before
-    /// with unrelated data.
-    pub first_set_context: bool,
-    /// Index of cpi context account in remaining accounts.
-    pub cpi_context_account_index: u8,
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
-pub struct InstructionDataInvokeCpi {
-    pub proof: Option<CompressedProof>,
-    pub new_address_params: Vec<PackedNewAddressParams>,
-    pub input_compressed_accounts_with_merkle_context:
-        Vec<PackedCompressedAccountWithMerkleContext>,
-    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
-    pub relay_fee: Option<u64>,
-    pub compress_or_decompress_lamports: Option<u64>,
-    pub is_compress: bool,
-    pub cpi_context: Option<CompressedCpiContext>,
 }
 
 #[inline(always)]

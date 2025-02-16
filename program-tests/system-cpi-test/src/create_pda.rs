@@ -2,24 +2,26 @@ use account_compression::{
     program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, Discriminator};
+use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_hasher::{
-    errors::HasherError, DataHasher, Discriminator as LightDiscriminator, Poseidon,
-};
-use light_system_program::{
-    invoke::processor::CompressedProof,
-    program::LightSystemProgram,
-    sdk::{
-        address::{derive_address, derive_address_legacy},
-        compressed_account::{
-            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-            PackedReadOnlyCompressedAccount, QueueIndex,
-        },
-        CompressedCpiContext,
+use light_compressed_account::{
+    address::{derive_address, derive_address_legacy},
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+        PackedReadOnlyCompressedAccount,
     },
-    InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly, NewAddressParamsPacked,
-    OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::{
+            NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+        },
+        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+    },
 };
+use light_hasher::{errors::HasherError, DataHasher, Poseidon};
+use light_system_program::program::LightSystemProgram;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
@@ -353,10 +355,10 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                         read_only_account[0].merkle_context.merkle_tree_pubkey_index;
                 }
                 CreatePdaMode::AccountNotInValueVecMarkedProofByIndex => {
-                    if read_only_account[0].merkle_context.queue_index.is_some() {
+                    if read_only_account[0].merkle_context.prove_by_index {
                         panic!("Queue index shouldn't be set for mode AccountNotInValueVecMarkedProofByIndex");
                     }
-                    read_only_account[0].merkle_context.queue_index = Some(QueueIndex::default());
+                    read_only_account[0].merkle_context.prove_by_index = true;
                 }
                 CreatePdaMode::InvalidLeafIndex => {
                     read_only_account[0].merkle_context.leaf_index += 1;
@@ -520,10 +522,9 @@ pub struct RegisteredUser {
 
 impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let truncated_user_pubkey =
-            light_utils::hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
-                .unwrap()
-                .0;
+        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
+            .unwrap()
+            .0;
 
         H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }

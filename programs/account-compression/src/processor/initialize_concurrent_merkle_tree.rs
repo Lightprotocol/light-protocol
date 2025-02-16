@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
+    fee::compute_rollover_fee,
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
 };
-use light_utils::fee::compute_rollover_fee;
 
 use crate::{state::StateMerkleTreeAccount, state_merkle_tree_from_bytes_zero_copy_init};
 

@@ -1,7 +1,7 @@
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
-use light_utils::hashchain::create_hash_chain_from_array;
+use light_compressed_account::hash_chain::create_hash_chain_from_array;
 use num_bigint::BigInt;
 use serde::Serialize;
 

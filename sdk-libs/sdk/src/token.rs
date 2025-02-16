@@ -1,7 +1,6 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use solana_program::pubkey::Pubkey;
-
-use crate::compressed_account::CompressedAccountWithMerkleContext;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 #[repr(u8)]

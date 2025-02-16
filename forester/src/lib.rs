@@ -10,7 +10,6 @@ pub mod helius_priority_fee_types;
 mod indexer_type;
 pub mod metrics;
 pub mod pagerduty;
-pub mod photon_indexer;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
@@ -29,6 +28,7 @@ pub use config::{ForesterConfig, ForesterEpochInfo};
 use forester_utils::forester_epoch::{TreeAccounts, TreeType};
 use light_client::{
     indexer::Indexer,
+    rate_limiter::RateLimiter,
     rpc::{RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -84,6 +84,8 @@ pub async fn run_queue_info(
 
 pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     config: Arc<ForesterConfig>,
+    rpc_rate_limiter: Option<RateLimiter>,
+    send_tx_rate_limiter: Option<RateLimiter>,
     indexer: Arc<Mutex<I>>,
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
@@ -92,6 +94,8 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),
         config.general_config.rpc_pool_size as u32,
+        rpc_rate_limiter.clone(),
+        send_tx_rate_limiter.clone(),
     )
     .await?;
 

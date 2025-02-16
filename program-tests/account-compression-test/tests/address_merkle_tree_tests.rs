@@ -11,8 +11,10 @@ use account_compression::{
 use anchor_lang::error::ErrorCode;
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
+use light_account_checks::error::AccountError;
 use light_bounded_vec::BoundedVecError;
 use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
+use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
@@ -31,7 +33,6 @@ use light_test_utils::{
     test_forester::{empty_address_queue_test, update_merkle_tree},
     FeeConfig, RpcConnection, RpcError,
 };
-use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::ToBigUint;
 use rand::thread_rng;
 use solana_program_test::ProgramTest;
@@ -198,7 +199,7 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
     );
 
     let instruction =
-        account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+        light_program_test::acp_sdk::create_initialize_address_merkle_tree_and_queue_instruction(
             0,
             payer.pubkey(),
             None,
@@ -225,7 +226,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -267,7 +268,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
                 queue_size,
             )
             .await;
-            assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
+            assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap()
         }
     }
     // Invalid MT size + valid queue size.
@@ -285,7 +286,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             valid_queue_size,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
+        assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap()
     }
     // Valid MT size + invalid queue size.
     for queue_size in (8 + mem::size_of::<QueueAccount>()..=valid_queue_size).step_by(50_000) {
@@ -300,7 +301,7 @@ async fn test_address_queue_and_tree_invalid_sizes() {
             queue_size,
         )
         .await;
-        assert_rpc_error(result, 2, UtilsError::InvalidAccountSize.into()).unwrap()
+        assert_rpc_error(result, 2, AccountError::InvalidAccountSize.into()).unwrap()
     }
 }
 
@@ -319,7 +320,7 @@ async fn test_address_queue_and_tree_invalid_config() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();
@@ -1417,7 +1418,7 @@ pub async fn test_setup_with_address_merkle_tree(
     program_test.add_program("account_compression", ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection { context };
+    let mut context = ProgramTestRpcConnection::new(context);
     let payer = context.get_payer().insecure_clone();
 
     let address_merkle_tree_keypair = Keypair::new();

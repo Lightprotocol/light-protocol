@@ -1,19 +1,24 @@
-use account_compression::initialize_address_merkle_tree::Pubkey;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig},
     metrics::register_metrics,
-    photon_indexer::PhotonIndexer,
     telemetry::setup_telemetry,
     ForesterConfig,
 };
 use light_client::{
-    indexer::{Indexer, IndexerError, NewAddressProofWithContext},
+    indexer::{
+        photon_indexer::PhotonIndexer, Base58Conversions, Indexer, IndexerError,
+        NewAddressProofWithContext,
+    },
     rpc::RpcConnection,
 };
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::{
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+};
 use tracing::debug;
 
 #[allow(dead_code)]
@@ -78,6 +83,9 @@ pub fn forester_config() -> ForesterConfig {
             photon_api_key: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
+            rpc_rate_limit: None,
+            photon_rate_limit: None,
+            send_tx_rate_limit: None,
         },
         retry_config: Default::default(),
         queue_config: Default::default(),
@@ -190,13 +198,13 @@ pub async fn assert_accounts_by_owner<
         .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    photon_accs.sort();
+    photon_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     let mut test_accs = indexer
         .get_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    test_accs.sort();
+    test_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
@@ -223,14 +231,14 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let accs: Result<Vec<String>, IndexerError> =
+    let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> =
         indexer.get_compressed_accounts_by_owner(user_pubkey).await;
-    for account_hash in accs.unwrap() {
+    for account in accs.unwrap() {
         let photon_result = photon_indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
             .await;
         let test_indexer_result = indexer
-            .get_multiple_compressed_account_proofs(vec![account_hash.clone()])
+            .get_multiple_compressed_account_proofs(vec![account.hash().unwrap().to_base58()])
             .await;
 
         if photon_result.is_err() {
@@ -243,10 +251,6 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer<
 
         let photon_result = photon_result.unwrap();
         let test_indexer_result = test_indexer_result.unwrap();
-        debug!(
-            "assert proofs for account: {} photon result: {:?} test indexer result: {:?}",
-            account_hash, photon_result, test_indexer_result
-        );
 
         assert_eq!(photon_result.len(), test_indexer_result.len());
         for (photon_proof, test_indexer_proof) in

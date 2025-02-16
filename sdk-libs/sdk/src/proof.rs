@@ -1,4 +1,5 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 use solana_program::pubkey::Pubkey;
@@ -28,24 +29,7 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
-pub struct CompressedProof {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
-
-impl Default for CompressedProof {
-    fn default() -> Self {
-        Self {
-            a: [0; 32],
-            b: [0; 64],
-            c: [0; 32],
-        }
-    }
-}
-
-#[derive(Debug, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<Option<u16>>,

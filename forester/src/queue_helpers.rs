@@ -1,8 +1,9 @@
 use std::mem;
 
-use account_compression::{initialize_address_merkle_tree::Pubkey, QueueAccount};
+use account_compression::QueueAccount;
 use light_client::rpc::RpcConnection;
 use light_hash_set::HashSet;
+use solana_sdk::pubkey::Pubkey;
 use tracing::debug;
 
 use crate::Result;
@@ -39,7 +40,6 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
             index,
         })
         .collect();
-    debug!("Queue data fetched: {:?}", filtered_queue);
     Ok(filtered_queue)
 }
 
