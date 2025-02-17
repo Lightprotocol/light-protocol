@@ -14,7 +14,7 @@ const rolls = (fmt, env) => ({
         entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
     },
-    external: ['@solana/web3.js', 'winston'],
+    external: ['@solana/web3.js'],
     plugins: [
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
