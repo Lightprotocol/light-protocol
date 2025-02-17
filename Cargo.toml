@@ -152,7 +152,7 @@ bytemuck = { version = "1.19.0" }
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
-zerocopy = { version = "0.8.14" }
+zerocopy = { version = "0.8.18" }
 base64 = "0.13"
 
 # HTTP client
