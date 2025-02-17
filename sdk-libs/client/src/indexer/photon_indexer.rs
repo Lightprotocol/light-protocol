@@ -1,21 +1,5 @@
 use std::fmt::Debug;
 
-use async_trait::async_trait;
-use light_compressed_account::compressed_account::{
-    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
-};
-use light_sdk::{proof::ProofRpcResult, token::TokenDataWithMerkleContext};
-use photon_api::{
-    apis::configuration::{ApiKey, Configuration},
-    models::{
-        AccountV1, CompressedProofWithContext, GetCompressedAccountsByOwnerPostRequestParams,
-        TokenBalanceList,
-    },
-};
-use solana_program::pubkey::Pubkey;
-use solana_sdk::bs58;
-use tracing::{info, debug, error};
-
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
@@ -25,6 +9,22 @@ use crate::{
     rate_limiter::{RateLimiter, UseRateLimiter},
     rpc::RpcConnection,
 };
+use async_trait::async_trait;
+use light_compressed_account::compressed_account::{
+    CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
+};
+use light_sdk::{proof::ProofRpcResult, token::TokenDataWithMerkleContext};
+use photon_api::models::MerkleProofWithContext;
+use photon_api::{
+    apis::configuration::{ApiKey, Configuration},
+    models::{
+        AccountV1, CompressedProofWithContext, GetCompressedAccountsByOwnerPostRequestParams,
+        TokenBalanceList,
+    },
+};
+use solana_program::pubkey::Pubkey;
+use solana_sdk::bs58;
+use tracing::{debug, error, info};
 
 pub struct PhotonIndexer<R: RpcConnection> {
     configuration: Configuration,
@@ -103,7 +103,9 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         }
     }
 
-    fn convert_account_data(acc: &AccountV1) -> Result<Option<CompressedAccountData>, IndexerError> {
+    fn convert_account_data(
+        acc: &AccountV1,
+    ) -> Result<Option<CompressedAccountData>, IndexerError> {
         match &acc.data {
             Some(data) => {
                 let data_hash = Hash::from_base58(&data.data_hash)
@@ -118,7 +120,7 @@ impl<R: RpcConnection> PhotonIndexer<R> {
             }
             None => Ok(None),
         }
-        }
+    }
 
     fn convert_to_compressed_account(
         acc: &AccountV1,
@@ -192,7 +194,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 &self.configuration,
                 request,
             )
-                .await;
+            .await;
 
             println!("get_queue_elements result: {:?}", result);
 
@@ -211,10 +213,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         })
                     }
                 },
-                Err(e) =>  Err(IndexerError::PhotonError {
+                Err(e) => Err(IndexerError::PhotonError {
                     context: "get_queue_elements".to_string(),
                     message: e.to_string(),
-                })
+                }),
             }
         })
         .await
@@ -255,7 +257,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 Err(e) => Err(IndexerError::PhotonError {
                     context: "get_subtrees".to_string(),
                     message: e.to_string(),
-                })
+                }),
             }
         })
         .await
@@ -316,13 +318,13 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 .value;
 
             photon_proofs
-                                .iter()
-                                .map(|x| {
+                .iter()
+                .map(|x| {
                     let mut proof_vec = x.proof.clone();
                     proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
 
                     let proof = proof_vec
-                                        .iter()
+                        .iter()
                         .map(|x| Hash::from_base58(x))
                         .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
                         .map_err(|e| IndexerError::Base58DecodeError {
@@ -331,12 +333,13 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         })?;
 
                     Ok(MerkleProof {
-                                        hash: x.hash.clone(),
-                                        leaf_index: x.leaf_index,
-                                        merkle_tree: x.merkle_tree.clone(),
-                                        proof,
-                                        root_seq: x.root_seq,
-                                })
+                        hash: x.hash.clone(),
+                        leaf_index: x.leaf_index,
+                        merkle_tree: x.merkle_tree.clone(),
+                        proof,
+                        root_seq: x.root_seq,
+                        root: [0u8; 32],
+                    })
                 })
                 .collect()
         })
@@ -384,13 +387,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 };
 
                 // TODO: do not use tree as a queue?
-                let nullifier_queue_pubkey = Pubkey::from(Hash::from_base58(&acc.queue.unwrap_or(acc.tree.clone())).unwrap());
+                let nullifier_queue_pubkey = Pubkey::from(
+                    Hash::from_base58(&acc.queue.unwrap_or(acc.tree.clone())).unwrap(),
+                );
 
                 let merkle_context = MerkleContext {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
                     nullifier_queue_pubkey,
                     leaf_index: acc.leaf_index,
-                    prove_by_index: acc.in_queue
+                    prove_by_index: acc.in_queue,
                 };
 
                 let account = CompressedAccountWithMerkleContext {
@@ -599,10 +604,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let response =
                 Self::extract_result("get_compression_signatures_for_account", result.result)?;
             Ok(response
-                    .value
-                    .items
-                    .iter()
-                    .map(|x| x.signature.clone())
+                .value
+                .items
+                .iter()
+                .map(|x| x.signature.clone())
                 .collect())
         })
         .await
@@ -676,15 +681,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         message: e.to_string(),
                     })?;
 
-                        let mut proof_vec: Vec<[u8; 32]> = photon_proof
-                            .proof
-                            .iter()
-                            .map(|x: &String| Hash::from_base58(x))
-                            .collect::<Result<Vec<[u8; 32]>, IndexerError>>()?;
+                let mut proof_vec: Vec<[u8; 32]> = photon_proof
+                    .proof
+                    .iter()
+                    .map(|x: &String| Hash::from_base58(x))
+                    .collect::<Result<Vec<[u8; 32]>, IndexerError>>()?;
 
-                        proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
-                        let mut proof_arr = [[0u8; 32]; 16];
-                        proof_arr.copy_from_slice(&proof_vec);
+                proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                let mut proof_arr = [[0u8; 32]; 16];
+                proof_arr.copy_from_slice(&proof_vec);
 
                 let root = Hash::from_base58(&photon_proof.root).map_err(|e| {
                     IndexerError::Base58DecodeError {
@@ -794,12 +799,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     .iter()
                                     .map(|x| Hash::from_base58(x).unwrap())
                                     .collect();
+                                let root = Hash::from_base58(x.root.as_str()).unwrap();
+                                println!("get_proofs_by_indices: root: {:?}", root);
                                 MerkleProof {
                                     hash: x.hash.clone(),
                                     leaf_index: x.leaf_index,
                                     merkle_tree: x.merkle_tree.clone(),
                                     proof,
                                     root_seq: x.root_seq,
+                                    root,
                                 }
                             })
                             .collect();
@@ -816,7 +824,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 Err(e) => Err(IndexerError::PhotonError {
                     context: "get_proofs_by_indices".to_string(),
                     message: e.to_string(),
-                })
+                }),
             }
         })
         .await

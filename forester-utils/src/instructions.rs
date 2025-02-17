@@ -225,6 +225,11 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             &merkle_tree_pubkey.into(),
         )
         .unwrap();
+
+        for (index, root) in merkle_tree.root_history.iter().enumerate() {
+            println!("root[{}]: {:?}", index, root);
+        }
+
         (
             merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
@@ -292,10 +297,26 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         let indices = (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
 
-        let proofs = indexer
+        let mut proofs = indexer
             .get_proofs_by_indices(merkle_tree_pubkey, &indices)
             .await
             .unwrap();
+        let mut indexer_root = proofs.first().unwrap().root;
+
+        let mut iter = 0;
+
+        while indexer_root != current_root {
+            println!("Indexer root: {:?}, Current root: {:?}, Iteration: {:?}", indexer_root, current_root, iter);
+            proofs = indexer
+                .get_proofs_by_indices(merkle_tree_pubkey, &indices)
+                .await
+                .unwrap();
+            indexer_root = proofs.first().unwrap().root;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            iter += 1;
+        }
+
+
         proofs.iter().for_each(|proof| {
             old_leaves.push(light_client::indexer::Hash::from_base58(&proof.hash.clone()).unwrap());
             merkle_proofs.push(proof.proof.clone());
@@ -304,7 +325,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (old_leaves, merkle_proofs)
     };
 
-    info!("Old leaves: {:?}", old_leaves);
+    println!("Old leaves: {:?}", old_leaves);
 
     let (proof, new_root) = {
         let circuit_inputs =
@@ -380,6 +401,9 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
+        for (idx, root) in merkle_tree.root_history.iter().enumerate() {
+            println!("root[{}]: {:?}", idx, root);
+        }
         let current_batch_index = merkle_tree.queue_batches.get_current_batch_index();
         let mut start_offset = merkle_tree.queue_batches.next_index / batch_size;
         if current_batch_index == batch_idx {
@@ -393,7 +417,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (zkp_size, root, hash_chain, start_offset)
     };
 
-
+    println!("start_offset: {:?}, zkp_batch_size: {:?}, hash_chain: {:?}, old_root: {:?}", start_offset, zkp_batch_size, leaves_hash_chain, old_root);
     let leaf_indices_tx_hashes = indexer
         .get_leaf_indices_tx_hashes(merkle_tree_pubkey, start_offset, start_offset + zkp_batch_size)
         .await
@@ -406,19 +430,30 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let mut merkle_proofs = Vec::new();
     let mut nullifiers = Vec::new();
 
-    let proofs = indexer
-        .get_proofs_by_indices(
-            merkle_tree_pubkey,
-            &leaf_indices_tx_hashes
-                .iter()
-                .map(|leaf_info| leaf_info.leaf_index as u64)
-                .collect::<Vec<_>>(),
-        )
+
+    let indices = leaf_indices_tx_hashes
+        .iter()
+        .map(|leaf_info| leaf_info.leaf_index as u64)
+        .collect::<Vec<_>>();
+
+    let mut proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices)
         .await
         .unwrap();
+    let mut indexer_root = proofs.first().unwrap().root;
+    let mut iter = 0;
 
+    while indexer_root != old_root {
+        println!("Indexer root: {:?}, Current root: {:?}, Iteration: {:?}", indexer_root, old_root, iter);
+        proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices)
+            .await
+            .unwrap();
+        indexer_root = proofs.first().unwrap().root;
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        iter += 1;
+    }
 
     println!("leaf_indices_tx_hashes: {:?}", leaf_indices_tx_hashes);
+    println!("old_root: {:?}", old_root);
     println!("proofs: {:?}", proofs);
 
     for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
@@ -454,10 +489,14 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     println!("new_root: {:?}", new_root);
 
     let client = Client::new();
+
+    let json_str = update_inputs_string(&inputs);
+    println!("json_str: {:?}", json_str);
+
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(update_inputs_string(&inputs))
+        .body(json_str)
         .send()
         .await
         .map_err(|e| {

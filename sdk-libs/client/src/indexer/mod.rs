@@ -274,6 +274,7 @@ pub struct MerkleProof {
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
     pub root_seq: u64,
+    pub root: [u8; 32],
 }
 
 // For consistency with the Photon API.

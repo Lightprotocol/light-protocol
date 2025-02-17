@@ -6,7 +6,7 @@
     "build": "cargo build",
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --nocapture",
     "test-state-batched": "cargo test --package forester test_state_batched -- --nocapture",
-    "b": "cargo test --package forester test_state_indexer_batched -- --nocapture",
+    "b": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_batched -- --nocapture",
     "old": "cargo test --package forester test_epoch_monitor_with_2_foresters -- --nocapture",
     "test-address-batched": "cargo test --package forester test_address_batched -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
