@@ -417,17 +417,24 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
+
+    println!("leaf_indices_tx_hashes: {:?}", leaf_indices_tx_hashes);
+    println!("proofs: {:?}", proofs);
+
     for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
         path_indices.push(leaf_info.leaf_index);
         leaves.push(leaf_info.leaf);
-        old_leaves.push(light_client::indexer::Hash::from_base58(&*proof.hash.clone()).unwrap());
+        old_leaves.push(light_client::indexer::Hash::from_base58(&proof.hash.clone()).unwrap());
         merkle_proofs.push(proof.proof.clone());
         tx_hashes.push(leaf_info.tx_hash);
         let index_bytes = leaf_info.leaf_index.to_be_bytes();
         let nullifier =
             Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        println!("nullifier: {:?}", nullifier);
         nullifiers.push(nullifier);
     }
+
+    println!("generated nullifiers: {:?}", nullifiers);
 
     let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
@@ -440,8 +447,11 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         zkp_batch_size as u32,
     )
     .unwrap();
+    println!("inputs: {:?}", inputs);
 
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
+
+    println!("new_root: {:?}", new_root);
 
     let client = Client::new();
     let response = client
@@ -458,6 +468,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::ProverError("Failed to send proof to server".into())
         })?;
 
+    println!("response: {:?}", response);
     let proof = if response.status().is_success() {
         let body = response.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();

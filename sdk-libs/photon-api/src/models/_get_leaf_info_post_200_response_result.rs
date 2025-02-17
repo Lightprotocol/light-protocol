@@ -15,15 +15,28 @@ pub struct GetLeafInfoPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: Vec<models::LeafInfo>,
+    pub value: LeafInfoList,
 }
-
 impl GetLeafInfoPost200ResponseResult {
-    pub fn new(context: models::Context, value: Vec<models::LeafInfo>) -> GetLeafInfoPost200ResponseResult {
+    pub fn new(context: models::Context, value: LeafInfoList) -> GetLeafInfoPost200ResponseResult {
         GetLeafInfoPost200ResponseResult {
             context: Box::new(context),
             value,
         }
     }
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LeafInfoList {
+    pub items: Vec<LeafInfo>,
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LeafInfo {
+    #[serde(rename = "leafIndex")]
+    pub leaf_index: u32,
+    pub leaf: String,
+    #[serde(rename = "txHash")]
+    pub tx_hash: String,
 }
 

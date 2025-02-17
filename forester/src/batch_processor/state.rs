@@ -74,6 +74,8 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .await
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
 
+    println!("instruction_data: {:?}", instruction_data);
+
     let instruction = create_batch_nullify_instruction(
         context.authority.pubkey(),
         context.derivation,
@@ -83,6 +85,8 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .try_to_vec()
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
+
+    println!("instruction: {:?}", instruction);
 
     let tx = rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
         &[instruction],
