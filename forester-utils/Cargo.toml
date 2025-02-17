@@ -40,3 +40,4 @@ num-traits = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
+tokio = "1.43.0"

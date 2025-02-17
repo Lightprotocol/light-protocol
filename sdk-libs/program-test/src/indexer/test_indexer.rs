@@ -377,6 +377,7 @@ where
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
                         root_seq: tree.merkle_tree.sequence_number as u64,
+                        root: tree.merkle_tree.roots.last().unwrap().clone(),
                     });
                 }
             })
@@ -932,6 +933,7 @@ where
             merkle_tree: merkle_tree_pubkey.to_string(),
             proof,
             root_seq: bundle.merkle_tree.sequence_number as u64,
+            root: bundle.merkle_tree.root(),
         }
     }
 
