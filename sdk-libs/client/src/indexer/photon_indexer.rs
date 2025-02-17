@@ -829,6 +829,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         end_offset: u64,
     ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         self.rate_limited_request(|| async {
+            println!("get_leaf_indices_tx_hashes called with merkle_tree_pubkey: {}, start_offset: {}, end_offset: {}", bs58::encode(merkle_tree_pubkey.to_bytes()).into_string(), start_offset, end_offset);
             let request: photon_api::models::GetLeafInfoPostRequest =
                 photon_api::models::GetLeafInfoPostRequest {
                     params: Box::from(photon_api::models::GetLeafInfoPostRequestParams {
@@ -848,11 +849,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     Some(result) => {
                         let result = result
                             .value
+                            .items
                             .iter()
                             .map(|x| {
-                                let leaf_index: u32 = x.leaf_index;
-                                let tx_hash: Hash = Hash::from_base58(&x.tx_hash).unwrap();
-                                let leaf = Hash::from_base58(&x.leaf).unwrap();
+                                let leaf_index = x.leaf_index;
+                                let tx_hash = Hash::from_base58(x.tx_hash.as_str()).unwrap();
+                                let leaf = Hash::from_base58(x.leaf.as_str()).unwrap();
                                 LeafIndexInfo {
                                     leaf_index,
                                     tx_hash,
