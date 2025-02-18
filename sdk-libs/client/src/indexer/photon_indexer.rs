@@ -395,7 +395,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.tree).unwrap()),
                     nullifier_queue_pubkey,
                     leaf_index: acc.leaf_index,
-                    prove_by_index: acc.in_queue,
+                    prove_by_index: acc.in_output_queue,
                 };
 
                 let account = CompressedAccountWithMerkleContext {

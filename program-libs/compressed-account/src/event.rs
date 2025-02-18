@@ -1,8 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::poseidon::PoseidonHash;
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use solana_program::pubkey::Pubkey;
-use zerocopy::IntoBytes;
 use light_hasher::{Hasher, Poseidon};
 use super::discriminators::*;
 use crate::instruction_data::{
