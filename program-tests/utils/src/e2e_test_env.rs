@@ -762,12 +762,13 @@ where
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
-                                        full_batch_index,
-                                        0,
                                         batch.batch_size,
+                                        None,
                                     )
                                     .await
                                     .unwrap();
+                                let addresses =
+                                    addresses.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

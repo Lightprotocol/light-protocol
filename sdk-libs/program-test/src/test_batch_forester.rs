@@ -131,7 +131,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let (proof, new_root) = {
         let start = num_inserted_zkps as usize * zkp_batch_size as usize;
         let end = start + zkp_batch_size as usize;
-        let batch_update_leaves = leaves[start..end].to_vec();
+        let batch_update_leaves = leaves[start..end].iter().map(|x| x.0).collect::<Vec<_>>();
         // if batch is complete, remove leaves from mock output queue
         if num_inserted_zkps == max_num_zkp_updates - 1 {
             for _ in 0..max_num_zkp_updates * zkp_batch_size {
@@ -817,7 +817,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     I: Indexer<R>,
 >(
     rpc: &mut R,
-    indexer: &I,
+    indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, RpcError> {
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await?.unwrap();
@@ -841,14 +841,13 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .rightmost_index;
 
     let addresses = indexer
-        .get_queue_elements(
-            merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            0,
-            batch.batch_size,
-        )
+        .get_queue_elements(merkle_tree_pubkey.to_bytes(), batch.zkp_batch_size, None)
         .await
         .unwrap();
+    let addresses = addresses
+        .iter()
+        .map(|x| x.account_hash)
+        .collect::<Vec<[u8; 32]>>();
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

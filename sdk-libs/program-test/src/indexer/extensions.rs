@@ -87,7 +87,6 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         rpc: &mut R,
         merkle_tree_pubkey: Pubkey,
         output_queue_pubkey: Pubkey,
-        num_inserted_zkps: u64,
     );
 
     async fn update_test_indexer_after_nullification(

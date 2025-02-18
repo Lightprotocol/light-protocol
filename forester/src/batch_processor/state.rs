@@ -18,7 +18,6 @@ use crate::{
 pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
-    num_inserted_zkps: u64,
 ) -> Result<()> {
     let instruction_data = create_append_batch_ix_data(
         rpc,
@@ -53,7 +52,6 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         context.indexer.clone(),
         context.merkle_tree,
         context.output_queue,
-        num_inserted_zkps,
     )
     .await
     .expect("Failed to update test indexer after append");
