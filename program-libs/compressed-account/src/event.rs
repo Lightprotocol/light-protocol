@@ -80,8 +80,8 @@ pub fn event_from_light_transaction(
                 &mut input_merkle_tree_indices,
                 accounts,
             )
-            .unwrap_or_default()
-    });
+                .unwrap_or_default()
+        });
     println!("found event {}", found_event);
     if !found_event {
         return Ok(None);
@@ -130,7 +130,7 @@ pub fn event_from_light_transaction(
             pos = Some(i);
             break;
         }
-    });
+    };
 
     println!("pos {:?}", pos);
     if let Some(pos) = pos {
@@ -176,6 +176,7 @@ pub fn event_from_light_transaction(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn match_account_compression_program_instruction(
     instruction: &[u8],
     event: &mut PublicTransactionEvent,
