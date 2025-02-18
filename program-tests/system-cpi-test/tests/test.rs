@@ -146,7 +146,7 @@ async fn test_read_only_accounts() {
             // fails because of invalid leaves hash_chain in some iteration
             let instruction_data = create_batch_update_address_tree_instruction_data_with_proof(
                 &mut e2e_env.rpc,
-                &e2e_env.indexer,
+                &mut e2e_env.indexer,
                 env.batch_address_merkle_tree,
             )
             .await
