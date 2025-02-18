@@ -43,9 +43,9 @@ pub struct BatchPublicTransactionEvent {
     pub new_addresses: Vec<NewAddress>,
     pub input_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub address_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
+    pub nullifier_queue_indices: Vec<u64>,
 }
 
-// TODO: remove unwraps
 /// We piece the event together from 2 instructions:
 /// 1. light_system_program::{Invoke, InvokeCpi, InvokeCpiReadOnly} (one of the 3)
 /// 2. account_compression::InsertIntoQueues
@@ -65,9 +65,21 @@ pub fn event_from_light_transaction(
 ) -> Result<Option<BatchPublicTransactionEvent>, ZeroCopyError> {
     let mut event = PublicTransactionEvent::default();
     let mut ix_set_cpi_context = false;
-    let found_event = instructions.iter().any(|x| {
-        match_system_program_instruction(x, false, &mut event, &mut ix_set_cpi_context).unwrap()
-    });
+    let mut input_merkle_tree_indices = Vec::new();
+    let found_event = instructions
+        .iter()
+        .zip(remaining_accounts.iter())
+        .any(|(x, accounts)| {
+            match_system_program_instruction(
+                x,
+                false,
+                &mut event,
+                &mut ix_set_cpi_context,
+                &mut input_merkle_tree_indices,
+                accounts,
+            )
+            .unwrap_or_default()
+        });
     println!("found event {}", found_event);
     if !found_event {
         return Ok(None);
@@ -75,29 +87,44 @@ pub fn event_from_light_transaction(
     println!("ix_set_cpi_context {}", ix_set_cpi_context);
     // If an instruction set the cpi context add the instructions that set the cpi context.
     if ix_set_cpi_context {
-        instructions.iter().for_each(|x| {
-            match_system_program_instruction(x, true, &mut event, &mut true).unwrap();
-        });
+        instructions
+            .iter()
+            .zip(remaining_accounts.iter())
+            .try_for_each(|(x, accounts)| -> Result<(), ZeroCopyError> {
+                match_system_program_instruction(
+                    x,
+                    true,
+                    &mut event,
+                    &mut true,
+                    &mut input_merkle_tree_indices,
+                    accounts,
+                )?;
+                Ok(())
+            })?;
         println!("added cpi context to event {}", found_event);
     }
     // New addresses in batched trees.
     let mut new_addresses = Vec::new();
     let mut input_sequence_numbers = Vec::new();
     let mut address_sequence_numbers = Vec::new();
-    let pos = instructions.iter().enumerate().position(|(i, x)| {
+    let mut pos = None;
+    for (i, instruction) in instructions.iter().enumerate() {
         if remaining_accounts[i].len() < 3 {
-            return false;
+            continue;
         }
-        match_account_compression_program_instruction(
-            x,
+        let res = match_account_compression_program_instruction(
+            instruction,
             &mut event,
             &mut new_addresses,
             &mut input_sequence_numbers,
             &mut address_sequence_numbers,
             &remaining_accounts[i][2..],
-        )
-        .unwrap()
-    });
+        )?;
+        if res {
+            pos = Some(i);
+            break;
+        }
+    }
 
     println!("pos {:?}", pos);
     if let Some(pos) = pos {
@@ -106,11 +133,35 @@ pub fn event_from_light_transaction(
         println!("event pubkey array {:?}", event.pubkey_array);
         println!("input_sequence_numbers {:?}", input_sequence_numbers);
         println!("address_sequence_numbers {:?}", address_sequence_numbers);
+
+        // Nullifier queue indices are continous similar to sequence numbers.
+        // The emitted sequence number marks the first insertion into the queue in this tx.
+        // Iterate over all sequence numbers, match with input accounts Merkle tree and increment the sequence number.
+        // u64::MAX means it is a v1 account and it doesn't have a queue index.
+        let mut nullifier_queue_indices =
+            vec![u64::MAX; event.input_compressed_account_hashes.len()];
+        let mut internal_input_sequence_numbers = input_sequence_numbers.clone();
+        internal_input_sequence_numbers.iter_mut().for_each(|seq| {
+            for (i, merkle_tree_pubkey) in input_merkle_tree_indices.iter().enumerate() {
+                println!(
+                    " seq pubkey {:?} == merkle tree pubkey {:?}",
+                    seq.pubkey, *merkle_tree_pubkey
+                );
+                if *merkle_tree_pubkey == seq.pubkey {
+                    nullifier_queue_indices[i] = seq.seq;
+                    seq.seq += 1;
+                }
+            }
+        });
+        println!("input_merkle_tree_indices {:?}", input_merkle_tree_indices);
+        println!("nullifier_queue_indices {:?}", nullifier_queue_indices);
+        println!("input_sequence_numbers {:?}", input_sequence_numbers);
         Ok(Some(BatchPublicTransactionEvent {
             event,
             new_addresses,
             input_sequence_numbers,
             address_sequence_numbers,
+            nullifier_queue_indices,
         }))
     } else {
         Ok(None)
@@ -194,6 +245,8 @@ pub fn match_system_program_instruction(
     set_cpi_context: bool,
     event: &mut PublicTransactionEvent,
     ix_set_cpi_context: &mut bool,
+    input_merkle_tree_indices: &mut Vec<Pubkey>,
+    accounts: &[Pubkey],
 ) -> Result<bool, ZeroCopyError> {
     if instruction.len() < 12 {
         return Ok(false);
@@ -212,10 +265,21 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
+            // We are only interested in remaining account which start after 9 static accounts.
+            let remaining_accounts = accounts.split_at(8).1;
+            data.input_compressed_accounts_with_merkle_context
+                .iter()
+                .for_each(|x| {
+                    input_merkle_tree_indices.push(
+                        remaining_accounts[x.merkle_context.merkle_tree_pubkey_index as usize],
+                    );
+                });
             Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI => {
             let (data, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction)?;
+            // We are only interested in remaining account which start after 10 static accounts.
+            let remaining_accounts = accounts.split_at(9).1;
             // We need to find the instruction that executed the verification first.
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
@@ -230,6 +294,15 @@ pub fn match_system_program_instruction(
                             .output_compressed_accounts
                             .push(OutputCompressedAccountWithPackedContext::from(x));
                     });
+                    // We are only interested in remaining account which start after 9 static accounts.
+                    data.input_compressed_accounts_with_merkle_context
+                        .iter()
+                        .for_each(|x| {
+                            input_merkle_tree_indices.push(
+                                remaining_accounts
+                                    [x.merkle_context.merkle_tree_pubkey_index as usize],
+                            );
+                        });
                     return Ok(true);
                 }
             }
@@ -242,11 +315,20 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
+            data.input_compressed_accounts_with_merkle_context
+                .iter()
+                .for_each(|x| {
+                    input_merkle_tree_indices.push(
+                        remaining_accounts[x.merkle_context.merkle_tree_pubkey_index as usize],
+                    );
+                });
             Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
             let (data, _) = ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction)?;
             let data = data.invoke_cpi;
+            // We are only interested in remaining account which start after 10 static accounts.
+            let remaining_accounts = accounts.split_at(9).1;
             // We need to find the instruction that executed the verification first.
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
@@ -261,6 +343,14 @@ pub fn match_system_program_instruction(
                             .output_compressed_accounts
                             .push(OutputCompressedAccountWithPackedContext::from(x));
                     });
+                    data.input_compressed_accounts_with_merkle_context
+                        .iter()
+                        .for_each(|x| {
+                            input_merkle_tree_indices.push(
+                                remaining_accounts
+                                    [x.merkle_context.merkle_tree_pubkey_index as usize],
+                            );
+                        });
                     return Ok(true);
                 }
             }
@@ -273,6 +363,13 @@ pub fn match_system_program_instruction(
             event.relay_fee = data.relay_fee.map(|x| (*x).into());
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
+            data.input_compressed_accounts_with_merkle_context
+                .iter()
+                .for_each(|x| {
+                    input_merkle_tree_indices.push(
+                        remaining_accounts[x.merkle_context.merkle_tree_pubkey_index as usize],
+                    );
+                });
             Ok(true)
         }
         _ => Ok(false),
