@@ -20,8 +20,8 @@ pub struct AccountV2 {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
-    #[serde(rename = "inQueue")]
-    pub in_queue: bool,
+    #[serde(rename = "inOutputQueue")]
+    pub in_output_queue: bool,
     #[serde(rename = "lamports")]
     pub lamports: u64,
     #[serde(rename = "leafIndex")]
@@ -50,12 +50,12 @@ pub struct AccountV2 {
 }
 
 impl AccountV2 {
-    pub fn new(hash: String, in_queue: bool, lamports: u64, leaf_index: u32, owner: String, slot_created: u64, spent: bool, tree: String) -> AccountV2 {
+    pub fn new(hash: String, in_output_queue: bool, lamports: u64, leaf_index: u32, owner: String, slot_created: u64, spent: bool, tree: String) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
             hash,
-            in_queue,
+            in_output_queue,
             lamports,
             leaf_index,
             nullifier: None,
