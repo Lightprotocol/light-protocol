@@ -3,6 +3,7 @@ use clap::{Parser, ValueEnum};
 mod bench;
 mod create_state_tree;
 mod create_vkeyrs_from_gnark_key;
+mod export_photon_test_data;
 mod fee;
 mod hash_set;
 mod type_sizes;
@@ -43,6 +44,7 @@ enum Command {
     /// Example:
     /// cargo xtask create-state-tree --mt-pubkey ./target/tree-keypairs/smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f.json --nfq-pubkey ./target/tree-keypairs/nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4.json --cpi-pubkey ./target/tree-keypairs/cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp.json --index 10 --network local
     CreateStateTree(create_state_tree::Options),
+    ExportPhotonTestData(export_photon_test_data::Options),
 }
 
 #[tokio::main]
@@ -62,5 +64,8 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::Fee => fee::fees(),
         Command::HashSet(opts) => hash_set::hash_set(opts),
         Command::CreateStateTree(opts) => create_state_tree::create_state_tree(opts).await,
+        Command::ExportPhotonTestData(_opts) => {
+            Ok(export_photon_test_data::export_photon_test_data().await)
+        }
     }
 }
