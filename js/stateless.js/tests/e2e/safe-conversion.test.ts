@@ -61,7 +61,6 @@ describe('safely convert json response', async () => {
                 expect(output).to.equal('{"value": -100}');
             });
 
-            // New test cases
             it('should handle boundary values correctly', () => {
                 const input1 = '{"value": 9007199254740991}';
                 const output1 = wrapBigNumbersAsStrings(input1);
@@ -135,7 +134,6 @@ describe('safely convert json response', async () => {
         });
     });
 
-    // Existing test cases
     it('should convert unsafe integer responses safely', async () => {
         const rawResponse = `{
                 "jsonrpc": "2.0",
