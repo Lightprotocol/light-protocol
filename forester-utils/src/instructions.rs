@@ -59,7 +59,7 @@ where
         })?
         .unwrap();
 
-    let (leaves_hash_chain, start_index, current_root, batch_size, full_batch_index) = {
+    let (leaves_hash_chain, start_index, current_root, batch_size) = {
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &merkle_tree_pubkey.into(),
@@ -75,13 +75,7 @@ where
         let current_root = *merkle_tree.root_history.last().unwrap();
         let batch_size = batch.zkp_batch_size as usize;
 
-        (
-            leaves_hash_chain,
-            start_index,
-            current_root,
-            batch_size,
-            full_batch_index,
-        )
+        (leaves_hash_chain, start_index, current_root, batch_size)
     };
 
     let batch_start_index = indexer
@@ -96,9 +90,8 @@ where
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            0,
             batch_size as u64,
+            None
         )
         .await
         .map_err(|e| {
@@ -115,7 +108,7 @@ where
     let non_inclusion_proofs = indexer
         .get_multiple_new_address_proofs_h40(
             merkle_tree_pubkey.to_bytes(),
-            addresses.clone(),
+            addresses.iter().map(|x|x.account_hash).collect(),
         )
         .await
         .map_err(|e| {
@@ -151,6 +144,10 @@ where
         })?
         .try_into()
         .unwrap();
+    let addresses = addresses
+        .iter()
+        .map(|x| x.account_hash)
+        .collect::<Vec<[u8; 32]>>();
 
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
@@ -227,7 +224,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
     };
 
-    let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hash_chain) = {
+    let (zkp_batch_size, leaves_hash_chain) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
         let output_queue =
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
@@ -242,41 +239,27 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
 
-        (
-            zkp_batch_size,
-            full_batch_index,
-            num_inserted_zkps,
-            leaves_hash_chain,
-        )
+        (zkp_batch_size, leaves_hash_chain)
     };
-    let start = num_inserted_zkps as usize * zkp_batch_size as usize;
-    let end = start + zkp_batch_size as usize;
 
-    let leaves = indexer
-        .get_queue_elements(
-            merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            start as u64,
-            end as u64,
-        )
+    let indexer_response = indexer
+        .get_queue_elements(output_queue_pubkey.to_bytes(), zkp_batch_size, None)
         .await
         .unwrap();
 
-    info!("Leaves: {:?}", leaves);
-
-    let (old_leaves, merkle_proofs) = {
-        let mut old_leaves = vec![];
-        let mut merkle_proofs = vec![];
-        let indices =
-            (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
-        let proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices);
-        proofs.iter().for_each(|proof| {
-            old_leaves.push(proof.leaf);
-            merkle_proofs.push(proof.proof.clone());
-        });
-
-        (old_leaves, merkle_proofs)
-    };
+    println!("indexer_response: {:?}", indexer_response);
+    let old_leaves = indexer_response
+        .iter()
+        .map(|x| x.leaf)
+        .collect::<Vec<[u8; 32]>>();
+    let leaves = indexer_response
+        .iter()
+        .map(|x| x.account_hash)
+        .collect::<Vec<[u8; 32]>>();
+    let merkle_proofs = indexer_response
+        .iter()
+        .map(|x| x.proof.clone())
+        .collect::<Vec<Vec<[u8; 32]>>>();
 
     info!("Old leaves: {:?}", old_leaves);
 
@@ -356,8 +339,11 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (zkp_size, root, hash_chain)
     };
 
-    let leaf_indices_tx_hashes =
-        indexer.get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size as usize);
+    let leaf_indices_tx_hashes = indexer
+        .get_queue_elements(merkle_tree_pubkey.to_bytes(), zkp_batch_size, None)
+        .await
+        .unwrap();
+    println!("leaf_indices_tx_hashes {:?}", leaf_indices_tx_hashes);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -366,23 +352,19 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let mut merkle_proofs = Vec::new();
     let mut nullifiers = Vec::new();
 
-    let proofs = indexer.get_proofs_by_indices(
-        merkle_tree_pubkey,
-        &leaf_indices_tx_hashes
-            .iter()
-            .map(|leaf_info| leaf_info.leaf_index as u64)
-            .collect::<Vec<_>>(),
-    );
-
-    for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
-        path_indices.push(leaf_info.leaf_index);
-        leaves.push(leaf_info.leaf);
-        old_leaves.push(proof.leaf);
-        merkle_proofs.push(proof.proof.clone());
-        tx_hashes.push(leaf_info.tx_hash);
+    for leaf_info in leaf_indices_tx_hashes.iter() {
+        path_indices.push(leaf_info.leaf_index as u32);
+        leaves.push(leaf_info.account_hash);
+        old_leaves.push(leaf_info.leaf);
+        merkle_proofs.push(leaf_info.proof.clone());
+        tx_hashes.push(leaf_info.tx_hash.unwrap());
         let index_bytes = leaf_info.leaf_index.to_be_bytes();
-        let nullifier =
-            Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        let nullifier = Poseidon::hashv(&[
+            &leaf_info.account_hash,
+            &index_bytes,
+            &leaf_info.tx_hash.unwrap(),
+        ])
+        .unwrap();
         nullifiers.push(nullifier);
     }
 

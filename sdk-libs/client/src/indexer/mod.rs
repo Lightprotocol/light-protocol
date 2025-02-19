@@ -111,6 +111,18 @@ pub struct AddressWithTree {
     pub tree: Pubkey,
 }
 
+#[derive(Debug, Clone)]
+pub struct MerkleProofWithContext {
+    pub proof: Vec<[u8; 32]>,
+    pub root: [u8; 32],
+    pub leaf_index: u64,
+    pub leaf: [u8; 32],
+    pub merkle_tree: [u8; 32],
+    pub root_seq: u64,
+    pub tx_hash: Option<[u8; 32]>,
+    pub account_hash: [u8; 32],
+}
+
 pub trait Base58Conversions {
     fn to_base58(&self) -> String;
     fn from_base58(s: &str) -> Result<Self, IndexerError>
@@ -162,12 +174,11 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
     async fn get_queue_elements(
-        &self,
+        &mut self,
         pubkey: [u8; 32],
-        batch: u64,
-        start_offset: u64,
-        end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError>;
+        num_elements: u64,
+        start_offset: Option<u64>,
+    ) -> Result<Vec<MerkleProofWithContext>, IndexerError>;
 
     fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError>;
 
@@ -315,7 +326,7 @@ pub struct StateMerkleTreeBundle {
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
     pub version: u64,
-    pub output_queue_elements: Vec<[u8; 32]>,
+    pub output_queue_elements: Vec<([u8; 32], u64)>,
     pub input_leaf_indices: Vec<LeafIndexInfo>,
 }
 

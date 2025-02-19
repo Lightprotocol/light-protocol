@@ -58,9 +58,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     // 3. only use elements start_index..end_index in the circuit (we need to
     // iterate over elements prior to start index to create changelog entries to
     // patch subsequent element proofs. The indexer won't be caught up yet.)
-    let inserted_elements = next_index - batch_start_index;
-    let end_index = inserted_elements + zkp_batch_size;
-    let new_element_values = new_element_values[0..end_index].to_vec();
+    let new_element_values = new_element_values[0..zkp_batch_size].to_vec();
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = vec![];
     let mut new_element_circuit_merkle_proofs = vec![];
@@ -106,14 +104,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             )
             .unwrap();
         }
-        if i >= inserted_elements {
-            patched_low_element_next_values
-                .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
-            patched_low_element_next_indices.push(low_element.next_index());
-            patched_low_element_indices.push(low_element.index);
-            patched_low_element_values
-                .push(bigint_to_be_bytes_array::<32>(&low_element.value).unwrap());
-        }
+        patched_low_element_next_values
+            .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
+        patched_low_element_next_indices.push(low_element.next_index());
+        patched_low_element_indices.push(low_element.index);
+        patched_low_element_values
+            .push(bigint_to_be_bytes_array::<32>(&low_element.value).unwrap());
+
         let new_low_element: IndexedElement<usize> = IndexedElement {
             index: low_element.index,
             value: low_element.value.clone(),
@@ -144,14 +141,12 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 new_low_element.index as u32,
             );
             changelog.push(changelog_entry);
-            if i >= inserted_elements {
-                low_element_circuit_merkle_proofs.push(
-                    merkle_proof
-                        .iter()
-                        .map(|hash| BigUint::from_bytes_be(hash))
-                        .collect(),
-                );
-            }
+            low_element_circuit_merkle_proofs.push(
+                merkle_proof
+                    .iter()
+                    .map(|hash| BigUint::from_bytes_be(hash))
+                    .collect(),
+            );
         }
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element_raw,
@@ -190,14 +185,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             new_root = updated_root;
 
             changelog.push(changelog_entry);
-            if i >= inserted_elements {
-                new_element_circuit_merkle_proofs.push(
-                    merkle_proof_array
-                        .iter()
-                        .map(|hash| BigUint::from_bytes_be(hash))
-                        .collect(),
-                );
-            }
+            new_element_circuit_merkle_proofs.push(
+                merkle_proof_array
+                    .iter()
+                    .map(|hash| BigUint::from_bytes_be(hash))
+                    .collect(),
+            );
+
             let new_element_raw = RawIndexedElement {
                 value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
                 next_index: new_element.next_index,
@@ -243,7 +237,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             .map(|v| BigUint::from_bytes_be(v))
             .collect(),
         low_element_proofs: low_element_circuit_merkle_proofs,
-        new_element_values: new_element_values[inserted_elements..]
+        new_element_values: new_element_values[0..]
             .iter()
             .map(|v| BigUint::from_bytes_be(v))
             .collect(),

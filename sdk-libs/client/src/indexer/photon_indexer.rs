@@ -16,6 +16,7 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
 use tracing::{debug, error};
 
+use super::MerkleProofWithContext;
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
@@ -171,12 +172,11 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
 #[async_trait]
 impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     async fn get_queue_elements(
-        &self,
+        &mut self,
         _pubkey: [u8; 32],
-        _batch: u64,
-        _start_offset: u64,
-        _end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        _num_elements: u64,
+        _start_offset: Option<u64>,
+    ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
         Err(IndexerError::NotImplemented(
             "get_queue_elements".to_string(),
         ))

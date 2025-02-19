@@ -251,14 +251,14 @@ impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
 impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
     pub async fn get_batched_address_proof(
         &mut self,
-        batch_size: u32,
+        _batch_size: u32,
         zkp_batch_size: u32,
         leaves_hashchain: [u8; 32],
         start_index: usize,
         batch_start_index: usize,
         current_root: [u8; 32],
     ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
-        let new_element_values = self.queue_leaves[..batch_size as usize].to_vec();
+        let new_element_values = self.queue_leaves[..zkp_batch_size as usize].to_vec();
 
         assert_eq!(
             self.merkle_tree.merkle_tree.rightmost_index,
@@ -358,5 +358,9 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 )
                 .unwrap();
         }
+        println!(
+            "new next index {}",
+            self.merkle_tree.merkle_tree.get_next_index()
+        );
     }
 }
