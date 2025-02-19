@@ -545,6 +545,11 @@ theorem HashChain_8_rw : LightProver.HashChain_8 v k ↔ k (hashChain v) := by
   rw [←List.Vector.ofFn_get (v:=v)]
   rfl
 
+theorem HashChain_3_rw : LightProver.HashChain_3 v k ↔ k (hashChain v) := by
+  unfold LightProver.HashChain_3
+  simp only [Poseidon2_iff_uniqueAssignment]
+  rw [←List.Vector.ofFn_get (v:=v)]
+  rfl
 
 def treeAppends : MerkleTree F poseidon₂ D → Nat → List F → Option (MerkleTree F poseidon₂ D)
 | tree, _, [] => some tree
@@ -850,6 +855,207 @@ theorem treeAppends_sound_and_complete {v : List.Vector F (d+1)} {tree newTree :
               · apply And.intro
                 · linarith
                 · simp [Nat.mod_one]
+
+def hashChain3 (a b c : List.Vector F (d+1)) : F := hashChain (a.zipWith (·,·) b |>.zipWith (fun (a, b) c => poseidon₃ vec![a, b, c]) c)
+
+lemma list_cons_eq : a :: b = c :: d ↔ a = c ∧ b = d := by
+  simp
+
+theorem hashChain3_body_injective [Fact (CollisionResistant poseidon₃)] {a₁ a₂ b₁ b₂ c₁ c₂ : List.Vector F d} :
+    (a₁.zipWith (·,·) b₁ |>.zipWith (fun (a, b) c => poseidon₃ vec![a, b, c]) c₁) = (a₂.zipWith (·,·) b₂ |>.zipWith (fun (a, b) c => poseidon₃ vec![a, b, c]) c₂) ↔
+    a₁ = a₂ ∧ b₁ = b₂ ∧ c₁ = c₂ := by
+  induction d with
+  | zero =>
+    cases a₁ using List.Vector.casesOn
+    cases b₁ using List.Vector.casesOn
+    cases c₁ using List.Vector.casesOn
+    cases a₂ using List.Vector.casesOn
+    cases b₂ using List.Vector.casesOn
+    cases c₂ using List.Vector.casesOn
+    simp
+  | succ d ih =>
+    cases a₁ using List.Vector.casesOn
+    cases b₁ using List.Vector.casesOn
+    cases c₁ using List.Vector.casesOn
+    cases a₂ using List.Vector.casesOn
+    cases b₂ using List.Vector.casesOn
+    cases c₂ using List.Vector.casesOn
+    simp only [List.Vector.zipWith, List.Vector.eq_iff, List.Vector.toList] at ih
+    simp [List.Vector.zipWith, List.zipWith, List.Vector.eq_iff, ih]
+    tauto
+
+theorem hashChain3_injective [Fact (CollisionResistant poseidon₂)] [Fact (CollisionResistant poseidon₃)] : hashChain3 a b c = hashChain3 a' b' c' ↔ a = a' ∧ b = b' ∧ c = c' := by
+  simp [hashChain3, hashChain_injective, hashChain3_body_injective]
+
+def batchUpdates {D l} (tree : MerkleTree F poseidon₂ D) (leafs indices txHashes : List.Vector F l): Option (MerkleTree F poseidon₂ D) :=
+  match l with
+  | 0 => tree
+  | _ + 1 => if h : indices.head.val < 2^D then
+    let tree' := tree.setAtFin ⟨indices.head.val, h⟩ (poseidon₃ vec![leafs.head, indices.head, txHashes.head])
+    batchUpdates tree' leafs.tail indices.tail txHashes.tail
+  else none
+
+def batchUpdate_rec (root : F) (leaves oldLeaves indices txHashes : List.Vector F l) (proofs : List.Vector (List.Vector F 26) l) (k : F → Prop): Prop :=
+  match l with
+  | 0 => k root
+  | _ + 1 =>
+    ∃bin, Gates.to_binary indices.head 26 bin ∧
+    LightProver.MerkleRootUpdateGadget_26_26_26 root oldLeaves.head (poseidon₃ vec![leaves.head, indices.head, txHashes.head]) bin proofs.head fun root =>
+    batchUpdate_rec root leaves.tail oldLeaves.tail indices.tail txHashes.tail proofs.tail k
+
+theorem BatchUpdateCircuit_rw1 {pih or nr txh l ol mps} :
+    (∃lhh, LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 pih or nr lhh txh l ol mps pis) ↔
+    pih = hashChain vec![or, nr, hashChain3 l pis txh] ∧ batchUpdate_rec or l ol pis txh mps fun nr' => nr' = nr := by
+  unfold LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8
+  rw [←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis), ←List.Vector.ofFn_get (v:=txh)]
+  simp only [batchUpdate_rec, HashChain_8_rw, Poseidon3_iff_uniqueAssignment, Gates, GatesGnark8, GatesDef.eq, HashChain_3_rw]
+  apply Iff.intro
+  · rintro ⟨lhh, pihdef, lhhdef, h⟩
+    cases pihdef
+    cases lhhdef
+    apply And.intro
+    · rw [←List.Vector.ofFn_get (v:=txh), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis)]
+      rfl
+    · simp [getElem] at h
+      rw [←List.Vector.ofFn_get (v:=txh), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis), ←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol)]
+      simp [-List.Vector.ofFn_get]
+      exact h
+  · rintro ⟨phdef, rest⟩
+    use hashChain3 l pis txh
+    rw [phdef]
+    rw [←List.Vector.ofFn_get (v:=txh), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis), ←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol)]
+    simp [hashChain3, -List.Vector.ofFn_get]
+    apply And.intro
+    · rfl
+    apply And.intro
+    · rfl
+    rw [←List.Vector.ofFn_get (v:=txh), ←List.Vector.ofFn_get (v:=l), ←List.Vector.ofFn_get (v:=pis), ←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol)] at rest
+    simp [-List.Vector.ofFn_get] at rest
+    simp [getElem, rest]
+
+theorem batchUpdate_rec_rw [Fact (CollisionResistant poseidon₂)] {l} {leaves txHashes indices : List.Vector F l} {tree : MerkleTree F poseidon₂ 26}:
+    (∃proofs oldLeaves, batchUpdate_rec tree.root leaves oldLeaves indices txHashes proofs k) ↔
+    ∃newTree, some newTree = (batchUpdates tree leaves indices txHashes) ∧ k newTree.root := by
+  induction l generalizing tree with
+  | zero =>
+    simp [batchUpdate_rec, batchUpdates]
+  | succ l ih =>
+    simp [batchUpdate_rec, batchUpdates, MerkleRootUpdateGadget_rw]
+    apply Iff.intro
+    · rintro ⟨_, _, h, _, _, hbu⟩
+      have := ih.mp (Exists.intro _ (Exists.intro _ hbu))
+      simp_all
+    · rintro ⟨newTree, ⟨hr, hnt⟩, hk⟩
+      have := ih.mpr (Exists.intro _ ⟨hnt, hk⟩)
+      rcases this with ⟨proofs, oldLeaves, h⟩
+      simp_all
+      use (tree.proofAtFin ⟨indices.head.val, hr⟩ |>.reverse) ::ᵥ proofs
+      simp
+      use (tree.itemAtFin ⟨indices.head.val, hr⟩ ::ᵥ oldLeaves)
+      simp_all
+
+theorem batchUpdates_sem_of_distinct {indices : List.Vector F l} (hdis: ∀(i j : Fin l), i ≠ j → indices[i] ≠ indices[j]):
+    (some newTree = batchUpdates tree leaves indices txHashes) ↔
+    ∃(hr : ∀ i, indices[i].val < 2^26),
+    (∀i: Fin l, newTree[indices[i].val]'(hr i) = poseidon₃ vec![leaves[i], indices[i], txHashes[i]]) ∧
+    (∀i: Fin (2^26), ↑i.val ∉ indices → newTree[i] = tree[i]) := by
+  induction l generalizing tree newTree with
+  | zero =>
+    simp [batchUpdates, MerkleTree.ext_iff, getElem]
+  | succ l ih =>
+    simp [batchUpdates]
+    have : ∀ (i j : Fin l), i ≠ j → indices.tail[i] ≠ indices.tail[j] := by
+      intro i j hne heq
+      have := hdis (Fin.succ i) (Fin.succ j) (by simp_all)
+      rw [←List.Vector.cons_head_tail (v:=indices)] at this
+      simp [-List.Vector.cons_head_tail] at this
+      simp_all
+    simp only [ih this]
+    apply Iff.intro
+    · rintro ⟨hdr, restr, hm, hnm⟩
+      apply And.intro
+      · apply Exists.intro
+        · intro i
+          cases i using Fin.cases
+          · simp [getElem]
+            simp [getElem] at hnm
+            rw [hnm]
+            · simp
+            · simp
+              intro hp
+              rw [←List.Vector.toList_tail, List.Vector.mem_iff_get] at hp
+              rcases hp with ⟨i, heq⟩
+              apply hdis 0 i.succ (by simp [Fin.succ_ne_zero, eq_comm])
+              rw [←List.Vector.cons_head_tail (v:=indices)]
+              simp [-List.Vector.cons_head_tail]
+              rw [←heq]
+              rfl
+          · conv => rhs; rw [←List.Vector.cons_head_tail (v:=indices), ←List.Vector.cons_head_tail (v:=leaves), ←List.Vector.cons_head_tail (v:=txHashes)]
+            conv => rhs; simp [-List.Vector.cons_head_tail]
+            conv => rhs; simp [getElem]
+            simp [getElem] at hm
+            rw [←hm]
+            congr
+        · intro i
+          cases i using Fin.cases
+          · simp [getElem, hdr]
+          · rw [←List.Vector.cons_head_tail (v:=indices)]
+            simp [-List.Vector.cons_head_tail]
+            apply restr
+      · intro i
+        intro hi
+        rw [List.Vector.mem_succ_iff] at hi
+        simp only [not_or] at hi
+        simp only [List.Vector.mem_def] at hnm
+        cases hi with | _ hi =>
+        have := hnm i (by assumption)
+        simp [getElem] at this
+        rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq] at this
+        · exact this
+        intro hp
+        cases hp
+        apply hi
+        simp
+    · rintro ⟨⟨hrch, hmem⟩, hnm⟩
+      apply Exists.intro
+      · apply Exists.intro
+        · apply And.intro
+          · intro i
+            simp only [getElem, List.Vector.get_tail_succ, Fin.succ]
+            have := hmem i.succ
+            simp only [getElem, Fin.succ] at this
+            exact this
+          · intro i inemem
+            by_cases h: i = indices.head
+            · have : i.val = indices.head.val := by
+                cases i
+                rw [←h]
+                simp
+                rw [Nat.mod_eq_of_lt]
+                apply lt_trans (by assumption) (by decide)
+              simp [getElem, this]
+              have := hmem 0
+              simp [getElem] at this
+              exact this
+            · have := hnm i (by
+                rw [List.Vector.mem_succ_iff]
+                simp_all
+              )
+              simp only [getElem]
+              rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq]
+              exact this
+              simp
+              intro hh
+              cases hh
+              apply h
+              simp
+              have := hrch 0
+              simp [getElem] at this
+              exact this
+        · intro i
+          have := hrch i.succ
+          simp only [getElem, List.Vector.get_tail_succ]
+          apply this
 
 lemma Range.none_of_hashOpt_zero {r: Option Range} [Fact poseidon₂_no_zero_preimage]: 0 = Range.hashOpt r ↔ r = none := by
   apply Iff.intro

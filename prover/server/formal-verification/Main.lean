@@ -157,8 +157,43 @@ theorem inputHash_injective:
   have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₂)).1
   simp_all [hashChain_injective, List.Vector.eq_cons]
 
-
-
 end BatchAppendWithProofsCircuit
+
+namespace BatchUpdateCircuit
+
+theorem sound_and_complete
+  {tree : MerkleTree F poseidon₂ 26} {newRoot : F} {leaves txHashes indices : List.Vector F 8} (indices_distinct: ∀(i j : Fin 8), i ≠ j → indices[i] ≠ indices[j]):
+  (∃ih ps ols lhh, LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 ih tree.root newRoot lhh txHashes leaves ols ps indices) ↔
+    ∃(newTree : MerkleTree F poseidon₂ 26), newRoot = newTree.root ∧
+    ∃(hr : ∀ (i:Fin 8), indices[i].val < 2^26),
+    (∀i: Fin 8, newTree[indices[i].val]'(hr i) = poseidon₃ vec![leaves[i], indices[i], txHashes[i]]) ∧
+    (∀i: Fin (2^26), ↑i.val ∉ indices → newTree[i] = tree[i]) := by
+  simp [BatchUpdateCircuit_rw1, batchUpdate_rec_rw, batchUpdates_sem_of_distinct indices_distinct]
+  apply Iff.intro <;> {
+    rintro ⟨nt, _⟩
+    use nt
+    simp_all
+  }
+
+theorem inputHash_deterministic :
+    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h₁ oldRoot newRoot lhh₁ txHashes leaves ols₁ ps₁ indices ∧
+    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h₂ oldRoot newRoot lhh₂ txHashes leaves ols₂ ps₂ indices →
+    h₁ = h₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₁)).1
+  have := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₂)).1
+  simp_all
+
+theorem inputHash_injective :
+    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h oldRoot₁ newRoot₁ lhh₁ txHashes₁ leaves₁ ols₁ ps₁ indices₁ ∧
+    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h oldRoot₂ newRoot₂ lhh₂ txHashes₂ leaves₂ ols₂ ps₂ indices₂ →
+    oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ txHashes₁ = txHashes₂ ∧ leaves₁ = leaves₂ ∧ indices₁ = indices₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have t₁ := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₁)).1
+  have := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₂)).1
+  rw [t₁] at this
+  simp_all [hashChain_injective, hashChain3_injective, List.Vector.eq_cons]
+
+end BatchUpdateCircuit
 
 def main : IO Unit := pure ()
