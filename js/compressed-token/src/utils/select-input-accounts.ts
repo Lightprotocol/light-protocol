@@ -8,9 +8,8 @@ export const ERROR_NO_ACCOUNTS_FOUND =
 /**
  * Selects the minimal number of compressed token accounts for a transfer.
  *
- * 1. Sorts the accounts by amount in descending order
- * 2. Accumulates the amount until it is greater than or equal to the transfer
- *    amount
+ * 1. Sorts accounts by amount (descending)
+ * 2. Accumulates amount until it meets or exceeds transfer amount
  */
 export function selectMinCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],
@@ -52,11 +51,10 @@ export function selectMinCompressedTokenAccountsForTransfer(
 }
 
 /**
- * Selects the minimal number of compressed token accounts for a transfer in an idempotent manner.
+ * Selects the minimal number of compressed token accounts for a transfer idempotently.
  *
- * 1. Sorts the accounts by amount in descending order
- * 2. Accumulates the amount until it is greater than or equal to the transfer
- *    amount
+ * 1. Sorts accounts by amount (descending)
+ * 2. Accumulates amount until it meets or exceeds transfer amount
  */
 export function selectMinCompressedTokenAccountsForTransferIdempotent(
     accounts: ParsedTokenAccount[],
@@ -96,7 +94,7 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
         }
     }
 
-    // Calculate the maximum possible amount considering the maxInputs constraint
+    // Max, considering maxInputs
     maxPossibleAmount = accounts
         .slice(0, maxInputs)
         .reduce((total, account) => total.add(account.parsed.amount), bn(0));
@@ -120,10 +118,11 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
 }
 
 /**
- * Selects compressed token accounts for a transfer, ensuring one more account than needed to meet the transfer amount is selected, up to a cap of maxInputs.
+ * Selects compressed token accounts for a transfer, ensuring one extra account
+ * if possible, up to maxInputs.
  *
- * 1. Sorts the accounts by amount in descending order
- * 2. Selects accounts until the transfer amount is met, then selects the smallest additional account if possible, or the cap is reached
+ * 1. Sorts accounts by amount (desc)
+ * 2. Selects accounts until transfer amount is met or cap is reached
  */
 export function selectSmartCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],
@@ -163,13 +162,13 @@ export function selectSmartCompressedTokenAccountsForTransfer(
         maxPossibleAmount,
     ];
 }
-
 /**
- * Idempotent version of selecting compressed token accounts for a transfer.
- * Always picks one more account than required, up to the maxInputs cap, with the additional account being the smallest one.
+ * Idempotently selects compressed token accounts for a transfer. Picks one more
+ * account than needed, up to maxInputs, with the extra being the smallest.
  *
- * 1. Sorts the accounts by amount in descending order
- * 2. Selects accounts until the transfer amount is met, then adds the smallest additional account if possible
+ * 1. Sorts accounts by amount (desc)
+ * 2. Selects accounts until transfer amount is met, then adds the smallest
+ *    extra account if possible
  */
 export function selectSmartCompressedTokenAccountsForTransferIdempotent(
     accounts: ParsedTokenAccount[],
@@ -190,7 +189,7 @@ export function selectSmartCompressedTokenAccountsForTransferIdempotent(
 
     const selectedAccounts: ParsedTokenAccount[] = [];
 
-    // Filter out zero accounts
+    // we can ignore zero value accounts.
     const nonZeroAccounts = accounts.filter(
         account =>
             !account.parsed.amount.isZero() ||
@@ -208,7 +207,7 @@ export function selectSmartCompressedTokenAccountsForTransferIdempotent(
         selectedAccounts.push(account);
 
         if (accumulatedAmount.gte(bn(transferAmount))) {
-            // Select the smallest additional account if possible
+            // Select smallest additional account
             const remainingAccounts = nonZeroAccounts.slice(
                 selectedAccounts.length,
             );
