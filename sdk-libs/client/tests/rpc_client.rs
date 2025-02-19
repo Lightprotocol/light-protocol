@@ -1,5 +1,5 @@
 use light_client::{
-    photon_rpc::{AddressWithTree, Base58Conversions, Hash, PhotonClient},
+    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Base58Conversions, Hash, Indexer},
     rpc::SolanaRpcConnection,
 };
 use light_compressed_account::{
@@ -164,7 +164,7 @@ async fn test_all_endpoints() {
 
     let pubkey = payer_pubkey;
     let accounts = indexer
-        .get_compressed_accounts_by_owner(&pubkey)
+        .get_compressed_accounts_by_owner_v2(&pubkey)
         .await
         .unwrap();
     assert!(!accounts.is_empty());
@@ -224,23 +224,18 @@ async fn test_all_endpoints() {
     let token_accounts = &indexer
         .get_compressed_token_accounts_by_owner(&pubkey, None)
         .await
-        .unwrap()[0];
-    assert_eq!(token_account.token_data.mint, mint.pubkey());
-    assert_eq!(token_account.token_data.owner, payer_pubkey);
+        .unwrap();
+
+    assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
+    assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
+
+    let hash = token_accounts[0].compressed_account.hash().unwrap();
 
     let balance = indexer
-        .get_compressed_token_account_balance(
-            None,
-            Some(
-                token_account
-                    .compressed_account
-                    .compressed_account
-                    .hash
-                    .unwrap(),
-            ),
-        )
+        .get_compressed_token_account_balance(None, Some(hash))
         .await
         .unwrap();
+    assert_eq!(balance, amount);
 
     assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
     assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
