@@ -1273,7 +1273,7 @@ pub async fn perform_address_update(
         &mt_pubkey,
     )
     .unwrap();
-    let (input_res, new_root, pre_next_full_batch) = {
+    let (input_res, new_root, _pre_next_full_batch) = {
         let mut account =
             BatchedMerkleTreeAccount::address_from_bytes(mt_account_data, &mt_pubkey).unwrap();
 

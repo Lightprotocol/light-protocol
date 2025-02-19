@@ -251,7 +251,7 @@ impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
 impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
     pub async fn get_batched_address_proof(
         &mut self,
-        batch_size: u32,
+        _batch_size: u32,
         zkp_batch_size: u32,
         leaves_hashchain: [u8; 32],
         start_index: usize,

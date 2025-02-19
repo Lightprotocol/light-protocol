@@ -1699,6 +1699,7 @@ async fn test_batch_address_merkle_trees() {
         )
         .await
         .unwrap();
+        mock_indexer.finalize_batch_address_update(10);
     }
     // 5. Failing: invalid proof
     // 6. Failing: invalid new root
@@ -2027,7 +2028,8 @@ pub async fn update_batch_address_tree(
         .batches
         .get(next_full_batch as usize)
         .unwrap();
-    let batch_start_index = batch.start_index;
+    let batch_start_index =
+        batch.start_index + batch.get_num_inserted_zkps() * batch.zkp_batch_size;
     let leaves_hash_chain = zero_copy_account
         .hash_chain_stores
         .get(next_full_batch as usize)
