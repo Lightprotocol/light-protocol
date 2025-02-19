@@ -510,6 +510,347 @@ theorem MerkleRootUpdateGadget_rw [Fact (CollisionResistant poseidon₂)] {tree 
     simp only [MerkleTree.root_setAtFin_eq_recoverAtFin, MerkleTree.recoverAtFin, MerkleTree.proofAtFin] at hk
     simp_all
 
+def hashChain : List.Vector F (d + 1) → F := fun v =>
+  v.tail.toList.foldl (fun h l => poseidon₂ vec![h, l]) v.head
+
+lemma hashChain_body_inj [Fact (CollisionResistant poseidon₂)] {d : Nat} {a₁ a₂} {v₁ v₂ : List.Vector F d}:
+  v₁.toList.foldl (fun h l => poseidon₂ vec![h, l]) a₁ = v₂.toList.foldl (fun h l => poseidon₂ vec![h, l]) a₂ ↔
+  a₁ = a₂ ∧ v₁ = v₂ := by
+  induction d generalizing a₁ a₂ with
+  | zero =>
+    cases v₁ using List.Vector.casesOn
+    cases v₂ using List.Vector.casesOn
+    simp
+  | succ d ih =>
+    cases v₁ using List.Vector.casesOn
+    cases v₂ using List.Vector.casesOn
+    simp [ih, List.Vector.eq_cons]
+    tauto
+
+theorem hashChain_injective [Fact (CollisionResistant poseidon₂)] {d:Nat} {v₁ v₂ : List.Vector F d.succ}:
+  hashChain v₁ = hashChain v₂ ↔ v₁ = v₂ := by
+  cases v₁ using List.Vector.casesOn
+  cases v₂ using List.Vector.casesOn
+  simp [hashChain, hashChain_body_inj, List.Vector.eq_cons]
+
+theorem HashChain_4_rw : LightProver.HashChain_4 v k ↔ k (hashChain v) := by
+  unfold LightProver.HashChain_4
+  simp only [Poseidon2_iff_uniqueAssignment]
+  rw [←List.Vector.ofFn_get (v:=v)]
+  rfl
+
+theorem HashChain_8_rw : LightProver.HashChain_8 v k ↔ k (hashChain v) := by
+  unfold LightProver.HashChain_8
+  simp only [Poseidon2_iff_uniqueAssignment]
+  rw [←List.Vector.ofFn_get (v:=v)]
+  rfl
+
+
+def treeAppends : MerkleTree F poseidon₂ D → Nat → List F → Option (MerkleTree F poseidon₂ D)
+| tree, _, [] => some tree
+| tree, i, (v :: vs) => if h : i < 2^D then
+  let tree' := tree.setAtFin ⟨i, h⟩ (if tree.itemAtFin ⟨i, h⟩ = 0 then v else tree.itemAtFin ⟨i, h⟩)
+  treeAppends tree' (i+1) vs
+else none
+
+lemma iszero_rw (k : F → Prop) : (∃ gate_2,
+        Gates.is_zero oleaf gate_2 ∧
+          ∃ gate_3,
+            Gates.select gate_2 leaf oleaf gate_3 ∧ k gate_3) ↔ k (if oleaf = 0 then leaf else oleaf) := by
+  simp [Gates, GatesGnark8]
+
+lemma ex_add_rw (k : F → Prop) : (∃g, g = Gates.add a b ∧ k g) ↔ k (a + b) := by
+  simp [Gates, GatesGnark8, GatesDef.add]
+
+def AppendWithProofs_rec {D} (or si : F) (ol l : List.Vector F D) (mps : List.Vector (List.Vector F 26) D) (k : F → Prop): Prop := match D with
+  | 0 => k or
+  | _ + 1 =>
+    ∃bin, Gates.to_binary si 26 bin ∧
+    LightProver.MerkleRootUpdateGadget_26_26_26 or ol.head (if ol.head = 0 then l.head else ol.head) bin mps.head fun or =>
+    AppendWithProofs_rec or (si + 1) ol.tail l.tail mps.tail fun r => k r
+
+lemma double_eq_ex {f : F → F} : (∃x, Gates.eq (f x) y ∧ Gates.eq z x ∧ k) ↔ y = (f z) ∧ k := by
+  simp [Gates, GatesGnark8]
+  apply Iff.intro
+  · rintro ⟨x, _⟩
+    simp_all
+  · rintro ⟨x, y⟩
+    simp_all
+
+def AppendWithProofs' (pih : F) (or nr si : F) (ol l : List.Vector F 8) (mps : List.Vector (List.Vector F 26) 8): Prop :=
+  pih = hashChain vec![or, nr, hashChain l, si] ∧
+  AppendWithProofs_rec or si ol l mps fun r => r = nr
+
+theorem AppendWithProofs_rw1 {pih} {or nr si ol l mps}:
+    (∃lhh, LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 pih or nr lhh si ol l mps) ↔
+    (AppendWithProofs' pih or nr si ol l mps) := by
+  unfold LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8
+  simp only [HashChain_4_rw, iszero_rw, HashChain_8_rw, ex_add_rw, double_eq_ex, AppendWithProofs']
+  simp [AppendWithProofs_rec, add_assoc]
+  rw [←List.Vector.ofFn_get (v:=mps), ←List.Vector.ofFn_get (v:=ol), ←List.Vector.ofFn_get (v:=l)]
+  intro
+  rfl
+
+theorem AppendWithProofs_rec_rw {D} [Fact (CollisionResistant poseidon₂)] {tree : MerkleTree F poseidon₂ 26} {l : List.Vector F D}:
+    (∃ol mps, AppendWithProofs_rec tree.root si ol l mps k) ↔ (∃newRoot, some newRoot = (treeAppends tree si.val l.toList).map (·.root) ∧ k newRoot) := by
+  induction D generalizing tree si k with
+  | zero =>
+    cases l using List.Vector.casesOn
+    simp [AppendWithProofs_rec, treeAppends]
+  | succ D ih =>
+    cases l using List.Vector.casesOn
+    have sisucc : (si.val < 2^26) → si.val + 1 = (si + 1).val := by
+      intro h
+      simp [ZMod.val_add]
+      rw [Nat.mod_eq_of_lt]
+      simp [ZMod.val_one]
+      simp [ZMod.val_one]
+      apply lt_trans
+      apply Nat.add_lt_add_right
+      exact h
+      decide
+    apply Iff.intro
+    · rintro ⟨ol, mps, awp⟩
+      simp only [AppendWithProofs_rec] at awp
+      simp only [MerkleRootUpdateGadget_rw, List.Vector.tail_cons] at awp
+      rcases awp with ⟨h, _, _, hp⟩
+      have := ih.mp (Exists.intro ol.tail (Exists.intro mps.tail hp))
+      rcases this with ⟨newRoot, hnewRoot, hk⟩
+      exists newRoot
+      apply And.intro ?_ hk
+      rw [hnewRoot]
+      simp only [List.Vector.toList_cons, treeAppends, h, dite_true]
+      rename ol.head = _ => hol
+      rw [hol, List.Vector.head_cons]
+      congr
+      rw [sisucc h]
+    · rintro ⟨newRoot, hnewRoot, hk⟩
+      simp only [List.Vector.toList_cons, treeAppends] at hnewRoot
+      split at hnewRoot
+      · rename_i h
+        rw [sisucc h] at hnewRoot
+        have := ih.mpr (Exists.intro _ ⟨hnewRoot, hk⟩)
+        rcases this with ⟨ol, mps, hp⟩
+        simp only [AppendWithProofs_rec, MerkleRootUpdateGadget_rw]
+        exists (tree.itemAtFin ⟨si.val, h⟩ ::ᵥ ol)
+        exists ((tree.proofAtFin ⟨si.val, h⟩ |>.reverse) ::ᵥ mps)
+        apply Exists.intro h
+        simp [hp]
+      · cases hnewRoot
+
+theorem AppendWithProofs_rw [Fact (CollisionResistant poseidon₂)]  {pih} {tree : MerkleTree F poseidon₂ 26} {si : F} {l} :
+    (∃ ol mps lhh, LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 pih tree.root nr lhh si ol l mps)
+    ↔ (pih = hashChain vec![tree.root, nr, hashChain l, si] ∧ some nr = (treeAppends tree si.val l.toList).map (·.root)) := by
+  simp [AppendWithProofs_rw1, AppendWithProofs', AppendWithProofs_rec_rw]
+
+@[ext]
+theorem MerkleTree.ext: ∀{t₁ t₂ : MerkleTree F poseidon₂ D}, (∀i, t₁.itemAtFin i = t₂.itemAtFin i) → t₁ = t₂ := by
+  intro t₁ t₂ hp
+  induction D with
+  | zero =>
+    cases t₁; cases t₂
+    have := hp 0
+    cases this
+    rfl
+  | succ D ih =>
+    simp only [itemAtFin] at *
+    cases t₁
+    cases t₂
+    apply congrArg₂
+    · apply ih
+      intro i
+      have := hp i
+      simp only [Fin.toBitsBE] at this
+      simp only [Fin.msb, Fin.lsbs] at this
+      have hlt : ¬(i : Fin (2^(D+1))).val ≥ 2^D := by
+        cases i
+        simp
+        rw [Nat.mod_eq_of_lt]
+        assumption
+        apply lt_trans
+        assumption
+        simp [Nat.pow_succ]
+      simp only [hlt, decide_false, itemAt, treeFor, List.Vector.head_cons, left, List.Vector.tail_cons, Bool.toNat, cond_false, zero_mul, Nat.sub_zero] at this
+      convert this using 3 <;> {
+        cases i
+        simp
+        rw [Nat.mod_eq_of_lt]
+        apply lt_trans
+        assumption
+        simp [Nat.pow_succ]
+      }
+    · apply ih
+      intro i
+      have := hp ⟨2^D + i.val, by cases i; simp [Nat.pow_succ]; linarith⟩
+      simp only [Fin.toBitsBE, Fin.msb, Fin.lsbs] at this
+      simp [itemAt, treeFor, right] at this
+      exact this
+
+theorem treeAppends_sound_and_complete {v : List.Vector F (d+1)} {tree newTree : MerkleTree F poseidon₂ D}:
+    treeAppends tree startIndex v.toList = some newTree ↔
+    (startIndex + d < 2^D) ∧
+    ∀i: Fin (2^D),
+      (i.val ∈ [startIndex:(startIndex + (d + 1))] → newTree[i] = if tree[i] = 0 then v[i.val - startIndex]! else tree[i]) ∧
+      (i.val ∉ [startIndex:(startIndex + (d + 1))] → newTree[i] = tree[i]) := by
+  induction d generalizing tree startIndex newTree with
+  | zero =>
+    cases v using List.Vector.casesOn with | cons h t =>
+    cases t using List.Vector.casesOn
+    simp [treeAppends]
+    apply Iff.intro
+    · rintro ⟨h, rfl⟩
+      apply And.intro h
+      intro i
+      apply And.intro
+      · intro h
+        have : i.val = startIndex := by
+          cases i
+          simp_all [Membership.mem]
+          linarith
+        cases this
+        simp [getElem!, decidableGetElem?]
+      · intro h
+        have : i.val ≠ startIndex := by
+          cases i
+          simp only at *
+          intro h
+          cases h
+          simp_all [Membership.mem]
+        rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq]
+        · intro h
+          cases h
+          exact this rfl
+    · rintro ⟨h₁, h₂⟩
+      apply Exists.intro h₁
+      rw [eq_comm]
+      ext j
+      by_cases hp : j = ⟨startIndex, h₁⟩
+      · cases hp
+        simp
+        have := (h₂ ⟨startIndex, h₁⟩).1 ⟨by simp, by simp, by simp⟩
+        simp [getElem!, decidableGetElem?] at this
+        exact this
+      · rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq hp]
+        have := (h₂ j).2
+        apply this
+        intro hj
+        have : j.val = startIndex := by
+          cases hj
+          linarith
+        cases this
+        exact hp rfl
+  | succ d ih =>
+    cases v using List.Vector.casesOn with | cons h t =>
+    simp only [treeAppends, List.Vector.toList_cons]
+    apply Iff.intro
+    · intro h
+      split at h
+      · rename_i hr
+        rw [ih] at h
+        rcases h with ⟨hr, h⟩
+        apply And.intro
+        · linarith
+        · intro i
+          apply And.intro
+          · by_cases hi : i.val = startIndex
+            · intro _
+
+              have := (h i).2
+              simp [getElem, hi] at this
+              simp [getElem, hi]
+              apply this
+              intro hp
+              have := hp.1
+              linarith
+            · rintro ⟨hl, hh, _⟩
+              simp only at *
+              have : startIndex + 1 ≤ i.val := by
+                cases i
+                cases hl
+                · contradiction
+                · simp_all
+              have := (h i).1
+              have := this ⟨by linarith, by linarith, by simp [Nat.mod_one]⟩
+              simp only [getElem] at this
+              rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq] at this
+              · simp only [getElem]
+                rw [this]
+                congr 1
+                simp [getElem!, decidableGetElem?]
+                have : i.val - (startIndex + 1) < d + 1 ↔ i.val - startIndex < d + 1 + 1 := by
+                  zify [*]
+                  apply Iff.intro <;> {intro; linarith}
+                simp_rw [this]
+                have : i.val - startIndex = i.val - (startIndex + 1) + 1 := by
+                  zify [*]
+                  ring
+                simp_rw [this]
+                simp
+              · cases i
+                intro h
+                simp at h
+                cases h
+                apply hi
+                simp
+          · have := (h i).2
+            intro hi
+            simp only [getElem] at this
+            rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq] at this
+            apply this
+            rintro ⟨h₁, h₂, _⟩
+            apply hi
+            apply And.intro
+            · linarith
+            · apply And.intro (by linarith) (by simp [Nat.mod_one])
+            intro his
+            simp at his
+            cases his
+            apply hi ⟨by linarith, by linarith, by simp [Nat.mod_one]⟩
+      · cases h
+    · rintro ⟨hsi, helt⟩
+      have : startIndex < 2^D := by linarith
+      simp only [this, dite_true, treeAppends, List.Vector.toList_cons, ih]
+      apply And.intro (by linarith)
+      intro i
+      apply And.intro
+      · intro hi
+        rcases hi with ⟨hlo, hhi, _⟩
+        have : i.val > startIndex := by linarith
+        have : i.val ≠ startIndex := by linarith
+        rw [(helt i).1]
+        · simp only [getElem]
+          rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq (Fin.ne_of_val_ne this)]
+          have : i.val - startIndex = i.val - (startIndex + 1) + 1 := by
+            zify [*]
+            ring
+          simp [this, getElem!, decidableGetElem?]
+        · apply And.intro (by linarith)
+          apply And.intro (by linarith)
+          simp [Nat.mod_one]
+      · intro hi
+        by_cases hp : i.val = startIndex
+        · simp only [getElem, hp, MerkleTree.itemAtFin_setAtFin_eq_self]
+          simp only [getElem] at helt
+          rw [(helt ⟨startIndex, this⟩).1]
+          · simp [getElem!, decidableGetElem?]
+          · apply And.intro (by linarith)
+            apply And.intro (by linarith)
+            simp [Nat.mod_one]
+        · rw [(helt i).2]
+          · simp only [getElem]
+            rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq (Fin.ne_of_val_ne hp)]
+          · intro hp
+            rcases hp with ⟨hlo, hhi, _⟩
+            cases i
+            cases hlo
+            · exact hp rfl
+            · apply hi
+              apply And.intro
+              · simp_all
+              · apply And.intro
+                · linarith
+                · simp [Nat.mod_one]
+
 lemma Range.none_of_hashOpt_zero {r: Option Range} [Fact poseidon₂_no_zero_preimage]: 0 = Range.hashOpt r ↔ r = none := by
   apply Iff.intro
   · intro h

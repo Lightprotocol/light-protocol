@@ -116,4 +116,49 @@ theorem inputHash_injective:
 
 end CombinedCircuit
 
+namespace BatchAppendWithProofsCircuit
+
+theorem sound_and_complete
+  {tree : MerkleTree F poseidon₂ 26} {newRoot startIndex : F} {leaves : List.Vector F 8}:
+    (∃ih oldLeaves merkleProofs lh,
+      LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8
+        ih tree.root newRoot lh startIndex oldLeaves leaves merkleProofs)
+    ↔
+    (startIndex.val + 7 < 2^26) ∧
+    ∃(newTree : MerkleTree F poseidon₂ 26), newRoot = newTree.root ∧
+    ∀(i : Fin (2^26)),
+      (i.val ∈ [startIndex.val:(startIndex.val + 8)] → newTree[i] = if tree[i] = 0 then leaves[i.val - startIndex.val]! else tree[i]) ∧
+      (i.val ∉ [startIndex.val:(startIndex.val + 8)] → newTree[i] = tree[i])
+  := by
+  simp [AppendWithProofs_rw]
+  rw [eq_comm, Option.map_eq_some']
+  simp [treeAppends_sound_and_complete]
+  apply Iff.intro
+  · tauto
+  · rintro ⟨_, t, _⟩
+    use t
+    tauto
+
+theorem inputHash_deterministic:
+    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h₁ oldRoot newRoot p₁ startIndex p₂ leaves p₃ ∧
+    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h₂ oldRoot newRoot q₁ startIndex q₂ leaves q₃ →
+    h₁ = h₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₁)).1
+  have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₂)).1
+  simp_all
+
+theorem inputHash_injective:
+    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h oldRoot₁ newRoot₁ p₁ startIndex₁ p₂ leaves₁ p₃ ∧
+    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h oldRoot₂ newRoot₂ q₁ startIndex₂ q₂ leaves₂ q₃ →
+    oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ startIndex₁ = startIndex₂ ∧ leaves₁ = leaves₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₁)).1
+  have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₂)).1
+  simp_all [hashChain_injective, List.Vector.eq_cons]
+
+
+
+end BatchAppendWithProofsCircuit
+
 def main : IO Unit := pure ()
