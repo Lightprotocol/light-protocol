@@ -60,8 +60,82 @@ describe('safely convert json response', async () => {
                 const output = wrapBigNumbersAsStrings(input);
                 expect(output).to.equal('{"value": -100}');
             });
+
+            // New test cases
+            it('should handle boundary values correctly', () => {
+                const input1 = '{"value": 9007199254740991}';
+                const output1 = wrapBigNumbersAsStrings(input1);
+                expect(output1).to.equal('{"value": 9007199254740991}');
+
+                const input2 = '{"value": 9007199254740992}';
+                const output2 = wrapBigNumbersAsStrings(input2);
+                expect(output2).to.equal('{"value": "9007199254740992"}');
+
+                const input3 = '{"value": -9007199254740991}';
+                const output3 = wrapBigNumbersAsStrings(input3);
+                expect(output3).to.equal('{"value": -9007199254740991}');
+
+                const input4 = '{"value": -9007199254740992}';
+                const output4 = wrapBigNumbersAsStrings(input4);
+                expect(output4).to.equal('{"value": "-9007199254740992"}');
+            });
+
+            it('should not alter non-numeric values', () => {
+                const input = '{"value": "12345678901234567890"}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal('{"value": "12345678901234567890"}');
+            });
+
+            it('should handle mixed content correctly', () => {
+                const input =
+                    '{"value": 123, "text": "hello", "big": 9007199254740992}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal(
+                    '{"value": 123, "text": "hello", "big": "9007199254740992"}',
+                );
+            });
+
+            it('should handle arrays of numbers correctly', () => {
+                const input = '{"values": [1, 9007199254740992, 3]}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal(
+                    '{"values": [1, "9007199254740992", 3]}',
+                );
+            });
+
+            it('should handle nested objects correctly', () => {
+                const input = '{"outer": {"inner": 9007199254740992}}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal(
+                    '{"outer": {"inner": "9007199254740992"}}',
+                );
+            });
+
+            it('should handle negative numbers beyond safe integer limits', () => {
+                const input = '{"value": -9007199254740993}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal('{"value": "-9007199254740993"}');
+            });
+
+            it('should not wrap zero and small numbers', () => {
+                const input1 = '{"value": 0}';
+                const output1 = wrapBigNumbersAsStrings(input1);
+                expect(output1).to.equal('{"value": 0}');
+
+                const input2 = '{"value": 42}';
+                const output2 = wrapBigNumbersAsStrings(input2);
+                expect(output2).to.equal('{"value": 42}');
+            });
+
+            it('should handle edge case with trailing comma', () => {
+                const input = '{"value": 9007199254740992,}';
+                const output = wrapBigNumbersAsStrings(input);
+                expect(output).to.equal('{"value": "9007199254740992",}');
+            });
         });
     });
+
+    // Existing test cases
     it('should convert unsafe integer responses safely', async () => {
         const rawResponse = `{
                 "jsonrpc": "2.0",
