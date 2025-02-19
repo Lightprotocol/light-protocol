@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.20.3] - 2025-02-19
+
+Fixed a bug where we lose precision on token amounts if compressed token accounts are created with > Number.MAX_SAFE_INTEGER.
+
 ## [0.20.0] - 2025-01-22
 
 ### Breaking Changes
