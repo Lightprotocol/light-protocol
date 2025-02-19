@@ -288,7 +288,7 @@ pub fn match_system_program_instruction(
             event.compress_or_decompress_lamports =
                 data.compress_or_decompress_lamports.map(|x| (*x).into());
             // We are only interested in remaining account which start after 9 static accounts.
-            let remaining_accounts = accounts.split_at(8).1;
+            let remaining_accounts = accounts.split_at(9).1;
             data.input_compressed_accounts_with_merkle_context
                 .iter()
                 .for_each(|x| {
