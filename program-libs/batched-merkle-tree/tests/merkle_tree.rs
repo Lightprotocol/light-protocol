@@ -1285,7 +1285,9 @@ pub async fn perform_address_update(
             .batches
             .get(next_full_batch as usize)
             .unwrap();
-        let batch_start_index = batch.start_index;
+        let batch_start_index =
+            batch.start_index + batch.get_num_inserted_zkps() * batch.zkp_batch_size;
+        println!("batch start index {}", batch_start_index);
         let leaves_hash_chain = account
             .hash_chain_stores
             .get(next_full_batch as usize)
@@ -1298,12 +1300,14 @@ pub async fn perform_address_update(
                 account.get_metadata().queue_batches.batch_size as u32,
                 account.get_metadata().queue_batches.zkp_batch_size as u32,
                 *leaves_hash_chain,
-                next_index as usize,
+                next_index as usize, // % batch.zkp_batch_size as usize
                 batch_start_index as usize,
                 *current_root,
             )
             .await
             .unwrap();
+
+        mock_indexer.finalize_batch_address_update(10);
         let instruction_data = InstructionDataBatchNullifyInputs {
             new_root,
             compressed_proof: CompressedProof {
@@ -1334,16 +1338,6 @@ pub async fn perform_address_update(
     let account =
         BatchedMerkleTreeAccount::address_from_bytes(mt_account_data, &mt_pubkey).unwrap();
 
-    {
-        let batch = account
-            .queue_batches
-            .batches
-            .get(pre_next_full_batch as usize)
-            .unwrap();
-        if batch.get_state() == BatchState::Inserted {
-            mock_indexer.finalize_batch_address_update(batch.batch_size as usize);
-        }
-    }
     assert_address_merkle_tree_update(old_account, account, new_root);
 }
 

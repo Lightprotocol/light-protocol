@@ -258,7 +258,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         batch_start_index: usize,
         current_root: [u8; 32],
     ) -> Result<(CompressedProof, [u8; 32]), ProverClientError> {
-        let new_element_values = self.queue_leaves[..batch_size as usize].to_vec();
+        let new_element_values = self.queue_leaves[..zkp_batch_size as usize].to_vec();
 
         assert_eq!(
             self.merkle_tree.merkle_tree.rightmost_index,
@@ -358,5 +358,9 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 )
                 .unwrap();
         }
+        println!(
+            "new next index {}",
+            self.merkle_tree.merkle_tree.get_next_index()
+        );
     }
 }
