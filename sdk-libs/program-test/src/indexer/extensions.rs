@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use light_client::{
     indexer::{
         AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, NewAddressProofWithContext,
-        ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::RpcConnection,
 };
@@ -12,6 +12,7 @@ use light_compressed_account::{
 };
 use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
 use solana_sdk::signature::Keypair;
+use light_client::indexer::MerkleProof;
 
 #[async_trait]
 pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
@@ -80,7 +81,7 @@ pub trait TestIndexerExtensions<R: RpcConnection>: Indexer<R> {
         Vec<TokenDataWithMerkleContext>,
     );
 
-    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf;
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
 
     async fn update_test_indexer_after_append(
         &mut self,

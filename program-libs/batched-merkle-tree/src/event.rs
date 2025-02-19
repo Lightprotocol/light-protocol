@@ -5,7 +5,7 @@ pub const BATCH_NULLIFY_EVENT_DISCRIMINATOR: u16 = 2;
 pub const BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR: u16 = 3;
 
 #[repr(C)]
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Eq)]
 pub struct BatchAppendEvent {
     pub discriminator: u16,
     pub tree_type: u64,

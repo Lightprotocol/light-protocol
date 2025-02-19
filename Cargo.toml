@@ -119,7 +119,7 @@ light-compressed-account = { path = "program-libs/compressed-account", version =
 light-account-checks = { path = "program-libs/account-checks", version = "0.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.1.0" }
-photon-api = { path = "sdk-libs/photon-api", version = "0.45.0" }
+photon-api = { path = "sdk-libs/photon-api", version = "0.50.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
 account-compression = { path = "programs/account-compression", version = "1.2.0", features = [
     "cpi",

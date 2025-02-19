@@ -19,7 +19,7 @@ use light_client::{
     indexer::{
         Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
         Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
-        NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
     transaction_params::FeeConfig,
@@ -62,7 +62,7 @@ use light_sdk::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::TokenBalance;
+use photon_api::models::{AccountV1, TokenBalance};
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -106,35 +106,48 @@ where
     async fn get_queue_elements(
         &self,
         pubkey: [u8; 32],
-        _batch: u64,
         start_offset: u64,
         end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+    ) -> Result<Vec<(u64, [u8; 32])>, IndexerError> {
         let pubkey = Pubkey::new_from_array(pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
             .iter()
             .find(|x| x.accounts.merkle_tree == pubkey);
         if let Some(address_tree_bundle) = address_tree_bundle {
-            return Ok(address_tree_bundle.queue_elements
+            let elements: Vec<[u8; 32]> = address_tree_bundle.queue_elements
                 [start_offset as usize..end_offset as usize]
-                .to_vec());
+                .to_vec();
+
+            let result = elements
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (i as u64, *x))
+                .collect();
+            return Ok(result);
         }
         let state_tree_bundle = self
             .state_merkle_trees
             .iter()
             .find(|x| x.accounts.merkle_tree == pubkey);
         if let Some(state_tree_bundle) = state_tree_bundle {
-            return Ok(state_tree_bundle.output_queue_elements
+            let result = state_tree_bundle.output_queue_elements
                 [start_offset as usize..end_offset as usize]
-                .to_vec());
+                .iter()
+                .enumerate()
+                .map(|(i, x)| (i as u64, *x))
+                .collect();
+            return Ok(result);
         }
         Err(IndexerError::InvalidParameters(
             "Merkle tree not found".to_string(),
         ))
     }
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
@@ -364,6 +377,7 @@ where
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
                         root_seq: tree.merkle_tree.sequence_number as u64,
+                        root: tree.merkle_tree.roots.last().unwrap().clone(),
                     });
                 }
             })
@@ -371,7 +385,7 @@ where
         Ok(proofs)
     }
 
-    async fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
@@ -382,7 +396,7 @@ where
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<photon_api::models::account::Account, IndexerError> {
+    ) -> Result<AccountV1, IndexerError> {
         let account = match (address, hash) {
             (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
                 acc.compressed_account
@@ -472,7 +486,7 @@ where
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<photon_api::models::account::Account>, IndexerError> {
+    ) -> Result<Vec<AccountV1>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self
@@ -568,29 +582,30 @@ where
         todo!()
     }
 
-    fn get_proofs_by_indices(
+    async fn get_proofs_by_indices(
         &mut self,
         merkle_tree_pubkey: Pubkey,
         indices: &[u64],
-    ) -> Vec<ProofOfLeaf> {
-        indices
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        Ok(indices
             .iter()
             .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
-            .collect()
+            .collect())
     }
 
-    fn get_leaf_indices_tx_hashes(
+    async fn get_leaf_indices_tx_hashes(
         &mut self,
         merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo> {
+        start_offset: u64,
+        end_offset: u64,
+    ) -> Result<Vec<LeafIndexInfo>, IndexerError> {
         let state_merkle_tree_bundle = self
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
             .unwrap();
 
-        state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec()
+        Ok(state_merkle_tree_bundle.input_leaf_indices[start_offset as usize..end_offset as usize].to_vec())
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
@@ -887,7 +902,7 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
-    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof {
         let bundle = self
             .state_merkle_trees
             .iter_mut()
@@ -912,7 +927,14 @@ where
             .unwrap()
             .to_vec();
 
-        ProofOfLeaf { leaf, proof }
+        MerkleProof {
+            hash: bs58::encode(leaf).into_string(),
+            leaf_index: index,
+            merkle_tree: merkle_tree_pubkey.to_string(),
+            proof,
+            root_seq: bundle.merkle_tree.sequence_number as u64,
+            root: bundle.merkle_tree.root(),
+        }
     }
 
     async fn update_test_indexer_after_append(
@@ -1616,7 +1638,7 @@ where
             .sum()
     }
 
-    fn process_v1_compressed_account(
+    fn  process_v1_compressed_account(
         &mut self,
         slot: u64,
         event: &PublicTransactionEvent,
@@ -1785,14 +1807,12 @@ where
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-
             let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
                 x.accounts.merkle_tree
                     == event.pubkey_array
                         [event.output_compressed_accounts[i].merkle_tree_index as usize]
             });
             let is_batched = merkle_tree.is_none();
-
             println!("Output is batched {:?}", is_batched);
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();

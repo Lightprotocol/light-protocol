@@ -27,6 +27,7 @@ use log::{error, info};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use light_client::indexer::Base58Conversions;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -93,10 +94,9 @@ where
         .merkle_tree
         .rightmost_index;
 
-    let addresses = indexer
+    let addresses: Vec<[u8; 32]> = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
             0,
             batch_size as u64,
         )
@@ -107,7 +107,10 @@ where
                 e
             );
             ForesterUtilsError::IndexerError("Failed to get queue elements".into())
-        })?;
+        })?
+        .iter()
+        .map(|x| x.1.clone())
+        .collect();
 
     let batch_size = addresses.len();
 
@@ -142,6 +145,7 @@ where
 
     let subtrees = indexer
         .get_subtrees(merkle_tree_pubkey.to_bytes())
+        .await
         .map_err(|e| {
             error!(
                 "create_batch_update_address_tree_instruction_data: failed to get subtrees from indexer: {:?}",
@@ -221,13 +225,18 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             &merkle_tree_pubkey.into(),
         )
         .unwrap();
+
+        for (index, root) in merkle_tree.root_history.iter().enumerate() {
+            println!("root[{}]: {:?}", index, root);
+        }
+
         (
             merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
         )
     };
 
-    let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hash_chain) = {
+    let (zkp_batch_size, full_batch_index, num_inserted_zkps, leaves_hash_chain/*, leaves*/) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
         let output_queue =
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
@@ -242,50 +251,88 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
 
+        // let leaves = output_queue
+        //     .value_vecs
+        //     .get(full_batch_index as usize)
+        //     .unwrap()
+        //     .to_vec();
+
         (
             zkp_batch_size,
             full_batch_index,
             num_inserted_zkps,
             leaves_hash_chain,
+            // leaves
         )
     };
     let start = num_inserted_zkps as usize * zkp_batch_size as usize;
     let end = start + zkp_batch_size as usize;
 
-    let leaves = indexer
+    let mut leaves = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            start as u64,
-            end as u64,
+            merkle_tree_next_index, // from leaf_index
+            merkle_tree_next_index + zkp_batch_size,  // to leaf_index
         )
         .await
         .unwrap();
+    // sort leaves where leave is (u64, vec<u8>) by u64
+    leaves.sort_by(|a, b| a.0.cmp(&b.0));
+    let first_leaf_index = leaves.first().unwrap().0;
+    let last_leaf_index = leaves.last().unwrap().0;
+    info!("First leaf index: {:?}", first_leaf_index);
+    info!("Last leaf index: {:?}", last_leaf_index);
 
-    info!("Leaves: {:?}", leaves);
+    let first_index = merkle_tree_next_index  as usize - first_leaf_index as usize;
+    let last_index = first_index + zkp_batch_size as usize;
+
+    info!("First index: {:?}", first_index);
+    info!("Last index: {:?}", last_index);
+
+    let leaves = leaves[first_index..last_index].to_vec();
 
     let (old_leaves, merkle_proofs) = {
         let mut old_leaves = vec![];
         let mut merkle_proofs = vec![];
-        let indices =
-            (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
-        let proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices);
+
+        let indices = (merkle_tree_next_index..merkle_tree_next_index + zkp_batch_size).collect::<Vec<_>>();
+
+        let mut proofs = indexer
+            .get_proofs_by_indices(merkle_tree_pubkey, &indices)
+            .await
+            .unwrap();
+        let mut indexer_root = proofs.first().unwrap().root;
+
+        let mut iter = 0;
+
+        while indexer_root != current_root {
+            println!("Indexer root: {:?}, Current root: {:?}, Iteration: {:?}", indexer_root, current_root, iter);
+            proofs = indexer
+                .get_proofs_by_indices(merkle_tree_pubkey, &indices)
+                .await
+                .unwrap();
+            indexer_root = proofs.first().unwrap().root;
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            iter += 1;
+        }
+
+
         proofs.iter().for_each(|proof| {
-            old_leaves.push(proof.leaf);
+            old_leaves.push(light_client::indexer::Hash::from_base58(&proof.hash.clone()).unwrap());
             merkle_proofs.push(proof.proof.clone());
         });
 
         (old_leaves, merkle_proofs)
     };
 
-    info!("Old leaves: {:?}", old_leaves);
+    println!("Old leaves: {:?}", old_leaves);
 
     let (proof, new_root) = {
         let circuit_inputs =
             get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 current_root,
                 merkle_tree_next_index as u32,
-                leaves,
+                leaves.iter().map(|x| x.1.clone()).collect(),
                 leaves_hash_chain,
                 old_leaves,
                 merkle_proofs,
@@ -340,7 +387,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    let (zkp_batch_size, old_root, leaves_hash_chain) = {
+    let (zkp_batch_size, old_root, leaves_hash_chain, start_offset) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
@@ -349,15 +396,32 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
+        let batch_size = merkle_tree.queue_batches.batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size, root, hash_chain)
+        for (idx, root) in merkle_tree.root_history.iter().enumerate() {
+            println!("root[{}]: {:?}", idx, root);
+        }
+        let current_batch_index = merkle_tree.queue_batches.get_current_batch_index();
+        let mut start_offset = merkle_tree.queue_batches.next_index / batch_size;
+        if current_batch_index == batch_idx {
+            start_offset = merkle_tree.queue_batches.next_index - merkle_tree.queue_batches.next_index % batch_size;
+            start_offset += zkp_idx * zkp_size;
+        } else {
+            start_offset = merkle_tree.queue_batches.next_index - merkle_tree.queue_batches.next_index % batch_size - batch_size;
+            start_offset += zkp_idx * zkp_size;
+        }
+
+        (zkp_size, root, hash_chain, start_offset)
     };
 
-    let leaf_indices_tx_hashes =
-        indexer.get_leaf_indices_tx_hashes(merkle_tree_pubkey, zkp_batch_size as usize);
+    println!("start_offset: {:?}, zkp_batch_size: {:?}, hash_chain: {:?}, old_root: {:?}", start_offset, zkp_batch_size, leaves_hash_chain, old_root);
+    let leaf_indices_tx_hashes = indexer
+        .get_leaf_indices_tx_hashes(merkle_tree_pubkey, start_offset, start_offset + zkp_batch_size)
+        .await
+        .unwrap();
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -366,25 +430,46 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let mut merkle_proofs = Vec::new();
     let mut nullifiers = Vec::new();
 
-    let proofs = indexer.get_proofs_by_indices(
-        merkle_tree_pubkey,
-        &leaf_indices_tx_hashes
-            .iter()
-            .map(|leaf_info| leaf_info.leaf_index as u64)
-            .collect::<Vec<_>>(),
-    );
+
+    let indices = leaf_indices_tx_hashes
+        .iter()
+        .map(|leaf_info| leaf_info.leaf_index as u64)
+        .collect::<Vec<_>>();
+
+    let mut proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices)
+        .await
+        .unwrap();
+    let mut indexer_root = proofs.first().unwrap().root;
+    let mut iter = 0;
+
+    while indexer_root != old_root {
+        println!("Indexer root: {:?}, Current root: {:?}, Iteration: {:?}", indexer_root, old_root, iter);
+        proofs = indexer.get_proofs_by_indices(merkle_tree_pubkey, &indices)
+            .await
+            .unwrap();
+        indexer_root = proofs.first().unwrap().root;
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        iter += 1;
+    }
+
+    println!("leaf_indices_tx_hashes: {:?}", leaf_indices_tx_hashes);
+    println!("old_root: {:?}", old_root);
+    println!("proofs: {:?}", proofs);
 
     for (leaf_info, proof) in leaf_indices_tx_hashes.iter().zip(proofs.iter()) {
         path_indices.push(leaf_info.leaf_index);
         leaves.push(leaf_info.leaf);
-        old_leaves.push(proof.leaf);
+        old_leaves.push(light_client::indexer::Hash::from_base58(&proof.hash.clone()).unwrap());
         merkle_proofs.push(proof.proof.clone());
         tx_hashes.push(leaf_info.tx_hash);
         let index_bytes = leaf_info.leaf_index.to_be_bytes();
         let nullifier =
             Poseidon::hashv(&[&leaf_info.leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+        println!("nullifier: {:?}", nullifier);
         nullifiers.push(nullifier);
     }
+
+    println!("generated nullifiers: {:?}", nullifiers);
 
     let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
@@ -397,14 +482,21 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         zkp_batch_size as u32,
     )
     .unwrap();
+    println!("inputs: {:?}", inputs);
 
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
 
+    println!("new_root: {:?}", new_root);
+
     let client = Client::new();
+
+    let json_str = update_inputs_string(&inputs);
+    println!("json_str: {:?}", json_str);
+
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(update_inputs_string(&inputs))
+        .body(json_str)
         .send()
         .await
         .map_err(|e| {
@@ -415,6 +507,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::ProverError("Failed to send proof to server".into())
         })?;
 
+    println!("response: {:?}", response);
     let proof = if response.status().is_success() {
         let body = response.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
