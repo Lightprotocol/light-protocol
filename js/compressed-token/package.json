@@ -84,6 +84,7 @@
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:create-mint": "pnpm test-validator && NODE_OPTIONS='--trace-deprecation' vitest run tests/e2e/create-mint.test.ts --reporter=verbose",
         "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
+        "test:e2e:select-accounts": "vitest run tests/e2e/select-accounts.test.ts --reporter=verbose",
         "test:e2e:create-token-pool": "pnpm test-validator && vitest run tests/e2e/create-token-pool.test.ts",
         "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts --reporter=verbose",
         "test:e2e:approve-and-mint-to": "pnpm test-validator && vitest run tests/e2e/approve-and-mint-to.test.ts --reporter=verbose",

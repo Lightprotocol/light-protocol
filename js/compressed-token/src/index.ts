@@ -5,3 +5,4 @@ export * from './types';
 export * from './actions';
 export * from './layout';
 export * from './idl';
+export * from './utils';
