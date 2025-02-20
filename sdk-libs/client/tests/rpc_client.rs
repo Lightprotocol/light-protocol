@@ -37,7 +37,11 @@ async fn test_all_endpoints() {
         enable_indexer: true,
         prover_config: Some(ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::Combined],
+            circuits: vec![
+                ProofType::Combined,
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+            ],
         }),
         wait_time: 60,
         sbf_programs: vec![],

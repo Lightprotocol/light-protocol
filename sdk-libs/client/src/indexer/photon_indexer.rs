@@ -298,7 +298,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 }),
                 ..Default::default()
             };
-
             let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_v2_post(
                 &self.configuration,
                 request,
@@ -689,11 +688,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 ..Default::default()
             };
 
+            println!("Request: {:?}", request);
+
             let result = photon_api::apis::default_api::get_validity_proof_post(
                 &self.configuration,
                 request,
             )
             .await?;
+
+            println!("Result: {:?}", result);
 
             let result = Self::extract_result("get_validity_proof", result.result)?;
             Ok(*result.value)

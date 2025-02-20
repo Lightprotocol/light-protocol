@@ -13,19 +13,15 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedProof {
     #[serde(rename = "a")]
-    pub a: std::path::PathBuf,
+    pub a: Vec<u8>,
     #[serde(rename = "b")]
-    pub b: std::path::PathBuf,
+    pub b: Vec<u8>,
     #[serde(rename = "c")]
-    pub c: std::path::PathBuf,
+    pub c: Vec<u8>,
 }
 
 impl CompressedProof {
-    pub fn new(
-        a: std::path::PathBuf,
-        b: std::path::PathBuf,
-        c: std::path::PathBuf,
-    ) -> CompressedProof {
+    pub fn new(a: Vec<u8>, b: Vec<u8>, c: Vec<u8>) -> CompressedProof {
         CompressedProof { a, b, c }
     }
 }
