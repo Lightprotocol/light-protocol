@@ -168,7 +168,8 @@ where
                                     state_tree_bundle.merkle_tree.get_next_index() as u64;
                                 while next_index < leaf_info.leaf_index as u64 {
                                     state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                    next_index = state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                    next_index =
+                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
                                 }
                                 state_tree_bundle
                                     .merkle_tree
@@ -235,7 +236,8 @@ where
                                     state_tree_bundle.merkle_tree.get_next_index() as u64;
                                 while next_index < **index {
                                     state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                    next_index = state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                    next_index =
+                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
                                 }
                                 state_tree_bundle
                                     .merkle_tree
