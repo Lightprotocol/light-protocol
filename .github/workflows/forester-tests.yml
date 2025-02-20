@@ -44,6 +44,12 @@ jobs:
               needs-test-program: false,
             },
             {
+              name: "state-photon-batched",
+              command: "test_state_indexer_batched",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
               name: "2-foresters",
               command: "test_epoch_monitor_with_2_foresters",
               timeout: 60,
