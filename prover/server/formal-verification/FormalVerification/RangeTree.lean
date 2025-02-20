@@ -298,13 +298,61 @@ def MerkleTree.ofFn (H: Hash α 2) (emb : β → α) (f : Fin (2^d) → β): Mer
   | 0 => leaf (emb (f 0))
   | Nat.succ d' => bin (MerkleTree.ofFn H emb (fun i => f i)) (MerkleTree.ofFn H emb (fun i => f (i + 2^d')))
 
+@[ext]
+theorem MerkleTree.ext: ∀{t₁ t₂ : MerkleTree α H D}, (∀i, t₁.itemAtFin i = t₂.itemAtFin i) → t₁ = t₂ := by
+  intro t₁ t₂ hp
+  induction D with
+  | zero =>
+    cases t₁; cases t₂
+    have := hp 0
+    cases this
+    rfl
+  | succ D ih =>
+    simp only [itemAtFin] at *
+    cases t₁
+    cases t₂
+    apply congrArg₂
+    · apply ih
+      intro i
+      have := hp i
+      simp only [Fin.toBitsBE] at this
+      simp only [Fin.msb, Fin.lsbs] at this
+      have hlt : ¬(i : Fin (2^(D+1))).val ≥ 2^D := by
+        cases i
+        simp
+        rw [Nat.mod_eq_of_lt]
+        assumption
+        apply lt_trans
+        assumption
+        simp [Nat.pow_succ]
+      simp only [hlt, decide_false, itemAt, treeFor, List.Vector.head_cons, left, List.Vector.tail_cons, Bool.toNat, cond_false, zero_mul, Nat.sub_zero] at this
+      convert this using 3 <;> {
+        cases i
+        simp
+        rw [Nat.mod_eq_of_lt]
+        apply lt_trans
+        assumption
+        simp [Nat.pow_succ]
+      }
+    · apply ih
+      intro i
+      have := hp ⟨2^D + i.val, by cases i; simp [Nat.pow_succ]; linarith⟩
+      simp only [Fin.toBitsBE, Fin.msb, Fin.lsbs] at this
+      simp [itemAt, treeFor, right] at this
+      exact this
+
 lemma Fin.lt_of_msb_zero {x : Fin (2^(d+1))} (h : Fin.msb x = false): x.val < 2^d := by
   rw [Fin.msbs_lsbs_decomposition (v:=x)]
   simp_all
 
-lemma MerkleTree.ofFn_cond {fn : Fin (2^d) → α} {v k} :
-  MerkleTree.ofFn H emb (fun i => if i = k then v else fn i) = (MerkleTree.ofFn H emb fn |>.setAtFin k (emb v)) := by
-  sorry
+lemma Fin.pow_def [NeZero k] {a : Fin k}: (a ^ d).val = (a.val ^ d) % k := by
+  induction d with
+  | zero => simp []
+  | succ d ih =>
+    simp [pow_succ, Fin.val_mul, ih]
+
+lemma Fin.ofNat2 (h : n > 2) [NeZero n] : (2 : Fin n).val = 2 := by
+  simp [OfNat.ofNat, Nat.mod_eq_of_lt h]
 
 lemma MerkleTree.ofFn_itemAtFin {fn : Fin (2^d) → α} : (ofFn H emb fn |>.itemAtFin idx) = emb (fn idx) := by
   induction d with
@@ -318,24 +366,40 @@ lemma MerkleTree.ofFn_itemAtFin {fn : Fin (2^d) → α} : (ofFn H emb fn |>.item
     cases h: idx.msb
     · have := Fin.lt_of_msb_zero h
       simp [treeFor, left, ih, Fin.natCast_def, Nat.mod_eq_of_lt, *]
-    · simp [treeFor, right, ih, add_comm, Fin.add_def]
+    · simp [treeFor, right, ih, add_comm, Fin.add_def, List.Vector.head_cons]
+      generalize_proofs
       congr
-      rw [Nat.mod_eq_of_lt]
-      congr
-      sorry
-      sorry
+      cases d
+      · simp
+      · rename_i d _ _ _ _
+        have : ((2 : Fin (2 ^ (d + 2))) ^ (d+1)).val = 2 ^ (d+1) := by
+          simp [Fin.pow_def]
+          rw [Fin.ofNat2]
+          · rw [Nat.mod_eq_of_lt]
+            simp [Nat.pow_succ]
+          · simp [Nat.pow_succ];
+            rw [←Nat.mul_one (n:=1)]
+            apply Nat.mul_lt_mul_of_le_of_lt
+            · apply Nat.one_le_pow; simp
+            · simp
+            · simp
+        simp [this]
+        rw [Nat.mod_eq_of_lt]
+        congr
 
-
+lemma MerkleTree.ofFn_cond {fn : Fin (2^d) → α} {v k} :
+    MerkleTree.ofFn H emb (fun i => if i = k then v else fn i) = (MerkleTree.ofFn H emb fn |>.setAtFin k (emb v)) := by
+  ext i
+  simp only [MerkleTree.ofFn_itemAtFin]
+  split
+  · rename_i h
+    cases h
+    simp
+  · rename_i h
+    rw [MerkleTree.itemAtFin_setAtFin_invariant_of_neq, MerkleTree.ofFn_itemAtFin]
+    exact h
 
 def rangeTree (r : RangeVector (2^d)) : MerkleTree F poseidon₂ d :=
     MerkleTree.ofFn poseidon₂ Range.hashOpt r.ranges
 
 def RangeVector.root (r : RangeVector (2^d)) : F := rangeTree r |>.root
-
--- def RangeTree (d : ℕ) : Type := { t: MerkleTree F poseidon₂ d // ∀ (i : Fin (2^d)), ∃ range, t.itemAtFin i = Range.hash range }
-
--- def rangeTreeMem {d} : Range → RangeTree d → Prop := fun r t => r.hash ∈ t.val
-
-
--- instance {d} : Membership F (RangeTree d) where
---   mem t x := ∃(r:Range), rangeTreeMem r t ∧ x ∈ r

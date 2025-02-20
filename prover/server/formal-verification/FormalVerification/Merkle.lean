@@ -240,36 +240,7 @@ theorem MerkleRootGadget_eq_rw [Fact (CollisionResistant poseidon₂)] {h i : F}
 lemma LeafHashGadget_hashing {p : F → Prop} : (LightProver.LeafHashGadget lo hi leaf p) → p (poseidon₂ vec![lo, hi]) := by
   simp [LightProver.LeafHashGadget]
 
--- lemma LeafHashGadget_in_tree [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {p : F → Prop} {tree : RangeVector (2^26)}
---     (p_in_tree : ∀ r, p r → ∃i, r = (Range.hashOpt <| tree.ranges i)) :
---     (LightProver.LeafHashGadget lo hi leaf p) → ∃(r:Range), lo = r.lo ∧ hi = r.hi := by
---   intro h
---   have := p_in_tree _ $ LeafHashGadget_hashing h
---   rcases this with ⟨i, heq⟩
---   sorry
 
--- lemma LeafHashGadget_in_tree' [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {p : F → Prop}
---     (h : LightProver.LeafHashGadget lo hi leaf p)
---     (hp : ∀ r, p r → ∃ rg, r = Range.hashOpt rg) :
---     lo.val < 2^248 ∧ hi.val < 2^248 ∧ lo.val < leaf.val ∧ leaf.val < hi.val := by
---   have := hp _ $ LeafHashGadget_hashing h
---   rcases this with ⟨rg, this⟩
---   cases rg
---   · simp only [Range.hashOpt, Option.map, Option.getD] at this
---     have ne : poseidon₂_no_zero_preimage := Fact.elim inferInstance
---     unfold poseidon₂_no_zero_preimage at ne
---     have := ne _ _ this
---     exfalso
---     assumption
---   · rename_i rg
---     cases rg
---     simp only [Range.hashOpt, Option.map, Option.getD, Range.hash, CollisionResistant_def, List.Vector.eq_cons, and_true] at this
---     cases this
---     subst_vars
---     simp
-
--- lemma LeafHashGadget_rw' : (LightProver.LeafHashGadget lo hi v k) ↔ (∃(r:Range), lo.val = r.lo.val ∧ hi.val = r.hi.val ∧ v.val ∈ r) := by
---   apply Iff.intro
 
 theorem Range.hashOpt_eq_poseidon_iff_is_some {lo hi} [Fact poseidon₂_no_zero_preimage] [Fact (CollisionResistant poseidon₂)]:
     (Range.hashOpt r = poseidon₂ vec![lo, hi]) ↔ ∃(h:r.isSome), lo.val = (r.get h).lo.val ∧ hi.val = (r.get h).hi.val := by
@@ -647,49 +618,6 @@ theorem AppendWithProofs_rw [Fact (CollisionResistant poseidon₂)]  {pih} {tree
     (∃ ol mps lhh, LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 pih tree.root nr lhh si ol l mps)
     ↔ (pih = hashChain vec![tree.root, nr, hashChain l, si] ∧ some nr = (treeAppends tree si.val l.toList).map (·.root)) := by
   simp [AppendWithProofs_rw1, AppendWithProofs', AppendWithProofs_rec_rw]
-
-@[ext]
-theorem MerkleTree.ext: ∀{t₁ t₂ : MerkleTree F poseidon₂ D}, (∀i, t₁.itemAtFin i = t₂.itemAtFin i) → t₁ = t₂ := by
-  intro t₁ t₂ hp
-  induction D with
-  | zero =>
-    cases t₁; cases t₂
-    have := hp 0
-    cases this
-    rfl
-  | succ D ih =>
-    simp only [itemAtFin] at *
-    cases t₁
-    cases t₂
-    apply congrArg₂
-    · apply ih
-      intro i
-      have := hp i
-      simp only [Fin.toBitsBE] at this
-      simp only [Fin.msb, Fin.lsbs] at this
-      have hlt : ¬(i : Fin (2^(D+1))).val ≥ 2^D := by
-        cases i
-        simp
-        rw [Nat.mod_eq_of_lt]
-        assumption
-        apply lt_trans
-        assumption
-        simp [Nat.pow_succ]
-      simp only [hlt, decide_false, itemAt, treeFor, List.Vector.head_cons, left, List.Vector.tail_cons, Bool.toNat, cond_false, zero_mul, Nat.sub_zero] at this
-      convert this using 3 <;> {
-        cases i
-        simp
-        rw [Nat.mod_eq_of_lt]
-        apply lt_trans
-        assumption
-        simp [Nat.pow_succ]
-      }
-    · apply ih
-      intro i
-      have := hp ⟨2^D + i.val, by cases i; simp [Nat.pow_succ]; linarith⟩
-      simp only [Fin.toBitsBE, Fin.msb, Fin.lsbs] at this
-      simp [itemAt, treeFor, right] at this
-      exact this
 
 theorem treeAppends_sound_and_complete {v : List.Vector F (d+1)} {tree newTree : MerkleTree F poseidon₂ D}:
     treeAppends tree startIndex v.toList = some newTree ↔
@@ -1071,33 +999,14 @@ lemma Range.none_of_hashOpt_zero {r: Option Range} [Fact poseidon₂_no_zero_pre
 
 lemma MerkleTree.setAtFin_comm_of_ne {t : MerkleTree H α d} (hp : i₁ ≠ i₂) :
     (t.setAtFin i₁ v₁ |>.setAtFin i₂ v₂) = (t.setAtFin i₂ v₂ |>.setAtFin i₁ v₁) := by
-  sorry
-
--- theorem BatchAddressAppend_step_rw' [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {rv : RangeVector (2^26)} {element StartIndex offset} {k : F → Prop}:
---     (∃LowElementValue LowElementNextValue LowElementProof LowElementIndices NewElementProof, LightProver.LeafHashGadget LowElementValue LowElementNextValue element fun gate_0 =>
---     LightProver.Poseidon2 LowElementValue element fun gate_1 =>
---     ∃gate_2, Gates.to_binary LowElementIndices 26 gate_2 ∧
---     LightProver.MerkleRootUpdateGadget_26_26_26 rv.root gate_0 gate_1 gate_2 LowElementProof fun gate_3 =>
---     LightProver.Poseidon2 element LowElementNextValue fun gate_4 =>
---     ∃gate_5, gate_5 = Gates.add StartIndex offset ∧
---     ∃gate_6, Gates.to_binary gate_5 26 gate_6 ∧
---     LightProver.MerkleRootUpdateGadget_26_26_26 gate_3 (0:F) gate_4 gate_6 NewElementProof k) ↔
---     ∃(hei : (StartIndex + offset).val < 2^26)
---      (ci : Fin (2^26))
---      (hmem : element.val ∈ rv.ranges ci)
---      (ei_valid : rv.ranges ⟨(StartIndex + offset).val, hei⟩ = none),
---      k (rv.remove element.val ci ⟨(StartIndex + offset).val, hei⟩ hmem ei_valid).root := by
---   simp only [LightProver.LeafHashGadget, Poseidon2_iff_uniqueAssignment, RangeVector.root, MerkleRootUpdateGadget_rw]
-
--- theorem LeafHashGadget_of_mem {v : F} {r : Range} {k : F → Prop} (hmem : v.val ∈ r) (hk : k r.hash) : LightProver.LeafHashGadget r.lo r.hi v k := by
---   simp [LightProver.LeafHashGadget, AssertIsLess_248_semantics]
---   apply And.intro ?h1 (And.intro ?h2 hk)
---   · rw [ZMod.val_add, ZMod.val_sub]
---     rw [Nat.mod_eq_of_lt]
---     rcases r with ⟨⟨_, _⟩, ⟨_, _⟩⟩
---     simp only [Membership.mem] at hmem
---     cases hmem
-
+  ext i
+  by_cases h₁ : i = i₁
+  · cases h₁
+    simp [MerkleTree.itemAtFin_setAtFin_invariant_of_neq, hp]
+  · by_cases h₂ : i = i₂
+    · cases h₂
+      simp [MerkleTree.itemAtFin_setAtFin_invariant_of_neq, hp, h₁]
+    · simp [MerkleTree.itemAtFin_setAtFin_invariant_of_neq, h₁, h₂]
 
 theorem BatchAddressAppend_step_complete [Fact (CollisionResistant poseidon₂)] {rv : RangeVector (2^26)} {elt : F} {i st off : Nat} {k}
     (hlt : st + off < 2^26)
@@ -1364,8 +1273,6 @@ theorem BatchAddressLoop_sound [Fact (CollisionResistant poseidon₂)] [Fact pos
         cases hp
         simp [List.Vector.mem_succ_iff] at hpi
 
--- set_option maxRecDepth 1000000
-
 theorem BatchAddressLoop_complete
     [Fact (CollisionResistant poseidon₂)]
     {l} {rv : RangeVector (2^26)} {elements : List.Vector F l} {si off : Nat}
@@ -1454,7 +1361,7 @@ theorem BatchAddressLoop_complete
 
 theorem BatchAdressAppend_sound [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {rv : RangeVector (2^26)}:
     (∃pih si lev lenv lei lep nep, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch si lev lenv lei lep elements nep) →
-    ∃(nrv : RangeVector (2^26)), nrv.root = newRoot ∧ (∀i (h: i ∈ elements), i.val ∉ nrv) ∧ (∀i, ↑i ∉ elements → (i ∈ rv ↔ i ∈ nrv)) := by
+    ∃(nrv : RangeVector (2^26)), nrv.root = newRoot ∧ (∀i (_: i ∈ elements), i.val ∉ nrv) ∧ (∀i, ↑i ∉ elements → (i ∈ rv ↔ i ∈ nrv)) := by
   simp only [BatchAddressLoop_rw1]
   intro h
   casesm* Exists _
@@ -1467,26 +1374,15 @@ theorem BatchAdressAppend_sound [Fact (CollisionResistant poseidon₂)] [Fact po
   simp_all
 
 
-theorem BatchAddressAppend_complete [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {rv : RangeVector (2^26)} {elements} {si : Nat}:
+theorem BatchAddressAppend_complete [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {rv : RangeVector (2^26)} {elements} {si : Nat}
+    (si_small : si + 8 < 2^26)
+    (h_distinct : ∀ i j, i ≠ j → elements.get i ≠ elements.get j)
+    (h_mems : ∀ i ∈ elements, i.val ∈ rv)
+    (h_emps : ∀i, (h: i ∈ [si:si+8]) → rv.ranges ⟨i, by linarith [h.2]⟩ = none):
     ∃lev lenv lei lep nep newRoot hch pih, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch si lev lenv lei lep elements nep := by
   simp [BatchAddressLoop_rw1, exists_BatchAddressLoop_comm, HashChain_8_rw, HashChain_4_rw, Gates, GatesGnark8, GatesDef.eq]
-  apply BatchAddressLoop_complete
-
-  -- simp [HashChain_8_rw, HashChain_4_rw, Gates, GatesGnark8, GatesDef.eq]
-
-  -- Range.hashOpt_eq_poseidon_iff_is_some
-
--- theorem BatchAddressAppend_step_rw {rv : RangeVector (2^26)}:
---     (LightProver.LeafHashGadget LowElementValue LowElementNextValue NewElementValue fun gate_2 =>
---     LightProver.Poseidon2 LowElementValue NewElementValue fun gate_3 =>
---     ∃gate_4, Gates.to_binary LowElementIndex 26 gate_4 ∧
---     LightProver.MerkleRootUpdateGadget_26_26_26 rv.root gate_2 gate_3 gate_4 LowElementProof fun gate_5 =>
---     LightProver.Poseidon2 NewElementValue LowElementNextValue fun gate_6 =>
---     ∃gate_1, Gates.to_binary StartIndex 26 gate_1 ∧
---     LightProver.MerkleRootUpdateGadget_26_26_26 gate_5 (0:F) gate_6 gate_1 NewElementProof k) ↔
---     ∃(hei : StartIndex.val < 2^26)
---      (hli : LowElementIndex.val < 2^26)
---      (currentIndex_valid : NewElementValue.val ∈ rv.ranges ⟨LowElementIndex.val, hli⟩)
---      (emptyIndex_valid : rv.ranges ⟨StartIndex.val, hei⟩ = none),
---     k (rv.remove NewElementValue.val ⟨LowElementIndex.val, hli⟩ ⟨StartIndex.val, hei⟩ currentIndex_valid emptyIndex_valid).root := by
---   simp only [LightProver.LeafHashGadget, Poseidon2_iff_uniqueAssignment]
+  apply BatchAddressLoop_complete (hk := fun _ => trivial)
+  · exact h_distinct
+  · exact h_mems
+  · exact h_emps
+  · exact si_small
