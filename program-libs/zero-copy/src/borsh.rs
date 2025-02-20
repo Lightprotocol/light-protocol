@@ -84,6 +84,8 @@ impl<'a, T: Deserialize<'a>> Deserialize<'a> for Vec<T> {
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
         let num_slices = u32::from(*num_slices) as usize;
+        // TODO: add check that remaining data is enough to read num_slices
+        // This prevents agains invalid data allocating a lot of heap memory
         let mut slices = Vec::with_capacity(num_slices);
         for _ in 0..num_slices {
             let (slice, _bytes) = T::zero_copy_at(bytes)?;

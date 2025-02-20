@@ -1,18 +1,20 @@
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::Path,
+    str::FromStr,
+};
+
 use clap::Parser;
 use serde_json::{json, Value};
-use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_request::RpcRequest;
+use solana_client::{rpc_client::RpcClient, rpc_request::RpcRequest};
 use solana_sdk::signature::Signature;
 use solana_transaction_status::{EncodedConfirmedTransactionWithStatusMeta, UiTransactionEncoding};
-use std::fs::{self, File};
-use std::io::Write;
-use std::path::Path;
-use std::str::FromStr;
 
 #[derive(Debug, Parser)]
 pub struct Options {
     #[clap(long)]
-    test: Option<String>,
+    test_name: String,
 }
 
 async fn export_transactions(
@@ -26,7 +28,7 @@ async fn export_transactions(
 
     let transactions: Value = client.send(
         RpcRequest::Custom {
-            method: "getSignaturesForAddress".into(),
+            method: "getSignaturesForAddress",
         },
         json!([address]),
     )?;
@@ -52,11 +54,12 @@ async fn export_transactions(
     Ok(())
 }
 
-pub async fn export_photon_test_data() {
+pub async fn export_photon_test_data(opt: Options) -> anyhow::Result<()> {
     let address = "compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq";
-    let output_folder = "./test_state_batched_transactions";
+    let output_folder = format!("./target/{}", opt.test_name);
 
-    if let Err(e) = export_transactions(address, output_folder).await {
+    if let Err(e) = export_transactions(address, &output_folder).await {
         eprintln!("Error exporting transactions: {}", e);
     }
+    Ok(())
 }

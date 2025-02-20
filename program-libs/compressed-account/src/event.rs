@@ -5,11 +5,9 @@ use solana_program::pubkey::Pubkey;
 
 use super::discriminators::*;
 use crate::instruction_data::{
-    data::OutputCompressedAccountWithPackedContext,
+    data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
     insert_into_queues::InsertIntoQueuesInstructionData,
-    zero_copy::{
-        ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
-    },
+    invoke_cpi::InstructionDataInvokeCpiWithReadOnly,
 };
 
 // Separate type because U64 doesn't implement BorshSerialize
@@ -87,7 +85,6 @@ pub fn event_from_light_transaction(
     if !found_event {
         return Ok(None);
     }
-    println!("ix_set_cpi_context {}", ix_set_cpi_context);
     // If an instruction set the cpi context add the instructions that set the cpi context.
     if ix_set_cpi_context {
         instructions
@@ -280,16 +277,12 @@ pub fn match_system_program_instruction(
     let instruction = instruction.split_at(12).1;
     match instruction_discriminator {
         DISCRIMINATOR_INVOKE => {
-            let (data, _) = ZInstructionDataInvoke::zero_copy_at(instruction)?;
-            event.output_compressed_accounts = data
-                .output_compressed_accounts
-                .iter()
-                .map(OutputCompressedAccountWithPackedContext::from)
-                .collect();
+            let data = InstructionDataInvoke::deserialize(&mut &instruction[..])
+                .map_err(|_| ZeroCopyError::Size)?;
+            event.output_compressed_accounts = data.output_compressed_accounts;
             event.is_compress = data.is_compress;
-            event.relay_fee = data.relay_fee.map(|x| (*x).into());
-            event.compress_or_decompress_lamports =
-                data.compress_or_decompress_lamports.map(|x| (*x).into());
+            event.relay_fee = data.relay_fee;
+            event.compress_or_decompress_lamports = data.compress_or_decompress_lamports;
             // We are only interested in remaining account which start after 9 static accounts.
             let remaining_accounts = accounts.split_at(9).1;
             data.input_compressed_accounts_with_merkle_context
@@ -302,22 +295,21 @@ pub fn match_system_program_instruction(
             Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI => {
-            let (data, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction)?;
+            let data = crate::instruction_data::invoke_cpi::InstructionDataInvokeCpi::deserialize(
+                &mut &instruction[..],
+            )
+            .map_err(|_| ZeroCopyError::Size)?;
             // We are only interested in remaining account which start after 10 static accounts.
             let remaining_accounts = accounts.split_at(9).1;
             // We need to find the instruction that executed the verification first.
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
                 *ix_set_cpi_context = true;
-                if (cpi_context.first_set_context() || cpi_context.set_context())
-                    && !set_cpi_context
-                {
+                if (cpi_context.first_set_context || cpi_context.set_context) && !set_cpi_context {
                     return Ok(false);
                 } else {
                     data.output_compressed_accounts.iter().for_each(|x| {
-                        event
-                            .output_compressed_accounts
-                            .push(OutputCompressedAccountWithPackedContext::from(x));
+                        event.output_compressed_accounts.push(x.clone());
                     });
                     // We are only interested in remaining account which start after 9 static accounts.
                     data.input_compressed_accounts_with_merkle_context
@@ -331,15 +323,10 @@ pub fn match_system_program_instruction(
                     return Ok(true);
                 }
             }
-            event.output_compressed_accounts = data
-                .output_compressed_accounts
-                .iter()
-                .map(OutputCompressedAccountWithPackedContext::from)
-                .collect();
+            event.output_compressed_accounts = data.output_compressed_accounts;
             event.is_compress = data.is_compress;
-            event.relay_fee = data.relay_fee.map(|x| (*x).into());
-            event.compress_or_decompress_lamports =
-                data.compress_or_decompress_lamports.map(|x| (*x).into());
+            event.relay_fee = data.relay_fee;
+            event.compress_or_decompress_lamports = data.compress_or_decompress_lamports;
             data.input_compressed_accounts_with_merkle_context
                 .iter()
                 .for_each(|x| {
@@ -350,7 +337,8 @@ pub fn match_system_program_instruction(
             Ok(true)
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
-            let (data, _) = ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction)?;
+            let data = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])
+                .map_err(|_| ZeroCopyError::Size)?;
             let data = data.invoke_cpi;
             // We are only interested in remaining account which start after 10 static accounts.
             let remaining_accounts = accounts.split_at(9).1;
@@ -358,15 +346,11 @@ pub fn match_system_program_instruction(
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
                 *ix_set_cpi_context = true;
-                if (cpi_context.first_set_context() || cpi_context.set_context())
-                    && !set_cpi_context
-                {
+                if (cpi_context.first_set_context || cpi_context.set_context) && !set_cpi_context {
                     return Ok(false);
                 } else {
                     data.output_compressed_accounts.iter().for_each(|x| {
-                        event
-                            .output_compressed_accounts
-                            .push(OutputCompressedAccountWithPackedContext::from(x));
+                        event.output_compressed_accounts.push(x.clone());
                     });
                     data.input_compressed_accounts_with_merkle_context
                         .iter()
@@ -379,15 +363,10 @@ pub fn match_system_program_instruction(
                     return Ok(true);
                 }
             }
-            event.output_compressed_accounts = data
-                .output_compressed_accounts
-                .iter()
-                .map(OutputCompressedAccountWithPackedContext::from)
-                .collect();
+            event.output_compressed_accounts = data.output_compressed_accounts;
             event.is_compress = data.is_compress;
-            event.relay_fee = data.relay_fee.map(|x| (*x).into());
-            event.compress_or_decompress_lamports =
-                data.compress_or_decompress_lamports.map(|x| (*x).into());
+            event.relay_fee = data.relay_fee;
+            event.compress_or_decompress_lamports = data.compress_or_decompress_lamports;
             data.input_compressed_accounts_with_merkle_context
                 .iter()
                 .for_each(|x| {

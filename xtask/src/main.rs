@@ -64,8 +64,8 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::Fee => fee::fees(),
         Command::HashSet(opts) => hash_set::hash_set(opts),
         Command::CreateStateTree(opts) => create_state_tree::create_state_tree(opts).await,
-        Command::ExportPhotonTestData(_opts) => {
-            Ok(export_photon_test_data::export_photon_test_data().await)
+        Command::ExportPhotonTestData(opts) => {
+            export_photon_test_data::export_photon_test_data(opts).await
         }
     }
 }
