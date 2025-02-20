@@ -291,7 +291,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             .send()
             .await
             .expect("Failed to execute request.");
-        
+
         if response.status().is_success() {
             let body = response.text().await.unwrap();
             let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -316,7 +316,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ));
         }
     };
-    
+
     Ok(InstructionDataBatchAppendInputs {
         new_root,
         compressed_proof: proof,

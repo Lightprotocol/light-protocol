@@ -39,14 +39,13 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc
-        .create_and_send_transaction_with_event::<BatchAppendEvent>(
-            &[instruction],
-            &context.authority.pubkey(),
-            &[&context.authority],
-            None,
-        )
-        .await?;
+    rpc.create_and_send_transaction_with_event::<BatchAppendEvent>(
+        &[instruction],
+        &context.authority.pubkey(),
+        &[&context.authority],
+        None,
+    )
+    .await?;
 
     update_test_indexer_after_append(
         rpc,
@@ -83,14 +82,13 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc
-        .create_and_send_transaction_with_event::<BatchNullifyEvent>(
-            &[instruction],
-            &context.authority.pubkey(),
-            &[&context.authority],
-            None,
-        )
-        .await?;
+    rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
+        &[instruction],
+        &context.authority.pubkey(),
+        &[&context.authority],
+        None,
+    )
+    .await?;
 
     update_test_indexer_after_nullification(
         rpc,
