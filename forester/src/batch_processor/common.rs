@@ -176,6 +176,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_append(&self.context, &mut rpc).await?;
+
         Ok(zkp_batch_size)
     }
 

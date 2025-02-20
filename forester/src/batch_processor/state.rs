@@ -47,7 +47,6 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
             None,
         )
         .await?;
-    println!("tx state BatchAppendEvent: {:?}", tx);
 
     update_test_indexer_after_append(
         rpc,
@@ -58,7 +57,6 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     .await
     .expect("Failed to update test indexer after append");
 
-    println!("batch append completed");
     Ok(())
 }
 
@@ -85,8 +83,6 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    println!("instruction: {:?}", instruction);
-
     let tx = rpc
         .create_and_send_transaction_with_event::<BatchNullifyEvent>(
             &[instruction],
@@ -95,7 +91,6 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             None,
         )
         .await?;
-    println!("tx state BatchNullifyEvent: {:?}", tx);
 
     update_test_indexer_after_nullification(
         rpc,
