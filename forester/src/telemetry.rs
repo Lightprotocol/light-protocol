@@ -18,6 +18,8 @@ pub fn setup_telemetry() {
         let stdout_env_filter =
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
+        let tokio_console_filter = EnvFilter::new("tokio=trace,runtime=trace");
+
         let stdout_layer = fmt::Layer::new()
             .with_writer(std::io::stdout)
             .with_ansi(true)
@@ -31,6 +33,7 @@ pub fn setup_telemetry() {
             .with(env_filter)
             .with(stdout_layer)
             .with(file_layer)
+            .with(tokio_console_filter)
             .init();
 
         // Keep _guard in scope to keep the non-blocking writer alive

@@ -5,8 +5,10 @@
   "scripts": {
     "build": "cargo build",
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --nocapture",
-    "test-state-batched": "cargo test --package forester test_state_batched -- --nocapture",
-    "test-address-batched": "cargo test --package forester test_address_batched -- --nocapture",
+    "test-state-batched-local": "cargo test --package forester test_state_batched -- --nocapture",
+    "test-state-batched-photon": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_batched -- --nocapture",
+    "test-address-batched-local": "cargo test --package forester test_address_batched -- --nocapture",
+    "test-e2e-legacy-local": "cargo test --package forester test_epoch_monitor_with_2_foresters -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {

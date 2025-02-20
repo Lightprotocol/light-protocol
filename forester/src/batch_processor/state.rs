@@ -70,6 +70,8 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .await
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
 
+    println!("instruction_data: {:?}", instruction_data);
+
     let instruction = create_batch_nullify_instruction(
         context.authority.pubkey(),
         context.derivation,

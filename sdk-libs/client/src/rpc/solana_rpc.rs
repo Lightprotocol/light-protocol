@@ -394,13 +394,19 @@ impl RpcConnection for SolanaRpcConnection {
 
         let mut parsed_event = None;
         for instruction in &transaction.message.instructions {
+            let ix_data = instruction.data.clone();
             match T::deserialize(&mut &instruction.data[..]) {
                 Ok(e) => {
                     parsed_event = Some(e);
                     break;
                 }
                 Err(e) => {
-                    warn!("Failed to parse event: {:?}", e);
+                    warn!(
+                        "Failed to parse event: {:?}, type: {:?}, ix data: {:?}",
+                        e,
+                        std::any::type_name::<T>(),
+                        ix_data
+                    );
                 }
             }
         }

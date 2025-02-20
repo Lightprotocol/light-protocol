@@ -16,6 +16,7 @@ solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
 
+light-merkle-tree-metadata = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }

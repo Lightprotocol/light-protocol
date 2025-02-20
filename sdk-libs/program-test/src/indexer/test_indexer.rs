@@ -18,7 +18,7 @@ use light_client::{
     indexer::{
         Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
         Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
-        MerkleProofWithContext, NewAddressProofWithContext, ProofOfLeaf, StateMerkleTreeAccounts,
+        MerkleProofWithContext, NewAddressProofWithContext, StateMerkleTreeAccounts,
         StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
@@ -33,6 +33,7 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+use light_merkle_tree_metadata::queue::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::{
@@ -62,7 +63,7 @@ use light_sdk::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::TokenBalance;
+use photon_api::models::{Account, TokenBalance};
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -105,12 +106,13 @@ where
 {
     async fn get_queue_elements(
         &mut self,
-        pubkey: [u8; 32],
+        merkle_tree_pubkey: [u8; 32],
+        queue_type: QueueType,
         num_elements: u64,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
         println!("Getting queue elements...");
-        let pubkey = Pubkey::new_from_array(pubkey);
+        let pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
             .iter()
@@ -144,142 +146,146 @@ where
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == pubkey);
-        if let Some(state_tree_bundle) = state_tree_bundle {
-            let end_offset = min(
-                num_elements as usize,
-                state_tree_bundle.input_leaf_indices.len(),
-            );
-            let queue_elements = state_tree_bundle.input_leaf_indices
-                [start_offset.unwrap_or_default() as usize..end_offset]
-                .to_vec();
-            let merkle_proofs = queue_elements
-                .iter()
-                .map(|leaf_info| {
-                    match state_tree_bundle
-                        .merkle_tree
-                        .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
-                    {
-                        Ok(proof) => proof.to_vec(),
-                        Err(_) => {
-                            let mut next_index =
-                                state_tree_bundle.merkle_tree.get_next_index() as u64;
-                            while next_index < leaf_info.leaf_index as u64 {
-                                state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                next_index = state_tree_bundle.merkle_tree.get_next_index() as u64;
+        if queue_type == QueueType::BatchedInput {
+            if let Some(state_tree_bundle) = state_tree_bundle {
+                let end_offset = min(
+                    num_elements as usize,
+                    state_tree_bundle.input_leaf_indices.len(),
+                );
+                let queue_elements = state_tree_bundle.input_leaf_indices
+                    [start_offset.unwrap_or_default() as usize..end_offset]
+                    .to_vec();
+                let merkle_proofs = queue_elements
+                    .iter()
+                    .map(|leaf_info| {
+                        match state_tree_bundle
+                            .merkle_tree
+                            .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
+                        {
+                            Ok(proof) => proof.to_vec(),
+                            Err(_) => {
+                                let mut next_index =
+                                    state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                while next_index < leaf_info.leaf_index as u64 {
+                                    state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
+                                    next_index =
+                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                }
+                                state_tree_bundle
+                                    .merkle_tree
+                                    .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
+                                    .unwrap()
+                                    .to_vec();
+                                Vec::new()
                             }
-                            state_tree_bundle
-                                .merkle_tree
-                                .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
-                                .unwrap()
-                                .to_vec();
-                            Vec::new()
                         }
-                    }
-                })
-                .collect::<Vec<_>>();
-            let leaves = queue_elements
-                .iter()
-                .map(|leaf_info| {
-                    state_tree_bundle
-                        .merkle_tree
-                        .get_leaf(leaf_info.leaf_index as usize)
-                        .unwrap_or_default()
-                })
-                .collect::<Vec<_>>();
+                    })
+                    .collect::<Vec<_>>();
+                let leaves = queue_elements
+                    .iter()
+                    .map(|leaf_info| {
+                        state_tree_bundle
+                            .merkle_tree
+                            .get_leaf(leaf_info.leaf_index as usize)
+                            .unwrap_or_default()
+                    })
+                    .collect::<Vec<_>>();
+                let merkle_proofs_with_context = merkle_proofs
+                    .iter()
+                    .zip(queue_elements.iter())
+                    .zip(leaves.iter())
+                    .map(|((proof, element), leaf)| MerkleProofWithContext {
+                        proof: proof.clone(),
+                        leaf: *leaf,
+                        leaf_index: element.leaf_index as u64,
+                        merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
+                        root: state_tree_bundle.merkle_tree.root(),
+                        tx_hash: Some(element.tx_hash),
+                        root_seq: 0,
+                        account_hash: element.leaf,
+                    })
+                    .collect();
 
-            let merkle_proofs_with_context = merkle_proofs
-                .iter()
-                .zip(queue_elements.iter())
-                .zip(leaves.iter())
-                .map(|((proof, element), leaf)| MerkleProofWithContext {
-                    proof: proof.clone(),
-                    leaf: *leaf,
-                    leaf_index: element.leaf_index as u64,
-                    merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
-                    root: state_tree_bundle.merkle_tree.root(),
-                    tx_hash: Some(element.tx_hash),
-                    root_seq: 0,
-                    account_hash: element.leaf,
-                })
-                .collect();
-            return Ok(merkle_proofs_with_context);
+                return Ok(merkle_proofs_with_context);
+            }
         }
 
-        let state_tree_bundle = self
-            .state_merkle_trees
-            .iter_mut()
-            .find(|x| x.accounts.nullifier_queue == pubkey);
-        if let Some(state_tree_bundle) = state_tree_bundle {
-            println!("Found output queue bundle.");
-            let end_offset = min(
-                num_elements as usize,
-                state_tree_bundle.output_queue_elements.len(),
-            );
-            let queue_elements = state_tree_bundle.output_queue_elements
-                [start_offset.unwrap_or_default() as usize..end_offset]
-                .to_vec();
-            println!("queue_elements {:?}", queue_elements);
-            let indices = queue_elements
-                .iter()
-                .map(|(_, index)| index)
-                .collect::<Vec<_>>();
-            let merkle_proofs = indices
-                .iter()
-                .map(|index| {
-                    match state_tree_bundle
-                        .merkle_tree
-                        .get_proof_of_leaf(**index as usize, true)
-                    {
-                        Ok(proof) => proof.to_vec(),
-                        Err(_) => {
-                            let mut next_index =
-                                state_tree_bundle.merkle_tree.get_next_index() as u64;
-                            while next_index < **index {
-                                state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                next_index = state_tree_bundle.merkle_tree.get_next_index() as u64;
+        if queue_type == QueueType::BatchedOutput {
+            if let Some(state_tree_bundle) = state_tree_bundle {
+                let end_offset = min(
+                    num_elements as usize,
+                    state_tree_bundle.output_queue_elements.len(),
+                );
+                let queue_elements = state_tree_bundle.output_queue_elements
+                    [start_offset.unwrap_or_default() as usize..end_offset]
+                    .to_vec();
+                let indices = queue_elements
+                    .iter()
+                    .map(|(_, index)| index)
+                    .collect::<Vec<_>>();
+                let merkle_proofs = indices
+                    .iter()
+                    .map(|index| {
+                        match state_tree_bundle
+                            .merkle_tree
+                            .get_proof_of_leaf(**index as usize, true)
+                        {
+                            Ok(proof) => proof.to_vec(),
+                            Err(_) => {
+                                let mut next_index =
+                                    state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                while next_index < **index {
+                                    state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
+                                    next_index =
+                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
+                                }
+                                state_tree_bundle
+                                    .merkle_tree
+                                    .get_proof_of_leaf(**index as usize, true)
+                                    .unwrap()
+                                    .to_vec();
+                                Vec::new()
                             }
-                            state_tree_bundle
-                                .merkle_tree
-                                .get_proof_of_leaf(**index as usize, true)
-                                .unwrap()
-                                .to_vec();
-                            Vec::new()
                         }
-                    }
-                })
-                .collect::<Vec<_>>();
-            let leaves = indices
-                .iter()
-                .map(|index| {
-                    state_tree_bundle
-                        .merkle_tree
-                        .get_leaf(**index as usize)
-                        .unwrap_or_default()
-                })
-                .collect::<Vec<_>>();
-            let merkle_proofs_with_context = merkle_proofs
-                .iter()
-                .zip(queue_elements.iter())
-                .zip(leaves.iter())
-                .map(|((proof, (element, index)), leaf)| MerkleProofWithContext {
-                    proof: proof.clone(),
-                    leaf: *leaf,
-                    leaf_index: *index,
-                    merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
-                    root: state_tree_bundle.merkle_tree.root(),
-                    tx_hash: None,
-                    root_seq: 0,
-                    account_hash: *element,
-                })
-                .collect();
-            return Ok(merkle_proofs_with_context);
+                    })
+                    .collect::<Vec<_>>();
+                let leaves = indices
+                    .iter()
+                    .map(|index| {
+                        state_tree_bundle
+                            .merkle_tree
+                            .get_leaf(**index as usize)
+                            .unwrap_or_default()
+                    })
+                    .collect::<Vec<_>>();
+                let merkle_proofs_with_context = merkle_proofs
+                    .iter()
+                    .zip(queue_elements.iter())
+                    .zip(leaves.iter())
+                    .map(|((proof, (element, index)), leaf)| MerkleProofWithContext {
+                        proof: proof.clone(),
+                        leaf: *leaf,
+                        leaf_index: *index,
+                        merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
+                        root: state_tree_bundle.merkle_tree.root(),
+                        tx_hash: None,
+                        root_seq: 0,
+                        account_hash: *element,
+                    })
+                    .collect();
+                return Ok(merkle_proofs_with_context);
+            }
         }
+
         Err(IndexerError::InvalidParameters(
             "Merkle tree not found".to_string(),
         ))
     }
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError> {
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
         let merkle_tree_pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
@@ -509,6 +515,7 @@ where
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
                         root_seq: tree.merkle_tree.sequence_number as u64,
+                        root: *tree.merkle_tree.roots.last().unwrap(),
                     });
                 }
             })
@@ -516,7 +523,7 @@ where
         Ok(proofs)
     }
 
-    async fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> {
@@ -527,7 +534,7 @@ where
         &self,
         address: Option<Address>,
         hash: Option<Hash>,
-    ) -> Result<photon_api::models::account::Account, IndexerError> {
+    ) -> Result<Account, IndexerError> {
         let account = match (address, hash) {
             (Some(address), _) => self.compressed_accounts.iter().find(|acc| {
                 acc.compressed_account
@@ -617,7 +624,7 @@ where
         &self,
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
-    ) -> Result<Vec<photon_api::models::account::Account>, IndexerError> {
+    ) -> Result<Vec<Account>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self
@@ -711,31 +718,6 @@ where
         IndexerError,
     > {
         todo!()
-    }
-
-    fn get_proofs_by_indices(
-        &mut self,
-        merkle_tree_pubkey: Pubkey,
-        indices: &[u64],
-    ) -> Vec<ProofOfLeaf> {
-        indices
-            .iter()
-            .map(|&index| self.get_proof_by_index(merkle_tree_pubkey, index))
-            .collect()
-    }
-
-    fn get_leaf_indices_tx_hashes(
-        &mut self,
-        merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo> {
-        let state_merkle_tree_bundle = self
-            .state_merkle_trees
-            .iter_mut()
-            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
-            .unwrap();
-
-        state_merkle_tree_bundle.input_leaf_indices[..zkp_batch_size].to_vec()
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
@@ -1032,7 +1014,7 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
-    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> ProofOfLeaf {
+    fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof {
         let bundle = self
             .state_merkle_trees
             .iter_mut()
@@ -1057,7 +1039,14 @@ where
             .unwrap()
             .to_vec();
 
-        ProofOfLeaf { leaf, proof }
+        MerkleProof {
+            hash: bs58::encode(leaf).into_string(),
+            leaf_index: index,
+            merkle_tree: merkle_tree_pubkey.to_string(),
+            proof,
+            root_seq: bundle.merkle_tree.sequence_number as u64,
+            root: bundle.merkle_tree.root(),
+        }
     }
 
     async fn update_test_indexer_after_append(
@@ -1910,7 +1899,7 @@ where
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
                                         nullifier_queue_pubkey,
-                                        prove_by_index: false,
+                                        prove_by_index: true,
                                     },
                                 },
                             };
@@ -1938,21 +1927,19 @@ where
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
                             nullifier_queue_pubkey,
-                            prove_by_index: false,
+                            prove_by_index: true,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());
                     self.compressed_accounts.insert(0, compressed_account);
                 }
             };
-
             let merkle_tree = &mut self.state_merkle_trees.iter_mut().find(|x| {
                 x.accounts.merkle_tree
                     == event.pubkey_array
                         [event.output_compressed_accounts[i].merkle_tree_index as usize]
             });
             let is_batched = merkle_tree.is_none();
-
             println!("Output is batched {:?}", is_batched);
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();
