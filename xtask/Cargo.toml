@@ -29,3 +29,6 @@ solana-sdk = { workspace = true }
 light-program-test = { workspace = true }
 light-client = { workspace = true }
 dirs = "6.0"
+serde_json = "1.0.139"
+solana-client = { workspace = true }
+solana-transaction-status = { workspace = true }

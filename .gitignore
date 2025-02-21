@@ -81,3 +81,4 @@ program-tests/e2e-test/**/*.txt
 output.txt
 .nx/cache
 .nx/workspace-data
+output1.txt

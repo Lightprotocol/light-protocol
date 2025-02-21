@@ -89,7 +89,6 @@ pub fn process<
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_compression");
-
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
