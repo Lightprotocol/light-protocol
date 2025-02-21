@@ -764,7 +764,7 @@ where
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
                                         QueueType::BatchedAddress,
-                                        batch.batch_size,
+                                        batch.batch_size as u16,
                                         None,
                                     )
                                     .await

@@ -10,7 +10,7 @@ use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::SolanaRpcPool
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::debug;
 
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
@@ -49,17 +49,17 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             BatchReadyState::ReadyForAppend => match self.tree_type {
                 TreeType::BatchedAddress => address::process_batch(&self.context).await,
                 TreeType::BatchedState => {
-                    println!("process_state_append");
+                    debug!("process_state_append");
                     self.process_state_append().await
                 }
                 _ => Err(BatchProcessError::UnsupportedTreeType(self.tree_type)),
             },
             BatchReadyState::ReadyForNullify => {
-                println!("process_state_nullify");
+                debug!("process_state_nullify");
                 self.process_state_nullify().await
             }
             BatchReadyState::NotReady => {
-                println!("BatchReadyState::NotReady");
+                debug!("BatchReadyState::NotReady");
                 Ok(0)
             }
         }
@@ -78,7 +78,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             false
         };
 
-        println!(
+        debug!(
             "self.tree_type: {}, input_ready: {}, output_ready: {}",
             self.tree_type, input_ready, output_ready
         );
@@ -99,18 +99,15 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
                 let input_fill = self.get_input_queue_completion(&mut rpc).await;
                 let output_fill = self.get_output_queue_completion(&mut rpc).await;
 
-                info!(
+                debug!(
                     "Input queue fill: {:.2}, Output queue fill: {:.2}",
                     input_fill, output_fill
                 );
-                // TODO: restore
-                // Prioritize the queue that is more full
                 if input_fill > output_fill {
                     BatchReadyState::ReadyForNullify
                 } else {
                     BatchReadyState::ReadyForAppend
                 }
-                // BatchReadyState::ReadyForAppend
             }
             (true, false) => BatchReadyState::ReadyForNullify,
             (false, true) => BatchReadyState::ReadyForAppend,
@@ -176,13 +173,16 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
         state::perform_append(&self.context, &mut rpc).await?;
-
         Ok(zkp_batch_size)
     }
 
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
-        let (_, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
+        let (inserted_zkps_count, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
+        debug!(
+            "process_state_nullify zkp_batch_size: {} inserted_zkps_count: {}",
+            zkp_batch_size, inserted_zkps_count
+        );
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)
     }

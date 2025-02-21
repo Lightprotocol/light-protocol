@@ -64,7 +64,7 @@ use light_sdk::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::{Account, TokenBalance};
+use photon_api::models::{Account, CompressedProofWithContextV2, TokenBalance};
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -109,7 +109,7 @@ where
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
-        num_elements: u64,
+        num_elements: u16,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
         println!("Getting queue elements...");
@@ -531,6 +531,14 @@ where
         Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
     }
 
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        _owner: &Pubkey,
+        _mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        todo!()
+    }
+
     async fn get_compressed_account(
         &self,
         address: Option<Address>,
@@ -721,6 +729,20 @@ where
         todo!()
     }
 
+    async fn get_validity_proof_v2(
+        &self,
+        _hashes: Vec<Hash>,
+        _new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError> {
+        todo!()
+    }
+
+    async fn get_indexer_slot(&self, rpc: &mut R) -> Result<u64, IndexerError> {
+        rpc.get_slot()
+            .await
+            .map_err(|e| IndexerError::RpcError(e.to_string()))
+    }
+
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         &self.address_merkle_trees
     }
@@ -847,6 +869,7 @@ where
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
+        println!("=== create_proof_for_compressed_accounts2 ===");
         let mut indices_to_remove = Vec::new();
         println!("compressed account: {:?}", compressed_accounts);
         println!("state Merkle tree pubkeys: {:?}", state_merkle_tree_pubkeys);
@@ -945,6 +968,7 @@ where
             root_indices
         };
         println!("root_indices {:?}", root_indices);
+        println!("=== create_proof_for_compressed_accounts2 ===");
         BatchedTreeProofRpcResult {
             proof: rpc_result.map(|x| x.unwrap().proof),
             root_indices,
@@ -1900,7 +1924,7 @@ where
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
                                         nullifier_queue_pubkey,
-                                        prove_by_index: true,
+                                        prove_by_index: false,
                                     },
                                 },
                             };
@@ -1928,7 +1952,7 @@ where
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
                             nullifier_queue_pubkey,
-                            prove_by_index: true,
+                            prove_by_index: false,
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());

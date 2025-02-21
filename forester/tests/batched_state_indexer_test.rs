@@ -39,6 +39,7 @@ async fn test_state_indexer_batched() {
         wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],
+        limit_ledger_size: None,
     }))
     .await;
 
@@ -253,22 +254,6 @@ async fn test_state_indexer_batched() {
             "get_compressed_accounts_by_owner({}) after transfer_sol_deterministic",
             to_pubkey
         );
-        // let compressed_balance_photon = photon_indexer
-        //     .get_compressed_accounts_by_owner_v2(&to_pubkey)
-        //     .await
-        //     .unwrap();
-        // let compressed_balance_test_indexer = e2e_env
-        //     .indexer
-        //     .get_compressed_accounts_by_owner_v2(&to_pubkey)
-        //     .await
-        //     .unwrap();
-        // TODO: update queue in merkle context to be able to compare
-        // for (photon_account, test_indexer_account) in compressed_balance_photon
-        //     .iter()
-        //     .zip(compressed_balance_test_indexer.iter())
-        // {
-        //     assert_eq!(photon_account, test_indexer_account);
-        // }
     }
     let (state_merkle_tree_bundle, _, _) = (
         e2e_env.indexer.state_merkle_trees[batched_state_merkle_tree_index].clone(),
@@ -292,19 +277,14 @@ async fn test_state_indexer_batched() {
 
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
-    // return;
-
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
-
-    // drop(e2e_env.indexer);
 
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
         None,
         None,
         Arc::new(Mutex::new(photon_indexer)),
-        // Arc::new(Mutex::new(e2e_env.indexer)),
         shutdown_receiver,
         work_report_sender,
     ));
@@ -324,13 +304,13 @@ async fn test_state_indexer_batched() {
             );
             assert!(report.processed_items > 0, "No items were processed");
 
-            let batch_size = tree_params.input_queue_batch_size;
+            let zkp_batch_size = tree_params.input_queue_zkp_batch_size;
             assert_eq!(
-                report.processed_items % batch_size as usize,
+                report.processed_items % zkp_batch_size as usize,
                 0,
-                "Processed items {} should be a multiple of batch size {}",
+                "Processed items {} should be a multiple of zkp_batch_size size {}",
                 report.processed_items,
-                batch_size
+                zkp_batch_size
             );
         }
         Ok(None) => panic!("Work report channel closed unexpectedly"),

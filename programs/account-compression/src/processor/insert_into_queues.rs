@@ -31,6 +31,13 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     }
     let current_slot = Clock::get()?.slot;
     msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
+    msg!(
+        "remaining accounts: {:?}",
+        ctx.remaining_accounts
+            .iter()
+            .map(|x| x.key)
+            .collect::<Vec<&Pubkey>>()
+    );
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");
@@ -41,7 +48,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &mut accounts,
         &current_slot,
     )?;
-    msg!("append leaves {:?}", inputs.leaves.len());
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_nullifiers");
     #[cfg(feature = "bench-sbf")]

@@ -32,6 +32,12 @@ jobs:
         test-name:
           [
             {
+              name: "e2e",
+              command: "test_state_indexer_async_batched",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
               name: "address-batched",
               command: "test_address_batched",
               timeout: 60,

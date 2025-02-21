@@ -17,7 +17,8 @@ use light_sdk::{
 };
 use num_bigint::BigUint;
 use photon_api::models::{
-    Account, CompressedProofWithContext, TokenAccount, TokenAccountList, TokenBalanceList,
+    Account, CompressedProofWithContext, CompressedProofWithContextV2, TokenAccount,
+    TokenAccountList, TokenBalanceList,
 };
 use solana_sdk::{bs58, pubkey::Pubkey};
 use thiserror::Error;
@@ -30,6 +31,9 @@ pub mod photon_indexer;
 pub enum IndexerError {
     #[error("Photon API error in {context}: {message}")]
     PhotonError { context: String, message: String },
+
+    #[error("RPC error: {0}")]
+    RpcError(String),
 
     #[error("Failed to deserialize account data: {0}")]
     DeserializeError(#[from] solana_sdk::program_error::ProgramError),
@@ -180,7 +184,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
-        num_elements: u64,
+        num_elements: u16,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError>;
 
@@ -207,6 +211,12 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
+
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError>;
 
     async fn get_compressed_account(
         &self,
@@ -266,6 +276,14 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContext, IndexerError>;
+
+    async fn get_validity_proof_v2(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError>;
+
+    async fn get_indexer_slot(&self, r: &mut R) -> Result<u64, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }

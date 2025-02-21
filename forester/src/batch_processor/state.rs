@@ -1,11 +1,11 @@
 use borsh::BorshSerialize;
 use forester_utils::instructions::{create_append_batch_ix_data, create_nullify_batch_ix_data};
-use light_batched_merkle_tree::event::{BatchAppendEvent, BatchNullifyEvent};
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
 use solana_sdk::signer::Signer;
+use tracing::debug;
 
 use super::common::BatchContext;
 use crate::{
@@ -19,6 +19,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    debug!("perform_append");
     let instruction_data = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
@@ -27,7 +28,6 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     )
     .await
     .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
-
     let instruction = create_batch_append_instruction(
         context.authority.pubkey(),
         context.derivation,
@@ -39,11 +39,10 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc.create_and_send_transaction_with_event::<BatchAppendEvent>(
+    rpc.create_and_send_transaction(
         &[instruction],
         &context.authority.pubkey(),
         &[&context.authority],
-        None,
     )
     .await?;
 
@@ -63,14 +62,13 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    debug!("perform_nullify");
     let batch_index = get_batch_index(context, rpc).await?;
-
+    debug!("batch_index: {:?}", batch_index);
     let instruction_data =
         create_nullify_batch_ix_data(rpc, &mut *context.indexer.lock().await, context.merkle_tree)
             .await
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
-
-    println!("instruction_data: {:?}", instruction_data);
 
     let instruction = create_batch_nullify_instruction(
         context.authority.pubkey(),
@@ -82,11 +80,10 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
+    rpc.create_and_send_transaction(
         &[instruction],
         &context.authority.pubkey(),
         &[&context.authority],
-        None,
     )
     .await?;
 

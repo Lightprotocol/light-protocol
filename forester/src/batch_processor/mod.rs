@@ -7,7 +7,7 @@ use common::BatchProcessor;
 use error::Result;
 use forester_utils::forester_epoch::TreeType;
 use light_client::rpc::RpcConnection;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[instrument(
     level = "debug",
@@ -21,7 +21,7 @@ pub async fn process_batched_operations<R: RpcConnection, I: Indexer<R> + Indexe
     context: BatchContext<R, I>,
     tree_type: TreeType,
 ) -> Result<usize> {
-    info!("process_batched_operations");
+    tracing::debug!("process_batched_operations");
     let processor = BatchProcessor::new(context, tree_type);
     processor.process().await
 }

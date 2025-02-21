@@ -11,7 +11,10 @@
 use reqwest;
 
 use super::{configuration, Error};
-use crate::{apis::ResponseContent, models};
+use crate::{
+    apis::{configuration::Configuration, ResponseContent},
+    models,
+};
 
 /// struct for typed errors of method [`get_compressed_account_balance_post`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +38,15 @@ pub enum GetCompressedAccountPostError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GetCompressedAccountProofPostError {
+    Status429(models::GetCompressedAccountPost429Response),
+    Status500(models::GetCompressedAccountPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`get_compressed_account_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCompressedAccountV2PostError {
     Status429(models::GetCompressedAccountPost429Response),
     Status500(models::GetCompressedAccountPost429Response),
     UnknownValue(serde_json::Value),
@@ -94,10 +106,28 @@ pub enum GetCompressedTokenAccountsByDelegatePostError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`get_compressed_token_accounts_by_delegate_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCompressedTokenAccountsByDelegateV2PostError {
+    Status429(models::GetCompressedAccountPost429Response),
+    Status500(models::GetCompressedAccountPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`get_compressed_token_accounts_by_owner_post`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GetCompressedTokenAccountsByOwnerPostError {
+    Status429(models::GetCompressedAccountPost429Response),
+    Status500(models::GetCompressedAccountPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`get_compressed_token_accounts_by_owner_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetCompressedTokenAccountsByOwnerV2PostError {
     Status429(models::GetCompressedAccountPost429Response),
     Status500(models::GetCompressedAccountPost429Response),
     UnknownValue(serde_json::Value),
@@ -211,6 +241,15 @@ pub enum GetMultipleCompressedAccountsPostError {
     UnknownValue(serde_json::Value),
 }
 
+/// struct for typed errors of method [`get_multiple_compressed_accounts_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetMultipleCompressedAccountsV2PostError {
+    Status429(models::GetCompressedAccountPost429Response),
+    Status500(models::GetCompressedAccountPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
 /// struct for typed errors of method [`get_multiple_new_address_proofs_post`]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -242,6 +281,15 @@ pub enum GetQueueElementsPostError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GetTransactionWithCompressionInfoPostError {
+    Status429(models::GetCompressedAccountPost429Response),
+    Status500(models::GetCompressedAccountPost429Response),
+    UnknownValue(serde_json::Value),
+}
+
+/// struct for typed errors of method [`get_transaction_with_compression_info_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum GetTransactionWithCompressionInfoV2PostError {
     Status429(models::GetCompressedAccountPost429Response),
     Status500(models::GetCompressedAccountPost429Response),
     UnknownValue(serde_json::Value),
@@ -280,6 +328,8 @@ pub async fn get_compressed_account_balance_post(
         "{}/getCompressedAccountBalance",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -319,6 +369,8 @@ pub async fn get_compressed_account_post(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getCompressedAccount", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -363,6 +415,8 @@ pub async fn get_compressed_account_proof_post(
         "{}/getCompressedAccountProof",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -392,6 +446,49 @@ pub async fn get_compressed_account_proof_post(
     }
 }
 
+pub async fn get_compressed_account_v2_post(
+    configuration: &configuration::Configuration,
+    get_compressed_account_v2_post_request: models::GetCompressedAccountV2PostRequest,
+) -> Result<models::GetCompressedAccountV2Post200Response, Error<GetCompressedAccountV2PostError>> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getCompressedAccountV2",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder = local_var_req_builder.json(&get_compressed_account_v2_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetCompressedAccountV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
 pub async fn get_compressed_accounts_by_owner_post(
     configuration: &configuration::Configuration,
     get_compressed_accounts_by_owner_post_request: models::GetCompressedAccountsByOwnerPostRequest,
@@ -407,6 +504,8 @@ pub async fn get_compressed_accounts_by_owner_post(
         "{}/getCompressedAccountsByOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -452,6 +551,8 @@ pub async fn get_compressed_accounts_by_owner_v2_post(
         "{}/getCompressedAccountsByOwnerV2",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -497,6 +598,8 @@ pub async fn get_compressed_balance_by_owner_post(
         "{}/getCompressedBalanceByOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -542,6 +645,8 @@ pub async fn get_compressed_mint_token_holders_post(
         "{}/getCompressedMintTokenHolders",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -587,6 +692,8 @@ pub async fn get_compressed_token_account_balance_post(
         "{}/getCompressedTokenAccountBalance",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -632,6 +739,8 @@ pub async fn get_compressed_token_accounts_by_delegate_post(
         "{}/getCompressedTokenAccountsByDelegate",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -662,6 +771,53 @@ pub async fn get_compressed_token_accounts_by_delegate_post(
     }
 }
 
+pub async fn get_compressed_token_accounts_by_delegate_v2_post(
+    configuration: &configuration::Configuration,
+    get_compressed_token_accounts_by_delegate_v2_post_request: models::GetCompressedTokenAccountsByDelegateV2PostRequest,
+) -> Result<
+    models::GetCompressedTokenAccountsByDelegateV2Post200Response,
+    Error<GetCompressedTokenAccountsByDelegateV2PostError>,
+> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getCompressedTokenAccountsByDelegateV2",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder =
+        local_var_req_builder.json(&get_compressed_token_accounts_by_delegate_v2_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetCompressedTokenAccountsByDelegateV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
 pub async fn get_compressed_token_accounts_by_owner_post(
     configuration: &configuration::Configuration,
     get_compressed_token_accounts_by_owner_post_request: models::GetCompressedTokenAccountsByOwnerPostRequest,
@@ -677,6 +833,8 @@ pub async fn get_compressed_token_accounts_by_owner_post(
         "{}/getCompressedTokenAccountsByOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -707,6 +865,53 @@ pub async fn get_compressed_token_accounts_by_owner_post(
     }
 }
 
+pub async fn get_compressed_token_accounts_by_owner_v2_post(
+    configuration: &configuration::Configuration,
+    get_compressed_token_accounts_by_owner_v2_post_request: models::GetCompressedTokenAccountsByOwnerV2PostRequest,
+) -> Result<
+    models::GetCompressedTokenAccountsByDelegateV2Post200Response,
+    Error<GetCompressedTokenAccountsByOwnerV2PostError>,
+> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getCompressedTokenAccountsByOwnerV2",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder =
+        local_var_req_builder.json(&get_compressed_token_accounts_by_owner_v2_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetCompressedTokenAccountsByOwnerV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
 pub async fn get_compressed_token_balances_by_owner_post(
     configuration: &configuration::Configuration,
     get_compressed_token_balances_by_owner_post_request: models::GetCompressedTokenBalancesByOwnerPostRequest,
@@ -722,6 +927,8 @@ pub async fn get_compressed_token_balances_by_owner_post(
         "{}/getCompressedTokenBalancesByOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -767,6 +974,8 @@ pub async fn get_compressed_token_balances_by_owner_v2_post(
         "{}/getCompressedTokenBalancesByOwnerV2",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -812,6 +1021,8 @@ pub async fn get_compression_signatures_for_account_post(
         "{}/getCompressionSignaturesForAccount",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -857,6 +1068,8 @@ pub async fn get_compression_signatures_for_address_post(
         "{}/getCompressionSignaturesForAddress",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -902,6 +1115,8 @@ pub async fn get_compression_signatures_for_owner_post(
         "{}/getCompressionSignaturesForOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -947,6 +1162,8 @@ pub async fn get_compression_signatures_for_token_owner_post(
         "{}/getCompressionSignaturesForTokenOwner",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -986,6 +1203,8 @@ pub async fn get_indexer_health_post(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getIndexerHealth", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1024,6 +1243,8 @@ pub async fn get_indexer_slot_post(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getIndexerSlot", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1068,6 +1289,8 @@ pub async fn get_latest_compression_signatures_post(
         "{}/getLatestCompressionSignatures",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1113,6 +1336,8 @@ pub async fn get_latest_non_voting_signatures_post(
         "{}/getLatestNonVotingSignatures",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1158,6 +1383,8 @@ pub async fn get_multiple_compressed_account_proofs_post(
         "{}/getMultipleCompressedAccountProofs",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1203,6 +1430,8 @@ pub async fn get_multiple_compressed_accounts_post(
         "{}/getMultipleCompressedAccounts",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1233,6 +1462,53 @@ pub async fn get_multiple_compressed_accounts_post(
     }
 }
 
+pub async fn get_multiple_compressed_accounts_v2_post(
+    configuration: &configuration::Configuration,
+    get_multiple_compressed_accounts_v2_post_request: models::GetMultipleCompressedAccountsV2PostRequest,
+) -> Result<
+    models::GetMultipleCompressedAccountsV2Post200Response,
+    Error<GetMultipleCompressedAccountsV2PostError>,
+> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getMultipleCompressedAccountsV2",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder =
+        local_var_req_builder.json(&get_multiple_compressed_accounts_v2_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetMultipleCompressedAccountsV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
 pub async fn get_multiple_new_address_proofs_post(
     configuration: &configuration::Configuration,
     get_multiple_new_address_proofs_post_request: models::GetMultipleNewAddressProofsPostRequest,
@@ -1248,6 +1524,8 @@ pub async fn get_multiple_new_address_proofs_post(
         "{}/getMultipleNewAddressProofs",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1293,6 +1571,8 @@ pub async fn get_multiple_new_address_proofs_v2_post(
         "{}/getMultipleNewAddressProofsV2",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1332,6 +1612,8 @@ pub async fn get_queue_elements_post(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getQueueElements", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1376,6 +1658,8 @@ pub async fn get_transaction_with_compression_info_post(
         "{}/getTransactionWithCompressionInfo",
         local_var_configuration.base_path
     );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1406,6 +1690,53 @@ pub async fn get_transaction_with_compression_info_post(
     }
 }
 
+pub async fn get_transaction_with_compression_info_v2_post(
+    configuration: &configuration::Configuration,
+    get_transaction_with_compression_info_v2_post_request: models::GetTransactionWithCompressionInfoV2PostRequest,
+) -> Result<
+    models::GetTransactionWithCompressionInfoV2Post200Response,
+    Error<GetTransactionWithCompressionInfoV2PostError>,
+> {
+    let local_var_configuration = configuration;
+
+    let local_var_client = &local_var_configuration.client;
+
+    let local_var_uri_str = format!(
+        "{}/getTransactionWithCompressionInfoV2",
+        local_var_configuration.base_path
+    );
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
+    let mut local_var_req_builder =
+        local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
+
+    if let Some(ref local_var_user_agent) = local_var_configuration.user_agent {
+        local_var_req_builder =
+            local_var_req_builder.header(reqwest::header::USER_AGENT, local_var_user_agent.clone());
+    }
+    local_var_req_builder =
+        local_var_req_builder.json(&get_transaction_with_compression_info_v2_post_request);
+
+    let local_var_req = local_var_req_builder.build()?;
+    let local_var_resp = local_var_client.execute(local_var_req).await?;
+
+    let local_var_status = local_var_resp.status();
+    let local_var_content = local_var_resp.text().await?;
+
+    if !local_var_status.is_client_error() && !local_var_status.is_server_error() {
+        serde_json::from_str(&local_var_content).map_err(Error::from)
+    } else {
+        let local_var_entity: Option<GetTransactionWithCompressionInfoV2PostError> =
+            serde_json::from_str(&local_var_content).ok();
+        let local_var_error = ResponseContent {
+            status: local_var_status,
+            content: local_var_content,
+            entity: local_var_entity,
+        };
+        Err(Error::ResponseError(local_var_error))
+    }
+}
+
 pub async fn get_validity_proof_post(
     configuration: &configuration::Configuration,
     get_validity_proof_post_request: models::GetValidityProofPostRequest,
@@ -1415,6 +1746,8 @@ pub async fn get_validity_proof_post(
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getValidityProof", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1447,12 +1780,14 @@ pub async fn get_validity_proof_post(
 pub async fn get_validity_proof_v2_post(
     configuration: &configuration::Configuration,
     get_validity_proof_v2_post_request: models::GetValidityProofV2PostRequest,
-) -> Result<models::GetValidityProofPost200Response, Error<GetValidityProofV2PostError>> {
+) -> Result<models::GetValidityProofV2Post200Response, Error<GetValidityProofV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;
 
     let local_var_uri_str = format!("{}/getValidityProofV2", local_var_configuration.base_path);
+    let local_var_uri_str = append_api_key(local_var_configuration, &local_var_uri_str);
+
     let mut local_var_req_builder =
         local_var_client.request(reqwest::Method::POST, local_var_uri_str.as_str());
 
@@ -1480,4 +1815,13 @@ pub async fn get_validity_proof_v2_post(
         };
         Err(Error::ResponseError(local_var_error))
     }
+}
+
+fn append_api_key(configuration: &Configuration, uri_str: &str) -> String {
+    let mut uri_str = uri_str.to_string();
+    if let Some(ref api_key) = configuration.api_key {
+        let prefix = api_key.prefix.clone().unwrap_or("api-key".to_string());
+        uri_str = format!("{}?{}={}", uri_str, prefix, api_key.key);
+    }
+    uri_str
 }
