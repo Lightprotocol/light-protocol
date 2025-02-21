@@ -1358,9 +1358,25 @@ theorem BatchAddressLoop_complete
         simp only [this, ite_false]
         apply hemps i (And.intro (by linarith) (And.intro (by linarith) (by simp [Nat.mod_one])))
 
+theorem BatchAddressLoop_skip_tree {elements : List.Vector F l}:
+    BatchAddressLoop rv si off lev lenv lei lep elements nep k → ∃r, k r := by
+  induction l generalizing rv si off with
+  | zero =>
+    simp [BatchAddressLoop]
+    intro h
+    use rv
+  | succ l ih =>
+    simp [BatchAddressLoop, LightProver.LeafHashGadget, Gates, GatesGnark8, Gates.to_binary_iff_eq_Fin_ofBitsLE, LightProver.MerkleRootUpdateGadget_26_26_26]
+    intros
+    simp_all [MerkleRootGadget_rw]
+    casesm* Exists _, _ ∧ _
+    simp_all [MerkleRootGadget_rw]
+    casesm* _∧_
+    apply ih
+    assumption
 
 theorem BatchAdressAppend_sound [Fact (CollisionResistant poseidon₂)] [Fact poseidon₂_no_zero_preimage] {rv : RangeVector (2^26)}:
-    (∃pih si lev lenv lei lep nep, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch si lev lenv lei lep elements nep) →
+    (∃pih hch si lev lenv lei lep nep, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch si lev lenv lei lep elements nep) →
     ∃(nrv : RangeVector (2^26)), nrv.root = newRoot ∧ (∀i (_: i ∈ elements), i.val ∉ nrv) ∧ (∀i, ↑i ∉ elements → (i ∈ rv ↔ i ∈ nrv)) := by
   simp only [BatchAddressLoop_rw1]
   intro h

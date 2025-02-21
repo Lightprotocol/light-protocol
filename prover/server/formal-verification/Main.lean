@@ -196,4 +196,50 @@ theorem inputHash_injective :
 
 end BatchUpdateCircuit
 
+namespace BatchAddressAppendTreeCircuit
+
+theorem sound {ranges : RangeVector (2^26)} {elements : List.Vector F 8} {newRoot : F}:
+    (∃pih hch si lev lenv lei lep nep, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih ranges.root newRoot hch si lev lenv lei lep elements nep) →
+    ∃newRanges : RangeVector (2^26), newRanges.root = newRoot ∧ (∀i ∈ elements, i.val ∉ newRanges) ∧ (∀i, ↑i ∉ elements → (i ∈ ranges ↔ i ∈ newRanges)) := by
+  exact BatchAdressAppend_sound
+
+theorem complete {rv : RangeVector (2^26)} {elements startIndex}
+    (startIndex_small : startIndex + 8 < 2^26)
+    (elements_distinct : ∀(i j : Fin 8), i ≠ j → elements[i] ≠ elements[j])
+    (elements_mem : ∀ i ∈ elements, i.val ∈ rv)
+    (indices_empty : ∀ i ∈ [startIndex:(startIndex + 8)], rv.ranges i = none):
+    ∃lev lenv lei lep nep newRoot hch pih, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch startIndex lev lenv lei lep elements nep := by
+  apply BatchAddressAppend_complete <;> simp_all [getElem]
+  intro i hi
+  have := indices_empty i hi
+  simp [←this]
+  congr
+  rw [Nat.mod_eq_of_lt]
+  linarith [hi.2]
+
+theorem inputHash_deterministic:
+    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h₁ oldRoot newRoot lhh₁ startIndex lev₁ lenv₁ lei₁ lep₁ elements nep₁ ∧
+    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h₂ oldRoot newRoot lhh₂ startIndex lev₂ lenv₂ lei₂ lep₂ elements nep₂ →
+    h₁ = h₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
+  have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
+  simp [HashChain_8_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw] at h₁ h₂
+  simp_all
+
+theorem inputHash_injective:
+    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h oldRoot₁ newRoot₁ lhh₁ startIndex₁ lev₁ lenv₁ lei₁ lep₁ elements₁ nep₁ ∧
+    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h oldRoot₂ newRoot₂ lhh₂ startIndex₂ lev₂ lenv₂ lei₂ lep₂ elements₂ nep₂ →
+    oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ startIndex₁ = startIndex₂ ∧ elements₁ = elements₂ := by
+  intro ⟨hp₁, hp₂⟩
+  have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
+  have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
+  simp [HashChain_8_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw, hashChain_injective] at h₁ h₂
+  rcases h₁ with ⟨rfl, h₁⟩
+  rcases h₂ with ⟨rfl, h₂⟩
+  rw [h₁] at h₂
+  simp_all [hashChain_injective, List.Vector.eq_cons]
+
+end BatchAddressAppendTreeCircuit
+
 def main : IO Unit := pure ()
