@@ -328,6 +328,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
+    println!("create_nullify_batch_ix_data");
     let (zkp_batch_size, old_root, leaves_hash_chain) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
@@ -343,6 +344,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let root = *merkle_tree.root_history.last().unwrap();
         (zkp_size as u16, root, hash_chain)
     };
+    println!("zkp_batch_size: {:?} old_root: {:?} leaves_hash_chain: {:?}", zkp_batch_size, old_root, leaves_hash_chain);
 
     let leaf_indices_tx_hashes = indexer
         .get_queue_elements(
@@ -353,6 +355,9 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .await
         .unwrap();
+
+    println!("leaf_indices_tx_hashes len: {}", leaf_indices_tx_hashes.len());
+    println!("leaf_indices_tx_hashes: {:?}", leaf_indices_tx_hashes);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -376,6 +381,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
         nullifiers.push(nullifier);
     }
+    println!("nullifiers: {:?}", nullifiers);
 
     let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
@@ -388,13 +394,14 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         zkp_batch_size as u32,
     )
     .unwrap();
+    println!("inputs: {:?}", inputs);
 
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
 
     let client = Client::new();
 
     let json_str = update_inputs_string(&inputs);
-
+    println!("json_str: {:?}", json_str);
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -409,6 +416,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::ProverError("Failed to send proof to server".into())
         })?;
 
+    println!("response: {:?}", response);
     let proof = if response.status().is_success() {
         let body = response.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -428,6 +436,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             "Failed to get proof from server".into(),
         ));
     };
+    println!("proof: {:?}", proof);
 
     Ok(InstructionDataBatchNullifyInputs {
         new_root,
