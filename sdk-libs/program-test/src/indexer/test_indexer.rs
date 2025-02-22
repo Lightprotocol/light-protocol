@@ -721,7 +721,7 @@ where
         todo!()
     }
 
-    async fn get_validity_proof_v2(&self, hashes: Vec<Hash>, new_addresses_with_trees: Vec<AddressWithTree>) -> Result<CompressedProofWithContextV2, IndexerError> {
+    async fn get_validity_proof_v2(&self, _hashes: Vec<Hash>, _new_addresses_with_trees: Vec<AddressWithTree>) -> Result<CompressedProofWithContextV2, IndexerError> {
         todo!()
     }
 

@@ -308,7 +308,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
 
             for acc in accs.items {
-                println!("Acc: {:?}", acc);
                 let compressed_account = CompressedAccount {
                     owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
                     lamports: acc.lamports,
@@ -686,15 +685,11 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 ..Default::default()
             };
 
-            println!("Request: {:?}", request);
-
             let result = photon_api::apis::default_api::get_validity_proof_post(
                 &self.configuration,
                 request,
             )
             .await?;
-
-            println!("Result: {:?}", result);
 
             let result = Self::extract_result("get_validity_proof", result.result)?;
             Ok(*result.value)
@@ -721,15 +716,11 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 ..Default::default()
             };
 
-            println!("Request: {:?}", request);
-
             let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                 &self.configuration,
                 request,
             )
                 .await?;
-
-            println!("Result: {:?}", result);
 
             let result = Self::extract_result("get_validity_proof_v2", result.result)?;
             Ok(*result.value)
