@@ -48,7 +48,7 @@ impl CompressedAccountWithMerkleContext {
         let account_hash = self.hash()?;
         let merkle_context = if root_index.is_none() {
             let mut merkle_context = self.merkle_context;
-            merkle_context.prove_by_index = true;
+            merkle_context.prove_by_index = false;
             merkle_context
         } else {
             self.merkle_context
@@ -129,7 +129,7 @@ pub fn pack_compressed_accounts(
             let root_index = if let Some(root) = root_index {
                 *root
             } else {
-                merkle_context.prove_by_index = true;
+                merkle_context.prove_by_index = false;
                 0
             };
 
