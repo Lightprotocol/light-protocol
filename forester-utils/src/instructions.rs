@@ -356,8 +356,8 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
-    println!("leaf_indices_tx_hashes len: {}", leaf_indices_tx_hashes.len());
-    println!("leaf_indices_tx_hashes: {:?}", leaf_indices_tx_hashes);
+    println!("get_queue_elements len: {}", leaf_indices_tx_hashes.len());
+    println!("get_queue_elements: {:?}", leaf_indices_tx_hashes);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
