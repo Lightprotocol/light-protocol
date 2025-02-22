@@ -44,6 +44,11 @@ export class MerkleTree {
         this._layers[0] = elements;
         this._zeros[0] = this.zeroElement;
 
+        // Initialize all layers with empty arrays
+        for (let i = 1; i <= levels; i++) {
+            this._layers[i] = [];
+        }
+
         for (let i = 1; i <= levels; i++) {
             this._zeros[i] = this._lightWasm.poseidonHashString([
                 this._zeros[i - 1],

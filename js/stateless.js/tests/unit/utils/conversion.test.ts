@@ -9,6 +9,53 @@ import {
 } from '../../../src/utils/conversion';
 import { calculateComputeUnitPrice } from '../../../src/utils';
 import { deserializeAppendNullifyCreateAddressInputsIndexer } from '../../../src/programs';
+import {
+    batchMerkleTree,
+    batchQueue,
+    localTestActiveStateTreeInfo,
+    merkletreePubkey,
+} from '../../../src/constants';
+import { StateTreeInfo } from '../../../src/state';
+import { getQueueForTree } from '../../../src/test-helpers/test-rpc/get-compressed-accounts';
+import { PublicKey } from '@solana/web3.js';
+import { TreeType } from '../../../src/state';
+
+describe.only('getQueueForTree', () => {
+    const stateTreeInfo: StateTreeInfo[] = localTestActiveStateTreeInfo();
+
+    it('should return the correct queue for a tree of type State (v1)', () => {
+        const tree = new PublicKey(merkletreePubkey);
+        const result = getQueueForTree(stateTreeInfo, tree);
+        expect(result.treeType).toBe(TreeType.StateV1);
+        expect(result.tree.equals(tree)).toBe(true);
+    });
+
+    it('should return the correct queue for a tree of type BatchedState', () => {
+        // test-rpc indexes events like this.
+        const tree = new PublicKey(batchQueue);
+        const queue = new PublicKey(batchMerkleTree);
+        const result = getQueueForTree(stateTreeInfo, tree);
+        expect(result.treeType).toBe(TreeType.StateV2);
+        expect(result.tree.equals(queue)).toBe(true);
+        expect(result.queue.equals(tree)).toBe(true);
+    });
+
+    it('should return the correct queue for a tree of type BatchedState even if passed in correctly', () => {
+        const tree = new PublicKey(batchMerkleTree);
+        const queue = new PublicKey(batchQueue);
+        const result = getQueueForTree(stateTreeInfo, tree);
+        expect(result.treeType).toBe(TreeType.StateV2);
+        expect(result.tree.equals(tree)).toBe(true);
+        expect(result.queue.equals(queue)).toBe(true);
+    });
+
+    it('should throw an error if no queue is found for the tree', () => {
+        const tree = new PublicKey(PublicKey.default);
+        expect(() => getQueueForTree(stateTreeInfo, tree)).toThrow(
+            'No associated queue found for tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually.',
+        );
+    });
+});
 
 describe('toArray', () => {
     it('should return same array if array is passed', () => {
@@ -51,7 +98,6 @@ describe('deserialize apc cpi', () => {
         expect(result.meta.is_invoked_by_program).toEqual(1);
 
         expect(result.addresses.length).toBeGreaterThan(0);
-        console.log('address ', result.addresses[0]);
         expect(result.addresses[0]).toEqual({
             address: new Array(32).fill(1),
             tree_index: 1,

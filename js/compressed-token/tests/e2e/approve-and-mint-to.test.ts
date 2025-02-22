@@ -15,10 +15,12 @@ import {
     newAccountWithLamports,
     sendAndConfirmTx,
     getTestRpc,
-    defaultTestStateTreeAccounts,
+    StateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
+import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
 
 async function createTestSplMint(
     rpc: Rpc,
@@ -57,80 +59,87 @@ async function createTestSplMint(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
-describe('approveAndMintTo', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-    let bob: PublicKey;
-    let mintKeypair: Keypair;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'approveAndMintTo with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: PublicKey;
+        let mintKeypair: Keypair;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc);
-        bob = Keypair.generate().publicKey;
-        mintAuthority = Keypair.generate();
-        mintKeypair = Keypair.generate();
-        mint = mintKeypair.publicKey;
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc);
+            bob = Keypair.generate().publicKey;
+            mintAuthority = Keypair.generate();
+            mintKeypair = Keypair.generate();
+            mint = mintKeypair.publicKey;
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
+            /// Create external SPL mint
+            await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
-        /// Create external SPL mint
-        await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
+            /// Register mint
+            await createTokenPool(rpc, payer, mint);
+        });
 
-        /// Register mint
-        await createTokenPool(rpc, payer, mint);
-    });
+        it('should mintTo compressed account with external spl mint', async () => {
+            assert(mint.equals(mintKeypair.publicKey));
 
-    it('should mintTo compressed account with external spl mint', async () => {
-        assert(mint.equals(mintKeypair.publicKey));
+            await approveAndMintTo(
+                rpc,
+                payer,
+                mint,
+                bob,
+                mintAuthority,
+                1000000000,
+                outputStateTreeInfo,
+            );
 
-        await approveAndMintTo(
-            rpc,
-            payer,
-            mint,
-            bob,
-            mintAuthority,
-            1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
+        });
 
-        await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
-    });
+        it('should mintTo compressed account with external token 2022 mint', async () => {
+            const payer = await newAccountWithLamports(rpc);
+            const bob = Keypair.generate().publicKey;
+            const token22MintAuthority = Keypair.generate();
+            const token22MintKeypair = Keypair.generate();
+            const token22Mint = token22MintKeypair.publicKey;
 
-    it('should mintTo compressed account with external token 2022 mint', async () => {
-        const payer = await newAccountWithLamports(rpc);
-        const bob = Keypair.generate().publicKey;
-        const token22MintAuthority = Keypair.generate();
-        const token22MintKeypair = Keypair.generate();
-        const token22Mint = token22MintKeypair.publicKey;
+            /// Create external SPL mint
+            await createTestSplMint(
+                rpc,
+                payer,
+                token22MintKeypair,
+                token22MintAuthority,
+                true,
+            );
+            const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
+            assert(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID));
+            /// Register mint
+            await createTokenPool(rpc, payer, token22Mint);
+            assert(token22Mint.equals(token22MintKeypair.publicKey));
 
-        /// Create external SPL mint
-        await createTestSplMint(
-            rpc,
-            payer,
-            token22MintKeypair,
-            token22MintAuthority,
-            true,
-        );
-        const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
-        assert(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID));
-        /// Register mint
-        await createTokenPool(rpc, payer, token22Mint);
-        assert(token22Mint.equals(token22MintKeypair.publicKey));
+            await approveAndMintTo(
+                rpc,
+                payer,
+                token22Mint,
+                bob,
+                token22MintAuthority,
+                1000000000,
+                outputStateTreeInfo,
+            );
 
-        await approveAndMintTo(
-            rpc,
-            payer,
-            token22Mint,
-            bob,
-            token22MintAuthority,
-            1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);
-    });
-});
+            await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);
+        });
+    },
+);
 
 /**
  * Assert that approveAndMintTo() creates a new compressed token account for the

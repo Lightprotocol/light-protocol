@@ -92,7 +92,7 @@ pub fn process<
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-    msg!("num new addresses: {}", num_new_addresses);
+    // msg!("num new addresses: {}", num_new_addresses);
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
     // + number of times cpi context account was filled.

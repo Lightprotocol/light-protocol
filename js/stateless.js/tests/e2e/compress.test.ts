@@ -1,17 +1,11 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { Signer } from '@solana/web3.js';
-import {
-    STATE_MERKLE_TREE_NETWORK_FEE,
-    ADDRESS_QUEUE_ROLLOVER_FEE,
-    STATE_MERKLE_TREE_ROLLOVER_FEE,
-    defaultTestStateTreeAccounts,
-    ADDRESS_TREE_NETWORK_FEE,
-} from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc } from '../../src/rpc';
 import {
     LightSystemProgram,
-    bn,
+    StateTreeInfo,
+    TreeType,
     compress,
     createAccount,
     createAccountWithLamports,
@@ -19,278 +13,254 @@ import {
 } from '../../src';
 import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {
+    getStateTreeInfoByTypeForTest,
+    txFees,
+    txFeesV2Accounts,
+} from './shared';
+import { randomBytes } from '@noble/hashes/utils';
 
-/// TODO: make available to developers via utils
-function txFees(
-    txs: {
-        in: number;
-        out: number;
-        addr?: number;
-        base?: number;
-    }[],
-): number {
-    let totalFee = bn(0);
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'Test with treeType: %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    txs.forEach(tx => {
-        const solanaBaseFee = tx.base === 0 ? bn(0) : bn(tx.base || 5000);
+        const feeFunction =
+            treeType === TreeType.StateV1 ? txFees : txFeesV2Accounts;
 
-        /// Fee per output
-        const stateOutFee = STATE_MERKLE_TREE_ROLLOVER_FEE.mul(bn(tx.out));
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc, 1e9, 256);
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
+        });
 
-        /// Fee per new address created
-        const addrFee = tx.addr
-            ? ADDRESS_QUEUE_ROLLOVER_FEE.mul(bn(tx.addr))
-            : bn(0);
+        it('should create multiple accounts with addresses', async () => {
+            const preCreateAccountsBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
 
-        /// Fee if the tx nullifies at least one input account
-        const networkInFee =
-            tx.in || tx.out ? STATE_MERKLE_TREE_NETWORK_FEE : bn(0);
-
-        /// Fee if the tx creates at least one address
-        const networkAddressFee = tx.addr ? ADDRESS_TREE_NETWORK_FEE : bn(0);
-
-        totalFee = totalFee.add(
-            solanaBaseFee
-                .add(stateOutFee)
-                .add(addrFee)
-                .add(networkInFee)
-                .add(networkAddressFee),
-        );
-    });
-
-    return totalFee.toNumber();
-}
-
-/// TODO: add test case for payer != address
-describe('compress', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
-    });
-
-    it('should create account with address', async () => {
-        const preCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
-
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await createAccountWithLamports(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            0,
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await expect(
-            createAccount(
-                rpc as TestRpc,
+            await createAccount(
+                rpc,
                 payer,
-                [
-                    new Uint8Array([
-                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-                        31, 2,
-                    ]),
-                ],
+                [new Uint8Array(randomBytes(32))],
                 LightSystemProgram.programId,
                 undefined,
                 undefined,
-                defaultTestStateTreeAccounts().merkleTree,
-            ),
-        ).rejects.toThrow();
-        const postCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCreateAccountsBalance,
-            preCreateAccountsBalance -
-                txFees([
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                ]),
-        );
-    });
+                outputStateTreeInfo,
+            );
 
-    it('should compress lamports and create an account with address and lamports', async () => {
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
+            await createAccountWithLamports(
+                rpc,
+                payer,
+                [new Uint8Array(randomBytes(32))],
+                0,
+                LightSystemProgram.programId,
+                undefined,
+                undefined,
+                outputStateTreeInfo,
+            );
 
-        const compressLamportsAmount = 1e7;
-        const preCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(preCompressBalance, 1e9);
+            await createAccount(
+                rpc,
+                payer,
+                [new Uint8Array(randomBytes(32))],
+                LightSystemProgram.programId,
+                undefined,
+                undefined,
+                outputStateTreeInfo,
+            );
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            const seed = new Uint8Array(randomBytes(32));
+            await createAccount(
+                rpc,
+                payer,
+                [seed],
+                LightSystemProgram.programId,
+                undefined,
+                undefined,
+                outputStateTreeInfo,
+            );
+            await expect(
+                createAccount(
+                    rpc,
+                    payer,
+                    [seed],
+                    LightSystemProgram.programId,
+                    undefined,
+                    undefined,
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrow();
+            const postCreateAccountsBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
+            assert.equal(
+                postCreateAccountsBalance,
+                preCreateAccountsBalance -
+                    feeFunction([
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                    ]),
+            );
+        });
 
-        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        assert.equal(compressedAccounts.items.length, 1);
-        assert.equal(
-            Number(compressedAccounts.items[0].lamports),
-            compressLamportsAmount,
-        );
+        it('should compress and create an account with address (v1: and lamports)', async () => {
+            payer = await newAccountWithLamports(rpc, 1e9, 256);
 
-        assert.equal(compressedAccounts.items[0].data, null);
-        const postCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCompressBalance,
-            preCompressBalance -
-                compressLamportsAmount -
-                txFees([{ in: 0, out: 1 }]),
-        );
+            const compressLamportsAmount = 1e7;
+            const preCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(preCompressBalance, 1e9);
 
-        await createAccountWithLamports(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 255, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            100,
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            await compress(
+                rpc,
+                payer,
+                compressLamportsAmount,
+                payer.publicKey,
+                outputStateTreeInfo,
+            );
 
-        const postCreateAccountBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCreateAccountBalance,
-            postCompressBalance - txFees([{ in: 1, out: 2, addr: 1 }]),
-        );
-    });
+            const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
+            assert.equal(compressedAccounts.items.length, 1);
+            assert.equal(
+                Number(compressedAccounts.items[0].lamports),
+                compressLamportsAmount,
+            );
 
-    it('should compress lamports and create an account with address and lamports', async () => {
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
+            assert.equal(compressedAccounts.items[0].data, null);
+            const postCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(
+                postCompressBalance,
+                preCompressBalance -
+                    compressLamportsAmount -
+                    feeFunction([{ in: 0, out: 1 }]),
+            );
 
-        const compressLamportsAmount = 1e7;
-        const preCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(preCompressBalance, 1e9);
+            if (treeType === TreeType.StateV1) {
+                await createAccountWithLamports(
+                    rpc,
+                    payer,
+                    [new Uint8Array(randomBytes(32))],
+                    100,
+                    LightSystemProgram.programId,
+                    undefined,
+                    undefined,
+                    outputStateTreeInfo,
+                );
+            } else {
+                await createAccount(
+                    rpc,
+                    payer,
+                    [new Uint8Array(randomBytes(32))],
+                    LightSystemProgram.programId,
+                    undefined,
+                    undefined,
+                    outputStateTreeInfo,
+                );
+            }
+            const postCreateAccountBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
+            assert.equal(
+                postCreateAccountBalance,
+                postCompressBalance -
+                    feeFunction([
+                        {
+                            in: treeType === TreeType.StateV2 ? 0 : 1,
+                            out: treeType === TreeType.StateV2 ? 1 : 2,
+                            addr: 1,
+                        },
+                    ]),
+            );
+        });
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        it('should compress lamports and decompress twice', async () => {
+            // Fresh wallet
+            payer = await newAccountWithLamports(rpc, 1e9, 256);
 
-        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        assert.equal(compressedAccounts.items.length, 1);
-        assert.equal(
-            Number(compressedAccounts.items[0].lamports),
-            compressLamportsAmount,
-        );
+            const compressLamportsAmount = 1e7;
+            const preCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(preCompressBalance, 1e9);
 
-        assert.equal(compressedAccounts.items[0].data, null);
-        const postCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCompressBalance,
-            preCompressBalance -
-                compressLamportsAmount -
-                txFees([{ in: 0, out: 1 }]),
-        );
+            await compress(
+                rpc,
+                payer,
+                compressLamportsAmount,
+                payer.publicKey,
+                outputStateTreeInfo,
+            );
 
-        /// Decompress
-        const decompressLamportsAmount = 1e6;
-        const decompressRecipient = payer.publicKey;
+            const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
+            assert.equal(compressedAccounts.items.length, 1);
+            assert.equal(
+                Number(compressedAccounts.items[0].lamports),
+                compressLamportsAmount,
+            );
 
-        await decompress(
-            rpc,
-            payer,
-            decompressLamportsAmount,
-            decompressRecipient,
-        );
+            assert.equal(compressedAccounts.items[0].data, null);
+            const postCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(
+                postCompressBalance,
+                preCompressBalance -
+                    compressLamportsAmount -
+                    feeFunction([{ in: 0, out: 1 }]),
+            );
 
-        const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        assert.equal(compressedAccounts2.items.length, 1);
-        assert.equal(
-            Number(compressedAccounts2.items[0].lamports),
-            compressLamportsAmount - decompressLamportsAmount,
-        );
-        await decompress(
-            rpc,
-            payer,
-            1,
-            decompressRecipient,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            /// Decompress
+            const decompressLamportsAmount = 1e6;
+            const decompressRecipient = payer.publicKey;
 
-        const postDecompressBalance = await rpc.getBalance(decompressRecipient);
-        assert.equal(
-            postDecompressBalance,
-            postCompressBalance +
-                decompressLamportsAmount +
-                1 -
-                txFees([
-                    { in: 1, out: 1 },
-                    { in: 1, out: 1 },
-                ]),
-        );
-    });
-});
+            await decompress(
+                rpc,
+                payer,
+                decompressLamportsAmount,
+                decompressRecipient,
+                outputStateTreeInfo,
+            );
+
+            const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
+            assert.equal(compressedAccounts2.items.length, 1);
+            assert.equal(
+                Number(compressedAccounts2.items[0].lamports),
+                compressLamportsAmount - decompressLamportsAmount,
+            );
+
+            await decompress(
+                rpc,
+                payer,
+                1,
+                decompressRecipient,
+                outputStateTreeInfo,
+            );
+
+            const postDecompressBalance =
+                await rpc.getBalance(decompressRecipient);
+            const fixFee = 0; // treeType === TreeType.StateV1 ? 299 : 0; // TODO: investigate the need for this.
+
+            assert.equal(
+                postDecompressBalance,
+                postCompressBalance +
+                    decompressLamportsAmount +
+                    fixFee +
+                    1 -
+                    feeFunction([
+                        { in: 1, out: 1 },
+                        { in: 1, out: 1 }, // 2
+                    ]),
+            );
+        });
+    },
+);

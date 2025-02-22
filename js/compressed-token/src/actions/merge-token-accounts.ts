@@ -11,6 +11,9 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     bn,
+    StateTreeInfo,
+    pickStateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
@@ -18,12 +21,14 @@ import { CompressedTokenProgram } from '../program';
  * Merge multiple compressed token accounts for a given mint into a single
  * account
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction fees
- * @param mint            Public key of the token's mint
- * @param owner           Owner of the token accounts to be merged
- * @param merkleTree      Optional merkle tree for compressed tokens
- * @param confirmOptions  Options for confirming the transaction
+ * @param rpc                       RPC to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Public key of the token's mint
+ * @param owner                     Owner of the token accounts to be merged
+ * @param outputStateTreeInfo    State tree context that the compressed
+ *                                  tokens should be part of. Defaults to the
+ *                                  default state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  * @return Array of transaction signatures
  */
@@ -32,9 +37,17 @@ export async function mergeTokenAccounts(
     payer: Signer,
     mint: PublicKey,
     owner: Signer,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
+    }
+
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
         { mint },
@@ -72,7 +85,7 @@ export async function mergeTokenAccounts(
                 owner: owner.publicKey,
                 mint,
                 inputCompressedTokenAccounts: batch,
-                outputStateTree: merkleTree!,
+                outputStateTreeInfo: outputStateTreeInfo!,
                 recentValidityProof: proof.compressedProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });

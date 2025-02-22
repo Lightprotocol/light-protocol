@@ -22,10 +22,13 @@ import {
     buildAndSignTx,
     dedupeSigner,
     getTestRpc,
+    StateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -55,146 +58,169 @@ async function assertMintTo(
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('mintTo', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-    let bob: Signer;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
-    let lut: PublicKey;
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'mintTo with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: Signer;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let lut: PublicKey;
 
-    const { merkleTree } = defaultTestStateTreeAccounts();
+        let outputStateTreeInfo: StateTreeInfo;
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc);
-        bob = getTestKeypair();
-        mintAuthority = payer as Keypair;
-        const mintKeypair = Keypair.generate();
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc);
+            bob = getTestKeypair();
+            mintAuthority = payer as Keypair;
+            const mintKeypair = Keypair.generate();
 
-        mint = (
-            await createMint(
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
+
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                )
+            ).mint;
+
+            /// Setup LUT.
+            const { address } = await createTokenProgramLookupTable(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-            )
-        ).mint;
+                payer,
+                [mint, payer.publicKey],
+            );
+            lut = address;
+        }, 80_000);
 
-        /// Setup LUT.
-        const { address } = await createTokenProgramLookupTable(
-            rpc,
-            payer,
-            payer,
-            [mint, payer.publicKey],
-        );
-        lut = address;
-    }, 80_000);
-
-    it('should mint to bob', async () => {
-        const amount = bn(1000);
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            amount,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await assertMintTo(rpc, mint, amount, bob.publicKey);
-
-        /// wrong authority
-        await expect(
-            mintTo(rpc, payer, mint, bob.publicKey, Keypair.generate(), amount),
-        ).rejects.toThrowError(/custom program error: 0x1782/);
-
-        /// with output state merkle tree defined
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            amount,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-    });
-
-    // const maxRecipients = 18;
-    const maxRecipients = 22;
-    const recipients = Array.from(
-        { length: maxRecipients },
-        () => Keypair.generate().publicKey,
-    );
-    const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
-
-    it('should mint to multiple recipients', async () => {
-        /// mint to three recipients
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            recipients.slice(0, 3),
-            mintAuthority,
-            amounts.slice(0, 3),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        /// Mint to 10 recipients
-        const tx = await mintTo(
-            rpc,
-            payer,
-            mint,
-            recipients.slice(0, 10),
-            mintAuthority,
-            amounts.slice(0, 10),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        // Uneven amounts
-        await expect(
-            mintTo(
+        it('should mint to bob', async () => {
+            const amount = bn(1000);
+            await mintTo(
                 rpc,
                 payer,
                 mint,
-                recipients,
+                bob.publicKey,
                 mintAuthority,
-                amounts.slice(0, 2),
-                defaultTestStateTreeAccounts().merkleTree,
-            ),
-        ).rejects.toThrowError(
-            /Amount and toPubkey arrays must have the same length/,
-        );
-    });
+                amount,
+                outputStateTreeInfo,
+            );
 
-    it(`should mint to ${recipients.length} recipients optimized with LUT`, async () => {
-        const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
-            .value!;
+            await assertMintTo(rpc, mint, amount, bob.publicKey);
 
-        const ix = await CompressedTokenProgram.mintTo({
-            feePayer: payer.publicKey,
-            mint,
-            authority: mintAuthority.publicKey,
-            amount: amounts,
-            toPubkey: recipients,
-            merkleTree: defaultTestStateTreeAccounts().merkleTree,
+            /// wrong authority
+            await expect(
+                mintTo(
+                    rpc,
+                    payer,
+                    mint,
+                    bob.publicKey,
+                    Keypair.generate(),
+                    amount,
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrowError(/custom program error: 0x1782/);
+
+            /// with output state merkle tree defined
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                bob.publicKey,
+                mintAuthority,
+                amount,
+                outputStateTreeInfo,
+            );
         });
 
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const additionalSigners = dedupeSigner(payer, [mintAuthority]);
-
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
-            payer,
-            blockhash,
-            additionalSigners,
-            [lookupTableAccount],
+        // const maxRecipients = 18;
+        const maxRecipients = 22;
+        const recipients = Array.from(
+            { length: maxRecipients },
+            () => Keypair.generate().publicKey,
+        );
+        const amounts = Array.from({ length: maxRecipients }, (_, i) =>
+            bn(i + 1),
         );
 
-        return await sendAndConfirmTx(rpc, tx);
-    });
-});
+        it('should mint to multiple recipients', async () => {
+            /// mint to three recipients
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                recipients.slice(0, 3),
+                mintAuthority,
+                amounts.slice(0, 3),
+                outputStateTreeInfo,
+            );
+
+            /// Mint to 10 recipients
+            const tx = await mintTo(
+                rpc,
+                payer,
+                mint,
+                recipients.slice(0, 10),
+                mintAuthority,
+                amounts.slice(0, 10),
+                outputStateTreeInfo,
+            );
+
+            // Uneven amounts
+            await expect(
+                mintTo(
+                    rpc,
+                    payer,
+                    mint,
+                    recipients,
+                    mintAuthority,
+                    amounts.slice(0, 2),
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrowError(
+                /Amount and toPubkey arrays must have the same length/,
+            );
+        });
+
+        it(`should mint to ${recipients.length} recipients optimized with LUT`, async () => {
+            const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
+                .value!;
+
+            const ix = await CompressedTokenProgram.mintTo({
+                feePayer: payer.publicKey,
+                mint,
+                authority: mintAuthority.publicKey,
+                amount: amounts,
+                toPubkey: recipients,
+                outputStateTreeInfo,
+            });
+
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const additionalSigners = dedupeSigner(payer, [mintAuthority]);
+
+            const tx = buildAndSignTx(
+                [
+                    ComputeBudgetProgram.setComputeUnitLimit({
+                        units: 600_000,
+                    }),
+                    ix,
+                ],
+                payer,
+                blockhash,
+                additionalSigners,
+                [lookupTableAccount],
+            );
+
+            return await sendAndConfirmTx(rpc, tx);
+        });
+    },
+);

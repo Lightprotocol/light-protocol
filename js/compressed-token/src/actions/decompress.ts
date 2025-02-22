@@ -11,6 +11,9 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    StateTreeInfo,
+    pickStateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -21,17 +24,17 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 /**
  * Decompress compressed tokens
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint of the compressed token
- * @param amount         Number of tokens to transfer
- * @param owner          Owner of the compressed tokens
- * @param toAddress      Destination **uncompressed** (associated) token account
- *                       address.
- * @param merkleTree     State tree account that any change compressed tokens should be
- *                       inserted into. Defaults to a default state tree
- *                       account.
- * @param confirmOptions Options for confirming the transaction
+ * @param rpc                       Rpc to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Mint of the compressed token
+ * @param amount                    Number of tokens to transfer
+ * @param owner                     Owner of the compressed tokens
+ * @param toAddress                 Destination **uncompressed** (associated) token account
+ *                                  address.
+ * @param outputStateTreeInfo    State tree context that any changes to
+ *                                  compressed tokens should be inserted into.
+ *                                  Defaults to the default state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  *
  * @return Signature of the confirmed transaction
@@ -43,7 +46,7 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -52,6 +55,14 @@ export async function decompress(
         : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
     amount = bn(amount);
+
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
+    }
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
@@ -75,7 +86,7 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress, // TODO: add explicit check that it is a token account
         amount,
-        outputStateTree: merkleTree,
+        outputStateTreeInfo: outputStateTreeInfo,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
         tokenProgramId,

@@ -1,72 +1,97 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc } from '../../src/rpc';
+import { Rpc, StateTreeInfo, TreeType } from '../../src';
 import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
 import { transfer } from '../../src/actions/transfer';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { getStateTreeInfoByTypeForTest } from './shared';
 
-describe('transfer', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-    let bob: Signer;
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'Test with %s state tree',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: Signer;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc, 2e9, 256);
-        bob = await newAccountWithLamports(rpc, 2e9, 256);
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc, 2e9, 256);
+            bob = await newAccountWithLamports(rpc, 2e9, 256);
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
+        });
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-    });
-
-    const numberOfTransfers = 10;
-    it(`should send compressed lamports alice -> bob for ${numberOfTransfers} transfers in a loop`, async () => {
-        const transferAmount = 1000;
-        for (let i = 0; i < numberOfTransfers; i++) {
-            const preSenderBalance = (
-                await rpc.getCompressedAccountsByOwner(payer.publicKey)
-            ).items.reduce((acc, account) => acc.add(account.lamports), bn(0));
-
-            const preReceiverBalance = (
-                await rpc.getCompressedAccountsByOwner(bob.publicKey)
-            ).items.reduce((acc, account) => acc.add(account.lamports), bn(0));
-
-            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
-
-            const postSenderAccs = await rpc.getCompressedAccountsByOwner(
+        it('should transfer lamports', async () => {
+            await compress(
+                rpc,
+                payer,
+                1e9,
                 payer.publicKey,
+                outputStateTreeInfo,
             );
-            const postReceiverAccs = await rpc.getCompressedAccountsByOwner(
-                bob.publicKey,
-            );
+        });
 
-            const postSenderBalance = postSenderAccs.items.reduce(
-                (acc, account) => acc.add(account.lamports),
-                bn(0),
-            );
-            const postReceiverBalance = postReceiverAccs.items.reduce(
-                (acc, account) => acc.add(account.lamports),
-                bn(0),
-            );
+        const numberOfTransfers = 10;
+        it(`should send compressed lamports alice -> bob for ${numberOfTransfers} transfers in a loop`, async () => {
+            const transferAmount = 1000;
+            for (let i = 0; i < numberOfTransfers; i++) {
+                const preSenderBalance = (
+                    await rpc.getCompressedAccountsByOwner(payer.publicKey)
+                ).items.reduce(
+                    (acc, account) => acc.add(account.lamports),
+                    bn(0),
+                );
 
-            assert(
-                postSenderBalance.sub(preSenderBalance).eq(bn(-transferAmount)),
-                `Iteration ${i + 1}: Sender balance should decrease by ${transferAmount}`,
-            );
-            assert(
-                postReceiverBalance
-                    .sub(preReceiverBalance)
-                    .eq(bn(transferAmount)),
-                `Iteration ${i + 1}: Receiver balance should increase by ${transferAmount}`,
-            );
-        }
-    });
-});
+                const preReceiverBalance = (
+                    await rpc.getCompressedAccountsByOwner(bob.publicKey)
+                ).items.reduce(
+                    (acc, account) => acc.add(account.lamports),
+                    bn(0),
+                );
+
+                await transfer(
+                    rpc,
+                    payer,
+                    transferAmount,
+                    payer,
+                    bob.publicKey,
+                );
+
+                const postSenderAccs = await rpc.getCompressedAccountsByOwner(
+                    payer.publicKey,
+                );
+                const postReceiverAccs = await rpc.getCompressedAccountsByOwner(
+                    bob.publicKey,
+                );
+
+                const postSenderBalance = postSenderAccs.items.reduce(
+                    (acc, account) => acc.add(account.lamports),
+                    bn(0),
+                );
+                const postReceiverBalance = postReceiverAccs.items.reduce(
+                    (acc, account) => acc.add(account.lamports),
+                    bn(0),
+                );
+
+                assert(
+                    postSenderBalance
+                        .sub(preSenderBalance)
+                        .eq(bn(-transferAmount)),
+                    `Iteration ${i + 1}: Sender balance should decrease by ${transferAmount}`,
+                );
+                assert(
+                    postReceiverBalance
+                        .sub(preReceiverBalance)
+                        .eq(bn(transferAmount)),
+                    `Iteration ${i + 1}: Receiver balance should increase by ${transferAmount}`,
+                );
+            }
+        });
+    },
+);

@@ -7,7 +7,57 @@ import {
 } from '@solana/web3.js';
 import { buildAndSignTx, sendAndConfirmTx } from './send-and-confirm';
 import { dedupeSigner } from '../actions';
-import { ActiveTreeBundle, TreeType } from '../state/types';
+import { StateTreeInfo, TreeType } from '../state/types';
+import { Rpc } from '../rpc';
+
+/**
+ * @deprecated use {@link pickStateTreeInfo} instead.
+ * Get a random tree and queue from the active state tree addresses.
+ *
+ * Prevents write lock contention on state trees.
+ *
+ * @param info - The active state tree addresses
+ * @returns A random tree and queue
+ */
+export function pickRandomTreeAndQueue(info: StateTreeInfo[]): {
+    tree: PublicKey;
+    queue: PublicKey;
+} {
+    const length = info.length;
+    const index = Math.floor(Math.random() * length);
+
+    if (!info[index].queue) {
+        throw new Error('Queue must not be null for state tree');
+    }
+    return {
+        tree: info[index].tree,
+        queue: info[index].queue,
+    };
+}
+
+/**
+ * Get a random State tree and context from the active state tree addresses.
+ *
+ * Prevents write lock contention on state trees.
+ *
+ * @param info - The active state tree addresses
+ * @param treeType - The type of tree. Defaults to TreeType.StateV2
+ * @returns A random tree and queue
+ */
+export function pickStateTreeInfo(
+    info: StateTreeInfo[],
+    treeType: TreeType, // = TreeType.StateV2,
+): StateTreeInfo {
+    const filteredInfo = info.filter(t => t.treeType === treeType);
+    const length = filteredInfo.length;
+    const index = Math.floor(Math.random() * length);
+
+    if (!filteredInfo[index].queue) {
+        throw new Error('Queue must not be null for state tree');
+    }
+
+    return filteredInfo[index];
+}
 
 /**
  * Create two lookup tables storing all public state tree and queue addresses
@@ -45,8 +95,8 @@ export async function createStateTreeLookupTable({
         blockhash.blockhash,
         dedupeSigner(payer as Signer, [authority]),
     );
-    // @ts-expect-error
-    const txId = await sendAndConfirmTx(connection, tx);
+
+    const txId = await sendAndConfirmTx(connection as Rpc, tx);
 
     return {
         address: lookupTableAddress1,
@@ -117,9 +167,8 @@ export async function extendStateTreeLookupTable({
         blockhash.blockhash,
         dedupeSigner(payer as Signer, [authority]),
     );
-    // we pass a Connection type so we don't have to depend on the Rpc module.
-    // @ts-expect-error
-    const txId = await sendAndConfirmTx(connection, tx);
+
+    const txId = await sendAndConfirmTx(connection as Rpc, tx);
 
     return {
         tableAddress,
@@ -207,7 +256,7 @@ export async function nullifyLookupTable({
  *  Get most recent , active state tree data
  * we store in lookup table for each public state tree
  */
-export async function getLightStateTreeInfo({
+export async function getActiveStateTreeInfos({
     connection,
     stateTreeLookupTableAddress,
     nullifyTableAddress,
@@ -215,7 +264,7 @@ export async function getLightStateTreeInfo({
     connection: Connection;
     stateTreeLookupTableAddress: PublicKey;
     nullifyTableAddress: PublicKey;
-}): Promise<ActiveTreeBundle[]> {
+}): Promise<StateTreeInfo[]> {
     const stateTreeLookupTable = await connection.getAddressLookupTable(
         stateTreeLookupTableAddress,
     );
@@ -238,20 +287,20 @@ export async function getLightStateTreeInfo({
     const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
     const nullifyTablePubkeys = nullifyTable.value.state.addresses;
 
-    const bundles: ActiveTreeBundle[] = [];
+    const contexts: StateTreeInfo[] = [];
 
     for (let i = 0; i < stateTreePubkeys.length; i += 3) {
         const tree = stateTreePubkeys[i];
         // Skip rolledover (full or almost full) Merkle trees
         if (!nullifyTablePubkeys.includes(tree)) {
-            bundles.push({
+            contexts.push({
                 tree,
                 queue: stateTreePubkeys[i + 1],
                 cpiContext: stateTreePubkeys[i + 2],
-                treeType: TreeType.State,
+                treeType: TreeType.StateV1,
             });
         }
     }
 
-    return bundles;
+    return contexts;
 }

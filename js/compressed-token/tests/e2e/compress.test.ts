@@ -16,6 +16,8 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
+    StateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -30,6 +32,7 @@ import {
 } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -83,283 +86,301 @@ async function assertCompress(
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('compress', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-    let bob: Signer;
-    let bobAta: PublicKey;
-    let charlie: Signer;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
-    let lut: PublicKey;
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'compress with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: Signer;
+        let bobAta: PublicKey;
+        let charlie: Signer;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let lut: PublicKey;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    const { merkleTree } = defaultTestStateTreeAccounts();
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc, 1e9);
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc, 1e9);
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
 
-        mintAuthority = Keypair.generate();
-        const mintKeypair = Keypair.generate();
+            mintAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
 
-        mint = (
-            await createMint(
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                )
+            ).mint;
+
+            bob = await newAccountWithLamports(rpc, 1e9);
+            charlie = await newAccountWithLamports(rpc, 1e9);
+
+            bobAta = await createAssociatedTokenAccount(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-            )
-        ).mint;
-
-        bob = await newAccountWithLamports(rpc, 1e9);
-        charlie = await newAccountWithLamports(rpc, 1e9);
-
-        bobAta = await createAssociatedTokenAccount(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-        );
-
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(10000),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
-
-        /// Setup LUT.
-        const { address } = await createTokenProgramLookupTable(
-            rpc,
-            payer,
-            payer,
-        );
-        lut = address;
-    }, 80_000);
-
-    it('should compress from bobAta -> charlie', async () => {
-        const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
-        const recipientCompressedTokenBalanceBefore =
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
-            });
+                bob.publicKey,
+            );
 
-        await compress(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            bobAta,
-            charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await assertCompress(
-            rpc,
-            bn(senderAtaBalanceBefore.value.amount),
-            bobAta,
-            mint,
-            [bn(700)],
-            [charlie.publicKey],
-            [recipientCompressedTokenBalanceBefore.items],
-        );
-    });
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                bob.publicKey,
+                mintAuthority,
+                bn(10000),
+                outputStateTreeInfo,
+            );
 
-    const maxBatchSize = 15;
-    const recipients = Array.from(
-        { length: maxBatchSize },
-        () => Keypair.generate().publicKey,
-    );
-    const amounts = Array.from({ length: maxBatchSize }, (_, i) => bn(i + 1));
+            await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
 
-    it('should compress to multiple (11 max without LUT) recipients with array of amounts and addresses', async () => {
-        const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
+            /// Setup LUT.
+            const { address } = await createTokenProgramLookupTable(
+                rpc,
+                payer,
+                payer,
+            );
+            lut = address;
+        }, 80_000);
 
-        const recipientCompressedTokenBalancesBefore = await Promise.all(
-            recipients.map(recipient =>
-                rpc.getCompressedTokenAccountsByOwner(recipient, { mint }),
-            ),
-        );
+        it('should compress from bobAta -> charlie', async () => {
+            const senderAtaBalanceBefore =
+                await rpc.getTokenAccountBalance(bobAta);
+            const recipientCompressedTokenBalanceBefore =
+                await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                    mint,
+                });
 
-        await compress(
-            rpc,
-            payer,
-            mint,
-            amounts.slice(0, 11),
-            bob,
-            bobAta,
-            recipients.slice(0, 11),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        for (let i = 0; i < recipients.length; i++) {
+            await compress(
+                rpc,
+                payer,
+                mint,
+                bn(700),
+                bob,
+                bobAta,
+                charlie.publicKey,
+                outputStateTreeInfo,
+            );
             await assertCompress(
                 rpc,
                 bn(senderAtaBalanceBefore.value.amount),
                 bobAta,
                 mint,
-                amounts.slice(0, 11),
-                recipients.slice(0, 11),
-                recipientCompressedTokenBalancesBefore.map(x => x.items),
+                [bn(700)],
+                [charlie.publicKey],
+                [recipientCompressedTokenBalanceBefore.items],
             );
-        }
-
-        const senderAtaBalanceAfter = await rpc.getTokenAccountBalance(bobAta);
-        const totalCompressed = amounts
-            .slice(0, 11)
-            .reduce((sum, amount) => sum.add(amount), bn(0));
-        expect(senderAtaBalanceAfter.value.amount).toEqual(
-            bn(senderAtaBalanceBefore.value.amount)
-                .sub(totalCompressed)
-                .toString(),
-        );
-    });
-
-    it('should fail when passing unequal array lengths for amounts and toAddress', async () => {
-        await expect(
-            compress(
-                rpc,
-                payer,
-                mint,
-                amounts.slice(0, 10),
-                bob,
-                bobAta,
-                recipients.slice(0, 11),
-                defaultTestStateTreeAccounts().merkleTree,
-            ),
-        ).rejects.toThrow(
-            'Amount and toAddress arrays must have the same length',
-        );
-
-        await expect(
-            compress(
-                rpc,
-                payer,
-                mint,
-                amounts[0],
-                bob,
-                bobAta,
-                recipients,
-                defaultTestStateTreeAccounts().merkleTree,
-            ),
-        ).rejects.toThrow(
-            'Both amount and toAddress must be arrays or both must be single values',
-        );
-    });
-
-    it(`should compress-batch to max ${maxBatchSize} recipients optimized with LUT`, async () => {
-        /// Fetch state of LUT
-        const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
-            .value!;
-
-        /// Mint to max recipients with LUT
-        const ix = await CompressedTokenProgram.compress({
-            payer: payer.publicKey,
-            owner: bob.publicKey,
-            source: bobAta,
-            toAddress: recipients,
-            amount: amounts,
-            mint,
-            outputStateTree: defaultTestStateTreeAccounts().merkleTree,
         });
 
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const additionalSigners = dedupeSigner(payer, [bob]);
-
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
-            payer,
-            blockhash,
-            additionalSigners,
-            [lookupTableAccount],
+        const maxBatchSize = 15;
+        const recipients = Array.from(
+            { length: maxBatchSize },
+            () => Keypair.generate().publicKey,
         );
-        const txId = await sendAndConfirmTx(rpc, tx);
+        const amounts = Array.from({ length: maxBatchSize }, (_, i) =>
+            bn(i + 1),
+        );
 
-        return txId;
-    });
+        it('should compress to multiple (11 max without LUT) recipients with array of amounts and addresses', async () => {
+            const senderAtaBalanceBefore =
+                await rpc.getTokenAccountBalance(bobAta);
 
-    it('should compress from bob Token 2022 Ata -> charlie', async () => {
-        const mintKeypair = Keypair.generate();
+            const recipientCompressedTokenBalancesBefore = await Promise.all(
+                recipients.map(recipient =>
+                    rpc.getCompressedTokenAccountsByOwner(recipient, { mint }),
+                ),
+            );
 
-        const token22Mint = (
-            await createMint(
+            await compress(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-                undefined,
-                true,
-            )
-        ).mint;
-        const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
-        expect(
-            mintAccountInfo!.owner.toBase58(),
-            TOKEN_2022_PROGRAM_ID.toBase58(),
-        );
+                mint,
+                amounts.slice(0, 11),
+                bob,
+                bobAta,
+                recipients.slice(0, 11),
+                outputStateTreeInfo,
+            );
 
-        bob = await newAccountWithLamports(rpc, 1e9);
-        charlie = await newAccountWithLamports(rpc, 1e9);
+            for (let i = 0; i < recipients.length; i++) {
+                await assertCompress(
+                    rpc,
+                    bn(senderAtaBalanceBefore.value.amount),
+                    bobAta,
+                    mint,
+                    amounts.slice(0, 11),
+                    recipients.slice(0, 11),
+                    recipientCompressedTokenBalancesBefore.map(x => x.items),
+                );
+            }
 
-        const bobToken2022Ata = await createAssociatedTokenAccount(
-            rpc,
-            payer,
-            token22Mint,
-            bob.publicKey,
-            undefined,
-            TOKEN_2022_PROGRAM_ID,
-        );
+            const senderAtaBalanceAfter =
+                await rpc.getTokenAccountBalance(bobAta);
+            const totalCompressed = amounts
+                .slice(0, 11)
+                .reduce((sum, amount) => sum.add(amount), bn(0));
+            expect(senderAtaBalanceAfter.value.amount).toEqual(
+                bn(senderAtaBalanceBefore.value.amount)
+                    .sub(totalCompressed)
+                    .toString(),
+            );
+        });
 
-        await mintTo(
-            rpc,
-            payer,
-            token22Mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(10000),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        it('should fail when passing unequal array lengths for amounts and toAddress', async () => {
+            await expect(
+                compress(
+                    rpc,
+                    payer,
+                    mint,
+                    amounts.slice(0, 10),
+                    bob,
+                    bobAta,
+                    recipients.slice(0, 11),
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrow(
+                'Amount and toAddress arrays must have the same length',
+            );
 
-        await decompress(
-            rpc,
-            payer,
-            token22Mint,
-            bn(9000),
-            bob,
-            bobToken2022Ata,
-        );
-        const senderAtaBalanceBefore =
-            await rpc.getTokenAccountBalance(bobToken2022Ata);
-        const recipientCompressedTokenBalanceBefore =
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint: token22Mint,
+            await expect(
+                compress(
+                    rpc,
+                    payer,
+                    mint,
+                    amounts[0],
+                    bob,
+                    bobAta,
+                    recipients,
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrow(
+                'Both amount and toAddress must be arrays or both must be single values',
+            );
+        });
+
+        it(`should compress-batch to max ${maxBatchSize} recipients optimized with LUT`, async () => {
+            /// Fetch state of LUT
+            const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
+                .value!;
+
+            /// Mint to max recipients with LUT
+            const ix = await CompressedTokenProgram.compress({
+                payer: payer.publicKey,
+                owner: bob.publicKey,
+                source: bobAta,
+                toAddress: recipients,
+                amount: amounts,
+                mint,
+                outputStateTreeInfo,
             });
 
-        await compress(
-            rpc,
-            payer,
-            token22Mint,
-            bn(701),
-            bob,
-            bobToken2022Ata,
-            charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await assertCompress(
-            rpc,
-            bn(senderAtaBalanceBefore.value.amount),
-            bobToken2022Ata,
-            token22Mint,
-            [bn(701)],
-            [charlie.publicKey],
-            [recipientCompressedTokenBalanceBefore.items],
-        );
-    });
-});
+            const { blockhash } = await rpc.getLatestBlockhash();
+            const additionalSigners = dedupeSigner(payer, [bob]);
+
+            const tx = buildAndSignTx(
+                [
+                    ComputeBudgetProgram.setComputeUnitLimit({
+                        units: 500_000,
+                    }),
+                    ix,
+                ],
+                payer,
+                blockhash,
+                additionalSigners,
+                [lookupTableAccount],
+            );
+            const txId = await sendAndConfirmTx(rpc, tx);
+
+            return txId;
+        });
+
+        it('should compress from bob Token 2022 Ata -> charlie', async () => {
+            const mintKeypair = Keypair.generate();
+
+            const token22Mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                    undefined,
+                    true,
+                )
+            ).mint;
+            const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
+            expect(
+                mintAccountInfo!.owner.toBase58(),
+                TOKEN_2022_PROGRAM_ID.toBase58(),
+            );
+
+            bob = await newAccountWithLamports(rpc, 1e9);
+            charlie = await newAccountWithLamports(rpc, 1e9);
+
+            const bobToken2022Ata = await createAssociatedTokenAccount(
+                rpc,
+                payer,
+                token22Mint,
+                bob.publicKey,
+                undefined,
+                TOKEN_2022_PROGRAM_ID,
+            );
+
+            await mintTo(
+                rpc,
+                payer,
+                token22Mint,
+                bob.publicKey,
+                mintAuthority,
+                bn(10000),
+                outputStateTreeInfo,
+            );
+
+            await decompress(
+                rpc,
+                payer,
+                token22Mint,
+                bn(9000),
+                bob,
+                bobToken2022Ata,
+                outputStateTreeInfo,
+            );
+            const senderAtaBalanceBefore =
+                await rpc.getTokenAccountBalance(bobToken2022Ata);
+            const recipientCompressedTokenBalanceBefore =
+                await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                    mint: token22Mint,
+                });
+
+            await compress(
+                rpc,
+                payer,
+                token22Mint,
+                bn(701),
+                bob,
+                bobToken2022Ata,
+                charlie.publicKey,
+                outputStateTreeInfo,
+            );
+            await assertCompress(
+                rpc,
+                bn(senderAtaBalanceBefore.value.amount),
+                bobToken2022Ata,
+                token22Mint,
+                [bn(701)],
+                [charlie.publicKey],
+                [recipientCompressedTokenBalanceBefore.items],
+            );
+        });
+    },
+);

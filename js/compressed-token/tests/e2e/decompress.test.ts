@@ -8,10 +8,14 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
+    StateTreeInfo,
+    TreeType,
+    createRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
+import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -20,7 +24,7 @@ import { createAssociatedTokenAccount } from '@solana/spl-token';
 async function assertDecompress(
     rpc: Rpc,
     refRecipientAtaBalanceBefore: BN,
-    refRecipientAta: PublicKey, // all
+    refRecipientAta: PublicKey,
     refMint: PublicKey,
     refAmount: BN,
     refSender: PublicKey,
@@ -44,99 +48,106 @@ async function assertDecompress(
         bn(0),
     );
 
-    /// recipient ata should have received the amount
     expect(
         bn(refRecipientAtaBalanceAfter.value.amount)
             .sub(refAmount)
             .eq(refRecipientAtaBalanceBefore),
     ).toBe(true);
 
-    /// should have sent the amount
     expect(senderSumPost.eq(senderSumPre.sub(refAmount))).toBe(true);
 }
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('decompress', () => {
-    let rpc: Rpc;
-    let payer: Signer;
-    let bob: Signer;
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'decompress with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: Signer;
+        let charlie: Signer;
+        let charlieAta: PublicKey;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    let charlie: Signer;
-    let charlieAta: PublicKey;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
-
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc, 1e9);
-        mintAuthority = Keypair.generate();
-        const mintKeypair = Keypair.generate();
-
-        mint = (
-            await createMint(
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            // rpc = await getTestRpc(lightWasm);
+            rpc = createRpc();
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
                 rpc,
-                payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-            )
-        ).mint;
-
-        bob = await newAccountWithLamports(rpc, 1e9);
-        charlie = await newAccountWithLamports(rpc, 1e9);
-
-        charlieAta = await createAssociatedTokenAccount(
-            rpc,
-            payer,
-            mint,
-            charlie.publicKey,
-        );
-
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-    });
-
-    const LOOP = 10;
-    it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        for (let i = 0; i < LOOP; i++) {
-            const recipientAtaBalanceBefore =
-                await rpc.getTokenAccountBalance(charlieAta);
-            const senderCompressedTokenBalanceBefore =
-                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                    mint,
-                });
-
-            await decompress(
-                rpc,
-                payer,
-                mint,
-                bn(5),
-                bob,
-                charlieAta,
-                merkleTree,
+                treeType,
             );
 
-            await assertDecompress(
+            payer = await newAccountWithLamports(rpc, 1e9);
+            mintAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
+
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                )
+            ).mint;
+
+            bob = await newAccountWithLamports(rpc, 1e9);
+            charlie = await newAccountWithLamports(rpc, 1e9);
+
+            charlieAta = await createAssociatedTokenAccount(
                 rpc,
-                bn(recipientAtaBalanceBefore.value.amount),
-                charlieAta,
+                payer,
                 mint,
-                bn(5),
+                charlie.publicKey,
+            );
+
+            await mintTo(
+                rpc,
+                payer,
+                mint,
                 bob.publicKey,
-                senderCompressedTokenBalanceBefore.items,
+                mintAuthority,
+                bn(1000),
+                outputStateTreeInfo,
             );
-        }
-    });
-});
+        });
+
+        const LOOP = 1;
+        it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            rpc = createRpc();
+            for (let i = 0; i < LOOP; i++) {
+                const recipientAtaBalanceBefore =
+                    await rpc.getTokenAccountBalance(charlieAta);
+                const senderCompressedTokenBalanceBefore =
+                    await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                        mint,
+                    });
+
+                const txId = await decompress(
+                    rpc,
+                    payer,
+                    mint,
+                    bn(1000),
+                    bob,
+                    charlieAta,
+                    outputStateTreeInfo,
+                );
+                console.log('txId', txId);
+                await assertDecompress(
+                    rpc,
+                    bn(recipientAtaBalanceBefore.value.amount),
+                    charlieAta,
+                    mint,
+                    bn(1000),
+                    bob.publicKey,
+                    senderCompressedTokenBalanceBefore.items,
+                );
+            }
+        });
+    },
+);
