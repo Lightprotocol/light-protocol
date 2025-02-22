@@ -63,13 +63,13 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    println!("perform_nullify");
     let batch_index = get_batch_index(context, rpc).await?;
-
+    println!("batch_index: {:?}", batch_index);
     let instruction_data =
         create_nullify_batch_ix_data(rpc, &mut *context.indexer.lock().await, context.merkle_tree)
             .await
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
-
     println!("instruction_data: {:?}", instruction_data);
 
     let instruction = create_batch_nullify_instruction(
