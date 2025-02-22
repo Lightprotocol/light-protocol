@@ -10,6 +10,8 @@ import {
     CompressedAccountWithMerkleContext,
     CompressedProof,
     InstructionDataInvoke,
+    StateTreeContext,
+    TreeType,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -43,6 +45,9 @@ type CreateAccountWithSeedParams = {
      * Address params for the new compressed account
      */
     newAddressParams: NewAddressParams;
+    /**
+     * Address of the new compressed account
+     */
     newAddress: number[];
     /**
      * Recent validity proof proving that there's no existing compressed account
@@ -50,9 +55,9 @@ type CreateAccountWithSeedParams = {
      */
     recentValidityProof: CompressedProof;
     /**
-     * State tree pubkey. Defaults to a public state tree if unspecified.
+     * State tree context.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeContext: StateTreeContext;
     /**
      * Public key of the program to assign as the owner of the created account
      */
@@ -104,13 +109,13 @@ type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: CompressedProof | null;
     /**
      * The state trees that the tx output should be inserted into. This can be a
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
      * of input state.
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    outputStateTreeContext: StateTreeContext;
 };
 
 /// TODO:
@@ -133,10 +138,9 @@ type CompressParams = {
      */
     lamports: number | BN;
     /**
-     * The state tree that the tx output should be inserted into. Defaults to a
-     * public state tree if unspecified.
+     * The state tree context that the tx output should be inserted into.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeContext: StateTreeContext;
 };
 
 /**
@@ -170,13 +174,11 @@ type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: CompressedProof | null;
     /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
+     * The state tree context that the tx output should be inserted into.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeContext: StateTreeContext;
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
@@ -305,7 +307,7 @@ export class LightSystemProgram {
         newAddressParams,
         newAddress,
         recentValidityProof,
-        outputStateTree,
+        outputStateTreeContext,
         inputCompressedAccounts,
         inputStateRootIndices,
         lamports,
@@ -326,7 +328,7 @@ export class LightSystemProgram {
             inputCompressedAccounts ?? [],
             inputStateRootIndices ?? [],
             outputCompressedAccounts,
-            outputStateTree,
+            outputStateTreeContext,
         );
 
         const { newAddressParamsPacked, remainingAccounts } =
@@ -372,7 +374,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTrees,
+        outputStateTreeContext,
     }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
@@ -390,7 +392,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTrees,
+            outputStateTreeContext,
         );
 
         /// Encode instruction data
@@ -405,6 +407,9 @@ export class LightSystemProgram {
             isCompress: false,
         };
 
+        // console.log('proof', recentValidityProof);
+        // console.log('inputs', packedInputCompressedAccounts);
+        // console.log('outputs', packedOutputCompressedAccounts);
         const data = encodeInstructionDataInvoke(rawInputs);
 
         const accounts = invokeAccountsLayout({
@@ -434,7 +439,7 @@ export class LightSystemProgram {
         payer,
         toAddress,
         lamports,
-        outputStateTree,
+        outputStateTreeContext,
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -453,7 +458,7 @@ export class LightSystemProgram {
             [],
             [],
             [outputCompressedAccount],
-            outputStateTree,
+            outputStateTreeContext,
         );
 
         /// Encode instruction data
@@ -499,7 +504,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTree,
+        outputStateTreeContext,
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -518,7 +523,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTree,
+            outputStateTreeContext,
         );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
@@ -567,6 +572,7 @@ export function selectMinCompressedSolAccountsForTransfer(
 
     const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
 
+    accounts = accounts.filter(account => account.lamports.gt(bn(0)));
     accounts.sort((a, b) => b.lamports.cmp(a.lamports));
 
     for (const account of accounts) {
@@ -578,6 +584,48 @@ export function selectMinCompressedSolAccountsForTransfer(
     if (accumulatedLamports.lt(bn(transferLamports))) {
         throw new Error(
             `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
+        );
+    }
+
+    return [selectedAccounts, accumulatedLamports];
+}
+
+/**
+ * Selects the minimal number of compressed SOL accounts for a PDA creation.
+ * Only V1 compressed accounts are supported with Combined ValidityProofs.
+ *
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the amount until it is greater than or equal to the transfer
+ *    amount
+ */
+export function selectMinCompressedSolAccountsForPdaCreation(
+    accounts: CompressedAccountWithMerkleContext[],
+    transferLamports: BN | number,
+): [selectedAccounts: CompressedAccountWithMerkleContext[], total: BN] {
+    let accumulatedLamports = bn(0);
+    transferLamports = bn(transferLamports);
+
+    const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
+    // Only V1 is supported with Combined ValidityProofs.
+    accounts = accounts.filter(account => account.treeType === TreeType.State);
+    let nonEligibleAmount = bn(0);
+    for (const account of accounts) {
+        if (account.treeType !== TreeType.State) {
+            nonEligibleAmount = nonEligibleAmount.add(account.lamports);
+        }
+    }
+
+    accounts.sort((a, b) => b.lamports.cmp(a.lamports));
+
+    for (const account of accounts) {
+        if (accumulatedLamports.gte(bn(transferLamports))) break;
+        accumulatedLamports = accumulatedLamports.add(account.lamports);
+        selectedAccounts.push(account);
+    }
+
+    if (accumulatedLamports.lt(bn(transferLamports))) {
+        throw new Error(
+            `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}, unavailable for this action (V2): ${nonEligibleAmount.toString()}`,
         );
     }
 

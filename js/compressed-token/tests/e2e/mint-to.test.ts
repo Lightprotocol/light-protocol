@@ -22,6 +22,7 @@ import {
     buildAndSignTx,
     dedupeSigner,
     getTestRpc,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 
 import { CompressedTokenProgram } from '../../src/program';
@@ -63,7 +64,7 @@ describe('mintTo', () => {
     let mintAuthority: Keypair;
     let lut: PublicKey;
 
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -72,6 +73,8 @@ describe('mintTo', () => {
         bob = getTestKeypair();
         mintAuthority = payer as Keypair;
         const mintKeypair = Keypair.generate();
+
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
 
         mint = (
             await createMint(
@@ -102,7 +105,7 @@ describe('mintTo', () => {
             bob.publicKey,
             mintAuthority,
             amount,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
@@ -120,7 +123,7 @@ describe('mintTo', () => {
             bob.publicKey,
             mintAuthority,
             amount,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
     });
 
@@ -141,7 +144,7 @@ describe('mintTo', () => {
             recipients.slice(0, 3),
             mintAuthority,
             amounts.slice(0, 3),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         /// Mint to 10 recipients
@@ -152,7 +155,7 @@ describe('mintTo', () => {
             recipients.slice(0, 10),
             mintAuthority,
             amounts.slice(0, 10),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         // Uneven amounts
@@ -164,7 +167,7 @@ describe('mintTo', () => {
                 recipients,
                 mintAuthority,
                 amounts.slice(0, 2),
-                defaultTestStateTreeAccounts().merkleTree,
+                outputStateTreeContext,
             ),
         ).rejects.toThrowError(
             /Amount and toPubkey arrays must have the same length/,
@@ -181,7 +184,7 @@ describe('mintTo', () => {
             authority: mintAuthority.publicKey,
             amount: amounts,
             toPubkey: recipients,
-            merkleTree: defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         });
 
         const { blockhash } = await rpc.getLatestBlockhash();
