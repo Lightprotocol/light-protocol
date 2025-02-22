@@ -127,7 +127,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let request: photon_api::models::GetQueueElementsPostRequest =
                 photon_api::models::GetQueueElementsPostRequest {
                     params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                        merkle_tree: pubkey,
+                        merkle_tree: bs58::encode(pubkey).into_string(),
                         queue_type: queue_type as u16,
                         num_elements,
                         start_offset,
