@@ -44,12 +44,15 @@ async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: true,
+        enable_indexer: false,
         wait_time: 1,
         prover_config: None,
         sbf_programs: vec![],
     }))
     .await;
+
+    println!("waiting for indexer to start");
+    sleep(Duration::from_secs(5)).await;
 
     let forester_keypair = Keypair::new();
     let mut env = EnvAccounts::get_local_test_validator_accounts();
