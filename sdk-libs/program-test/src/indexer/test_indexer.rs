@@ -63,7 +63,7 @@ use light_sdk::{
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;
-use photon_api::models::{Account, TokenBalance};
+use photon_api::models::{Account, CompressedProofWithContextV2, TokenBalance};
 use reqwest::Client;
 use solana_sdk::{
     bs58,
@@ -108,7 +108,7 @@ where
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
-        num_elements: u64,
+        num_elements: u16,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
         println!("Getting queue elements...");
@@ -720,6 +720,10 @@ where
         todo!()
     }
 
+    async fn get_validity_proof_v2(&self, hashes: Vec<Hash>, new_addresses_with_trees: Vec<AddressWithTree>) -> Result<CompressedProofWithContextV2, IndexerError> {
+        todo!()
+    }
+
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         &self.address_merkle_trees
     }
@@ -846,6 +850,7 @@ where
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
+        println!("=== create_proof_for_compressed_accounts2 ===");
         let mut indices_to_remove = Vec::new();
         println!("compressed account: {:?}", compressed_accounts);
         println!("state Merkle tree pubkeys: {:?}", state_merkle_tree_pubkeys);
@@ -944,6 +949,7 @@ where
             root_indices
         };
         println!("root_indices {:?}", root_indices);
+        println!("=== create_proof_for_compressed_accounts2 ===");
         BatchedTreeProofRpcResult {
             proof: rpc_result.map(|x| x.unwrap().proof),
             root_indices,

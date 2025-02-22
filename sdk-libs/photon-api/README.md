@@ -29,13 +29,16 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**get_compressed_account_balance_post**](docs/DefaultApi.md#get_compressed_account_balance_post) | **POST** /getCompressedAccountBalance | 
 *DefaultApi* | [**get_compressed_account_post**](docs/DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 *DefaultApi* | [**get_compressed_account_proof_post**](docs/DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
+*DefaultApi* | [**get_compressed_account_v2_post**](docs/DefaultApi.md#get_compressed_account_v2_post) | **POST** /getCompressedAccountV2 | 
 *DefaultApi* | [**get_compressed_accounts_by_owner_post**](docs/DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
 *DefaultApi* | [**get_compressed_accounts_by_owner_v2_post**](docs/DefaultApi.md#get_compressed_accounts_by_owner_v2_post) | **POST** /getCompressedAccountsByOwnerV2 | 
 *DefaultApi* | [**get_compressed_balance_by_owner_post**](docs/DefaultApi.md#get_compressed_balance_by_owner_post) | **POST** /getCompressedBalanceByOwner | 
 *DefaultApi* | [**get_compressed_mint_token_holders_post**](docs/DefaultApi.md#get_compressed_mint_token_holders_post) | **POST** /getCompressedMintTokenHolders | 
 *DefaultApi* | [**get_compressed_token_account_balance_post**](docs/DefaultApi.md#get_compressed_token_account_balance_post) | **POST** /getCompressedTokenAccountBalance | 
 *DefaultApi* | [**get_compressed_token_accounts_by_delegate_post**](docs/DefaultApi.md#get_compressed_token_accounts_by_delegate_post) | **POST** /getCompressedTokenAccountsByDelegate | 
+*DefaultApi* | [**get_compressed_token_accounts_by_delegate_v2_post**](docs/DefaultApi.md#get_compressed_token_accounts_by_delegate_v2_post) | **POST** /getCompressedTokenAccountsByDelegateV2 | 
 *DefaultApi* | [**get_compressed_token_accounts_by_owner_post**](docs/DefaultApi.md#get_compressed_token_accounts_by_owner_post) | **POST** /getCompressedTokenAccountsByOwner | 
+*DefaultApi* | [**get_compressed_token_accounts_by_owner_v2_post**](docs/DefaultApi.md#get_compressed_token_accounts_by_owner_v2_post) | **POST** /getCompressedTokenAccountsByOwnerV2 | 
 *DefaultApi* | [**get_compressed_token_balances_by_owner_post**](docs/DefaultApi.md#get_compressed_token_balances_by_owner_post) | **POST** /getCompressedTokenBalancesByOwner | 
 *DefaultApi* | [**get_compressed_token_balances_by_owner_v2_post**](docs/DefaultApi.md#get_compressed_token_balances_by_owner_v2_post) | **POST** /getCompressedTokenBalancesByOwnerV2 | 
 *DefaultApi* | [**get_compression_signatures_for_account_post**](docs/DefaultApi.md#get_compression_signatures_for_account_post) | **POST** /getCompressionSignaturesForAccount | 
@@ -48,10 +51,12 @@ Class | Method | HTTP request | Description
 *DefaultApi* | [**get_latest_non_voting_signatures_post**](docs/DefaultApi.md#get_latest_non_voting_signatures_post) | **POST** /getLatestNonVotingSignatures | 
 *DefaultApi* | [**get_multiple_compressed_account_proofs_post**](docs/DefaultApi.md#get_multiple_compressed_account_proofs_post) | **POST** /getMultipleCompressedAccountProofs | 
 *DefaultApi* | [**get_multiple_compressed_accounts_post**](docs/DefaultApi.md#get_multiple_compressed_accounts_post) | **POST** /getMultipleCompressedAccounts | 
+*DefaultApi* | [**get_multiple_compressed_accounts_v2_post**](docs/DefaultApi.md#get_multiple_compressed_accounts_v2_post) | **POST** /getMultipleCompressedAccountsV2 | 
 *DefaultApi* | [**get_multiple_new_address_proofs_post**](docs/DefaultApi.md#get_multiple_new_address_proofs_post) | **POST** /getMultipleNewAddressProofs | 
 *DefaultApi* | [**get_multiple_new_address_proofs_v2_post**](docs/DefaultApi.md#get_multiple_new_address_proofs_v2_post) | **POST** /getMultipleNewAddressProofsV2 | 
 *DefaultApi* | [**get_queue_elements_post**](docs/DefaultApi.md#get_queue_elements_post) | **POST** /getQueueElements | 
 *DefaultApi* | [**get_transaction_with_compression_info_post**](docs/DefaultApi.md#get_transaction_with_compression_info_post) | **POST** /getTransactionWithCompressionInfo | 
+*DefaultApi* | [**get_transaction_with_compression_info_v2_post**](docs/DefaultApi.md#get_transaction_with_compression_info_v2_post) | **POST** /getTransactionWithCompressionInfoV2 | 
 *DefaultApi* | [**get_validity_proof_post**](docs/DefaultApi.md#get_validity_proof_post) | **POST** /getValidityProof | 
 *DefaultApi* | [**get_validity_proof_v2_post**](docs/DefaultApi.md#get_validity_proof_v2_post) | **POST** /getValidityProofV2 | 
 
@@ -63,11 +68,13 @@ Class | Method | HTTP request | Description
  - [AccountData](docs/AccountData.md)
  - [AccountList](docs/AccountList.md)
  - [AccountState](docs/AccountState.md)
+ - [AccountV2](docs/AccountV2.md)
  - [AccountWithContext](docs/AccountWithContext.md)
  - [AccountWithOptionalTokenData](docs/AccountWithOptionalTokenData.md)
  - [AddressWithTree](docs/AddressWithTree.md)
  - [CompressedProof](docs/CompressedProof.md)
  - [CompressedProofWithContext](docs/CompressedProofWithContext.md)
+ - [CompressedProofWithContextV2](docs/CompressedProofWithContextV2.md)
  - [Context](docs/Context.md)
  - [DataSlice](docs/DataSlice.md)
  - [FilterSelector](docs/FilterSelector.md)
@@ -84,6 +91,7 @@ Class | Method | HTTP request | Description
  - [GetCompressedAccountProofPost200ResponseResult](docs/GetCompressedAccountProofPost200ResponseResult.md)
  - [GetCompressedAccountProofPostRequest](docs/GetCompressedAccountProofPostRequest.md)
  - [GetCompressedAccountProofPostRequestParams](docs/GetCompressedAccountProofPostRequestParams.md)
+ - [GetCompressedAccountV2PostRequest](docs/GetCompressedAccountV2PostRequest.md)
  - [GetCompressedAccountsByOwnerPost200Response](docs/GetCompressedAccountsByOwnerPost200Response.md)
  - [GetCompressedAccountsByOwnerPost200ResponseResult](docs/GetCompressedAccountsByOwnerPost200ResponseResult.md)
  - [GetCompressedAccountsByOwnerPostRequest](docs/GetCompressedAccountsByOwnerPostRequest.md)
@@ -104,8 +112,10 @@ Class | Method | HTTP request | Description
  - [GetCompressedTokenAccountsByDelegatePost200ResponseResult](docs/GetCompressedTokenAccountsByDelegatePost200ResponseResult.md)
  - [GetCompressedTokenAccountsByDelegatePostRequest](docs/GetCompressedTokenAccountsByDelegatePostRequest.md)
  - [GetCompressedTokenAccountsByDelegatePostRequestParams](docs/GetCompressedTokenAccountsByDelegatePostRequestParams.md)
+ - [GetCompressedTokenAccountsByDelegateV2PostRequest](docs/GetCompressedTokenAccountsByDelegateV2PostRequest.md)
  - [GetCompressedTokenAccountsByOwnerPostRequest](docs/GetCompressedTokenAccountsByOwnerPostRequest.md)
  - [GetCompressedTokenAccountsByOwnerPostRequestParams](docs/GetCompressedTokenAccountsByOwnerPostRequestParams.md)
+ - [GetCompressedTokenAccountsByOwnerV2PostRequest](docs/GetCompressedTokenAccountsByOwnerV2PostRequest.md)
  - [GetCompressedTokenBalancesByOwnerPost200Response](docs/GetCompressedTokenBalancesByOwnerPost200Response.md)
  - [GetCompressedTokenBalancesByOwnerPost200ResponseResult](docs/GetCompressedTokenBalancesByOwnerPost200ResponseResult.md)
  - [GetCompressedTokenBalancesByOwnerPostRequest](docs/GetCompressedTokenBalancesByOwnerPostRequest.md)
@@ -138,6 +148,8 @@ Class | Method | HTTP request | Description
  - [GetMultipleCompressedAccountsPost200ResponseResult](docs/GetMultipleCompressedAccountsPost200ResponseResult.md)
  - [GetMultipleCompressedAccountsPostRequest](docs/GetMultipleCompressedAccountsPostRequest.md)
  - [GetMultipleCompressedAccountsPostRequestParams](docs/GetMultipleCompressedAccountsPostRequestParams.md)
+ - [GetMultipleCompressedAccountsV2PostRequest](docs/GetMultipleCompressedAccountsV2PostRequest.md)
+ - [GetMultipleCompressedAccountsV2PostRequestParams](docs/GetMultipleCompressedAccountsV2PostRequestParams.md)
  - [GetMultipleNewAddressProofsPost200Response](docs/GetMultipleNewAddressProofsPost200Response.md)
  - [GetMultipleNewAddressProofsPost200ResponseResult](docs/GetMultipleNewAddressProofsPost200ResponseResult.md)
  - [GetMultipleNewAddressProofsPostRequest](docs/GetMultipleNewAddressProofsPostRequest.md)
@@ -151,10 +163,13 @@ Class | Method | HTTP request | Description
  - [GetTransactionWithCompressionInfoPost200ResponseResultCompressionInfo](docs/GetTransactionWithCompressionInfoPost200ResponseResultCompressionInfo.md)
  - [GetTransactionWithCompressionInfoPostRequest](docs/GetTransactionWithCompressionInfoPostRequest.md)
  - [GetTransactionWithCompressionInfoPostRequestParams](docs/GetTransactionWithCompressionInfoPostRequestParams.md)
+ - [GetTransactionWithCompressionInfoV2PostRequest](docs/GetTransactionWithCompressionInfoV2PostRequest.md)
  - [GetValidityProofPost200Response](docs/GetValidityProofPost200Response.md)
  - [GetValidityProofPost200ResponseResult](docs/GetValidityProofPost200ResponseResult.md)
  - [GetValidityProofPostRequest](docs/GetValidityProofPostRequest.md)
  - [GetValidityProofPostRequestParams](docs/GetValidityProofPostRequestParams.md)
+ - [GetValidityProofV2Post200Response](docs/GetValidityProofV2Post200Response.md)
+ - [GetValidityProofV2Post200ResponseResult](docs/GetValidityProofV2Post200ResponseResult.md)
  - [GetValidityProofV2PostRequest](docs/GetValidityProofV2PostRequest.md)
  - [Memcmp](docs/Memcmp.md)
  - [MerkleContextWithNewAddressProof](docs/MerkleContextWithNewAddressProof.md)
@@ -164,8 +179,9 @@ Class | Method | HTTP request | Description
  - [OwnerBalanceList](docs/OwnerBalanceList.md)
  - [OwnerBalancesResponse](docs/OwnerBalancesResponse.md)
  - [PaginatedAccountList](docs/PaginatedAccountList.md)
- - [PaginatedAccountListWithContext](docs/PaginatedAccountListWithContext.md)
+ - [PaginatedAccountListV2](docs/PaginatedAccountListV2.md)
  - [PaginatedSignatureInfoList](docs/PaginatedSignatureInfoList.md)
+ - [RootIndex](docs/RootIndex.md)
  - [SignatureInfo](docs/SignatureInfo.md)
  - [SignatureInfoList](docs/SignatureInfoList.md)
  - [SignatureInfoListWithError](docs/SignatureInfoListWithError.md)

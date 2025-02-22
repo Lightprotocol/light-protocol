@@ -4,8 +4,8 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**merkle_tree** | **String** | A 32-byte hash represented as a base58 string. | 
-**num_elements** | **i32** |  | [default to 100]
+**merkle_tree** | [**std::path::PathBuf**](std::path::PathBuf.md) |  | 
+**num_elements** | **i32** |  | 
 **queue_type** | **i32** |  | 
 **start_offset** | Option<**i32**> |  | [optional]
 

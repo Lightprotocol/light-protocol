@@ -74,9 +74,9 @@ where
             merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
         let start_index = merkle_tree.next_index;
         let current_root = *merkle_tree.root_history.last().unwrap();
-        let batch_size = batch.zkp_batch_size as usize;
+        let zkp_batch_size = batch.zkp_batch_size as u16;
 
-        (leaves_hash_chain, start_index, current_root, batch_size)
+        (leaves_hash_chain, start_index, current_root, zkp_batch_size)
     };
 
     let batch_start_index = indexer
@@ -92,7 +92,7 @@ where
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
             QueueType::BatchedAddress,
-            batch_size as u64,
+            batch_size,
             None
         )
         .await
@@ -242,7 +242,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
-        (zkp_batch_size, leaves_hash_chain)
+        (zkp_batch_size as u16, leaves_hash_chain)
     };
 
     let indexer_response = indexer
@@ -341,7 +341,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size, root, hash_chain)
+        (zkp_size as u16, root, hash_chain)
     };
 
     let leaf_indices_tx_hashes = indexer
