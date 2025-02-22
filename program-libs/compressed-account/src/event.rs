@@ -87,7 +87,6 @@ pub fn event_from_light_transaction(
             )
             .unwrap_or_default()
         });
-    println!("found event {}", found_event);
     if !found_event {
         return Ok(None);
     }
@@ -107,7 +106,6 @@ pub fn event_from_light_transaction(
                 )?;
                 Ok(())
             })?;
-        println!("added cpi context to event {}", found_event);
     }
     // New addresses in batched trees.
     let mut new_addresses = Vec::new();
@@ -271,14 +269,14 @@ pub fn match_account_compression_program_instruction(
                     .iter()
                     .any(|x| x.pubkey == *tree_pubkey)
                 {
-                    let nullifier = {
-                        let mut leaf_index_bytes = [0u8; 32];
-                        leaf_index_bytes[28..]
-                            .copy_from_slice(u32::from(n.leaf_index).to_be_bytes().as_slice());
-                        // Inclusion of the tx_hash enables zk proofs of how a value was spent.
-                        Poseidon::hashv(&[n.account_hash.as_slice(), &leaf_index_bytes, tx_hash])
-                            .unwrap()
-                    };
+                let nullifier = {
+                    let mut leaf_index_bytes = [0u8; 32];
+                    leaf_index_bytes[28..]
+                        .copy_from_slice(u32::from(n.leaf_index).to_be_bytes().as_slice());
+                    // Inclusion of the tx_hash enables zk proofs of how a value was spent.
+                    Poseidon::hashv(&[n.account_hash.as_slice(), &leaf_index_bytes, tx_hash])
+                        .unwrap()
+                };
                     batch_input_accounts.push(BatchNullifyContext {
                         tx_hash: *tx_hash,
                         account_hash: n.account_hash,

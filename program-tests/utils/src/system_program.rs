@@ -55,7 +55,6 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -170,7 +169,6 @@ pub async fn compress_sol_test<R: RpcConnection, I: Indexer<R> + TestIndexerExte
         created_addresses: None,
         recipient: None,
     };
-    println!("compress sol =>");
     compressed_transaction_test(inputs).await?;
     Ok(())
 }
@@ -286,7 +284,6 @@ pub async fn transfer_compressed_sol_test<
         created_addresses: None,
         recipient: None,
     };
-    println!("transfer compressed sol =>");
     compressed_transaction_test(inputs).await
 }
 
@@ -316,8 +313,6 @@ pub async fn compressed_transaction_test<
 >(
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
-    println!("=== compressed_transaction_test ===");
-    println!("inputs: {:?}", inputs);
     let mut compressed_account_hashes = Vec::new();
 
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
@@ -336,10 +331,6 @@ pub async fn compressed_transaction_test<
     } else {
         None
     };
-    println!(
-        "compressed_account_input_hashes: {:?}",
-        compressed_account_input_hashes
-    );
     let state_input_merkle_trees = inputs
         .input_compressed_accounts
         .iter()
@@ -376,7 +367,6 @@ pub async fn compressed_transaction_test<
                 inputs.rpc,
             )
             .await;
-        println!("proof_rpc_res: {:?}", proof_rpc_res);
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
@@ -513,30 +503,6 @@ pub fn create_invoke_instruction(
     decompression_recipient: Option<Pubkey>,
     sort: bool,
 ) -> Instruction {
-    println!(" === create_invoke_instruction ===");
-    println!("fee_payer: {:?}", fee_payer);
-    println!("payer: {:?}", payer);
-    println!("input_compressed_accounts: {:?}", input_compressed_accounts);
-    println!(
-        "output_compressed_accounts: {:?}",
-        output_compressed_accounts
-    );
-    println!("merkle_context: {:?}", merkle_context);
-    println!(
-        "output_compressed_account_merkle_tree_pubkeys: {:?}",
-        output_compressed_account_merkle_tree_pubkeys
-    );
-    println!("input_root_indices: {:?}", input_root_indices);
-    println!("new_address_params: {:?}", new_address_params);
-    println!("proof: {:?}", proof);
-    println!(
-        "compress_or_decompress_lamports: {:?}",
-        compress_or_decompress_lamports
-    );
-    println!("is_compress: {:?}", is_compress);
-    println!("decompression_recipient: {:?}", decompression_recipient);
-    println!("sort: {:?}", sort);
-
     let (remaining_accounts, mut inputs_struct) =
         create_invoke_instruction_data_and_remaining_accounts(
             new_address_params,
@@ -554,9 +520,7 @@ pub fn create_invoke_instruction(
             .output_compressed_accounts
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
-    // println!("remaining accounts: {:?}", remaining_accounts);
     let mut inputs = Vec::new();
-    // println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -575,7 +539,6 @@ pub fn create_invoke_instruction(
         decompression_recipient,
         system_program: solana_sdk::system_program::ID,
     };
-    println!(" === create_invoke_instruction ===");
     Instruction {
         program_id: light_system_program::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
@@ -671,10 +634,6 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: output_compressed_accounts[i].clone(),
             merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
         });
-        println!(
-            "output_compressed_accounts_with_context {:?}",
-            output_compressed_accounts_with_context
-        );
     }
 
     for (i, params) in new_address_params.iter().enumerate() {

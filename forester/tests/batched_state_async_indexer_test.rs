@@ -14,7 +14,7 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
     transaction_params::{FeeConfig, TransactionParams},
 };
-use light_compressed_account::compressed_account::{CompressedAccount, MerkleContext};
+use light_compressed_account::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext};
 use light_hasher::Poseidon;
 use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::LightValidatorConfig;
@@ -24,6 +24,7 @@ use light_registry::{
 use light_test_utils::system_program::create_invoke_instruction;
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::pubkey::Pubkey;
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
 use tokio::time::sleep;
 use tracing::log::info;
@@ -120,7 +121,6 @@ async fn test_state_indexer_async_batched() {
     };
 
     let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    println!("here");
     let _protocol_config = rpc
         .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
         .await
@@ -173,175 +173,172 @@ async fn test_state_indexer_async_batched() {
         merkle_tree.get_metadata().queue_batches.batch_size
     );
 
-    println!(
-        "get_compressed_accounts_by_owner({}) initial",
-        &forester_keypair.pubkey()
-    );
     let compressed_balance_photon = photon_indexer
         .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
         .await
-        .unwrap();
+        .unwrap_or(vec![]);
+
     println!(
         "compressed_balance_photon before transfer: {:?}",
         compressed_balance_photon
     );
 
+    compress(&mut rpc, &env.batched_output_queue, &forester_keypair, 1_000_000).await;
     for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
         println!("\ntx {}", i);
 
-        // compress
-        {
-            let lamports = 1_000_000;
-
-            let compress_account = CompressedAccount {
-                lamports,
-                owner: forester_keypair.pubkey(),
-                address: None,
-                data: None,
-            };
-
-            println!("env.batched_output_queue: {:?}", env.batched_output_queue);
-            println!(
-                "env.batched_state_merkle_tree: {:?}",
-                env.batched_state_merkle_tree
-            );
-
-            let instruction = create_invoke_instruction(
-                &forester_keypair.pubkey(),
-                &forester_keypair.pubkey(),
-                &[],
-                &[compress_account],
-                &[],
-                &[env.batched_output_queue],
-                &[],
-                &[],
-                None,
-                Some(lamports),
-                true,
-                None,
-                true,
-            );
-
-            let event = rpc
-                .create_and_send_transaction_with_public_event(
-                    &[instruction],
-                    &forester_keypair.pubkey(),
-                    &[&forester_keypair],
-                    Some(TransactionParams {
-                        num_input_compressed_accounts: 0,
-                        num_output_compressed_accounts: 1,
-                        num_new_addresses: 0,
-                        compress: lamports as i64,
-                        fee_config: FeeConfig::test_batched(),
-                    }),
-                )
-                .await
-                .unwrap();
-
-            println!("compress event: {:?}", event);
-        }
-
-        sleep(Duration::from_secs(1)).await;
-
-        // transfer
-        {
-            let input_compressed_accounts = photon_indexer
-                .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
-                .await
-                .unwrap();
-            println!(
-                "get_compressed_accounts_by_owner_v2: {:?}",
-                input_compressed_accounts
-            );
-            let input_compressed_account_length = input_compressed_accounts.len();
-
-            let lamports = input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.lamports)
-                .sum::<u64>();
-
-            let compressed_account_hashes = input_compressed_accounts
-                .iter()
-                .map(|x| {
-                    x.compressed_account
-                        .hash::<Poseidon>(
-                            &x.merkle_context.merkle_tree_pubkey,
-                            &x.merkle_context.leaf_index,
-                        )
-                        .unwrap()
-                })
-                .collect::<Vec<[u8; 32]>>();
-
-            let proof_for_compressed_accounts = photon_indexer
-                .get_validity_proof_v2(compressed_account_hashes, vec![])
-                .await
-                .unwrap();
-
-            let root_indices = proof_for_compressed_accounts
-                .root_indices
-                .iter()
-                .map(|x|
-                     match x.in_tree {
-                        true => Some(x.root_index),
-                        false => None,
-                     }
-                )
-                .collect::<Vec<Option<u16>>>();
-
-            let merkle_contexts = input_compressed_accounts
-                .iter()
-                .map(|x| x.merkle_context)
-                .collect::<Vec<MerkleContext>>();
-
-            let compress_account = CompressedAccount {
-                lamports,
-                owner: forester_keypair.pubkey(),
-                address: None,
-                data: None,
-            };
-
-            let input_compressed_accounts = input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.clone())
-                .collect::<Vec<CompressedAccount>>();
-
-            let instruction = create_invoke_instruction(
-                &forester_keypair.pubkey(),
-                &forester_keypair.pubkey(),
-                &input_compressed_accounts,
-                &[compress_account],
-                &merkle_contexts,
-                &[env.batched_output_queue],
-                &root_indices,
-                &[],
-                None,
-                None,
-                false,
-                None,
-                true,
-            );
-
-            let event = rpc
-                .create_and_send_transaction_with_public_event(
-                    &[instruction],
-                    &forester_keypair.pubkey(),
-                    &[&forester_keypair],
-                    Some(TransactionParams {
-                        num_input_compressed_accounts: input_compressed_account_length as u8,
-                        num_output_compressed_accounts: 1,
-                        num_new_addresses: 0,
-                        compress: 0,
-                        fee_config: FeeConfig::test_batched(),
-                    }),
-                )
-                .await
-                .unwrap();
-
-            println!("transfer event: {:?}", event);
-        }
+        compress(&mut rpc, &env.batched_output_queue, &forester_keypair, 10_000).await;
+        transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &forester_keypair).await;
     }
 
     let num_output_zkp_batches =
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
+}
+
+async fn transfer(
+    rpc: &mut SolanaRpcConnection,
+    indexer: &PhotonIndexer<SolanaRpcConnection>,
+    merkle_tree_pubkey: &Pubkey,
+    forester_keypair: &Keypair,
+) {
+    let mut input_compressed_accounts: Vec<CompressedAccountWithMerkleContext> = vec![];
+
+    while input_compressed_accounts.is_empty() {
+        input_compressed_accounts = indexer
+            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+            .await
+            .unwrap_or(vec![]);
+        sleep(Duration::from_millis(10)).await;
+    }
+    let input_compressed_account_length = input_compressed_accounts.len();
+
+    let lamports = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.lamports)
+        .sum::<u64>();
+
+    let compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| {
+            x.compressed_account
+                .hash::<Poseidon>(
+                    &x.merkle_context.merkle_tree_pubkey,
+                    &x.merkle_context.leaf_index,
+                )
+                .unwrap()
+        })
+        .collect::<Vec<[u8; 32]>>();
+
+    let proof_for_compressed_accounts = indexer
+        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .await
+        .unwrap();
+
+    let root_indices = proof_for_compressed_accounts
+        .root_indices
+        .iter()
+        .map(|x|
+            match x.in_tree {
+                true => Some(x.root_index),
+                false => None,
+            }
+        )
+        .collect::<Vec<Option<u16>>>();
+
+    let merkle_contexts = input_compressed_accounts
+        .iter()
+        .map(|x| x.merkle_context)
+        .collect::<Vec<MerkleContext>>();
+
+    let compress_account = CompressedAccount {
+        lamports,
+        owner: forester_keypair.pubkey(),
+        address: None,
+        data: None,
+    };
+
+    let input_compressed_accounts = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.clone())
+        .collect::<Vec<CompressedAccount>>();
+
+    let instruction = create_invoke_instruction(
+        &forester_keypair.pubkey(),
+        &forester_keypair.pubkey(),
+        &input_compressed_accounts,
+        &[compress_account],
+        &merkle_contexts,
+        &[*merkle_tree_pubkey],
+        &root_indices,
+        &[],
+        None,
+        None,
+        false,
+        None,
+        true,
+    );
+
+    let (_, sig, _) = rpc
+        .create_and_send_transaction_with_public_event(
+            &[instruction],
+            &forester_keypair.pubkey(),
+            &[&forester_keypair],
+            Some(TransactionParams {
+                num_input_compressed_accounts: input_compressed_account_length as u8,
+                num_output_compressed_accounts: 1,
+                num_new_addresses: 0,
+                compress: 0,
+                fee_config: FeeConfig::test_batched(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+    println!("transfer tx: {:?}", sig);
+}
+
+async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, lamports: u64) {
+    let compress_account = CompressedAccount {
+        lamports,
+        owner: payer.pubkey(),
+        address: None,
+        data: None,
+    };
+
+    let instruction = create_invoke_instruction(
+        &payer.pubkey(),
+        &payer.pubkey(),
+        &[],
+        &[compress_account],
+        &[],
+        &[*merkle_tree_pubkey],
+        &[],
+        &[],
+        None,
+        Some(lamports),
+        true,
+        None,
+        true,
+    );
+
+    let (_, sig, _) = rpc
+        .create_and_send_transaction_with_public_event(
+            &[instruction],
+            &payer.pubkey(),
+            &[&payer],
+            Some(TransactionParams {
+                num_input_compressed_accounts: 0,
+                num_output_compressed_accounts: 1,
+                num_new_addresses: 0,
+                compress: lamports as i64,
+                fee_config: FeeConfig::test_batched(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+    println!("compress tx: {:?}", sig);
 }
