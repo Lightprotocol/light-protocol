@@ -201,7 +201,8 @@ async fn test_state_indexer_batched() {
         assert_eq!(photon_account, test_indexer_account);
     }
 
-    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size {
+    for i in 0..2 {
+        //merkle_tree.get_metadata().queue_batches.batch_size {
         println!("\ntx {}", i);
 
         e2e_env

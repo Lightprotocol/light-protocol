@@ -8,7 +8,7 @@ Name | Type | Description | Notes
 **nullified_in_tree** | **bool** |  | 
 **nullifier** | Option<**String**> | A 32-byte hash represented as a base58 string. | [optional]
 **nullifier_queue_index** | Option<**i32**> |  | [optional][default to 100]
-**queue** | Option<**String**> | A Solana public key represented as a base58 string. | [optional][default to 11111112D1oxKts8YPdTJRG5FzxTNpMtWmq8hkVx3]
+**queue** | Option<**String**> | A Solana public key represented as a base58 string. | [optional][default to 111111131h1vYVSYuKP6AhS86fbRdMw9XHiZAvAaj]
 **spent** | **bool** |  | 
 **tx_hash** | Option<**String**> | A 32-byte hash represented as a base58 string. | [optional]
 

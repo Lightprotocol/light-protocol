@@ -846,7 +846,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
             QueueType::BatchedAddress,
-            batch.zkp_batch_size,
+            batch.zkp_batch_size as u16,
             None,
         )
         .await

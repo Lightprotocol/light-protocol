@@ -16,9 +16,7 @@ use light_sdk::{
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
 };
 use num_bigint::BigUint;
-use photon_api::models::{
-    Account, CompressedProofWithContext, TokenAccount, TokenAccountList, TokenBalanceList,
-};
+use photon_api::models::{Account, CompressedProofWithContext, CompressedProofWithContextV2, TokenAccount, TokenAccountList, TokenBalanceList};
 use solana_sdk::{bs58, pubkey::Pubkey};
 use thiserror::Error;
 
@@ -180,7 +178,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
-        num_elements: u64,
+        num_elements: u16,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError>;
 
@@ -266,6 +264,13 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContext, IndexerError>;
+
+    async fn get_validity_proof_v2(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError>;
+
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }
