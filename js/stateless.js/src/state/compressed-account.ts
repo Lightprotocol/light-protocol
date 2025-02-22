@@ -9,17 +9,31 @@ export type CompressedAccountWithMerkleContext = CompressedAccount &
     };
 
 /**
+ * V1: State Merkle trees; V2: Batched Merkle Tree. Default: V2 for outputs. V2
+ * transactions store outputs in the `queue` account instead of the `merkleTree`
+ * account.
+ */
+export enum MerkleContextVersion {
+    V1 = 1,
+    V2 = 2,
+}
+
+/**
  * Context for compressed account inserted into a state Merkle tree
  * */
 export type MerkleContext = {
     /** State Merkle tree */
     merkleTree: PublicKey;
     /** The state nullfier queue belonging to merkleTree */
-    nullifierQueue: PublicKey;
+    queue: PublicKey;
     /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
-    hash: number[]; // TODO: BN254;
+    hash: number[];
     /** 'hash' position within the Merkle tree */
     leafIndex: number;
+    /** Version */
+    version: MerkleContextVersion;
+    /** Whether to prove by index or by validity proof */
+    proveByIndex: boolean;
 };
 
 export type MerkleContextWithMerkleProof = MerkleContext & {
@@ -57,12 +71,16 @@ export const createCompressedAccountWithMerkleContext = (
 
 export const createMerkleContext = (
     merkleTree: PublicKey,
-    nullifierQueue: PublicKey,
+    queue: PublicKey,
     hash: number[], // TODO: BN254,
     leafIndex: number,
+    version: MerkleContextVersion,
+    proveByIndex: boolean,
 ): MerkleContext => ({
     merkleTree,
-    nullifierQueue,
+    queue,
     hash,
     leafIndex,
+    version,
+    proveByIndex,
 });

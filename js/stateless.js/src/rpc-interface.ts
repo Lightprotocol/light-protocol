@@ -13,6 +13,7 @@ import {
     any,
     nullable,
     Struct,
+    boolean,
 } from 'superstruct';
 import {
     BN254,
@@ -114,7 +115,6 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
@@ -122,7 +122,8 @@ export type CompressedProofWithContext = {
     leafIndices: number[];
     leaves: BN[];
     merkleTrees: PublicKey[];
-    nullifierQueues: PublicKey[];
+    queues: PublicKey[];
+    proveByIndices: boolean[];
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -312,6 +313,8 @@ export const CompressedAccountResult = pick({
     tree: PublicKeyFromString,
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
+    queue: nullable(PublicKeyFromString), // is non-null for V2
+    proveByIndex: nullable(boolean()), // V1 = null, V2 = boolean
 });
 
 export const TokenDataResult = pick({
@@ -394,7 +397,7 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
 /**
  * @internal
  */
-export const MerkeProofResult = pick({
+export const MerkleProofResult = pick({
     hash: BN254FromString,
     leafIndex: number(),
     merkleTree: PublicKeyFromString,
@@ -432,19 +435,18 @@ const CompressedProofResult = pick({
  */
 export const ValidityProofResult = pick({
     compressedProof: CompressedProofResult,
+    roots: array(BN254FromString),
+    rootIndices: array(nullable(number())), // V2. Null = set proveByIndex to true
     leafIndices: array(number()),
     leaves: array(BN254FromString),
-    rootIndices: array(number()),
-    roots: array(BN254FromString),
     merkleTrees: array(PublicKeyFromString),
-    // TODO: enable nullifierQueues
-    // nullifierQueues: array(PublicKeyFromString),
+    queues: array(PublicKeyFromString),
 });
 
 /**
  * @internal
  */
-export const MultipleMerkleProofsResult = array(MerkeProofResult);
+export const MultipleMerkleProofsResult = array(MerkleProofResult);
 
 /**
  * @internal

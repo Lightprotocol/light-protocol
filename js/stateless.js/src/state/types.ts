@@ -22,10 +22,42 @@ export enum TreeType {
     BatchedAddress = 3,
 }
 
-export type ActiveTreeBundle = {
+/**
+ * Public keys for a state tree, versioned via {@link TreeType}. The protocol
+ * stores compressed accounts in state trees.
+ *
+ * Onchain Accounts are subject to Solana's write-lock limits.
+ *
+ * To load balance transactions, use {@link pickRandomStateTreeContext} to
+ * select a random tree from active Trees.
+ *
+ * Example:
+ * ```typescript
+ * const stateTreeContexts = await getCachedActiveStateTreeInfo();
+ * const randomStateTreeContext = pickRandomStateTreeContext(stateTreeContexts);
+ * const ix = CompressedTokenProgram.compress({
+ *     ... // other params
+ *     outputStateTreeContext: randomStateTreeContext
+ * });
+ * ```
+ */
+export type StateTreeContext = {
+    /**
+     * Account containing the Sparse Merkle tree in which a compressed
+     * account is stored.
+     */
     tree: PublicKey;
+    /**
+     * The state nullfier queue belonging to merkleTree.
+     */
     queue: PublicKey | null;
+    /**
+     * The compressed cpi context account.
+     */
     cpiContext: PublicKey | null;
+    /**
+     * The type of tree. One of {@link TreeType}.
+     */
     treeType: TreeType;
 };
 
@@ -38,14 +70,9 @@ export interface PackedCompressedAccountWithMerkleContext {
 
 export interface PackedMerkleContext {
     merkleTreePubkeyIndex: number; // u8
-    nullifierQueuePubkeyIndex: number; // u8
+    queuePubkeyIndex: number; // u8
     leafIndex: number; // u32
-    queueIndex: null | QueueIndex; // Option<QueueIndex>
-}
-
-export interface QueueIndex {
-    queueId: number; // u8
-    index: number; // u16
+    proveByIndex: boolean; // bool
 }
 
 /**
@@ -53,16 +80,21 @@ export interface QueueIndex {
  * compressed account.
  * */
 export interface CompressedAccount {
-    /** Public key of program or user that owns the account */
-    owner: PublicKey;
-    /** Lamports attached to the account */
-    lamports: BN; // u64 // FIXME: optional
     /**
-     * TODO: use PublicKey. Optional unique account ID that is persistent across
-     * transactions.
+     * Public key of program or user that owns the account
+     */
+    owner: PublicKey;
+    /**
+     * Lamports stored in the account.
+     */
+    lamports: BN; // u64
+    /**
+     * Optional unique account ID that is persistent across transactions.
      */
     address: number[] | null; // Option<PublicKey>
-    /** Optional data attached to the account */
+    /**
+     * Optional data stored in the account.
+     */
     data: CompressedAccountData | null; // Option<CompressedAccountData>
 }
 
@@ -76,10 +108,11 @@ export interface OutputCompressedAccountWithPackedContext {
 }
 
 export interface CompressedAccountData {
-    discriminator: number[]; // [u8; 8] // TODO: test with uint8Array instead
+    discriminator: number[]; // [u8; 8]
     data: Buffer; // bytes
     dataHash: number[]; // [u8; 32]
 }
+
 export interface MerkleTreeSequenceNumber {
     pubkey: PublicKey;
     seq: BN;
@@ -122,12 +155,12 @@ export interface InstructionDataInvokeCpi {
 export interface CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
     /// set the cpi context.
-    set_context: boolean;
+    setContext: boolean;
     /// Is set to wipe the cpi context since someone could have set it before
     /// with unrelated data.
-    first_set_context: boolean;
+    firstSetContext: boolean;
     /// Index of cpi context account in remaining accounts.
-    cpi_context_account_index: number;
+    cpiContextAccountIndex: number;
 }
 
 export interface CompressedProof {
@@ -144,6 +177,7 @@ export interface InputTokenDataWithContext {
     lamports: BN | null;
     tlv: Buffer | null;
 }
+
 export type TokenData = {
     /// The mint associated with this account
     mint: PublicKey;

@@ -9,6 +9,7 @@ import {
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
+    MerkleContextVersion,
 } from '../../state';
 
 export async function getCompressedAccountsByOwnerTest(
@@ -53,9 +54,11 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
                 merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().nullifierQueue,
+                queue: defaultTestStateTreeAccounts().nullifierQueue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
+                version: MerkleContextVersion.V1,
+                proveByIndex: false,
             };
             const withCtx: CompressedAccountWithMerkleContext =
                 createCompressedAccountWithMerkleContext(

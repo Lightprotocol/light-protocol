@@ -10,6 +10,7 @@ import {
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     bn,
+    MerkleContextVersion,
 } from '../../state';
 import {
     struct,
@@ -88,11 +89,13 @@ async function parseEventWithTokenTlvData(
                     pubkeyArray[
                         event.outputCompressedAccounts[i].merkleTreeIndex
                     ],
-                nullifierQueue:
+                queue:
                     // FIXME: fix make dynamic
                     defaultTestStateTreeAccounts().nullifierQueue,
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
+                version: MerkleContextVersion.V1, // TODO: test-rpc v2
+                proveByIndex: false,
             };
 
             if (!compressedAccount.compressedAccount.data)

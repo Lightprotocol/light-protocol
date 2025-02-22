@@ -19,7 +19,7 @@ export type PackCompressedTokenAccountsParams = {
      * state tree of the input state. Gets padded to the length of
      * outputCompressedAccounts.
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    outputStateTreeContext: StateTreeContext;
     /** Optional remaining accounts to append to */
     remainingAccounts?: PublicKey[];
     /**
@@ -63,6 +63,7 @@ export function packCompressedTokenAccounts(
     /// TODO: move pubkeyArray to remainingAccounts
     /// Currently just packs 'delegate' to pubkeyArray
     const packedInputTokenData: InputTokenDataWithContext[] = [];
+
     /// pack inputs
     inputCompressedTokenAccounts.forEach(
         (account: ParsedTokenAccount, index) => {
@@ -71,9 +72,9 @@ export function packCompressedTokenAccounts(
                 account.compressedAccount.merkleTree,
             );
 
-            const nullifierQueuePubkeyIndex = getIndexOrAdd(
+            const queuePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
-                account.compressedAccount.nullifierQueue,
+                account.compressedAccount.queue,
             );
 
             packedInputTokenData.push({
@@ -81,9 +82,9 @@ export function packCompressedTokenAccounts(
                 delegateIndex,
                 merkleContext: {
                     merkleTreePubkeyIndex,
-                    nullifierQueuePubkeyIndex,
+                    queuePubkeyIndex: queuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
-                    queueIndex: null,
+                    proveByIndex: false,
                 },
                 rootIndex: rootIndices[index],
                 lamports: account.compressedAccount.lamports.eq(bn(0))

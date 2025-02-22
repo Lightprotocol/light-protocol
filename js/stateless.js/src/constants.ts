@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { ActiveTreeBundle, TreeType } from './state/types';
+import { StateTreeContext, TreeType } from './state/types';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -37,7 +37,7 @@ export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
         new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl
+            // TODO: can add check to ensure its consistent with the idl.
             lightProgram,
         ),
     )[0];
@@ -104,7 +104,7 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+export const localTestActiveStateTreeInfo = (): StateTreeContext[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),

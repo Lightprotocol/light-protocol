@@ -29,6 +29,7 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
+    CompressedAccountResult,
 } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
@@ -40,6 +41,7 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    MerkleContextVersion,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
@@ -51,7 +53,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { ActiveTreeBundle } from '../../state/types';
+import { StateTreeContext } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
@@ -88,6 +90,22 @@ export interface LightWasm {
     poseidonHash(input: string[] | BN[]): Uint8Array;
     poseidonHashString(input: string[] | BN[]): string;
     poseidonHashBN(input: string[] | BN[]): BN;
+}
+
+// TODO: stub right now.
+function getVersionedCompressedAccountFields(
+    account: typeof CompressedAccountResult.TYPE,
+    _activeStateTreeInfo: StateTreeContext[],
+): {
+    version: MerkleContextVersion;
+    proveByIndex: boolean;
+    queue: PublicKey;
+} {
+    return {
+        version: MerkleContextVersion.V1,
+        proveByIndex: false,
+        queue: account.queue!, // TODO: CHECK
+    };
 }
 
 /**
@@ -151,7 +169,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
+    activeStateTreeInfo: StateTreeContext[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -207,24 +225,23 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+    setStateTreeInfo(info: StateTreeContext[]): void {
         this.activeStateTreeInfo = info;
     }
 
     /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getCachedActiveStateTreeInfo(): Promise<StateTreeContext[]> {
         return localTestActiveStateTreeInfo();
     }
 
     /**
      * Returns local test state trees.
      */
-    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getLatestActiveStateTreeInfo(): Promise<StateTreeContext[]> {
         return localTestActiveStateTreeInfo();
     }
-
     /**
      * Fetch the compressed account for the specified account hash
      */
@@ -342,9 +359,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleTree: this.merkleTreeAddress,
                 leafIndex: leafIndex,
                 merkleProof: bnPathElements,
-                nullifierQueue: this.nullifierQueueAddress,
+                queue: this.nullifierQueueAddress,
                 rootIndex: allLeaves.length,
                 root: root,
+                version: MerkleContextVersion.V1,
+                proveByIndex: false,
             };
             merkleProofs.push(merkleProof);
         }
@@ -735,9 +754,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleTrees: merkleProofsWithContext.map(
                     proof => proof.merkleTree,
                 ),
-                nullifierQueues: merkleProofsWithContext.map(
-                    proof => proof.nullifierQueue,
-                ),
+                queues: merkleProofsWithContext.map(proof => proof.queue),
+                proveByIndices: merkleProofsWithContext.map(_ => false), // TODO: Add V2
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -772,9 +790,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
-                nullifierQueues: newAddressProofs.map(
-                    proof => proof.nullifierQueue,
-                ),
+                queues: newAddressProofs.map(proof => proof.nullifierQueue),
+                proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -827,11 +844,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleTrees: merkleProofsWithContext
                     .map(proof => proof.merkleTree)
                     .concat(newAddressProofs.map(proof => proof.merkleTree)),
-                nullifierQueues: merkleProofsWithContext
-                    .map(proof => proof.nullifierQueue)
+                queues: merkleProofsWithContext
+                    .map(proof => proof.queue)
                     .concat(
                         newAddressProofs.map(proof => proof.nullifierQueue),
                     ),
+                proveByIndices: merkleProofsWithContext
+                    .map(proof => proof.proveByIndex)
+                    .concat(newAddressProofs.map(_ => false)), // TODO: Add V2
             };
         } else throw new Error('Invalid input');
 

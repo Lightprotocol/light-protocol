@@ -3,6 +3,7 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
+    StateTreeContext,
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
@@ -98,11 +99,10 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
  *                                          input state. The expiry is tied to
  *                                          the proof.
  * @param outputCompressedAccounts          Ix output state to be created
- * @param outputStateMerkleTrees            Optional output state trees to be
- *                                          inserted into the output state.
- *                                          Defaults to the 0th state tree of
- *                                          the input state. Gets padded to the
- *                                          length of outputCompressedAccounts.
+ * @param outputStateTreeContext            Context of state tree to be inserted
+ *                                          into the output state. Gets padded
+ *                                          to the length of
+ *                                          outputCompressedAccounts.
  *
  * @param remainingAccounts                 Optional existing array of accounts
  *                                          to append to.
@@ -111,7 +111,7 @@ export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateMerkleTrees?: PublicKey[] | PublicKey,
+    outputStateTreeContext: StateTreeContext,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -133,9 +133,9 @@ export function packCompressedAccounts(
             account.merkleTree,
         );
 
-        const nullifierQueuePubkeyIndex = getIndexOrAdd(
+        const queuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.nullifierQueue,
+            account.queue,
         );
 
         packedInputCompressedAccounts.push({
@@ -147,26 +147,20 @@ export function packCompressedAccounts(
             },
             merkleContext: {
                 merkleTreePubkeyIndex,
-                nullifierQueuePubkeyIndex,
+                queuePubkeyIndex,
                 leafIndex: account.leafIndex,
-                queueIndex: null,
+                proveByIndex: false,
             },
             rootIndex: inputStateRootIndices[index],
             readOnly: false,
         });
     });
 
-    if (
-        outputStateMerkleTrees === undefined &&
-        inputCompressedAccounts.length === 0
-    ) {
-        throw new Error(
-            'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
-        );
-    }
+    // TODO: based on version set here.
+    const outputStateMerkleTree = outputStateTreeContext.tree;
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateMerkleTrees,
+        outputStateMerkleTree,
         outputCompressedAccounts.length,
         inputCompressedAccounts,
     );

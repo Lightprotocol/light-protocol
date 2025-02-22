@@ -99,10 +99,8 @@ describe('rpc-interop', () => {
         validityProof.merkleTrees.forEach((elem, index) => {
             assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
         });
-        validityProof.nullifierQueues.forEach((elem, index) => {
-            assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
-            );
+        validityProof.queues.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.queues[index]));
         });
 
         /// Executes a transfer using a 'validityProof' from Photon
@@ -150,10 +148,8 @@ describe('rpc-interop', () => {
         validityProof.merkleTrees.forEach((elem, index) => {
             assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
         });
-        validityProof.nullifierQueues.forEach((elem, index) => {
-            assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
-            );
+        validityProof.queues.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.queues[index]));
         });
 
         /// Need a new unique address because the previous one has been created.
@@ -290,13 +286,13 @@ describe('rpc-interop', () => {
         validityProof.merkleTrees.forEach((elem, index) => {
             assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
         });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.queues.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
-                'Mismatch in nullifierQueues expected: ' +
+                elem.equals(validityProofTest.queues[index]),
+                'Mismatch in queues expected: ' +
                     elem +
                     ' got: ' +
-                    validityProofTest.nullifierQueues[index],
+                    validityProofTest.queues[index],
             );
         });
 
