@@ -42,11 +42,17 @@ pub struct BatchPublicTransactionEvent {
     pub new_addresses: Vec<NewAddress>,
     pub input_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub address_sequence_numbers: Vec<MerkleTreeSequenceNumber>,
-    pub nullifier_queue_indices: Vec<u64>,
     pub tx_hash: [u8; 32],
-    pub nullifiers: Vec<[u8; 32]>,
+    pub batch_input_accounts: Vec<BatchNullifyContext>,
 }
 
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct BatchNullifyContext {
+    pub tx_hash: [u8; 32],
+    pub account_hash: [u8; 32],
+    pub nullifier: [u8; 32],
+    pub nullifier_queue_index: u64,
+}
 /// We piece the event together from 2 instructions:
 /// 1. light_system_program::{Invoke, InvokeCpi, InvokeCpiReadOnly} (one of the 3)
 /// 2. account_compression::InsertIntoQueues
@@ -108,7 +114,7 @@ pub fn event_from_light_transaction(
     let mut input_sequence_numbers = Vec::new();
     let mut address_sequence_numbers = Vec::new();
     let mut tx_hash = [0u8; 32];
-    let mut nullifiers = vec![];
+    let mut batch_input_accounts = vec![];
     let mut pos = None;
     for (i, instruction) in instructions.iter().enumerate() {
         if remaining_accounts[i].len() < 3 {
@@ -122,7 +128,7 @@ pub fn event_from_light_transaction(
             &mut address_sequence_numbers,
             &remaining_accounts[i][2..],
             &mut tx_hash,
-            &mut nullifiers,
+            &mut batch_input_accounts,
         )?;
         if res {
             pos = Some(i);
@@ -157,6 +163,13 @@ pub fn event_from_light_transaction(
                 }
             }
         });
+        assert_eq!(nullifier_queue_indices.len(), batch_input_accounts.len());
+        for (index, context) in nullifier_queue_indices
+            .iter()
+            .zip(batch_input_accounts.iter_mut())
+        {
+            context.nullifier_queue_index = *index;
+        }
         println!("input_merkle_tree_indices {:?}", input_merkle_tree_indices);
         println!("nullifier_queue_indices {:?}", nullifier_queue_indices);
         println!("input_sequence_numbers {:?}", input_sequence_numbers);
@@ -166,8 +179,7 @@ pub fn event_from_light_transaction(
             input_sequence_numbers,
             address_sequence_numbers,
             tx_hash,
-            nullifiers,
-            nullifier_queue_indices,
+            batch_input_accounts,
         }))
     } else {
         Ok(None)
@@ -183,7 +195,7 @@ pub fn match_account_compression_program_instruction(
     address_sequence_numbers: &mut Vec<MerkleTreeSequenceNumber>,
     accounts: &[Pubkey],
     tx_hash: &mut [u8; 32],
-    nullifiers: &mut Vec<[u8; 32]>,
+    batch_input_accounts: &mut Vec<BatchNullifyContext>,
 ) -> Result<bool, ZeroCopyError> {
     if instruction.len() < 8 {
         return Ok(false);
@@ -246,15 +258,27 @@ pub fn match_account_compression_program_instruction(
             *tx_hash = data.tx_hash;
 
             data.nullifiers.iter().for_each(|n| {
-                let nullifier = {
-                    let mut leaf_index_bytes = [0u8; 32];
-                    leaf_index_bytes[28..]
-                        .copy_from_slice(u32::from(n.leaf_index).to_be_bytes().as_slice());
-                    // Inclusion of the tx_hash enables zk proofs of how a value was spent.
-                    Poseidon::hashv(&[n.account_hash.as_slice(), &leaf_index_bytes, tx_hash])
-                        .unwrap()
-                };
-                nullifiers.push(nullifier);
+                let tree_pubkey = &accounts[n.tree_index as usize];
+                if data
+                    .input_sequence_numbers
+                    .iter()
+                    .any(|x| x.pubkey == (*tree_pubkey).into())
+                {
+                    let nullifier = {
+                        let mut leaf_index_bytes = [0u8; 32];
+                        leaf_index_bytes[28..]
+                            .copy_from_slice(u32::from(n.leaf_index).to_be_bytes().as_slice());
+                        // Inclusion of the tx_hash enables zk proofs of how a value was spent.
+                        Poseidon::hashv(&[n.account_hash.as_slice(), &leaf_index_bytes, tx_hash])
+                            .unwrap()
+                    };
+                    batch_input_accounts.push(BatchNullifyContext {
+                        tx_hash: *tx_hash,
+                        account_hash: n.account_hash,
+                        nullifier,
+                        nullifier_queue_index: u64::MAX,
+                    });
+                }
             });
             Ok(true)
         }
