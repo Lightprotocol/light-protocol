@@ -1428,6 +1428,8 @@ fn assert_merkle_tree_update(
         let old_full_batch_index = old_account.queue_batches.pending_batch_index;
         let history_capacity = old_account.root_history.capacity();
         let previous_full_batch_index = if old_full_batch_index == 0 { 1 } else { 0 };
+        let zkp_batch_size = old_account.queue_batches.zkp_batch_size;
+        old_account.nullifier_next_index += zkp_batch_size;
 
         let old_full_batch = old_account
             .queue_batches
