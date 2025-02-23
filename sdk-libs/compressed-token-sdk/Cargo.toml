@@ -1,0 +1,38 @@
+[package]
+name = "light-compressed-token-sdk"
+version = "0.1.0"
+description = "Rust SDK for interacting with the Compressed Token Program on Solana"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_compressed_token_sdk"
+
+[features]
+default = ["custom-heap"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+custom-heap = ["light-heap"]
+mem-profiling = []
+test-sbf = []
+bench-sbf = []
+idl-build = ["anchor-lang/idl-build"]
+anchor = ["light-compressed-account/anchor"]
+
+[dependencies]
+light-compressed-account = { workspace = true, features = ["anchor"] }
+solana-program = { workspace = true }
+anchor-lang = { workspace = true }
+num-bigint = { workspace = true }
+borsh = { workspace = true }
+light-heap = { workspace = true, optional = true }
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = { workspace = true }
+
+[dev-dependencies]
+num-bigint = { workspace = true }

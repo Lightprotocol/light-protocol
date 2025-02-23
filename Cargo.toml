@@ -21,6 +21,7 @@ members = [
     "sdk-libs/client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
+    "sdk-libs/compressed-token-sdk",
     "sdk-libs/photon-api",
     "sdk-libs/program-test",
     "xtask",
