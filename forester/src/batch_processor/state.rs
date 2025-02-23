@@ -19,6 +19,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
+    println!("perform_append");
     let instruction_data = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
@@ -27,7 +28,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
     )
     .await
     .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
-
+    println!("instruction_data: {:?}", instruction_data);
     let instruction = create_batch_append_instruction(
         context.authority.pubkey(),
         context.derivation,
@@ -39,13 +40,15 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc.create_and_send_transaction_with_event::<BatchAppendEvent>(
+    println!("instruction: {:?}", instruction);
+    let event = rpc.create_and_send_transaction_with_event::<BatchAppendEvent>(
         &[instruction],
         &context.authority.pubkey(),
         &[&context.authority],
         None,
     )
     .await?;
+    println!("event: {:?}", event);
 
     update_test_indexer_after_append(
         rpc,

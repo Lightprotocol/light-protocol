@@ -214,6 +214,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchAppendInputs, ForesterUtilsError> {
+    println!("create_append_batch_ix_data");
     let (merkle_tree_next_index, current_root) = {
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
@@ -227,6 +228,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             *merkle_tree.root_history.last().unwrap(),
         )
     };
+    println!("merkle_tree_next_index: {:?} current_root: {:?}", merkle_tree_next_index, current_root);
 
     let (zkp_batch_size, leaves_hash_chain) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
@@ -244,6 +246,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
         (zkp_batch_size as u16, leaves_hash_chain)
     };
+    println!("zkp_batch_size: {:?} leaves_hash_chain: {:?}", zkp_batch_size, leaves_hash_chain);
 
     let indexer_response = indexer
         .get_queue_elements(
@@ -253,8 +256,14 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             None,
         )
         .await
-        .unwrap();
-
+        .map_err(|e| {
+            error!(
+                "create_append_batch_ix_data: failed to get queue elements from indexer: {:?}",
+                e
+            );
+            ForesterUtilsError::IndexerError("Failed to get queue elements".into())
+        })?;
+    println!("get_queue_elements len: {}", indexer_response.len());
     let old_leaves = indexer_response
         .iter()
         .map(|x| x.leaf)
@@ -279,11 +288,17 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                 merkle_proofs,
                 zkp_batch_size as u32,
             )
-            .unwrap();
-
+                .map_err(|e| {
+                    error!(
+                        "create_append_batch_ix_data: failed to get circuit inputs: {:?}",
+                        e
+                    );
+                    ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
+                })?;
         let client = Client::new();
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
+        println!("inputs_json: {:?}", inputs_json);
         let response = client
             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -291,7 +306,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             .send()
             .await
             .expect("Failed to execute request.");
-
+        println!("response: {:?}", response);
         if response.status().is_success() {
             let body = response.text().await.unwrap();
             let proof_json = deserialize_gnark_proof_json(&body).unwrap();

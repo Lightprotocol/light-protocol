@@ -35,7 +35,7 @@ async fn test_state_indexer_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: true,
+        enable_indexer: false,
         wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],

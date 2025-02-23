@@ -40,7 +40,6 @@ mod test_utils;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
-#[ignore]
 async fn test_state_indexer_fetch_root() {
     let env = EnvAccounts::get_local_test_validator_accounts();
     let batched_state_merkle_tree = env.batched_state_merkle_tree;
