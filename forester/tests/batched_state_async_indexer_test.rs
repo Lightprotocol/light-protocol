@@ -18,7 +18,7 @@ use light_client::{
 use light_compressed_account::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext};
 use light_hasher::Poseidon;
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::LightValidatorConfig;
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_registry::{
     protocol_config::state::ProtocolConfigPda, utils::get_protocol_config_pda_address,
 };
@@ -30,13 +30,38 @@ use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer
 use solana_sdk::signature::Signature;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
-use tracing::log::info;
 use forester::run_pipeline;
 use light_batched_merkle_tree::batch::BatchState;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
+
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
+#[ignore]
+async fn test_state_indexer_fetch_root() {
+    let env = EnvAccounts::get_local_test_validator_accounts();
+    let batched_state_merkle_tree = env.batched_state_merkle_tree;
+
+    let mut account = {
+        let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+        rpc.get_account(batched_state_merkle_tree).await.unwrap().unwrap()
+    };
+
+    let batched_merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+        &mut account.data,
+        &batched_state_merkle_tree.into(),
+    ).unwrap();
+
+    println!("root: {:?}", batched_merkle_tree.get_root().unwrap());
+    for (index, root) in batched_merkle_tree.root_history.iter().enumerate() {
+        println!("root[{}]: {:?}", index, root);
+    }
+
+    println!("root sequence number: {}", batched_merkle_tree.get_metadata().sequence_number);
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -46,7 +71,10 @@ async fn test_state_indexer_async_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 1,
-        prover_config: None,
+        prover_config: Some(ProverConfig {
+            run_mode: Some(ProverMode::ForesterTest),
+            circuits: vec![],
+        }),
         sbf_programs: vec![],
     }))
     .await;
@@ -172,14 +200,14 @@ async fn test_state_indexer_async_batched() {
     };
 
 
-    info!(
+    println!(
         "Initial state:
         next_index: {}
         sequence_number: {}
         batch_size: {}",
         initial_next_index,
         initial_sequence_number,
-        merkle_tree.get_metadata().queue_batches.batch_size
+        merkle_tree.get_metadata().queue_batches.zkp_batch_size
     );
 
     for i in 0..merkle_tree.get_metadata().queue_batches.batch_size  {
@@ -209,19 +237,19 @@ async fn test_state_indexer_async_batched() {
     let timeout_duration = Duration::from_secs(60 * 10);
     match timeout(timeout_duration, work_report_receiver.recv()).await {
         Ok(Some(report)) => {
-            info!("Received work report: {:?}", report);
-            info!(
+            println!("Received work report: {:?}", report);
+            println!(
                 "Work report debug:
                 reported_items: {}
                 batch_size: {}
                 complete_batches: {}",
                 report.processed_items,
-                tree_params.input_queue_batch_size,
-                report.processed_items / tree_params.input_queue_batch_size as usize,
+                tree_params.input_queue_zkp_batch_size,
+                report.processed_items / tree_params.input_queue_zkp_batch_size as usize,
             );
             assert!(report.processed_items > 0, "No items were processed");
 
-            let batch_size = tree_params.input_queue_batch_size;
+            let batch_size = tree_params.input_queue_zkp_batch_size;
             assert_eq!(
                 report.processed_items % batch_size as usize,
                 0,
@@ -291,7 +319,7 @@ async fn test_state_indexer_async_batched() {
                 completed_items += batch_size;
             }
         }
-        info!(
+        println!(
             "initial_next_index: {}
             final_next_index: {}
             batch_size: {}
