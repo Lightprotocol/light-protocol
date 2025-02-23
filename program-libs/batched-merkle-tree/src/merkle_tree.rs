@@ -386,7 +386,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let pending_batch_index = queue_account.batch_metadata.pending_batch_index as usize;
         let new_root = instruction_data.new_root;
         let circuit_batch_size = queue_account.batch_metadata.zkp_batch_size;
-        let start_index = self.next_index;
         let first_ready_zkp_batch_index = queue_account.batch_metadata.batches[pending_batch_index]
             .get_first_ready_zkp_batch()?;
 
@@ -399,7 +398,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 .last()
                 .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
             let mut start_index_bytes = [0u8; 32];
-            start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
+            start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
             create_hash_chain_from_array([
                 *old_root,
                 new_root,
@@ -409,7 +408,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         };
 
         // 2. Verify update proof and update tree account.
-        self.verify_update::<BATCHED_OUTPUT_QUEUE_TYPE>(
+        let (old_next_index, new_next_index) = self.verify_update::<BATCHED_OUTPUT_QUEUE_TYPE>(
             circuit_batch_size,
             instruction_data.compressed_proof,
             public_input_hash,
@@ -448,8 +447,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             new_root,
             root_index,
             sequence_number: self.sequence_number,
-            old_next_index: start_index,
-            new_next_index: self.next_index,
+            old_next_index,
+            new_next_index,
         })
     }
 
@@ -500,7 +499,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             self.queue_batches.batches[pending_batch_index].get_first_ready_zkp_batch()?;
         let new_root = instruction_data.new_root;
         let circuit_batch_size = self.queue_batches.zkp_batch_size;
-        let old_next_index = self.next_index;
 
         // 1. Create public inputs hash.
         let public_input_hash = {
@@ -528,7 +526,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         };
 
         // 2. Verify update proof and update tree account.
-        self.verify_update::<QUEUE_TYPE>(
+        let (old_next_index, new_next_index) = self.verify_update::<QUEUE_TYPE>(
             circuit_batch_size,
             instruction_data.compressed_proof,
             public_input_hash,
@@ -575,7 +573,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             root_index,
             sequence_number: self.sequence_number,
             old_next_index,
-            new_next_index: self.next_index,
+            new_next_index,
             output_queue_pubkey: None,
         })
     }
@@ -591,24 +589,31 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         proof: CompressedProof,
         public_input_hash: [u8; 32],
         new_root: [u8; 32],
-    ) -> Result<(), BatchedMerkleTreeError> {
+    ) -> Result<(u64, u64), BatchedMerkleTreeError> {
         // 1. Verify update proof.
-        if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
+        let (old_next_index, new_next_index) = if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
+            let old_next_index = self.next_index;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
+            (old_next_index, self.next_index)
         } else if QUEUE_TYPE == QueueType::BatchedInput as u64 {
+            let old_next_index = self.nullifier_next_index;
             verify_batch_update(batch_size, public_input_hash, &proof)?;
-            // 2. skip incrementing next index.
-            // The input queue update does not append new values
-            // hence no need to increment next_index.
+            // 2. incrementing nullifier next index.
+            // This index is used by the indexer to remove elements from the database nullifier queue.
+            // Nullifier next index is not used onchain.
+            self.nullifier_next_index += batch_size;
+            (old_next_index, self.nullifier_next_index)
         } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
+            let old_next_index = self.next_index;
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
+            (old_next_index, self.next_index)
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
-        }
+        };
         // 3. Increment sequence number.
         self.sequence_number += 1;
         // 4. Append new root to root history.
@@ -616,7 +621,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // it will overwrite the oldest root
         // once it is full.
         self.root_history.push(new_root);
-        Ok(())
+        Ok((old_next_index, new_next_index))
     }
 
     /// Insert nullifier into current batch.
@@ -1000,8 +1005,8 @@ pub fn assert_nullify_event(
         sequence_number: old_account.sequence_number + 1,
         batch_size: old_account.queue_batches.zkp_batch_size,
         // Next index is not modified by nullify.
-        old_next_index: old_account.next_index,
-        new_next_index: old_account.next_index,
+        old_next_index: old_account.nullifier_next_index,
+        new_next_index: old_account.nullifier_next_index + old_account.queue_batches.zkp_batch_size,
     };
     assert_eq!(event, ref_event);
 }
@@ -1120,7 +1125,7 @@ mod test {
     #[test]
     fn test_zero_out() {
         let current_slot = 1;
-        let mut account_data = vec![0u8; 3176];
+        let mut account_data = vec![0u8; 3184];
         let batch_size = 4;
         let zkp_batch_size = 1;
         let num_zkp_updates = batch_size / zkp_batch_size;
@@ -1513,7 +1518,7 @@ mod test {
 
     #[test]
     fn test_check_queue_next_index_reached_tree_capacity() {
-        let mut account_data = vec![0u8; 15720];
+        let mut account_data = vec![0u8; 15728];
         let batch_size = 200;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1567,7 +1572,7 @@ mod test {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1667,7 +1672,7 @@ mod test {
 
     #[test]
     fn test_tree_is_full() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1702,7 +1707,7 @@ mod test {
     }
     #[test]
     fn test_increment_next_index() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1740,7 +1745,7 @@ mod test {
 
     #[test]
     fn test_get_pubkey_and_associated_queue() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;

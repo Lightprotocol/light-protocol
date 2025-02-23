@@ -98,7 +98,7 @@ async fn test_counter() {
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&counter::ID)
+        .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -128,7 +128,7 @@ async fn test_counter() {
 
     // Check that it was incremented correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&counter::ID)
+        .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -158,7 +158,7 @@ async fn test_counter() {
 
     // Check that it was decremented correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&counter::ID)
+        .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -188,7 +188,7 @@ async fn test_counter() {
 
     // Check that it was reset correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&counter::ID)
+        .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
