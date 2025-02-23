@@ -169,7 +169,7 @@ pub struct InvokeCpi {
 #[inline(always)]
 pub fn invoke_cpi(
     account_infos: &[AccountInfo],
-    accounts_metas: Vec<AccountMeta>,
+    account_metas: Vec<AccountMeta>,
     inputs: Vec<u8>,
     signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
@@ -181,7 +181,7 @@ pub fn invoke_cpi(
 
     let instruction = Instruction {
         program_id: PROGRAM_ID_LIGHT_SYSTEM,
-        accounts: accounts_metas,
+        accounts: account_metas,
         data,
     };
     invoke_signed(&instruction, account_infos, signer_seeds)?;
