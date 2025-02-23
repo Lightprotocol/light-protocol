@@ -134,7 +134,7 @@ async fn test_name_service() {
 
     // Check that it was created correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
+        .get_compressed_accounts_by_owner_v2(&name_service_without_macros::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -214,7 +214,7 @@ async fn test_name_service() {
 
     // Check that it was updated correctly.
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&name_service_without_macros::ID)
+        .get_compressed_accounts_by_owner_v2(&name_service_without_macros::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
