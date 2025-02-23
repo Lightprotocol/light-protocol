@@ -163,7 +163,14 @@ pub fn event_from_light_transaction(
                 }
             }
         });
-        assert_eq!(nullifier_queue_indices.len(), batch_input_accounts.len());
+
+        assert_eq!(
+            nullifier_queue_indices
+                .iter()
+                .filter(|x| **x != u64::MAX)
+                .count(),
+            batch_input_accounts.len()
+        );
         for (index, context) in nullifier_queue_indices
             .iter()
             .zip(batch_input_accounts.iter_mut())
@@ -240,6 +247,7 @@ pub fn match_account_compression_program_instruction(
                 }
             });
             data.input_sequence_numbers.iter().for_each(|x| {
+                // Skip accounts nullified in legacy trees (x.pubkey == Pubkey::default())
                 if x.pubkey != Pubkey::default().into() {
                     input_sequence_numbers.push(MerkleTreeSequenceNumber {
                         pubkey: x.pubkey.into(),
@@ -259,10 +267,9 @@ pub fn match_account_compression_program_instruction(
 
             data.nullifiers.iter().for_each(|n| {
                 let tree_pubkey = &accounts[n.tree_index as usize];
-                if data
-                    .input_sequence_numbers
+                if input_sequence_numbers
                     .iter()
-                    .any(|x| x.pubkey == (*tree_pubkey).into())
+                    .any(|x| x.pubkey == *tree_pubkey)
                 {
                     let nullifier = {
                         let mut leaf_index_bytes = [0u8; 32];
@@ -323,8 +330,8 @@ pub fn match_system_program_instruction(
                 &mut &instruction[..],
             )
             .map_err(|_| ZeroCopyError::Size)?;
-            // We are only interested in remaining account which start after 10 static accounts.
-            let remaining_accounts = accounts.split_at(9).1;
+            // We are only interested in remaining account which start after 11 static accounts.
+            let remaining_accounts = accounts.split_at(11).1;
             // We need to find the instruction that executed the verification first.
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
@@ -364,8 +371,8 @@ pub fn match_system_program_instruction(
             let data = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])
                 .map_err(|_| ZeroCopyError::Size)?;
             let data = data.invoke_cpi;
-            // We are only interested in remaining account which start after 10 static accounts.
-            let remaining_accounts = accounts.split_at(9).1;
+            // We are only interested in remaining account which start after 11 static accounts.
+            let remaining_accounts = accounts.split_at(11).1;
             // We need to find the instruction that executed the verification first.
             // If cpi context was set we need to find those instructions afterwards and add them to the event.
             if let Some(cpi_context) = data.cpi_context {
