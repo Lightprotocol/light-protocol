@@ -2265,6 +2265,7 @@ dependencies = [
  "log",
  "photon-api",
  "prometheus",
+ "rand 0.8.5",
  "reqwest",
  "scopeguard",
  "serde",
