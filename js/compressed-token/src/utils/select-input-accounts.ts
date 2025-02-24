@@ -6,10 +6,37 @@ export const ERROR_NO_ACCOUNTS_FOUND =
     'Could not find accounts to select for transfer.';
 
 /**
- * Selects the minimal number of compressed token accounts for a transfer.
+ * Selects the minimum number of compressed token accounts required for a transfer, up to a specified maximum.
  *
- * 1. Sorts accounts by amount (descending)
- * 2. Accumulates amount until it meets or exceeds transfer amount
+ * @param {ParsedTokenAccount[]} accounts - Token accounts to choose from.
+ * @param {BN} transferAmount - Amount to transfer.
+ * @param {number} [maxInputs=4] - Max accounts to select. Default is 4.
+ * @returns {[
+ *   selectedAccounts: ParsedTokenAccount[],
+ *   total: BN,
+ *   totalLamports: BN | null,
+ *   maxPossibleAmount: BN
+ * ]} - Returns:
+ *   - selectedAccounts: Accounts chosen for transfer.
+ *   - total: Total amount from selected accounts.
+ *   - totalLamports: Total lamports from selected accounts.
+ *   - maxPossibleAmount: Max transferable amount given maxInputs.
+ *
+ * @example
+ * const accounts = [
+ *   { parsed: { amount: new BN(100) }, compressedAccount: { lamports: new BN(10) } },
+ *   { parsed: { amount: new BN(50) }, compressedAccount: { lamports: new BN(5) } },
+ *   { parsed: { amount: new BN(25) }, compressedAccount: { lamports: new BN(2) } },
+ * ];
+ * const transferAmount = new BN(75);
+ * const maxInputs = 2;
+ *
+ * const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+ *   selectMinCompressedTokenAccountsForTransfer(accounts, transferAmount, maxInputs);
+ *
+ * console.log(selectedAccounts.length); // 2
+ * console.log(total.toString()); // '150'
+ * console.log(totalLamports!.toString()); // '15'
  */
 export function selectMinCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],
@@ -33,13 +60,17 @@ export function selectMinCompressedTokenAccountsForTransfer(
     );
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
+        const totalBalance = accounts.reduce(
+            (acc, account) => acc.add(account.parsed.amount),
+            bn(0),
+        );
         if (selectedAccounts.length >= maxInputs) {
             throw new Error(
-                `Account limit exceeded: max ${maxPossibleAmount.toString()} (${maxInputs} accounts) per transaction. Total balance: ${accumulatedAmount.toString()} (${accounts.length} accounts). Consider multiple transfers to spend full balance.`,
+                `Account limit exceeded: max ${maxPossibleAmount.toString()} (${maxInputs} accounts) per transaction. Total balance: ${totalBalance.toString()} (${accounts.length} accounts). Consider multiple transfers to spend full balance.`,
             );
         } else {
             throw new Error(
-                `Insufficient balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}.`,
+                `Insufficient balance for transfer. Required: ${transferAmount.toString()}, available: ${totalBalance.toString()}.`,
             );
         }
     }
@@ -106,7 +137,7 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
         .reduce((total, account) => total.add(account.parsed.amount), bn(0));
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
-        console.warn(
+        console.log(
             `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, Idempotent returns max available: ${maxPossibleAmount.toString()}.`,
         );
     }
@@ -128,7 +159,39 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
  * if possible, up to maxInputs.
  *
  * 1. Sorts accounts by amount (desc)
- * 2. Selects accounts until transfer amount is met or cap is reached
+ * 2. Selects accounts until transfer amount is met or maxInputs is reached,
+ *    attempting to add one extra account if possible.
+ *
+ * @param {ParsedTokenAccount[]} accounts - The list of token accounts to select from.
+ * @param {BN} transferAmount - The token amount to be transferred.
+ * @param {number} [maxInputs=4] - The maximum number of accounts to select. Default: 4.
+ * @returns {[
+ *   selectedAccounts: ParsedTokenAccount[],
+ *   total: BN,
+ *   totalLamports: BN | null,
+ *   maxPossibleAmount: BN
+ * ]} - An array containing:
+ *   - selectedAccounts: The accounts selected for the transfer.
+ *   - total: The total amount accumulated from the selected accounts.
+ *   - totalLamports: The total lamports accumulated from the selected accounts.
+ *   - maxPossibleAmount: The maximum possible amount that can be transferred considering maxInputs.
+ *
+ * @example
+ * const accounts = [
+ *   { parsed: { amount: new BN(100) }, compressedAccount: { lamports: new BN(10) } },
+ *   { parsed: { amount: new BN(50) }, compressedAccount: { lamports: new BN(5) } },
+ *   { parsed: { amount: new BN(25) }, compressedAccount: { lamports: new BN(2) } },
+ * ];
+ * const transferAmount = new BN(75);
+ * const maxInputs = 2;
+ *
+ * const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+ *   selectSmartCompressedTokenAccountsForTransfer(accounts, transferAmount, maxInputs);
+ *
+ * console.log(selectedAccounts.length); // 2
+ * console.log(total.toString()); // '150'
+ * console.log(totalLamports!.toString()); // '15'
+ * console.log(maxPossibleAmount.toString()); // '150'
  */
 export function selectSmartCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],
@@ -152,13 +215,17 @@ export function selectSmartCompressedTokenAccountsForTransfer(
     );
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
+        const totalBalance = accounts.reduce(
+            (acc, account) => acc.add(account.parsed.amount),
+            bn(0),
+        );
         if (selectedAccounts.length >= maxInputs) {
             throw new Error(
-                `Transfer limit exceeded: max ${maxInputs} accounts per instruction. Max transferable: ${maxPossibleAmount.toString()}. Total balance: ${accumulatedAmount.toString()}. Consider multiple transfers to spend full balance.`,
+                `Account limit exceeded: max ${maxPossibleAmount.toString()} (${maxInputs} accounts) per transaction. Total balance: ${totalBalance.toString()} (${accounts.length} accounts). Consider multiple transfers to spend full balance.`,
             );
         } else {
             throw new Error(
-                `Insufficient balance. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}.`,
+                `Insufficient balance. Required: ${transferAmount.toString()}, available: ${totalBalance.toString()}.`,
             );
         }
     }
@@ -174,13 +241,9 @@ export function selectSmartCompressedTokenAccountsForTransfer(
         maxPossibleAmount,
     ];
 }
+
 /**
- * Idempotently selects compressed token accounts for a transfer. Picks one more
- * account than needed, up to maxInputs, with the extra being the smallest.
- *
- * 1. Sorts accounts by amount (desc)
- * 2. Selects accounts until transfer amount is met, then adds the smallest
- *    extra account if possible
+ * Idempotently runs {@link selectSmartCompressedTokenAccountsForTransfer} strategy.
  */
 export function selectSmartCompressedTokenAccountsForTransferIdempotent(
     accounts: ParsedTokenAccount[],
@@ -219,7 +282,7 @@ export function selectSmartCompressedTokenAccountsForTransferIdempotent(
         selectedAccounts.push(account);
 
         if (accumulatedAmount.gte(bn(transferAmount))) {
-            // Select smallest additional account
+            // Select smallest additional account if maxInputs not reached
             const remainingAccounts = nonZeroAccounts.slice(
                 selectedAccounts.length,
             );

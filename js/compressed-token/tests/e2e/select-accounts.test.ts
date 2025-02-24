@@ -246,7 +246,7 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
                 maxInputs,
             ),
         ).toThrow(
-            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 80 (3 accounts). Consider multiple transfers to spend full balance.',
+            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 105 (3 accounts). Consider multiple transfers to spend full balance.',
         );
     });
 });
@@ -676,6 +676,35 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
         expect(maxPossibleAmount.eq(new BN(105))).toBe(true);
     });
 
+    it('smart: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
+        const accounts = [
+            {
+                parsed: { amount: new BN(50) },
+                compressedAccount: { lamports: new BN(5) },
+            },
+            {
+                parsed: { amount: new BN(30) },
+                compressedAccount: { lamports: new BN(3) },
+            },
+            {
+                parsed: { amount: new BN(25) },
+                compressedAccount: { lamports: new BN(2) },
+            },
+        ] as ParsedTokenAccount[];
+        const transferAmount = new BN(100);
+        const maxInputs = 2;
+
+        expect(() =>
+            selectSmartCompressedTokenAccountsForTransfer(
+                accounts,
+                transferAmount,
+                maxInputs,
+            ),
+        ).toThrow(
+            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 105 (3 accounts). Consider multiple transfers to spend full balance.',
+        );
+    });
+
     it('smart: should handle max inputs less than accounts length', () => {
         const accounts = [
             {
@@ -732,7 +761,7 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
                 maxInputs,
             ),
         ).toThrow(
-            'Transfer limit exceeded: max 2 accounts per instruction. Max transferable: 80. Total balance: 80. Consider multiple transfers to spend full balance.',
+            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 105 (3 accounts). Consider multiple transfers to spend full balance.',
         );
     });
 });
