@@ -20,6 +20,7 @@ import {
     u8,
     Layout,
 } from '@coral-xyz/borsh';
+import { matchTestTreeAccountsAndQueues } from './get-compressed-accounts';
 
 const tokenProgramId: PublicKey = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
@@ -73,7 +74,6 @@ export function parseTokenLayoutWithIdl(
 /**
  * parse compressed accounts of an event with token layout
  * @internal
- * TODO: refactor
  */
 async function parseEventWithTokenTlvData(
     event: PublicTransactionEvent,
@@ -83,17 +83,21 @@ async function parseEventWithTokenTlvData(
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
+            const tree =
+                pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
+            const queue = matchTestTreeAccountsAndQueues(tree);
             const merkleContext: MerkleContext = {
-                merkleTree:
-                    pubkeyArray[
-                        event.outputCompressedAccounts[i].merkleTreeIndex
-                    ],
-                nullifierQueue:
-                    // FIXME: fix make dynamic
-                    defaultTestStateTreeAccounts().nullifierQueue,
+                merkleTree: tree,
+                nullifierQueue: queue.queue,
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
             };
+            console.log('EVENT', JSON.stringify(event));
+            console.log('event.leafIndex', event.outputLeafIndices);
+            console.log(
+                'parseEventWithTokenTlvData - merkleContext',
+                merkleContext,
+            );
 
             if (!compressedAccount.compressedAccount.data)
                 throw new Error('No data');

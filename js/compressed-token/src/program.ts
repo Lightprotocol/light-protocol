@@ -1000,6 +1000,19 @@ export class CompressedTokenProgram {
             tokenTransferOutputs: tokenTransferOutputs,
         });
 
+        console.log(
+            'PACKED - PackedTokenTransferOutputData[]:',
+            packedOutputTokenData.map(e => e),
+        );
+        console.log(
+            'PACKED - inputTokenDataWithContext[]:',
+            inputTokenDataWithContext,
+        );
+        console.log(
+            'PACKED - remainingAccountMetas[]:',
+            remainingAccountMetas.map(e => e),
+        );
+
         const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );

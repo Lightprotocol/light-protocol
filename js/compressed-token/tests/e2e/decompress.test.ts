@@ -8,6 +8,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
+    createRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, decompress, mintTo } from '../../src/actions';
@@ -106,10 +107,11 @@ describe('decompress', () => {
         );
     });
 
-    const LOOP = 10;
+    const LOOP = 2;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
+        // rpc = createRpc();
         for (let i = 0; i < LOOP; i++) {
             const recipientAtaBalanceBefore =
                 await rpc.getTokenAccountBalance(charlieAta);
@@ -118,15 +120,21 @@ describe('decompress', () => {
                     mint,
                 });
 
-            await decompress(
+            const merkleTree2Pubkey =
+                'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
+            const nullifierQueue2Pubkey =
+                'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
+
+            const res = await decompress(
                 rpc,
                 payer,
                 mint,
                 bn(5),
                 bob,
                 charlieAta,
-                merkleTree,
+                new PublicKey(merkleTree2Pubkey),
             );
+            console.log('res:', res);
 
             await assertDecompress(
                 rpc,

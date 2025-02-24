@@ -2,7 +2,11 @@ import { PublicKey } from '@solana/web3.js';
 
 import BN from 'bn.js';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
+import {
+    defaultTestStateTreeAccounts,
+    merkleTree2Pubkey,
+    nullifierQueue2Pubkey,
+} from '../../constants';
 import { Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
@@ -38,6 +42,26 @@ export async function getMultipleCompressedAccountsByHashTest(
         .sort((a, b) => b.leafIndex - a.leafIndex);
 }
 
+/// test-rpc only!
+export function matchTestTreeAccountsAndQueues(treeOrQueue: PublicKey) {
+    const tree1 = defaultTestStateTreeAccounts().merkleTree;
+    const tree2 = new PublicKey(merkleTree2Pubkey);
+    const queue1 = defaultTestStateTreeAccounts().nullifierQueue;
+    const queue2 = new PublicKey(nullifierQueue2Pubkey);
+
+    if (treeOrQueue.equals(tree1)) {
+        return { tree: tree1, queue: queue1 };
+    } else if (treeOrQueue.equals(tree2)) {
+        return { tree: tree2, queue: queue2 };
+    } else if (treeOrQueue.equals(queue1)) {
+        return { tree: tree1, queue: queue1 };
+    } else if (treeOrQueue.equals(queue2)) {
+        return { tree: tree2, queue: queue2 };
+    } else {
+        throw new Error(`Invalid tree or queue: ${treeOrQueue.toBase58()}`);
+    }
+}
+
 /// Returns all unspent compressed accounts
 async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
@@ -51,9 +75,14 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             index++
         ) {
             const account = event.outputCompressedAccounts[index];
+
+            const merkletreeIndexed = matchTestTreeAccountsAndQueues(
+                event.pubkeyArray[account.merkleTreeIndex],
+            );
+
             const merkleContext: MerkleContext = {
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().nullifierQueue,
+                merkleTree: merkletreeIndexed.tree,
+                nullifierQueue: merkletreeIndexed.queue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
             };

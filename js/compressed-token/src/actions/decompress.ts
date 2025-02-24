@@ -66,10 +66,19 @@ export async function decompress(
         amount,
     );
 
+    console.log(
+        'inputAccounts:',
+        inputAccounts.map(account => account.compressedAccount),
+    );
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
+    console.log('proof - rootIndices:', proof.rootIndices);
+    console.log('proof - merkleTrees:', proof.merkleTrees);
+    console.log('proof - nullifierQueues:', proof.nullifierQueues);
+
+    console.log('outputStateTree:: ', merkleTree?.toBase58());
     const ix = await CompressedTokenProgram.decompress({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
