@@ -7,7 +7,7 @@ import {
 
 export const validateSufficientBalance = (balance: BN) => {
     if (balance.lt(bn(0))) {
-        throw new Error('Not enough balance for transfer');
+        throw new Error('Insufficient balance for transfer');
     }
 };
 

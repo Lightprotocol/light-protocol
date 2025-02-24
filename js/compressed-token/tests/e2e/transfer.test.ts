@@ -247,7 +247,7 @@ describe('transfer', () => {
                 charlie.publicKey,
                 merkleTree,
             ),
-        ).rejects.toThrow('Not enough balance for transfer');
+        ).rejects.toThrow('Insufficient balance for transfer');
     });
 
     it('should transfer token 2022 from bob -> charlie', async () => {

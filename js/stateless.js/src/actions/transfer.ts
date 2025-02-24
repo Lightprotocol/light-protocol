@@ -75,7 +75,7 @@ export async function transfer(
 
     if (accumulatedLamports.lt(lamports)) {
         throw new Error(
-            `Not enough balance for transfer. Required: ${lamports.toString()}, available: ${accumulatedLamports.toString()}`,
+            `Insufficient balance for transfer. Required: ${lamports.toString()}, available: ${accumulatedLamports.toString()}`,
         );
     }
 

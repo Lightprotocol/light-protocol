@@ -577,7 +577,7 @@ export function selectMinCompressedSolAccountsForTransfer(
 
     if (accumulatedLamports.lt(bn(transferLamports))) {
         throw new Error(
-            `Not enough balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
+            `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
         );
     }
 
