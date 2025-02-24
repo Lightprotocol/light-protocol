@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.20.0",
+    "version": "0.20.3",
     "description": "JavaScript API for Light & ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -45,6 +45,7 @@
         "buffer": "6.0.3",
         "buffer-layout": "^1.2.2",
         "camelcase": "^8.0.0",
+        "camelcase-keys": "^9.1.3",
         "superstruct": "2.0.2"
     },
     "devDependencies": {
@@ -95,9 +96,10 @@
         "test:e2e:rpc-interop": "pnpm test-validator && vitest run tests/e2e/rpc-interop.test.ts",
         "test:e2e:rpc-multi-trees": "pnpm test-validator && vitest run tests/e2e/rpc-multi-trees.test.ts",
         "test:e2e:browser": "pnpm playwright test",
-        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/rpc-interop.test.ts && vitest run tests/e2e/rpc-multi-trees.test.ts && vitest run tests/e2e/layout.test.ts",
+        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/rpc-interop.test.ts && vitest run tests/e2e/rpc-multi-trees.test.ts && vitest run tests/e2e/layout.test.ts && vitest run tests/e2e/safe-conversion.test.ts",
         "test:index": "vitest run tests/e2e/program.test.ts",
         "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
+        "test:e2e:safe-conversion": "vitest run tests/e2e/safe-conversion.test.ts --reporter=verbose",
         "test:verbose": "vitest run --reporter=verbose",
         "test:testnet": "vitest run tests/e2e/testnet.test.ts --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",
