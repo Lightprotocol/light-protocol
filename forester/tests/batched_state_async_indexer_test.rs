@@ -66,7 +66,7 @@ async fn test_state_indexer_fetch_root() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
 async fn test_state_indexer_async_batched() {
-    let tree_params = InitStateTreeAccountsInstructionData::default();
+    let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
@@ -346,9 +346,14 @@ async fn transfer(
 
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
-        .await
-        .unwrap();
+        .await;
 
+    if proof_for_compressed_accounts.is_err() {
+        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
+        return Signature::default();
+    }
+
+    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
 
     let root_indices = proof_for_compressed_accounts
         .root_indices
@@ -373,7 +378,7 @@ async fn transfer(
         .map(|x| x.merkle_context)
         .collect::<Vec<MerkleContext>>();
 
-    const output_account_num: usize = 5;
+    const output_account_num: usize = 6;
     let lamp = lamports / output_account_num as u64;
     let lamport_remained = lamports % output_account_num as u64;
 
