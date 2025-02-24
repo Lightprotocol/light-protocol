@@ -28,6 +28,7 @@ use log::error;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use tokio::time::sleep;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -248,6 +249,8 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     };
     println!("zkp_batch_size: {:?} leaves_hash_chain: {:?}", zkp_batch_size, leaves_hash_chain);
 
+    wait_for_indexer(rpc, indexer).await?;
+
     let indexer_response = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
@@ -351,6 +354,9 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             &merkle_tree_pubkey.into(),
         )
         .unwrap();
+
+        println!("queue_batches: {:?}", merkle_tree.queue_batches);
+
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
@@ -360,6 +366,11 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (zkp_size as u16, root, hash_chain)
     };
     println!("zkp_batch_size: {:?} old_root: {:?} : {:?}", zkp_batch_size, old_root, leaves_hash_chain);
+
+    wait_for_indexer(rpc, indexer).await?;
+
+    let current_slot = rpc.get_slot().await.unwrap();
+    println!("current_slot: {}", current_slot);
 
     let leaf_indices_tx_hashes = indexer
         .get_queue_elements(
@@ -480,4 +491,35 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         new_root,
         compressed_proof: proof,
     })
+}
+
+async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(rpc: &mut R, indexer: &mut I) -> Result<(), ForesterUtilsError> {
+    let rpc_slot = rpc.get_slot().await.map_err(|e| {
+        error!(
+            "create_nullify_batch_ix_data: failed to get rpc slot from rpc: {:?}",
+            e
+        );
+        ForesterUtilsError::RpcError("Failed to get rpc slot".into())
+    })?;
+
+    let mut indexer_slot = indexer.get_indexer_slot().await.map_err(|e| {
+        error!(
+            "create_nullify_batch_ix_data: failed to get indexer slot from indexer: {:?}",
+            e
+        );
+        ForesterUtilsError::IndexerError("Failed to get indexer slot".into())
+    })?;
+
+    while rpc_slot > indexer_slot {
+        println!("waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}", rpc_slot, indexer_slot);
+        sleep(std::time::Duration::from_millis(50)).await;
+        indexer_slot = indexer.get_indexer_slot().await.map_err(|e| {
+            error!(
+            "create_nullify_batch_ix_data: failed to get indexer slot from indexer: {:?}",
+            e
+        );
+            ForesterUtilsError::IndexerError("Failed to get indexer slot".into())
+        })?;
+    }
+    Ok(())
 }

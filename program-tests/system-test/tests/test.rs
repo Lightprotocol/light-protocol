@@ -1678,8 +1678,8 @@ async fn regenerate_accounts() {
         protocol_config,
         true,
         skip_register_programs,
-        InitStateTreeAccountsInstructionData::test_default(),
-        InitAddressTreeAccountsInstructionData::test_default(),
+        InitStateTreeAccountsInstructionData::default(),
+        InitAddressTreeAccountsInstructionData::default(),
     )
     .await;
     let keypairs = EnvAccountKeypairs::for_regenerate_accounts();

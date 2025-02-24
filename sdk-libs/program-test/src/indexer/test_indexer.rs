@@ -725,6 +725,10 @@ where
         todo!()
     }
 
+    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
+        todo!()
+    }
+
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         &self.address_merkle_trees
     }

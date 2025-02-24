@@ -163,7 +163,7 @@ impl EnvAccounts {
             governance_authority: Keypair::from_bytes(&PAYER_KEYPAIR).unwrap(),
             governance_authority_pda: Pubkey::default(),
             group_pda: Pubkey::default(),
-            forester: Keypair::new(),
+            forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
             registered_program_pda: get_registered_program_pda(&light_system_program::ID),
             registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
             address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
