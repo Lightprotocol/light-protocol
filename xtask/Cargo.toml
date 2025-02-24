@@ -22,7 +22,7 @@ rand = { workspace = true }
 quote = "1.0"
 sha2 = "0.10"
 solana-program = { workspace = true }
-tabled = "0.17"
+tabled = "0.18"
 light-test-utils = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
