@@ -416,7 +416,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(json_str)
+        .body(json_str.clone())
         .send()
         .await
         .map_err(|e| {
@@ -427,7 +427,6 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::ProverError("Failed to send proof to server".into())
         })?;
 
-    println!("response: {:?}", response);
     let proof = if response.status().is_success() {
         let body = response.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -439,10 +438,38 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             c: proof_c,
         }
     } else {
-        error!(
-            "get_batched_nullify_ix_data: failed to get proof from server: {:?}",
-            response.text().await
+        println!(
+            "get_batched_nullify_ix_data: failed to get proof from server: {:?}, input: {:?}",
+            response.text().await,
+            json_str
         );
+        {
+            let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                account.data.as_mut_slice(),
+                &merkle_tree_pubkey.into(),
+            )
+                .unwrap();
+            let batched_output_queue = merkle_tree.metadata.associated_queue;
+            let mut output_queue_account = rpc
+                .get_account(Pubkey::from(batched_output_queue))
+                .await
+                .unwrap()
+                .unwrap();
+
+            let output_queue = BatchedQueueAccount::output_from_bytes(
+                output_queue_account.data.as_mut_slice(),
+            )
+                .unwrap();
+
+            println!("output queue metadata: {:?}", output_queue.get_metadata());
+            println!("tree metadata: {:?}", merkle_tree.get_metadata());
+            println!("root: {:?}", merkle_tree.get_root());
+            for (i, root) in merkle_tree.root_history.iter().enumerate() {
+                println!("root {}: {:?}", i, root);
+            }
+        }
+
         return Err(ForesterUtilsError::ProverError(
             "Failed to get proof from server".into(),
         ));
