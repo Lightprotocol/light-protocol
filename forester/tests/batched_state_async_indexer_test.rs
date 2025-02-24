@@ -212,21 +212,35 @@ async fn test_state_indexer_async_batched() {
     // }
 
 
-    let payer = Keypair::from_bytes(
+    let batch_payer = Keypair::from_bytes(
         &[88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150, 87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247, 192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101, 21, 194, 56, 163, 1]
     )
         .unwrap();
 
-    if rpc.get_balance(&payer.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
-        rpc.airdrop_lamports(&payer.pubkey(), LAMPORTS_PER_SOL * 100)
+    let legacy_payer = Keypair::from_bytes(
+        &[58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227, 38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35, 227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205, 75, 41, 148, 68, 97]
+    )
+        .unwrap();
+    if rpc.get_balance(&legacy_payer.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+        rpc.airdrop_lamports(&legacy_payer.pubkey(), LAMPORTS_PER_SOL * 100)
+            .await
+            .unwrap();
+    }
+
+    if rpc.get_balance(&batch_payer.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+        rpc.airdrop_lamports(&batch_payer.pubkey(), LAMPORTS_PER_SOL * 100)
             .await
             .unwrap();
     }
 
     if DO_TXS {
         for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
-            let compress_sig = compress(&mut rpc, &env.batched_output_queue, &payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
-            println!("{} compress: {:?}", i, compress_sig);
+            let batch_compress_sig = compress(&mut rpc, &env.batched_output_queue, &batch_payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
+            println!("{} batch compress: {:?}", i, batch_compress_sig);
+
+            let compress_sig = compress(&mut rpc, &env.merkle_tree_pubkey, &legacy_payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
+            println!("{} legacy compress: {:?}", i, compress_sig);
+
             {
                 let mut output_queue_account = rpc
                     .get_account(env.batched_output_queue)
@@ -241,8 +255,11 @@ async fn test_state_indexer_async_batched() {
 
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
             }
-            let transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &payer).await;
-            println!("{} transfer: {:?}", i, transfer_sig);
+            let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer).await;
+            println!("{} batch transfer: {:?}", i, batch_transfer_sig);
+
+            // let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer).await;
+            // println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
         }
     }
 
