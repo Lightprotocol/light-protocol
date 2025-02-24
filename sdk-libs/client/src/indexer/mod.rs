@@ -271,6 +271,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContextV2, IndexerError>;
 
+    async fn get_indexer_slot(&self) -> Result<u64, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }

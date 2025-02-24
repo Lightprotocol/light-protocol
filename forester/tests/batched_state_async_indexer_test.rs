@@ -31,13 +31,16 @@ use solana_sdk::signature::Signature;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
 use forester::run_pipeline;
-use light_batched_merkle_tree::batch::BatchState;
+use forester_utils::forester_epoch::get_epoch_phases;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_registry::protocol_config::state::ProtocolConfig;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 
+const DO_TXS: bool = true;
+const OUTPUT_ACCOUNT_NUM: usize = 6;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -66,28 +69,27 @@ async fn test_state_indexer_fetch_root() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
 async fn test_state_indexer_async_batched() {
-    let tree_params = InitStateTreeAccountsInstructionData::test_default();
+    let tree_params = InitStateTreeAccountsInstructionData::default();
 
-    init(Some(LightValidatorConfig {
-        enable_indexer: false,
-        wait_time: 1,
-        prover_config: None, /*Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
-            circuits: vec![],
-        })*/
-        sbf_programs: vec![],
-    }))
-    .await;
+    // init(Some(LightValidatorConfig {
+    //     enable_indexer: false,
+    //     wait_time: 1,
+    //     prover_config: None, /*Some(ProverConfig {
+    //         run_mode: Some(ProverMode::Forester),
+    //         circuits: vec![],
+    //     })*/
+    //     sbf_programs: vec![],
+    // }))
+    // .await;
 
-    println!("waiting for indexer to start");
-    sleep(Duration::from_secs(5)).await;
+    // println!("waiting for indexer to start");
+    // sleep(Duration::from_secs(5)).await;
 
-    let forester_keypair = Keypair::new();
     let mut env = EnvAccounts::get_local_test_validator_accounts();
-    env.forester = forester_keypair.insecure_clone();
+    // env.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.payer_keypair = forester_keypair.insecure_clone();
+    config.payer_keypair =  env.forester.insecure_clone();
 
     let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
         config.external_services.rpc_url.to_string(),
@@ -101,55 +103,29 @@ async fn test_state_indexer_async_batched() {
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
-    rpc.payer = forester_keypair.insecure_clone();
+    rpc.payer =  env.forester.insecure_clone();
 
-    rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
-        .await
-        .unwrap();
+    if rpc.get_balance(&env.forester.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+        rpc.airdrop_lamports(&env.forester.pubkey(), LAMPORTS_PER_SOL * 100)
+            .await
+            .unwrap();
+    }
 
-    rpc.airdrop_lamports(
-        &env.governance_authority.pubkey(),
-        LAMPORTS_PER_SOL * 100_000,
-    )
-    .await
-    .unwrap();
+    if rpc.get_balance(&env.governance_authority.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+        rpc.airdrop_lamports(&env.governance_authority.pubkey(), LAMPORTS_PER_SOL * 100)
+            .await
+            .unwrap();
+    }
 
-    let payer = rpc.get_payer().insecure_clone();
-    airdrop_lamports(&mut rpc, &payer.pubkey(), 1_000_000_000_000)
-        .await
-        .unwrap();
-
-    register_test_forester(
-        &mut rpc,
-        &env.governance_authority,
-        &forester_keypair.pubkey(),
-        light_registry::ForesterConfig::default(),
-    )
-    .await
-    .unwrap();
-
-    let new_forester_keypair = Keypair::new();
-    rpc.airdrop_lamports(&new_forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
-        .await
-        .unwrap();
-
-    update_test_forester(
-        &mut rpc,
-        &forester_keypair,
-        &forester_keypair.pubkey(),
-        Some(&new_forester_keypair),
-        light_registry::ForesterConfig::default(),
-    )
-    .await
-    .unwrap();
-
-    config.derivation_pubkey = forester_keypair.pubkey();
-    config.payer_keypair = new_forester_keypair.insecure_clone();
-
-    let forester_keypair = new_forester_keypair;
-
-    let forester_balance = rpc.get_balance(&forester_keypair.pubkey()).await.unwrap();
-    assert!(forester_balance > LAMPORTS_PER_SOL);
+    // register_test_forester(
+    //     &mut rpc,
+    //     &env.governance_authority,
+    //     &env.forester.pubkey(),
+    //     light_registry::ForesterConfig::default(),
+    // )
+    // .await
+    // .unwrap();
+    config.derivation_pubkey = env.forester.pubkey();
 
     let photon_indexer = {
         let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -226,25 +202,45 @@ async fn test_state_indexer_async_batched() {
         work_report_sender,
     ));
 
-    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
-        let compress_sig = compress(&mut rpc, &env.batched_output_queue, &forester_keypair, if i == 0 { 1_000_000 } else { 10_000 } ).await;
-        println!("{} compress: {:?}", i, compress_sig);
-        {
-            let mut output_queue_account = rpc
-                .get_account(env.batched_output_queue)
-                .await
-                .unwrap()
-                .unwrap();
+    // let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    // while rpc.get_slot().await.unwrap() < active_phase_slot {
+    //     println!("waiting for active phase slot: {}, current slot: {}", active_phase_slot, rpc.get_slot().await.unwrap());
+    //     sleep(Duration::from_millis(400)).await;
+    // }
 
-            let output_queue = BatchedQueueAccount::output_from_bytes(
-                output_queue_account.data.as_mut_slice(),
-            )
-                .unwrap();
 
-            println!("output queue metadata: {:?}", output_queue.get_metadata());
+    let payer = Keypair::from_bytes(
+        &[88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150, 87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247, 192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101, 21, 194, 56, 163, 1]
+    )
+        .unwrap();
+
+    if rpc.get_balance(&payer.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+        rpc.airdrop_lamports(&payer.pubkey(), LAMPORTS_PER_SOL * 100)
+            .await
+            .unwrap();
+    }
+
+    if DO_TXS {
+        for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
+            let compress_sig = compress(&mut rpc, &env.batched_output_queue, &payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
+            println!("{} compress: {:?}", i, compress_sig);
+            {
+                let mut output_queue_account = rpc
+                    .get_account(env.batched_output_queue)
+                    .await
+                    .unwrap()
+                    .unwrap();
+
+                let output_queue = BatchedQueueAccount::output_from_bytes(
+                    output_queue_account.data.as_mut_slice(),
+                )
+                    .unwrap();
+
+                println!("output queue metadata: {:?}", output_queue.get_metadata());
+            }
+            let transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &payer).await;
+            println!("{} transfer: {:?}", i, transfer_sig);
         }
-        let transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &forester_keypair).await;
-        println!("{} transfer: {:?}", i, transfer_sig);
     }
 
     let num_output_zkp_batches =
@@ -378,16 +374,15 @@ async fn transfer(
         .map(|x| x.merkle_context)
         .collect::<Vec<MerkleContext>>();
 
-    const output_account_num: usize = 6;
-    let lamp = lamports / output_account_num as u64;
-    let lamport_remained = lamports % output_account_num as u64;
+    let lamp = lamports / OUTPUT_ACCOUNT_NUM as u64;
+    let lamport_remained = lamports % OUTPUT_ACCOUNT_NUM as u64;
 
     let mut compressed_accounts = vec![CompressedAccount {
         lamports: lamp,
         owner: forester_keypair.pubkey(),
         address: None,
         data: None,
-    }; output_account_num];
+    }; OUTPUT_ACCOUNT_NUM];
 
     compressed_accounts[0].lamports += lamport_remained;
 
@@ -415,7 +410,7 @@ async fn transfer(
         &input_compressed_accounts,
         compressed_accounts.as_slice(),
         &merkle_contexts,
-        &[*merkle_tree_pubkey; output_account_num],
+        &[*merkle_tree_pubkey; OUTPUT_ACCOUNT_NUM],
         &root_indices,
         &[],
         proof,
@@ -496,4 +491,15 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
         .unwrap();
 
     sig
+}
+
+
+pub async fn get_active_phase_start_slot<R: RpcConnection>(
+    rpc: &mut R,
+    protocol_config: &ProtocolConfig,
+) -> u64 {
+    let current_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config.get_current_epoch(current_slot);
+    let phases = get_epoch_phases(protocol_config, current_epoch);
+    phases.active.start
 }

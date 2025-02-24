@@ -21,7 +21,7 @@ pub struct GetIndexerSlotPost200Response {
     #[serde(rename = "jsonrpc")]
     pub jsonrpc: Jsonrpc,
     #[serde(rename = "result", skip_serializing_if = "Option::is_none")]
-    pub result: Option<i32>,
+    pub result: Option<u64>,
 }
 
 impl GetIndexerSlotPost200Response {

@@ -48,7 +48,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         None,
     )
     .await?;
-    println!("event: {:?}", event);
+    println!("append tx: {:?}", event);
 
     update_test_indexer_after_append(
         rpc,
@@ -85,13 +85,14 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
     );
 
-    rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
+    let tx = rpc.create_and_send_transaction_with_event::<BatchNullifyEvent>(
         &[instruction],
         &context.authority.pubkey(),
         &[&context.authority],
         None,
     )
     .await?;
+    println!("nullify tx: {:?}", tx);
 
     update_test_indexer_after_nullification(
         rpc,

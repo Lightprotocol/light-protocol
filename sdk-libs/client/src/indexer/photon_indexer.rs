@@ -143,6 +143,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let result: Result<Vec<MerkleProofWithContext>, IndexerError> = match result {
                 Ok(response) => match response.result {
                     Some(result) => {
+                        println!("get_queue_elements indexer slot: {}", result.context.slot);
                         let response = result.value;
                         let proofs = response
                             .iter()
@@ -176,6 +177,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }
                     None => {
                         let error = response.error.unwrap();
+
                         Err(IndexerError::PhotonError {
                             context: "get_queue_elements".to_string(),
                             message: error.message.unwrap(),
@@ -724,6 +726,24 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
             let result = Self::extract_result("get_validity_proof_v2", result.result)?;
             Ok(*result.value)
+        })
+            .await
+    }
+
+    async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
+        self.rate_limited_request(|| async {
+            let request = photon_api::models::GetIndexerSlotPostRequest {
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_indexer_slot_post(
+                &self.configuration,
+                request,
+            )
+                .await?;
+
+            let result = Self::extract_result("get_indexer_slot", result.result)?;
+            Ok(result)
         })
             .await
     }
