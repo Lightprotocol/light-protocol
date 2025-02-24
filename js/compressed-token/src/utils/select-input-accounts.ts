@@ -33,9 +33,15 @@ export function selectMinCompressedTokenAccountsForTransfer(
     );
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
-        throw new Error(
-            `Not enough balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}`,
-        );
+        if (selectedAccounts.length >= maxInputs) {
+            throw new Error(
+                `Account limit exceeded: max ${maxPossibleAmount.toString()} (${maxInputs} accounts) per transaction. Total balance: ${accumulatedAmount.toString()} (${accounts.length} accounts). Consider multiple transfers to spend full balance.`,
+            );
+        } else {
+            throw new Error(
+                `Insufficient balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}.`,
+            );
+        }
     }
 
     if (selectedAccounts.length === 0) {
@@ -101,7 +107,7 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
         console.warn(
-            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}.`,
+            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, Idempotent returns max available: ${maxPossibleAmount.toString()}.`,
         );
     }
 
@@ -146,9 +152,15 @@ export function selectSmartCompressedTokenAccountsForTransfer(
     );
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
-        throw new Error(
-            `Not enough balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}`,
-        );
+        if (selectedAccounts.length >= maxInputs) {
+            throw new Error(
+                `Transfer limit exceeded: max ${maxInputs} accounts per instruction. Max transferable: ${maxPossibleAmount.toString()}. Total balance: ${accumulatedAmount.toString()}. Consider multiple transfers to spend full balance.`,
+            );
+        } else {
+            throw new Error(
+                `Insufficient balance. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}.`,
+            );
+        }
     }
 
     if (selectedAccounts.length === 0) {

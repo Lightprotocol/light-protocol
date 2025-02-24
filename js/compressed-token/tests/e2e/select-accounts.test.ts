@@ -56,7 +56,7 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
                 transferAmount,
             ),
         ).toThrow(
-            'Not enough balance for transfer. Required: 75, available: 30',
+            'Insufficient balance for transfer. Required: 75, available: 30.',
         );
     });
 
@@ -219,6 +219,35 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         expect(total.eq(new BN(80))).toBe(true);
         expect(totalLamports!.eq(new BN(8))).toBe(true);
         expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
+    });
+
+    it('min: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
+        const accounts = [
+            {
+                parsed: { amount: new BN(50) },
+                compressedAccount: { lamports: new BN(5) },
+            },
+            {
+                parsed: { amount: new BN(30) },
+                compressedAccount: { lamports: new BN(3) },
+            },
+            {
+                parsed: { amount: new BN(25) },
+                compressedAccount: { lamports: new BN(2) },
+            },
+        ] as ParsedTokenAccount[];
+        const transferAmount = new BN(100);
+        const maxInputs = 2;
+
+        expect(() =>
+            selectMinCompressedTokenAccountsForTransfer(
+                accounts,
+                transferAmount,
+                maxInputs,
+            ),
+        ).toThrow(
+            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 80 (3 accounts). Consider multiple transfers to spend full balance.',
+        );
     });
 });
 
@@ -437,6 +466,37 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(totalLamports!.eq(new BN(8))).toBe(true);
         expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
     });
+
+    it('min idempotent: should succeed and select 2 accounts with total 80', () => {
+        const accounts = [
+            {
+                parsed: { amount: new BN(50) },
+                compressedAccount: { lamports: new BN(5) },
+            },
+            {
+                parsed: { amount: new BN(30) },
+                compressedAccount: { lamports: new BN(3) },
+            },
+            {
+                parsed: { amount: new BN(25) },
+                compressedAccount: { lamports: new BN(2) },
+            },
+        ] as ParsedTokenAccount[];
+        const transferAmount = new BN(100);
+        const maxInputs = 2;
+
+        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+            selectMinCompressedTokenAccountsForTransferIdempotent(
+                accounts,
+                transferAmount,
+                maxInputs,
+            );
+
+        expect(selectedAccounts.length).toBe(2);
+        expect(total.eq(new BN(80))).toBe(true);
+        expect(totalLamports!.eq(new BN(8))).toBe(true);
+        expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
+    });
 });
 
 describe('selectSmartCompressedTokenAccountsForTransfer', () => {
@@ -483,9 +543,7 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
                 accounts,
                 transferAmount,
             ),
-        ).toThrow(
-            'Not enough balance for transfer. Required: 75, available: 30',
-        );
+        ).toThrow('Insufficient balance. Required: 75, available: 30.');
     });
 
     it('smart: should select 3 accounts if 2 are needed', () => {
@@ -674,7 +732,7 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
                 maxInputs,
             ),
         ).toThrow(
-            'Not enough balance for transfer. Required: 100, available: 80', // because of maxInputs
+            'Transfer limit exceeded: max 2 accounts per instruction. Max transferable: 80. Total balance: 80. Consider multiple transfers to spend full balance.',
         );
     });
 });
@@ -769,5 +827,35 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
                 transferAmount,
             ),
         ).toThrow(ERROR_NO_ACCOUNTS_FOUND);
+    });
+
+    it('smart-idempotent: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
+        const accounts = [
+            {
+                parsed: { amount: new BN(50) },
+                compressedAccount: { lamports: new BN(5) },
+            },
+            {
+                parsed: { amount: new BN(30) },
+                compressedAccount: { lamports: new BN(3) },
+            },
+            {
+                parsed: { amount: new BN(25) },
+                compressedAccount: { lamports: new BN(2) },
+            },
+        ] as ParsedTokenAccount[];
+        const transferAmount = new BN(100);
+        const maxInputs = 2;
+        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+            selectSmartCompressedTokenAccountsForTransferIdempotent(
+                accounts,
+                transferAmount,
+                maxInputs,
+            );
+
+        expect(selectedAccounts.length).toBe(2);
+        expect(total.eq(new BN(80))).toBe(true);
+        expect(totalLamports!.eq(new BN(8))).toBe(true);
+        expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
     });
 });
