@@ -73,6 +73,7 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { ActiveTreeBundle } from './state/types';
+import { validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -262,15 +263,11 @@ export function createRpc(
         compressionApiEndpoint =
             compressionApiEndpoint || localCompressionApiEndpoint;
         proverEndpoint = proverEndpoint || localProverEndpoint;
-    }
-    // 1
-    else if (typeof endpointOrWeb3JsConnection === 'string') {
+    } else if (typeof endpointOrWeb3JsConnection === 'string') {
         endpoint = endpointOrWeb3JsConnection;
         compressionApiEndpoint = compressionApiEndpoint || endpoint;
         proverEndpoint = proverEndpoint || endpoint;
-    }
-    // 2
-    else if (endpointOrWeb3JsConnection instanceof Connection) {
+    } else if (endpointOrWeb3JsConnection instanceof Connection) {
         endpoint = endpointOrWeb3JsConnection.rpcEndpoint;
         compressionApiEndpoint = compressionApiEndpoint || endpoint;
         proverEndpoint = proverEndpoint || endpoint;
@@ -281,6 +278,24 @@ export function createRpc(
     }
 
     return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
+}
+
+/**
+ * Helper function to preprocess the response to wrap numbers as strings
+ * @param {string} text - The JSON string to preprocess
+ * @returns {string} - The preprocessed JSON string with numbers wrapped as strings
+ */
+export function wrapBigNumbersAsStrings(text: string): string {
+    return text.replace(/(":\s*)(-?\d+)(\s*[},])/g, (match, p1, p2, p3) => {
+        const num = Number(p2);
+        if (
+            !Number.isNaN(num) &&
+            (num > Number.MAX_SAFE_INTEGER || num < Number.MIN_SAFE_INTEGER)
+        ) {
+            return `${p1}"${p2}"${p3}`;
+        }
+        return match;
+    });
 }
 
 /** @internal */
@@ -323,11 +338,15 @@ export const rpcRequest = async (
         throw new Error(`HTTP error! status: ${response.status}`);
     }
 
+    const text = await response.text();
+
+    const wrappedJsonString = wrapBigNumbersAsStrings(text);
+
     if (convertToCamelCase) {
-        const res = await response.json();
-        return toCamelCase(res);
+        return toCamelCase(JSON.parse(wrappedJsonString));
     }
-    return await response.json();
+
+    return JSON.parse(wrappedJsonString);
 };
 
 /** @internal */
@@ -1868,6 +1887,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
     ): Promise<WithContext<CompressedProofWithContext>> {
+        validateNumbersForProof(hashes.length, newAddresses.length);
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',

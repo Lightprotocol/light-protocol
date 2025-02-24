@@ -10,13 +10,13 @@ import {
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
-    ParsedTokenAccount,
     dedupeSigner,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
+import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 
 /**
  * Transfer compressed tokens from one owner to another
@@ -83,48 +83,4 @@ export async function transfer(
 
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
-}
-
-/**
- * Selects the minimal number of compressed token accounts for a transfer.
- *
- * 1. Sorts the accounts by amount in descending order
- * 2. Accumulates the amount until it is greater than or equal to the transfer
- *    amount
- */
-export function selectMinCompressedTokenAccountsForTransfer(
-    accounts: ParsedTokenAccount[],
-    transferAmount: BN,
-): [
-    selectedAccounts: ParsedTokenAccount[],
-    total: BN,
-    totalLamports: BN | null,
-] {
-    let accumulatedAmount = bn(0);
-    let accumulatedLamports = bn(0);
-
-    const selectedAccounts: ParsedTokenAccount[] = [];
-
-    accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
-
-    for (const account of accounts) {
-        if (accumulatedAmount.gte(bn(transferAmount))) break;
-        accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
-        accumulatedLamports = accumulatedLamports.add(
-            account.compressedAccount.lamports,
-        );
-        selectedAccounts.push(account);
-    }
-
-    if (accumulatedAmount.lt(bn(transferAmount))) {
-        throw new Error(
-            `Not enough balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}`,
-        );
-    }
-
-    return [
-        selectedAccounts,
-        accumulatedAmount,
-        accumulatedLamports.lt(bn(0)) ? accumulatedLamports : null,
-    ];
 }

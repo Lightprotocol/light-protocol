@@ -4,6 +4,7 @@ import {
     Keypair,
     Signer,
     ComputeBudgetProgram,
+    Transaction,
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
@@ -14,6 +15,9 @@ import {
     newAccountWithLamports,
     getTestRpc,
     TestRpc,
+    dedupeSigner,
+    buildAndSignTx,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -24,7 +28,8 @@ import {
     transfer,
 } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { CompressedTokenProgram } from '../../src';
+import { CompressedTokenProgram } from '../../src/program';
+import { selectMinCompressedTokenAccountsForTransfer } from '../../src/utils/select-input-accounts';
 
 /**
  * Assert that we created recipient and change-account for the sender, with all
@@ -305,3 +310,157 @@ describe('transfer', () => {
         );
     });
 });
+
+describe('e2e transfer with multiple accounts', () => {
+    let rpc: Rpc;
+    let payer: Keypair | Signer;
+    let sender: Keypair | Signer;
+    let recipient: PublicKey;
+    let mint: PublicKey;
+    let mintAuthority: Keypair;
+
+    beforeAll(async () => {
+        rpc = await getTestRpc(await WasmFactory.getInstance());
+        payer = await newAccountWithLamports(rpc, 1e9);
+        mintAuthority = Keypair.generate();
+        const mintKeypair = Keypair.generate();
+
+        mint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                9,
+                mintKeypair,
+            )
+        ).mint;
+    });
+
+    beforeEach(async () => {
+        sender = await newAccountWithLamports(rpc, 1e9);
+        recipient = (await newAccountWithLamports(rpc, 1e9)).publicKey;
+    });
+
+    it('should transfer using 4 accounts', async () => {
+        // Mint specific amounts to create multiple token accounts
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            sender.publicKey,
+            mintAuthority,
+            new BN(25),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            sender.publicKey,
+            mintAuthority,
+            new BN(25),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            sender.publicKey,
+            mintAuthority,
+            new BN(25),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            sender.publicKey,
+            mintAuthority,
+            new BN(25),
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+
+        const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
+            sender.publicKey,
+            { mint },
+        );
+        expect(senderAccounts.items.length).toBe(4);
+        const totalAmount = senderAccounts.items.reduce(
+            (sum, account) => sum.add(account.parsed.amount),
+            new BN(0),
+        );
+        expect(totalAmount.eq(new BN(100))).toBe(true);
+
+        const transferAmount = new BN(100);
+
+        await transferHelper(
+            rpc,
+            payer,
+            mint,
+            sender,
+            transferAmount,
+            recipient,
+            defaultTestStateTreeAccounts().merkleTree,
+        );
+
+        assertTransfer(
+            rpc,
+            senderAccounts.items,
+            mint,
+            transferAmount,
+            sender.publicKey,
+            recipient,
+        );
+    });
+});
+
+async function transferHelper(
+    rpc: Rpc,
+    payer: Signer,
+    mint: PublicKey,
+    owner: Signer,
+    amount: BN,
+    toAddress: PublicKey,
+    merkleTree: PublicKey,
+) {
+    const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
+        owner.publicKey,
+        { mint },
+    );
+
+    const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
+        compressedTokenAccounts.items,
+        amount,
+    );
+
+    const proof = await rpc.getValidityProof(
+        inputAccounts.map(account => bn(account.compressedAccount.hash)),
+    );
+
+    const ix = await CompressedTokenProgram.transfer({
+        payer: payer.publicKey,
+        inputCompressedTokenAccounts: inputAccounts,
+        toAddress,
+        amount,
+        recentInputStateRootIndices: proof.rootIndices,
+        recentValidityProof: proof.compressedProof,
+        outputStateTrees: merkleTree,
+    });
+
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const additionalSigners = dedupeSigner(payer, [owner]);
+    const signedTx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
+
+    const serializedTx = signedTx.serialize().length;
+
+    expect(serializedTx).toBeLessThan(1000);
+
+    const txId = await sendAndConfirmTx(rpc, signedTx);
+
+    return txId;
+}
