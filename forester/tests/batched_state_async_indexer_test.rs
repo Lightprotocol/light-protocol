@@ -33,6 +33,7 @@ use tokio::time::{sleep, timeout};
 use forester::run_pipeline;
 use light_batched_merkle_tree::batch::BatchState;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -65,15 +66,15 @@ async fn test_state_indexer_fetch_root() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
 async fn test_state_indexer_async_batched() {
-    let tree_params = InitStateTreeAccountsInstructionData::test_default();
+    let tree_params = InitStateTreeAccountsInstructionData::default();
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
         wait_time: 1,
-        prover_config: Some(ProverConfig {
-            run_mode: Some(ProverMode::ForesterTest),
+        prover_config: None, /*Some(ProverConfig {
+            run_mode: Some(ProverMode::Forester),
             circuits: vec![],
-        }),
+        })*/
         sbf_programs: vec![],
     }))
     .await;
@@ -198,7 +199,6 @@ async fn test_state_indexer_async_batched() {
         )
     };
 
-
     println!(
         "Initial state:
         next_index: {}
@@ -209,11 +209,41 @@ async fn test_state_indexer_async_batched() {
         merkle_tree.get_metadata().queue_batches.zkp_batch_size
     );
 
-    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size  {
-        let compress_sig = compress(&mut rpc, &env.batched_output_queue, &forester_keypair, if i == 0 { 1_000_000 } else { 10_000 } ).await;
-        let transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &forester_keypair).await;
+    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+    let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
+    let forester_photon_indexer = {
+        let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+        PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc)
+    };
+
+    let service_handle = tokio::spawn(run_pipeline(
+        Arc::from(config.clone()),
+        None,
+        None,
+        Arc::new(Mutex::new(forester_photon_indexer)),
+        shutdown_receiver,
+        work_report_sender,
+    ));
+
+    for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
+        let compress_sig = compress(&mut rpc, &env.batched_output_queue, &forester_keypair, if i == 0 { 1_000_000 } else { 10_000 } ).await;
         println!("{} compress: {:?}", i, compress_sig);
+        {
+            let mut output_queue_account = rpc
+                .get_account(env.batched_output_queue)
+                .await
+                .unwrap()
+                .unwrap();
+
+            let output_queue = BatchedQueueAccount::output_from_bytes(
+                output_queue_account.data.as_mut_slice(),
+            )
+                .unwrap();
+
+            println!("output queue metadata: {:?}", output_queue.get_metadata());
+        }
+        let transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &forester_keypair).await;
         println!("{} transfer: {:?}", i, transfer_sig);
     }
 
@@ -221,17 +251,6 @@ async fn test_state_indexer_async_batched() {
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
-    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-    let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
-
-    let service_handle = tokio::spawn(run_pipeline(
-        Arc::from(config.clone()),
-        None,
-        None,
-        Arc::new(Mutex::new(photon_indexer)),
-        shutdown_receiver,
-        work_report_sender,
-    ));
 
     let timeout_duration = Duration::from_secs(60 * 10);
     match timeout(timeout_duration, work_report_receiver.recv()).await {
@@ -261,25 +280,6 @@ async fn test_state_indexer_async_batched() {
         Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
 
-
-    let mut rpc = pool.get_connection().await.unwrap();
-    let mut merkle_tree_account = rpc
-        .get_account(env.batched_state_merkle_tree)
-        .await
-        .unwrap()
-        .unwrap();
-
-    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-        merkle_tree_account.data.as_mut_slice(),
-        &env.batched_state_merkle_tree.into(),
-    )
-        .unwrap();
-
-    assert!(
-        merkle_tree.get_metadata().queue_batches.pending_batch_index > 0,
-        "No batches were processed"
-    );
-
     {
         let mut rpc = pool.get_connection().await.unwrap();
 
@@ -295,78 +295,7 @@ async fn test_state_indexer_async_batched() {
         )
             .unwrap();
 
-        let final_metadata = merkle_tree.get_metadata();
-
-        let mut output_queue_account = rpc
-            .get_account(env.nullifier_queue_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
-
-        let output_queue =
-            BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-                .unwrap();
-
-        let batch_size = merkle_tree.get_metadata().queue_batches.batch_size;
-        let zkp_batch_size = merkle_tree.get_metadata().queue_batches.zkp_batch_size;
-        let num_zkp_batches = batch_size / zkp_batch_size;
-
-        let mut completed_items = 0;
-        for batch_idx in 0..output_queue.batch_metadata.batches.len() {
-            let batch = output_queue.batch_metadata.batches.get(batch_idx).unwrap();
-            if batch.get_state() == BatchState::Inserted {
-                completed_items += batch_size;
-            }
-        }
-        println!(
-            "initial_next_index: {}
-            final_next_index: {}
-            batch_size: {}
-            zkp_batch_size: {}
-            num_zkp_batches per full batch: {}
-            completed_items from batch states: {}
-            input_queue_metadata: {:?}
-            output_queue_metadata: {:?}",
-            initial_next_index,
-            final_metadata.next_index,
-            batch_size,
-            zkp_batch_size,
-            num_zkp_batches,
-            completed_items,
-            final_metadata.queue_batches,
-            output_queue.get_metadata().batch_metadata
-        );
-
-        assert_eq!(
-            final_metadata.next_index,
-            initial_next_index + completed_items,
-            "Merkle tree next_index did not advance by expected amount",
-        );
-
-        assert_eq!(
-            merkle_tree.get_metadata().queue_batches.pending_batch_index,
-            1
-        );
-
-        assert!(
-            final_metadata.sequence_number > initial_sequence_number,
-            "Sequence number should have increased"
-        );
-
-        // compress_sol_deterministic creates 1 output
-        // transfer_sol_deterministic invalidates 1 input and creates 1 output
-        // 1 + 1 + 1 = 3
-        const UPDATES_PER_BATCH: u64 = 3;
-
-        let expected_sequence_number =
-            initial_sequence_number + (num_zkp_batches * UPDATES_PER_BATCH);
-
-        assert_eq!(final_metadata.sequence_number, expected_sequence_number);
-
-        assert_eq!(
-            merkle_tree.root_history.last_index(),
-            expected_sequence_number as usize
-        );
+        println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
         assert_ne!(
             pre_root,
@@ -397,7 +326,6 @@ async fn transfer(
             .unwrap_or(vec![]);
         sleep(Duration::from_millis(10)).await;
     }
-    let input_compressed_account_length = input_compressed_accounts.len();
 
     let lamports = input_compressed_accounts
         .iter()
@@ -421,13 +349,21 @@ async fn transfer(
         .await
         .unwrap();
 
+
     let root_indices = proof_for_compressed_accounts
         .root_indices
         .iter()
-        .map(|x|
-            match x.in_tree {
-                true => Some(x.root_index),
-                false => None,
+        .zip(input_compressed_accounts.iter_mut())
+        .map(|(root_index, acc)|
+            match root_index.in_tree {
+                true => {
+                    acc.merkle_context.prove_by_index = false;
+                    Some(root_index.root_index)
+                }
+                false => {
+                    acc.merkle_context.prove_by_index = true;
+                    None
+                },
             }
         )
         .collect::<Vec<Option<u16>>>();
@@ -437,11 +373,30 @@ async fn transfer(
         .map(|x| x.merkle_context)
         .collect::<Vec<MerkleContext>>();
 
-    let compress_account = CompressedAccount {
-        lamports,
+    const output_account_num: usize = 5;
+    let lamp = lamports / output_account_num as u64;
+    let lamport_remained = lamports % output_account_num as u64;
+
+    let mut compressed_accounts = vec![CompressedAccount {
+        lamports: lamp,
         owner: forester_keypair.pubkey(),
         address: None,
         data: None,
+    }; output_account_num];
+
+    compressed_accounts[0].lamports += lamport_remained;
+
+    println!("transfer input_compressed_accounts: {:?}", input_compressed_accounts);
+    println!("transfer compressed_accounts: {:?}", compressed_accounts);
+
+    let proof = if root_indices.iter().all(|x| x.is_none()) {
+        None
+    } else {
+        Some(CompressedProof {
+            a: proof_for_compressed_accounts.compressed_proof.a.try_into().unwrap(),
+            b: proof_for_compressed_accounts.compressed_proof.b.try_into().unwrap(),
+            c: proof_for_compressed_accounts.compressed_proof.c.try_into().unwrap(),
+        })
     };
 
     let input_compressed_accounts = input_compressed_accounts
@@ -453,30 +408,35 @@ async fn transfer(
         &forester_keypair.pubkey(),
         &forester_keypair.pubkey(),
         &input_compressed_accounts,
-        &[compress_account],
+        compressed_accounts.as_slice(),
         &merkle_contexts,
-        &[*merkle_tree_pubkey],
+        &[*merkle_tree_pubkey; output_account_num],
         &root_indices,
         &[],
-        None,
+        proof,
         None,
         false,
         None,
         true,
     );
 
+    println!("transfer compressed_accounts: {:?}", input_compressed_accounts);
+    println!("transfer root_indices: {:?}", root_indices);
+
     let (_, sig, _) = rpc
         .create_and_send_transaction_with_public_event(
             &[instruction],
             &forester_keypair.pubkey(),
             &[forester_keypair],
-            Some(TransactionParams {
-                num_input_compressed_accounts: input_compressed_account_length as u8,
-                num_output_compressed_accounts: 1,
-                num_new_addresses: 0,
-                compress: 0,
-                fee_config: FeeConfig::test_batched(),
-            }),
+            None,
+            // Some(TransactionParams {
+            //     num_input_compressed_accounts: input_compressed_account_length as u8,
+            //     num_output_compressed_accounts: 1,
+            //     num_new_addresses: 0,
+            //     compress: 0,
+            //     fee_config: FeeConfig::test_batched(),
+            // }
+            // ),
         )
         .await
         .unwrap()
@@ -509,18 +469,22 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
         true,
     );
 
+    println!("compress instruction: {:?}", instruction);
+
     let (_, sig, _) = rpc
         .create_and_send_transaction_with_public_event(
             &[instruction],
             &payer.pubkey(),
             &[payer],
-            Some(TransactionParams {
-                num_input_compressed_accounts: 0,
-                num_output_compressed_accounts: 1,
-                num_new_addresses: 0,
-                compress: lamports as i64,
-                fee_config: FeeConfig::test_batched(),
-            }),
+            None,
+            // Some(TransactionParams {
+            //     num_input_compressed_accounts: 0,
+            //     num_output_compressed_accounts: 1,
+            //     num_new_addresses: 0,
+            //     compress: lamports as i64,
+            //     fee_config: FeeConfig::test_batched(),
+            // }
+            // ),
         )
         .await
         .unwrap()

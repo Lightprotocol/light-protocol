@@ -103,8 +103,6 @@ pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub leaf_index: u32,
-    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
-    /// currently unimplemented.
     pub prove_by_index: bool,
 }
 

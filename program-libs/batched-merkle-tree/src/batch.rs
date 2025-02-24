@@ -441,6 +441,14 @@ impl Batch {
     pub fn leaf_index_exists(&self, leaf_index: u64) -> bool {
         let next_batch_leaf_index = self.get_num_inserted_elements() + self.start_index;
         let min_batch_leaf_index = self.start_index;
+        msg!(
+            "leaf_index {} next_batch_leaf_index {} min_batch_leaf_index {} start_index {} num_inserted_elements {}",
+            leaf_index,
+            next_batch_leaf_index,
+            min_batch_leaf_index,
+            self.start_index,
+            self.get_num_inserted_elements()
+        );
         leaf_index < next_batch_leaf_index && leaf_index >= min_batch_leaf_index
     }
 }
