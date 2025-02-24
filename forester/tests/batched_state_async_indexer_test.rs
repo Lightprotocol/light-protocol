@@ -40,7 +40,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 const DO_TXS: bool = true;
-const OUTPUT_ACCOUNT_NUM: usize = 6;
+const OUTPUT_ACCOUNT_NUM: usize = 5;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -71,16 +71,16 @@ async fn test_state_indexer_fetch_root() {
 async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::default();
 
-    // init(Some(LightValidatorConfig {
-    //     enable_indexer: false,
-    //     wait_time: 1,
-    //     prover_config: None, /*Some(ProverConfig {
-    //         run_mode: Some(ProverMode::Forester),
-    //         circuits: vec![],
-    //     })*/
-    //     sbf_programs: vec![],
-    // }))
-    // .await;
+    init(Some(LightValidatorConfig {
+        enable_indexer: false,
+        wait_time: 1,
+        prover_config: None, /*Some(ProverConfig {
+            run_mode: Some(ProverMode::Forester),
+            circuits: vec![],
+        })*/
+        sbf_programs: vec![],
+    }))
+    .await;
 
     // println!("waiting for indexer to start");
     // sleep(Duration::from_secs(5)).await;

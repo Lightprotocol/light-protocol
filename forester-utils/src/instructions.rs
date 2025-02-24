@@ -216,7 +216,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     output_queue_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchAppendInputs, ForesterUtilsError> {
     println!("create_append_batch_ix_data");
-    let (merkle_tree_next_index, current_root) = {
+    let (merkle_tree_next_index, current_root, root_history) = {
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
@@ -227,6 +227,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (
             merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
+            merkle_tree.root_history.to_vec(),
         )
     };
     println!("merkle_tree_next_index: {:?} current_root: {:?}", merkle_tree_next_index, current_root);
@@ -267,6 +268,9 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             ForesterUtilsError::IndexerError("Failed to get queue elements".into())
         })?;
     println!("get_queue_elements len: {}", indexer_response.len());
+    let indexer_root = indexer_response.first().unwrap().root;
+    assert_eq!(indexer_root, current_root, "root_history: {:?}", root_history);
+
     let old_leaves = indexer_response
         .iter()
         .map(|x| x.leaf)
@@ -347,7 +351,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
     println!("create_nullify_batch_ix_data");
-    let (zkp_batch_size, old_root, leaves_hash_chain) = {
+    let (zkp_batch_size, old_root, root_history, leaves_hash_chain) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
@@ -363,7 +367,8 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size as u16, root, hash_chain)
+        let root_history = merkle_tree.root_history.to_vec();
+        (zkp_size as u16, root, root_history, hash_chain)
     };
     println!("zkp_batch_size: {:?} old_root: {:?} : {:?}", zkp_batch_size, old_root, leaves_hash_chain);
 
@@ -383,6 +388,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
 
     println!("get_queue_elements len: {}", leaf_indices_tx_hashes.len());
+
+    let indexer_root = leaf_indices_tx_hashes.first().unwrap().root;
+
+    assert_eq!(indexer_root, old_root, "root_history: {:?}", root_history);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
