@@ -169,6 +169,9 @@ impl Batch {
             if let Some(start_index) = start_index {
                 self.start_index = start_index;
             }
+            // Could be zeroed in advance_state_to_fill as well.
+            // Zeroed since all zkps are inserted.
+            self.num_full_zkp_batches = 0;
         } else {
             msg!(
                 "Batch is in incorrect state {} expected BatchState::Inserted 1",
@@ -184,10 +187,6 @@ impl Batch {
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Full {
             self.state = BatchState::Inserted.into();
-
-            // Could be zeroed in advance_state_to_fill as well.
-            // Zeroed since all zkps are inserted.
-            self.num_full_zkp_batches = 0;
         } else {
             msg!(
                 "Batch is in incorrect state {} expected BatchState::Full 2",
@@ -444,6 +443,14 @@ impl Batch {
     pub fn leaf_index_exists(&self, leaf_index: u64) -> bool {
         let next_batch_leaf_index = self.get_num_inserted_elements() + self.start_index;
         let min_batch_leaf_index = self.start_index;
+        msg!(
+            "leaf_index {} next_batch_leaf_index {} min_batch_leaf_index {} start_index {} num_inserted_elements {}",
+            leaf_index,
+            next_batch_leaf_index,
+            min_batch_leaf_index,
+            self.start_index,
+            self.get_num_inserted_elements()
+        );
         leaf_index < next_batch_leaf_index && leaf_index >= min_batch_leaf_index
     }
 }

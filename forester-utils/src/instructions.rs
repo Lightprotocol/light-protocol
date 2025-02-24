@@ -359,7 +359,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let root = *merkle_tree.root_history.last().unwrap();
         (zkp_size as u16, root, hash_chain)
     };
-    println!("zkp_batch_size: {:?} old_root: {:?} leaves_hash_chain: {:?}", zkp_batch_size, old_root, leaves_hash_chain);
+    println!("zkp_batch_size: {:?} old_root: {:?} : {:?}", zkp_batch_size, old_root, leaves_hash_chain);
 
     let leaf_indices_tx_hashes = indexer
         .get_queue_elements(

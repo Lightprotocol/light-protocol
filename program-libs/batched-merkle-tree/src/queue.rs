@@ -320,15 +320,22 @@ impl<'a> BatchedQueueAccount<'a> {
         leaf_index: u64,
         hash_chain_value: &[u8; 32],
     ) -> Result<bool, BatchedMerkleTreeError> {
+        
+        msg!("leaf_index {:?}", leaf_index);
+        msg!("next_index {:?}", self.batch_metadata.next_index);
         if leaf_index >= self.batch_metadata.next_index {
             return Err(BatchedMerkleTreeError::InvalidIndex);
         }
         for (batch_index, batch) in self.batch_metadata.batches.iter().enumerate() {
+            msg!("batch_index {:?}", batch_index);             
             if batch.leaf_index_exists(leaf_index) {
                 let index = batch.get_value_index_in_batch(leaf_index)?;
                 let element = self.value_vecs[batch_index]
                     .get_mut(index as usize)
                     .ok_or(BatchedMerkleTreeError::InclusionProofByIndexFailed)?;
+
+                msg!("element {:?}", element);
+                msg!("hash_chain_value {:?}", hash_chain_value);
 
                 if *element == *hash_chain_value {
                     if ZERO_OUT {
