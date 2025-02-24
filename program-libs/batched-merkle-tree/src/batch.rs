@@ -169,8 +169,6 @@ impl Batch {
             if let Some(start_index) = start_index {
                 self.start_index = start_index;
             }
-            // Could be zeroed in advance_state_to_fill as well.
-            // Zeroed since all zkps are inserted.
             self.num_full_zkp_batches = 0;
         } else {
             msg!(
