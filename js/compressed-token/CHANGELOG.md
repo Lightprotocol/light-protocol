@@ -1,3 +1,9 @@
+## [0.20.5-0.20.7] - 2025-02-24
+
+### Changed
+
+-   improved documentation and error messages.
+
 ## [0.20.4] - 2025-02-19
 
 ### Breaking Changes

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.20.5-0.20.7] - 2025-02-24
+
+### Bumped to latest compressed-token sdk
+
 ## [0.20.3] - 2025-02-19
 
 Fixed a bug where we lose precision on token amounts if compressed token accounts are created with > Number.MAX_SAFE_INTEGER.
