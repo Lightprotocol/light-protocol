@@ -56,6 +56,8 @@
 /light-circuits/lookUpTable.txt
 
 **/.env
+*/.env
+.env
 
 # Third-party dependencies
 /.local

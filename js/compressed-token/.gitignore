@@ -3,3 +3,5 @@ test-ledger
 lib
 **/lib/**
 **/lib/*
+
+.env
