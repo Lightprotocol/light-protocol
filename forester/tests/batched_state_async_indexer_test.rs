@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
-
+use rand::prelude::SliceRandom;
+use rand::Rng;
 use forester_utils::{
     airdrop_lamports,
     registry::{register_test_forester, update_test_forester},
@@ -41,6 +42,7 @@ mod test_utils;
 
 const DO_TXS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 5;
+const RESTART_VALIDATOR: bool = false;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -71,17 +73,18 @@ async fn test_state_indexer_fetch_root() {
 async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::default();
 
-    init(Some(LightValidatorConfig {
-        enable_indexer: false,
-        wait_time: 1,
-        prover_config: None, /*Some(ProverConfig {
+    if RESTART_VALIDATOR {
+        init(Some(LightValidatorConfig {
+            enable_indexer: false,
+            wait_time: 1,
+            prover_config: None, /*Some(ProverConfig {
             run_mode: Some(ProverMode::Forester),
             circuits: vec![],
         })*/
-        sbf_programs: vec![],
-    }))
-    .await;
-
+            sbf_programs: vec![],
+        }))
+            .await;
+    }
     // println!("waiting for indexer to start");
     // sleep(Duration::from_secs(5)).await;
 
@@ -323,6 +326,11 @@ async fn transfer(
         sleep(Duration::from_millis(10)).await;
     }
 
+    let rng = &mut rand::thread_rng();
+    let num_inputs = rng.gen_range(1..4);
+    input_compressed_accounts.shuffle(rng);
+    input_compressed_accounts.truncate(num_inputs);
+
     let lamports = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.lamports)
@@ -429,14 +437,6 @@ async fn transfer(
             &forester_keypair.pubkey(),
             &[forester_keypair],
             None,
-            // Some(TransactionParams {
-            //     num_input_compressed_accounts: input_compressed_account_length as u8,
-            //     num_output_compressed_accounts: 1,
-            //     num_new_addresses: 0,
-            //     compress: 0,
-            //     fee_config: FeeConfig::test_batched(),
-            // }
-            // ),
         )
         .await
         .unwrap()
@@ -477,14 +477,6 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
             &payer.pubkey(),
             &[payer],
             None,
-            // Some(TransactionParams {
-            //     num_input_compressed_accounts: 0,
-            //     num_output_compressed_accounts: 1,
-            //     num_new_addresses: 0,
-            //     compress: lamports as i64,
-            //     fee_config: FeeConfig::test_batched(),
-            // }
-            // ),
         )
         .await
         .unwrap()

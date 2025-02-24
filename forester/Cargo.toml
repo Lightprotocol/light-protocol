@@ -58,6 +58,7 @@ light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 dotenvy = "0.15"
 light-compressed-account = { workspace = true }
+rand = { workspace = true }
 
 [build]
 rustflags = ["--cfg", "tokio_unstable"]
