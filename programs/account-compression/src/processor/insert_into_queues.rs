@@ -14,6 +14,8 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
         .map_err(ProgramError::from)?;
+    msg!("inputs: {:?}", inputs);
+
     let authority = ctx.accounts.authority.to_account_info();
     // Checks accounts for every account in remaining accounts:
     // 1. program ownership
@@ -31,6 +33,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     }
     let current_slot = Clock::get()?.slot;
     msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
+    msg!("remaining accounts: {:?}", ctx.remaining_accounts.iter().map(|x| x.key).collect::<Vec<&Pubkey>>());
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");

@@ -731,21 +731,19 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     }
 
     async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
-        self.rate_limited_request(|| async {
-            let request = photon_api::models::GetIndexerSlotPostRequest {
-                ..Default::default()
-            };
+        println!("get_indexer_slot called");
+        let request = photon_api::models::GetIndexerSlotPostRequest {
+            ..Default::default()
+        };
 
-            let result = photon_api::apis::default_api::get_indexer_slot_post(
-                &self.configuration,
-                request,
-            )
-                .await?;
+        let result = photon_api::apis::default_api::get_indexer_slot_post(
+            &self.configuration,
+            request,
+        )
+            .await?;
 
-            let result = Self::extract_result("get_indexer_slot", result.result)?;
-            Ok(result)
-        })
-            .await
+        let result = Self::extract_result("get_indexer_slot", result.result)?;
+        Ok(result)
     }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {

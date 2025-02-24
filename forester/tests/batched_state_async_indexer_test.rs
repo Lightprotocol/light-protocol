@@ -33,6 +33,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::{sleep, timeout};
 use forester::run_pipeline;
 use forester_utils::forester_epoch::get_epoch_phases;
+use forester_utils::instructions::wait_for_indexer;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_registry::protocol_config::state::ProtocolConfig;
@@ -42,7 +43,8 @@ mod test_utils;
 
 const DO_TXS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 5;
-const RESTART_VALIDATOR: bool = false;
+const RESTART_VALIDATOR: bool = true;
+const RUN_FORESTER: bool = true;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -84,9 +86,10 @@ async fn test_state_indexer_async_batched() {
             sbf_programs: vec![],
         }))
             .await;
+
+        println!("waiting for indexer to start");
+        sleep(Duration::from_secs(3)).await;
     }
-    // println!("waiting for indexer to start");
-    // sleep(Duration::from_secs(5)).await;
 
     let mut env = EnvAccounts::get_local_test_validator_accounts();
     // env.forester = forester_keypair.insecure_clone();
@@ -196,14 +199,16 @@ async fn test_state_indexer_async_batched() {
         PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc)
     };
 
-    let service_handle = tokio::spawn(run_pipeline(
-        Arc::from(config.clone()),
-        None,
-        None,
-        Arc::new(Mutex::new(forester_photon_indexer)),
-        shutdown_receiver,
-        work_report_sender,
-    ));
+    if RUN_FORESTER {
+        let service_handle = tokio::spawn(run_pipeline(
+            Arc::from(config.clone()),
+            None,
+            None,
+            Arc::new(Mutex::new(forester_photon_indexer)),
+            shutdown_receiver,
+            work_report_sender,
+        ));
+    }
 
     // let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     // while rpc.get_slot().await.unwrap() < active_phase_slot {
@@ -217,10 +222,15 @@ async fn test_state_indexer_async_batched() {
     )
         .unwrap();
 
+    println!("batch payer pubkey: {:?}", batch_payer.pubkey());
+
     let legacy_payer = Keypair::from_bytes(
         &[58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227, 38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35, 227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205, 75, 41, 148, 68, 97]
     )
         .unwrap();
+
+    println!("legacy payer pubkey: {:?}", legacy_payer.pubkey());
+
     if rpc.get_balance(&legacy_payer.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
         rpc.airdrop_lamports(&legacy_payer.pubkey(), LAMPORTS_PER_SOL * 100)
             .await
@@ -258,8 +268,8 @@ async fn test_state_indexer_async_batched() {
             let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer).await;
             println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
-            // let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer).await;
-            // println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
+            let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer).await;
+            println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
         }
     }
 
@@ -319,30 +329,25 @@ async fn test_state_indexer_async_batched() {
             "Root should have changed"
         );
     }
-
     shutdown_sender
         .send(())
         .expect("Failed to send shutdown signal");
-    service_handle.await.unwrap().unwrap();
-
+    // service_handle.await.unwrap().unwrap();
 }
 
-async fn transfer(
-    rpc: &mut SolanaRpcConnection,
-    indexer: &PhotonIndexer<SolanaRpcConnection>,
+async fn transfer<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &I,
     merkle_tree_pubkey: &Pubkey,
     forester_keypair: &Keypair,
 ) -> Signature {
-    let mut input_compressed_accounts: Vec<CompressedAccountWithMerkleContext> = vec![];
+    wait_for_indexer(rpc, indexer).await.unwrap();
+    let mut input_compressed_accounts = indexer
+        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .await
+        .unwrap_or(vec![]);
 
-    while input_compressed_accounts.is_empty() {
-        input_compressed_accounts = indexer
-            .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
-            .await
-            .unwrap_or(vec![]);
-        sleep(Duration::from_millis(10)).await;
-    }
-
+    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", forester_keypair.pubkey(), input_compressed_accounts);
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
     input_compressed_accounts.shuffle(rng);
@@ -365,9 +370,11 @@ async fn transfer(
         })
         .collect::<Vec<[u8; 32]>>();
 
+    println!("get_validity_proof_v2...");
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await;
+    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
 
     if proof_for_compressed_accounts.is_err() {
         println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
@@ -448,15 +455,18 @@ async fn transfer(
     println!("transfer compressed_accounts: {:?}", input_compressed_accounts);
     println!("transfer root_indices: {:?}", root_indices);
 
-    let (_, sig, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
+    let mut instructions = vec![
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+    ];
+    instructions.push(instruction);
+
+    let sig = rpc
+        .create_and_send_transaction(
+            &instructions,
             &forester_keypair.pubkey(),
             &[forester_keypair],
-            None,
         )
         .await
-        .unwrap()
         .unwrap();
 
     sig
@@ -488,15 +498,18 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
 
     println!("compress instruction: {:?}", instruction);
 
-    let (_, sig, _) = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
+    let mut instructions = vec![
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+    ];
+    instructions.push(instruction);
+
+    let sig = rpc
+        .create_and_send_transaction(
+            &instructions,
             &payer.pubkey(),
             &[payer],
-            None,
         )
         .await
-        .unwrap()
         .unwrap();
 
     sig
