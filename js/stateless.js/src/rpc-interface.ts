@@ -200,17 +200,27 @@ const BN254FromString = coerce(instance(BN), string(), value => {
     return createBN254(value, 'base58');
 });
 
-const BNFromInt = coerce(instance(BN), number(), value => {
-    // Check if the number is safe
-    if (Number.isSafeInteger(value)) {
-        return bn(value);
-    } else {
-        // Convert to string if the number is unsafe
-        return bn(value.toString(), 10);
-    }
-});
+/**
+ *
+ * @internal
+ * expects bigints to be supplied as strings.
+ */
+const BNFromStringOrNumber = coerce(
+    instance(BN),
+    union([string(), number()]),
+    value => {
+        if (typeof value === 'number') {
+            if (!Number.isSafeInteger(value)) {
+                throw new Error(`Unsafe integer. Precision loss: ${value}`);
+            }
+            return new BN(value); // Safe number → BN
+        }
+        return new BN(value, 10); // String → BN
+    },
+);
 
 /**
+ *
  * @internal
  */
 const Base64EncodedCompressedAccountDataResult = coerce(
@@ -293,21 +303,21 @@ export const CompressedAccountResult = pick({
         pick({
             data: Base64EncodedCompressedAccountDataResult,
             dataHash: BN254FromString,
-            discriminator: BNFromInt,
+            discriminator: BNFromStringOrNumber,
         }),
     ),
-    lamports: BNFromInt,
+    lamports: BNFromStringOrNumber,
     owner: PublicKeyFromString,
     leafIndex: number(),
     tree: PublicKeyFromString,
-    seq: nullable(BNFromInt),
-    slotCreated: BNFromInt,
+    seq: nullable(BNFromStringOrNumber),
+    slotCreated: BNFromStringOrNumber,
 });
 
 export const TokenDataResult = pick({
     mint: PublicKeyFromString,
     owner: PublicKeyFromString,
-    amount: BNFromInt,
+    amount: BNFromStringOrNumber,
     delegate: nullable(PublicKeyFromString),
     state: string(),
 });
@@ -440,13 +450,13 @@ export const MultipleMerkleProofsResult = array(MerkeProofResult);
  * @internal
  */
 export const BalanceResult = pick({
-    amount: BNFromInt,
+    amount: BNFromStringOrNumber,
 });
 
-export const NativeBalanceResult = BNFromInt;
+export const NativeBalanceResult = BNFromStringOrNumber;
 
 export const TokenBalanceResult = pick({
-    balance: BNFromInt,
+    balance: BNFromStringOrNumber,
     mint: PublicKeyFromString,
 });
 
@@ -464,7 +474,7 @@ export const CompressedMintTokenHoldersResult = pick({
     cursor: nullable(string()),
     items: array(
         pick({
-            balance: BNFromInt,
+            balance: BNFromStringOrNumber,
             owner: PublicKeyFromString,
         }),
     ),
