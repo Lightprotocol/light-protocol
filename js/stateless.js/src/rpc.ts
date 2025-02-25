@@ -717,6 +717,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCachedActiveStateTreeInfo(): Promise<StateTreeContext[]> {
         if (isLocalTest(this.rpcEndpoint)) {
+            /// We don't have ALUTs on Localnet.
             return localTestActiveStateTreeInfo();
         }
 

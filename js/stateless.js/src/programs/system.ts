@@ -394,6 +394,11 @@ export class LightSystemProgram {
             outputStateTreeContext,
         );
 
+        console.log(
+            'packedInputCompressedAccounts.rootIndices',
+            packedInputCompressedAccounts.map(e => e.rootIndex),
+        );
+
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
             proof: recentValidityProof,

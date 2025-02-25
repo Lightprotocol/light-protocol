@@ -51,6 +51,7 @@ import {
     MerkleContextWithNewAddressProof,
     convertMerkleProofsWithContextToHex,
     convertNonInclusionMerkleProofInputsToHex,
+    getQueueForTree,
     proverRequest,
 } from '../../rpc';
 import { StateTreeContext } from '../../state/types';
@@ -109,8 +110,6 @@ export async function getTestRpc(
     depth?: number,
     log = false,
 ) {
-    const defaultAccounts = defaultTestStateTreeAccounts();
-
     return new TestRpc(
         endpoint,
         lightWasm,
@@ -118,7 +117,7 @@ export async function getTestRpc(
         proverEndpoint,
         undefined,
         {
-            depth: depth || defaultAccounts.merkleTreeHeight,
+            depth: depth || defaultTestStateTreeAccounts().merkleTreeHeight,
             log,
         },
     );
@@ -167,13 +166,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
         const { depth, log } = testRpcConfig ?? {};
 
-        const {
-            merkleTree,
-            nullifierQueue,
-            merkleTreeHeight,
-            addressQueue,
-            addressTree,
-        } = defaultTestStateTreeAccounts();
+        const { merkleTreeHeight } = defaultTestStateTreeAccounts();
 
         this.lightWasm = hasher;
 
@@ -281,12 +274,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
-        /// Build tree
+        // Parse events and organize leaves by their respective merkle trees
         const events: PublicTransactionEvent[] = await getParsedEvents(
             this,
         ).then(events => events.reverse());
-        const allLeaves: number[][] = [];
-        const allLeafIndices: number[] = [];
+        const leavesByTree: Map<
+            string,
+            { leaves: number[][]; leafIndices: number[] }
+        > = new Map();
+
         for (const event of events) {
             for (
                 let index = 0;
@@ -294,43 +290,69 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 index++
             ) {
                 const hash = event.outputCompressedAccountHashes[index];
+                const merkleTree =
+                    event.pubkeyArray[
+                        event.outputCompressedAccounts[index].merkleTreeIndex
+                    ];
+                const treeKey = merkleTree.toBase58();
 
-                allLeaves.push(hash);
-                allLeafIndices.push(event.outputLeafIndices[index]);
+                if (!leavesByTree.has(treeKey)) {
+                    leavesByTree.set(treeKey, { leaves: [], leafIndices: [] });
+                }
+
+                leavesByTree.get(treeKey)!.leaves.push(hash);
+                leavesByTree
+                    .get(treeKey)!
+                    .leafIndices.push(event.outputLeafIndices[index]);
             }
         }
-        const tree = new MerkleTree(
-            this.depth,
-            this.lightWasm,
-            allLeaves.map(leaf => bn(leaf).toString()),
-        );
 
-        /// create merkle proofs and assemble return type
+        // Create merkle proofs for each hash
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
+        const ctxs = await this.getCachedActiveStateTreeInfo();
 
-        for (let i = 0; i < hashes.length; i++) {
-            const leafIndex = tree.indexOf(hashes[i].toString());
-            const pathElements = tree.path(leafIndex).pathElements;
-            const bnPathElements = pathElements.map(value => bn(value));
-            const root = bn(tree.root());
-            const merkleProof: MerkleContextWithMerkleProof = {
-                hash: hashes[i].toArray('be', 32),
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                leafIndex: leafIndex,
-                merkleProof: bnPathElements,
-                queue: defaultTestStateTreeAccounts().nullifierQueue,
-                rootIndex: allLeaves.length,
-                root: root,
-                version: MerkleContextVersion.V1,
-                proveByIndex: false,
-            };
-            merkleProofs.push(merkleProof);
+        for (const [
+            treeKey,
+            { leaves, leafIndices },
+        ] of leavesByTree.entries()) {
+            const merkleTree = new PublicKey(treeKey);
+            const tree = new MerkleTree(
+                this.depth,
+                this.lightWasm,
+                leaves.map(leaf => bn(leaf).toString()),
+            );
+
+            for (let i = 0; i < hashes.length; i++) {
+                const hashStr = hashes[i].toString();
+                const leafIndex = tree.indexOf(hashStr);
+
+                if (leafIndex !== -1) {
+                    const queue = getQueueForTree(ctxs, merkleTree);
+                    const pathElements = tree.path(leafIndex).pathElements;
+                    const bnPathElements = pathElements.map(value => bn(value));
+                    const root = bn(tree.root());
+
+                    const merkleProof: MerkleContextWithMerkleProof = {
+                        hash: hashes[i].toArray('be', 32),
+                        merkleTree: merkleTree,
+                        leafIndex: leafIndex,
+                        merkleProof: bnPathElements,
+                        queue: queue,
+                        rootIndex: leaves.length,
+                        root: root,
+                        version: MerkleContextVersion.V1,
+                        proveByIndex: false,
+                    };
+                    merkleProofs.push(merkleProof);
+                }
+            }
         }
 
-        /// Validate
+        // Validate
         merkleProofs.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
-            const computedHash = tree.elements()[leafIndex];
+            const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
+                .leaves[leafIndex];
             const hashArr = bn(computedHash).toArray('be', 32);
             if (!hashArr.every((val, index) => val === proof.hash[index])) {
                 throw new Error(

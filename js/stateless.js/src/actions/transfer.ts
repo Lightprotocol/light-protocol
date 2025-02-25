@@ -94,6 +94,7 @@ export async function transfer(
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );
+    console.log('proof', proof);
 
     const ix = await LightSystemProgram.transfer({
         payer: payer.publicKey,
@@ -104,7 +105,7 @@ export async function transfer(
         recentValidityProof: proof.compressedProof,
         outputStateTreeContext,
     });
-
+    console.log('ix', ix);
     const { blockhash } = await rpc.getLatestBlockhash();
     const signedTx = buildAndSignTx(
         [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],

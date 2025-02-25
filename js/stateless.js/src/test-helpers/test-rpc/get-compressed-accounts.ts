@@ -3,7 +3,7 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
-import { Rpc } from '../../rpc';
+import { getQueueForTree, Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
     bn,
@@ -44,6 +44,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
+    const ctxs = await rpc.getCachedActiveStateTreeInfo();
 
     for (const event of events) {
         for (
@@ -51,10 +52,14 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             index < event.outputCompressedAccounts.length;
             index++
         ) {
+            const queue = getQueueForTree(
+                ctxs,
+                new PublicKey(event.pubkeyArray[index]),
+            );
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                queue: defaultTestStateTreeAccounts().nullifierQueue,
+                merkleTree: new PublicKey(event.pubkeyArray[index]),
+                queue: queue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
                 version: MerkleContextVersion.V1,

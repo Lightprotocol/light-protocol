@@ -7,16 +7,20 @@ import {
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { compress, decompress, transfer } from '../../src/actions';
-import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
+import {
+    bn,
+    CompressedAccountWithMerkleContext,
+    StateTreeContext,
+} from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createRpc } from '../../src';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
-    const { merkleTree } = defaultTestStateTreeAccounts();
     let rpc: TestRpc;
     let payer: Signer;
+    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeContext2: StateTreeContext;
 
     let preCompressBalance: number;
     let postCompressBalance: number;
@@ -29,38 +33,57 @@ describe('test-rpc', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
 
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        outputStateTreeContext = stateTreeInfo[0];
+        outputStateTreeContext2 = stateTreeInfo[1];
+
         refPayer = await newAccountWithLamports(rpc, 1e9, 200);
         payer = await newAccountWithLamports(rpc, 1e9, 148);
 
         /// compress refPayer
-        await compress(
+        const id0 = await compress(
             rpc,
             refPayer,
             refCompressLamports,
             refPayer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         /// compress
         compressLamportsAmount = 1e7;
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-        await compress(
+        const id1 = await compress(
             rpc,
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext2,
         );
     });
 
     it('getCompressedAccountsByOwner', async () => {
+        // refpayer
+        const compressedAccountsRef = await rpc.getCompressedAccountsByOwner(
+            refPayer.publicKey,
+        );
+        assert.equal(compressedAccountsRef.items.length, 1);
+        assert.equal(compressedAccountsRef.items[0].leafIndex, 0);
+
+        // payer
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
 
         compressedTestAccount = compressedAccounts.items[0];
+
         assert.equal(compressedAccounts.items.length, 1);
+        // assumes 1 acc per tree
+        assert.equal(
+            compressedTestAccount.queue.toBase58(),
+            outputStateTreeContext2.queue!.toBase58(),
+        );
+        assert.equal(compressedTestAccount.leafIndex, 0);
         assert.equal(
             Number(compressedTestAccount.lamports),
             compressLamportsAmount,
@@ -82,7 +105,7 @@ describe('test-rpc', () => {
         );
     });
 
-    it('getCompressedAccountProof for refPayer', async () => {
+    it('getCompressedAccountProof for payer', async () => {
         const slot = await rpc.getSlot();
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -95,23 +118,27 @@ describe('test-rpc', () => {
 
         expect(proof.length).toStrictEqual(26);
         expect(compressedAccountProof.hash).toStrictEqual(refHash);
+
         expect(compressedAccountProof.leafIndex).toStrictEqual(
             compressedAccounts.items[0].leafIndex,
         );
-        expect(compressedAccountProof.rootIndex).toStrictEqual(2);
+        expect(compressedAccountProof.rootIndex).toStrictEqual(1);
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-        await transfer(
+        // in: tree2 out: tree
+        const tx = await transfer(
             rpc,
             payer,
             compressLamportsAmount,
             payer,
             payer.publicKey,
-            merkleTree,
+            outputStateTreeContext,
         );
+
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+
         expect(compressedAccounts1.items.length).toStrictEqual(1);
         postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
@@ -127,11 +154,16 @@ describe('test-rpc', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+        console.log(
+            'compressedAccounts2 payer! c -> t -> c ',
+            compressedAccounts2.items,
+        );
+
         expect(compressedAccounts2.items.length).toStrictEqual(2);
     });
 

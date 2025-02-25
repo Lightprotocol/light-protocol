@@ -158,6 +158,10 @@ export function packCompressedAccounts(
 
     // TODO: based on version set here.
     const outputStateMerkleTree = outputStateTreeContext.tree;
+    console.log(
+        'PACK_COMPRESSED_ACCOUNTS: outputStateMerkleTree',
+        outputStateMerkleTree.toBase58(),
+    );
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         outputStateMerkleTree,
