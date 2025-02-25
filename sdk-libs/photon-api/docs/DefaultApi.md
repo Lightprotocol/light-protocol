@@ -126,7 +126,7 @@ No authorization required
 
 ## get_compressed_account_v2_post
 
-> models::GetCompressedAccountPost200Response get_compressed_account_v2_post(get_compressed_account_v2_post_request)
+> models::GetCompressedAccountV2Post200Response get_compressed_account_v2_post(get_compressed_account_v2_post_request)
 
 
 ### Parameters
@@ -138,7 +138,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetCompressedAccountPost200Response**](_getCompressedAccount_post_200_response.md)
+[**models::GetCompressedAccountV2Post200Response**](_getCompressedAccountV2_post_200_response.md)
 
 ### Authorization
 
@@ -322,7 +322,7 @@ No authorization required
 
 ## get_compressed_token_accounts_by_delegate_v2_post
 
-> models::GetCompressedTokenAccountsByDelegatePost200Response get_compressed_token_accounts_by_delegate_v2_post(get_compressed_token_accounts_by_delegate_v2_post_request)
+> models::GetCompressedTokenAccountsByDelegateV2Post200Response get_compressed_token_accounts_by_delegate_v2_post(get_compressed_token_accounts_by_delegate_v2_post_request)
 
 
 ### Parameters
@@ -334,7 +334,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetCompressedTokenAccountsByDelegatePost200Response**](_getCompressedTokenAccountsByDelegate_post_200_response.md)
+[**models::GetCompressedTokenAccountsByDelegateV2Post200Response**](_getCompressedTokenAccountsByDelegateV2_post_200_response.md)
 
 ### Authorization
 
@@ -378,7 +378,7 @@ No authorization required
 
 ## get_compressed_token_accounts_by_owner_v2_post
 
-> models::GetCompressedTokenAccountsByDelegatePost200Response get_compressed_token_accounts_by_owner_v2_post(get_compressed_token_accounts_by_owner_v2_post_request)
+> models::GetCompressedTokenAccountsByDelegateV2Post200Response get_compressed_token_accounts_by_owner_v2_post(get_compressed_token_accounts_by_owner_v2_post_request)
 
 
 ### Parameters
@@ -390,7 +390,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetCompressedTokenAccountsByDelegatePost200Response**](_getCompressedTokenAccountsByDelegate_post_200_response.md)
+[**models::GetCompressedTokenAccountsByDelegateV2Post200Response**](_getCompressedTokenAccountsByDelegateV2_post_200_response.md)
 
 ### Authorization
 
@@ -742,7 +742,7 @@ No authorization required
 
 ## get_multiple_compressed_accounts_v2_post
 
-> models::GetMultipleCompressedAccountsPost200Response get_multiple_compressed_accounts_v2_post(get_multiple_compressed_accounts_v2_post_request)
+> models::GetMultipleCompressedAccountsV2Post200Response get_multiple_compressed_accounts_v2_post(get_multiple_compressed_accounts_v2_post_request)
 
 
 ### Parameters
@@ -754,7 +754,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetMultipleCompressedAccountsPost200Response**](_getMultipleCompressedAccounts_post_200_response.md)
+[**models::GetMultipleCompressedAccountsV2Post200Response**](_getMultipleCompressedAccountsV2_post_200_response.md)
 
 ### Authorization
 
@@ -882,7 +882,7 @@ No authorization required
 
 ## get_transaction_with_compression_info_v2_post
 
-> models::GetTransactionWithCompressionInfoPost200Response get_transaction_with_compression_info_v2_post(get_transaction_with_compression_info_v2_post_request)
+> models::GetTransactionWithCompressionInfoV2Post200Response get_transaction_with_compression_info_v2_post(get_transaction_with_compression_info_v2_post_request)
 
 
 ### Parameters
@@ -894,7 +894,7 @@ Name | Type | Description  | Required | Notes
 
 ### Return type
 
-[**models::GetTransactionWithCompressionInfoPost200Response**](_getTransactionWithCompressionInfo_post_200_response.md)
+[**models::GetTransactionWithCompressionInfoV2Post200Response**](_getTransactionWithCompressionInfoV2_post_200_response.md)
 
 ### Authorization
 

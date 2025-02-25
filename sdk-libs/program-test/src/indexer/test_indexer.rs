@@ -531,6 +531,10 @@ where
         Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
     }
 
+    async fn get_compressed_token_accounts_by_owner_v2(&self, _owner: &Pubkey, _mint: Option<Pubkey>) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        todo!()
+    }
+
     async fn get_compressed_account(
         &self,
         address: Option<Address>,

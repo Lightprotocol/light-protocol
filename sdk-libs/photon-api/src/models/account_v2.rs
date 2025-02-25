@@ -27,9 +27,11 @@ pub struct AccountV2 {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
+    #[serde(rename = "proveByIndex")]
+    pub prove_by_index: bool,
     /// A Solana public key represented as a base58 string.
-    #[serde(rename = "queue", skip_serializing_if = "Option::is_none")]
-    pub queue: Option<String>,
+    #[serde(rename = "queue")]
+    pub queue: String,
     #[serde(rename = "seq", skip_serializing_if = "Option::is_none")]
     pub seq: Option<u64>,
     #[serde(rename = "slotCreated")]
@@ -37,10 +39,12 @@ pub struct AccountV2 {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
+    #[serde(rename = "treeType")]
+    pub tree_type: u64,
 }
 
 impl AccountV2 {
-    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, slot_created: u64, tree: String) -> AccountV2 {
+    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, prove_by_index: bool, queue: String, slot_created: u64, tree: String, tree_type: u64) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
@@ -48,10 +52,12 @@ impl AccountV2 {
             lamports,
             leaf_index,
             owner,
-            queue: None,
+            prove_by_index,
+            queue,
             seq: None,
             slot_created,
             tree,
+            tree_type,
         }
     }
 }

@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-
+use std::str::FromStr;
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -16,7 +16,8 @@ use photon_api::{
 use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
 use tracing::{debug, error};
-use photon_api::models::CompressedProofWithContextV2;
+use light_sdk::token::{AccountState, TokenData};
+use photon_api::models::{CompressedProofWithContextV2, GetCompressedTokenAccountsByOwnerPostRequestParams, GetCompressedTokenAccountsByOwnerV2PostRequest};
 use super::MerkleProofWithContext;
 use crate::{
     indexer::{
@@ -323,9 +324,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }),
                 };
 
-                // TODO: do not use tree as a queue?
                 let nullifier_queue_pubkey = Pubkey::from(
-                    Hash::from_base58(&acc.queue.unwrap_or(acc.tree.clone())).unwrap(),
+                    Hash::from_base58(&acc.queue).unwrap(),
                 );
 
                 let merkle_context = MerkleContext {
@@ -345,6 +345,69 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             Ok(accounts)
         })
         .await
+    }
+
+
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        self.rate_limited_request(|| async {
+            let request = GetCompressedTokenAccountsByOwnerV2PostRequest {
+                params: Box::from(GetCompressedTokenAccountsByOwnerPostRequestParams {
+                    cursor: None,
+                    limit: None,
+                    mint: mint.map(|x| x.to_string()),
+                    owner: owner.to_string(),
+                }),
+                ..Default::default()
+            };
+            let result = photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
+                &self.configuration,
+                request,
+            )
+                .await?;
+
+            let accounts = *result.result.unwrap().value;
+
+            let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
+            for account in accounts.items {
+                let token_data_with_merkle_context = TokenDataWithMerkleContext {
+                    token_data: TokenData {
+                        mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
+                        owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
+                        amount: account.token_data.amount,
+                        delegate: account.token_data.delegate.map(|x| Pubkey::from_str(&x).unwrap()),
+                        state: if account.token_data.state == photon_api::models::account_state::AccountState::Initialized { AccountState::Initialized } else { AccountState::Frozen },
+                        tlv: None,
+                    },
+                    compressed_account: CompressedAccountWithMerkleContext {
+                        compressed_account: CompressedAccount {
+                            owner: Pubkey::from_str(&account.account.owner).unwrap(),
+                            lamports: account.account.lamports,
+                            address: account.account.address.map(|x| Hash::from_base58(&x).unwrap()),
+                            data: account.account.data.map(|data| CompressedAccountData {
+                                discriminator: data.discriminator.to_be_bytes(),
+                                data: data.data.as_bytes().to_vec(),
+                                data_hash: Hash::from_base58(&data.data_hash).unwrap(),
+                            }),
+                        },
+                        merkle_context: MerkleContext {
+                            merkle_tree_pubkey: Pubkey::from_str(&account.account.tree).unwrap(),
+                            nullifier_queue_pubkey: Pubkey::from_str(&account.account.queue).unwrap(),
+                            leaf_index: account.account.leaf_index,
+                            prove_by_index: account.account.prove_by_index,
+                        }
+                    }
+                };
+                token_data.push(token_data_with_merkle_context);
+            }
+
+            Ok(token_data)
+
+        })
+            .await
     }
 
     async fn get_compressed_account(
@@ -383,7 +446,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 params: Box::new(
                     photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                         owner: owner.to_string(),
-                        mint: mint.map(|x| Some(x.to_string())),
+                        mint: mint.map(|x| x.to_string()),
                         cursor: None,
                         limit: None,
                     },
@@ -495,7 +558,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 params: Box::new(
                     photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                         owner: owner.to_string(),
-                        mint: mint.map(|x| Some(x.to_string())),
+                        mint: mint.map(|x| x.to_string()),
                         cursor: None,
                         limit: None,
                     },

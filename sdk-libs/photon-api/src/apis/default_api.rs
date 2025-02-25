@@ -397,7 +397,7 @@ pub async fn get_compressed_account_proof_post(configuration: &configuration::Co
     }
 }
 
-pub async fn get_compressed_account_v2_post(configuration: &configuration::Configuration, get_compressed_account_v2_post_request: models::GetCompressedAccountV2PostRequest) -> Result<models::GetCompressedAccountPost200Response, Error<GetCompressedAccountV2PostError>> {
+pub async fn get_compressed_account_v2_post(configuration: &configuration::Configuration, get_compressed_account_v2_post_request: models::GetCompressedAccountV2PostRequest) -> Result<models::GetCompressedAccountV2Post200Response, Error<GetCompressedAccountV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;
@@ -593,7 +593,7 @@ pub async fn get_compressed_token_accounts_by_delegate_post(configuration: &conf
     }
 }
 
-pub async fn get_compressed_token_accounts_by_delegate_v2_post(configuration: &configuration::Configuration, get_compressed_token_accounts_by_delegate_v2_post_request: models::GetCompressedTokenAccountsByDelegateV2PostRequest) -> Result<models::GetCompressedTokenAccountsByDelegatePost200Response, Error<GetCompressedTokenAccountsByDelegateV2PostError>> {
+pub async fn get_compressed_token_accounts_by_delegate_v2_post(configuration: &configuration::Configuration, get_compressed_token_accounts_by_delegate_v2_post_request: models::GetCompressedTokenAccountsByDelegateV2PostRequest) -> Result<models::GetCompressedTokenAccountsByDelegateV2Post200Response, Error<GetCompressedTokenAccountsByDelegateV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;
@@ -649,7 +649,7 @@ pub async fn get_compressed_token_accounts_by_owner_post(configuration: &configu
     }
 }
 
-pub async fn get_compressed_token_accounts_by_owner_v2_post(configuration: &configuration::Configuration, get_compressed_token_accounts_by_owner_v2_post_request: models::GetCompressedTokenAccountsByOwnerV2PostRequest) -> Result<models::GetCompressedTokenAccountsByDelegatePost200Response, Error<GetCompressedTokenAccountsByOwnerV2PostError>> {
+pub async fn get_compressed_token_accounts_by_owner_v2_post(configuration: &configuration::Configuration, get_compressed_token_accounts_by_owner_v2_post_request: models::GetCompressedTokenAccountsByOwnerV2PostRequest) -> Result<models::GetCompressedTokenAccountsByDelegateV2Post200Response, Error<GetCompressedTokenAccountsByOwnerV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;
@@ -1013,7 +1013,7 @@ pub async fn get_multiple_compressed_accounts_post(configuration: &configuration
     }
 }
 
-pub async fn get_multiple_compressed_accounts_v2_post(configuration: &configuration::Configuration, get_multiple_compressed_accounts_v2_post_request: models::GetMultipleCompressedAccountsV2PostRequest) -> Result<models::GetMultipleCompressedAccountsPost200Response, Error<GetMultipleCompressedAccountsV2PostError>> {
+pub async fn get_multiple_compressed_accounts_v2_post(configuration: &configuration::Configuration, get_multiple_compressed_accounts_v2_post_request: models::GetMultipleCompressedAccountsV2PostRequest) -> Result<models::GetMultipleCompressedAccountsV2Post200Response, Error<GetMultipleCompressedAccountsV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;
@@ -1153,7 +1153,7 @@ pub async fn get_transaction_with_compression_info_post(configuration: &configur
     }
 }
 
-pub async fn get_transaction_with_compression_info_v2_post(configuration: &configuration::Configuration, get_transaction_with_compression_info_v2_post_request: models::GetTransactionWithCompressionInfoV2PostRequest) -> Result<models::GetTransactionWithCompressionInfoPost200Response, Error<GetTransactionWithCompressionInfoV2PostError>> {
+pub async fn get_transaction_with_compression_info_v2_post(configuration: &configuration::Configuration, get_transaction_with_compression_info_v2_post_request: models::GetTransactionWithCompressionInfoV2PostRequest) -> Result<models::GetTransactionWithCompressionInfoV2Post200Response, Error<GetTransactionWithCompressionInfoV2PostError>> {
     let local_var_configuration = configuration;
 
     let local_var_client = &local_var_configuration.client;

@@ -206,6 +206,12 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
 
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError>;
+
     async fn get_compressed_account(
         &self,
         address: Option<Address>,

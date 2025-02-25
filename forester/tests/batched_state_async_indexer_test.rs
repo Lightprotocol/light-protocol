@@ -36,7 +36,12 @@ use forester_utils::forester_epoch::get_epoch_phases;
 use forester_utils::instructions::wait_for_indexer;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_token::process_transfer::TokenTransferOutputData;
+use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
 use light_registry::protocol_config::state::ProtocolConfig;
+use light_sdk::token::TokenData;
+use light_test_utils::conversions::sdk_to_program_token_data;
+use light_test_utils::spl::{create_mint_helper, create_mint_helper_with_keypair};
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -245,6 +250,17 @@ async fn test_state_indexer_async_batched() {
 
     let mut sender_batched_accs_counter = 0;
     let mut sender_legacy_accs_counter = 0;
+    let mut sender_batched_token_counter = 0;
+
+    let mint_keypair = Keypair::from_bytes(
+&[87, 206, 67, 171, 178, 112, 231, 204, 169, 148, 206, 45, 217, 171, 233, 199, 226, 229, 142, 204, 52, 3, 40, 197, 103, 125, 199, 80, 17, 18, 42, 42, 72, 237, 17, 77, 168, 248, 87, 226, 202, 233, 163, 7, 148, 155, 201, 160, 255, 17, 124, 254, 98, 74, 111, 251, 24, 230, 93, 130, 105, 104, 119, 110]
+    ).unwrap();
+    let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &batch_payer, &mint_keypair).await;
+
+    let sig = mint_to(&mut rpc, &env.batched_output_queue, &batch_payer, &mint_pubkey).await;
+    println!("mint_to: {:?}", sig);
+
+    sender_batched_token_counter = 10;
 
     if DO_TXS {
         for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
@@ -273,6 +289,11 @@ async fn test_state_indexer_async_batched() {
 
             let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer, &mut sender_legacy_accs_counter).await;
             println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
+
+            let batch_transfer_token_sig = compressed_token_transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer, &mint_pubkey, &mut sender_batched_token_counter).await;
+            println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
+
+
         }
     }
 
@@ -336,6 +357,181 @@ async fn test_state_indexer_async_batched() {
         .send(())
         .expect("Failed to send shutdown signal");
     // service_handle.await.unwrap().unwrap();
+}
+
+async fn mint_to(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, mint_pubkey: &Pubkey) -> Signature {
+    let mint_to_ix = light_compressed_token::process_mint::mint_sdk::create_mint_to_instruction(
+        &payer.pubkey(),
+        &payer.pubkey(),
+        mint_pubkey,
+        merkle_tree_pubkey,
+        vec![100_000; 10],
+        vec![payer.pubkey(); 10],
+        None,
+        false,
+        0
+    );
+
+    let instructions = vec![
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+        mint_to_ix
+    ];
+
+    rpc.create_and_send_transaction(
+        &instructions,
+        &payer.pubkey(),
+        &[&payer],
+    ).await.unwrap()
+}
+
+
+async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &I,
+    merkle_tree_pubkey: &Pubkey,
+    forester_keypair: &Keypair,
+    mint: &Pubkey,
+    counter: &mut u64,
+) -> Signature {
+    wait_for_indexer(rpc, indexer).await.unwrap();
+    let mut input_compressed_accounts = indexer
+        .get_compressed_token_accounts_by_owner_v2(&forester_keypair.pubkey(), Some(*mint))
+        .await
+        .unwrap();
+
+    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", forester_keypair.pubkey(), input_compressed_accounts);
+    assert_eq!(input_compressed_accounts.len(), *counter as usize);
+
+    let rng = &mut rand::thread_rng();
+    let num_inputs = rng.gen_range(1..4);
+    input_compressed_accounts.shuffle(rng);
+    input_compressed_accounts.truncate(num_inputs);
+
+    let tokens = input_compressed_accounts
+        .iter()
+        .map(|x| x.token_data.amount)
+        .sum::<u64>();
+
+    let compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| {
+            x.compressed_account.hash()
+                .unwrap()
+        })
+        .collect::<Vec<[u8; 32]>>();
+
+    println!("get_validity_proof_v2...");
+    let proof_for_compressed_accounts = indexer
+        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .await;
+    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
+
+    if proof_for_compressed_accounts.is_err() {
+        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
+        return Signature::default();
+    }
+
+    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
+
+    let root_indices = proof_for_compressed_accounts
+        .root_indices
+        .iter()
+        .zip(input_compressed_accounts.iter_mut())
+        .map(|(root_index, acc)|
+            match root_index.in_tree {
+                true => {
+                    Some(root_index.root_index)
+                }
+                false => {
+                    None
+                },
+            }
+        )
+        .collect::<Vec<Option<u16>>>();
+
+    let merkle_contexts = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.merkle_context)
+        .collect::<Vec<MerkleContext>>();
+
+    let tokens_divided = tokens / OUTPUT_ACCOUNT_NUM as u64;
+    let tokens_remained = tokens % OUTPUT_ACCOUNT_NUM as u64;
+
+    let mut compressed_accounts = vec![TokenTransferOutputData {
+        amount: tokens_divided,
+        owner: forester_keypair.pubkey(),
+        lamports: None,
+        merkle_tree: *merkle_tree_pubkey,
+    }; OUTPUT_ACCOUNT_NUM];
+
+    compressed_accounts[0].amount += tokens_remained;
+
+    println!("transfer input_compressed_accounts: {:?}", input_compressed_accounts);
+    println!("transfer compressed_accounts: {:?}", compressed_accounts);
+
+    let proof = if root_indices.iter().all(|x| x.is_none()) {
+        None
+    } else {
+        Some(CompressedProof {
+            a: proof_for_compressed_accounts.compressed_proof.a.try_into().unwrap(),
+            b: proof_for_compressed_accounts.compressed_proof.b.try_into().unwrap(),
+            c: proof_for_compressed_accounts.compressed_proof.c.try_into().unwrap(),
+        })
+    };
+
+    let input_token_data = input_compressed_accounts
+        .iter()
+        .map(|x| sdk_to_program_token_data(x.token_data.clone()))
+        .collect::<Vec<_>>();
+
+    let input_compressed_accounts = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.compressed_account.clone())
+        .collect::<Vec<_>>();
+
+    let instruction = create_transfer_instruction(
+        &forester_keypair.pubkey(),
+        &forester_keypair.pubkey(),
+        &merkle_contexts,
+        compressed_accounts.as_slice(),
+        &root_indices,
+        &proof,
+        input_token_data.as_slice(),
+        input_compressed_accounts.as_slice(),
+        *mint,
+        None,
+        false,
+        None,
+        None,
+        None,
+        true,
+        None,
+        None,
+        false,
+        &[]
+    ).unwrap();
+
+    println!("transfer compressed_accounts: {:?}", input_compressed_accounts);
+    println!("transfer root_indices: {:?}", root_indices);
+
+    let mut instructions = vec![
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+    ];
+    instructions.push(instruction);
+
+    let sig = rpc
+        .create_and_send_transaction(
+            &instructions,
+            &forester_keypair.pubkey(),
+            &[forester_keypair],
+        )
+        .await
+        .unwrap();
+
+    *counter += OUTPUT_ACCOUNT_NUM as u64;
+    *counter -= input_compressed_accounts.len() as u64;
+
+    sig
 }
 
 async fn transfer<R: RpcConnection, I: Indexer<R>>(
@@ -536,3 +732,4 @@ pub async fn get_active_phase_start_slot<R: RpcConnection>(
     let phases = get_epoch_phases(protocol_config, current_epoch);
     phases.active.start
 }
+

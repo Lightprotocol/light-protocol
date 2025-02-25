@@ -12,6 +12,7 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsPostRequestParams {
+    /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
     #[serde(rename = "numElements")]
