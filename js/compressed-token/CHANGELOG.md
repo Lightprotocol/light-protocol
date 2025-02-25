@@ -1,4 +1,4 @@
-## [0.20.5-0.20.7] - 2025-02-24
+## [0.20.5-0.20.9] - 2025-02-24
 
 ### Changed
 
@@ -8,8 +8,8 @@
 
 ### Breaking Changes
 
--   `selectSmartCompressedTokenAccountsForTransfer` and
-    `selectSmartCompressedTokenAccountsForTransferIdempotent` now throw an error
+-   `selectMinCompressedTokenAccountsForTransfer` and
+    `selectSmartCompressedTokenAccountsForTransfer` now throw an error
     if not enough accounts are found. In most cases this is not a breaking
     change, because a proof request would fail anyway. This just makes the error
     message more informative.
@@ -17,12 +17,12 @@
 ### Added
 
 -   `selectSmartCompressedTokenAccountsForTransfer` and
-    `selectSmartCompressedTokenAccountsForTransferIdempotent`
+    `selectSmartCompressedTokenAccountsForTransferorPartial`
 
 ### Changed
 
--   `selectSmartCompressedTokenAccountsForTransfer` and
-    `selectSmartCompressedTokenAccountsForTransferIdempotent` now accept an optional
+-   `selectMinCompressedTokenAccountsForTransfer` and
+    `selectMinCompressedTokenAccountsForTransferorPartial` now accept an optional
     `maxInputs` parameter, defaulting to 4.
 
 ### Security

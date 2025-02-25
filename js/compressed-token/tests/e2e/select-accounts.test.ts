@@ -5,9 +5,9 @@ import { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
 import {
     selectMinCompressedTokenAccountsForTransfer,
-    selectMinCompressedTokenAccountsForTransferIdempotent,
+    selectMinCompressedTokenAccountsForTransferOrPartial,
     selectSmartCompressedTokenAccountsForTransfer,
-    selectSmartCompressedTokenAccountsForTransferIdempotent,
+    selectSmartCompressedTokenAccountsForTransferOrPartial,
 } from '../../src';
 import { ERROR_NO_ACCOUNTS_FOUND } from '../../src/utils/select-input-accounts';
 
@@ -251,8 +251,8 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
     });
 });
 
-describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
-    it('min idempotent: should select the largest account for a valid transfer where 1 account is enough', () => {
+describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
+    it('min orPartial: should select the largest account for a valid transfer where 1 account is enough', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(100) },
@@ -270,7 +270,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -281,7 +281,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(175))).toBe(true);
     });
 
-    it('min idempotent: should return the maximum possible amount if there is not enough balance', () => {
+    it('min orPartial: should return the maximum possible amount if there is not enough balance', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(30) },
@@ -291,7 +291,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -302,7 +302,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(30))).toBe(true);
     });
 
-    it('min idempotent: should select multiple accounts if needed', () => {
+    it('min orPartial: should select multiple accounts if needed', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -320,7 +320,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -331,19 +331,19 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(105))).toBe(true);
     });
 
-    it('min idempotent: should handle empty accounts array', () => {
+    it('min orPartial: should handle empty accounts array', () => {
         const accounts: ParsedTokenAccount[] = [];
         const transferAmount = new BN(75);
 
         expect(() =>
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             ),
         ).toThrow(ERROR_NO_ACCOUNTS_FOUND);
     });
 
-    it('min idempotent: should ignore accounts with zero balance', () => {
+    it('min orPartial: should ignore accounts with zero balance', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(0) },
@@ -361,7 +361,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -372,7 +372,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(75))).toBe(true);
     });
 
-    it('min idempotent: should handle large numbers', () => {
+    it('min orPartial: should handle large numbers', () => {
         const accounts = [
             {
                 parsed: { amount: new BN('1000000000000000000') },
@@ -390,7 +390,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN('750000000000000000');
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -401,7 +401,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN('1750000000000000000'))).toBe(true);
     });
 
-    it('min idempotent: should handle max inputs equal to accounts length', () => {
+    it('min orPartial: should handle max inputs equal to accounts length', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -424,7 +424,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const maxInputs = 3;
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
                 maxInputs,
@@ -436,7 +436,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(105))).toBe(true);
     });
 
-    it('min idempotent: should handle max inputs less than accounts length', () => {
+    it('min orPartial: should handle max inputs less than accounts length', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -455,7 +455,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const maxInputs = 2;
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
                 maxInputs,
@@ -467,7 +467,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
     });
 
-    it('min idempotent: should succeed and select 2 accounts with total 80', () => {
+    it('min orPartial: should succeed and select 2 accounts with total 80', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -486,7 +486,7 @@ describe('selectMinCompressedTokenAccountsForTransferIdempotent', () => {
         const maxInputs = 2;
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferIdempotent(
+            selectMinCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
                 maxInputs,
@@ -766,8 +766,8 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
     });
 });
 
-describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
-    it('smart-idempotent: should select 2 accounts for a valid transfer where 1 account is enough', () => {
+describe('selectSmartCompressedTokenAccountsForTransferOrPartial', () => {
+    it('smart-orPartial: should select 2 accounts for a valid transfer where 1 account is enough', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(100) },
@@ -785,7 +785,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectSmartCompressedTokenAccountsForTransferIdempotent(
+            selectSmartCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -796,7 +796,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(175))).toBe(true);
     });
 
-    it('smart-idempotent: should return the maximum possible amount if there is not enough balance', () => {
+    it('smart-orPartial: should return the maximum possible amount if there is not enough balance', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(30) },
@@ -806,7 +806,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectSmartCompressedTokenAccountsForTransferIdempotent(
+            selectSmartCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -817,7 +817,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(30))).toBe(true);
     });
 
-    it('smart-idempotent: should select multiple accounts if needed', () => {
+    it('smart-orPartial: should select multiple accounts if needed', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -835,7 +835,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(75);
 
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectSmartCompressedTokenAccountsForTransferIdempotent(
+            selectSmartCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             );
@@ -846,19 +846,19 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         expect(maxPossibleAmount.eq(new BN(105))).toBe(true);
     });
 
-    it('smart-idempotent: should handle empty accounts array', () => {
+    it('smart-orPartial: should handle empty accounts array', () => {
         const accounts: ParsedTokenAccount[] = [];
         const transferAmount = new BN(75);
 
         expect(() =>
-            selectSmartCompressedTokenAccountsForTransferIdempotent(
+            selectSmartCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
             ),
         ).toThrow(ERROR_NO_ACCOUNTS_FOUND);
     });
 
-    it('smart-idempotent: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
+    it('smart-orPartial: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
@@ -876,7 +876,7 @@ describe('selectSmartCompressedTokenAccountsForTransferIdempotent', () => {
         const transferAmount = new BN(100);
         const maxInputs = 2;
         const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectSmartCompressedTokenAccountsForTransferIdempotent(
+            selectSmartCompressedTokenAccountsForTransferOrPartial(
                 accounts,
                 transferAmount,
                 maxInputs,

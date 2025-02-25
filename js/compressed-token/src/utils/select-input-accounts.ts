@@ -53,7 +53,7 @@ export function selectMinCompressedTokenAccountsForTransfer(
         accumulatedAmount,
         accumulatedLamports,
         maxPossibleAmount,
-    ] = selectMinCompressedTokenAccountsForTransferIdempotent(
+    ] = selectMinCompressedTokenAccountsForTransferOrPartial(
         accounts,
         transferAmount,
         maxInputs,
@@ -88,12 +88,11 @@ export function selectMinCompressedTokenAccountsForTransfer(
 }
 
 /**
- * Selects the minimal number of compressed token accounts for a transfer idempotently.
- *
- * 1. Sorts accounts by amount (descending)
- * 2. Accumulates amount until it meets or exceeds transfer amount
+ * Executes {@link selectMinCompressedTokenAccountsForTransfer} strategy,
+ * returns partial amounts if insufficient accounts are found instead of
+ * throwing an error.
  */
-export function selectMinCompressedTokenAccountsForTransferIdempotent(
+export function selectMinCompressedTokenAccountsForTransferOrPartial(
     accounts: ParsedTokenAccount[],
     transferAmount: BN,
     maxInputs: number = 4,
@@ -138,7 +137,7 @@ export function selectMinCompressedTokenAccountsForTransferIdempotent(
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
         console.log(
-            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, Idempotent returns max available: ${maxPossibleAmount.toString()}.`,
+            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, Returns max available: ${maxPossibleAmount.toString()}.`,
         );
     }
 
@@ -208,7 +207,7 @@ export function selectSmartCompressedTokenAccountsForTransfer(
         accumulatedAmount,
         accumulatedLamports,
         maxPossibleAmount,
-    ] = selectSmartCompressedTokenAccountsForTransferIdempotent(
+    ] = selectSmartCompressedTokenAccountsForTransferOrPartial(
         accounts,
         transferAmount,
         maxInputs,
@@ -243,9 +242,11 @@ export function selectSmartCompressedTokenAccountsForTransfer(
 }
 
 /**
- * Idempotently runs {@link selectSmartCompressedTokenAccountsForTransfer} strategy.
+ * Executes {@link selectMinCompressedTokenAccountsForTransfer} strategy,
+ * returns partial amounts if insufficient accounts are found instead of
+ * throwing an error.
  */
-export function selectSmartCompressedTokenAccountsForTransferIdempotent(
+export function selectSmartCompressedTokenAccountsForTransferOrPartial(
     accounts: ParsedTokenAccount[],
     transferAmount: BN,
     maxInputs: number = 4,

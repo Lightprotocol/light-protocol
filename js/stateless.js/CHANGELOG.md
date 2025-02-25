@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.20.5-0.20.7] - 2025-02-24
+## [0.20.5-0.20.9] - 2025-02-24
 
 ### Bumped to latest compressed-token sdk
 
