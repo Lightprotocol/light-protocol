@@ -57,15 +57,6 @@ import { StateTreeContext } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
-     * Address of the state tree to index. Default: public default test state
-     * tree.
-     */
-    merkleTreeAddress?: PublicKey;
-    /**
-     * Nullifier queue associated with merkleTreeAddress
-     */
-    nullifierQueueAddress?: PublicKey;
-    /**
      * Depth of state tree. Defaults to the public default test state tree depth
      */
     depth?: number;
@@ -73,15 +64,6 @@ export interface TestRpcConfig {
      * Log proof generation time
      */
     log?: boolean;
-    /**
-     * Address of the address tree to index. Default: public default test
-     * address tree.
-     */
-    addressTreeAddress?: PublicKey;
-    /**
-     * Address queue associated with addressTreeAddress
-     */
-    addressQueueAddress?: PublicKey;
 }
 
 export type ClientSubscriptionId = number;
@@ -116,10 +98,6 @@ function getVersionedCompressedAccountFields(
  *                                'http://127.0.0.1:8899'.
  * @param proverEndpoint          Prover server endpoint URL. Defaults to
  *                                'http://localhost:3001'.
- * @param merkleTreeAddress       Address of the merkle tree to index. Defaults
- *                                to the public default test state tree.
- * @param nullifierQueueAddress   Optional address of the associated nullifier
- *                                queue.
  * @param depth                   Depth of the merkle tree.
  * @param log                     Log proof generation time.
  */
@@ -128,8 +106,6 @@ export async function getTestRpc(
     endpoint: string = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://127.0.0.1:8784',
     proverEndpoint: string = 'http://127.0.0.1:3001',
-    merkleTreeAddress?: PublicKey,
-    nullifierQueueAddress?: PublicKey,
     depth?: number,
     log = false,
 ) {
@@ -142,9 +118,6 @@ export async function getTestRpc(
         proverEndpoint,
         undefined,
         {
-            merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
-            nullifierQueueAddress:
-                nullifierQueueAddress || defaultAccounts.nullifierQueue,
             depth: depth || defaultAccounts.merkleTreeHeight,
             log,
         },
@@ -162,10 +135,6 @@ export async function getTestRpc(
 export class TestRpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    merkleTreeAddress: PublicKey;
-    nullifierQueueAddress: PublicKey;
-    addressTreeAddress: PublicKey;
-    addressQueueAddress: PublicKey;
     lightWasm: LightWasm;
     depth: number;
     log = false;
@@ -196,14 +165,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 
-        const {
-            merkleTreeAddress,
-            nullifierQueueAddress,
-            depth,
-            log,
-            addressTreeAddress,
-            addressQueueAddress,
-        } = testRpcConfig ?? {};
+        const { depth, log } = testRpcConfig ?? {};
 
         const {
             merkleTree,
@@ -214,10 +176,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         } = defaultTestStateTreeAccounts();
 
         this.lightWasm = hasher;
-        this.merkleTreeAddress = merkleTreeAddress ?? merkleTree;
-        this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
-        this.addressTreeAddress = addressTreeAddress ?? addressTree;
-        this.addressQueueAddress = addressQueueAddress ?? addressQueue;
+
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
     }
@@ -356,10 +315,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const root = bn(tree.root());
             const merkleProof: MerkleContextWithMerkleProof = {
                 hash: hashes[i].toArray('be', 32),
-                merkleTree: this.merkleTreeAddress,
+                merkleTree: defaultTestStateTreeAccounts().merkleTree,
                 leafIndex: leafIndex,
                 merkleProof: bnPathElements,
-                queue: this.nullifierQueueAddress,
+                queue: defaultTestStateTreeAccounts().nullifierQueue,
                 rootIndex: allLeaves.length,
                 root: root,
                 version: MerkleContextVersion.V1,
@@ -643,8 +602,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 nextIndex: bn(lowElement.nextIndex),
                 merkleProofHashedIndexedElementLeaf: bnPathElements,
                 indexHashedIndexedElementLeaf: bn(lowElement.index),
-                merkleTree: this.addressTreeAddress,
-                nullifierQueue: this.addressQueueAddress,
+                merkleTree: defaultTestStateTreeAccounts().addressTree,
+                queue: defaultTestStateTreeAccounts().addressQueue,
             };
             newAddressProofs.push(proof);
         }
@@ -790,7 +749,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
-                queues: newAddressProofs.map(proof => proof.nullifierQueue),
+                queues: newAddressProofs.map(proof => proof.queue),
                 proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
@@ -846,9 +805,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.merkleTree)),
                 queues: merkleProofsWithContext
                     .map(proof => proof.queue)
-                    .concat(
-                        newAddressProofs.map(proof => proof.nullifierQueue),
-                    ),
+                    .concat(newAddressProofs.map(proof => proof.queue)),
                 proveByIndices: merkleProofsWithContext
                     .map(proof => proof.proveByIndex)
                     .concat(newAddressProofs.map(_ => false)), // TODO: Add V2

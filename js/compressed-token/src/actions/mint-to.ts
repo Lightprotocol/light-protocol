@@ -12,23 +12,27 @@ import {
     Rpc,
     dedupeSigner,
     pickRandomTreeAndQueue,
+    StateTreeContext,
+    pickRandomStateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
 /**
  * Mint compressed tokens to a solana address
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint for the account
- * @param destination    Address of the account to mint to. Can be an array of
- *                       addresses if the amount is an array of amounts.
- * @param authority      Minting authority
- * @param amount         Amount to mint. Can be an array of amounts if the
- *                       destination is an array of addresses.
- * @param merkleTree     State tree account that the compressed tokens should be
- *                       part of. Defaults to the default state tree account.
- * @param confirmOptions Options for confirming the transaction
+ * @param rpc                       Rpc to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Mint for the account
+ * @param destination               Address of the account to mint to. Can be an
+ *                                  array of addresses if the amount is an array
+ *                                  of amounts.
+ * @param authority                 Minting authority
+ * @param amount                    Amount to mint. Can be an array of amounts
+ *                                  if the destination is an array of addresses.
+ * @param outputStateTreeContext    State tree context that the compressed
+ *                                  tokens should be part of. Defaults to the
+ *                                  default state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -39,7 +43,7 @@ export async function mintTo(
     destination: PublicKey | PublicKey[],
     authority: Signer,
     amount: number | BN | number[] | BN[],
-    merkleTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -49,10 +53,9 @@ export async function mintTo(
 
     const additionalSigners = dedupeSigner(payer, [authority]);
 
-    if (!merkleTree) {
+    if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
+        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
     }
 
     const ix = await CompressedTokenProgram.mintTo({
@@ -61,7 +64,7 @@ export async function mintTo(
         authority: authority.publicKey,
         amount: amount,
         toPubkey: destination,
-        merkleTree,
+        outputStateTreeContext,
         tokenProgramId,
     });
 

@@ -4,6 +4,7 @@ import {
     getIndexOrAdd,
     bn,
     padOutputStateMerkleTrees,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
@@ -42,7 +43,7 @@ export function packCompressedTokenAccounts(
 } {
     const {
         inputCompressedTokenAccounts,
-        outputStateTrees,
+        outputStateTreeContext,
         remainingAccounts = [],
         rootIndices,
         tokenTransferOutputs,
@@ -95,9 +96,10 @@ export function packCompressedTokenAccounts(
         },
     );
 
+    // TODO(v2): queue.
     /// pack output state trees
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateTrees,
+        outputStateTreeContext.tree,
         tokenTransferOutputs.length,
         inputCompressedTokenAccounts.map(acc => acc.compressedAccount),
     );

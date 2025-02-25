@@ -7,9 +7,14 @@ import {
 } from '@solana/web3.js';
 
 import { LightSystemProgram } from '../programs';
-import { pickRandomTreeAndQueue, Rpc } from '../rpc';
+import {
+    pickRandomStateTreeContext,
+    pickRandomTreeAndQueue,
+    Rpc,
+} from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
+import { StateTreeContext } from '../state';
 
 /**
  * Compress lamports to a solana address
@@ -30,22 +35,21 @@ export async function compress(
     payer: Signer,
     lamports: number | BN,
     toAddress: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    if (!outputStateTree) {
+    if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
     }
 
     const ix = await LightSystemProgram.compress({
         payer: payer.publicKey,
         toAddress,
         lamports,
-        outputStateTree,
+        outputStateTreeContext,
     });
 
     const tx = buildAndSignTx(

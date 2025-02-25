@@ -431,7 +431,7 @@ export type MerkleContextWithNewAddressProof = {
     merkleProofHashedIndexedElementLeaf: BN[];
     indexHashedIndexedElementLeaf: BN;
     merkleTree: PublicKey;
-    nullifierQueue: PublicKey;
+    queue: PublicKey;
 };
 
 export type NonInclusionJsonStruct = {
@@ -601,6 +601,7 @@ export function getTreeForQueue(
 }
 
 /**
+ * @deprecated use {@link pickRandomStateTreeContext} instead.
  * Get a random tree and queue from the active state tree addresses.
  *
  * Prevents write lock contention on state trees.
@@ -622,6 +623,26 @@ export function pickRandomTreeAndQueue(info: StateTreeContext[]): {
         tree: info[index].tree,
         queue: info[index].queue,
     };
+}
+
+/**
+ * Get a random State tree and context from the active state tree addresses.
+ *
+ * Prevents write lock contention on state trees.
+ *
+ * @param info - The active state tree addresses
+ * @returns A random tree and queue
+ */
+export function pickRandomStateTreeContext(
+    info: StateTreeContext[],
+): StateTreeContext {
+    const length = info.length;
+    const index = Math.floor(Math.random() * length);
+
+    if (!info[index].queue) {
+        throw new Error('Queue must not be null for state tree');
+    }
+    return info[index];
 }
 
 export function compressedAccountIsV1(
@@ -896,7 +917,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof,
-            queue: associatedQueue, // TODO(photon): support nullifierQueue in response.
+            queue: associatedQueue,
             rootIndex: res.result.value.rootSeq % 2400,
             root: res.result.value.root,
             version: MerkleContextVersion.V1, // TODO: add v2 support
@@ -1675,7 +1696,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleProofHashedIndexedElementLeaf: proof.proof,
                 indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
                 merkleTree: proof.merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().addressQueue,
+                queue: defaultTestStateTreeAccounts().addressQueue,
             };
             newAddressProofs.push(_proof);
         }
@@ -1779,7 +1800,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
-                queues: newAddressProofs.map(proof => proof.nullifierQueue),
+                queues: newAddressProofs.map(proof => proof.queue),
                 proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
@@ -1832,9 +1853,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.merkleTree)),
                 queues: merkleProofsWithContext
                     .map(proof => proof.queue)
-                    .concat(
-                        newAddressProofs.map(proof => proof.nullifierQueue),
-                    ),
+                    .concat(newAddressProofs.map(proof => proof.queue)),
                 proveByIndices: merkleProofsWithContext
                     .map(proof => proof.proveByIndex)
                     .concat(newAddressProofs.map(_ => false)),

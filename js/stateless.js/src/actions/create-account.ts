@@ -9,7 +9,11 @@ import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
-import { pickRandomTreeAndQueue, Rpc } from '../rpc';
+import {
+    pickRandomStateTreeContext,
+    pickRandomTreeAndQueue,
+    Rpc,
+} from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -18,7 +22,7 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { bn } from '../state';
+import { bn, StateTreeContext } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -45,23 +49,22 @@ export async function createAccount(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
+    // TODO: add V2 support.
     addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
     addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
 
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, addressTree);
 
-    if (!outputStateTree) {
+    if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
     }
-
     const proof = await rpc.getValidityProofV0(undefined, [
         {
             address: bn(address.toBytes()),
@@ -74,7 +77,7 @@ export async function createAccount(
         seed: seed,
         addressMerkleTreeRootIndex: proof.rootIndices[0],
         addressMerkleTreePubkey: proof.merkleTrees[0],
-        addressQueuePubkey: proof.nullifierQueues[0],
+        addressQueuePubkey: proof.queues[0],
     };
 
     const ix = await LightSystemProgram.createAccount({
@@ -83,7 +86,7 @@ export async function createAccount(
         newAddress: Array.from(address.toBytes()),
         recentValidityProof: proof.compressedProof,
         programId,
-        outputStateTree,
+        outputStateTreeContext,
     });
 
     const tx = buildAndSignTx(
@@ -101,23 +104,21 @@ export async function createAccount(
 /**
  * Create compressed account with address and lamports
  *
- * @param rpc               RPC to use
- * @param payer             Payer of the transaction and initialization fees
- * @param seeds             Seeds to derive the new account address
- * @param lamports          Number of compressed lamports to initialize the
- *                          account with
- * @param programId         Owner of the new account
- * @param addressTree       Optional address tree. Defaults to a current shared
- *                          address tree.
- * @param addressQueue      Optional address queue. Defaults to a current shared
- *                          address queue.
- * @param outputStateTree   Optional output state tree. Defaults to a current
- *                          shared state tree.
- * @param confirmOptions    Options for confirming the transaction
+ * @param rpc                       RPC to use
+ * @param payer                     Payer of the transaction and initialization fees
+ * @param seeds                     Seeds to derive the new account address
+ * @param lamports                  Number of compressed lamports to initialize the
+ *                                  account with
+ * @param programId                 Owner of the new account
+ * @param addressTree               Optional address tree. Defaults to a current shared
+ *                                  address tree.
+ * @param addressQueue              Optional address queue. Defaults to a current shared
+ *                                  address queue.
+ * @param outputStateTreeContext    Optional output state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
- * @return                  Transaction signature
+ * @return  Transaction signature
  */
-// TODO: add support for payer != user owner
 export async function createAccountWithLamports(
     rpc: Rpc,
     payer: Signer,
@@ -126,7 +127,7 @@ export async function createAccountWithLamports(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
@@ -140,10 +141,9 @@ export async function createAccountWithLamports(
         lamports,
     );
 
-    if (!outputStateTree) {
+    if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
     }
 
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -168,8 +168,7 @@ export async function createAccountWithLamports(
             proof.rootIndices[proof.rootIndices.length - 1],
         addressMerkleTreePubkey:
             proof.merkleTrees[proof.merkleTrees.length - 1],
-        addressQueuePubkey:
-            proof.nullifierQueues[proof.nullifierQueues.length - 1],
+        addressQueuePubkey: proof.queues[proof.queues.length - 1],
     };
 
     const ix = await LightSystemProgram.createAccount({
@@ -180,7 +179,7 @@ export async function createAccountWithLamports(
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         programId,
-        outputStateTree,
+        outputStateTreeContext,
     });
 
     const tx = buildAndSignTx(
