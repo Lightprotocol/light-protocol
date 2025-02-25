@@ -44,6 +44,8 @@ pub struct AccountV2 {
 }
 
 impl AccountV2 {
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, prove_by_index: bool, queue: String, slot_created: u64, tree: String, tree_type: u64) -> AccountV2 {
         AccountV2 {
             address: None,

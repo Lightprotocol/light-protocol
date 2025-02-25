@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use rand::prelude::SliceRandom;
 use rand::Rng;
+use bs58;
 use forester_utils::{
     airdrop_lamports,
     registry::{register_test_forester, update_test_forester},
@@ -49,7 +50,6 @@ mod test_utils;
 const DO_TXS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 5;
 const RESTART_VALIDATOR: bool = true;
-const RUN_FORESTER: bool = true;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -73,6 +73,22 @@ async fn test_state_indexer_fetch_root() {
     }
 
     println!("root sequence number: {}", batched_merkle_tree.get_metadata().sequence_number);
+}
+
+#[test]
+fn bs58_inputs_test() {
+    use bs58;
+
+    let hex_strings = vec![
+        "20EE6D2049072E817EAEF3A14AC32E2904D57CB26738887E74583147F542DF98",
+        "15BE50C563647D786CDDF5B69C0B109C25C5BD0B91CBBDE0AC76AD3A9F9406B5",
+    ];
+
+    for hex in hex_strings {
+        let bytes = hex::decode(hex).expect("Invalid hex string");
+        let base58 = bs58::encode(bytes).into_string();
+        println!("Base58: {}", base58);
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
@@ -144,7 +160,7 @@ async fn test_state_indexer_async_batched() {
     };
 
     let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    let _protocol_config = rpc
+    let protocol_config = rpc
         .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
         .await
         .unwrap()
@@ -204,16 +220,14 @@ async fn test_state_indexer_async_batched() {
         PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc)
     };
 
-    if RUN_FORESTER {
-        let service_handle = tokio::spawn(run_pipeline(
-            Arc::from(config.clone()),
-            None,
-            None,
-            Arc::new(Mutex::new(forester_photon_indexer)),
-            shutdown_receiver,
-            work_report_sender,
-        ));
-    }
+    let service_handle = tokio::spawn(run_pipeline(
+        Arc::from(config.clone()),
+        None,
+        None,
+        Arc::new(Mutex::new(forester_photon_indexer)),
+        shutdown_receiver,
+        work_report_sender,
+    ));
 
     // let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     // while rpc.get_slot().await.unwrap() < active_phase_slot {
@@ -262,6 +276,64 @@ async fn test_state_indexer_async_batched() {
 
     sender_batched_token_counter = 10;
 
+    {
+        let mut rpc = pool.get_connection().await.unwrap();
+
+        let mut merkle_tree_account = rpc
+            .get_account(env.batched_state_merkle_tree)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &env.batched_state_merkle_tree.into(),
+        )
+            .unwrap();
+
+        println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
+
+        let mut output_queue_account = rpc
+            .get_account(env.batched_output_queue)
+            .await
+            .unwrap()
+            .unwrap();
+
+        let output_queue = BatchedQueueAccount::output_from_bytes(
+            output_queue_account.data.as_mut_slice(),
+        )
+            .unwrap();
+
+        println!("queue metadata: {:?}", output_queue.get_metadata());
+
+    }
+    wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
+
+
+    let mut input_compressed_accounts = photon_indexer
+        .get_compressed_token_accounts_by_owner_v2(&batch_payer.pubkey(), Some(mint_pubkey))
+        .await
+        .unwrap();
+
+    let compressed_account_hashes = input_compressed_accounts
+        .iter()
+        .map(|x| {
+            println!("compressed_account hash: {:?}", x.compressed_account.hash());
+            println!("compressed_account hash bs58: {:?}", bs58::encode(x.compressed_account.hash().unwrap()).into_string());
+            println!("compressed_account hash hex: {:?}", hex::encode(x.compressed_account.hash().unwrap()));
+            println!("merkle_context: {:?}", x.compressed_account.merkle_context);
+            x.compressed_account.hash()
+                .unwrap()
+        })
+        .collect::<Vec<[u8; 32]>>();
+
+    println!("get_validity_proof_v2 for {:?}", compressed_account_hashes.iter().map(|x| bs58::encode(x).into_string()).collect::<Vec<_>>());
+    let proof_for_compressed_accounts = photon_indexer
+        .get_validity_proof_v2(compressed_account_hashes, vec![])
+        .await
+        .unwrap();
+    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
+
     if DO_TXS {
         for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
             let batch_compress_sig = compress(&mut rpc, &env.batched_output_queue, &batch_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_batched_accs_counter).await;
@@ -281,9 +353,26 @@ async fn test_state_indexer_async_batched() {
                     output_queue_account.data.as_mut_slice(),
                 )
                     .unwrap();
-
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
+
+
+                let mut input_queue_account = rpc
+                    .get_account(env.batched_state_merkle_tree)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let account = BatchedMerkleTreeAccount::state_from_bytes(
+                    input_queue_account.data.as_mut_slice(),
+                    &env.batched_state_merkle_tree.into(),
+                )
+                    .unwrap();
+
+                println!("input queue next_index: {}, output queue next_index: {} sender_batched_accs_counter: {} sender_batched_token_counter: {}",
+                         account.queue_batches.next_index, output_queue.batch_metadata.next_index, sender_batched_accs_counter, sender_batched_token_counter);
+
+                assert_eq!(output_queue.batch_metadata.next_index - account.queue_batches.next_index, sender_batched_accs_counter + sender_batched_token_counter);
             }
+
             let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer, &mut sender_batched_accs_counter).await;
             println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
@@ -356,7 +445,7 @@ async fn test_state_indexer_async_batched() {
     shutdown_sender
         .send(())
         .expect("Failed to send shutdown signal");
-    // service_handle.await.unwrap().unwrap();
+    service_handle.await.unwrap().unwrap();
 }
 
 async fn mint_to(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, mint_pubkey: &Pubkey) -> Signature {
@@ -384,23 +473,22 @@ async fn mint_to(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pay
     ).await.unwrap()
 }
 
-
 async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
-    forester_keypair: &Keypair,
+    payer: &Keypair,
     mint: &Pubkey,
     counter: &mut u64,
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let mut input_compressed_accounts = indexer
-        .get_compressed_token_accounts_by_owner_v2(&forester_keypair.pubkey(), Some(*mint))
+        .get_compressed_token_accounts_by_owner_v2(&payer.pubkey(), Some(*mint))
         .await
         .unwrap();
 
-    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", forester_keypair.pubkey(), input_compressed_accounts);
-    assert_eq!(input_compressed_accounts.len(), *counter as usize);
+    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
+    assert_eq!(input_compressed_accounts.len(), std::cmp::min((*counter as usize), 1000));
 
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
@@ -415,23 +503,19 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     let compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| {
+            println!("compressed_account hash: {:?}", x.compressed_account.hash());
+            println!("merkle_context: {:?}", x.compressed_account.merkle_context);
             x.compressed_account.hash()
                 .unwrap()
         })
         .collect::<Vec<[u8; 32]>>();
 
-    println!("get_validity_proof_v2...");
+    println!("get_validity_proof_v2 for {:?}", compressed_account_hashes.iter().map(|x| bs58::encode(x).into_string()).collect::<Vec<_>>());
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
-        .await;
+        .await
+        .unwrap();
     println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
-
-    if proof_for_compressed_accounts.is_err() {
-        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
-        return Signature::default();
-    }
-
-    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
 
     let root_indices = proof_for_compressed_accounts
         .root_indices
@@ -459,7 +543,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
 
     let mut compressed_accounts = vec![TokenTransferOutputData {
         amount: tokens_divided,
-        owner: forester_keypair.pubkey(),
+        owner: payer.pubkey(),
         lamports: None,
         merkle_tree: *merkle_tree_pubkey,
     }; OUTPUT_ACCOUNT_NUM];
@@ -490,8 +574,8 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .collect::<Vec<_>>();
 
     let instruction = create_transfer_instruction(
-        &forester_keypair.pubkey(),
-        &forester_keypair.pubkey(),
+        &payer.pubkey(),
+        &payer.pubkey(),
         &merkle_contexts,
         compressed_accounts.as_slice(),
         &root_indices,
@@ -522,8 +606,8 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     let sig = rpc
         .create_and_send_transaction(
             &instructions,
-            &forester_keypair.pubkey(),
-            &[forester_keypair],
+            &payer.pubkey(),
+            &[payer],
         )
         .await
         .unwrap();
@@ -538,17 +622,18 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
-    forester_keypair: &Keypair,
+    payer: &Keypair,
     counter: &mut u64,
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let mut input_compressed_accounts = indexer
-        .get_compressed_accounts_by_owner_v2(&forester_keypair.pubkey())
+        .get_compressed_accounts_by_owner_v2(&payer.pubkey())
         .await
         .unwrap_or(vec![]);
 
-    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", forester_keypair.pubkey(), input_compressed_accounts);
-    assert_eq!(input_compressed_accounts.len(), *counter as usize);
+    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
+
+    assert_eq!(input_compressed_accounts.len(), std::cmp::min((*counter as usize), 1000));
 
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
@@ -613,7 +698,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
 
     let mut compressed_accounts = vec![CompressedAccount {
         lamports: lamp,
-        owner: forester_keypair.pubkey(),
+        owner: payer.pubkey(),
         address: None,
         data: None,
     }; OUTPUT_ACCOUNT_NUM];
@@ -639,8 +724,8 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .collect::<Vec<CompressedAccount>>();
 
     let instruction = create_invoke_instruction(
-        &forester_keypair.pubkey(),
-        &forester_keypair.pubkey(),
+        &payer.pubkey(),
+        &payer.pubkey(),
         &input_compressed_accounts,
         compressed_accounts.as_slice(),
         &merkle_contexts,
@@ -665,8 +750,8 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     let sig = rpc
         .create_and_send_transaction(
             &instructions,
-            &forester_keypair.pubkey(),
-            &[forester_keypair],
+            &payer.pubkey(),
+            &[payer],
         )
         .await
         .unwrap();

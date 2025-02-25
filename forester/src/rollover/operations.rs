@@ -158,7 +158,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
         TreeType::BatchedAddress => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
+                BatchedMerkleTreeAccount::address_from_bytes(&mut account.data, &tree_pubkey.into())
                     .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",

@@ -244,13 +244,15 @@ impl CompressedAccount {
         let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
             .unwrap()
             .0;
-        self.hash_with_hashed_values::<H>(
+        let result = self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()
                 .0,
             &hashed_mt,
             leaf_index,
-        )
+        );
+        println!("hash merkle_tree_pubkey: {:?} leaf_index: {:?} result: {:?}", merkle_tree_pubkey, leaf_index, result);
+        result
     }
 }
 

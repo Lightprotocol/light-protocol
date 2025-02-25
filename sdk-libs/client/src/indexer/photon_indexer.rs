@@ -372,13 +372,15 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let accounts = *result.result.unwrap().value;
 
             let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
-            for account in accounts.items {
+            for (idx, account) in accounts.items.iter().enumerate() {
+                let account_hash = Hash::from_base58(&account.account.hash).unwrap();
+                println!("account[{}].hash: {:?}", idx, account_hash);
                 let token_data_with_merkle_context = TokenDataWithMerkleContext {
                     token_data: TokenData {
                         mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
                         owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
                         amount: account.token_data.amount,
-                        delegate: account.token_data.delegate.map(|x| Pubkey::from_str(&x).unwrap()),
+                        delegate: account.token_data.delegate.as_ref().map(|x| Pubkey::from_str(&x).unwrap()),
                         state: if account.token_data.state == photon_api::models::account_state::AccountState::Initialized { AccountState::Initialized } else { AccountState::Frozen },
                         tlv: None,
                     },
@@ -386,10 +388,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         compressed_account: CompressedAccount {
                             owner: Pubkey::from_str(&account.account.owner).unwrap(),
                             lamports: account.account.lamports,
-                            address: account.account.address.map(|x| Hash::from_base58(&x).unwrap()),
-                            data: account.account.data.map(|data| CompressedAccountData {
-                                discriminator: data.discriminator.to_be_bytes(),
-                                data: data.data.as_bytes().to_vec(),
+                            address: account.account.address.as_ref().map(|x| Hash::from_base58(&x).unwrap()),
+                            data: account.account.data.as_ref().map(|data| CompressedAccountData {
+                                discriminator: data.discriminator.to_le_bytes(),
+                                data: base64::decode(&data.data).unwrap(),
                                 data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                             }),
                         },
@@ -401,6 +403,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         }
                     }
                 };
+                println!("token_data_with_merkle_context: {:?}", token_data_with_merkle_context);
                 token_data.push(token_data_with_merkle_context);
             }
 
@@ -755,6 +758,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 request,
             )
             .await?;
+            println!("get_validity_proof result: {:?}", result);
 
             let result = Self::extract_result("get_validity_proof", result.result)?;
             Ok(*result.value)

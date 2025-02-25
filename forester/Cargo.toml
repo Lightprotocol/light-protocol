@@ -50,6 +50,7 @@ dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
 console-subscriber = "0.4.1"
+hex = "0.4.3"
 
 [dev-dependencies]
 serial_test = { workspace = true }

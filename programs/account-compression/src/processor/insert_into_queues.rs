@@ -45,6 +45,9 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &current_slot,
     )?;
     msg!("append leaves {:?}", inputs.leaves.len());
+    for (idx, leaf) in inputs.leaves.iter().enumerate() {
+        msg!("leaf[{}] = {:?}", idx, leaf);
+    }
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_nullifiers");
     #[cfg(feature = "bench-sbf")]

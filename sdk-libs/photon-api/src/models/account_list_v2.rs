@@ -11,15 +11,15 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Context {
-    #[serde(rename = "slot")]
-    pub slot: u64,
+pub struct AccountListV2 {
+    #[serde(rename = "items")]
+    pub items: Vec<models::AccountV2>,
 }
 
-impl Context {
-    pub fn new(slot: u64) -> Context {
-        Context {
-            slot,
+impl AccountListV2 {
+    pub fn new(items: Vec<models::AccountV2>) -> AccountListV2 {
+        AccountListV2 {
+            items,
         }
     }
 }
