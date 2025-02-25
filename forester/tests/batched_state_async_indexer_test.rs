@@ -243,12 +243,15 @@ async fn test_state_indexer_async_batched() {
             .unwrap();
     }
 
+    let mut sender_batched_accs_counter = 0;
+    let mut sender_legacy_accs_counter = 0;
+
     if DO_TXS {
         for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
-            let batch_compress_sig = compress(&mut rpc, &env.batched_output_queue, &batch_payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
+            let batch_compress_sig = compress(&mut rpc, &env.batched_output_queue, &batch_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_batched_accs_counter).await;
             println!("{} batch compress: {:?}", i, batch_compress_sig);
 
-            let compress_sig = compress(&mut rpc, &env.merkle_tree_pubkey, &legacy_payer, if i == 0 { 1_000_000 } else { 10_000 }).await;
+            let compress_sig = compress(&mut rpc, &env.merkle_tree_pubkey, &legacy_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_legacy_accs_counter).await;
             println!("{} legacy compress: {:?}", i, compress_sig);
 
             {
@@ -265,10 +268,10 @@ async fn test_state_indexer_async_batched() {
 
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
             }
-            let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer).await;
+            let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer, &mut sender_batched_accs_counter).await;
             println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
-            let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer).await;
+            let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer, &mut sender_legacy_accs_counter).await;
             println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
         }
     }
@@ -340,6 +343,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
     forester_keypair: &Keypair,
+    counter: &mut u64,
 ) -> Signature {
     wait_for_indexer(rpc, indexer).await.unwrap();
     let mut input_compressed_accounts = indexer
@@ -348,6 +352,8 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .unwrap_or(vec![]);
 
     println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", forester_keypair.pubkey(), input_compressed_accounts);
+    assert_eq!(input_compressed_accounts.len(), *counter as usize);
+
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
     input_compressed_accounts.shuffle(rng);
@@ -469,10 +475,13 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
+    *counter += OUTPUT_ACCOUNT_NUM as u64;
+    *counter -= input_compressed_accounts.len() as u64;
+
     sig
 }
 
-async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, lamports: u64) -> Signature {
+async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, lamports: u64, counter: &mut u64) -> Signature {
     let compress_account = CompressedAccount {
         lamports,
         owner: payer.pubkey(),
@@ -511,6 +520,8 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
         )
         .await
         .unwrap();
+
+    *counter += 1;
 
     sig
 }
