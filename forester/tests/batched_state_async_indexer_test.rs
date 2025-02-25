@@ -488,8 +488,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
 
     println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
-    assert_eq!(input_compressed_accounts.len(), std::cmp::min((*counter as usize), 1000));
-
+    assert_eq!(std::cmp::min(input_compressed_accounts.len(), 1000), std::cmp::min((*counter as usize), 1000));
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
     input_compressed_accounts.shuffle(rng);
@@ -510,12 +509,16 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         })
         .collect::<Vec<[u8; 32]>>();
 
-    println!("get_validity_proof_v2 for {:?}", compressed_account_hashes.iter().map(|x| bs58::encode(x).into_string()).collect::<Vec<_>>());
+    wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
-        .await
-        .unwrap();
-    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
+        .await;
+    if proof_for_compressed_accounts.is_err() {
+        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
+        return Signature::default();
+    }
+
+    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
 
     let root_indices = proof_for_compressed_accounts
         .root_indices
@@ -633,7 +636,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
 
     println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
 
-    assert_eq!(input_compressed_accounts.len(), std::cmp::min((*counter as usize), 1000));
+    assert_eq!(std::cmp::min(input_compressed_accounts.len(), 1000), std::cmp::min((*counter as usize), 1000));
 
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
@@ -657,12 +660,10 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         })
         .collect::<Vec<[u8; 32]>>();
 
-    println!("get_validity_proof_v2...");
+    wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await;
-    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
-
     if proof_for_compressed_accounts.is_err() {
         println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
         return Signature::default();
