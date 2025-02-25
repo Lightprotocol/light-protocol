@@ -73,6 +73,7 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { ActiveTreeBundle } from './state/types';
+import { validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -1886,6 +1887,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
     ): Promise<WithContext<CompressedProofWithContext>> {
+        validateNumbersForProof(hashes.length, newAddresses.length);
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
