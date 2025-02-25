@@ -88,10 +88,9 @@ export function selectMinCompressedTokenAccountsForTransfer(
 }
 
 /**
- * Selects the minimal number of compressed token accounts for a transfer orPartially.
- *
- * 1. Sorts accounts by amount (descending)
- * 2. Accumulates amount until it meets or exceeds transfer amount
+ * Executes {@link selectMinCompressedTokenAccountsForTransfer} strategy,
+ * returns partial amounts if insufficient accounts are found instead of
+ * throwing an error.
  */
 export function selectMinCompressedTokenAccountsForTransferOrPartial(
     accounts: ParsedTokenAccount[],
@@ -138,7 +137,7 @@ export function selectMinCompressedTokenAccountsForTransferOrPartial(
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
         console.log(
-            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, orPartial returns max available: ${maxPossibleAmount.toString()}.`,
+            `Insufficient balance for transfer. Requested: ${transferAmount.toString()}, Returns max available: ${maxPossibleAmount.toString()}.`,
         );
     }
 
@@ -243,7 +242,9 @@ export function selectSmartCompressedTokenAccountsForTransfer(
 }
 
 /**
- * orPartially runs {@link selectSmartCompressedTokenAccountsForTransfer} strategy.
+ * Executes {@link selectMinCompressedTokenAccountsForTransfer} strategy,
+ * returns partial amounts if insufficient accounts are found instead of
+ * throwing an error.
  */
 export function selectSmartCompressedTokenAccountsForTransferOrPartial(
     accounts: ParsedTokenAccount[],
