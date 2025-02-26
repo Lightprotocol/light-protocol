@@ -59,7 +59,16 @@ pub struct MerkleTreeSequenceNumber {
     pub seq: U64,
 }
 
-#[derive(Debug, Clone)]
+impl From<&MerkleTreeSequenceNumber> for crate::event::MerkleTreeSequenceNumber {
+    fn from(seq: &MerkleTreeSequenceNumber) -> Self {
+        Self {
+            pubkey: seq.pubkey.into(),
+            seq: seq.seq.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct InsertIntoQueuesInstructionData<'a> {
     meta: Ref<&'a [u8], InsertIntoQueuesInstructionDataMeta>,
     pub leaves: ZeroCopySlice<'a, u8, AppendLeavesInput, false>,

@@ -2679,15 +2679,6 @@ where
                 }
             }
 
-            // if !input_accounts.is_empty() {
-            //     for (i, input_account) in input_accounts.iter_mut().enumerate() {
-            //         if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
-            //             // input_account.root_index = root_index;
-            //         } else {
-            //             input_account.merkle_context.prove_by_index = true;
-            //         }
-            //     }
-            // }
             if !read_only_accounts.is_empty() {
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
                     if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
@@ -2772,6 +2763,7 @@ where
             user.pubkey(),
             ix_data.try_to_vec().unwrap(),
             remaining_accounts,
+            None,
         );
 
         let res = self
@@ -2794,6 +2786,9 @@ where
             && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
             && ix_data.invoke_cpi.new_address_params.is_empty();
         let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
+        println!("ix_data {:?}", ix_data);
+        println!("tx has read only {}", tx_has_read_only);
+        println!("tx has no writable {}", tx_has_no_writable);
         if !tx_is_read_only {
             let (event, _, slot) = res.ok_or(RpcError::CustomError(
                 "invoke_cpi_test: No event".to_string(),

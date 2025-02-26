@@ -7,7 +7,10 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
     transaction_params::TransactionParams,
 };
-use light_compressed_account::event::{event_from_light_transaction, PublicTransactionEvent};
+use light_compressed_account::event::{
+    event_from_light_transaction, event_from_light_transaction_new, BatchPublicTransactionEvent,
+    PublicTransactionEvent,
+};
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
@@ -393,6 +396,29 @@ impl RpcConnection for ProgramTestRpcConnection {
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        let res = self
+            .create_and_send_transaction_with_batched_event(
+                instruction,
+                payer,
+                signers,
+                transaction_params,
+            )
+            .await?;
+        let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
+        Ok(event)
+    }
+}
+
+impl MerkleTreeExt for ProgramTestRpcConnection {}
+
+impl ProgramTestRpcConnection {
+    pub async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        instruction: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         let mut vec = Vec::new();
 
         let pre_balance = self
@@ -428,8 +454,10 @@ impl RpcConnection for ProgramTestRpcConnection {
             return Err(error);
         }
         let mut vec_accounts = Vec::<Vec<Pubkey>>::new();
+        let mut program_ids = Vec::new();
 
         instruction.iter().for_each(|i| {
+            program_ids.push(i.program_id);
             vec.push(i.data.clone());
             vec_accounts.push(i.accounts.iter().map(|x| x.pubkey).collect());
         });
@@ -440,6 +468,10 @@ impl RpcConnection for ProgramTestRpcConnection {
                 instructions.iter().flatten().find_map(|inner_instruction| {
                     // T::try_from_slice(&inner_instruction.instruction.data).ok()
                     vec.push(inner_instruction.instruction.data.clone());
+                    program_ids.push(
+                        transaction.message.account_keys
+                            [inner_instruction.instruction.program_id_index as usize],
+                    );
                     vec_accounts.push(
                         inner_instruction
                             .instruction
@@ -453,7 +485,23 @@ impl RpcConnection for ProgramTestRpcConnection {
             });
         println!("vec: {:?}", vec);
         println!("vec_accounts {:?}", vec_accounts);
-        let event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
+        let event = event_from_light_transaction(
+            program_ids.as_slice(),
+            vec.as_slice(),
+            vec_accounts.to_vec(),
+        )
+        .unwrap();
+        let new_event = event_from_light_transaction_new(
+            program_ids.as_slice(),
+            vec.as_slice(),
+            vec_accounts.to_vec(),
+        )
+        .unwrap();
+        println!("new_event: {:?}", new_event);
+        println!("event: {:?}", event);
+        // if let Some(event) = event.as_ref() {
+        //     assert_eq!(*event, new_event.as_ref().unwrap()[0]);
+        // }
         println!("event: {:?}", event);
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
@@ -520,9 +568,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         }
 
         let slot = self.context.banks_client.get_root_slot().await?;
-        let event = event.map(|e| (e.event, signature, slot));
+        let event = new_event.map(|e| (e, signature, slot));
         Ok(event)
     }
 }
-
-impl MerkleTreeExt for ProgramTestRpcConnection {}

@@ -627,7 +627,9 @@ impl RpcConnection for SolanaRpcConnection {
 
         let mut vec = Vec::new();
         let mut vec_accounts = Vec::new();
+        let mut program_ids = Vec::new();
         instructions_vec.iter().for_each(|x| {
+            program_ids.push(x.program_id);
             vec.push(x.data.clone());
             vec_accounts.push(x.accounts.iter().map(|x| x.pubkey).collect());
         });
@@ -684,6 +686,9 @@ impl RpcConnection for SolanaRpcConnection {
                                     )
                                 })?;
                             vec.push(data);
+                            program_ids.push(
+                                account_keys[ui_compiled_instruction.program_id_index as usize],
+                            );
                             vec_accounts.push(
                                 accounts
                                     .iter()
@@ -698,7 +703,9 @@ impl RpcConnection for SolanaRpcConnection {
                 }
             }
         }
-        let parsed_event = event_from_light_transaction(vec.as_slice(), vec_accounts).unwrap();
+        let parsed_event =
+            event_from_light_transaction(program_ids.as_slice(), vec.as_slice(), vec_accounts)
+                .unwrap();
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();

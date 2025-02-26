@@ -9,6 +9,7 @@ use thiserror::Error;
 pub mod address;
 pub mod bigint;
 pub mod compressed_account;
+pub mod constants;
 pub mod discriminators;
 pub mod event;
 pub mod hash_chain;
