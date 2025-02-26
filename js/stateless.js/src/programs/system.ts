@@ -333,6 +333,8 @@ export class LightSystemProgram {
         const { newAddressParamsPacked, remainingAccounts } =
             packNewAddressParams([newAddressParams], _remainingAccounts);
 
+        console.log('newAddressParamsPacked', newAddressParamsPacked);
+        console.log('remaining accounts', remainingAccounts);
         const rawData: InstructionDataInvoke = {
             proof: recentValidityProof,
             inputCompressedAccountsWithMerkleContext:

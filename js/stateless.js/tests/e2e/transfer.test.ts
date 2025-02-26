@@ -6,11 +6,12 @@ import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
 import { transfer } from '../../src/actions/transfer';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-
+import { StateTreeContext } from '@lightprotocol/stateless.js';
 describe('transfer', () => {
     let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -18,12 +19,15 @@ describe('transfer', () => {
         payer = await newAccountWithLamports(rpc, 2e9, 256);
         bob = await newAccountWithLamports(rpc, 2e9, 256);
 
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        outputStateTreeContext = stateTreeInfo[0];
+
         await compress(
             rpc,
             payer,
             1e9,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
     });
 

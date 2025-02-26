@@ -568,7 +568,7 @@ export function getQueueForTree(
     const index = info.findIndex(t => t.tree.equals(tree));
     if (index === -1) {
         throw new Error(
-            'No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually.',
+            `No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,
         );
     }
     if (!info[index].queue) {

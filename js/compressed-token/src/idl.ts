@@ -1383,7 +1383,7 @@ export type LightCompressedToken = {
                         type: 'u8';
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex';
+                        name: 'queuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -1391,12 +1391,8 @@ export type LightCompressedToken = {
                         type: 'u32';
                     },
                     {
-                        name: 'queueIndex';
-                        type: {
-                            option: {
-                                defined: 'QueueIndex';
-                            };
-                        };
+                        name: 'proveByIndex';
+                        type: 'bool';
                     },
                 ];
             };
@@ -3125,7 +3121,7 @@ export const IDL: LightCompressedToken = {
                         type: 'u8',
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex',
+                        name: 'queuePubkeyIndex',
                         type: 'u8',
                     },
                     {
@@ -3133,12 +3129,8 @@ export const IDL: LightCompressedToken = {
                         type: 'u32',
                     },
                     {
-                        name: 'queueIndex',
-                        type: {
-                            option: {
-                                defined: 'QueueIndex',
-                            },
-                        },
+                        name: 'proveByIndex',
+                        type: 'bool',
                     },
                 ],
             },

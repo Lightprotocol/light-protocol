@@ -698,7 +698,7 @@ export type LightSystemProgram = {
                         type: 'u8';
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex';
+                        name: 'queuePubkeyIndex';
                         type: 'u8';
                     },
                     {
@@ -706,12 +706,8 @@ export type LightSystemProgram = {
                         type: 'u32';
                     },
                     {
-                        name: 'queueIndex';
-                        type: {
-                            option: {
-                                defined: 'QueueIndex';
-                            };
-                        };
+                        name: 'proveByIndex';
+                        type: 'bool';
                     },
                 ];
             };
@@ -1721,7 +1717,7 @@ export const IDL: LightSystemProgram = {
                         type: 'u8',
                     },
                     {
-                        name: 'nullifierQueuePubkeyIndex',
+                        name: 'queuePubkeyIndex',
                         type: 'u8',
                     },
                     {
@@ -1729,12 +1725,8 @@ export const IDL: LightSystemProgram = {
                         type: 'u32',
                     },
                     {
-                        name: 'queueIndex',
-                        type: {
-                            option: {
-                                defined: 'QueueIndex',
-                            },
-                        },
+                        name: 'proveByIndex',
+                        type: 'bool',
                     },
                 ],
             },

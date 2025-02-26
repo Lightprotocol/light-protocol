@@ -4,6 +4,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc, pickRandomTreeAndQueue } from '../../src/rpc';
 import {
     LightSystemProgram,
+    StateTreeContext,
     bn,
     compress,
     createAccount,
@@ -26,12 +27,16 @@ describe('rpc-multi-trees', () => {
 
     const randTrees: PublicKey[] = [];
     const randQueues: PublicKey[] = [];
-
+    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeContext2: StateTreeContext;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
 
-        testRpc = await getTestRpc(lightWasm);
+        // rpc = await getTestRpc(lightWasm);
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        outputStateTreeContext = stateTreeInfo[0];
+        outputStateTreeContext2 = stateTreeInfo[1];
 
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
@@ -42,10 +47,10 @@ describe('rpc-multi-trees', () => {
             payer,
             1e9,
             payer.publicKey,
-            defaultTestStateTreeAccounts2().merkleTree2,
+            outputStateTreeContext2,
         );
-        randTrees.push(defaultTestStateTreeAccounts2().merkleTree2);
-        randQueues.push(defaultTestStateTreeAccounts2().nullifierQueue2);
+        randTrees.push(outputStateTreeContext2.tree);
+        randQueues.push(outputStateTreeContext2.queue!);
         executedTxs++;
     });
 
@@ -70,7 +75,7 @@ describe('rpc-multi-trees', () => {
         });
 
         expect(accs.items[0].merkleTree).toEqual(randTrees[0]);
-        expect(accs.items[0].nullifierQueue).toEqual(randQueues[0]);
+        expect(accs.items[0].queue).toEqual(randQueues[0]);
 
         assert.equal(accs.items.length, 1);
     });
@@ -95,7 +100,7 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            tree.tree, // output state tree
+            outputStateTreeContext,
         );
 
         randTrees.push(tree.tree);
@@ -103,7 +108,7 @@ describe('rpc-multi-trees', () => {
 
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
         expect(acc!.merkleTree).toEqual(tree.tree);
-        expect(acc!.nullifierQueue).toEqual(tree.queue);
+        expect(acc!.queue).toEqual(tree.queue);
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {
@@ -112,18 +117,25 @@ describe('rpc-multi-trees', () => {
         const hash = bn(acc!.hash);
         const pos = randTrees.length - 1;
         expect(acc?.merkleTree).toEqual(randTrees[pos]);
-        expect(acc?.nullifierQueue).toEqual(randQueues[pos]);
+        expect(acc?.queue).toEqual(randQueues[pos]);
 
         const validityProof = await rpc.getValidityProof([hash]);
 
         expect(validityProof.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof.nullifierQueues[0]).toEqual(randQueues[pos]);
+        expect(validityProof.queues[0]).toEqual(randQueues[pos]);
 
         /// Executes transfers using random output trees
         const tree1 = pickRandomTreeAndQueue(
             await rpc.getCachedActiveStateTreeInfo(),
         );
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1.tree);
+        await transfer(
+            rpc,
+            payer,
+            1e5,
+            payer,
+            bob.publicKey,
+            outputStateTreeContext,
+        );
         executedTxs++;
         randTrees.push(tree1.tree);
         randQueues.push(tree1.queue);
@@ -131,7 +143,14 @@ describe('rpc-multi-trees', () => {
         const tree2 = pickRandomTreeAndQueue(
             await rpc.getCachedActiveStateTreeInfo(),
         );
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2.tree);
+        await transfer(
+            rpc,
+            payer,
+            1e5,
+            payer,
+            bob.publicKey,
+            outputStateTreeContext,
+        );
         executedTxs++;
         randTrees.push(tree2.tree);
         randQueues.push(tree2.queue);
@@ -139,7 +158,7 @@ describe('rpc-multi-trees', () => {
         const validityProof2 = await rpc.getValidityProof([hash]);
 
         expect(validityProof2.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof2.nullifierQueues[0]).toEqual(randQueues[pos]);
+        expect(validityProof2.queues[0]).toEqual(randQueues[pos]);
     });
 
     it('getValidityProof [noforester] (combined) should return correct trees and queues', async () => {
@@ -187,10 +206,8 @@ describe('rpc-multi-trees', () => {
                 validityProof.merkleTrees[0],
         );
         assert.isTrue(
-            validityProof.nullifierQueues[0].equals(
-                senderAccounts.items[0].nullifierQueue,
-            ),
-            `Mismatch in nullifierQueues expected: ${senderAccounts.items[0].nullifierQueue} got: ${validityProof.nullifierQueues[0]}`,
+            validityProof.queues[0].equals(senderAccounts.items[0].queue),
+            `Mismatch in queues expected: ${senderAccounts.items[0].queue} got: ${validityProof.queues[0]}`,
         );
 
         /// Creates a compressed account with address and lamports using a
@@ -206,7 +223,7 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            tree.tree,
+            outputStateTreeContext,
         );
         executedTxs++;
         randTrees.push(tree.tree);
@@ -231,10 +248,8 @@ describe('rpc-multi-trees', () => {
                     `Iteration ${round + 1}: Mismatch in merkleTree for account index ${index}`,
                 );
                 assert.isTrue(
-                    proof.nullifierQueue.equals(
-                        prePayerAccounts.items[index].nullifierQueue,
-                    ),
-                    `Iteration ${round + 1}: Mismatch in nullifierQueue for account index ${index}`,
+                    proof.queue.equals(prePayerAccounts.items[index].queue),
+                    `Iteration ${round + 1}: Mismatch in queue for account index ${index}`,
                 );
             });
 
@@ -247,7 +262,7 @@ describe('rpc-multi-trees', () => {
                 transferAmount,
                 payer,
                 bob.publicKey,
-                tree.tree,
+                outputStateTreeContext,
             );
             executedTxs++;
         }
@@ -259,7 +274,7 @@ describe('rpc-multi-trees', () => {
             payer,
             1e9,
             payer.publicKey,
-            defaultTestStateTreeAccounts2().merkleTree2,
+            outputStateTreeContext2,
         );
         executedTxs++;
 
@@ -279,10 +294,8 @@ describe('rpc-multi-trees', () => {
                 `Mismatch in merkleTree for account index ${index}`,
             );
             assert.isTrue(
-                account.nullifierQueue.equals(
-                    senderAccounts.items[index].nullifierQueue,
-                ),
-                `Mismatch in nullifierQueue for account index ${index}`,
+                account.queue.equals(senderAccounts.items[index].queue),
+                `Mismatch in queue for account index ${index}`,
             );
         });
     });

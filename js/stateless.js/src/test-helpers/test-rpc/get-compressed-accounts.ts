@@ -47,19 +47,31 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const ctxs = await rpc.getCachedActiveStateTreeInfo();
 
     for (const event of events) {
+        // console.log('event.pubkeyArray', event.pubkeyArray);
+        // console.log(
+        //     'event.outputCompressedAccounts',
+        //     event.outputCompressedAccounts,
+        // );
+        // console.log(
+        //     'out-accounts len, mt idxs',
+        //     event.outputCompressedAccounts.length,
+        //     event.outputCompressedAccounts.map(acc => acc.merkleTreeIndex),
+        // );
         for (
             let index = 0;
             index < event.outputCompressedAccounts.length;
             index++
         ) {
-            const queue = getQueueForTree(
-                ctxs,
-                new PublicKey(event.pubkeyArray[index]),
-            );
+            const smt =
+                event.pubkeyArray[
+                    event.outputCompressedAccounts[index].merkleTreeIndex
+                ];
+            const queue = getQueueForTree(ctxs, new PublicKey(smt));
+
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: new PublicKey(event.pubkeyArray[index]),
-                queue: queue,
+                merkleTree: new PublicKey(smt),
+                queue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
                 version: MerkleContextVersion.V1,

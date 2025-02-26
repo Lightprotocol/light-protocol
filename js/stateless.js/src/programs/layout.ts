@@ -93,7 +93,7 @@ export function encodeInstructionDataInvoke(
     data: InstructionDataInvoke,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
-    console.log('encodeInstructionDataInvoke data:', JSON.stringify(data));
+    // console.log('encodeInstructionDataInvoke data:', JSON.stringify(data));
     const len = InstructionDataInvokeLayout.encode(data, buffer);
     const dataBuffer = Buffer.from(buffer.slice(0, len));
     const lengthBuffer = Buffer.alloc(4);
