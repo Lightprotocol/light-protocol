@@ -273,6 +273,7 @@ pub struct LightValidatorConfig {
     pub prover_config: Option<ProverConfig>,
     pub wait_time: u64,
     pub sbf_programs: Vec<(String, String)>,
+    pub limit_ledger_size: Option<u64>,
 }
 
 impl Default for LightValidatorConfig {
@@ -282,6 +283,7 @@ impl Default for LightValidatorConfig {
             prover_config: None,
             wait_time: 35,
             sbf_programs: vec![],
+            limit_ledger_size: None,
         }
     }
 }
@@ -292,6 +294,10 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         let mut path = format!("{}/{}", project_root.trim(), path);
         if !config.enable_indexer {
             path.push_str(" --skip-indexer");
+        }
+
+        if let Some(limit_ledger_size) = config.limit_ledger_size {
+            path.push_str(&format!(" --limit-ledger-size {}", limit_ledger_size));
         }
 
         for sbf_program in config.sbf_programs.iter() {

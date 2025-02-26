@@ -374,7 +374,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
             for (idx, account) in accounts.items.iter().enumerate() {
                 let account_hash = Hash::from_base58(&account.account.hash).unwrap();
-                println!("account[{}].hash: {:?}", idx, account_hash);
                 let token_data_with_merkle_context = TokenDataWithMerkleContext {
                     token_data: TokenData {
                         mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
@@ -403,7 +402,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         }
                     }
                 };
-                println!("token_data_with_merkle_context: {:?}", token_data_with_merkle_context);
                 token_data.push(token_data_with_merkle_context);
             }
 

@@ -105,6 +105,7 @@ async fn test_state_indexer_async_batched() {
             circuits: vec![],
         })*/
             sbf_programs: vec![],
+            limit_ledger_size: Some(500000),
         }))
             .await;
 
@@ -318,10 +319,6 @@ async fn test_state_indexer_async_batched() {
     let compressed_account_hashes = input_compressed_accounts
         .iter()
         .map(|x| {
-            println!("compressed_account hash: {:?}", x.compressed_account.hash());
-            println!("compressed_account hash bs58: {:?}", bs58::encode(x.compressed_account.hash().unwrap()).into_string());
-            println!("compressed_account hash hex: {:?}", hex::encode(x.compressed_account.hash().unwrap()));
-            println!("merkle_context: {:?}", x.compressed_account.merkle_context);
             x.compressed_account.hash()
                 .unwrap()
         })
@@ -341,7 +338,6 @@ async fn test_state_indexer_async_batched() {
 
             let compress_sig = compress(&mut rpc, &env.merkle_tree_pubkey, &legacy_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_legacy_accs_counter).await;
             println!("{} legacy compress: {:?}", i, compress_sig);
-
             {
                 let mut output_queue_account = rpc
                     .get_account(env.batched_output_queue)
@@ -354,7 +350,6 @@ async fn test_state_indexer_async_batched() {
                 )
                     .unwrap();
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
-
 
                 let mut input_queue_account = rpc
                     .get_account(env.batched_state_merkle_tree)
@@ -512,13 +507,8 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
-        .await;
-    if proof_for_compressed_accounts.is_err() {
-        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
-        return Signature::default();
-    }
-
-    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
+        .await
+        .unwrap();
 
     let root_indices = proof_for_compressed_accounts
         .root_indices
@@ -663,13 +653,8 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
-        .await;
-    if proof_for_compressed_accounts.is_err() {
-        println!("proof_for_compressed_accounts error: {:?}", proof_for_compressed_accounts);
-        return Signature::default();
-    }
-
-    let proof_for_compressed_accounts = proof_for_compressed_accounts.unwrap();
+        .await
+        .unwrap();
 
     let root_indices = proof_for_compressed_accounts
         .root_indices
