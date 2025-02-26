@@ -75,6 +75,7 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { validateNumbersForProof } from './utils';
+import { version } from 'os';
 
 /** @internal */
 export function parseAccountData({
@@ -648,7 +649,7 @@ export function pickRandomStateTreeContext(
 export function compressedAccountIsV1(
     value: typeof CompressedAccountResult.TYPE,
 ): boolean {
-    return value.queue === null;
+    return value.queue === null || value.queue === undefined;
 }
 
 /**
@@ -664,25 +665,27 @@ function getVersionedCompressedAccountFields(
     version: MerkleContextVersion;
     proveByIndex: boolean;
 } {
-    let queue: PublicKey | null = res.queue;
+    let queue: PublicKey | null | undefined = res.queue;
     let version: MerkleContextVersion = MerkleContextVersion.V2;
-    let proveByIndex: boolean | null = res.proveByIndex;
+    let proveByIndex: boolean | null | undefined = res.proveByIndex;
     if (compressedAccountIsV1(res)) {
         queue = getQueueForTree(activeStateTreeInfo, res.tree!);
         version = MerkleContextVersion.V1;
         proveByIndex = false;
     }
     // V2: queue and proveByIndex are always non-null
-    if (proveByIndex === null) {
-        throw new Error('proveByIndex should never be null for V2 account');
+    if (proveByIndex === null || proveByIndex === undefined) {
+        throw new Error(
+            'proveByIndex should never be null or undefined for V2 account',
+        );
     }
-    if (queue === null) {
+    if (queue === null || queue === undefined) {
         throw new Error(
             'Could not find associated queue for V1 account. If you are using a custom state tree, use rpc.setStateTreeInfo() to set your corresponding state tree addresses.',
         );
     }
 
-    return { queue, version, proveByIndex };
+    return { queue, version: MerkleContextVersion.V1, proveByIndex: false };
 }
 
 /**
@@ -955,9 +958,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        res.result.value.items.map(async item => {
-            const activeStateTreeInfo =
-                await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        res.result.value.items.map(item => {
             const { queue, version, proveByIndex } =
                 getVersionedCompressedAccountFields(item, activeStateTreeInfo);
             const account = createCompressedAccountWithMerkleContext(
@@ -1070,11 +1072,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 cursor: null,
             };
         }
+
         const accounts: CompressedAccountWithMerkleContext[] = [];
 
-        res.result.value.items.map(async item => {
-            const activeStateTreeInfo =
-                await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        res.result.value.items.map(item => {
             const { queue, version, proveByIndex } =
                 getVersionedCompressedAccountFields(item, activeStateTreeInfo);
             const account = createCompressedAccountWithMerkleContext(
@@ -1095,8 +1097,22 @@ export class Rpc extends Connection implements CompressionApiInterface {
             accounts.push(account);
         });
 
+        const sorted = accounts.sort((a, b) => b.leafIndex - a.leafIndex);
+        console.log(
+            'RPC-SORTED leafIdx , merkletree, address',
+            sorted.map(
+                item =>
+                    item.leafIndex +
+                    '  ' +
+                    item.merkleTree.toBase58() +
+                    '  ' +
+                    item.address +
+                    '  ' +
+                    item.owner.toBase58(),
+            ),
+        );
         return {
-            items: accounts.sort((a, b) => b.leafIndex - a.leafIndex),
+            items: sorted,
             cursor: res.result.value.cursor,
         };
     }
@@ -1769,6 +1785,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ),
                 queues: merkleProofsWithContext.map(proof => proof.queue),
                 proveByIndices: merkleProofsWithContext.map(_ => false), // TODO: Add V2
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -1803,6 +1820,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
                 queues: newAddressProofs.map(proof => proof.queue),
                 proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -1858,6 +1876,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 proveByIndices: merkleProofsWithContext
                     .map(proof => proof.proveByIndex)
                     .concat(newAddressProofs.map(_ => false)),
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else throw new Error('Invalid input');
 
@@ -1995,7 +2014,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        const proveByIndices = result.rootIndices.map(index => index === null);
+        // This will always be false for V1.
+        const proveByIndices = result.rootIndices.map(index => !index.inTree);
 
         const value: CompressedProofWithContext = {
             compressedProof: result.compressedProof,
@@ -2005,10 +2025,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ...hashes.map(({ queue }) => queue),
                 ...newAddresses.map(({ queue }) => queue),
             ],
-            rootIndices: result.rootIndices.map(index => index ?? 0), // TODO: Check if this works.
+            rootIndices: result.rootIndices.map(index => index.rootIndex), // TODO: Check if this works.
             roots: result.roots,
             leaves: result.leaves,
             proveByIndices,
+            version: MerkleContextVersion.V1, // TODO: add v2 support
         };
         return { value, context: res.result.context };
     }

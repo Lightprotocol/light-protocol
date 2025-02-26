@@ -18,6 +18,19 @@ export async function getCompressedAccountsByOwnerTest(
 ) {
     const unspentAccounts = await getCompressedAccountsForTest(rpc);
     const byOwner = unspentAccounts.filter(acc => acc.owner.equals(owner));
+    console.log(
+        'TEST-RPC-SORTED leafIdx , merkletree, address',
+        byOwner.map(
+            item =>
+                item.leafIndex +
+                '  ' +
+                item.merkleTree.toBase58() +
+                '  ' +
+                item.address +
+                '  ' +
+                item.owner.toBase58(),
+        ),
+    );
     return byOwner;
 }
 
@@ -47,16 +60,6 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const ctxs = await rpc.getCachedActiveStateTreeInfo();
 
     for (const event of events) {
-        // console.log('event.pubkeyArray', event.pubkeyArray);
-        // console.log(
-        //     'event.outputCompressedAccounts',
-        //     event.outputCompressedAccounts,
-        // );
-        // console.log(
-        //     'out-accounts len, mt idxs',
-        //     event.outputCompressedAccounts.length,
-        //     event.outputCompressedAccounts.map(acc => acc.merkleTreeIndex),
-        // );
         for (
             let index = 0;
             index < event.outputCompressedAccounts.length;
@@ -101,7 +104,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
         account =>
             !allInputAccountHashes.some(hash => hash.eq(bn(account.hash))),
     );
-    unspentAccounts.sort((a, b) => b.leafIndex - a.leafIndex);
+    const sorted = unspentAccounts.sort((a, b) => b.leafIndex - a.leafIndex);
 
-    return unspentAccounts;
+    return sorted;
 }

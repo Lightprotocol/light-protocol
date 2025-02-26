@@ -4,6 +4,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
+    StateTreeContext,
     bn,
     compress,
     createAccount,
@@ -24,6 +25,7 @@ describe('rpc-interop', () => {
     let rpc: Rpc;
     let testRpc: TestRpc;
     let executedTxs = 0;
+    let stateTreeContext: StateTreeContext;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
@@ -34,13 +36,10 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        const ctx = await rpc.getCachedActiveStateTreeInfo();
+        stateTreeContext = ctx[0];
+
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeContext);
         executedTxs++;
     });
 
@@ -168,7 +167,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeContext,
         );
         executedTxs++;
 
@@ -181,7 +180,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeContext,
         );
         executedTxs++;
     });
@@ -191,10 +190,16 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
         // wait for photon to be in sync
-        await sleep(3000);
+
+        console.time('confirmTransactionIndexed');
+        const slot = await rpc.getSlot();
+        await rpc.confirmTransactionIndexed(slot);
+        console.timeEnd('confirmTransactionIndexed');
+        // await sleep(3000);
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+
         const hashTest = bn(senderAccountsTest.items[0].hash);
         const hash = bn(senderAccounts.items[0].hash);
 
@@ -262,11 +267,7 @@ describe('rpc-interop', () => {
         assert.isTrue(
             newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
         );
-        assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
-            ),
-        );
+        assert.isTrue(newAddressProof.queue.equals(newAddressProofTest.queue));
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
         assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
 
@@ -312,7 +313,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeContext,
         );
         executedTxs++;
     });
@@ -356,12 +357,7 @@ describe('rpc-interop', () => {
         assert.isTrue(
             newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
         );
-        assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
-            ),
-            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
-        );
+        assert.isTrue(newAddressProof.queue.equals(newAddressProofTest.queue));
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
         assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
@@ -409,6 +405,7 @@ describe('rpc-interop', () => {
             );
 
             assert.equal(testProofs.length, proofs.length);
+
             proofs.forEach((proof, index) => {
                 proof.merkleProof.forEach((elem, elemIndex) => {
                     assert.isTrue(
@@ -531,13 +528,7 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeContext);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -626,7 +617,7 @@ describe('rpc-interop', () => {
         assert.equal(signatures2.length, 1);
 
         // wait for photon to be in sync
-        await sleep(3000);
+        // await sleep(3000);
         const { items: signatures3 } = (
             await rpc.getLatestCompressionSignatures(cursor!, 1)
         ).value;
@@ -662,8 +653,10 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeContext,
         );
+
+        // await sleep(3_000);
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
@@ -671,6 +664,10 @@ describe('rpc-interop', () => {
         );
         const latestAccount = accounts.items[0];
 
+        const testRpcAccounts = await testRpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        console.log('testRpc accounts len:', testRpcAccounts.items.length);
         // assert the address was indexed
         assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
 
@@ -696,7 +693,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             addressTree,
             addressQueue,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeContext,
         );
 
         // fetch the owners latest account

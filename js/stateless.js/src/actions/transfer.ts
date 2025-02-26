@@ -105,7 +105,7 @@ export async function transfer(
         recentValidityProof: proof.compressedProof,
         outputStateTreeContext,
     });
-    console.log('ix', ix);
+
     const { blockhash } = await rpc.getLatestBlockhash();
     const signedTx = buildAndSignTx(
         [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],

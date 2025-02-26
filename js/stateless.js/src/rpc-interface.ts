@@ -14,6 +14,7 @@ import {
     nullable,
     Struct,
     boolean,
+    optional,
 } from 'superstruct';
 import {
     BN254,
@@ -124,6 +125,7 @@ export type CompressedProofWithContext = {
     merkleTrees: PublicKey[];
     queues: PublicKey[];
     proveByIndices: boolean[];
+    version: number;
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -313,8 +315,8 @@ export const CompressedAccountResult = pick({
     tree: PublicKeyFromString,
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
-    queue: nullable(PublicKeyFromString), // is non-null for V2
-    proveByIndex: nullable(boolean()), // V1 = null, V2 = boolean
+    queue: optional(nullable(PublicKeyFromString)), // is non-null for V2
+    proveByIndex: optional(nullable(boolean())), // V1 = null, V2 = boolean
 });
 
 export const TokenDataResult = pick({
@@ -433,14 +435,23 @@ const CompressedProofResult = pick({
 /**
  * @internal
  */
+export const RootIndexResult = pick({
+    rootIndex: number(),
+    inTree: boolean(),
+});
+
+/**
+ * @internal
+ */
 export const ValidityProofResult = pick({
     compressedProof: CompressedProofResult,
     roots: array(BN254FromString),
-    rootIndices: array(nullable(number())), // V2. Null = set proveByIndex to true
-    leafIndices: array(number()),
+    rootIndices: array(RootIndexResult), // V2. Null = set proveByIndex to true // TODO(photon): photon returns u64. report.
+    leafIndices: array(number()), // TODO(photon): photon returns u32 which will panic for addressv2
     leaves: array(BN254FromString),
     merkleTrees: array(PublicKeyFromString),
-    queues: array(PublicKeyFromString),
+    queues: optional(array(PublicKeyFromString)), // if v1 support
+    version: optional(number()), // check on it.
 });
 
 /**

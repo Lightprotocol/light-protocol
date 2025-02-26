@@ -308,7 +308,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         }
 
         // Create merkle proofs for each hash
-        const merkleProofs: MerkleContextWithMerkleProof[] = [];
+        const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
+            new Map();
         const ctxs = await this.getCachedActiveStateTreeInfo();
 
         for (const [
@@ -343,13 +344,13 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         version: MerkleContextVersion.V1,
                         proveByIndex: false,
                     };
-                    merkleProofs.push(merkleProof);
+                    merkleProofsMap.set(hashStr, merkleProof);
                 }
             }
         }
 
         // Validate
-        merkleProofs.forEach((proof, index) => {
+        merkleProofsMap.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
             const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
                 .leaves[leafIndex];
@@ -361,7 +362,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
         });
 
-        return merkleProofs;
+        // Return proofs in the order of requested hashes
+        return hashes.map(hash => merkleProofsMap.get(hash.toString())!);
     }
 
     /**
@@ -737,6 +739,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 queues: merkleProofsWithContext.map(proof => proof.queue),
                 proveByIndices: merkleProofsWithContext.map(_ => false), // TODO: Add V2
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -773,6 +776,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
                 queues: newAddressProofs.map(proof => proof.queue),
                 proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -831,6 +835,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 proveByIndices: merkleProofsWithContext
                     .map(proof => proof.proveByIndex)
                     .concat(newAddressProofs.map(_ => false)), // TODO: Add V2
+                version: MerkleContextVersion.V1, // TODO: add v2 support
             };
         } else throw new Error('Invalid input');
 
