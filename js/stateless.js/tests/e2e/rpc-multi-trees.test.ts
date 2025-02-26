@@ -25,15 +25,13 @@ describe('rpc-multi-trees', () => {
     let testRpc: TestRpc;
     let executedTxs = 0;
 
-    const randTrees: PublicKey[] = [];
-    const randQueues: PublicKey[] = [];
     let outputStateTreeContext: StateTreeContext;
     let outputStateTreeContext2: StateTreeContext;
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        // const lightWasm = await WasmFactory.getInstance();
+        // rpc = await getTestRpc(lightWasm);
         rpc = createRpc();
 
-        // rpc = await getTestRpc(lightWasm);
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
         outputStateTreeContext = stateTreeInfo[0];
         outputStateTreeContext2 = stateTreeInfo[1];
@@ -42,15 +40,14 @@ describe('rpc-multi-trees', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
+        // tree 1
         await compress(
             rpc,
             payer,
             1e9,
             payer.publicKey,
-            outputStateTreeContext2,
+            outputStateTreeContext,
         );
-        randTrees.push(outputStateTreeContext2.tree);
-        randQueues.push(outputStateTreeContext2.queue!);
         executedTxs++;
     });
 
@@ -74,18 +71,14 @@ describe('rpc-multi-trees', () => {
             dataSlice: { offset: 1, length: 2 },
         });
 
-        expect(accs.items[0].merkleTree).toEqual(randTrees[0]);
-        expect(accs.items[0].queue).toEqual(randQueues[0]);
+        expect(accs.items[0].merkleTree).toEqual(outputStateTreeContext.tree);
+        expect(accs.items[0].queue).toEqual(outputStateTreeContext.queue!);
 
         assert.equal(accs.items.length, 1);
     });
 
     let address: PublicKey;
-    it('must create account with random output tree (pickRandomTreeAndQueue)', async () => {
-        const tree = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
-        );
-
+    it('must create account', async () => {
         const seed = randomBytes(32);
         const addressSeed = deriveAddressSeed(
             [seed],
@@ -100,15 +93,12 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            outputStateTreeContext,
+            outputStateTreeContext2,
         );
 
-        randTrees.push(tree.tree);
-        randQueues.push(tree.queue);
-
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
-        expect(acc!.merkleTree).toEqual(tree.tree);
-        expect(acc!.queue).toEqual(tree.queue);
+        expect(acc!.merkleTree).toEqual(outputStateTreeContext2.tree);
+        expect(acc!.queue).toEqual(outputStateTreeContext2.queue!);
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {

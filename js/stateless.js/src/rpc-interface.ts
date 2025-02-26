@@ -22,7 +22,6 @@ import {
     CompressedProof,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
-    bn,
     TokenData,
 } from './state';
 import BN from 'bn.js';

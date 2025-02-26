@@ -118,6 +118,12 @@ export const localTestActiveStateTreeInfo = (): StateTreeContext[] => {
             cpiContext: new PublicKey(cpiContext2Pubkey),
             treeType: TreeType.State,
         },
+        {
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
+            cpiContext: PublicKey.default,
+            treeType: TreeType.BatchedState,
+        },
     ];
 };
 
@@ -144,6 +150,9 @@ export const defaultTestStateTreeAccounts2 = () => {
         merkleTree2: new PublicKey(merkleTree2Pubkey),
     };
 };
+
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree and nullifier
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
