@@ -2786,9 +2786,6 @@ where
             && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
             && ix_data.invoke_cpi.new_address_params.is_empty();
         let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
-        println!("ix_data {:?}", ix_data);
-        println!("tx has read only {}", tx_has_read_only);
-        println!("tx has no writable {}", tx_has_no_writable);
         if !tx_is_read_only {
             let (event, _, slot) = res.ok_or(RpcError::CustomError(
                 "invoke_cpi_test: No event".to_string(),

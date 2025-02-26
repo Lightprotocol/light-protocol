@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use light_compressed_account::event::PublicTransactionEvent;
+use light_compressed_account::indexer_event::event::PublicTransactionEvent;
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_program::{
     clock::Slot,

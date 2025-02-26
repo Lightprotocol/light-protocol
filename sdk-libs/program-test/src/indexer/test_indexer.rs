@@ -27,9 +27,10 @@ use light_client::{
 use light_compressed_account::{
     bigint::bigint_to_be_bytes_array,
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-    event::PublicTransactionEvent,
-    hash_chain::{create_hash_chain_from_slice, create_tx_hash},
+    hash_chain::create_hash_chain_from_slice,
+    indexer_event::event::PublicTransactionEvent,
     instruction_data::compressed_proof::CompressedProof,
+    tx_hash::create_tx_hash,
 };
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};

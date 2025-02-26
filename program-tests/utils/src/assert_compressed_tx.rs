@@ -11,7 +11,7 @@ use light_client::{
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
 };
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;

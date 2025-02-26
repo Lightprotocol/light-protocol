@@ -8,7 +8,8 @@ use light_client::{
     rpc::RpcConnection,
 };
 use light_compressed_account::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    compressed_account::CompressedAccountWithMerkleContext,
+    indexer_event::event::PublicTransactionEvent,
 };
 use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
 use solana_sdk::signature::Keypair;

@@ -11,10 +11,12 @@ pub mod bigint;
 pub mod compressed_account;
 pub mod constants;
 pub mod discriminators;
-pub mod event;
 pub mod hash_chain;
+pub mod indexer_event;
 pub mod instruction_data;
+pub mod nullifier;
 pub mod pubkey;
+pub mod tx_hash;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {

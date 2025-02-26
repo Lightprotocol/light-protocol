@@ -7,9 +7,9 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
     transaction_params::TransactionParams,
 };
-use light_compressed_account::event::{
-    event_from_light_transaction, event_from_light_transaction_new, BatchPublicTransactionEvent,
-    PublicTransactionEvent,
+use light_compressed_account::indexer_event::{
+    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+    parse::event_from_light_transaction,
 };
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
@@ -466,7 +466,6 @@ impl ProgramTestRpcConnection {
             .and_then(|details| details.inner_instructions)
             .and_then(|instructions| {
                 instructions.iter().flatten().find_map(|inner_instruction| {
-                    // T::try_from_slice(&inner_instruction.instruction.data).ok()
                     vec.push(inner_instruction.instruction.data.clone());
                     program_ids.push(
                         transaction.message.account_keys
@@ -483,25 +482,13 @@ impl ProgramTestRpcConnection {
                     None::<PublicTransactionEvent>
                 })
             });
-        println!("vec: {:?}", vec);
-        println!("vec_accounts {:?}", vec_accounts);
+
         let event = event_from_light_transaction(
             program_ids.as_slice(),
             vec.as_slice(),
             vec_accounts.to_vec(),
         )
         .unwrap();
-        let new_event = event_from_light_transaction_new(
-            program_ids.as_slice(),
-            vec.as_slice(),
-            vec_accounts.to_vec(),
-        )
-        .unwrap();
-        println!("new_event: {:?}", new_event);
-        println!("event: {:?}", event);
-        // if let Some(event) = event.as_ref() {
-        //     assert_eq!(*event, new_event.as_ref().unwrap()[0]);
-        // }
         println!("event: {:?}", event);
         // If transaction was successful, execute it.
         if let Some(Ok(())) = simulation_result.result {
@@ -520,7 +507,6 @@ impl ProgramTestRpcConnection {
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();
-            println!("payer: {:?}", payer);
             let post_balance = self.get_account(*payer).await?.unwrap().lamports;
 
             // a network_fee is charged if there are input compressed accounts or new addresses
@@ -568,7 +554,7 @@ impl ProgramTestRpcConnection {
         }
 
         let slot = self.context.banks_client.get_root_slot().await?;
-        let event = new_event.map(|e| (e, signature, slot));
+        let event = event.map(|e| (e, signature, slot));
         Ok(event)
     }
 }

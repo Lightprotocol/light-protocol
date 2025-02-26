@@ -5,7 +5,9 @@ use std::{
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use light_compressed_account::event::{event_from_light_transaction, PublicTransactionEvent};
+use light_compressed_account::indexer_event::{
+    event::PublicTransactionEvent, parse::event_from_light_transaction,
+};
 use solana_client::{
     rpc_client::RpcClient,
     rpc_config::{RpcSendTransactionConfig, RpcTransactionConfig},
@@ -734,7 +736,7 @@ impl RpcConnection for SolanaRpcConnection {
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
         }
-        let event = parsed_event.map(|e| (e.event, signature, slot));
+        let event = parsed_event.map(|e| (e[0].event.clone(), signature, slot));
         Ok(event)
     }
 }

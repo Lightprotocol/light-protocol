@@ -2,7 +2,6 @@ use std::cmp::min;
 
 use anchor_lang::{prelude::*, Bumps};
 use light_compressed_account::{
-    hash_chain::create_tx_hash_from_hash_chains,
     instruction_data::{
         compressed_proof::CompressedProof,
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
@@ -10,6 +9,7 @@ use light_compressed_account::{
             ZInstructionDataInvoke, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
     },
+    tx_hash::create_tx_hash_from_hash_chains,
 };
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
