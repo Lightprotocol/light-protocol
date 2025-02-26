@@ -57,6 +57,7 @@ import {
     CompressedProof,
     MerkleContextVersion,
     StateTreeContext,
+    TreeType,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -637,13 +638,17 @@ export function pickRandomTreeAndQueue(info: StateTreeContext[]): {
 export function pickRandomStateTreeContext(
     info: StateTreeContext[],
 ): StateTreeContext {
-    const length = info.length;
+    const filteredInfo = info.filter(t => t.treeType === TreeType.State);
+    const length = filteredInfo.length;
     const index = Math.floor(Math.random() * length);
 
     if (!info[index].queue) {
         throw new Error('Queue must not be null for state tree');
     }
-    return info[index];
+
+    console.log('filteredInfo', filteredInfo);
+
+    return filteredInfo[index];
 }
 
 export function compressedAccountIsV1(

@@ -9,6 +9,7 @@ import {
     pickRandomTreeAndQueue,
     defaultTestStateTreeAccounts,
     defaultTestStateTreeAccounts2,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -23,14 +24,14 @@ describe('rpc-multi-trees', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let treeAndQueue: { tree: PublicKey; queue: PublicKey };
+    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeContext2: StateTreeContext;
 
     beforeAll(async () => {
         rpc = createRpc();
 
-        treeAndQueue = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
-        );
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
+        outputStateTreeContext2 = (await rpc.getCachedActiveStateTreeInfo())[1];
 
         payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
@@ -56,11 +57,19 @@ describe('rpc-multi-trees', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            treeAndQueue.tree,
+            outputStateTreeContext,
         );
 
         // should auto land in same tree
-        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
+        await transfer(
+            rpc,
+            payer,
+            mint,
+            bn(700),
+            bob,
+            charlie.publicKey,
+            outputStateTreeContext2,
+        );
     });
 
     it('getCompressedTokenAccountsByOwner work with random state tree', async () => {
@@ -77,11 +86,11 @@ describe('rpc-multi-trees', () => {
         expect(senderAccounts.length).toBe(1);
         expect(receiverAccounts.length).toBe(1);
         expect(senderAccounts[0].compressedAccount.merkleTree.toBase58()).toBe(
-            treeAndQueue.tree.toBase58(),
+            outputStateTreeContext2.tree.toBase58(),
         );
         expect(
             receiverAccounts[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
+        ).toBe(outputStateTreeContext2.tree.toBase58());
     });
 
     it('getCompressedTokenAccountBalance should return consistent tree and queue ', async () => {
@@ -91,38 +100,22 @@ describe('rpc-multi-trees', () => {
         );
         expect(
             senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
+        ).toBe(outputStateTreeContext2.tree.toBase58());
         expect(
-            senderAccounts.items[0].compressedAccount.nullifierQueue.toBase58(),
-        ).toBe(treeAndQueue.queue.toBase58());
+            senderAccounts.items[0].compressedAccount.queue?.toBase58(),
+        ).toBe(outputStateTreeContext2.queue?.toBase58());
     });
 
     it('should return both compressed token accounts in different trees', async () => {
-        const tree1 = defaultTestStateTreeAccounts().merkleTree;
-        const tree2 = defaultTestStateTreeAccounts2().merkleTree2;
-        const queue1 = defaultTestStateTreeAccounts().nullifierQueue;
-        const queue2 = defaultTestStateTreeAccounts2().nullifierQueue2;
-
-        const previousTree = treeAndQueue.tree;
-
-        let otherTree: PublicKey;
-        let otherQueue: PublicKey;
-        if (previousTree.toBase58() === tree1.toBase58()) {
-            otherTree = tree2;
-            otherQueue = queue2;
-        } else {
-            otherTree = tree1;
-            otherQueue = queue1;
-        }
-
+        const mintAmount = bn(1000);
         await mintTo(
             rpc,
             payer,
             mint,
             bob.publicKey,
             mintAuthority,
-            bn(1042),
-            otherTree,
+            mintAmount,
+            outputStateTreeContext,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -132,17 +125,19 @@ describe('rpc-multi-trees', () => {
         const previousAccount = senderAccounts.items.find(
             account =>
                 account.compressedAccount.merkleTree.toBase58() ===
-                previousTree.toBase58(),
+                outputStateTreeContext2.tree.toBase58(),
         );
 
         const newlyMintedAccount = senderAccounts.items.find(
             account =>
                 account.compressedAccount.merkleTree.toBase58() ===
-                otherTree.toBase58(),
+                outputStateTreeContext.tree.toBase58(),
         );
 
         expect(previousAccount).toBeDefined();
         expect(newlyMintedAccount).toBeDefined();
-        expect(newlyMintedAccount!.parsed.amount.toNumber()).toBe(1042);
+        expect(newlyMintedAccount!.parsed.amount.toNumber()).toBe(
+            mintAmount.toNumber(),
+        );
     });
 });

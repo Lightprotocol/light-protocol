@@ -102,22 +102,20 @@ describe('rpc-multi-trees', () => {
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {
+        // tree 2
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
 
         const hash = bn(acc!.hash);
-        const pos = randTrees.length - 1;
-        expect(acc?.merkleTree).toEqual(randTrees[pos]);
-        expect(acc?.queue).toEqual(randQueues[pos]);
+        expect(acc?.merkleTree).toEqual(outputStateTreeContext2.tree);
+        expect(acc?.queue).toEqual(outputStateTreeContext2.queue!);
 
         const validityProof = await rpc.getValidityProof([hash]);
 
-        expect(validityProof.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof.queues[0]).toEqual(randQueues[pos]);
-
-        /// Executes transfers using random output trees
-        const tree1 = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+        expect(validityProof.merkleTrees[0]).toEqual(
+            outputStateTreeContext2.tree,
         );
+        expect(validityProof.queues[0]).toEqual(outputStateTreeContext2.queue!);
+
         await transfer(
             rpc,
             payer,
@@ -127,8 +125,6 @@ describe('rpc-multi-trees', () => {
             outputStateTreeContext,
         );
         executedTxs++;
-        randTrees.push(tree1.tree);
-        randQueues.push(tree1.queue);
 
         const tree2 = pickRandomTreeAndQueue(
             await rpc.getCachedActiveStateTreeInfo(),
@@ -142,13 +138,15 @@ describe('rpc-multi-trees', () => {
             outputStateTreeContext,
         );
         executedTxs++;
-        randTrees.push(tree2.tree);
-        randQueues.push(tree2.queue);
 
         const validityProof2 = await rpc.getValidityProof([hash]);
 
-        expect(validityProof2.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof2.queues[0]).toEqual(randQueues[pos]);
+        expect(validityProof2.merkleTrees[0]).toEqual(
+            outputStateTreeContext2.tree,
+        );
+        expect(validityProof2.queues[0]).toEqual(
+            outputStateTreeContext2.queue!,
+        );
     });
 
     it('getValidityProof [noforester] (combined) should return correct trees and queues', async () => {
@@ -200,11 +198,6 @@ describe('rpc-multi-trees', () => {
             `Mismatch in queues expected: ${senderAccounts.items[0].queue} got: ${validityProof.queues[0]}`,
         );
 
-        /// Creates a compressed account with address and lamports using a
-        /// (combined) 'validityProof' from Photon
-        const tree = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
-        );
         await createAccountWithLamports(
             rpc,
             payer,
@@ -216,8 +209,6 @@ describe('rpc-multi-trees', () => {
             outputStateTreeContext,
         );
         executedTxs++;
-        randTrees.push(tree.tree);
-        randQueues.push(tree.queue);
     });
 
     it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
@@ -243,9 +234,6 @@ describe('rpc-multi-trees', () => {
                 );
             });
 
-            const tree = pickRandomTreeAndQueue(
-                await rpc.getCachedActiveStateTreeInfo(),
-            );
             await transfer(
                 rpc,
                 payer,

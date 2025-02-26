@@ -8,6 +8,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, decompress, mintTo } from '../../src/actions';
@@ -66,11 +67,12 @@ describe('decompress', () => {
     let charlieAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -102,7 +104,7 @@ describe('decompress', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
     });
 
@@ -125,7 +127,7 @@ describe('decompress', () => {
                 bn(5),
                 bob,
                 charlieAta,
-                merkleTree,
+                outputStateTreeContext,
             );
 
             await assertDecompress(

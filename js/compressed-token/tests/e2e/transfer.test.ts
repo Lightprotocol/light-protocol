@@ -18,6 +18,7 @@ import {
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -98,7 +99,7 @@ describe('transfer', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -106,7 +107,7 @@ describe('transfer', () => {
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
-
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
         mint = (
             await createMint(
                 rpc,
@@ -129,7 +130,7 @@ describe('transfer', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
     });
 
@@ -149,7 +150,7 @@ describe('transfer', () => {
             bn(700),
             bob,
             charlie.publicKey,
-            merkleTree,
+            outputStateTreeContext,
         );
 
         await assertTransfer(
@@ -176,7 +177,7 @@ describe('transfer', () => {
             bn(200),
             bob,
             charlie.publicKey,
-            merkleTree,
+            outputStateTreeContext,
         );
 
         await assertTransfer(
@@ -204,7 +205,7 @@ describe('transfer', () => {
             bn(5),
             charlie,
             bob.publicKey,
-            merkleTree,
+            outputStateTreeContext,
         );
 
         await assertTransfer(
@@ -245,7 +246,7 @@ describe('transfer', () => {
                 10000,
                 bob,
                 charlie.publicKey,
-                merkleTree,
+                outputStateTreeContext,
             ),
         ).rejects.toThrow('Insufficient balance for transfer');
     });
@@ -276,7 +277,7 @@ describe('transfer', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         /// send 700 from bob -> charlie
@@ -295,7 +296,7 @@ describe('transfer', () => {
             bn(700),
             bob,
             charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         await assertTransfer(
@@ -318,9 +319,11 @@ describe('e2e transfer with multiple accounts', () => {
     let recipient: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         rpc = await getTestRpc(await WasmFactory.getInstance());
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -350,7 +353,7 @@ describe('e2e transfer with multiple accounts', () => {
             sender.publicKey,
             mintAuthority,
             new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
         await mintTo(
             rpc,
@@ -359,7 +362,7 @@ describe('e2e transfer with multiple accounts', () => {
             sender.publicKey,
             mintAuthority,
             new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
         await mintTo(
             rpc,
@@ -368,7 +371,7 @@ describe('e2e transfer with multiple accounts', () => {
             sender.publicKey,
             mintAuthority,
             new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
         await mintTo(
             rpc,
@@ -377,7 +380,7 @@ describe('e2e transfer with multiple accounts', () => {
             sender.publicKey,
             mintAuthority,
             new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -400,7 +403,7 @@ describe('e2e transfer with multiple accounts', () => {
             sender,
             transferAmount,
             recipient,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         assertTransfer(
@@ -421,7 +424,7 @@ async function transferHelper(
     owner: Signer,
     amount: BN,
     toAddress: PublicKey,
-    merkleTree: PublicKey,
+    outputStateTreeContext: StateTreeContext,
 ) {
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
@@ -444,7 +447,7 @@ async function transferHelper(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTrees: merkleTree,
+        outputStateTreeContext,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
