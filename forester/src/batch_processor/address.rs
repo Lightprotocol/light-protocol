@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use forester_utils::instructions::create_batch_update_address_tree_instruction_data;
-use light_batched_merkle_tree::event::BatchNullifyEvent;
 use light_client::{indexer::Indexer, rpc::RpcConnection};
+use light_merkle_tree_metadata::events::MerkleTreeEvent;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_sdk::signer::Signer;
 use tracing::{info, instrument};
@@ -43,7 +43,7 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
     );
 
     let tx = rpc
-        .create_and_send_transaction_with_event::<BatchNullifyEvent>(
+        .create_and_send_transaction_with_event::<MerkleTreeEvent>(
             &[instruction],
             &context.authority.pubkey(),
             &[&context.authority],
