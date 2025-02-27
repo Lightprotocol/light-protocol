@@ -3,10 +3,10 @@ import {
     createCompressedAccount,
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
-    MerkleContextVersion,
 } from '../../../src/state/compressed-account';
 import { PublicKey } from '@solana/web3.js';
 import { bn } from '../../../src/state/BN254';
+import { TreeType } from '../../../src/state';
 
 describe('createCompressedAccount function', () => {
     it('should create a compressed account with default values', () => {
@@ -51,7 +51,7 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            MerkleContextVersion.V1,
+            TreeType.State,
             false,
         );
         const accountWithMerkleContext =
@@ -65,7 +65,7 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            version: MerkleContextVersion.V1,
+            treeType: TreeType.State,
             proveByIndex: false,
             readOnly: false,
         });
@@ -84,7 +84,7 @@ describe('createMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            MerkleContextVersion.V1,
+            TreeType.State,
             false,
         );
         expect(merkleContext).toEqual({
@@ -92,7 +92,7 @@ describe('createMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            version: MerkleContextVersion.V1,
+            treeType: TreeType.State,
             proveByIndex: false,
         });
     });

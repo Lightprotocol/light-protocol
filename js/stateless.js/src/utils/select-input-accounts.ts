@@ -43,8 +43,6 @@ export function selectAccountsByTreeType(
  */
 export function decideInputAccountsToUse(
     lamports: BN,
-    inputLamportsV1: BN,
-    inputLamportsV2: BN,
     accountsV1: CompressedAccountWithMerkleContext[],
     accountsV2: CompressedAccountWithMerkleContext[],
 ): {
@@ -52,18 +50,25 @@ export function decideInputAccountsToUse(
     inputLamports: BN;
     discardedLamports: BN;
 } {
-    if (lamports.gt(inputLamportsV1)) {
+    const inputLamportsV1 = sumUpLamports(accountsV1);
+    const inputLamportsV2 = sumUpLamports(accountsV2);
+
+    if (lamports.lte(inputLamportsV1)) {
         return {
             selectedAccounts: accountsV1,
             inputLamports: inputLamportsV1,
             discardedLamports: inputLamportsV2,
         };
-    } else {
+    } else if (lamports.lte(inputLamportsV2)) {
         return {
             selectedAccounts: accountsV2,
             inputLamports: inputLamportsV2,
             discardedLamports: inputLamportsV1,
         };
+    } else {
+        throw new Error(
+            `Neither inputLamportsV1 (${inputLamportsV1.toString()}) nor inputLamportsV2 (${inputLamportsV2.toString()}) are sufficient to cover the required lamports (${lamports.toString()}). Consider merging your compressed accounts before transferring lamports.`,
+        );
     }
 }
 

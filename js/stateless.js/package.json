@@ -88,6 +88,7 @@
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test-all": "vitest run",
         "test:unit:all": "vitest run tests/unit --reporter=verbose",
+        "test:unit:select-input-accounts": "vitest run tests/unit/instruction/select-input-accounts.test.ts --reporter=verbose --bail=1",
         "test:conversions": "vitest run tests/unit/utils/conversion.test.ts --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --skip-indexer --prover-run-mode rpc",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose --bail=1",
