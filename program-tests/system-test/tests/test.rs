@@ -2244,10 +2244,9 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        // TODO: investigate why it fails on ix 0 should fail on ix 1
         assert_rpc_error(
             result,
-            0,
+            1,
             BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
