@@ -7,19 +7,19 @@ export enum TreeType {
     /**
      * v1 state merkle tree
      */
-    State = 0,
+    State = 1,
     /**
      * v1 address merkle tree
      */
-    Address = 1,
+    Address = 2,
     /**
      * v2 state merkle tree
      */
-    BatchedState = 2,
+    BatchedState = 3,
     /**
      * v2 address merkle tree
      */
-    BatchedAddress = 3,
+    BatchedAddress = 4,
 }
 
 /**

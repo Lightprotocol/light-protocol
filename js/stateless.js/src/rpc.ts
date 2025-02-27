@@ -922,7 +922,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                queue: PublicKey.default,
+                queue: PublicKey.default, // TODO: add v2 support.
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
             };

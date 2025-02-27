@@ -22,9 +22,11 @@ export function selectAccountsByTreeType(
     selectedAccounts: CompressedAccountWithMerkleContext[];
     totalLamports: BN;
 } {
+    console.log('selectAccountsByTreeType accounts', accounts);
     const selectedAccounts = accounts.filter(
         item => item.lamports.gt(bn(0)) && treeTypes.includes(item.treeType),
     );
+    console.log('selectAccountsByTreeType selectedAccounts', selectedAccounts);
     const totalLamports = sumUpLamports(selectedAccounts);
     return { selectedAccounts, totalLamports };
 }
@@ -53,6 +55,9 @@ export function decideInputAccountsToUse(
     const inputLamportsV1 = sumUpLamports(accountsV1);
     const inputLamportsV2 = sumUpLamports(accountsV2);
 
+    console.log('lamports', lamports.toString());
+    console.log('inputLamportsV1', inputLamportsV1.toString());
+    console.log('inputLamportsV2', inputLamportsV2.toString());
     if (lamports.lte(inputLamportsV1)) {
         return {
             selectedAccounts: accountsV1,
@@ -80,6 +85,7 @@ export function decideInputAccountsToUse(
  * @param lamports Required lamports
  * @returns An object containing the selected accounts, total input lamports, and discarded lamports
  */
+
 export function selectInputAccountsForTransfer(
     accounts: CompressedAccountWithMerkleContext[],
     lamports: BN,
@@ -88,39 +94,11 @@ export function selectInputAccountsForTransfer(
     inputLamports: BN;
     discardedLamports: BN;
 } {
-    console.log('accounts', accounts);
-    const accountsV1 = accounts.filter(
-        item => item.lamports.gt(bn(0)) && item.treeType === TreeType.State,
-    );
-    const inputLamportsV1 = sumUpLamports(accountsV1);
+    const { selectedAccounts: accountsV1, totalLamports: inputLamportsV1 } =
+        selectAccountsByTreeType(accounts, [TreeType.State]);
 
-    const accountsV2 = accounts.filter(
-        item =>
-            item.lamports.gt(bn(0)) && item.treeType === TreeType.BatchedState,
-    );
-    const inputLamportsV2 = sumUpLamports(accountsV2);
-    console.log('inputLamportsV1', inputLamportsV1.toString());
-    console.log('inputLamportsV2', inputLamportsV2.toString());
-    console.log('lamports', lamports.toString());
-    console.log('accountsV1', accountsV1.length);
-    console.log('accountsV2', accountsV2.length);
-    if (lamports.lte(inputLamportsV1)) {
-        validateNumbersForInclusionProof(accountsV1.length);
-        return {
-            selectedAccounts: accountsV1,
-            inputLamports: inputLamportsV1,
-            discardedLamports: inputLamportsV2,
-        };
-    } else if (lamports.lte(inputLamportsV2)) {
-        validateNumbersForInclusionProof(accountsV2.length);
-        return {
-            selectedAccounts: accountsV2,
-            inputLamports: inputLamportsV2,
-            discardedLamports: inputLamportsV1,
-        };
-    } else {
-        throw new Error(
-            `Neither inputLamportsV1 (${inputLamportsV1.toString()}) nor inputLamportsV2 (${inputLamportsV2.toString()}) are sufficient to cover the required lamports (${lamports.toString()}). Consider merging your compressed accounts before transferring lamports.`,
-        );
-    }
+    const { selectedAccounts: accountsV2, totalLamports: inputLamportsV2 } =
+        selectAccountsByTreeType(accounts, [TreeType.BatchedState]);
+
+    return decideInputAccountsToUse(lamports, accountsV1, accountsV2);
 }
