@@ -11,6 +11,7 @@ import {
     bn,
     CompressedAccountWithMerkleContext,
     StateTreeContext,
+    TreeType,
 } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -164,7 +165,13 @@ describe('test-rpc', () => {
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {
         for (let lamports = 1; lamports <= 10; lamports++) {
-            await decompress(rpc, payer, lamports, payer.publicKey);
+            await decompress(
+                rpc,
+                payer,
+                lamports,
+                payer.publicKey,
+                outputStateTreeContext,
+            );
         }
     });
     it('getIndexerHealth', async () => {
@@ -236,8 +243,8 @@ describe('test-rpc Tree v2', () => {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
         outputStateTreeContext = stateTreeInfo[2];
 
-        refPayer = await newAccountWithLamports(rpc, 1e9, 198);
-        payer = await newAccountWithLamports(rpc, 1e9, 152);
+        refPayer = await newAccountWithLamports(rpc, 1e9, 256);
+        payer = await newAccountWithLamports(rpc, 1e9, 256);
 
         /// compress refPayer
         const id0 = await compress(
@@ -312,7 +319,7 @@ describe('test-rpc Tree v2', () => {
         );
         const proof = compressedAccountProof.merkleProof.map(x => x.toString());
 
-        expect(proof.length).toStrictEqual(26);
+        expect(proof.length).toStrictEqual(32);
         expect(compressedAccountProof.hash).toStrictEqual(refHash);
 
         expect(compressedAccountProof.leafIndex).toStrictEqual(

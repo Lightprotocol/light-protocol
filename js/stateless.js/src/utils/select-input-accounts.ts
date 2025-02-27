@@ -83,6 +83,7 @@ export function selectInputAccountsForTransfer(
     inputLamports: BN;
     discardedLamports: BN;
 } {
+    console.log('accounts', accounts);
     const accountsV1 = accounts.filter(
         item => item.lamports.gt(bn(0)) && item.treeType === TreeType.State,
     );
@@ -93,6 +94,11 @@ export function selectInputAccountsForTransfer(
             item.lamports.gt(bn(0)) && item.treeType === TreeType.BatchedState,
     );
     const inputLamportsV2 = sumUpLamports(accountsV2);
+    console.log('inputLamportsV1', inputLamportsV1.toString());
+    console.log('inputLamportsV2', inputLamportsV2.toString());
+    console.log('lamports', lamports.toString());
+    console.log('accountsV1', accountsV1.length);
+    console.log('accountsV2', accountsV2.length);
     if (lamports.lte(inputLamportsV1)) {
         validateNumbersForInclusionProof(accountsV1.length);
         return {

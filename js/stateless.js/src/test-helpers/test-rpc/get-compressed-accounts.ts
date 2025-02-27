@@ -117,6 +117,14 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             console.log('tree', tree.toBase58());
             console.log('queue', queue.toBase58());
 
+            console.log(
+                'indices',
+                index,
+                'event.outputleafindices:',
+                event.outputLeafIndices,
+                'event.outputLeafIndices[index]:',
+                event.outputLeafIndices[index],
+            );
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
                 merkleTree: tree,
