@@ -2,7 +2,9 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use light_compressed_account::indexer_event::event::PublicTransactionEvent;
+use light_compressed_account::indexer_event::event::{
+    BatchPublicTransactionEvent, PublicTransactionEvent,
+};
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_program::{
     clock::Slot,
@@ -157,4 +159,11 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
         unimplemented!()
     }
+    async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        instruction: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
 }

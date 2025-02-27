@@ -30,15 +30,21 @@ use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::setup_test_programs_with_accounts,
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig};
-use light_test_utils::{RpcConnection, RpcError};
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use light_prover_client::gnark::helpers::{
+    spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
+};
+use light_test_utils::{RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl};
+use serial_test::serial;
+use solana_sdk::{
+    commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Keypair, signer::Signer,
+};
 
 // TODO: add test with multiple batched address trees before we activate batched addresses
 #[tokio::test]
+#[serial]
 async fn parse_batched_event_functional() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("create_address_test_program"),
@@ -48,11 +54,12 @@ async fn parse_batched_event_functional() {
     spawn_prover(
         true,
         ProverConfig {
-            run_mode: Some(light_prover_client::gnark::helpers::ProverMode::Rpc),
+            run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
         },
     )
     .await;
+
     let payer = rpc.get_payer().insecure_clone();
     // Insert 8 output accounts that we can use as inputs.
     {
@@ -398,8 +405,8 @@ async fn parse_batched_event_functional() {
     }
 }
 
-/// 1 output compressed account
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
 async fn parse_multiple_batched_events_functional() {
     for num_expected_events in 1..5 {
         let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
@@ -407,7 +414,95 @@ async fn parse_multiple_batched_events_functional() {
             create_address_test_program::ID,
         )]))
         .await;
+
         let payer = rpc.get_payer().insecure_clone();
+        rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+            .await
+            .unwrap();
+        let output_accounts = vec![get_compressed_output_account(
+            true,
+            env.batched_output_queue,
+        )];
+        let (events, output_accounts, _) = perform_test_transaction(
+            &mut rpc,
+            &payer,
+            vec![],
+            output_accounts,
+            vec![],
+            Some(num_expected_events),
+            None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(events.len(), num_expected_events as usize);
+        let expected_batched_event = BatchPublicTransactionEvent {
+            event: PublicTransactionEvent {
+                input_compressed_account_hashes: Vec::new(),
+                output_leaf_indices: vec![0],
+                output_compressed_account_hashes: vec![output_accounts[0]
+                    .compressed_account
+                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &0u32)
+                    .unwrap()],
+                output_compressed_accounts: output_accounts.to_vec(),
+                sequence_numbers: vec![MerkleTreeSequenceNumber {
+                    pubkey: env.batched_output_queue,
+                    seq: 0,
+                }],
+                relay_fee: None,
+                message: None,
+                is_compress: false,
+                compress_or_decompress_lamports: None,
+                pubkey_array: vec![env.batched_output_queue],
+            },
+            address_sequence_numbers: Vec::new(),
+            input_sequence_numbers: Vec::new(),
+            batch_input_accounts: Vec::new(),
+            new_addresses: Vec::new(),
+            tx_hash: [0u8; 32],
+        };
+        assert_eq!(events[0], expected_batched_event);
+        for i in 1..num_expected_events {
+            let mut expected_event = expected_batched_event.clone();
+            expected_event.event.sequence_numbers = vec![MerkleTreeSequenceNumber {
+                pubkey: env.batched_output_queue,
+                seq: i as u64,
+            }];
+            expected_event.event.output_compressed_account_hashes = vec![output_accounts[0]
+                .clone()
+                .compressed_account
+                .hash::<Poseidon>(&env.batched_state_merkle_tree, &(i as u32))
+                .unwrap()];
+            expected_event.event.output_leaf_indices = vec![i as u32];
+            assert_eq!(events[i as usize], expected_event);
+        }
+    }
+}
+
+/// 1 output compressed account
+#[tokio::test(flavor = "multi_thread", worker_threads = 32)]
+#[serial]
+#[ignore]
+async fn generate_photon_test_data_multiple_events() {
+    for num_expected_events in 4..5 {
+        spawn_validator(LightValidatorConfig {
+            enable_indexer: false,
+            wait_time: 10,
+            prover_config: None,
+            sbf_programs: vec![(
+                create_address_test_program::ID.to_string(),
+                "../../target/deploy/create_address_test_program.so".to_string(),
+            )],
+        })
+        .await;
+        let mut rpc =
+            SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::confirmed()));
+        let env = EnvAccounts::get_local_test_validator_accounts();
+
+        let payer = rpc.get_payer().insecure_clone();
+        rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+            .await
+            .unwrap();
         let output_accounts = vec![get_compressed_output_account(
             true,
             env.batched_output_queue,
@@ -509,8 +604,8 @@ fn get_compressed_output_account(
     }
 }
 
-async fn perform_test_transaction(
-    rpc: &mut light_program_test::test_rpc::ProgramTestRpcConnection,
+async fn perform_test_transaction<R: RpcConnection>(
+    rpc: &mut R,
     payer: &Keypair,
     input_accounts: Vec<CompressedAccountWithMerkleContext>,
     output_accounts: Vec<OutputCompressedAccountWithContext>,

@@ -407,12 +407,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
         Ok(event)
     }
-}
-
-impl MerkleTreeExt for ProgramTestRpcConnection {}
-
-impl ProgramTestRpcConnection {
-    pub async fn create_and_send_transaction_with_batched_event(
+    async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instruction: &[Instruction],
         payer: &Pubkey,
@@ -558,3 +553,5 @@ impl ProgramTestRpcConnection {
         Ok(event)
     }
 }
+
+impl MerkleTreeExt for ProgramTestRpcConnection {}

@@ -10,3 +10,7 @@ killall solana-test-validator;
 cargo test-sbf -p compressed-token-test -- --test test_transfer_with_photon_and_batched_tree;
 cargo xtask export-photon-test-data --test-name test_batched_token;
 killall solana-test-validator;
+
+cargo test-sbf -p compressed-token-test -- --ignored --test  generate_photon_test_data_multiple_events;
+cargo xtask export-photon-test-data --test-name test_multiple_events;
+killall solana-test-validator;

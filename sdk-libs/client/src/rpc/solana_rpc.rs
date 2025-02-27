@@ -6,7 +6,8 @@ use std::{
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_compressed_account::indexer_event::{
-    event::PublicTransactionEvent, parse::event_from_light_transaction,
+    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+    parse::event_from_light_transaction,
 };
 use solana_client::{
     rpc_client::RpcClient,
@@ -601,6 +602,7 @@ impl RpcConnection for SolanaRpcConnection {
         self.retry(|| async { self.client.get_block_height().map_err(RpcError::from) })
             .await
     }
+
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instructions: &[Instruction],
@@ -608,6 +610,26 @@ impl RpcConnection for SolanaRpcConnection {
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
     ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        let parsed_event = self
+            .create_and_send_transaction_with_batched_event(
+                instructions,
+                payer,
+                signers,
+                transaction_params,
+            )
+            .await?;
+
+        let event = parsed_event.map(|(e, signature, slot)| (e[0].event.clone(), signature, slot));
+        Ok(event)
+    }
+
+    async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        instructions: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         let pre_balance = self.client.get_balance(payer)?;
         let latest_blockhash = self.client.get_latest_blockhash()?;
 
@@ -736,7 +758,7 @@ impl RpcConnection for SolanaRpcConnection {
                 return Err(RpcError::AssertRpcError(format!("unexpected balance after transaction: expected {expected_post_balance}, got {post_balance}")));
             }
         }
-        let event = parsed_event.map(|e| (e[0].event.clone(), signature, slot));
+        let event = parsed_event.map(|e| (e, signature, slot));
         Ok(event)
     }
 }
