@@ -1,22 +1,12 @@
 import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
-import { CompressedAccount, CompressedAccountData } from './types';
+import { CompressedAccount, CompressedAccountData, TreeType } from './types';
 import { BN254, bn } from './BN254';
 
 export type CompressedAccountWithMerkleContext = CompressedAccount &
     MerkleContext & {
         readOnly: boolean;
     };
-
-/**
- * V1: State Merkle trees; V2: Batched Merkle Tree. Default: V2 for outputs. V2
- * transactions store outputs in the `queue` account instead of the `merkleTree`
- * account.
- */
-export enum MerkleContextVersion {
-    V1 = 1,
-    V2 = 2,
-}
 
 /**
  * Context for compressed account inserted into a state Merkle tree
@@ -31,12 +21,25 @@ export type MerkleContext = {
     /** 'hash' position within the Merkle tree */
     leafIndex: number;
     /** Version */
-    version: MerkleContextVersion;
+    treeType: TreeType;
     /** Whether to prove by index or by validity proof */
     proveByIndex: boolean;
 };
+/**
+ * Context for compressed account inserted into a state Merkle tree V1
+ * */
+export type MerkleContextV1 = {
+    /** State Merkle tree */
+    merkleTree: PublicKey;
+    /** The state nullfier queue belonging to merkleTree */
+    queue: PublicKey;
+    /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
+    hash: number[];
+    /** 'hash' position within the Merkle tree */
+    leafIndex: number;
+};
 
-export type MerkleContextWithMerkleProof = MerkleContext & {
+export type MerkleContextWithMerkleProof = MerkleContextV1 & {
     /** Recent valid 'hash' proof path, expires after n slots */
     merkleProof: BN254[];
     /** Index of state root the merkleproof is valid for, expires after n slots */
@@ -74,13 +77,13 @@ export const createMerkleContext = (
     queue: PublicKey,
     hash: number[], // TODO: BN254,
     leafIndex: number,
-    version: MerkleContextVersion,
+    treeType: TreeType,
     proveByIndex: boolean,
 ): MerkleContext => ({
     merkleTree,
     queue,
     hash,
     leafIndex,
-    version,
+    treeType,
     proveByIndex,
 });

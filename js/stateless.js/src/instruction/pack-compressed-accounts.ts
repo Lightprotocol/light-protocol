@@ -4,6 +4,7 @@ import {
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
     StateTreeContext,
+    TreeType,
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
@@ -149,19 +150,23 @@ export function packCompressedAccounts(
                 merkleTreePubkeyIndex,
                 queuePubkeyIndex,
                 leafIndex: account.leafIndex,
-                proveByIndex: false,
+                proveByIndex: account.proveByIndex,
             },
             rootIndex: inputStateRootIndices[index],
             readOnly: false,
         });
     });
 
-    // TODO: based on version set here.
-    const outputStateMerkleTree = outputStateTreeContext.tree;
+    // internal. v2 trees require the output queue account instead of directly
+    // appending to the merkle tree.
+    const outputTreeOrQueue =
+        outputStateTreeContext.treeType === TreeType.BatchedState
+            ? outputStateTreeContext.queue!
+            : outputStateTreeContext.tree;
 
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateMerkleTree,
+        outputTreeOrQueue,
         outputCompressedAccounts.length,
         inputCompressedAccounts,
     );

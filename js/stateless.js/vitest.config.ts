@@ -6,5 +6,8 @@ export default defineConfig({
         exclude: process.env.EXCLUDE_E2E ? ['tests/e2e/**'] : [],
         testTimeout: 30000,
         reporters: ['verbose'],
+        sequence: {
+            concurrent: false,
+        },
     },
 });

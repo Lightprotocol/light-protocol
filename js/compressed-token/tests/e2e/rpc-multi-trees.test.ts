@@ -5,10 +5,6 @@ import {
     newAccountWithLamports,
     bn,
     createRpc,
-    getTestRpc,
-    pickRandomTreeAndQueue,
-    defaultTestStateTreeAccounts,
-    defaultTestStateTreeAccounts2,
     StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';

@@ -11,6 +11,7 @@ import {
     CompressedProof,
     InstructionDataInvoke,
     StateTreeContext,
+    TreeType,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -108,7 +109,7 @@ type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: CompressedProof | null;
     /**
      * The state trees that the tx output should be inserted into. This can be a
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
@@ -173,7 +174,7 @@ type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: CompressedProof | null;
     /**
      * The state tree context that the tx output should be inserted into.
      */
@@ -375,6 +376,7 @@ export class LightSystemProgram {
         recentValidityProof,
         outputStateTreeContext,
     }: TransferParams): Promise<TransactionInstruction> {
+        console.log('inputs before packing', inputCompressedAccounts);
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
             inputCompressedAccounts,
@@ -411,6 +413,9 @@ export class LightSystemProgram {
             isCompress: false,
         };
 
+        console.log('proof', recentValidityProof);
+        console.log('inputs', packedInputCompressedAccounts);
+        console.log('outputs', packedOutputCompressedAccounts);
         const data = encodeInstructionDataInvoke(rawInputs);
 
         const accounts = invokeAccountsLayout({
@@ -573,6 +578,7 @@ export function selectMinCompressedSolAccountsForTransfer(
 
     const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
 
+    accounts = accounts.filter(account => account.lamports.gt(bn(0)));
     accounts.sort((a, b) => b.lamports.cmp(a.lamports));
 
     for (const account of accounts) {
@@ -584,6 +590,48 @@ export function selectMinCompressedSolAccountsForTransfer(
     if (accumulatedLamports.lt(bn(transferLamports))) {
         throw new Error(
             `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
+        );
+    }
+
+    return [selectedAccounts, accumulatedLamports];
+}
+
+/**
+ * Selects the minimal number of compressed SOL accounts for a PDA creation.
+ * Only V1 compressed accounts are supported with Combined ValidityProofs.
+ *
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the amount until it is greater than or equal to the transfer
+ *    amount
+ */
+export function selectMinCompressedSolAccountsForPdaCreation(
+    accounts: CompressedAccountWithMerkleContext[],
+    transferLamports: BN | number,
+): [selectedAccounts: CompressedAccountWithMerkleContext[], total: BN] {
+    let accumulatedLamports = bn(0);
+    transferLamports = bn(transferLamports);
+
+    const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
+    // Only V1 is supported with Combined ValidityProofs.
+    accounts = accounts.filter(account => account.treeType === TreeType.State);
+    let nonEligibleAmount = bn(0);
+    for (const account of accounts) {
+        if (account.treeType !== TreeType.State) {
+            nonEligibleAmount = nonEligibleAmount.add(account.lamports);
+        }
+    }
+
+    accounts.sort((a, b) => b.lamports.cmp(a.lamports));
+
+    for (const account of accounts) {
+        if (accumulatedLamports.gte(bn(transferLamports))) break;
+        accumulatedLamports = accumulatedLamports.add(account.lamports);
+        selectedAccounts.push(account);
+    }
+
+    if (accumulatedLamports.lt(bn(transferLamports))) {
+        throw new Error(
+            `Insufficient balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}, unavailable for this action (V2): ${nonEligibleAmount.toString()}`,
         );
     }
 

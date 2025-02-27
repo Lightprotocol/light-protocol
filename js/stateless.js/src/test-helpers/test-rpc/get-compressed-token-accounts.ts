@@ -1,7 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
-import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
@@ -10,7 +9,7 @@ import {
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     bn,
-    MerkleContextVersion,
+    TreeType,
 } from '../../state';
 import {
     struct,
@@ -21,6 +20,7 @@ import {
     u8,
     Layout,
 } from '@coral-xyz/borsh';
+import { getQueueForTree } from './get-compressed-accounts';
 
 const tokenProgramId: PublicKey = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
@@ -74,28 +74,35 @@ export function parseTokenLayoutWithIdl(
 /**
  * parse compressed accounts of an event with token layout
  * @internal
- * TODO: refactor
  */
 async function parseEventWithTokenTlvData(
     event: PublicTransactionEvent,
+    rpc: Rpc,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-
+    const ctxs = await rpc.getCachedActiveStateTreeInfo();
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
+            const maybeTree =
+                pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
+            console.log(
+                'parseEventWithTokenTlvData - "maybeTree"',
+                maybeTree.toBase58(),
+            );
+
+            const { queue, treeType, tree } = getQueueForTree(ctxs, maybeTree);
+            console.log('after getQueueForTree - tree', tree.toBase58());
+            console.log('after getQueueForTree - queue', queue.toBase58());
+            console.log('parseEventWithTokenTlvData - treeType', treeType);
+
             const merkleContext: MerkleContext = {
-                merkleTree:
-                    pubkeyArray[
-                        event.outputCompressedAccounts[i].merkleTreeIndex
-                    ],
-                queue:
-                    // FIXME: fix make dynamic
-                    defaultTestStateTreeAccounts().nullifierQueue,
+                merkleTree: tree,
+                queue: queue,
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
-                version: MerkleContextVersion.V1, // TODO: test-rpc v2
-                proveByIndex: false,
+                treeType: treeType,
+                proveByIndex: treeType === TreeType.BatchedState,
             };
 
             if (!compressedAccount.compressedAccount.data)
@@ -137,10 +144,11 @@ async function parseEventWithTokenTlvData(
  */
 export async function getCompressedTokenAccounts(
     events: PublicTransactionEvent[],
+    rpc: Rpc,
 ): Promise<ParsedTokenAccount[]> {
     const eventsWithParsedTokenTlvData: EventWithParsedTokenTlvData[] =
         await Promise.all(
-            events.map(event => parseEventWithTokenTlvData(event)),
+            events.map(event => parseEventWithTokenTlvData(event, rpc)),
         );
 
     /// strip spent compressed accounts if an output compressed account of tx n is
@@ -173,7 +181,10 @@ export async function getCompressedTokenAccountsByOwnerTest(
     mint: PublicKey,
 ): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
-    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+    const compressedTokenAccounts = await getCompressedTokenAccounts(
+        events,
+        rpc,
+    );
     const accounts = compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
@@ -193,7 +204,10 @@ export async function getCompressedTokenAccountsByDelegateTest(
 ): Promise<WithCursor<ParsedTokenAccount[]>> {
     const events = await getParsedEvents(rpc);
 
-    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+    const compressedTokenAccounts = await getCompressedTokenAccounts(
+        events,
+        rpc,
+    );
     return {
         items: compressedTokenAccounts.filter(
             acc =>
@@ -210,7 +224,10 @@ export async function getCompressedTokenAccountByHashTest(
 ): Promise<ParsedTokenAccount> {
     const events = await getParsedEvents(rpc);
 
-    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+    const compressedTokenAccounts = await getCompressedTokenAccounts(
+        events,
+        rpc,
+    );
 
     const filtered = compressedTokenAccounts.filter(acc =>
         bn(acc.compressedAccount.hash).eq(hash),

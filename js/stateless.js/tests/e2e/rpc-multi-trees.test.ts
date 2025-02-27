@@ -1,7 +1,7 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc, createRpc, pickRandomTreeAndQueue } from '../../src/rpc';
+import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
     StateTreeContext,
@@ -126,9 +126,6 @@ describe('rpc-multi-trees', () => {
         );
         executedTxs++;
 
-        const tree2 = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
-        );
         await transfer(
             rpc,
             payer,

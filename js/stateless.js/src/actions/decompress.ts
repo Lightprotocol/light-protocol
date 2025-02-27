@@ -5,13 +5,24 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-import { LightSystemProgram, sumUpLamports } from '../programs';
+import {
+    LightSystemProgram,
+    selectMinCompressedSolAccountsForTransfer,
+    sumUpLamports,
+} from '../programs';
 import { pickRandomStateTreeContext, Rpc } from '../rpc';
-import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import {
+    buildAndSignTx,
+    selectInputAccountsForTransfer,
+    sendAndConfirmTx,
+    validateNumbers,
+    validateNumbersForInclusionProof,
+} from '../utils';
 import BN from 'bn.js';
 import {
     CompressedAccountWithMerkleContext,
     StateTreeContext,
+    TreeType,
     bn,
 } from '../state';
 
@@ -35,36 +46,46 @@ export async function decompress(
     outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
-        (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
-
     lamports = bn(lamports);
+    const allAccounts = await rpc.getCompressedAccountsByOwner(payer.publicKey);
+
+    const {
+        selectedAccounts: maybeInputAccounts,
+        inputLamports,
+        discardedLamports,
+    } = selectInputAccountsForTransfer(allAccounts.items, lamports);
 
     if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
-    }
-
-    const inputLamports = sumUpLamports(
-        userCompressedAccountsWithMerkleContext,
-    );
-
-    if (lamports.gt(inputLamports)) {
-        throw new Error(
-            `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}`,
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
         );
     }
 
-    const proof = await rpc.getValidityProof(
-        userCompressedAccountsWithMerkleContext.map(x => bn(x.hash)),
+    if (lamports.gt(inputLamports)) {
+        throw new Error(
+            `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}, unavailable for this action: ${discardedLamports.toString()}`,
+        );
+    }
+
+    const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
+        maybeInputAccounts,
+        lamports,
     );
 
+    const proof = await rpc.getValidityProof(
+        inputAccounts.map(x => bn(x.hash)),
+    );
+
+    console.log('inputAccounts', inputAccounts);
+    console.log('proof', proof);
     const { blockhash } = await rpc.getLatestBlockhash();
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
         outputStateTreeContext,
-        inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
+        inputCompressedAccounts: inputAccounts,
         recentValidityProof: proof.compressedProof,
         recentInputStateRootIndices: proof.rootIndices,
         lamports,

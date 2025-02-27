@@ -17,9 +17,11 @@ import {
     bn,
     CompressedAccountWithMerkleContext,
     StateTreeContext,
+    TreeType,
 } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
+import { selectInputAccountsForTransfer } from '../utils/select-input-accounts';
 
 /**
  * Transfer compressed lamports from one owner to another
@@ -44,57 +46,38 @@ export async function transfer(
     outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    let accumulatedLamports = bn(0);
-    const compressedAccounts: CompressedAccountWithMerkleContext[] = [];
-    let cursor: string | undefined;
-    const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
 
     if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
-    }
-
-    while (accumulatedLamports.lt(lamports)) {
-        const batchConfig: GetCompressedAccountsByOwnerConfig = {
-            filters: undefined,
-            dataSlice: undefined,
-            cursor,
-            limit: new BN(batchSize),
-        };
-
-        const batch = await rpc.getCompressedAccountsByOwner(
-            owner.publicKey,
-            batchConfig,
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
         );
-
-        for (const account of batch.items) {
-            if (account.lamports.gt(new BN(0))) {
-                compressedAccounts.push(account);
-                accumulatedLamports = accumulatedLamports.add(account.lamports);
-            }
-        }
-
-        cursor = batch.cursor ?? undefined;
-        if (batch.items.length < batchSize || accumulatedLamports.gte(lamports))
-            break;
     }
 
-    if (accumulatedLamports.lt(lamports)) {
+    const allAccounts = await rpc.getCompressedAccountsByOwner(owner.publicKey);
+
+    const {
+        selectedAccounts: potentialInputAccounts,
+        inputLamports,
+        discardedLamports,
+    } = selectInputAccountsForTransfer(allAccounts.items, lamports);
+
+    if (lamports.gt(inputLamports)) {
         throw new Error(
-            `Insufficient balance for transfer. Required: ${lamports.toString()}, available: ${accumulatedLamports.toString()}`,
+            `Insufficient balance for transfer. Required: ${lamports.toString()}, available: ${inputLamports.toString()}, unavailable: ${discardedLamports.toString()}`,
         );
     }
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
-        compressedAccounts,
+        potentialInputAccounts,
         lamports,
     );
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );
-    console.log('proof', proof);
 
     const ix = await LightSystemProgram.transfer({
         payer: payer.publicKey,
@@ -108,7 +91,7 @@ export async function transfer(
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
     );

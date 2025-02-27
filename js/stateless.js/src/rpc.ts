@@ -7,17 +7,16 @@ import {
 import { Buffer } from 'buffer';
 import {
     BalanceResult,
-    CompressedAccountResult,
-    CompressedAccountsByOwnerResult,
+    CompressedAccountsByOwnerResultV2,
     CompressedProofWithContext,
-    CompressedTokenAccountsByOwnerOrDelegateResult,
+    CompressedTokenAccountsByOwnerOrDelegateResultV2,
     CompressedTransaction,
     CompressedTransactionResult,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
     HexInputsForProver,
-    MultipleCompressedAccountsResult,
+    MultipleCompressedAccountsResultV2,
     NativeBalanceResult,
     ParsedTokenAccount,
     SignatureListResult,
@@ -44,6 +43,7 @@ import {
     TokenBalanceListResultV2,
     PaginatedOptions,
     MerkleProofResult,
+    CompressedAccountResultV2,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -55,7 +55,6 @@ import {
     createMerkleContext,
     TokenData,
     CompressedProof,
-    MerkleContextVersion,
     StateTreeContext,
     TreeType,
 } from './state';
@@ -76,7 +75,6 @@ import {
 import { LightWasm } from './test-helpers';
 import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
 import { validateNumbersForProof } from './utils';
-import { version } from 'os';
 
 /** @internal */
 export function parseAccountData({
@@ -116,7 +114,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 
     const res = create(
         unsafeRes,
-        jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),
+        jsonRpcResultAndContext(
+            CompressedTokenAccountsByOwnerOrDelegateResultV2,
+        ),
     );
     if ('error' in res) {
         throw new SolanaJSONRPCError(
@@ -129,23 +129,19 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-
     res.result.value.items.map(item => {
         const _account = item.account;
         const _tokenData = item.tokenData;
-        const { queue, version, proveByIndex } =
-            getVersionedCompressedAccountFields(_account, activeStateTreeInfo);
 
         const compressedAccount: CompressedAccountWithMerkleContext =
             createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    _account.tree!,
-                    queue,
+                    _account.tree,
+                    _account.queue,
                     _account.hash.toArray('be', 32),
                     _account.leafIndex,
-                    version,
-                    proveByIndex,
+                    _account.treeType,
+                    _account.proveByIndex,
                 ),
                 _account.owner,
                 bn(_account.lamports),
@@ -177,7 +173,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             parsed,
         });
     });
-    /// TODO: consider custom or different sort. Most recent here.
     return {
         items: accounts.sort(
             (a, b) =>
@@ -190,7 +185,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 /** @internal */
 function buildCompressedAccountWithMaybeTokenData(
     accountStructWithOptionalTokenData: any,
-    activeStateTreeInfo: StateTreeContext[],
 ): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
@@ -199,20 +193,15 @@ function buildCompressedAccountWithMaybeTokenData(
     const tokenDataResult =
         accountStructWithOptionalTokenData.optionalTokenData;
 
-    const { queue, version, proveByIndex } =
-        getVersionedCompressedAccountFields(
-            compressedAccountResult,
-            activeStateTreeInfo,
-        );
     const compressedAccount: CompressedAccountWithMerkleContext =
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
                 compressedAccountResult.merkleTree,
-                queue,
+                compressedAccountResult.queue,
                 compressedAccountResult.hash.toArray('be', 32),
                 compressedAccountResult.leafIndex,
-                version,
-                proveByIndex,
+                compressedAccountResult.treeType,
+                compressedAccountResult.proveByIndex,
             ),
             compressedAccountResult.owner,
             bn(compressedAccountResult.lamports),
@@ -557,52 +546,6 @@ export function getPublicInputHash(
 }
 
 /**
- * Get the queue for a given tree
- *
- * @param info - The active state tree addresses
- * @param tree - The tree to get the queue for
- * @returns The queue for the given tree, or undefined if not found
- */
-export function getQueueForTree(
-    info: StateTreeContext[],
-    tree: PublicKey,
-): PublicKey {
-    const index = info.findIndex(t => t.tree.equals(tree));
-    if (index === -1) {
-        throw new Error(
-            `No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,
-        );
-    }
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-    return info[index].queue;
-}
-
-/**
- * Get the tree for a given queue
- *
- * @param info - The active state tree addresses
- * @param queue - The queue to get the tree for
- * @returns The tree for the given queue, or undefined if not found
- */
-export function getTreeForQueue(
-    info: StateTreeContext[],
-    queue: PublicKey,
-): PublicKey {
-    const index = info.findIndex(q => q.queue?.equals(queue));
-    if (index === -1) {
-        throw new Error(
-            'No associated tree found for queue. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually.',
-        );
-    }
-    if (!info[index].tree) {
-        throw new Error('Tree must not be null for state tree');
-    }
-    return info[index].tree;
-}
-
-/**
  * @deprecated use {@link pickRandomStateTreeContext} instead.
  * Get a random tree and queue from the active state tree addresses.
  *
@@ -637,8 +580,9 @@ export function pickRandomTreeAndQueue(info: StateTreeContext[]): {
  */
 export function pickRandomStateTreeContext(
     info: StateTreeContext[],
+    treeType: TreeType,
 ): StateTreeContext {
-    const filteredInfo = info.filter(t => t.treeType === TreeType.State);
+    const filteredInfo = info.filter(t => t.treeType === treeType);
     const length = filteredInfo.length;
     const index = Math.floor(Math.random() * length);
 
@@ -646,51 +590,7 @@ export function pickRandomStateTreeContext(
         throw new Error('Queue must not be null for state tree');
     }
 
-    console.log('filteredInfo', filteredInfo);
-
     return filteredInfo[index];
-}
-
-export function compressedAccountIsV1(
-    value: typeof CompressedAccountResult.TYPE,
-): boolean {
-    return value.queue === null || value.queue === undefined;
-}
-
-/**
- * Get the queue and version for a given compressed account Decides whether
- * to use V1 or V2 merkle context based on the account type. Uses queue from
- * the account if it is V2, otherwise gets queue from the state tree info.
- */
-function getVersionedCompressedAccountFields(
-    res: typeof CompressedAccountResult.TYPE,
-    activeStateTreeInfo: StateTreeContext[],
-): {
-    queue: PublicKey;
-    version: MerkleContextVersion;
-    proveByIndex: boolean;
-} {
-    let queue: PublicKey | null | undefined = res.queue;
-    let version: MerkleContextVersion = MerkleContextVersion.V2;
-    let proveByIndex: boolean | null | undefined = res.proveByIndex;
-    if (compressedAccountIsV1(res)) {
-        queue = getQueueForTree(activeStateTreeInfo, res.tree!);
-        version = MerkleContextVersion.V1;
-        proveByIndex = false;
-    }
-    // V2: queue and proveByIndex are always non-null
-    if (proveByIndex === null || proveByIndex === undefined) {
-        throw new Error(
-            'proveByIndex should never be null or undefined for V2 account',
-        );
-    }
-    if (queue === null || queue === undefined) {
-        throw new Error(
-            'Could not find associated queue for V1 account. If you are using a custom state tree, use rpc.setStateTreeInfo() to set your corresponding state tree addresses.',
-        );
-    }
-
-    return { queue, version: MerkleContextVersion.V1, proveByIndex: false };
 }
 
 /**
@@ -791,7 +691,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(nullable(CompressedAccountResult)),
+            jsonRpcResultAndContext(nullable(CompressedAccountResultV2)),
         );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
@@ -802,22 +702,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if (res.result.value === null) {
             return null;
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
-        const { queue, version, proveByIndex } =
-            getVersionedCompressedAccountFields(
-                res.result.value,
-                activeStateTreeInfo,
-            );
-
         const item = res.result.value;
+
         const account = createCompressedAccountWithMerkleContext(
             createMerkleContext(
                 item.tree,
-                queue,
+                item.queue,
                 item.hash.toArray('be', 32),
                 item.leafIndex,
-                version,
-                proveByIndex,
+                item.treeType,
+                item.proveByIndex,
             ),
             item.owner,
             bn(item.lamports),
@@ -862,9 +756,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return bn(res.result.value);
     }
 
-    /// TODO: validate that this is just for sol accounts
     /**
-     * Fetch the total compressed balance for the specified owner public key
+     * Fetch the total compressed lamports balance for the specified owner
+     * public key
      */
     async getCompressedBalanceByOwner(owner: PublicKey): Promise<BN> {
         const unsafeRes = await rpcRequest(
@@ -889,8 +783,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the latest merkle proof for the specified account hash from the
-     * cluster
+     * @deprecated Almost always you want to use {@link getValidityProof}
+     * instead.
+     *
+     * Note, Fetching merkle proofs for V2 accounts are not supported yet.
+     *
+     * Fetch the latest merkle proof for a compressed account specified by an
+     * account hash
      */
     async getCompressedAccountProof(
         hash: BN254,
@@ -915,29 +814,26 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get proof for compressed account ${hash.toString()}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
-        const associatedQueue = getQueueForTree(
-            activeStateTreeInfo,
-            res.result.value.merkleTree,
-        );
+
+        const result = res.result.value;
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray('be', 32),
-            merkleTree: res.result.value.merkleTree,
-            leafIndex: res.result.value.leafIndex,
-            merkleProof: res.result.value.proof,
-            queue: associatedQueue,
-            rootIndex: res.result.value.rootSeq % 2400,
-            root: res.result.value.root,
-            version: MerkleContextVersion.V1, // TODO: add v2 support
-            proveByIndex: false, // unused
+            hash: result.hash.toArray('be', 32),
+            merkleTree: result.merkleTree,
+            leafIndex: result.leafIndex,
+            merkleProof: result.proof,
+            queue: PublicKey.default,
+            rootIndex: result.rootSeq % 2400,
+            root: result.root,
         };
         return value;
     }
 
     /**
-     * Fetch all the account info for multiple compressed accounts specified by
+     * Fetch account infos for multiple compressed accounts specified by
      * an array of account hashes
+     *
+     * Returns sorted by most recent unspent account first.
      */
     async getMultipleCompressedAccounts(
         hashes: BN254[],
@@ -949,7 +845,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(MultipleCompressedAccountsResult),
+            jsonRpcResultAndContext(MultipleCompressedAccountsResultV2),
         );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
@@ -963,18 +859,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+
         res.result.value.items.map(item => {
-            const { queue, version, proveByIndex } =
-                getVersionedCompressedAccountFields(item, activeStateTreeInfo);
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
                     item.tree,
-                    queue,
+                    item.queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
-                    version,
-                    proveByIndex,
+                    item.treeType,
+                    item.proveByIndex,
                 ),
                 item.owner,
                 bn(item.lamports),
@@ -988,6 +882,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated Almost always you want to use {@link getValidityProof} instead.
+     *
+     * Note, Fetching merkle proofs for V2 accounts are not supported yet.
+     *
      * Fetch the latest merkle proofs for multiple compressed accounts specified
      * by an array account hashes
      */
@@ -1018,22 +916,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
         for (const proof of res.result.value) {
-            const associatedQueue = getQueueForTree(
-                activeStateTreeInfo,
-                proof.merkleTree,
-            );
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray('be', 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                queue: associatedQueue,
+                queue: PublicKey.default,
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
-                version: MerkleContextVersion.V1, // TODO: add v2 support for merkleproofs
-                proveByIndex: false, // unused
             };
             merkleProofs.push(value);
         }
@@ -1062,7 +953,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(CompressedAccountsByOwnerResult),
+            jsonRpcResultAndContext(CompressedAccountsByOwnerResultV2),
         );
 
         if ('error' in res) {
@@ -1077,21 +968,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 cursor: null,
             };
         }
+        const { items } = res.result.value;
 
         const accounts: CompressedAccountWithMerkleContext[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
-        res.result.value.items.map(item => {
-            const { queue, version, proveByIndex } =
-                getVersionedCompressedAccountFields(item, activeStateTreeInfo);
+        items.map(item => {
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
                     item.tree,
-                    queue,
+                    item.queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
-                    version,
-                    proveByIndex,
+                    item.treeType,
+                    item.proveByIndex,
                 ),
                 item.owner,
                 bn(item.lamports),
@@ -1103,19 +992,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         });
 
         const sorted = accounts.sort((a, b) => b.leafIndex - a.leafIndex);
-        console.log(
-            'RPC-SORTED leafIdx , merkletree, address',
-            sorted.map(
-                item =>
-                    item.leafIndex +
-                    '  ' +
-                    item.merkleTree.toBase58() +
-                    '  ' +
-                    item.address +
-                    '  ' +
-                    item.owner.toBase58(),
-            ),
-        );
+
         return {
             items: sorted,
             cursor: res.result.value.cursor,
@@ -1352,23 +1229,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
             maybeTokenData: TokenData | null;
         }[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
-
         res.result.compressionInfo.closedAccounts.map(item => {
-            closedAccounts.push(
-                buildCompressedAccountWithMaybeTokenData(
-                    item,
-                    activeStateTreeInfo,
-                ),
-            );
+            closedAccounts.push(buildCompressedAccountWithMaybeTokenData(item));
         });
         res.result.compressionInfo.openedAccounts.map(item => {
-            openedAccounts.push(
-                buildCompressedAccountWithMaybeTokenData(
-                    item,
-                    activeStateTreeInfo,
-                ),
-            );
+            openedAccounts.push(buildCompressedAccountWithMaybeTokenData(item));
         });
 
         const calculateTokenBalances = (
@@ -1673,8 +1538,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated Almost always you want to use {@link getValidityProofV0}
+     *  instead.
+     *
      * Fetch the latest address proofs for new unique addresses specified by an
      * array of addresses.
+     *
      *
      * the proof states that said address have not yet been created in
      * respective address tree.
@@ -1726,169 +1595,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Advanced usage of getValidityProof: fetches ZKP directly from a custom
-     * non-rpcprover. Note: This uses the proverEndpoint specified in the
-     * constructor. For normal usage, please use {@link getValidityProof}
-     * instead.
-     *
-     * Fetch the latest validity proof for (1) compressed accounts specified by
-     * an array of account hashes. (2) new unique addresses specified by an
-     * array of addresses.
-     *
-     * Validity proofs prove the presence of compressed accounts in state trees
-     * and the non-existence of addresses in address trees, respectively. They
-     * enable verification without recomputing the merkle proof path, thus
-     * lowering verification and data costs.
-     *
-     * @param hashes        Array of BN254 hashes.
-     * @param newAddresses  Array of BN254 new addresses.
-     * @returns             validity proof with context
-     */
-    async getValidityProofDirect(
-        hashes: BN254[] = [],
-        newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
-        let validityProof: CompressedProofWithContext;
-
-        if (hashes.length === 0 && newAddresses.length === 0) {
-            throw new Error(
-                'Empty input. Provide hashes and/or new addresses.',
-            );
-        } else if (hashes.length > 0 && newAddresses.length === 0) {
-            /// inclusion
-            const merkleProofsWithContext =
-                await this.getMultipleCompressedAccountProofs(hashes);
-            const inputs = convertMerkleProofsWithContextToHex(
-                merkleProofsWithContext,
-            );
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     [],
-            //     lightWasm,
-            // );
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'inclusion',
-                inputs,
-                false,
-            );
-            // TODO: add v2 support for merkleproofs
-            validityProof = {
-                compressedProof,
-                roots: merkleProofsWithContext.map(proof => proof.root),
-                rootIndices: merkleProofsWithContext.map(
-                    proof => proof.rootIndex,
-                ),
-                leafIndices: merkleProofsWithContext.map(
-                    proof => proof.leafIndex,
-                ),
-                leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.merkleTree,
-                ),
-                queues: merkleProofsWithContext.map(proof => proof.queue),
-                proveByIndices: merkleProofsWithContext.map(_ => false), // TODO: Add V2
-                version: MerkleContextVersion.V1, // TODO: add v2 support
-            };
-        } else if (hashes.length === 0 && newAddresses.length > 0) {
-            /// new-address
-            const newAddressProofs: MerkleContextWithNewAddressProof[] =
-                await this.getMultipleNewAddressProofs(newAddresses);
-
-            const inputs =
-                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     [],
-            //     [],
-            //     newAddressProofs,
-            //     lightWasm,
-            // );
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'new-address',
-                inputs,
-                false,
-                // publicInputHash,
-            );
-
-            validityProof = {
-                compressedProof,
-                roots: newAddressProofs.map(proof => proof.root),
-                rootIndices: newAddressProofs.map(proof => proof.rootIndex),
-                leafIndices: newAddressProofs.map(proof =>
-                    proof.nextIndex.toNumber(),
-                ),
-                leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
-                queues: newAddressProofs.map(proof => proof.queue),
-                proveByIndices: newAddressProofs.map(_ => false), // TODO: Add V2
-                version: MerkleContextVersion.V1, // TODO: add v2 support
-            };
-        } else if (hashes.length > 0 && newAddresses.length > 0) {
-            /// combined
-            const merkleProofsWithContext =
-                await this.getMultipleCompressedAccountProofs(hashes);
-            const inputs = convertMerkleProofsWithContextToHex(
-                merkleProofsWithContext,
-            );
-            const newAddressProofs: MerkleContextWithNewAddressProof[] =
-                await this.getMultipleNewAddressProofs(newAddresses);
-
-            const newAddressInputs =
-                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     newAddressProofs,
-            //     lightWasm,
-            // );
-            const compressedProof = await proverRequest(
-                this.proverEndpoint,
-                'combined',
-                [inputs, newAddressInputs],
-                false,
-                // publicInputHash,
-            );
-
-            validityProof = {
-                compressedProof,
-                roots: merkleProofsWithContext
-                    .map(proof => proof.root)
-                    .concat(newAddressProofs.map(proof => proof.root)),
-                rootIndices: merkleProofsWithContext
-                    .map(proof => proof.rootIndex)
-                    .concat(newAddressProofs.map(proof => proof.rootIndex)),
-                leafIndices: merkleProofsWithContext
-                    .map(proof => proof.leafIndex)
-                    .concat(
-                        newAddressProofs.map(
-                            proof => proof.nextIndex.toNumber(), // TODO: support >32bit
-                        ),
-                    ),
-                leaves: merkleProofsWithContext
-                    .map(proof => bn(proof.hash))
-                    .concat(newAddressProofs.map(proof => bn(proof.value))),
-                merkleTrees: merkleProofsWithContext
-                    .map(proof => proof.merkleTree)
-                    .concat(newAddressProofs.map(proof => proof.merkleTree)),
-                queues: merkleProofsWithContext
-                    .map(proof => proof.queue)
-                    .concat(newAddressProofs.map(proof => proof.queue)),
-                proveByIndices: merkleProofsWithContext
-                    .map(proof => proof.proveByIndex)
-                    .concat(newAddressProofs.map(_ => false)),
-                version: MerkleContextVersion.V1, // TODO: add v2 support
-            };
-        } else throw new Error('Invalid input');
-
-        return validityProof;
-    }
-
-    /**
      * @deprecated use {@link getValidityProofV0} instead.
      *
      *
@@ -1914,7 +1620,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const trees = accs.map(acc => acc.merkleTree);
         const queues = accs.map(acc => acc.queue);
 
-        // TODO: add dynamic address tree support here
         const defaultAddressTreePublicKey =
             defaultTestStateTreeAccounts().addressTree;
         const defaultAddressQueuePublicKey =
@@ -2010,31 +1715,48 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
-
-        const result = res.result.value;
-
-        if (result === null) {
+        if (res.result === null) {
             throw new Error(
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
 
-        // This will always be false for V1.
+        const result = res.result.value;
+
+        /// TODO: replace with photon Null(proof)
+        let compressedProof: CompressedProof | null = null;
+        if (
+            result.rootIndices.every(index => !index.inTree) ||
+            result.compressedProof === null
+        ) {
+            compressedProof = null;
+        } else {
+            compressedProof = result.compressedProof;
+        }
+
         const proveByIndices = result.rootIndices.map(index => !index.inTree);
 
         const value: CompressedProofWithContext = {
-            compressedProof: result.compressedProof,
+            compressedProof: compressedProof,
             merkleTrees: result.merkleTrees,
             leafIndices: result.leafIndices,
             queues: [
                 ...hashes.map(({ queue }) => queue),
                 ...newAddresses.map(({ queue }) => queue),
             ],
-            rootIndices: result.rootIndices.map(index => index.rootIndex), // TODO: Check if this works.
+            rootIndices: result.rootIndices.map(index => index.rootIndex),
             roots: result.roots,
             leaves: result.leaves,
             proveByIndices,
-            version: MerkleContextVersion.V1, // TODO: add v2 support
+            // TODO: replace with response value before Devnet/Mainnet.
+            treeTypes: [
+                ...hashes.map((_, index) =>
+                    proveByIndices[index]
+                        ? TreeType.BatchedState
+                        : TreeType.State,
+                ),
+                ...newAddresses.map(() => TreeType.Address),
+            ],
         };
         return { value, context: res.result.context };
     }

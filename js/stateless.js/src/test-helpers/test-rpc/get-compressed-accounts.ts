@@ -2,15 +2,64 @@ import { PublicKey } from '@solana/web3.js';
 
 import BN from 'bn.js';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
-import { getQueueForTree, Rpc } from '../../rpc';
+import { Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
-    MerkleContextVersion,
+    TreeType,
+    StateTreeContext,
 } from '../../state';
+
+/**
+ * Get the queue for a given tree
+ *
+ * @param info - The active state tree addresses
+ * @param tree - The tree to get the queue for
+ * @returns The queue for the given tree, or throws an error if not found
+ */
+export function getQueueForTree(
+    info: StateTreeContext[],
+    tree: PublicKey,
+): { queue: PublicKey; treeType: TreeType; tree: PublicKey } {
+    const index = info.findIndex(t => t.tree.equals(tree));
+    console.log('index', index);
+    if (index !== -1) {
+        const { queue, treeType } = info[index];
+        console.log('found v1? queue', queue?.toBase58());
+        console.log('found v1? tree', tree.toBase58());
+        console.log('found v1? treeType', treeType);
+        if (!queue) {
+            throw new Error('Queue must not be null for state tree');
+        }
+        return { queue, treeType, tree: info[index].tree };
+    }
+
+    // test-rpc indexes queue as tree.
+    const indexV2 = info.findIndex(
+        t =>
+            t.queue &&
+            t.queue.equals(tree) &&
+            t.treeType === TreeType.BatchedState,
+    );
+    if (indexV2 !== -1) {
+        const {
+            queue: actualQueue,
+            treeType,
+            tree: actualTree,
+        } = info[indexV2];
+        if (!actualQueue) {
+            throw new Error('Queue must not be null for state tree');
+        }
+
+        return { queue: actualQueue, treeType, tree: actualTree };
+    }
+
+    throw new Error(
+        `No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,
+    );
+}
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,
@@ -18,19 +67,6 @@ export async function getCompressedAccountsByOwnerTest(
 ) {
     const unspentAccounts = await getCompressedAccountsForTest(rpc);
     const byOwner = unspentAccounts.filter(acc => acc.owner.equals(owner));
-    console.log(
-        'TEST-RPC-SORTED leafIdx , merkletree, address',
-        byOwner.map(
-            item =>
-                item.leafIndex +
-                '  ' +
-                item.merkleTree.toBase58() +
-                '  ' +
-                item.address +
-                '  ' +
-                item.owner.toBase58(),
-        ),
-    );
     return byOwner;
 }
 
@@ -69,17 +105,28 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
                 event.pubkeyArray[
                     event.outputCompressedAccounts[index].merkleTreeIndex
                 ];
-            const queue = getQueueForTree(ctxs, new PublicKey(smt));
+
+            console.log('"tree" indexed', smt.toBase58());
+
+            // In test-rpc we can do this with a static set of trees because it's local-only.
+            const { queue, treeType, tree } = getQueueForTree(
+                ctxs,
+                new PublicKey(smt),
+            );
+            console.log('treeType', treeType);
+            console.log('tree', tree.toBase58());
+            console.log('queue', queue.toBase58());
 
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: new PublicKey(smt),
-                queue,
+                merkleTree: tree,
+                queue: queue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
-                version: MerkleContextVersion.V1,
-                proveByIndex: false,
+                treeType,
+                proveByIndex: treeType === TreeType.BatchedState, // test-rpc always true because it's not forested.
             };
+
             const withCtx: CompressedAccountWithMerkleContext =
                 createCompressedAccountWithMerkleContext(
                     merkleContext,

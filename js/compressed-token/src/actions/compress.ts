@@ -10,7 +10,6 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
     StateTreeContext,
     pickRandomStateTreeContext,
 } from '@lightprotocol/stateless.js';

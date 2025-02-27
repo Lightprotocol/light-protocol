@@ -7,13 +7,9 @@ import {
 } from '@solana/web3.js';
 import {
     LightSystemProgram,
-    selectMinCompressedSolAccountsForTransfer,
+    selectMinCompressedSolAccountsForPdaCreation,
 } from '../programs';
-import {
-    pickRandomStateTreeContext,
-    pickRandomTreeAndQueue,
-    Rpc,
-} from '../rpc';
+import { pickRandomStateTreeContext, Rpc } from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -22,7 +18,7 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { bn, StateTreeContext } from '../state';
+import { bn, StateTreeContext, TreeType } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -63,7 +59,10 @@ export async function createAccount(
 
     if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
+        );
     }
     const proof = await rpc.getValidityProofV0(undefined, [
         {
@@ -84,13 +83,13 @@ export async function createAccount(
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.compressedProof!,
         programId,
         outputStateTreeContext,
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],
@@ -136,14 +135,17 @@ export async function createAccountWithLamports(
         payer.publicKey,
     );
 
-    const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
+    const [inputAccounts] = selectMinCompressedSolAccountsForPdaCreation(
         compressedAccounts.items,
         lamports,
     );
 
     if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
+        );
     }
 
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -175,7 +177,7 @@ export async function createAccountWithLamports(
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.compressedProof!,
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         programId,
@@ -183,7 +185,7 @@ export async function createAccountWithLamports(
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],

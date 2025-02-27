@@ -116,7 +116,7 @@ export interface HexInputsForProver {
 }
 
 export type CompressedProofWithContext = {
-    compressedProof: CompressedProof;
+    compressedProof: CompressedProof | null;
     roots: BN[];
     rootIndices: number[];
     leafIndices: number[];
@@ -124,7 +124,7 @@ export type CompressedProofWithContext = {
     merkleTrees: PublicKey[];
     queues: PublicKey[];
     proveByIndices: boolean[];
-    version: number;
+    treeTypes: number[];
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -298,7 +298,7 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
 /**
  * @internal
  */
-export const CompressedAccountResult = pick({
+export const CompressedAccountResultV2 = pick({
     address: nullable(ArrayFromString),
     hash: BN254FromString,
     data: nullable(
@@ -314,8 +314,9 @@ export const CompressedAccountResult = pick({
     tree: PublicKeyFromString,
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
-    queue: optional(nullable(PublicKeyFromString)), // is non-null for V2
-    proveByIndex: optional(nullable(boolean())), // V1 = null, V2 = boolean
+    queue: PublicKeyFromString,
+    proveByIndex: boolean(),
+    treeType: number(),
 });
 
 export const TokenDataResult = pick({
@@ -329,31 +330,31 @@ export const TokenDataResult = pick({
 /**
  * @internal
  */
-export const CompressedTokenAccountResult = pick({
+export const CompressedTokenAccountResultV2 = pick({
     tokenData: TokenDataResult,
-    account: CompressedAccountResult,
+    account: CompressedAccountResultV2,
 });
 
 /**
  * @internal
  */
-export const MultipleCompressedAccountsResult = pick({
-    items: array(CompressedAccountResult),
+export const MultipleCompressedAccountsResultV2 = pick({
+    items: array(CompressedAccountResultV2),
 });
 
 /**
  * @internal
  */
-export const CompressedAccountsByOwnerResult = pick({
-    items: array(CompressedAccountResult),
+export const CompressedAccountsByOwnerResultV2 = pick({
+    items: array(CompressedAccountResultV2),
     cursor: nullable(string()),
 });
 
 /**
  * @internal
  */
-export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
-    items: array(CompressedTokenAccountResult),
+export const CompressedTokenAccountsByOwnerOrDelegateResultV2 = pick({
+    items: array(CompressedTokenAccountResultV2),
     cursor: nullable(string()),
 });
 
@@ -407,6 +408,21 @@ export const MerkleProofResult = pick({
     root: BN254FromString,
 });
 
+// /**
+//  * @internal
+//  */
+// export const MerkleProofResultV2 = pick({
+//     hash: BN254FromString,
+//     leafIndex: number(),
+//     merkleTree: PublicKeyFromString,
+//     proof: array(BN254FromString),
+//     rootSeq: number(),
+//     root: BN254FromString,
+//     queue: optional(PublicKeyFromString),
+//     proveByIndex: optional(boolean()),
+//     version: optional(number()),
+// });
+
 /**
  * @internal
  */
@@ -443,14 +459,14 @@ export const RootIndexResult = pick({
  * @internal
  */
 export const ValidityProofResult = pick({
-    compressedProof: CompressedProofResult,
+    compressedProof: nullable(CompressedProofResult), // V2 can be null
     roots: array(BN254FromString),
-    rootIndices: array(RootIndexResult), // V2. Null = set proveByIndex to true // TODO(photon): photon returns u64. report.
-    leafIndices: array(number()), // TODO(photon): photon returns u32 which will panic for addressv2
+    rootIndices: array(RootIndexResult),
+    leafIndices: array(number()), // FIXME(photon): photon returns u32 which will eventually panic for addressV2
     leaves: array(BN254FromString),
     merkleTrees: array(PublicKeyFromString),
-    queues: optional(array(PublicKeyFromString)), // if v1 support
-    version: optional(number()), // check on it.
+    queues: optional(array(PublicKeyFromString)),
+    treeTypes: optional(array(number())), // TODO: remove optional
 });
 
 /**
@@ -527,13 +543,13 @@ export const CompressedTransactionResult = pick({
     compressionInfo: pick({
         closedAccounts: array(
             pick({
-                account: CompressedAccountResult,
+                account: CompressedAccountResultV2,
                 optionalTokenData: nullable(TokenDataResult),
             }),
         ),
         openedAccounts: array(
             pick({
-                account: CompressedAccountResult,
+                account: CompressedAccountResultV2,
                 optionalTokenData: nullable(TokenDataResult),
             }),
         ),

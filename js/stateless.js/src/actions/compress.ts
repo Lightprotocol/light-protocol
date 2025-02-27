@@ -7,14 +7,10 @@ import {
 } from '@solana/web3.js';
 
 import { LightSystemProgram } from '../programs';
-import {
-    pickRandomStateTreeContext,
-    pickRandomTreeAndQueue,
-    Rpc,
-} from '../rpc';
+import { pickRandomStateTreeContext, Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
-import { StateTreeContext } from '../state';
+import { StateTreeContext, TreeType } from '../state';
 
 /**
  * Compress lamports to a solana address
@@ -28,8 +24,6 @@ import { StateTreeContext } from '../state';
  *
  * @return Transaction signature
  */
-/// TODO: add multisig support
-/// TODO: add support for payer != owner
 export async function compress(
     rpc: Rpc,
     payer: Signer,
@@ -42,7 +36,10 @@ export async function compress(
 
     if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
+        );
     }
 
     const ix = await LightSystemProgram.compress({
@@ -53,7 +50,7 @@ export async function compress(
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],
