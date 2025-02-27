@@ -2275,10 +2275,9 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        // TODO: investigate why it fails on ix 0 should fail on ix 1
         assert_rpc_error(
             result,
-            0,
+            1,
             BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
@@ -2307,8 +2306,12 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        assert_rpc_error(result, 1, light_bloom_filter::BloomFilterError::Full.into()).unwrap();
-        // TODO: failed with BatchedMerkleTreeError::InclusionProofByIndexFailed
+        assert_rpc_error(
+            result,
+            1,
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
     }
     println!("pre 12 ------------------");
     // 12. spend account by zkp  but mark as spent by index
@@ -2558,6 +2561,7 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         BatchedQueueAccount::output_from_bytes(&mut output_queue_account.data).unwrap();
     let fullness = output_queue.get_num_inserted_in_current_batch();
     let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
+
     for _ in 0..remaining_leaves {
         create_output_accounts(context, payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }

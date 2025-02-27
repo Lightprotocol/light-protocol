@@ -119,6 +119,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let output_queue =
         BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice()).unwrap();
     let full_batch_index = output_queue.batch_metadata.pending_batch_index;
+
     let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
     let max_num_zkp_updates = output_queue.batch_metadata.get_num_zkp_batches();
 
