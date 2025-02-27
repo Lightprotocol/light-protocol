@@ -6,9 +6,10 @@ use light_account_checks::{
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
-    instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey,
+    instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
+    pubkey::Pubkey,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
     merkle_tree::{MerkleTreeMetadata, TreeType},
@@ -652,11 +653,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
 
         // 2. Create nullifier Hash(value,leaf_index, tx_hash).
-        let nullifier = {
-            let leaf_index_bytes = leaf_index.to_be_bytes();
-            // Inclusion of the tx_hash enables zk proofs of how a value was spent.
-            Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])?
-        };
+        let nullifier = create_nullifier(compressed_account_hash, leaf_index, tx_hash)?;
         // 3. Insert nullifier into current batch.
         //      3.1. nullifier is inserted into the hash chain
         //          so that it can be inserted into the tree.

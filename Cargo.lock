@@ -7476,6 +7476,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-client",
