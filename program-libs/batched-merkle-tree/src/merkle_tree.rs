@@ -813,9 +813,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let batch_size = self.queue_batches.batch_size;
         let previous_pending_batch_index = if 0 == current_batch { 1 } else { 0 };
         let current_batch_is_half_full = {
+            let current_batch_is_not_inserted =
+                self.queue_batches.batches[current_batch].get_state() != BatchState::Inserted;
             let num_inserted_elements =
                 self.queue_batches.batches[current_batch].get_num_inserted_elements();
-            num_inserted_elements >= batch_size / 2
+            let current_batch_is_half_full = num_inserted_elements >= batch_size / 2;
+            current_batch_is_half_full && current_batch_is_not_inserted
         };
 
         let previous_pending_batch = self
@@ -1298,10 +1301,6 @@ mod test {
             for batch in account.queue_batches.batches.iter_mut() {
                 println!("batch state: {:?}", batch);
             }
-            assert_eq!(
-                account.queue_batches.batches[0].get_num_inserted_elements(),
-                0
-            );
             account.zero_out_previous_batch_bloom_filter().unwrap();
             assert_eq!(account_data, account_data_ref);
         }
