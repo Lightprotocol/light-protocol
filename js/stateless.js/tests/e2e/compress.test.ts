@@ -245,16 +245,17 @@ describe.each([TreeType.State, TreeType.BatchedState])(
 
             const postDecompressBalance =
                 await rpc.getBalance(decompressRecipient);
-            const fixFee = treeType === TreeType.BatchedState ? 299 : 0; // TODO: investigate the need for this.
+            const fixFee = treeType === TreeType.State ? 299 : 0; // TODO: investigate the need for this.
+
             assert.equal(
                 postDecompressBalance,
                 postCompressBalance +
-                    decompressLamportsAmount -
-                    0 +
+                    decompressLamportsAmount +
+                    fixFee +
                     1 -
                     feeFunction([
                         { in: 1, out: 1 },
-                        { in: 1, out: 1 },
+                        { in: 1, out: 1 }, // 2
                     ]),
             );
         });

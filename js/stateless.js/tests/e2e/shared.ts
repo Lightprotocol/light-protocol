@@ -73,6 +73,7 @@ const STATE_OUT_FEE_MULTIPLIER = 1;
 const NETWORK_FEE = 5000;
 const ADDITIONAL_NETWORK_ADDRESS_FEE = 5000;
 
+// TODO: add unit tests.
 export function txFeesV2Accounts(
     txs: {
         in: number;
@@ -82,8 +83,6 @@ export function txFeesV2Accounts(
     }[],
 ): number {
     let totalFee = bn(0);
-
-    console.log('txs', txs);
 
     txs.forEach(tx => {
         const solanaBaseFee =
@@ -112,18 +111,7 @@ export function txFeesV2Accounts(
                 .add(networkFee)
                 .add(additionalNetworkAddressFee),
         );
-
-        console.log('solanaBaseFee', solanaBaseFee.toNumber());
-        console.log('stateOutFee', stateOutFee.toNumber());
-        console.log('addrFee', addrFee.toNumber());
-        console.log('networkFee', networkFee.toNumber());
-        console.log(
-            'additionalNetworkAddressFee',
-            additionalNetworkAddressFee.toNumber(),
-        );
     });
-
-    console.log('\n totalFee', totalFee.toNumber());
 
     return totalFee.toNumber();
 }
