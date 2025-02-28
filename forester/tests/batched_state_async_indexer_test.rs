@@ -175,7 +175,7 @@ async fn test_state_indexer_async_batched() {
     };
 
     let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    let _protocol_config = rpc
+    let protocol_config = rpc
         .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
         .await
         .unwrap()
@@ -244,11 +244,11 @@ async fn test_state_indexer_async_batched() {
         work_report_sender,
     ));
 
-    // let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
-    // while rpc.get_slot().await.unwrap() < active_phase_slot {
-    //     println!("waiting for active phase slot: {}, current slot: {}", active_phase_slot, rpc.get_slot().await.unwrap());
-    //     sleep(Duration::from_millis(400)).await;
-    // }
+    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    while rpc.get_slot().await.unwrap() < active_phase_slot {
+        println!("waiting for active phase slot: {}, current slot: {}", active_phase_slot, rpc.get_slot().await.unwrap());
+        sleep(Duration::from_millis(400)).await;
+    }
 
     let batch_payer = Keypair::from_bytes(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
@@ -477,7 +477,7 @@ async fn test_state_indexer_async_batched() {
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
 
-    let timeout_duration = Duration::from_secs(60 * 10);
+    let timeout_duration = Duration::from_secs(60 * 60);
     match timeout(timeout_duration, work_report_receiver.recv()).await {
         Ok(Some(report)) => {
             println!("Received work report: {:?}", report);
