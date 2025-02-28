@@ -246,7 +246,11 @@ async fn test_state_indexer_async_batched() {
 
     let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     while rpc.get_slot().await.unwrap() < active_phase_slot {
-        println!("waiting for active phase slot: {}, current slot: {}", active_phase_slot, rpc.get_slot().await.unwrap());
+        println!(
+            "waiting for active phase slot: {}, current slot: {}",
+            active_phase_slot,
+            rpc.get_slot().await.unwrap()
+        );
         sleep(Duration::from_millis(400)).await;
     }
 
