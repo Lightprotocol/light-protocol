@@ -13,9 +13,9 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedMintTokenHoldersPostRequestParams {
     /// A base 58 encoded string.
-    #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "cursor", default,  skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
-    #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "limit", default,  skip_serializing_if = "Option::is_none")]
     pub limit: Option<u16>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint")]

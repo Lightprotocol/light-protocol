@@ -140,7 +140,6 @@ docs/PaginatedAccountList.md
 docs/PaginatedAccountListV2.md
 docs/PaginatedSignatureInfoList.md
 docs/RootIndex.md
-docs/SerializableTreeType.md
 docs/SignatureInfo.md
 docs/SignatureInfoList.md
 docs/SignatureInfoListWithError.md
@@ -297,7 +296,6 @@ src/models/paginated_account_list.rs
 src/models/paginated_account_list_v2.rs
 src/models/paginated_signature_info_list.rs
 src/models/root_index.rs
-src/models/serializable_tree_type.rs
 src/models/signature_info.rs
 src/models/signature_info_list.rs
 src/models/signature_info_list_with_error.rs

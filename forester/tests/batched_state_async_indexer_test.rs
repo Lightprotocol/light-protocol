@@ -30,7 +30,12 @@ use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::{
     protocol_config::state::ProtocolConfigPda, utils::get_protocol_config_pda_address,
 };
-use rand::{prelude::SliceRandom, Rng};
+use light_test_utils::conversions::sdk_to_program_token_data;
+use light_test_utils::spl::create_mint_helper_with_keypair;
+use light_test_utils::system_program::create_invoke_instruction;
+use rand::prelude::SliceRandom;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
@@ -114,7 +119,7 @@ async fn test_state_indexer_async_batched() {
             .await;
 
         println!("waiting for indexer to start");
-        sleep(Duration::from_secs(3)).await;
+        sleep(Duration::from_secs(5)).await;
     }
 
     let mut env = EnvAccounts::get_local_test_validator_accounts();
@@ -361,7 +366,7 @@ async fn test_state_indexer_async_batched() {
     let seed = rng.gen::<u64>();
     // Printing seed for debugging. If the test fails we can start with the same seed to derive the same addresses.
     println!("seed {}", seed);
-    let mut rng = &mut rand::rngs::StdRng::seed_from_u64(seed);
+    let rng = &mut StdRng::seed_from_u64(seed);
     let mut address_counter = 0;
 
     if DO_TXS {
@@ -769,7 +774,8 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .root_indices
         .iter()
         .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, acc)| match root_index.prove_by_index {
+        .map(|(root_index, acc)|
+            match root_index.prove_by_index {
                 true => {
                     acc.merkle_context.prove_by_index = true;
                     None

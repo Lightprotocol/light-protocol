@@ -13,9 +13,9 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetLatestCompressionSignaturesPostRequestParams {
     #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<String>,
+    pub cursor: Option<Option<String>>,
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u16>,
+    pub limit: Option<Option<u16>>,
 }
 
 impl GetLatestCompressionSignaturesPostRequestParams {

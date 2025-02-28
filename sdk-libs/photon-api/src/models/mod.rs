@@ -272,8 +272,6 @@ pub mod paginated_signature_info_list;
 pub use self::paginated_signature_info_list::PaginatedSignatureInfoList;
 pub mod root_index;
 pub use self::root_index::RootIndex;
-pub mod serializable_tree_type;
-pub use self::serializable_tree_type::SerializableTreeType;
 pub mod signature_info;
 pub use self::signature_info::SignatureInfo;
 pub mod signature_info_list;

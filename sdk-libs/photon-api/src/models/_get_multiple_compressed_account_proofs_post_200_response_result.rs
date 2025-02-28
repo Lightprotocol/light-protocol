@@ -19,10 +19,7 @@ pub struct GetMultipleCompressedAccountProofsPost200ResponseResult {
 }
 
 impl GetMultipleCompressedAccountProofsPost200ResponseResult {
-    pub fn new(
-        context: models::Context,
-        value: Vec<models::GetMultipleCompressedAccountProofsResponseValue>,
-    ) -> GetMultipleCompressedAccountProofsPost200ResponseResult {
+    pub fn new(context: models::Context, value: Vec<models::GetMultipleCompressedAccountProofsResponseValue>) -> GetMultipleCompressedAccountProofsPost200ResponseResult {
         GetMultipleCompressedAccountProofsPost200ResponseResult {
             context: Box::new(context),
             value,

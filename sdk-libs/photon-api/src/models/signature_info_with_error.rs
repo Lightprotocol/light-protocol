@@ -14,18 +14,18 @@ use crate::models;
 pub struct SignatureInfoWithError {
     /// An Unix timestamp (seconds)
     #[serde(rename = "blockTime")]
-    pub block_time: i32,
+    pub block_time: u64,
     #[serde(rename = "error", default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
+    pub error: Option<Option<String>>,
     /// A Solana transaction signature.
     #[serde(rename = "signature")]
     pub signature: String,
     #[serde(rename = "slot")]
-    pub slot: i32,
+    pub slot: u64,
 }
 
 impl SignatureInfoWithError {
-    pub fn new(block_time: i32, signature: String, slot: i32) -> SignatureInfoWithError {
+    pub fn new(block_time: u64, signature: String, slot: u64) -> SignatureInfoWithError {
         SignatureInfoWithError {
             block_time,
             error: None,

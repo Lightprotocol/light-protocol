@@ -200,7 +200,6 @@ Class | Method | HTTP request | Description
  - [PaginatedAccountListV2](docs/PaginatedAccountListV2.md)
  - [PaginatedSignatureInfoList](docs/PaginatedSignatureInfoList.md)
  - [RootIndex](docs/RootIndex.md)
- - [SerializableTreeType](docs/SerializableTreeType.md)
  - [SignatureInfo](docs/SignatureInfo.md)
  - [SignatureInfoList](docs/SignatureInfoList.md)
  - [SignatureInfoListWithError](docs/SignatureInfoListWithError.md)

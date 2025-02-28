@@ -20,7 +20,7 @@ pub struct GetCompressedAccountsByOwnerPostRequestParams {
     #[serde(rename = "filters", skip_serializing_if = "Option::is_none")]
     pub filters: Option<Vec<models::FilterSelector>>,
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u16>,
+    pub limit: Option<i32>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
