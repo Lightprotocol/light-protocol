@@ -454,10 +454,10 @@ async fn test_state_indexer_async_batched() {
         }
 
         {
-            let sig = create_v1_addres(
+            let sig = create_v1_address(
                 &mut rpc,
                 &mut photon_indexer,
-                &mut rng,
+                rng,
                 &env.address_merkle_tree_pubkey,
                 &env.address_merkle_tree_queue_pubkey,
                 &legacy_payer,
@@ -634,10 +634,10 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
 
     let mut compressed_accounts = vec![
         TokenTransferOutputData {
-            amount: tokens_divided,
-            owner: payer.pubkey(),
-            lamports: None,
-            merkle_tree: *merkle_tree_pubkey,
+        amount: tokens_divided,
+        owner: payer.pubkey(),
+        lamports: None,
+        merkle_tree: *merkle_tree_pubkey,
         };
         OUTPUT_ACCOUNT_NUM
     ];
@@ -653,14 +653,11 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
-        match proof_for_compressed_accounts.compressed_proof {
-            None => None,
-            Some(proof) => Some(CompressedProof {
+        proof_for_compressed_accounts.compressed_proof.map(|proof| CompressedProof {
                     a: proof.a.try_into().unwrap(),
                     b: proof.b.try_into().unwrap(),
                     c: proof.c.try_into().unwrap(),
-            }),
-        }
+        })
     };
 
     let input_token_data = input_compressed_accounts
@@ -770,6 +767,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
+
     let root_indices = proof_for_compressed_accounts
         .root_indices
         .iter()
@@ -778,13 +776,15 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
                 true => {
                     acc.merkle_context.prove_by_index = true;
                     None
-                }
+                },
                 false => {
                     acc.merkle_context.prove_by_index = false;
                     Some(root_index.root_index)
             }
-        })
+            }
+        )
         .collect::<Vec<Option<u16>>>();
+
 
     let merkle_contexts = input_compressed_accounts
         .iter()
@@ -815,15 +815,11 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
-        proof_for_compressed_accounts
-                .compressed_proof
-            .map(|proof| CompressedProof {
+        proof_for_compressed_accounts.compressed_proof.map(|proof| CompressedProof {
                     a: proof.a.try_into().unwrap(),
                     b: proof.b.try_into().unwrap(),
                     c: proof.c.try_into().unwrap(),
         })
-            }
-        }
     };
 
     let input_compressed_accounts = input_compressed_accounts
@@ -927,7 +923,7 @@ pub async fn get_active_phase_start_slot<R: RpcConnection>(
 }
 
 /// Creates an address without account
-async fn create_v1_addres<R: RpcConnection, I: Indexer<R>>(
+async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: &mut I,
     rng: &mut StdRng,
@@ -959,7 +955,7 @@ async fn create_v1_addres<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .zip(proof_for_compressed_accounts.root_indices.iter())
     {
-        assert!(root_index.in_tree, "Addresses have no proof by index.");
+        assert!(!root_index.prove_by_index, "Addresses have no proof by index.");
         new_address_params.push(NewAddressParams {
             seed: *seed,
             address_queue_pubkey: *queue,
@@ -967,6 +963,12 @@ async fn create_v1_addres<R: RpcConnection, I: Indexer<R>>(
             address_merkle_tree_root_index: root_index.root_index,
         })
     }
+
+    let proof =  proof_for_compressed_accounts.compressed_proof.map(|proof| CompressedProof {
+                a: proof.a.try_into().unwrap(),
+                b: proof.b.try_into().unwrap(),
+                c: proof.c.try_into().unwrap(),
+            });
 
     let instruction = create_invoke_instruction(
         &payer.pubkey(),
@@ -982,23 +984,7 @@ async fn create_v1_addres<R: RpcConnection, I: Indexer<R>>(
             .collect::<Vec<_>>()
             .as_slice(),
         &new_address_params,
-        Some(CompressedProof {
-            a: proof_for_compressed_accounts
-                .compressed_proof
-                .a
-                .try_into()
-                .unwrap(),
-            b: proof_for_compressed_accounts
-                .compressed_proof
-                .b
-                .try_into()
-                .unwrap(),
-            c: proof_for_compressed_accounts
-                .compressed_proof
-                .c
-                .try_into()
-                .unwrap(),
-        }),
+        proof,
         None,
         false,
         None,
