@@ -37,6 +37,8 @@ docs/GetCompressedAccountProofPost200Response.md
 docs/GetCompressedAccountProofPost200ResponseResult.md
 docs/GetCompressedAccountProofPostRequest.md
 docs/GetCompressedAccountProofPostRequestParams.md
+docs/GetCompressedAccountProofResponseValueV1.md
+docs/GetCompressedAccountProofResponseValueV2.md
 docs/GetCompressedAccountV2Post200Response.md
 docs/GetCompressedAccountV2Post200ResponseResult.md
 docs/GetCompressedAccountV2PostRequest.md
@@ -94,6 +96,7 @@ docs/GetLatestNonVotingSignaturesPostRequest.md
 docs/GetMultipleCompressedAccountProofsPost200Response.md
 docs/GetMultipleCompressedAccountProofsPost200ResponseResult.md
 docs/GetMultipleCompressedAccountProofsPostRequest.md
+docs/GetMultipleCompressedAccountProofsResponseValue.md
 docs/GetMultipleCompressedAccountsPost200Response.md
 docs/GetMultipleCompressedAccountsPost200ResponseResult.md
 docs/GetMultipleCompressedAccountsPostRequest.md
@@ -110,6 +113,7 @@ docs/GetQueueElementsPost200Response.md
 docs/GetQueueElementsPost200ResponseResult.md
 docs/GetQueueElementsPostRequest.md
 docs/GetQueueElementsPostRequestParams.md
+docs/GetQueueElementsResponseValue.md
 docs/GetTransactionWithCompressionInfoPost200Response.md
 docs/GetTransactionWithCompressionInfoPost200ResponseResult.md
 docs/GetTransactionWithCompressionInfoPost200ResponseResultCompressionInfo.md
@@ -129,8 +133,6 @@ docs/GetValidityProofV2PostRequest.md
 docs/Memcmp.md
 docs/MerkleContextV2.md
 docs/MerkleContextWithNewAddressProof.md
-docs/MerkleProofWithContext.md
-docs/MerkleProofWithContextV2.md
 docs/OwnerBalance.md
 docs/OwnerBalanceList.md
 docs/OwnerBalancesResponse.md
@@ -138,7 +140,6 @@ docs/PaginatedAccountList.md
 docs/PaginatedAccountListV2.md
 docs/PaginatedSignatureInfoList.md
 docs/RootIndex.md
-docs/SerializableTreeType.md
 docs/SignatureInfo.md
 docs/SignatureInfoList.md
 docs/SignatureInfoListWithError.md
@@ -280,11 +281,13 @@ src/models/context.rs
 src/models/context_info.rs
 src/models/data_slice.rs
 src/models/filter_selector.rs
+src/models/get_compressed_account_proof_response_value_v1.rs
+src/models/get_compressed_account_proof_response_value_v2.rs
+src/models/get_multiple_compressed_account_proofs_response_value.rs
+src/models/get_queue_elements_response_value.rs
 src/models/memcmp.rs
 src/models/merkle_context_v2.rs
 src/models/merkle_context_with_new_address_proof.rs
-src/models/merkle_proof_with_context.rs
-src/models/merkle_proof_with_context_v2.rs
 src/models/mod.rs
 src/models/owner_balance.rs
 src/models/owner_balance_list.rs
@@ -293,7 +296,6 @@ src/models/paginated_account_list.rs
 src/models/paginated_account_list_v2.rs
 src/models/paginated_signature_info_list.rs
 src/models/root_index.rs
-src/models/serializable_tree_type.rs
 src/models/signature_info.rs
 src/models/signature_info_list.rs
 src/models/signature_info_list_with_error.rs

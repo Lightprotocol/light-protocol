@@ -531,7 +531,11 @@ where
         Ok(self.get_compressed_accounts_with_merkle_context_by_owner(owner))
     }
 
-    async fn get_compressed_token_accounts_by_owner_v2(&self, _owner: &Pubkey, _mint: Option<Pubkey>) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        _owner: &Pubkey,
+        _mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
         todo!()
     }
 
@@ -725,7 +729,11 @@ where
         todo!()
     }
 
-    async fn get_validity_proof_v2(&self, _hashes: Vec<Hash>, _new_addresses_with_trees: Vec<AddressWithTree>) -> Result<CompressedProofWithContextV2, IndexerError> {
+    async fn get_validity_proof_v2(
+        &self,
+        _hashes: Vec<Hash>,
+        _new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError> {
         todo!()
     }
 

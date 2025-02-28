@@ -251,7 +251,10 @@ impl CompressedAccount {
             &hashed_mt,
             leaf_index,
         );
-        println!("hash merkle_tree_pubkey: {:?} leaf_index: {:?} result: {:?}", merkle_tree_pubkey, leaf_index, result);
+        println!(
+            "hash merkle_tree_pubkey: {:?} leaf_index: {:?} result: {:?}",
+            merkle_tree_pubkey, leaf_index, result
+        );
         result
     }
 }

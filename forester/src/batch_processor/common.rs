@@ -182,7 +182,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
     async fn process_state_nullify(&self) -> Result<usize> {
         let mut rpc = self.context.rpc_pool.get_connection().await?;
         let (inserted_zkps_count, zkp_batch_size) = self.get_num_inserted_zkps(&mut rpc).await?;
-        println!("process_state_nullify zkp_batch_size: {} inserted_zkps_count: {}", zkp_batch_size, inserted_zkps_count);
+        println!(
+            "process_state_nullify zkp_batch_size: {} inserted_zkps_count: {}",
+            zkp_batch_size, inserted_zkps_count
+        );
         state::perform_nullify(&self.context, &mut rpc).await?;
         Ok(zkp_batch_size)
     }

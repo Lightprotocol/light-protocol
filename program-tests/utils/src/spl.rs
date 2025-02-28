@@ -268,7 +268,11 @@ pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) 
     create_mint_helper_with_keypair(rpc, payer, &mint).await
 }
 
-pub async fn create_mint_helper_with_keypair<R: RpcConnection>(rpc: &mut R, payer: &Keypair, mint: &Keypair) -> Pubkey {
+pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Keypair,
+) -> Pubkey {
     println!("Creating mint");
     let payer_pubkey = payer.pubkey();
     let rent = rpc
@@ -279,7 +283,8 @@ pub async fn create_mint_helper_with_keypair<R: RpcConnection>(rpc: &mut R, paye
     let (instructions, pool) =
         create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, mint);
 
-    let res = rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
+    let res = rpc
+        .create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
         .await
         .unwrap();
     println!("create mint: {:?}", res);
@@ -287,7 +292,6 @@ pub async fn create_mint_helper_with_keypair<R: RpcConnection>(rpc: &mut R, paye
     println!("Mint created");
     mint.pubkey()
 }
-
 
 pub async fn create_mint_22_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();

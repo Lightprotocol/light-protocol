@@ -16,7 +16,10 @@ use light_sdk::{
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
 };
 use num_bigint::BigUint;
-use photon_api::models::{Account, CompressedProofWithContext, CompressedProofWithContextV2, TokenAccount, TokenAccountList, TokenBalanceList};
+use photon_api::models::{
+    Account, CompressedProofWithContext, CompressedProofWithContextV2, TokenAccount,
+    TokenAccountList, TokenBalanceList,
+};
 use solana_sdk::{bs58, pubkey::Pubkey};
 use thiserror::Error;
 

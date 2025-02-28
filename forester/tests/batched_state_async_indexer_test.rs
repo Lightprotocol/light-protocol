@@ -1,48 +1,48 @@
-use std::sync::Arc;
-use std::time::Duration;
-use rand::prelude::SliceRandom;
-use rand::Rng;
+use std::{sync::Arc, time::Duration};
+
 use bs58;
-use forester_utils::{
-    airdrop_lamports,
-    registry::{register_test_forester, update_test_forester},
-};
+use forester::run_pipeline;
+use forester_utils::{forester_epoch::get_epoch_phases, instructions::wait_for_indexer};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::BatchedMerkleTreeAccount,
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
-    transaction_params::{FeeConfig, TransactionParams},
 };
-use light_compressed_account::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext};
+use light_compressed_account::{
+    compressed_account::{CompressedAccount, MerkleContext},
+    instruction_data::compressed_proof::CompressedProof,
+};
+use light_compressed_token::process_transfer::{
+    transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
+};
 use light_hasher::Poseidon;
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_prover_client::gnark::helpers::LightValidatorConfig;
 use light_registry::{
-    protocol_config::state::ProtocolConfigPda, utils::get_protocol_config_pda_address,
+    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
+    utils::get_protocol_config_pda_address,
 };
-use light_test_utils::system_program::create_invoke_instruction;
+use light_test_utils::{
+    conversions::sdk_to_program_token_data, spl::create_mint_helper_with_keypair,
+    system_program::create_invoke_instruction,
+};
+use rand::{prelude::SliceRandom, Rng};
 use serial_test::serial;
-use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
-use solana_sdk::signature::Signature;
-use tokio::sync::{mpsc, oneshot, Mutex};
-use tokio::time::{sleep, timeout};
-use forester::run_pipeline;
-use forester_utils::forester_epoch::get_epoch_phases;
-use forester_utils::instructions::wait_for_indexer;
-use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_compressed_token::process_transfer::TokenTransferOutputData;
-use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
-use light_registry::protocol_config::state::ProtocolConfig;
-use light_sdk::token::TokenData;
-use light_test_utils::conversions::sdk_to_program_token_data;
-use light_test_utils::spl::{create_mint_helper, create_mint_helper_with_keypair};
+use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    signature::{Keypair, Signature},
+    signer::Signer,
+};
+use tokio::{
+    sync::{mpsc, oneshot, Mutex},
+    time::{sleep, timeout},
+};
+
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -59,20 +59,27 @@ async fn test_state_indexer_fetch_root() {
 
     let mut account = {
         let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-        rpc.get_account(batched_state_merkle_tree).await.unwrap().unwrap()
+        rpc.get_account(batched_state_merkle_tree)
+            .await
+            .unwrap()
+            .unwrap()
     };
 
     let batched_merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
         &mut account.data,
         &batched_state_merkle_tree.into(),
-    ).unwrap();
+    )
+    .unwrap();
 
     println!("root: {:?}", batched_merkle_tree.get_root().unwrap());
     for (index, root) in batched_merkle_tree.root_history.iter().enumerate() {
         println!("root[{}]: {:?}", index, root);
     }
 
-    println!("root sequence number: {}", batched_merkle_tree.get_metadata().sequence_number);
+    println!(
+        "root sequence number: {}",
+        batched_merkle_tree.get_metadata().sequence_number
+    );
 }
 
 #[test]
@@ -101,13 +108,13 @@ async fn test_state_indexer_async_batched() {
             enable_indexer: false,
             wait_time: 1,
             prover_config: None, /*Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
-            circuits: vec![],
-        })*/
+                                     run_mode: Some(ProverMode::Forester),
+                                     circuits: vec![],
+                                 })*/
             sbf_programs: vec![],
             limit_ledger_size: Some(500000),
         }))
-            .await;
+        .await;
 
         println!("waiting for indexer to start");
         sleep(Duration::from_secs(3)).await;
@@ -117,7 +124,7 @@ async fn test_state_indexer_async_batched() {
     // env.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.payer_keypair =  env.forester.insecure_clone();
+    config.payer_keypair = env.forester.insecure_clone();
 
     let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
         config.external_services.rpc_url.to_string(),
@@ -131,7 +138,7 @@ async fn test_state_indexer_async_batched() {
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
-    rpc.payer =  env.forester.insecure_clone();
+    rpc.payer = env.forester.insecure_clone();
 
     if rpc.get_balance(&env.forester.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
         rpc.airdrop_lamports(&env.forester.pubkey(), LAMPORTS_PER_SOL * 100)
@@ -139,7 +146,12 @@ async fn test_state_indexer_async_batched() {
             .unwrap();
     }
 
-    if rpc.get_balance(&env.governance_authority.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
+    if rpc
+        .get_balance(&env.governance_authority.pubkey())
+        .await
+        .unwrap()
+        < LAMPORTS_PER_SOL
+    {
         rpc.airdrop_lamports(&env.governance_authority.pubkey(), LAMPORTS_PER_SOL * 100)
             .await
             .unwrap();
@@ -161,7 +173,7 @@ async fn test_state_indexer_async_batched() {
     };
 
     let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    let protocol_config = rpc
+    let _protocol_config = rpc
         .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
         .await
         .unwrap()
@@ -236,18 +248,23 @@ async fn test_state_indexer_async_batched() {
     //     sleep(Duration::from_millis(400)).await;
     // }
 
-
-    let batch_payer = Keypair::from_bytes(
-        &[88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150, 87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247, 192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101, 21, 194, 56, 163, 1]
-    )
-        .unwrap();
+    let batch_payer = Keypair::from_bytes(&[
+        88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
+        87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247,
+        192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101,
+        21, 194, 56, 163, 1,
+    ])
+    .unwrap();
 
     println!("batch payer pubkey: {:?}", batch_payer.pubkey());
 
-    let legacy_payer = Keypair::from_bytes(
-        &[58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227, 38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35, 227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205, 75, 41, 148, 68, 97]
-    )
-        .unwrap();
+    let legacy_payer = Keypair::from_bytes(&[
+        58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227,
+        38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35,
+        227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205,
+        75, 41, 148, 68, 97,
+    ])
+    .unwrap();
 
     println!("legacy payer pubkey: {:?}", legacy_payer.pubkey());
 
@@ -267,12 +284,22 @@ async fn test_state_indexer_async_batched() {
     let mut sender_legacy_accs_counter = 0;
     let mut sender_batched_token_counter = 0;
 
-    let mint_keypair = Keypair::from_bytes(
-&[87, 206, 67, 171, 178, 112, 231, 204, 169, 148, 206, 45, 217, 171, 233, 199, 226, 229, 142, 204, 52, 3, 40, 197, 103, 125, 199, 80, 17, 18, 42, 42, 72, 237, 17, 77, 168, 248, 87, 226, 202, 233, 163, 7, 148, 155, 201, 160, 255, 17, 124, 254, 98, 74, 111, 251, 24, 230, 93, 130, 105, 104, 119, 110]
-    ).unwrap();
+    let mint_keypair = Keypair::from_bytes(&[
+        87, 206, 67, 171, 178, 112, 231, 204, 169, 148, 206, 45, 217, 171, 233, 199, 226, 229, 142,
+        204, 52, 3, 40, 197, 103, 125, 199, 80, 17, 18, 42, 42, 72, 237, 17, 77, 168, 248, 87, 226,
+        202, 233, 163, 7, 148, 155, 201, 160, 255, 17, 124, 254, 98, 74, 111, 251, 24, 230, 93,
+        130, 105, 104, 119, 110,
+    ])
+    .unwrap();
     let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &batch_payer, &mint_keypair).await;
 
-    let sig = mint_to(&mut rpc, &env.batched_output_queue, &batch_payer, &mint_pubkey).await;
+    let sig = mint_to(
+        &mut rpc,
+        &env.batched_output_queue,
+        &batch_payer,
+        &mint_pubkey,
+    )
+    .await;
     println!("mint_to: {:?}", sig);
 
     sender_batched_token_counter = 10;
@@ -290,7 +317,7 @@ async fn test_state_indexer_async_batched() {
             merkle_tree_account.data.as_mut_slice(),
             &env.batched_state_merkle_tree.into(),
         )
-            .unwrap();
+        .unwrap();
 
         println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
@@ -300,16 +327,13 @@ async fn test_state_indexer_async_batched() {
             .unwrap()
             .unwrap();
 
-        let output_queue = BatchedQueueAccount::output_from_bytes(
-            output_queue_account.data.as_mut_slice(),
-        )
-            .unwrap();
+        let output_queue =
+            BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                .unwrap();
 
         println!("queue metadata: {:?}", output_queue.get_metadata());
-
     }
     wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
-
 
     let mut input_compressed_accounts = photon_indexer
         .get_compressed_token_accounts_by_owner_v2(&batch_payer.pubkey(), Some(mint_pubkey))
@@ -318,25 +342,45 @@ async fn test_state_indexer_async_batched() {
 
     let compressed_account_hashes = input_compressed_accounts
         .iter()
-        .map(|x| {
-            x.compressed_account.hash()
-                .unwrap()
-        })
+        .map(|x| x.compressed_account.hash().unwrap())
         .collect::<Vec<[u8; 32]>>();
 
-    println!("get_validity_proof_v2 for {:?}", compressed_account_hashes.iter().map(|x| bs58::encode(x).into_string()).collect::<Vec<_>>());
+    println!(
+        "get_validity_proof_v2 for {:?}",
+        compressed_account_hashes
+            .iter()
+            .map(|x| bs58::encode(x).into_string())
+            .collect::<Vec<_>>()
+    );
     let proof_for_compressed_accounts = photon_indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
         .unwrap();
-    println!("proof_for_compressed_accounts: {:?}", proof_for_compressed_accounts);
+    println!(
+        "proof_for_compressed_accounts: {:?}",
+        proof_for_compressed_accounts
+    );
 
     if DO_TXS {
         for i in 0..merkle_tree.get_metadata().queue_batches.batch_size * 10 {
-            let batch_compress_sig = compress(&mut rpc, &env.batched_output_queue, &batch_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_batched_accs_counter).await;
+            let batch_compress_sig = compress(
+                &mut rpc,
+                &env.batched_output_queue,
+                &batch_payer,
+                if i == 0 { 1_000_000 } else { 10_000 },
+                &mut sender_batched_accs_counter,
+            )
+            .await;
             println!("{} batch compress: {:?}", i, batch_compress_sig);
 
-            let compress_sig = compress(&mut rpc, &env.merkle_tree_pubkey, &legacy_payer, if i == 0 { 1_000_000 } else { 10_000 }, &mut sender_legacy_accs_counter).await;
+            let compress_sig = compress(
+                &mut rpc,
+                &env.merkle_tree_pubkey,
+                &legacy_payer,
+                if i == 0 { 1_000_000 } else { 10_000 },
+                &mut sender_legacy_accs_counter,
+            )
+            .await;
             println!("{} legacy compress: {:?}", i, compress_sig);
             {
                 let mut output_queue_account = rpc
@@ -348,7 +392,7 @@ async fn test_state_indexer_async_batched() {
                 let output_queue = BatchedQueueAccount::output_from_bytes(
                     output_queue_account.data.as_mut_slice(),
                 )
-                    .unwrap();
+                .unwrap();
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
 
                 let mut input_queue_account = rpc
@@ -360,31 +404,53 @@ async fn test_state_indexer_async_batched() {
                     input_queue_account.data.as_mut_slice(),
                     &env.batched_state_merkle_tree.into(),
                 )
-                    .unwrap();
+                .unwrap();
 
                 println!("input queue next_index: {}, output queue next_index: {} sender_batched_accs_counter: {} sender_batched_token_counter: {}",
                          account.queue_batches.next_index, output_queue.batch_metadata.next_index, sender_batched_accs_counter, sender_batched_token_counter);
 
-                assert_eq!(output_queue.batch_metadata.next_index - account.queue_batches.next_index, sender_batched_accs_counter + sender_batched_token_counter);
+                assert_eq!(
+                    output_queue.batch_metadata.next_index - account.queue_batches.next_index,
+                    sender_batched_accs_counter + sender_batched_token_counter
+                );
             }
 
-            let batch_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer, &mut sender_batched_accs_counter).await;
+            let batch_transfer_sig = transfer(
+                &mut rpc,
+                &photon_indexer,
+                &env.batched_output_queue,
+                &batch_payer,
+                &mut sender_batched_accs_counter,
+            )
+            .await;
             println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
-            let legacy_transfer_sig = transfer(&mut rpc, &photon_indexer, &env.merkle_tree_pubkey, &legacy_payer, &mut sender_legacy_accs_counter).await;
+            let legacy_transfer_sig = transfer(
+                &mut rpc,
+                &photon_indexer,
+                &env.merkle_tree_pubkey,
+                &legacy_payer,
+                &mut sender_legacy_accs_counter,
+            )
+            .await;
             println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
 
-            let batch_transfer_token_sig = compressed_token_transfer(&mut rpc, &photon_indexer, &env.batched_output_queue, &batch_payer, &mint_pubkey, &mut sender_batched_token_counter).await;
+            let batch_transfer_token_sig = compressed_token_transfer(
+                &mut rpc,
+                &photon_indexer,
+                &env.batched_output_queue,
+                &batch_payer,
+                &mint_pubkey,
+                &mut sender_batched_token_counter,
+            )
+            .await;
             println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
-
-
         }
     }
 
     let num_output_zkp_batches =
         tree_params.input_queue_batch_size / tree_params.output_queue_zkp_batch_size;
     println!("num_output_zkp_batches: {}", num_output_zkp_batches);
-
 
     let timeout_duration = Duration::from_secs(60 * 10);
     match timeout(timeout_duration, work_report_receiver.recv()).await {
@@ -427,7 +493,7 @@ async fn test_state_indexer_async_batched() {
             merkle_tree_account.data.as_mut_slice(),
             &env.batched_state_merkle_tree.into(),
         )
-            .unwrap();
+        .unwrap();
 
         println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
@@ -443,7 +509,12 @@ async fn test_state_indexer_async_batched() {
     service_handle.await.unwrap().unwrap();
 }
 
-async fn mint_to(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, mint_pubkey: &Pubkey) -> Signature {
+async fn mint_to(
+    rpc: &mut SolanaRpcConnection,
+    merkle_tree_pubkey: &Pubkey,
+    payer: &Keypair,
+    mint_pubkey: &Pubkey,
+) -> Signature {
     let mint_to_ix = light_compressed_token::process_mint::mint_sdk::create_mint_to_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
@@ -453,19 +524,17 @@ async fn mint_to(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pay
         vec![payer.pubkey(); 10],
         None,
         false,
-        0
+        0,
     );
 
     let instructions = vec![
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
-        mint_to_ix
+        mint_to_ix,
     ];
 
-    rpc.create_and_send_transaction(
-        &instructions,
-        &payer.pubkey(),
-        &[&payer],
-    ).await.unwrap()
+    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[&payer])
+        .await
+        .unwrap()
 }
 
 async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
@@ -482,8 +551,15 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap();
 
-    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
-    assert_eq!(std::cmp::min(input_compressed_accounts.len(), 1000), std::cmp::min((*counter as usize), 1000));
+    println!(
+        "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
+        payer.pubkey(),
+        input_compressed_accounts
+    );
+    assert_eq!(
+        std::cmp::min(input_compressed_accounts.len(), 1000),
+        std::cmp::min((*counter as usize), 1000)
+    );
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
     input_compressed_accounts.shuffle(rng);
@@ -499,8 +575,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .map(|x| {
             println!("compressed_account hash: {:?}", x.compressed_account.hash());
             println!("merkle_context: {:?}", x.compressed_account.merkle_context);
-            x.compressed_account.hash()
-                .unwrap()
+            x.compressed_account.hash().unwrap()
         })
         .collect::<Vec<[u8; 32]>>();
 
@@ -514,16 +589,10 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .root_indices
         .iter()
         .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, acc)|
-            match root_index.prove_by_index {
-                true => {
-                    None
-                },
-                false => {
-                    Some(root_index.root_index)
-                }
-            }
-        )
+        .map(|(root_index, acc)| match root_index.prove_by_index {
+            true => None,
+            false => Some(root_index.root_index),
+        })
         .collect::<Vec<Option<u16>>>();
 
     let merkle_contexts = input_compressed_accounts
@@ -534,16 +603,22 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     let tokens_divided = tokens / OUTPUT_ACCOUNT_NUM as u64;
     let tokens_remained = tokens % OUTPUT_ACCOUNT_NUM as u64;
 
-    let mut compressed_accounts = vec![TokenTransferOutputData {
-        amount: tokens_divided,
-        owner: payer.pubkey(),
-        lamports: None,
-        merkle_tree: *merkle_tree_pubkey,
-    }; OUTPUT_ACCOUNT_NUM];
+    let mut compressed_accounts = vec![
+        TokenTransferOutputData {
+            amount: tokens_divided,
+            owner: payer.pubkey(),
+            lamports: None,
+            merkle_tree: *merkle_tree_pubkey,
+        };
+        OUTPUT_ACCOUNT_NUM
+    ];
 
     compressed_accounts[0].amount += tokens_remained;
 
-    println!("transfer input_compressed_accounts: {:?}", input_compressed_accounts);
+    println!(
+        "transfer input_compressed_accounts: {:?}",
+        input_compressed_accounts
+    );
     println!("transfer compressed_accounts: {:?}", compressed_accounts);
 
     let proof = if root_indices.iter().all(|x| x.is_none()) {
@@ -551,13 +626,11 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     } else {
         match proof_for_compressed_accounts.compressed_proof {
             None => None,
-            Some(proof) => {
-                Some(CompressedProof {
-                    a: proof.a.try_into().unwrap(),
-                    b: proof.b.try_into().unwrap(),
-                    c: proof.c.try_into().unwrap(),
-                })
-            }
+            Some(proof) => Some(CompressedProof {
+                a: proof.a.try_into().unwrap(),
+                b: proof.b.try_into().unwrap(),
+                c: proof.c.try_into().unwrap(),
+            }),
         }
     };
 
@@ -590,10 +663,14 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         None,
         None,
         false,
-        &[]
-    ).unwrap();
+        &[],
+    )
+    .unwrap();
 
-    println!("transfer compressed_accounts: {:?}", input_compressed_accounts);
+    println!(
+        "transfer compressed_accounts: {:?}",
+        input_compressed_accounts
+    );
     println!("transfer root_indices: {:?}", root_indices);
 
     let mut instructions = vec![
@@ -602,11 +679,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     instructions.push(instruction);
 
     let sig = rpc
-        .create_and_send_transaction(
-            &instructions,
-            &payer.pubkey(),
-            &[payer],
-        )
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
         .unwrap();
 
@@ -629,9 +702,16 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .await
         .unwrap_or(vec![]);
 
-    println!("get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}", payer.pubkey(), input_compressed_accounts);
+    println!(
+        "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
+        payer.pubkey(),
+        input_compressed_accounts
+    );
 
-    assert_eq!(std::cmp::min(input_compressed_accounts.len(), 1000), std::cmp::min((*counter as usize), 1000));
+    assert_eq!(
+        std::cmp::min(input_compressed_accounts.len(), 1000),
+        std::cmp::min((*counter as usize), 1000)
+    );
 
     let rng = &mut rand::thread_rng();
     let num_inputs = rng.gen_range(1..4);
@@ -665,18 +745,16 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .root_indices
         .iter()
         .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, acc)|
-            match root_index.prove_by_index {
-                true => {
-                    acc.merkle_context.prove_by_index = true;
-                    None
-                }
-                false => {
-                    acc.merkle_context.prove_by_index = false;
-                    Some(root_index.root_index)
-                },
+        .map(|(root_index, acc)| match root_index.prove_by_index {
+            true => {
+                acc.merkle_context.prove_by_index = true;
+                None
             }
-        )
+            false => {
+                acc.merkle_context.prove_by_index = false;
+                Some(root_index.root_index)
+            }
+        })
         .collect::<Vec<Option<u16>>>();
 
     let merkle_contexts = input_compressed_accounts
@@ -687,31 +765,34 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     let lamp = lamports / OUTPUT_ACCOUNT_NUM as u64;
     let lamport_remained = lamports % OUTPUT_ACCOUNT_NUM as u64;
 
-    let mut compressed_accounts = vec![CompressedAccount {
-        lamports: lamp,
-        owner: payer.pubkey(),
-        address: None,
-        data: None,
-    }; OUTPUT_ACCOUNT_NUM];
+    let mut compressed_accounts = vec![
+        CompressedAccount {
+            lamports: lamp,
+            owner: payer.pubkey(),
+            address: None,
+            data: None,
+        };
+        OUTPUT_ACCOUNT_NUM
+    ];
 
     compressed_accounts[0].lamports += lamport_remained;
 
-    println!("transfer input_compressed_accounts: {:?}", input_compressed_accounts);
+    println!(
+        "transfer input_compressed_accounts: {:?}",
+        input_compressed_accounts
+    );
     println!("transfer compressed_accounts: {:?}", compressed_accounts);
 
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
-        match proof_for_compressed_accounts.compressed_proof {
-            None => None,
-            Some(proof) => {
-                Some(CompressedProof {
-                    a: proof.a.try_into().unwrap(),
-                    b: proof.b.try_into().unwrap(),
-                    c: proof.c.try_into().unwrap(),
-                })
-            }
-        }
+        proof_for_compressed_accounts
+            .compressed_proof
+            .map(|proof| CompressedProof {
+                a: proof.a.try_into().unwrap(),
+                b: proof.b.try_into().unwrap(),
+                c: proof.c.try_into().unwrap(),
+            })
     };
 
     let input_compressed_accounts = input_compressed_accounts
@@ -735,7 +816,10 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         true,
     );
 
-    println!("transfer compressed_accounts: {:?}", input_compressed_accounts);
+    println!(
+        "transfer compressed_accounts: {:?}",
+        input_compressed_accounts
+    );
     println!("transfer root_indices: {:?}", root_indices);
 
     let mut instructions = vec![
@@ -744,11 +828,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     instructions.push(instruction);
 
     let sig = rpc
-        .create_and_send_transaction(
-            &instructions,
-            &payer.pubkey(),
-            &[payer],
-        )
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
         .unwrap();
 
@@ -758,7 +838,13 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     sig
 }
 
-async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, payer: &Keypair, lamports: u64, counter: &mut u64) -> Signature {
+async fn compress(
+    rpc: &mut SolanaRpcConnection,
+    merkle_tree_pubkey: &Pubkey,
+    payer: &Keypair,
+    lamports: u64,
+    counter: &mut u64,
+) -> Signature {
     let compress_account = CompressedAccount {
         lamports,
         owner: payer.pubkey(),
@@ -790,11 +876,7 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
     instructions.push(instruction);
 
     let sig = rpc
-        .create_and_send_transaction(
-            &instructions,
-            &payer.pubkey(),
-            &[payer],
-        )
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
         .unwrap();
 
@@ -802,7 +884,6 @@ async fn compress(rpc: &mut SolanaRpcConnection, merkle_tree_pubkey: &Pubkey, pa
 
     sig
 }
-
 
 pub async fn get_active_phase_start_slot<R: RpcConnection>(
     rpc: &mut R,
@@ -813,4 +894,3 @@ pub async fn get_active_phase_start_slot<R: RpcConnection>(
     let phases = get_epoch_phases(protocol_config, current_epoch);
     phases.active.start
 }
-

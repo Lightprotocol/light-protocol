@@ -230,7 +230,10 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             merkle_tree.root_history.to_vec(),
         )
     };
-    println!("merkle_tree_next_index: {:?} current_root: {:?}", merkle_tree_next_index, current_root);
+    println!(
+        "merkle_tree_next_index: {:?} current_root: {:?}",
+        merkle_tree_next_index, current_root
+    );
 
     let (zkp_batch_size, leaves_hash_chain) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
@@ -248,7 +251,10 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
         (zkp_batch_size as u16, leaves_hash_chain)
     };
-    println!("zkp_batch_size: {:?} leaves_hash_chain: {:?}", zkp_batch_size, leaves_hash_chain);
+    println!(
+        "zkp_batch_size: {:?} leaves_hash_chain: {:?}",
+        zkp_batch_size, leaves_hash_chain
+    );
 
     wait_for_indexer(rpc, indexer).await?;
 
@@ -269,7 +275,11 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         })?;
     println!("get_queue_elements len: {}", indexer_response.len());
     let indexer_root = indexer_response.first().unwrap().root;
-    assert_eq!(indexer_root, current_root, "root_history: {:?}", root_history);
+    assert_eq!(
+        indexer_root, current_root,
+        "root_history: {:?}",
+        root_history
+    );
 
     let old_leaves = indexer_response
         .iter()
@@ -295,13 +305,13 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                 merkle_proofs,
                 zkp_batch_size as u32,
             )
-                .map_err(|e| {
-                    error!(
-                        "create_append_batch_ix_data: failed to get circuit inputs: {:?}",
-                        e
-                    );
-                    ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
-                })?;
+            .map_err(|e| {
+                error!(
+                    "create_append_batch_ix_data: failed to get circuit inputs: {:?}",
+                    e
+                );
+                ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
+            })?;
         let client = Client::new();
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
@@ -370,7 +380,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let root_history = merkle_tree.root_history.to_vec();
         (zkp_size as u16, root, root_history, hash_chain)
     };
-    println!("zkp_batch_size: {:?} old_root: {:?} : {:?}", zkp_batch_size, old_root, leaves_hash_chain);
+    println!(
+        "zkp_batch_size: {:?} old_root: {:?} : {:?}",
+        zkp_batch_size, old_root, leaves_hash_chain
+    );
 
     wait_for_indexer(rpc, indexer).await?;
 
@@ -469,7 +482,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                 account.data.as_mut_slice(),
                 &merkle_tree_pubkey.into(),
             )
-                .unwrap();
+            .unwrap();
             let batched_output_queue = merkle_tree.metadata.associated_queue;
             let mut output_queue_account = rpc
                 .get_account(Pubkey::from(batched_output_queue))
@@ -477,10 +490,9 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                 .unwrap()
                 .unwrap();
 
-            let output_queue = BatchedQueueAccount::output_from_bytes(
-                output_queue_account.data.as_mut_slice(),
-            )
-                .unwrap();
+            let output_queue =
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                    .unwrap();
 
             println!("output queue metadata: {:?}", output_queue.get_metadata());
             println!("tree metadata: {:?}", merkle_tree.get_metadata());
@@ -502,7 +514,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     })
 }
 
-pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(rpc: &mut R, indexer: &I) -> Result<(), ForesterUtilsError> {
+pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &I,
+) -> Result<(), ForesterUtilsError> {
     let rpc_slot = rpc.get_slot().await.map_err(|e| {
         println!("failed to get rpc slot from rpc: {:?}", e);
         ForesterUtilsError::RpcError("Failed to get rpc slot".into())
@@ -514,7 +529,10 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(rpc: &mut R, inde
     })?;
 
     while rpc_slot > indexer_slot {
-        println!("waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}", rpc_slot, indexer_slot);
+        println!(
+            "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
+            rpc_slot, indexer_slot
+        );
         sleep(std::time::Duration::from_millis(200)).await;
         indexer_slot = indexer.get_indexer_slot().await.map_err(|e| {
             println!("failed to get indexer slot from indexer: {:?}", e);
