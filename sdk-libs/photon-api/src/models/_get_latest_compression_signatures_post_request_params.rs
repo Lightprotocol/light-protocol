@@ -15,7 +15,7 @@ pub struct GetLatestCompressionSignaturesPostRequestParams {
     #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<i32>,
+    pub limit: Option<u16>,
 }
 
 impl GetLatestCompressionSignaturesPostRequestParams {

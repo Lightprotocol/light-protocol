@@ -38,15 +38,8 @@ pub struct AccountV2 {
 }
 
 impl AccountV2 {
-    pub fn new(
-        hash: String,
-        lamports: u64,
-        leaf_index: u32,
-        merkle_context: models::MerkleContextV2,
-        owner: String,
-        prove_by_index: bool,
-        slot_created: u64,
-    ) -> AccountV2 {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(hash: String, lamports: u64, leaf_index: u32, merkle_context: models::MerkleContextV2, owner: String, prove_by_index: bool, slot_created: u64) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,

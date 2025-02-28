@@ -108,13 +108,13 @@ async fn test_state_indexer_async_batched() {
             enable_indexer: false,
             wait_time: 1,
             prover_config: None, /*Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
-            circuits: vec![],
+                run_mode: Some(ProverMode::Forester),
+                circuits: vec![],
                                  })*/
             sbf_programs: vec![],
             limit_ledger_size: Some(500000),
         }))
-            .await;
+        .await;
 
         println!("waiting for indexer to start");
         sleep(Duration::from_secs(3)).await;
@@ -124,7 +124,7 @@ async fn test_state_indexer_async_batched() {
     // env.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.payer_keypair =  env.forester.insecure_clone();
+    config.payer_keypair = env.forester.insecure_clone();
 
     let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
         config.external_services.rpc_url.to_string(),
@@ -138,7 +138,7 @@ async fn test_state_indexer_async_batched() {
 
     let commitment_config = CommitmentConfig::confirmed();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
-    rpc.payer =  env.forester.insecure_clone();
+    rpc.payer = env.forester.insecure_clone();
 
     if rpc.get_balance(&env.forester.pubkey()).await.unwrap() < LAMPORTS_PER_SOL {
         rpc.airdrop_lamports(&env.forester.pubkey(), LAMPORTS_PER_SOL * 100)
@@ -254,7 +254,7 @@ async fn test_state_indexer_async_batched() {
         192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101,
         21, 194, 56, 163, 1,
     ])
-        .unwrap();
+    .unwrap();
 
     println!("batch payer pubkey: {:?}", batch_payer.pubkey());
 
@@ -264,7 +264,7 @@ async fn test_state_indexer_async_batched() {
         227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205,
         75, 41, 148, 68, 97,
     ])
-        .unwrap();
+    .unwrap();
 
     println!("legacy payer pubkey: {:?}", legacy_payer.pubkey());
 
@@ -317,7 +317,7 @@ async fn test_state_indexer_async_batched() {
             merkle_tree_account.data.as_mut_slice(),
             &env.batched_state_merkle_tree.into(),
         )
-            .unwrap();
+        .unwrap();
 
         println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
@@ -329,7 +329,7 @@ async fn test_state_indexer_async_batched() {
 
         let output_queue =
             BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-            .unwrap();
+                .unwrap();
 
         println!("queue metadata: {:?}", output_queue.get_metadata());
     }
@@ -398,7 +398,7 @@ async fn test_state_indexer_async_batched() {
                 let output_queue = BatchedQueueAccount::output_from_bytes(
                     output_queue_account.data.as_mut_slice(),
                 )
-                    .unwrap();
+                .unwrap();
                 println!("output queue metadata: {:?}", output_queue.get_metadata());
 
                 let mut input_queue_account = rpc
@@ -410,7 +410,7 @@ async fn test_state_indexer_async_batched() {
                     input_queue_account.data.as_mut_slice(),
                     &env.batched_state_merkle_tree.into(),
                 )
-                    .unwrap();
+                .unwrap();
 
                 println!("input queue next_index: {}, output queue next_index: {} sender_batched_accs_counter: {} sender_batched_token_counter: {}",
                          account.queue_batches.next_index, output_queue.batch_metadata.next_index, sender_batched_accs_counter, sender_batched_token_counter);
@@ -516,7 +516,7 @@ async fn test_state_indexer_async_batched() {
             merkle_tree_account.data.as_mut_slice(),
             &env.batched_state_merkle_tree.into(),
         )
-            .unwrap();
+        .unwrap();
 
         println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
@@ -612,10 +612,16 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .root_indices
         .iter()
         .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, acc)| match root_index.prove_by_index {
-            true => None,
-            false => Some(root_index.root_index),
-        })
+        .map(|(root_index, acc)|
+            match root_index.prove_by_index {
+                true => {
+                    None
+                },
+                false => {
+                    Some(root_index.root_index)
+                }                
+            }
+        )
         .collect::<Vec<Option<u16>>>();
 
     let merkle_contexts = input_compressed_accounts
@@ -628,10 +634,10 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
 
     let mut compressed_accounts = vec![
         TokenTransferOutputData {
-        amount: tokens_divided,
-        owner: payer.pubkey(),
-        lamports: None,
-        merkle_tree: *merkle_tree_pubkey,
+            amount: tokens_divided,
+            owner: payer.pubkey(),
+            lamports: None,
+            merkle_tree: *merkle_tree_pubkey,
         };
         OUTPUT_ACCOUNT_NUM
     ];
@@ -769,14 +775,14 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .zip(input_compressed_accounts.iter_mut())
         .map(|(root_index, acc)| match root_index.prove_by_index {
-                true => {
+            true => {
                 acc.merkle_context.prove_by_index = true;
                 None
             }
             false => {
-                    acc.merkle_context.prove_by_index = false;
-                    Some(root_index.root_index)
-                }
+                acc.merkle_context.prove_by_index = false;
+                Some(root_index.root_index)
+            }
         })
         .collect::<Vec<Option<u16>>>();
 
@@ -790,10 +796,10 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
 
     let mut compressed_accounts = vec![
         CompressedAccount {
-        lamports: lamp,
-        owner: payer.pubkey(),
-        address: None,
-        data: None,
+            lamports: lamp,
+            owner: payer.pubkey(),
+            address: None,
+            data: None,
         };
         OUTPUT_ACCOUNT_NUM
     ];
@@ -810,12 +816,14 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         None
     } else {
         proof_for_compressed_accounts
-            .compressed_proof
+                .compressed_proof
             .map(|proof| CompressedProof {
                 a: proof.a.try_into().unwrap(),
                 b: proof.b.try_into().unwrap(),
                 c: proof.c.try_into().unwrap(),
         })
+            }
+        }
     };
 
     let input_compressed_accounts = input_compressed_accounts

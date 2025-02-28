@@ -15,7 +15,7 @@ pub struct CompressedProofWithContextV2 {
     #[serde(rename = "compressedProof", skip_serializing_if = "Option::is_none")]
     pub compressed_proof: Option<Box<models::CompressedProof>>,
     #[serde(rename = "leafIndices")]
-    pub leaf_indices: Vec<i32>,
+    pub leaf_indices: Vec<u32>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
     #[serde(rename = "merkleContext")]
@@ -28,7 +28,7 @@ pub struct CompressedProofWithContextV2 {
 
 impl CompressedProofWithContextV2 {
     pub fn new(
-        leaf_indices: Vec<i32>,
+        leaf_indices: Vec<u32>,
         leaves: Vec<String>,
         merkle_context: Vec<models::MerkleContextV2>,
         root_indices: Vec<models::RootIndex>,
