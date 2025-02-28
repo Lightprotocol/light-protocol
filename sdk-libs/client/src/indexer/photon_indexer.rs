@@ -358,7 +358,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         mint: Option<Pubkey>,
     ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
         self.rate_limited_request(|| async {
-            println!("get_compressed_token_accounts_by_owner_v2 called with owner: {}, mint: {:?}", owner, mint);
+            println!(
+                "get_compressed_token_accounts_by_owner_v2 called with owner: {}, mint: {:?}",
+                owner, mint
+            );
             let request = GetCompressedTokenAccountsByOwnerV2PostRequest {
                 params: Box::from(GetCompressedTokenAccountsByOwnerPostRequestParams {
                     cursor: None,
@@ -370,11 +373,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             };
             let result =
                 photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
-                &self.configuration,
-                request,
-            )
+                    &self.configuration,
+                    request,
+                )
                 .await?;
-            println!("get_compressed_token_accounts_by_owner_v2 response: {:?}", result);
+            println!(
+                "get_compressed_token_accounts_by_owner_v2 response: {:?}",
+                result
+            );
 
             let accounts = *result.result.unwrap().value;
 
@@ -382,10 +388,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             for account in accounts.items.iter() {
                 let token_data_with_merkle_context =
                     TokenDataWithMerkleContext {
-                    token_data: TokenData {
-                        mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
-                        owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
-                        amount: account.token_data.amount,
+                        token_data: TokenData {
+                            mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
+                            owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
+                            amount: account.token_data.amount,
                             delegate: account
                                 .token_data
                                 .delegate
@@ -398,12 +404,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                             } else {
                                 AccountState::Frozen
                             },
-                        tlv: None,
-                    },
-                    compressed_account: CompressedAccountWithMerkleContext {
-                        compressed_account: CompressedAccount {
-                            owner: Pubkey::from_str(&account.account.owner).unwrap(),
-                            lamports: account.account.lamports,
+                            tlv: None,
+                        },
+                        compressed_account: CompressedAccountWithMerkleContext {
+                            compressed_account: CompressedAccount {
+                                owner: Pubkey::from_str(&account.account.owner).unwrap(),
+                                lamports: account.account.lamports,
                                 address: account
                                     .account
                                     .address
@@ -411,13 +417,13 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     .map(|x| Hash::from_base58(x).unwrap()),
                                 data: account.account.data.as_ref().map(|data| {
                                     CompressedAccountData {
-                                discriminator: data.discriminator.to_le_bytes(),
-                                data: base64::decode(&data.data).unwrap(),
-                                data_hash: Hash::from_base58(&data.data_hash).unwrap(),
+                                        discriminator: data.discriminator.to_le_bytes(),
+                                        data: base64::decode(&data.data).unwrap(),
+                                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                                     }
-                            }),
-                        },
-                        merkle_context: MerkleContext {
+                                }),
+                            },
+                            merkle_context: MerkleContext {
                                 merkle_tree_pubkey: Pubkey::from_str(
                                     &account.account.merkle_context.tree,
                                 )
@@ -426,17 +432,17 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     &account.account.merkle_context.queue,
                                 )
                                 .unwrap(),
-                            leaf_index: account.account.leaf_index,
-                            prove_by_index: account.account.prove_by_index,
+                                leaf_index: account.account.leaf_index,
+                                prove_by_index: account.account.prove_by_index,
                             },
                         },
-                };
+                    };
                 token_data.push(token_data_with_merkle_context);
             }
 
             Ok(token_data)
         })
-            .await
+        .await
     }
 
     async fn get_compressed_account(
@@ -818,12 +824,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 &self.configuration,
                 request,
             )
-                .await?;
+            .await?;
 
             let result = Self::extract_result("get_validity_proof_v2", result.result)?;
             Ok(*result.value)
         })
-            .await
+        .await
     }
 
     async fn get_indexer_slot(&self) -> Result<u64, IndexerError> {
@@ -834,7 +840,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
         let result =
             photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
-            .await?;
+                .await?;
 
         let result = Self::extract_result("get_indexer_slot", result.result)?;
         Ok(result)

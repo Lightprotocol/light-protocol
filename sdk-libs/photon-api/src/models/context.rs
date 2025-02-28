@@ -18,8 +18,6 @@ pub struct Context {
 
 impl Context {
     pub fn new(slot: u64) -> Context {
-        Context {
-            slot,
-        }
+        Context { slot }
     }
 }

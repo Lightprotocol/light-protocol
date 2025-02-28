@@ -20,7 +20,10 @@ pub struct AccountContext {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "nullifier", skip_serializing_if = "Option::is_none")]
     pub nullifier: Option<String>,
-    #[serde(rename = "nullifierQueueIndex", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "nullifierQueueIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub nullifier_queue_index: Option<i32>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "queue")]
@@ -36,7 +39,13 @@ pub struct AccountContext {
 
 impl AccountContext {
     /// This is currently used internally: - Internal (state_updates,..) - GetTransactionWithCompressionInfo (internally) - GetTransactionWithCompressionInfoV2 (internally) All endpoints return AccountV2.
-    pub fn new(in_output_queue: bool, nullified_in_tree: bool, queue: String, spent: bool, tree_type: u16) -> AccountContext {
+    pub fn new(
+        in_output_queue: bool,
+        nullified_in_tree: bool,
+        queue: String,
+        spent: bool,
+        tree_type: u16,
+    ) -> AccountContext {
         AccountContext {
             in_output_queue,
             nullified_in_tree,

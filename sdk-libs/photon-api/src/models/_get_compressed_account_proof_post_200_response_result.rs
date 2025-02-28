@@ -19,7 +19,10 @@ pub struct GetCompressedAccountProofPost200ResponseResult {
 }
 
 impl GetCompressedAccountProofPost200ResponseResult {
-    pub fn new(context: models::Context, value: models::GetCompressedAccountProofResponseValueV1) -> GetCompressedAccountProofPost200ResponseResult {
+    pub fn new(
+        context: models::Context,
+        value: models::GetCompressedAccountProofResponseValueV1,
+    ) -> GetCompressedAccountProofPost200ResponseResult {
         GetCompressedAccountProofPost200ResponseResult {
             context: Box::new(context),
             value: Box::new(value),

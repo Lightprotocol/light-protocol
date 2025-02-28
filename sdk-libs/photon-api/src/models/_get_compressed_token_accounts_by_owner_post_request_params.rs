@@ -18,7 +18,7 @@ pub struct GetCompressedTokenAccountsByOwnerPostRequestParams {
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
     /// A Solana public key represented as a base58 string.
-    #[serde(rename = "mint", default,  skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "mint", default, skip_serializing_if = "Option::is_none")]
     pub mint: Option<String>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]

@@ -21,7 +21,11 @@ pub struct GetQueueElementsPost200ResponseResult {
 }
 
 impl GetQueueElementsPost200ResponseResult {
-    pub fn new(context: models::Context, first_value_queue_index: u16, value: Vec<models::GetQueueElementsResponseValue>) -> GetQueueElementsPost200ResponseResult {
+    pub fn new(
+        context: models::Context,
+        first_value_queue_index: u16,
+        value: Vec<models::GetQueueElementsResponseValue>,
+    ) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {
             context: Box::new(context),
             first_value_queue_index,
