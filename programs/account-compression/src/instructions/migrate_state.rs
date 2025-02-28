@@ -79,6 +79,10 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     let output_queue =
         &mut BatchedQueueAccount::output_from_account_info(&ctx.accounts.output_queue)
             .map_err(ProgramError::from)?;
+    check_signer_is_registered_or_authority::<MigrateState, BatchedQueueAccount>(
+        ctx,
+        output_queue,
+    )?;
     // 2. Migrate state
     let nullify_event = migrate_state(
         migrate_leaf_params,
