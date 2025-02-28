@@ -79,6 +79,9 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
                     return Err(AccountError::InvalidDiscriminator.into());
                 }
+                if account_info.owner != &crate::ID {
+                    return Err(AccountError::AccountOwnedByWrongProgram.into());
+                }
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
                 // 1,670 CU
                 // TODO: get from RegisteredProgram account and compare
