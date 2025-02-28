@@ -250,13 +250,13 @@ async fn test_state_batched() {
             );
             assert!(report.processed_items > 0, "No items were processed");
 
-            let batch_size = tree_params.input_queue_batch_size;
+            let zkp_batch_size = tree_params.input_queue_zkp_batch_size;
             assert_eq!(
-                report.processed_items % batch_size as usize,
+                report.processed_items % zkp_batch_size as usize,
                 0,
                 "Processed items {} should be a multiple of batch size {}",
                 report.processed_items,
-                batch_size
+                zkp_batch_size
             );
         }
         Ok(None) => panic!("Work report channel closed unexpectedly"),
