@@ -1,49 +1,45 @@
-use std::{sync::Arc, time::Duration};
-
+use crate::test_utils::{forester_config, init};
 use bs58;
 use forester::run_pipeline;
-use forester_utils::{forester_epoch::get_epoch_phases, instructions::wait_for_indexer};
+use forester_utils::forester_epoch::get_epoch_phases;
+use forester_utils::instructions::wait_for_indexer;
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
+use light_client::indexer::AddressWithTree;
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc_pool::SolanaRpcPool
+    ,
 };
-use light_compressed_account::{
-    compressed_account::{CompressedAccount, MerkleContext},
-    instruction_data::compressed_proof::CompressedProof,
+use light_compressed_account::address::derive_address_legacy;
+use light_compressed_account::compressed_account::{
+    CompressedAccount, MerkleContext,
 };
-use light_compressed_token::process_transfer::{
-    transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
-};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_account::instruction_data::data::NewAddressParams;
+use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
+use light_compressed_token::process_transfer::TokenTransferOutputData;
 use light_hasher::Poseidon;
 use light_program_test::test_env::EnvAccounts;
-use light_prover_client::gnark::helpers::LightValidatorConfig;
+use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::{
-    protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
-    utils::get_protocol_config_pda_address,
-};
-use light_test_utils::{
-    conversions::sdk_to_program_token_data, spl::create_mint_helper_with_keypair,
-    system_program::create_invoke_instruction,
+    protocol_config::state::ProtocolConfigPda, utils::get_protocol_config_pda_address,
 };
 use rand::{prelude::SliceRandom, Rng};
 use serial_test::serial;
-use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
-use solana_sdk::{
-    commitment_config::CommitmentConfig,
-    signature::{Keypair, Signature},
-    signer::Signer,
-};
-use tokio::{
-    sync::{mpsc, oneshot, Mutex},
-    time::{sleep, timeout},
-};
-
-use crate::test_utils::{forester_config, init};
+use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::pubkey::Pubkey;
+use solana_sdk::signature::Signature;
+use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::time::{sleep, timeout};
 
 mod test_utils;
 
@@ -107,10 +103,11 @@ async fn test_state_indexer_async_batched() {
         init(Some(LightValidatorConfig {
             enable_indexer: false,
             wait_time: 1,
-            prover_config: None, /*Some(ProverConfig {
-            run_mode: Some(ProverMode::Forester),
-            circuits: vec![],
-                                 })*/
+            prover_config: None,
+            // prover_config: Some(ProverConfig {
+            // run_mode: Some(ProverMode::Forester),
+            // circuits: vec![],
+            // }),
             sbf_programs: vec![],
             limit_ledger_size: Some(500000),
         }))
