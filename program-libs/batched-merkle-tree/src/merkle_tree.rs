@@ -1013,7 +1013,7 @@ pub fn assert_batch_append_event_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = MerkleTreeEvent::BatchNullify(BatchEvent {
+    let ref_event = MerkleTreeEvent::BatchAppend(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
         output_queue_pubkey: Some(old_output_queue_account.pubkey().to_bytes()),
         batch_index,
