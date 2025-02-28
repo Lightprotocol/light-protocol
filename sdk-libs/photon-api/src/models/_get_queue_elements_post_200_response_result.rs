@@ -15,7 +15,7 @@ pub struct GetQueueElementsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "firstValueQueueIndex")]
-    pub first_value_queue_index: i32,
+    pub first_value_queue_index: u16,
     #[serde(rename = "value")]
     pub value: Vec<models::GetQueueElementsResponseValue>,
 }
@@ -23,7 +23,7 @@ pub struct GetQueueElementsPost200ResponseResult {
 impl GetQueueElementsPost200ResponseResult {
     pub fn new(
         context: models::Context,
-        first_value_queue_index: i32,
+        first_value_queue_index: u16,
         value: Vec<models::GetQueueElementsResponseValue>,
     ) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {

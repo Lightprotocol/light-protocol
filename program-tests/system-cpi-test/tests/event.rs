@@ -493,6 +493,7 @@ async fn generate_photon_test_data_multiple_events() {
                 create_address_test_program::ID.to_string(),
                 "../../target/deploy/create_address_test_program.so".to_string(),
             )],
+            limit_ledger_size: None,
         })
         .await;
         let mut rpc =

@@ -19,7 +19,7 @@ pub struct GetCompressedTokenAccountsByDelegatePostRequestParams {
     #[serde(rename = "delegate")]
     pub delegate: String,
     #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
-    pub limit: Option<i32>,
+    pub limit: Option<u16>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint", default, skip_serializing_if = "Option::is_none")]
     pub mint: Option<String>,

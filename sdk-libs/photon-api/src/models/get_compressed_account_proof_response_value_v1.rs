@@ -16,7 +16,7 @@ pub struct GetCompressedAccountProofResponseValueV1 {
     #[serde(rename = "hash")]
     pub hash: String,
     #[serde(rename = "leafIndex")]
-    pub leaf_index: i32,
+    pub leaf_index: u32,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
@@ -26,17 +26,17 @@ pub struct GetCompressedAccountProofResponseValueV1 {
     #[serde(rename = "root")]
     pub root: String,
     #[serde(rename = "rootSeq")]
-    pub root_seq: i32,
+    pub root_seq: u64,
 }
 
 impl GetCompressedAccountProofResponseValueV1 {
     pub fn new(
         hash: String,
-        leaf_index: i32,
+        leaf_index: u32,
         merkle_tree: String,
         proof: Vec<String>,
         root: String,
-        root_seq: i32,
+        root_seq: u64,
     ) -> GetCompressedAccountProofResponseValueV1 {
         GetCompressedAccountProofResponseValueV1 {
             hash,

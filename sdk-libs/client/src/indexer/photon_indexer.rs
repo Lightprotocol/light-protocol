@@ -358,6 +358,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         mint: Option<Pubkey>,
     ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
         self.rate_limited_request(|| async {
+            println!(
+                "get_compressed_token_accounts_by_owner_v2 called with owner: {}, mint: {:?}",
+                owner, mint
+            );
             let request = GetCompressedTokenAccountsByOwnerV2PostRequest {
                 params: Box::from(GetCompressedTokenAccountsByOwnerPostRequestParams {
                     cursor: None,
@@ -373,6 +377,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     request,
                 )
                 .await?;
+            println!(
+                "get_compressed_token_accounts_by_owner_v2 response: {:?}",
+                result
+            );
 
             let accounts = *result.result.unwrap().value;
 
