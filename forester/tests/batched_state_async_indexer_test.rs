@@ -515,13 +515,13 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .zip(input_compressed_accounts.iter_mut())
         .map(|(root_index, acc)|
-            match root_index.in_tree {
+            match root_index.prove_by_index {
                 true => {
-                    Some(root_index.root_index)
-                }
-                false => {
                     None
                 },
+                false => {
+                    Some(root_index.root_index)
+                }
             }
         )
         .collect::<Vec<Option<u16>>>();
@@ -549,11 +549,16 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
-        Some(CompressedProof {
-            a: proof_for_compressed_accounts.compressed_proof.a.try_into().unwrap(),
-            b: proof_for_compressed_accounts.compressed_proof.b.try_into().unwrap(),
-            c: proof_for_compressed_accounts.compressed_proof.c.try_into().unwrap(),
-        })
+        match proof_for_compressed_accounts.compressed_proof {
+            None => None,
+            Some(proof) => {
+                Some(CompressedProof {
+                    a: proof.a.try_into().unwrap(),
+                    b: proof.b.try_into().unwrap(),
+                    c: proof.c.try_into().unwrap(),
+                })
+            }
+        }
     };
 
     let input_token_data = input_compressed_accounts
@@ -661,14 +666,14 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .iter()
         .zip(input_compressed_accounts.iter_mut())
         .map(|(root_index, acc)|
-            match root_index.in_tree {
+            match root_index.prove_by_index {
                 true => {
-                    acc.merkle_context.prove_by_index = false;
-                    Some(root_index.root_index)
-                }
-                false => {
                     acc.merkle_context.prove_by_index = true;
                     None
+                }
+                false => {
+                    acc.merkle_context.prove_by_index = false;
+                    Some(root_index.root_index)
                 },
             }
         )
@@ -697,11 +702,16 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
     let proof = if root_indices.iter().all(|x| x.is_none()) {
         None
     } else {
-        Some(CompressedProof {
-            a: proof_for_compressed_accounts.compressed_proof.a.try_into().unwrap(),
-            b: proof_for_compressed_accounts.compressed_proof.b.try_into().unwrap(),
-            c: proof_for_compressed_accounts.compressed_proof.c.try_into().unwrap(),
-        })
+        match proof_for_compressed_accounts.compressed_proof {
+            None => None,
+            Some(proof) => {
+                Some(CompressedProof {
+                    a: proof.a.try_into().unwrap(),
+                    b: proof.b.try_into().unwrap(),
+                    c: proof.c.try_into().unwrap(),
+                })
+            }
+        }
     };
 
     let input_compressed_accounts = input_compressed_accounts

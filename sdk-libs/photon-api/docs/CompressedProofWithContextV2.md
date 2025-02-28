@@ -4,11 +4,10 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**compressed_proof** | [**models::CompressedProof**](CompressedProof.md) |  | 
+**compressed_proof** | Option<[**models::CompressedProof**](CompressedProof.md)> |  | [optional]
 **leaf_indices** | **Vec<i32>** |  | 
 **leaves** | **Vec<String>** |  | 
-**merkle_trees** | **Vec<String>** |  | 
-**queues** | **Vec<String>** |  | 
+**merkle_context** | [**Vec<models::MerkleContextV2>**](MerkleContextV2.md) |  | 
 **root_indices** | [**Vec<models::RootIndex>**](RootIndex.md) |  | 
 **roots** | **Vec<String>** |  | 
 

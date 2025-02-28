@@ -14,11 +14,11 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedAccountPostRequestParams {
     /// A Solana public key represented as a base58 string.
-    #[serde(rename = "address", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub address: Option<Option<String>>,
+    #[serde(rename = "address", default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
     /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "hash", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub hash: Option<Option<String>>,
+    #[serde(rename = "hash", default, skip_serializing_if = "Option::is_none")]
+    pub hash: Option<String>,
 }
 
 impl GetCompressedAccountPostRequestParams {

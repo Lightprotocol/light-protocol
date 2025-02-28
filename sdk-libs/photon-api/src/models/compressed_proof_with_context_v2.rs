@@ -12,16 +12,14 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressedProofWithContextV2 {
-    #[serde(rename = "compressedProof")]
-    pub compressed_proof: Box<models::CompressedProof>,
+    #[serde(rename = "compressedProof", skip_serializing_if = "Option::is_none")]
+    pub compressed_proof: Option<Box<models::CompressedProof>>,
     #[serde(rename = "leafIndices")]
-    pub leaf_indices: Vec<u32>,
+    pub leaf_indices: Vec<i32>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
-    #[serde(rename = "merkleTrees")]
-    pub merkle_trees: Vec<String>,
-    #[serde(rename = "queues")]
-    pub queues: Vec<String>,
+    #[serde(rename = "merkleContext")]
+    pub merkle_context: Vec<models::MerkleContextV2>,
     #[serde(rename = "rootIndices")]
     pub root_indices: Vec<models::RootIndex>,
     #[serde(rename = "roots")]
@@ -29,13 +27,12 @@ pub struct CompressedProofWithContextV2 {
 }
 
 impl CompressedProofWithContextV2 {
-    pub fn new(compressed_proof: models::CompressedProof, leaf_indices: Vec<u32>, leaves: Vec<String>, merkle_trees: Vec<String>, queues: Vec<String>, root_indices: Vec<models::RootIndex>, roots: Vec<String>) -> CompressedProofWithContextV2 {
+    pub fn new(leaf_indices: Vec<i32>, leaves: Vec<String>, merkle_context: Vec<models::MerkleContextV2>, root_indices: Vec<models::RootIndex>, roots: Vec<String>) -> CompressedProofWithContextV2 {
         CompressedProofWithContextV2 {
-            compressed_proof: Box::new(compressed_proof),
+            compressed_proof: None,
             leaf_indices,
             leaves,
-            merkle_trees,
-            queues,
+            merkle_context,
             root_indices,
             roots,
         }

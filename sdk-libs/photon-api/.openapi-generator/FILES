@@ -20,6 +20,7 @@ docs/CompressedProofWithContext.md
 docs/CompressedProofWithContextV2.md
 docs/CompressionInfoV2.md
 docs/Context.md
+docs/ContextInfo.md
 docs/DataSlice.md
 docs/DefaultApi.md
 docs/FilterSelector.md
@@ -126,6 +127,7 @@ docs/GetValidityProofV2Post200Response.md
 docs/GetValidityProofV2Post200ResponseResult.md
 docs/GetValidityProofV2PostRequest.md
 docs/Memcmp.md
+docs/MerkleContextV2.md
 docs/MerkleContextWithNewAddressProof.md
 docs/MerkleProofWithContext.md
 docs/MerkleProofWithContextV2.md
@@ -136,6 +138,7 @@ docs/PaginatedAccountList.md
 docs/PaginatedAccountListV2.md
 docs/PaginatedSignatureInfoList.md
 docs/RootIndex.md
+docs/SerializableTreeType.md
 docs/SignatureInfo.md
 docs/SignatureInfoList.md
 docs/SignatureInfoListWithError.md
@@ -274,9 +277,11 @@ src/models/compressed_proof_with_context.rs
 src/models/compressed_proof_with_context_v2.rs
 src/models/compression_info_v2.rs
 src/models/context.rs
+src/models/context_info.rs
 src/models/data_slice.rs
 src/models/filter_selector.rs
 src/models/memcmp.rs
+src/models/merkle_context_v2.rs
 src/models/merkle_context_with_new_address_proof.rs
 src/models/merkle_proof_with_context.rs
 src/models/merkle_proof_with_context_v2.rs
@@ -288,6 +293,7 @@ src/models/paginated_account_list.rs
 src/models/paginated_account_list_v2.rs
 src/models/paginated_signature_info_list.rs
 src/models/root_index.rs
+src/models/serializable_tree_type.rs
 src/models/signature_info.rs
 src/models/signature_info_list.rs
 src/models/signature_info_list_with_error.rs

@@ -24,42 +24,32 @@ pub struct AccountV2 {
     pub lamports: u64,
     #[serde(rename = "leafIndex")]
     pub leaf_index: u32,
+    #[serde(rename = "merkleContext")]
+    pub merkle_context: Box<models::MerkleContextV2>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
     #[serde(rename = "proveByIndex")]
     pub prove_by_index: bool,
-    /// A Solana public key represented as a base58 string.
-    #[serde(rename = "queue")]
-    pub queue: String,
     #[serde(rename = "seq", skip_serializing_if = "Option::is_none")]
     pub seq: Option<u64>,
     #[serde(rename = "slotCreated")]
     pub slot_created: u64,
-    /// A Solana public key represented as a base58 string.
-    #[serde(rename = "tree")]
-    pub tree: String,
-    #[serde(rename = "treeType")]
-    pub tree_type: u64,
 }
 
 impl AccountV2 {
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(hash: String, lamports: u64, leaf_index: u32, owner: String, prove_by_index: bool, queue: String, slot_created: u64, tree: String, tree_type: u64) -> AccountV2 {
+    pub fn new(hash: String, lamports: u64, leaf_index: u32, merkle_context: models::MerkleContextV2, owner: String, prove_by_index: bool, slot_created: u64) -> AccountV2 {
         AccountV2 {
             address: None,
             data: None,
             hash,
             lamports,
             leaf_index,
+            merkle_context: Box::new(merkle_context),
             owner,
             prove_by_index,
-            queue,
             seq: None,
             slot_created,
-            tree,
-            tree_type,
         }
     }
 }

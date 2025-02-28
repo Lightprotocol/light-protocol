@@ -28,7 +28,7 @@ pub struct AccountContext {
     #[serde(rename = "spent")]
     pub spent: bool,
     #[serde(rename = "treeType")]
-    pub tree_type: i32,
+    pub tree_type: models::SerializableTreeType,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "txHash", skip_serializing_if = "Option::is_none")]
     pub tx_hash: Option<String>,
@@ -36,7 +36,7 @@ pub struct AccountContext {
 
 impl AccountContext {
     /// This is currently used internally: - Internal (state_updates,..) - GetTransactionWithCompressionInfo (internally) - GetTransactionWithCompressionInfoV2 (internally) All endpoints return AccountV2.
-    pub fn new(in_output_queue: bool, nullified_in_tree: bool, queue: String, spent: bool, tree_type: i32) -> AccountContext {
+    pub fn new(in_output_queue: bool, nullified_in_tree: bool, queue: String, spent: bool, tree_type: models::SerializableTreeType) -> AccountContext {
         AccountContext {
             in_output_queue,
             nullified_in_tree,

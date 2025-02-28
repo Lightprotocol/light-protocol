@@ -15,8 +15,8 @@ pub struct SignatureInfoWithError {
     /// An Unix timestamp (seconds)
     #[serde(rename = "blockTime")]
     pub block_time: i32,
-    #[serde(rename = "error", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub error: Option<Option<String>>,
+    #[serde(rename = "error", default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
     /// A Solana transaction signature.
     #[serde(rename = "signature")]
     pub signature: String,

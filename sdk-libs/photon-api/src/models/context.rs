@@ -13,11 +13,11 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Context {
     #[serde(rename = "slot")]
-    pub slot: u64,
+    pub slot: i32,
 }
 
 impl Context {
-    pub fn new(slot: u64) -> Context {
+    pub fn new(slot: i32) -> Context {
         Context {
             slot,
         }

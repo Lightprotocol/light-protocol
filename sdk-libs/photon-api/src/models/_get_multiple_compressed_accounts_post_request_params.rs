@@ -13,10 +13,10 @@ use crate::models;
 /// GetMultipleCompressedAccountsPostRequestParams : Request for compressed account data
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetMultipleCompressedAccountsPostRequestParams {
-    #[serde(rename = "addresses", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub addresses: Option<Option<Vec<String>>>,
-    #[serde(rename = "hashes", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    pub hashes: Option<Option<Vec<String>>>,
+    #[serde(rename = "addresses", default, skip_serializing_if = "Option::is_none")]
+    pub addresses: Option<Vec<String>>,
+    #[serde(rename = "hashes", default, skip_serializing_if = "Option::is_none")]
+    pub hashes: Option<Vec<String>>,
 }
 
 impl GetMultipleCompressedAccountsPostRequestParams {

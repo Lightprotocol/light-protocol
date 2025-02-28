@@ -12,16 +12,16 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RootIndex {
-    #[serde(rename = "inTree")]
-    pub in_tree: bool,
+    #[serde(rename = "proveByIndex")]
+    pub prove_by_index: bool,
     #[serde(rename = "rootIndex")]
     pub root_index: u16,
 }
 
 impl RootIndex {
-    pub fn new(in_tree: bool, root_index: u16) -> RootIndex {
+    pub fn new(prove_by_index: bool, root_index: u16) -> RootIndex {
         RootIndex {
-            in_tree,
+            prove_by_index,
             root_index,
         }
     }
