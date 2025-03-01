@@ -1357,7 +1357,7 @@ async fn test_spl_compat() {
     let mut spl_concurrent_mt = spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<HEIGHT, ROOTS>::new();
     spl_concurrent_mt.initialize().unwrap();
 
-    // Reference implemenetation of Merkle tree which Solana Labs uses for
+    // Reference implementation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
     let mut reference_tree = light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, CANOPY);
