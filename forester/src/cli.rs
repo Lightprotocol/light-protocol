@@ -114,15 +114,6 @@ pub struct StartArgs {
         default_value = "28807"
     )]
     pub address_queue_processing_length: u16,
-
-    #[arg(long, env = "FORESTER_RPC_RATE_LIMIT")]
-    pub rpc_rate_limit: Option<u32>,
-
-    #[arg(long, env = "FORESTER_PHOTON_RATE_LIMIT")]
-    pub photon_rate_limit: Option<u32>,
-
-    #[arg(long, env = "FORESTER_SEND_TRANSACTION_RATE_LIMIT")]
-    pub send_tx_rate_limit: Option<u32>,
 }
 
 #[derive(Parser, Clone, Debug)]

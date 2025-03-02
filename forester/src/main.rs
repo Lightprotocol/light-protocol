@@ -12,7 +12,6 @@ use forester::{
 };
 use light_client::{
     indexer::photon_indexer::PhotonIndexer,
-    rate_limiter::{RateLimiter, UseRateLimiter},
     rpc::{RpcConnection, SolanaRpcConnection},
 };
 use tokio::{
@@ -51,49 +50,17 @@ async fn main() -> Result<(), ForesterError> {
                 }
             });
 
-            let mut rpc_rate_limiter = None;
-            if let Some(rate_limit) = config.external_services.rpc_rate_limit {
-                rpc_rate_limiter = Some(RateLimiter::new(rate_limit));
-            }
-
-            let mut send_tx_limiter = None;
-            if let Some(rate_limit) = config.external_services.send_tx_rate_limit {
-                send_tx_limiter = Some(RateLimiter::new(rate_limit));
-            }
-
-            let mut photon_rate_limiter = None;
-            if let Some(rate_limit) = config.external_services.photon_rate_limit {
-                photon_rate_limiter = Some(RateLimiter::new(rate_limit));
-            }
-
-            let mut indexer_rpc =
+            let indexer_rpc =
                 SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
-            if let Some(limiter) = &photon_rate_limiter {
-                indexer_rpc.set_rpc_rate_limiter(limiter.clone());
-                indexer_rpc.set_send_tx_rate_limiter(limiter.clone());
-            }
 
-            let mut indexer = PhotonIndexer::new(
+            let indexer = PhotonIndexer::new(
                 config.external_services.indexer_url.clone().unwrap(),
                 config.external_services.photon_api_key.clone(),
                 indexer_rpc,
             );
-
-            if let Some(limiter) = &photon_rate_limiter {
-                indexer.set_rate_limiter(limiter.clone());
-            }
-
             let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
 
-            run_pipeline(
-                config,
-                rpc_rate_limiter,
-                send_tx_limiter,
-                indexer,
-                shutdown_receiver,
-                work_report_sender,
-            )
-            .await?
+            run_pipeline(config, indexer, shutdown_receiver, work_report_sender).await?
         }
         Commands::Status(args) => {
             forester_status::fetch_forester_status(args).await;

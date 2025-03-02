@@ -3,7 +3,6 @@ use std::fmt::{Debug, Formatter};
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use light_client::{
-    rate_limiter::RateLimiter,
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
     transaction_params::TransactionParams,
 };
@@ -30,17 +29,11 @@ use solana_transaction_status::TransactionStatus;
 
 pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
-    pub rpc_rate_limiter: Option<RateLimiter>,
-    pub send_tx_rate_limiter: Option<RateLimiter>,
 }
 
 impl ProgramTestRpcConnection {
     pub fn new(context: ProgramTestContext) -> Self {
-        Self {
-            context,
-            rpc_rate_limiter: None,
-            send_tx_rate_limiter: None,
-        }
+        Self { context }
     }
 }
 
@@ -59,21 +52,6 @@ impl RpcConnection for ProgramTestRpcConnection {
         unimplemented!()
     }
 
-    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter) {
-        self.rpc_rate_limiter = Some(rate_limiter);
-    }
-
-    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter) {
-        self.send_tx_rate_limiter = Some(rate_limiter);
-    }
-
-    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.rpc_rate_limiter.as_ref()
-    }
-
-    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.send_tx_rate_limiter.as_ref()
-    }
     fn get_payer(&self) -> &Keypair {
         &self.context.payer
     }

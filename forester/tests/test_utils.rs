@@ -83,9 +83,6 @@ pub fn forester_config() -> ForesterConfig {
             photon_api_key: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
-            rpc_rate_limit: None,
-            photon_rate_limit: None,
-            send_tx_rate_limit: None,
         },
         retry_config: Default::default(),
         queue_config: Default::default(),
@@ -194,30 +191,30 @@ pub async fn assert_accounts_by_owner<
     user: &User,
     photon_indexer: &PhotonIndexer<R>,
 ) {
-    let mut photon_accs = photon_indexer
+    let mut photon_accounts = photon_indexer
         .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
         .await
         .unwrap();
-    photon_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
+    photon_accounts.sort_by_key(|a| a.hash().unwrap().to_base58());
 
-    let mut test_accs = indexer
+    let mut test_accounts = indexer
         .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
         .await
         .unwrap();
-    test_accs.sort_by_key(|a| a.hash().unwrap().to_base58());
+    test_accounts.sort_by_key(|a| a.hash().unwrap().to_base58());
 
     debug!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
         user.keypair.pubkey().to_string(),
-        test_accs.len(),
-        photon_accs.len()
+        test_accounts.len(),
+        photon_accounts.len()
     );
-    assert_eq!(test_accs.len(), photon_accs.len());
+    assert_eq!(test_accounts.len(), photon_accounts.len());
 
-    debug!("test_accs: {:?}", test_accs);
-    debug!("photon_accs: {:?}", photon_accs);
+    debug!("test_accounts: {:?}", test_accounts);
+    debug!("photon_accounts: {:?}", photon_accounts);
 
-    for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
+    for (test_acc, indexer_acc) in test_accounts.iter().zip(photon_accounts.iter()) {
         assert_eq!(test_acc, indexer_acc);
     }
 }

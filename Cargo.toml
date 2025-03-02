@@ -162,9 +162,6 @@ reqwest = "0.11"
 # Testing
 serial_test = "3.2.0"
 
-# Rate limiter
-governor = "0.8.0"
-
 # Random
 rand = "0.8.5"
 

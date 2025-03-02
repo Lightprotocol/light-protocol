@@ -54,8 +54,6 @@ async fn test_state_indexer_batched() {
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::processed(),
         config.general_config.rpc_pool_size as u32,
-        None,
-        None,
     )
     .await
     .unwrap();
@@ -282,8 +280,6 @@ async fn test_state_indexer_batched() {
 
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
-        None,
-        None,
         Arc::new(Mutex::new(photon_indexer)),
         shutdown_receiver,
         work_report_sender,

@@ -21,9 +21,7 @@ use solana_sdk::{
 };
 use solana_transaction_status::TransactionStatus;
 
-use crate::{
-    rate_limiter::RateLimiter, rpc::errors::RpcError, transaction_params::TransactionParams,
-};
+use crate::{rpc::errors::RpcError, transaction_params::TransactionParams};
 
 #[async_trait]
 pub trait RpcConnection: Send + Sync + Debug + 'static {
@@ -41,24 +39,6 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
                 false
             }
             _ => true,
-        }
-    }
-
-    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter);
-    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter);
-
-    fn rpc_rate_limiter(&self) -> Option<&RateLimiter>;
-    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter>;
-
-    async fn check_rpc_rate_limit(&self) {
-        if let Some(limiter) = self.rpc_rate_limiter() {
-            limiter.acquire_with_wait().await;
-        }
-    }
-
-    async fn check_send_tx_rrate_limit(&self) {
-        if let Some(limiter) = self.send_tx_rate_limiter() {
-            limiter.acquire_with_wait().await;
         }
     }
 

@@ -37,9 +37,6 @@ pub struct ExternalServicesConfig {
     pub photon_api_key: Option<String>,
     pub pushgateway_url: Option<String>,
     pub pagerduty_routing_key: Option<String>,
-    pub rpc_rate_limit: Option<u32>,
-    pub photon_rate_limit: Option<u32>,
-    pub send_tx_rate_limit: Option<u32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -153,9 +150,6 @@ impl ForesterConfig {
                 photon_api_key: args.photon_api_key.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
-                rpc_rate_limit: args.rpc_rate_limit,
-                photon_rate_limit: args.photon_rate_limit,
-                send_tx_rate_limit: args.send_tx_rate_limit,
             },
             retry_config: RetryConfig {
                 max_retries: args.max_retries,
@@ -209,9 +203,6 @@ impl ForesterConfig {
                 photon_api_key: None,
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
-                rpc_rate_limit: None,
-                photon_rate_limit: None,
-                send_tx_rate_limit: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: QueueConfig::default(),

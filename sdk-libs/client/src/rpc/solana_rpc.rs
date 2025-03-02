@@ -31,7 +31,6 @@ use tokio::time::{sleep, Instant};
 use tracing::warn;
 
 use crate::{
-    rate_limiter::RateLimiter,
     rpc::{errors::RpcError, merkle_tree::MerkleTreeExt, rpc_connection::RpcConnection},
     transaction_params::TransactionParams,
 };
@@ -81,8 +80,6 @@ pub struct SolanaRpcConnection {
     pub client: RpcClient,
     pub payer: Keypair,
     retry_config: RetryConfig,
-    rpc_rate_limiter: Option<RateLimiter>,
-    send_tx_rate_limiter: Option<RateLimiter>,
 }
 
 impl Debug for SolanaRpcConnection {
@@ -100,30 +97,16 @@ impl SolanaRpcConnection {
         url: U,
         commitment_config: Option<CommitmentConfig>,
         retry_config: Option<RetryConfig>,
-        rpc_rps: Option<u32>,
-        send_tx_rps: Option<u32>,
     ) -> Self {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url.to_string(), commitment_config);
         let retry_config = retry_config.unwrap_or_default();
 
-        let mut rpc_rate_limiter = None;
-        if let Some(rps) = rpc_rps {
-            rpc_rate_limiter = Some(RateLimiter::new(rps));
-        }
-
-        let mut send_tx_rate_limiter = None;
-        if let Some(rps) = send_tx_rps {
-            send_tx_rate_limiter = Some(RateLimiter::new(rps));
-        }
-
         Self {
             client,
             payer,
             retry_config,
-            rpc_rate_limiter,
-            send_tx_rate_limiter,
         }
     }
 
@@ -135,10 +118,6 @@ impl SolanaRpcConnection {
         let mut attempts = 0;
         let start_time = Instant::now();
         loop {
-            if let Some(limiter) = &self.rpc_rate_limiter {
-                limiter.acquire_with_wait().await;
-            }
-
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
@@ -170,10 +149,6 @@ impl SolanaRpcConnection {
         let mut attempts = 0;
         let start_time = Instant::now();
         loop {
-            if let Some(limiter) = &self.send_tx_rate_limiter {
-                limiter.acquire_with_wait().await;
-            }
-
             match operation().await {
                 Ok(result) => return Ok(result),
                 Err(e) => {
@@ -273,23 +248,7 @@ impl RpcConnection for SolanaRpcConnection {
     where
         Self: Sized,
     {
-        Self::new_with_retry(url, commitment_config, None, None, None)
-    }
-
-    fn set_rpc_rate_limiter(&mut self, rate_limiter: RateLimiter) {
-        self.rpc_rate_limiter = Some(rate_limiter);
-    }
-
-    fn set_send_tx_rate_limiter(&mut self, rate_limiter: RateLimiter) {
-        self.send_tx_rate_limiter = Some(rate_limiter);
-    }
-
-    fn rpc_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.rpc_rate_limiter.as_ref()
-    }
-
-    fn send_tx_rate_limiter(&self) -> Option<&RateLimiter> {
-        self.send_tx_rate_limiter.as_ref()
+        Self::new_with_retry(url, commitment_config, None)
     }
 
     fn get_payer(&self) -> &Keypair {

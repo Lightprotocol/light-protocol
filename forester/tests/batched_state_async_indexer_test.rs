@@ -276,8 +276,6 @@ async fn setup_forester_pipeline(
     let forester_photon_indexer = create_photon_indexer(rpc);
     let service_handle = tokio::spawn(run_pipeline(
         Arc::from(config.clone()),
-        None,
-        None,
         Arc::new(Mutex::new(forester_photon_indexer)),
         shutdown_receiver,
         work_report_sender,
