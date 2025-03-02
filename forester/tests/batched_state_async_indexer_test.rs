@@ -55,6 +55,7 @@ const BATCHES_NUM: u64 = 10;
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
+const SLEEP_DURATION: Duration = Duration::from_secs(5);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -408,7 +409,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
         println!("{} batch transfer: {:?}", i, batch_transfer_sig);
-        sleep(Duration::from_secs(1)).await;
+        sleep(SLEEP_DURATION).await;
 
         let legacy_transfer_sig = transfer(
             rpc,
@@ -431,7 +432,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         .await;
         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
     }
-    sleep(Duration::from_secs(1)).await;
+    sleep(SLEEP_DURATION).await;
 
     let sig = create_v1_address(
         rpc,
