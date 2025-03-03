@@ -780,7 +780,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 request,
             )
             .await?;
-            println!("get_validity_proof result: {:?}", result);
 
             let result = Self::extract_result("get_validity_proof", result.result)?;
             Ok(*result.value)

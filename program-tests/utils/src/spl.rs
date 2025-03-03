@@ -273,7 +273,6 @@ pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
     payer: &Keypair,
     mint: &Keypair,
 ) -> Pubkey {
-    println!("Creating mint");
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)

@@ -530,17 +530,28 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
         .await
         .map_err(|_| ForesterUtilsError::IndexerError("Failed to get indexer slot".into()))?;
 
+    let max_attempts = 20;
+    let mut attempts = 0;
+
     while rpc_slot > indexer_slot {
+        if attempts >= max_attempts {
+            return Err(ForesterUtilsError::IndexerError(
+                "Maximum attempts reached waiting for indexer to catch up".into(),
+            ));
+        }
+
         log::debug!(
             "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
             rpc_slot,
             indexer_slot
         );
-        sleep(std::time::Duration::from_millis(200)).await;
+        sleep(std::time::Duration::from_millis(400)).await;
         indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
             log::error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::IndexerError("Failed to get indexer slot".into())
         })?;
+
+        attempts += 1;
     }
     Ok(())
 }
