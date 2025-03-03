@@ -3,8 +3,8 @@ use light_compressed_account::{
     instruction_data::compressed_proof::CompressedProof,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_merkle_tree_reference::MerkleTree;
+use light_indexed_array::array::IndexedArray;
+use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use num_bigint::BigUint;
 use reqwest::Client;
 
@@ -233,13 +233,13 @@ pub struct MockBatchedAddressForester<const HEIGHT: usize> {
     pub queue_leaves: Vec<[u8; 32]>,
     pub indexed_array: IndexedArray<Poseidon, u16>,
 }
+
 impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
     fn default() -> Self {
         let mut merkle_tree = IndexedMerkleTree::<Poseidon, u16>::new(HEIGHT, 0).unwrap();
-        merkle_tree.init().unwrap();
         let queue_leaves = vec![];
         let mut indexed_array = IndexedArray::<Poseidon, u16>::default();
-        indexed_array.init().unwrap();
+        // indexed_array.init().unwrap();
         Self {
             merkle_tree,
             queue_leaves,

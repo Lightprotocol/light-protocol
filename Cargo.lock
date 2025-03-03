@@ -3279,6 +3279,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-indexed-array"
+version = "0.1.0"
+dependencies = [
+ "light-compressed-account",
+ "light-hasher",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "rand 0.8.5",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
@@ -3322,9 +3334,11 @@ dependencies = [
 name = "light-merkle-tree-reference"
 version = "1.1.0"
 dependencies = [
- "light-bounded-vec",
+ "light-compressed-account",
  "light-hasher",
+ "light-indexed-array",
  "num-bigint 0.4.6",
+ "num-traits",
  "thiserror 2.0.12",
 ]
 
@@ -3403,6 +3417,7 @@ dependencies = [
  "light-compressed-account",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-indexed-array",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "log",

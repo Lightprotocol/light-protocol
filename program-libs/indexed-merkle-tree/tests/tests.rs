@@ -747,7 +747,9 @@ pub fn print_test_data() {
         println!("subtree = {:?}", subtree_bn);
     }
 
-    let res = relayer_merkle_tree.merkle_tree.verify(&leaf, &proof, 2);
+    let res = relayer_merkle_tree
+        .merkle_tree
+        .verify(&leaf, proof.as_slice(), 2);
     println!("verify leaf 2 {:?}", res);
 
     println!(

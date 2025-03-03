@@ -12,6 +12,7 @@ members = [
     "program-libs/concurrent-merkle-tree",
     "program-libs/hash-set",
     "program-libs/indexed-merkle-tree",
+    "program-libs/indexed-array",
     "programs/account-compression",
     "programs/system",
     "programs/compressed-token",
@@ -145,6 +146,7 @@ light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
 light-bounded-vec = { version = "1.1.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
+light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 groth16-solana = { version = "0.0.3" }
 # anchor 0.29 requires 1.19

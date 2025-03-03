@@ -116,10 +116,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         let proof: Vec<[u8; 32]> = state_tree_bundle
             .merkle_tree
             .get_proof_of_leaf(leaf_index, false)
-            .unwrap()
-            .to_array::<16>()
-            .unwrap()
-            .to_vec();
+            .unwrap();
         let ix = create_nullify_instruction(
             CreateNullifyInstructionInputs {
                 authority: forester.pubkey(),
