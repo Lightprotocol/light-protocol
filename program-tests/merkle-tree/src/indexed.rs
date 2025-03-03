@@ -1,5 +1,3 @@
-use std::{marker::PhantomData, ops::DerefMut};
-
 use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_hasher::{Hasher, HasherError};
 use light_indexed_array::{
@@ -8,7 +6,9 @@ use light_indexed_array::{
     HIGHEST_ADDRESS_PLUS_ONE,
 };
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
+use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned, Zero};
+use std::fmt::Debug;
+use std::marker::PhantomData;
 use thiserror::Error;
 
 use crate::{MerkleTree, ReferenceMerkleTreeError};
@@ -32,17 +32,35 @@ pub enum IndexedReferenceMerkleTreeError {
 pub struct IndexedMerkleTree<H, I>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned
+        + Debug
+        + Into<usize>,
 {
     pub merkle_tree: MerkleTree<H>,
+    pub indexed_array: IndexedArray<H, I>,
     _index: PhantomData<I>,
 }
 
 impl<H, I> IndexedMerkleTree<H, I>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned
+        + Debug
+        + Into<usize>,
 {
     pub fn new(
         height: usize,
@@ -50,20 +68,30 @@ where
     ) -> Result<Self, IndexedReferenceMerkleTreeError> {
         let mut merkle_tree = MerkleTree::new(height, canopy_depth);
 
-        let mut indexed_array = IndexedArray::<H, I>::default();
-        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let init_next_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+        let indexed_array = IndexedArray::<H, I>::new(BigUint::zero(), init_next_value.clone());
+        let new_leaf = indexed_array
+            .get(0)
+            .unwrap()
+            .hash::<H>(&init_next_value)
+            .unwrap();
         // let new_low_leaf = nullifier_bundle
         //     .new_low_element
         //     .hash::<H>(&nullifier_bundle.new_element.value)?;
-        let new_leaf = nullifier_bundle
-            .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        // let new_leaf = nullifier_bundle
+        //     .new_element
+        //     .hash::<H>(&nullifier_bundle.new_element_next_value)?;
         merkle_tree.append(&new_leaf)?;
         assert_eq!(merkle_tree.leaf(0), new_leaf);
+        println!(
+            "inited height {} root {:?}",
+            merkle_tree.height,
+            merkle_tree.root()
+        );
 
         Ok(Self {
             merkle_tree,
+            indexed_array,
             _index: PhantomData,
         })
     }
@@ -117,8 +145,10 @@ where
         // Update the low element.
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
         println!("reference update new low leaf hash {:?}", new_low_leaf);
-        self.merkle_tree
-            .update(&new_low_leaf, usize::from(new_low_element.index))?;
+        self.merkle_tree.update(
+            &new_low_leaf,
+            usize::try_from(new_low_element.index).unwrap(),
+        )?;
         println!("reference updated root {:?}", self.merkle_tree.root());
         // Append the new element.
         let new_leaf = new_element.hash::<H>(new_element_next_value)?;
@@ -130,13 +160,10 @@ where
     }
 
     // TODO: add append with new value, so that we don't need to compute the lowlevel values manually
-    pub fn append(
-        &mut self,
-        value: &BigUint,
-        indexed_array: &mut IndexedArray<H, I>,
-    ) -> Result<(), IndexedReferenceMerkleTreeError> {
-        println!("appending {:?}", value);
-        let nullifier_bundle = indexed_array.append(value).unwrap();
+    pub fn append(&mut self, value: &BigUint) -> Result<(), IndexedReferenceMerkleTreeError> {
+        println!("\n\nappending {:?}", value);
+        let nullifier_bundle = self.indexed_array.append(value)?;
+        println!("\n\nnullifier_bundle {:?}", nullifier_bundle);
         self.update(
             &nullifier_bundle.new_low_element,
             &nullifier_bundle.new_element,
@@ -149,18 +176,23 @@ where
     pub fn get_non_inclusion_proof(
         &self,
         value: &BigUint,
-        indexed_array: &IndexedArray<H, I>,
+        // indexed_array: &IndexedArray<H, I>,
     ) -> Result<NonInclusionProof, IndexedReferenceMerkleTreeError> {
-        let (low_element, _next_value) = indexed_array.find_low_element_for_nonexistent(value)?;
-        let merkle_proof = self
-            .get_proof_of_leaf(usize::from(low_element.index), true)
-            .unwrap();
-        let higher_range_value = indexed_array
-            .get(low_element.next_index())
-            .unwrap()
-            .value
-            .clone();
-        Ok(NonInclusionProof {
+        let (low_element, _next_value) =
+            self.indexed_array.find_low_element_for_nonexistent(value)?;
+        println!("low element: {:?}", low_element);
+        let merkle_proof =
+            self.get_proof_of_leaf(usize::try_from(low_element.index).unwrap(), true)?;
+        let higher_range_value = if low_element.next_index() == 0 {
+            self.indexed_array.highest_value.clone()
+        } else {
+            self.indexed_array
+                .get(low_element.next_index())
+                .unwrap()
+                .value
+                .clone()
+        };
+        let non_inclusion_proof = NonInclusionProof {
             root: self.root(),
             value: bigint_to_be_bytes_array::<32>(value).unwrap(),
             leaf_lower_range_value: bigint_to_be_bytes_array::<32>(&low_element.value).unwrap(),
@@ -168,7 +200,9 @@ where
             leaf_index: low_element.index.into(),
             next_index: low_element.next_index(),
             merkle_proof,
-        })
+        };
+        println!("non inclusion proof {:?}", non_inclusion_proof);
+        Ok(non_inclusion_proof)
     }
 
     pub fn verify_non_inclusion_proof(
@@ -194,8 +228,7 @@ where
         };
         let leaf_hash = array_element.hash::<H>(&higher_end_value)?;
         self.merkle_tree
-            .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)
-            .unwrap();
+            .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)?;
         Ok(())
     }
 }

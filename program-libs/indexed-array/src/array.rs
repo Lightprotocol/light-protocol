@@ -5,13 +5,13 @@ use light_hasher::Hasher;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned, Zero};
 
-use crate::{changelog::RawIndexedElement, errors::IndexedArrayError, HIGHEST_ADDRESS_PLUS_ONE};
+use crate::{changelog::RawIndexedElement, errors::IndexedArrayError};
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     pub index: I,
     pub value: BigUint,
@@ -21,7 +21,7 @@ where
 impl<I> From<RawIndexedElement<I>> for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn from(value: RawIndexedElement<I>) -> Self {
         IndexedElement {
@@ -35,7 +35,7 @@ where
 impl<I> PartialEq for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn eq(&self, other: &Self) -> bool {
         self.value == other.value
@@ -47,14 +47,14 @@ where
 impl<I> Eq for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
 }
 
 impl<I> PartialOrd for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -64,7 +64,7 @@ where
 impl<I> Ord for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.value.cmp(&other.value)
@@ -74,7 +74,7 @@ where
 impl<I> IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     pub fn index(&self) -> usize {
         self.index.into()
@@ -110,7 +110,7 @@ where
 pub struct IndexedElementBundle<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     pub new_low_element: IndexedElement<I>,
     pub new_element: IndexedElement<I>,
@@ -122,7 +122,7 @@ pub struct IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     pub elements: Vec<IndexedElement<I>>,
     pub current_node_index: I,
@@ -136,7 +136,7 @@ impl<H, I> Default for IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn default() -> Self {
         Self {
@@ -157,8 +157,21 @@ impl<H, I> IndexedArray<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
+    pub fn new(value: BigUint, next_value: BigUint) -> Self {
+        Self {
+            current_node_index: I::zero(),
+            highest_element_index: I::zero(),
+            highest_value: next_value,
+            elements: vec![IndexedElement {
+                index: I::zero(),
+                value,
+                next_index: I::zero(),
+            }],
+            _hasher: PhantomData,
+        }
+    }
     pub fn get(&self, index: usize) -> Option<&IndexedElement<I>> {
         self.elements.get(index)
     }
@@ -235,7 +248,7 @@ where
         value: &BigUint,
     ) -> Result<(IndexedElement<I>, BigUint), IndexedArrayError> {
         let low_element_index = self.find_low_element_index_for_nonexistent(value)?;
-        let low_element = self.elements[usize::from(low_element_index)].clone();
+        let low_element = self.elements[low_element_index.into()].clone();
         Ok((
             low_element.clone(),
             self.elements[low_element.next_index()].value.clone(),
@@ -254,7 +267,7 @@ where
         value: &BigUint,
     ) -> Result<I, IndexedArrayError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
-            if self.elements[usize::from(node.next_index)].value == *value {
+            if self.elements[node.next_index.into()].value == *value {
                 let i = i
                     .try_into()
                     .map_err(|_| IndexedArrayError::IntegerOverflow)?;
@@ -276,7 +289,7 @@ where
         value: &BigUint,
     ) -> Result<IndexedElement<I>, IndexedArrayError> {
         let low_element_index = self.find_low_element_index_for_existent(value)?;
-        let low_element = self.elements[usize::from(low_element_index)].clone();
+        let low_element = self.elements[low_element_index.into()].clone();
         Ok(low_element)
     }
 
@@ -288,11 +301,11 @@ where
     pub fn hash_element(&self, index: I) -> Result<[u8; 32], IndexedArrayError> {
         let element = self
             .elements
-            .get(usize::from(index))
+            .get(index.into())
             .ok_or(IndexedArrayError::IndexHigherThanMax)?;
         let next_element = self
             .elements
-            .get(usize::from(element.next_index))
+            .get(element.next_index.into())
             .ok_or(IndexedArrayError::IndexHigherThanMax)?;
         element.hash::<H>(&next_element.value)
     }
@@ -304,7 +317,7 @@ where
         low_element_index: I,
         value: &BigUint,
     ) -> Result<IndexedElementBundle<I>, IndexedArrayError> {
-        let mut new_low_element = self.elements[usize::from(low_element_index)].clone();
+        let mut new_low_element = self.elements[low_element_index.into()].clone();
 
         let new_element_index = self
             .current_node_index
@@ -318,9 +331,11 @@ where
 
         new_low_element.next_index = new_element_index;
 
-        let new_element_next_value = self.elements[usize::from(new_element.next_index)]
-            .value
-            .clone();
+        let new_element_next_value = if new_element.next_index == I::zero() {
+            self.highest_value.clone()
+        } else {
+            self.elements[new_element.next_index.into()].value.clone()
+        };
 
         Ok(IndexedElementBundle {
             new_low_element,
@@ -347,7 +362,7 @@ where
     ) -> Result<IndexedElementBundle<I>, IndexedArrayError> {
         // TOD0: add length check, and add field to with tree height here
 
-        let old_low_element = &self.elements[usize::from(low_element_index)];
+        let old_low_element = &self.elements[low_element_index.into()];
 
         // Check that the `value` belongs to the range of `old_low_element`.
         if old_low_element.next_index == I::zero() {
@@ -365,7 +380,7 @@ where
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if value >= &self.elements[usize::from(old_low_element.next_index)].value {
+            if value >= &self.elements[old_low_element.next_index.into()].value {
                 return Err(IndexedArrayError::NewElementGreaterOrEqualToNextElement);
             }
         }
@@ -391,7 +406,7 @@ where
         self.elements.push(new_element_bundle.new_element.clone());
 
         // Update low element.
-        self.elements[usize::from(low_element_index)] = new_element_bundle.new_low_element.clone();
+        self.elements[low_element_index.into()] = new_element_bundle.new_low_element.clone();
 
         Ok(new_element_bundle)
     }
@@ -417,7 +432,7 @@ pub struct IndexingArrayIter<'a, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     indexing_array: &'a IndexedArray<H, I>,
     front: usize,
@@ -428,7 +443,7 @@ impl<'a, H, I> Iterator for IndexingArrayIter<'a, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     type Item = &'a IndexedElement<I>;
 
@@ -447,7 +462,7 @@ impl<H, I> DoubleEndedIterator for IndexingArrayIter<'_, H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
+    I: Into<usize>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.back >= self.front {
