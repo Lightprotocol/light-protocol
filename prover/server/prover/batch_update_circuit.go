@@ -16,15 +16,15 @@ import (
 
 type BatchUpdateCircuit struct {
 	PublicInputHash     frontend.Variable `gnark:",public"`
-	OldRoot             frontend.Variable `gnark:",private"`
-	NewRoot             frontend.Variable `gnark:",private"`
-	LeavesHashchainHash frontend.Variable `gnark:",private"`
+	OldRoot             frontend.Variable `gnark:",secret"`
+	NewRoot             frontend.Variable `gnark:",secret"`
+	LeavesHashchainHash frontend.Variable `gnark:",secret"`
 
-	TxHashes     []frontend.Variable   `gnark:"private"`
-	Leaves       []frontend.Variable   `gnark:"private"`
-	OldLeaves    []frontend.Variable   `gnark:"private"`
-	MerkleProofs [][]frontend.Variable `gnark:"private"`
-	PathIndices  []frontend.Variable   `gnark:"private"`
+	TxHashes     []frontend.Variable   `gnark:",secret"`
+	Leaves       []frontend.Variable   `gnark:",secret"`
+	OldLeaves    []frontend.Variable   `gnark:",secret"`
+	MerkleProofs [][]frontend.Variable `gnark:",secret"`
+	PathIndices  []frontend.Variable   `gnark:",secret"`
 
 	Height    uint32
 	BatchSize uint32
