@@ -113,7 +113,7 @@ pub fn create_withdrawal_escrow_instruction(
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let timelock_pda = get_timelock_pda(input_params.signer);
     // Token transactions with an invalid signer will just fail with invalid proof verification.
-    // Thus, it's recommented to use create_inputs_and_remaining_accounts_checked, which returns a descriptive error in case of a wrong signer.
+    // Thus, it's recommended to use create_inputs_and_remaining_accounts_checked, which returns a descriptive error in case of a wrong signer.
     // We use unchecked here to perform a failing test with an invalid signer.
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_token_data,

@@ -30,7 +30,7 @@ where
 /// the caller.
 ///
 /// The `T` type needs to be either a primitive or struct consisting of
-/// primitives. It cannot contain any nested heap-backed stucture (like vectors,
+/// primitives. It cannot contain any nested heap-backed structure (like vectors,
 /// slices etc.).
 pub unsafe fn read_bounded_vec_at<T>(
     bytes: &[u8],
