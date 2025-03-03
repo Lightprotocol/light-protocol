@@ -17,9 +17,9 @@ type LegacyNonInclusionProofInputsJSON struct {
 }
 
 type LegacyNonInclusionParametersJSON struct {
-	CircuitType       CircuitType                   `json:"circuitType"`
-	AddressTreeHeight uint32                        `json:"addressTreeHeight"`
-	Inputs            []NonInclusionProofInputsJSON `json:"newAddresses"`
+	CircuitType       CircuitType                         `json:"circuitType"`
+	AddressTreeHeight uint32                              `json:"addressTreeHeight"`
+	Inputs            []LegacyNonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
 func LegacyParseNonInclusion(inputJSON string) (LegacyNonInclusionParameters, error) {
@@ -38,7 +38,7 @@ func (p *LegacyNonInclusionParameters) LegacyMarshalJSON() ([]byte, error) {
 
 func (p *LegacyNonInclusionParameters) LegacyCreateNonInclusionParametersJSON() LegacyNonInclusionParametersJSON {
 	paramsJson := LegacyNonInclusionParametersJSON{}
-	paramsJson.Inputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+	paramsJson.Inputs = make([]LegacyNonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Value = toHex(&p.Inputs[i].Value)
@@ -46,10 +46,10 @@ func (p *LegacyNonInclusionParameters) LegacyCreateNonInclusionParametersJSON() 
 		paramsJson.Inputs[i].PathElements = make([]string, len(p.Inputs[i].PathElements))
 		for j := 0; j < len(p.Inputs[i].PathElements); j++ {
 			paramsJson.Inputs[i].PathElements[j] = toHex(&p.Inputs[i].PathElements[j])
+			paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
 		}
 		paramsJson.Inputs[i].LeafLowerRangeValue = toHex(&p.Inputs[i].LeafLowerRangeValue)
 		paramsJson.Inputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
-		paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
 	}
 	return paramsJson
 }

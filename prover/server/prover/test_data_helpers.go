@@ -62,12 +62,9 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		var leafLower = big.NewInt(0)
 		var leafUpper = big.NewInt(2)
 		var pathIndex int
-		var nextIndex int
 		if random {
 			leafLower = big.NewInt(int64(rangeIn(0, 1000)))
 			leafUpper.Add(leafUpper, leafLower)
-			numberOfLeaves := 1 << depth
-			nextIndex = rand.Intn(numberOfLeaves)
 			if valid {
 				value.Add(leafLower, big.NewInt(1))
 			} else {
@@ -81,7 +78,6 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		} else {
 			leafLower = big.NewInt(1)
 			leafUpper = big.NewInt(123)
-			nextIndex = 1
 			if valid {
 				value = big.NewInt(2)
 			} else {
@@ -90,7 +86,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 			pathIndex = 0
 		}
 
-		leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(nextIndex)), leafUpper})
+		leaf, err := poseidon.Hash([]*big.Int{leafLower, leafUpper})
 		if err != nil {
 			fmt.Println("error: ", err)
 		}
@@ -101,7 +97,6 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		inputs[i].Root = tree.Root.Value()
 		inputs[i].LeafLowerRangeValue = *leafLower
 		inputs[i].LeafHigherRangeValue = *leafUpper
-		inputs[i].NextIndex = uint32(nextIndex)
 		values[i] = value
 		roots[i] = &inputs[i].Root
 	}
@@ -334,11 +329,10 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *mer
 		BatchSize:       batchSize,
 		Tree:            tree,
 
-		LowElementValues:      make([]big.Int, batchSize),
-		LowElementIndices:     make([]big.Int, batchSize),
-		LowElementNextIndices: make([]big.Int, batchSize),
-		LowElementNextValues:  make([]big.Int, batchSize),
-		NewElementValues:      make([]big.Int, batchSize),
+		LowElementValues:     make([]big.Int, batchSize),
+		LowElementIndices:    make([]big.Int, batchSize),
+		LowElementNextValues: make([]big.Int, batchSize),
+		NewElementValues:     make([]big.Int, batchSize),
 
 		LowElementProofs: make([][]big.Int, batchSize),
 		NewElementProofs: make([][]big.Int, batchSize),
@@ -359,7 +353,6 @@ func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *mer
 
 		params.LowElementValues[i].Set(lowElement.Value)
 		params.LowElementIndices[i].SetUint64(uint64(lowElement.Index))
-		params.LowElementNextIndices[i].SetUint64(uint64(lowElement.NextIndex))
 		params.LowElementNextValues[i].Set(lowElement.NextValue)
 		params.NewElementValues[i].Set(newValues[i])
 
