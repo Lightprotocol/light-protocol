@@ -287,9 +287,7 @@ pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
         .create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
         .await
         .unwrap();
-    println!("create mint: {:?}", res);
     assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
-    println!("Mint created");
     mint.pubkey()
 }
 
