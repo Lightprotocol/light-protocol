@@ -154,7 +154,7 @@ bytemuck = { version = "1.19.0" }
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
 zerocopy = { version = "0.8.20" }
-base64 = "0.13"
+base64 = "0.21"
 
 # HTTP client
 reqwest = "0.11"
