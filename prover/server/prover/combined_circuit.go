@@ -9,8 +9,8 @@ import (
 
 type CombinedCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
-	Inclusion       InclusionProof    `gnark:",input"`
-	NonInclusion    NonInclusionProof `gnark:",input"`
+	Inclusion       InclusionProof    `gnark:"input"`
+	NonInclusion    NonInclusionProof `gnark:"input"`
 }
 
 func (circuit *CombinedCircuit) Define(api frontend.API) error {
@@ -36,7 +36,6 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 
 		LeafLowerRangeValues:  circuit.NonInclusion.LeafLowerRangeValues,
 		LeafHigherRangeValues: circuit.NonInclusion.LeafHigherRangeValues,
-		NextIndices:           circuit.NonInclusion.NextIndices,
 
 		InPathElements: circuit.NonInclusion.InPathElements,
 		InPathIndices:  circuit.NonInclusion.InPathIndices,

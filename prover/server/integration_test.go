@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
@@ -197,6 +198,7 @@ func testInclusionHappyPath32_12348(t *testing.T) {
 func testNonInclusionHappyPath40_12348(t *testing.T) {
 	for _, compressedAccounts := range []int{1, 2} {
 		tree := prover.BuildValidTestNonInclusionTree(40, compressedAccounts, false)
+		fmt.Printf("%+v", tree)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
 
@@ -428,7 +430,7 @@ func testBatchAddressAppendHappyPath40_1000(t *testing.T) {
 }
 
 func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, 2)
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, 1)
 	if err != nil {
 		t.Fatalf("Failed to build test tree: %v", err)
 	}
@@ -465,7 +467,7 @@ func testBatchAddressAppendWithPreviousState40_100(t *testing.T) {
 }
 
 func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	startIndex := uint64(2)
+	startIndex := uint64(1)
 	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build first test tree: %v", err)

@@ -11,12 +11,12 @@ type InclusionCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 
 	// hashed public inputs
-	Roots  []frontend.Variable `gnark:",input"`
-	Leaves []frontend.Variable `gnark:",input"`
+	Roots  []frontend.Variable `gnark:"input"`
+	Leaves []frontend.Variable `gnark:"input"`
 
 	// private inputs
-	InPathIndices  []frontend.Variable   `gnark:",input"`
-	InPathElements [][]frontend.Variable `gnark:",input"`
+	InPathIndices  []frontend.Variable   `gnark:"input"`
+	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
 	Height                     uint32

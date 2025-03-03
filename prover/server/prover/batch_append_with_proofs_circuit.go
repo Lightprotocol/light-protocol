@@ -15,14 +15,14 @@ import (
 
 type BatchAppendWithProofsCircuit struct {
 	PublicInputHash     frontend.Variable `gnark:",public"`
-	OldRoot             frontend.Variable `gnark:",private"`
-	NewRoot             frontend.Variable `gnark:",private"`
-	LeavesHashchainHash frontend.Variable `gnark:",private"`
-	StartIndex          frontend.Variable `gnark:",private"`
+	OldRoot             frontend.Variable `gnark:",secret"`
+	NewRoot             frontend.Variable `gnark:",secret"`
+	LeavesHashchainHash frontend.Variable `gnark:",secret"`
+	StartIndex          frontend.Variable `gnark:",secret"`
 
-	OldLeaves    []frontend.Variable   `gnark:",private"`
-	Leaves       []frontend.Variable   `gnark:",private"`
-	MerkleProofs [][]frontend.Variable `gnark:",private"`
+	OldLeaves    []frontend.Variable   `gnark:",secret"`
+	Leaves       []frontend.Variable   `gnark:",secret"`
+	MerkleProofs [][]frontend.Variable `gnark:",secret"`
 
 	Height    uint32
 	BatchSize uint32
@@ -53,9 +53,9 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 	api.AssertIsEqual(leavesHashchainHash, circuit.LeavesHashchainHash)
 
 	newRoot := circuit.OldRoot
-	indexBits := api.ToBinary(circuit.StartIndex, int(circuit.Height))
 
 	for i := 0; i < int(circuit.BatchSize); i++ {
+		indexBits := api.ToBinary(api.Add(circuit.StartIndex, i), int(circuit.Height))
 		newRoot = abstractor.Call(api, MerkleRootUpdateGadget{
 			OldRoot:     newRoot,
 			OldLeaf:     circuit.OldLeaves[i],
@@ -64,7 +64,6 @@ func (circuit *BatchAppendWithProofsCircuit) Define(api frontend.API) error {
 			MerkleProof: circuit.MerkleProofs[i],
 			Height:      int(circuit.Height),
 		})
-		indexBits = incrementBits(api, indexBits)
 	}
 
 	api.AssertIsEqual(newRoot, circuit.NewRoot)

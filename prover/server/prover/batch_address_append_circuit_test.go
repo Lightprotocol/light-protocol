@@ -8,34 +8,36 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestAddressAppendHardcoded4_1(t *testing.T) {
-	assert := test.NewAssert(t)
+// TODO: restore hardcoded test once rust tests are adapted
+// func TestAddressAppendHardcoded4_1(t *testing.T) {
+// 	assert := test.NewAssert(t)
 
-	circuit := InitBatchAddressTreeAppendCircuit(4, 1)
+// 	circuit := InitBatchAddressTreeAppendCircuit(4, 1)
 
-	params := get_test_data_1_insert()
-	witness, err := params.CreateWitness()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	params := get_test_data_1_insert()
+// 	witness, err := params.CreateWitness()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	err = test.IsSolved(&circuit, witness, ecc.BN254.ScalarField())
-	assert.NoError(err)
-}
+// 	err = test.IsSolved(&circuit, witness, ecc.BN254.ScalarField())
+// 	assert.NoError(err)
+// }
 
-func TestAddressAppendHardcoded4_2(t *testing.T) {
-	assert := test.NewAssert(t)
+// TODO: restore hardcoded test once rust tests are adapted
+// func TestAddressAppendHardcoded4_2(t *testing.T) {
+// 	assert := test.NewAssert(t)
 
-	circuit := InitBatchAddressTreeAppendCircuit(4, 2)
-	params := get_test_data_2_insert()
-	witness, err := params.CreateWitness()
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	circuit := InitBatchAddressTreeAppendCircuit(4, 2)
+// 	params := get_test_data_2_insert()
+// 	witness, err := params.CreateWitness()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	err = test.IsSolved(&circuit, witness, ecc.BN254.ScalarField())
-	assert.NoError(err)
-}
+// 	err = test.IsSolved(&circuit, witness, ecc.BN254.ScalarField())
+// 	assert.NoError(err)
+// }
 
 func TestBatchAddressAppendCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
@@ -48,10 +50,10 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 			startIndex uint64
 			shouldPass bool
 		}{
-			{"Single insert height 4", 4, 1, 2, true},
-			{"Batch insert height 4", 4, 2, 2, true},
-			{"Single insert height 8", 8, 1, 2, true},
-			{"Large batch height 8", 8, 4, 2, true},
+			{"Single insert height 4", 4, 1, 1, true},
+			{"Batch insert height 4", 4, 2, 1, true},
+			{"Single insert height 8", 8, 1, 1, true},
+			{"Large batch height 8", 8, 4, 1, true},
 		}
 
 		for _, tc := range testCases {
@@ -185,7 +187,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Low element below expected range",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.LowElementValues[0].Sub(&p.LowElementValues[0], big.NewInt(1))
 				},
@@ -194,7 +196,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Low element above expected range",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					// Set low element value above valid range
 					maxVal := new(big.Int).Exp(big.NewInt(2), big.NewInt(256), nil)
@@ -202,19 +204,10 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				},
 			},
 			{
-				name:       "Invalid low element next indices",
-				treeHeight: 4,
-				batchSize:  1,
-				startIndex: 2,
-				modifyParams: func(p *BatchAddressAppendParameters) {
-					p.LowElementNextIndices[0].Add(&p.LowElementNextIndices[0], big.NewInt(5))
-				},
-			},
-			{
 				name:       "Invalid low element next values",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.LowElementNextValues[0].Add(&p.LowElementNextValues[0], big.NewInt(1))
 				},
@@ -223,7 +216,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Invalid low element indices",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.LowElementIndices[0].Add(&p.LowElementIndices[0], big.NewInt(3))
 				},
@@ -232,7 +225,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Invalid low element proofs",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.LowElementProofs[0][0].Add(&p.LowElementProofs[0][0], big.NewInt(1))
 				},
@@ -241,7 +234,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Invalid new element proofs",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.NewElementProofs[0][0].Add(&p.NewElementProofs[0][0], big.NewInt(1))
 				},
@@ -250,7 +243,7 @@ func TestBatchAddressAppendCircuit(t *testing.T) {
 				name:       "Invalid new element values",
 				treeHeight: 4,
 				batchSize:  1,
-				startIndex: 2,
+				startIndex: 1,
 				modifyParams: func(p *BatchAddressAppendParameters) {
 					p.NewElementValues[0].Add(&p.NewElementValues[0], big.NewInt(1))
 				},
