@@ -2156,7 +2156,7 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "solana-transaction-status",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
  "tracing-appender",
@@ -2188,7 +2188,7 @@ dependencies = [
  "num-traits",
  "reqwest",
  "solana-sdk",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -3097,7 +3097,7 @@ version = "0.1.0"
 dependencies = [
  "borsh 0.10.3",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3120,7 +3120,7 @@ dependencies = [
  "rand 0.8.5",
  "serial_test",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
  "zerocopy 0.8.20",
 ]
@@ -3135,7 +3135,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3179,7 +3179,7 @@ dependencies = [
  "solana-sdk",
  "solana-transaction-status",
  "spl-token",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
  "tracing",
 ]
@@ -3200,7 +3200,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "zerocopy 0.8.20",
 ]
 
@@ -3240,7 +3240,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-program",
  "spl-concurrent-merkle-tree",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -3256,7 +3256,7 @@ dependencies = [
  "num-traits",
  "rand 0.8.5",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3268,7 +3268,7 @@ dependencies = [
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3292,7 +3292,7 @@ dependencies = [
  "num-traits",
  "rand 0.8.5",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3314,7 +3314,7 @@ dependencies = [
  "bytemuck",
  "light-compressed-account",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "zerocopy 0.8.20",
 ]
 
@@ -3325,7 +3325,7 @@ dependencies = [
  "light-bounded-vec",
  "light-hasher",
  "num-bigint 0.4.6",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3415,7 +3415,7 @@ dependencies = [
  "serial_test",
  "solana-program",
  "sysinfo",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -3523,7 +3523,7 @@ dependencies = [
  "solana-sdk",
  "spl-token",
  "spl-token-2022 3.0.5",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3552,7 +3552,7 @@ dependencies = [
  "reqwest",
  "serial_test",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "tokio",
 ]
 
@@ -3562,7 +3562,7 @@ version = "0.1.0"
 dependencies = [
  "rand 0.8.5",
  "solana-program",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
  "zerocopy 0.8.20",
 ]
 
@@ -4794,7 +4794,7 @@ checksum = "dd6f9d3d47bdd2ad6945c5015a226ec6155d0bcdfd8f7cd29f86b71f8de99d2b"
 dependencies = [
  "getrandom 0.2.15",
  "libredox",
- "thiserror 2.0.11",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -7417,11 +7417,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.11"
+version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d452f284b73e6d76dd36758a0c8684b1d5be31f92b89d07fd5822175732206fc"
+checksum = "567b8a2dae586314f7be2a752ec7474332959c6460e02bde30d702a66d488708"
 dependencies = [
- "thiserror-impl 2.0.11",
+ "thiserror-impl 2.0.12",
 ]
 
 [[package]]
@@ -7437,9 +7437,9 @@ dependencies = [
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.11"
+version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26afc1baea8a989337eeb52b6e72a039780ce45c3edfcc9c5b9d112feeb173c2"
+checksum = "7f7cf42b4507d8ea322120659672cf1b9dbb93f8f2d4ecfd6e51350ff5b17a1d"
 dependencies = [
  "proc-macro2",
  "quote",
