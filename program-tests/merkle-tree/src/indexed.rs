@@ -1,18 +1,17 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::DerefMut};
 
-use light_bounded_vec::{BoundedVec, BoundedVecError};
-use light_concurrent_merkle_tree::light_hasher::{errors::HasherError, Hasher};
-use light_merkle_tree_reference::{MerkleTree, ReferenceMerkleTreeError};
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_compressed_account::bigint::bigint_to_be_bytes_array;
+use light_hasher::{Hasher, HasherError};
+use light_indexed_array::{
+    array::{IndexedArray, IndexedElement},
+    errors::IndexedArrayError,
+    HIGHEST_ADDRESS_PLUS_ONE,
+};
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 use thiserror::Error;
 
-use crate::{
-    array::{IndexedArray, IndexedElement},
-    errors::IndexedMerkleTreeError,
-    HIGHEST_ADDRESS_PLUS_ONE,
-};
+use crate::{MerkleTree, ReferenceMerkleTreeError};
 
 #[derive(Debug, Error)]
 pub enum IndexedReferenceMerkleTreeError {
@@ -21,13 +20,11 @@ pub enum IndexedReferenceMerkleTreeError {
     #[error("NonInclusionProofFailedHigherBoundViolated")]
     NonInclusionProofFailedHigherBoundViolated,
     #[error(transparent)]
-    Indexed(#[from] IndexedMerkleTreeError),
+    Indexed(#[from] IndexedArrayError),
     #[error(transparent)]
     Reference(#[from] ReferenceMerkleTreeError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
-    #[error(transparent)]
-    BoundedVec(#[from] BoundedVecError),
 }
 
 #[derive(Debug, Clone)]
@@ -53,11 +50,17 @@ where
     ) -> Result<Self, IndexedReferenceMerkleTreeError> {
         let mut merkle_tree = MerkleTree::new(height, canopy_depth);
 
-        // Append the first low leaf, which has value 0 and does not point
-        // to any other leaf yet.
-        // This low leaf is going to be updated during the first `update`
-        // operation.
-        merkle_tree.append(&H::zero_indexed_leaf())?;
+        let mut indexed_array = IndexedArray::<H, I>::default();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        // let new_low_leaf = nullifier_bundle
+        //     .new_low_element
+        //     .hash::<H>(&nullifier_bundle.new_element.value)?;
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        merkle_tree.append(&new_leaf)?;
+        assert_eq!(merkle_tree.leaf(0), new_leaf);
 
         Ok(Self {
             merkle_tree,
@@ -65,61 +68,39 @@ where
         })
     }
 
-    /// Initializes the reference indexed merkle tree on par with the
-    /// on-chain indexed concurrent merkle tree.
-    /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
-    pub fn init(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
-        let mut indexed_array = IndexedArray::<H, I>::default();
-        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
-        let new_low_leaf = nullifier_bundle
-            .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
+    // /// Initializes the reference indexed merkle tree on par with the
+    // /// on-chain indexed concurrent merkle tree.
+    // /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
+    // pub fn init(&mut self) -> Result<(), ReferenceMerkleTreeError> {
+    //     let mut indexed_array = IndexedArray::<H, I>::default();
+    //     let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+    //     let nullifier_bundle = indexed_array.append(&init_value)?;
+    //     let new_low_leaf = nullifier_bundle
+    //         .new_low_element
+    //         .hash::<H>(&nullifier_bundle.new_element.value)?;
 
-        self.merkle_tree.update(&new_low_leaf, 0)?;
-        let new_leaf = nullifier_bundle
-            .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        self.merkle_tree.append(&new_leaf)?;
-        Ok(())
-    }
-
-    /// Initializes the reference indexed merkle tree on par with the
-    /// on-chain indexed concurrent merkle tree.
-    /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
-    pub fn init_opt(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
-        let mut indexed_array = IndexedArray::<H, I>::default();
-        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
-        let new_low_leaf = nullifier_bundle
-            .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
-
-        self.merkle_tree.update(&new_low_leaf, 0)?;
-        let new_leaf = nullifier_bundle
-            .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        self.merkle_tree.append(&new_leaf)?;
-        Ok(())
-    }
+    //     self.merkle_tree.update(&new_low_leaf, 0)?;
+    //     let new_leaf = nullifier_bundle
+    //         .new_element
+    //         .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+    //     self.merkle_tree.append(&new_leaf)?;
+    //     Ok(())
+    // }
 
     pub fn get_path_of_leaf(
         &self,
         index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, IndexedReferenceMerkleTreeError> {
-        let path = self.merkle_tree.get_path_of_leaf(index, full)?;
-        Ok(BoundedVec::from_slice(path.as_slice()))
+    ) -> Result<Vec<[u8; 32]>, ReferenceMerkleTreeError> {
+        self.merkle_tree.get_path_of_leaf(index, full)
     }
 
     pub fn get_proof_of_leaf(
         &self,
         index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, IndexedReferenceMerkleTreeError> {
-        Ok(BoundedVec::from_slice(
-            self.merkle_tree.get_proof_of_leaf(index, full)?.as_slice(),
-        ))
+    ) -> Result<Vec<[u8; 32]>, ReferenceMerkleTreeError> {
+        self.merkle_tree.get_proof_of_leaf(index, full)
     }
 
     pub fn root(&self) -> [u8; 32] {
@@ -213,7 +194,8 @@ where
         };
         let leaf_hash = array_element.hash::<H>(&higher_end_value)?;
         self.merkle_tree
-            .verify(&leaf_hash, proof.merkle_proof.as_slice(), proof.leaf_index)?;
+            .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)
+            .unwrap();
         Ok(())
     }
 }
@@ -230,5 +212,5 @@ pub struct NonInclusionProof {
     pub leaf_higher_range_value: [u8; 32],
     pub leaf_index: usize,
     pub next_index: usize,
-    pub merkle_proof: BoundedVec<[u8; 32]>,
+    pub merkle_proof: Vec<[u8; 32]>,
 }

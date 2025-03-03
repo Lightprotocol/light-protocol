@@ -280,7 +280,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(0, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let event = migrate_state(
@@ -310,7 +310,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(1, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let event = migrate_state(
@@ -337,7 +337,7 @@ mod migrate_state_test {
             proof: ref_merkle_tree
                 .get_proof_of_leaf(2, false)
                 .unwrap()
-                .to_array()
+                .try_into()
                 .unwrap(),
         };
         // Failing 3 Invalid Proof
@@ -467,7 +467,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(leaf_index, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let current_batch = output_queue.batch_metadata.currently_processing_batch_index;

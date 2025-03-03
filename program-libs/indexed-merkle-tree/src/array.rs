@@ -96,7 +96,6 @@ where
             self.next_index.to_be_bytes().as_ref(),
             bigint_to_be_bytes_array::<32>(next_value)?.as_ref(),
         ])?;
-
         Ok(hash)
     }
 
