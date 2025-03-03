@@ -15,6 +15,7 @@ import {
     Struct,
     boolean,
     optional,
+    lazy,
 } from 'superstruct';
 import {
     BN254,
@@ -298,6 +299,41 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
 /**
  * @internal
  */
+// export const CompressedAccountResult = pick({
+//     address: nullable(ArrayFromString),
+//     hash: BN254FromString,
+//     data: nullable(
+//         pick({
+//             data: Base64EncodedCompressedAccountDataResult,
+//             dataHash: BN254FromString,
+//             discriminator: BNFromStringOrNumber,
+//         }),
+//     ),
+//     lamports: BNFromStringOrNumber,
+//     owner: PublicKeyFromString,
+//     leafIndex: number(),
+//     tree: PublicKeyFromString,
+//     seq: nullable(BNFromStringOrNumber),
+//     slotCreated: BNFromStringOrNumber,
+//     queue: PublicKeyFromString,
+//     proveByIndex: boolean(),
+// });
+const ContextInfoResult = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+});
+const MerkleContextResultV2 = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+    nextContext: nullable(ContextInfoResult),
+});
+/**
+ * @internal
+ */
 export const CompressedAccountResultV2 = pick({
     address: nullable(ArrayFromString),
     hash: BN254FromString,
@@ -311,12 +347,10 @@ export const CompressedAccountResultV2 = pick({
     lamports: BNFromStringOrNumber,
     owner: PublicKeyFromString,
     leafIndex: number(),
-    tree: PublicKeyFromString,
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
-    queue: PublicKeyFromString,
     proveByIndex: boolean(),
-    treeType: number(),
+    merkleContext: MerkleContextResultV2,
 });
 
 export const TokenDataResult = pick({

@@ -310,7 +310,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const tree = new MerkleTree(
                 treeDepth,
                 this.lightWasm,
-                leaves.map(leaf => bn(leaf).toString()),
+                [],
+                // leaves.map(leaf => bn(leaf).toString()),
             );
 
             for (let i = 0; i < hashes.length; i++) {

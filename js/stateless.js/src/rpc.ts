@@ -136,11 +136,11 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         const compressedAccount: CompressedAccountWithMerkleContext =
             createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    _account.tree,
-                    _account.queue,
+                    _account.merkleContext.tree,
+                    _account.merkleContext.queue,
                     _account.hash.toArray('be', 32),
                     _account.leafIndex,
-                    _account.treeType,
+                    _account.merkleContext.treeType,
                     _account.proveByIndex,
                 ),
                 _account.owner,
@@ -706,11 +706,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const account = createCompressedAccountWithMerkleContext(
             createMerkleContext(
-                item.tree,
-                item.queue,
+                item.merkleContext.tree,
+                item.merkleContext.queue,
                 item.hash.toArray('be', 32),
                 item.leafIndex,
-                item.treeType,
+                item.merkleContext.treeType,
                 item.proveByIndex,
             ),
             item.owner,
@@ -863,11 +863,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
         res.result.value.items.map(item => {
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    item.tree,
-                    item.queue,
+                    item.merkleContext.tree,
+                    item.merkleContext.queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
-                    item.treeType,
+                    item.merkleContext.treeType,
                     item.proveByIndex,
                 ),
                 item.owner,
@@ -950,6 +950,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 limit: config?.limit?.toNumber(),
             },
         );
+        console.log(
+            'unsafeRes',
+            unsafeRes.result?.value?.items?.[0]?.merkleContext,
+        );
 
         const res = create(
             unsafeRes,
@@ -975,11 +979,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
         items.map(item => {
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    item.tree,
-                    item.queue,
+                    item.merkleContext.tree,
+                    item.merkleContext.queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
-                    item.treeType,
+                    item.merkleContext.treeType,
                     item.proveByIndex,
                 ),
                 item.owner,
