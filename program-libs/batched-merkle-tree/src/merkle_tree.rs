@@ -298,7 +298,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 2. element:
             // H(452312848583266388373324160190187140051835877600158453279131187530910662655, 0, 0)
             // ... other elements: 0
-            account_metadata.next_index = 2;
+            account_metadata.next_index = 1;
         }
         let next_index = account_metadata.next_index;
 

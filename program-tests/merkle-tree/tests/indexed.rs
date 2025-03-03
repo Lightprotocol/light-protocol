@@ -1,6 +1,5 @@
 use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_hasher::{Hasher, Poseidon};
-use light_indexed_array::array::IndexedArray;
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 use num_bigint::ToBigUint;
 
@@ -9,15 +8,11 @@ const MERKLE_TREE_CANOPY: usize = 0;
 
 #[test]
 pub fn functional_non_inclusion_test() {
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-
     // appends the first element
     let mut relayer_merkle_tree =
         IndexedMerkleTree::<Poseidon, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY).unwrap();
     let nullifier1 = 30_u32.to_biguint().unwrap();
-    relayer_merkle_tree
-        .append(&nullifier1, &mut relayer_indexing_array)
-        .unwrap();
+    relayer_merkle_tree.append(&nullifier1).unwrap();
     // indexed array:
     // element: 0
     // value: 0
@@ -30,11 +25,11 @@ pub fn functional_non_inclusion_test() {
     // merkle tree:
     // leaf index: 0 = H(0, 1, 30) //Hash(value, next_index, next_value)
     // leaf index: 1 = H(30, 0, 0)
-    let indexed_array_element_0 = relayer_indexing_array.get(0).unwrap();
+    let indexed_array_element_0 = relayer_merkle_tree.indexed_array.get(0).unwrap();
     assert_eq!(indexed_array_element_0.value, 0_u32.to_biguint().unwrap());
     assert_eq!(indexed_array_element_0.next_index, 1);
     assert_eq!(indexed_array_element_0.index, 0);
-    let indexed_array_element_1 = relayer_indexing_array.get(1).unwrap();
+    let indexed_array_element_1 = relayer_merkle_tree.indexed_array.get(1).unwrap();
     assert_eq!(indexed_array_element_1.value, 30_u32.to_biguint().unwrap());
     assert_eq!(indexed_array_element_1.next_index, 0);
     assert_eq!(indexed_array_element_1.index, 1);
@@ -59,7 +54,7 @@ pub fn functional_non_inclusion_test() {
     );
 
     let non_inclusion_proof = relayer_merkle_tree
-        .get_non_inclusion_proof(&10_u32.to_biguint().unwrap(), &relayer_indexing_array)
+        .get_non_inclusion_proof(&10_u32.to_biguint().unwrap())
         .unwrap();
     assert_eq!(non_inclusion_proof.root, relayer_merkle_tree.root());
     assert_eq!(

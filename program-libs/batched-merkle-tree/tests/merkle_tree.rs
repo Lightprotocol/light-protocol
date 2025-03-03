@@ -1300,7 +1300,7 @@ pub async fn perform_address_update(
                 account.get_metadata().queue_batches.batch_size as u32,
                 account.get_metadata().queue_batches.zkp_batch_size as u32,
                 *leaves_hash_chain,
-                next_index as usize, // % batch.zkp_batch_size as usize
+                next_index as usize,
                 batch_start_index as usize,
                 *current_root,
             )
@@ -1308,6 +1308,7 @@ pub async fn perform_address_update(
             .unwrap();
 
         mock_indexer.finalize_batch_address_update(10);
+        assert_eq!(mock_indexer.merkle_tree.root(), new_root);
         let instruction_data = InstructionDataBatchNullifyInputs {
             new_root,
             compressed_proof: CompressedProof {
