@@ -8,7 +8,7 @@ default = []
 devenv = []
 
 [dependencies]
-base64 = "0.2"
+base64 = "0.21"
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
