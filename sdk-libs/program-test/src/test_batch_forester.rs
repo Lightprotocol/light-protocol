@@ -3,7 +3,6 @@ use borsh::BorshSerialize;
 use forester_utils::{create_account_instruction, AccountZeroCopy};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
-    event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
         assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
@@ -89,16 +88,8 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
         epoch,
         data.try_to_vec().unwrap(),
     );
-    let res = rpc
-        .create_and_send_transaction_with_event::<BatchAppendEvent>(
-            &[instruction],
-            &forester.pubkey(),
-            &[forester],
-            None,
-        )
-        .await?
-        .unwrap();
-    Ok(res.1)
+    rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
+        .await
 }
 
 pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
@@ -257,16 +248,8 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
         epoch,
         data.try_to_vec().unwrap(),
     );
-    let res = rpc
-        .create_and_send_transaction_with_event::<BatchNullifyEvent>(
-            &[instruction],
-            &forester.pubkey(),
-            &[forester],
-            None,
-        )
-        .await?
-        .unwrap();
-    Ok(res.1)
+    rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
+        .await
 }
 
 pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
@@ -846,7 +829,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
             QueueType::BatchedAddress,
-            batch.zkp_batch_size,
+            batch.zkp_batch_size as u16,
             None,
         )
         .await

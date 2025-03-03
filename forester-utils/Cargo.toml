@@ -23,6 +23,9 @@ light-merkle-tree-metadata = { workspace = true }
 light-client = { workspace = true }
 light-account-checks = { workspace = true }
 
+tokio = { workspace = true }
+futures = { workspace = true }
+
 # Anchor
 anchor-lang = { workspace = true }
 

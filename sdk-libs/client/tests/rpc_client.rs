@@ -45,6 +45,7 @@ async fn test_all_endpoints() {
         }),
         wait_time: 60,
         sbf_programs: vec![],
+        limit_ledger_size: None,
     };
 
     spawn_validator(config).await;

@@ -43,6 +43,7 @@ async fn test_address_batched() {
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),
         )],
+        limit_ledger_size: None,
     }))
     .await;
 

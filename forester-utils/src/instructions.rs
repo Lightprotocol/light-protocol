@@ -28,6 +28,7 @@ use log::error;
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
+use tokio::time::sleep;
 
 #[derive(Error, Debug)]
 pub enum ForesterUtilsError {
@@ -74,9 +75,9 @@ where
             merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
         let start_index = merkle_tree.next_index;
         let current_root = *merkle_tree.root_history.last().unwrap();
-        let batch_size = batch.zkp_batch_size as usize;
+        let zkp_batch_size = batch.zkp_batch_size as u16;
 
-        (leaves_hash_chain, start_index, current_root, batch_size)
+        (leaves_hash_chain, start_index, current_root, zkp_batch_size)
     };
 
     let batch_start_index = indexer
@@ -92,7 +93,7 @@ where
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
             QueueType::BatchedAddress,
-            batch_size as u64,
+            batch_size,
             None
         )
         .await
@@ -214,7 +215,8 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchAppendInputs, ForesterUtilsError> {
-    let (merkle_tree_next_index, current_root) = {
+    println!("create_append_batch_ix_data");
+    let (merkle_tree_next_index, current_root, root_history) = {
         let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
@@ -225,8 +227,14 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         (
             merkle_tree.next_index,
             *merkle_tree.root_history.last().unwrap(),
+            merkle_tree.root_history.to_vec(),
         )
     };
+    log::debug!(
+        "merkle_tree_next_index: {:?} current_root: {:?}",
+        merkle_tree_next_index,
+        current_root
+    );
 
     let (zkp_batch_size, leaves_hash_chain) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
@@ -242,8 +250,15 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
 
         let leaves_hash_chain =
             output_queue.hash_chain_stores[full_batch_index as usize][num_inserted_zkps as usize];
-        (zkp_batch_size, leaves_hash_chain)
+        (zkp_batch_size as u16, leaves_hash_chain)
     };
+    log::debug!(
+        "zkp_batch_size: {:?} leaves_hash_chain: {:?}",
+        zkp_batch_size,
+        leaves_hash_chain
+    );
+
+    wait_for_indexer(rpc, indexer).await?;
 
     let indexer_response = indexer
         .get_queue_elements(
@@ -253,7 +268,20 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             None,
         )
         .await
-        .unwrap();
+        .map_err(|e| {
+            error!(
+                "create_append_batch_ix_data: failed to get queue elements from indexer: {:?}",
+                e
+            );
+            ForesterUtilsError::IndexerError("Failed to get queue elements".into())
+        })?;
+    log::debug!("get_queue_elements len: {}", indexer_response.len());
+    let indexer_root = indexer_response.first().unwrap().root;
+    debug_assert_eq!(
+        indexer_root, current_root,
+        "root_history: {:?}",
+        root_history
+    );
 
     let old_leaves = indexer_response
         .iter()
@@ -279,8 +307,13 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
                 merkle_proofs,
                 zkp_batch_size as u32,
             )
-            .unwrap();
-
+            .map_err(|e| {
+                error!(
+                    "create_append_batch_ix_data: failed to get circuit inputs: {:?}",
+                    e
+                );
+                ForesterUtilsError::ProverError("Failed to get circuit inputs".into())
+            })?;
         let client = Client::new();
         let inputs_json = BatchAppendWithProofsInputsJson::from_inputs(&circuit_inputs).to_string();
 
@@ -291,7 +324,6 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             .send()
             .await
             .expect("Failed to execute request.");
-
         if response.status().is_success() {
             let body = response.text().await.unwrap();
             let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -328,21 +360,37 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    let (zkp_batch_size, old_root, leaves_hash_chain) = {
+    log::debug!("create_nullify_batch_ix_data");
+    let (zkp_batch_size, old_root, root_history, leaves_hash_chain) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
             &merkle_tree_pubkey.into(),
         )
         .unwrap();
+
+        log::debug!("queue_batches: {:?}", merkle_tree.queue_batches);
+
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
         let zkp_idx = batch.get_num_inserted_zkps();
         let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
         let root = *merkle_tree.root_history.last().unwrap();
-        (zkp_size, root, hash_chain)
+        let root_history = merkle_tree.root_history.to_vec();
+        (zkp_size as u16, root, root_history, hash_chain)
     };
+    log::debug!(
+        "zkp_batch_size: {:?} old_root: {:?} : {:?}",
+        zkp_batch_size,
+        old_root,
+        leaves_hash_chain
+    );
+
+    wait_for_indexer(rpc, indexer).await?;
+
+    let current_slot = rpc.get_slot().await.unwrap();
+    log::debug!("current_slot: {}", current_slot);
 
     let leaf_indices_tx_hashes = indexer
         .get_queue_elements(
@@ -353,6 +401,12 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         )
         .await
         .unwrap();
+
+    log::debug!("get_queue_elements len: {}", leaf_indices_tx_hashes.len());
+
+    let indexer_root = leaf_indices_tx_hashes.first().unwrap().root;
+
+    debug_assert_eq!(indexer_root, old_root, "root_history: {:?}", root_history);
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
@@ -394,11 +448,10 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let client = Client::new();
 
     let json_str = update_inputs_string(&inputs);
-
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(json_str)
+        .body(json_str.clone())
         .send()
         .await
         .map_err(|e| {
@@ -420,17 +473,85 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
             c: proof_c,
         }
     } else {
-        error!(
-            "get_batched_nullify_ix_data: failed to get proof from server: {:?}",
-            response.text().await
+        log::error!(
+            "get_batched_nullify_ix_data: failed to get proof from server: {:?}, input: {:?}",
+            response.text().await,
+            json_str
         );
+        {
+            let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
+                account.data.as_mut_slice(),
+                &merkle_tree_pubkey.into(),
+            )
+            .unwrap();
+            let batched_output_queue = merkle_tree.metadata.associated_queue;
+            let mut output_queue_account = rpc
+                .get_account(Pubkey::from(batched_output_queue))
+                .await
+                .unwrap()
+                .unwrap();
+
+            let output_queue =
+                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
+                    .unwrap();
+
+            log::debug!("output queue metadata: {:?}", output_queue.get_metadata());
+            log::debug!("tree metadata: {:?}", merkle_tree.get_metadata());
+            log::debug!("root: {:?}", merkle_tree.get_root());
+            for (i, root) in merkle_tree.root_history.iter().enumerate() {
+                log::debug!("root {}: {:?}", i, root);
+            }
+        }
+
         return Err(ForesterUtilsError::ProverError(
             "Failed to get proof from server".into(),
         ));
     };
+    log::debug!("proof: {:?}", proof);
 
     Ok(InstructionDataBatchNullifyInputs {
         new_root,
         compressed_proof: proof,
     })
+}
+
+pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
+    indexer: &I,
+) -> Result<(), ForesterUtilsError> {
+    let rpc_slot = rpc
+        .get_slot()
+        .await
+        .map_err(|_| ForesterUtilsError::RpcError("Failed to get rpc slot".into()))?;
+
+    let mut indexer_slot = indexer
+        .get_indexer_slot(rpc)
+        .await
+        .map_err(|_| ForesterUtilsError::IndexerError("Failed to get indexer slot".into()))?;
+
+    let max_attempts = 20;
+    let mut attempts = 0;
+
+    while rpc_slot > indexer_slot {
+        if attempts >= max_attempts {
+            return Err(ForesterUtilsError::IndexerError(
+                "Maximum attempts reached waiting for indexer to catch up".into(),
+            ));
+        }
+
+        log::debug!(
+            "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
+            rpc_slot,
+            indexer_slot
+        );
+        sleep(std::time::Duration::from_millis(400)).await;
+        indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
+            log::error!("failed to get indexer slot from indexer: {:?}", e);
+            ForesterUtilsError::IndexerError("Failed to get indexer slot".into())
+        })?;
+
+        attempts += 1;
+    }
+    Ok(())
 }

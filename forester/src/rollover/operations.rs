@@ -143,10 +143,13 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             println!("tree next_index: {:?}", merkle_tree.next_index);
             println!("tree height: {:?}", merkle_tree.height);
 
-            // TODO: implement
-            let threshold = 0;
-            let next_index = 0;
-            let fullness = 0.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold = ((1 << height)
+                * merkle_tree.metadata.rollover_metadata.rollover_threshold
+                / 100) as usize;
+            let next_index = merkle_tree.next_index as usize;
+            let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
                 fullness,
@@ -157,9 +160,11 @@ pub async fn get_tree_fullness<R: RpcConnection>(
 
         TreeType::BatchedAddress => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
-            let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
-                    .unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                &mut account.data,
+                &tree_pubkey.into(),
+            )
+            .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
                 merkle_tree.queue_batches.batch_size
@@ -194,10 +199,13 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             println!("tree next_index: {:?}", merkle_tree.next_index);
             println!("tree height: {:?}", merkle_tree.height);
 
-            // TODO: implement
-            let threshold = 0;
-            let next_index = 0;
-            let fullness = 0.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold = ((1 << height)
+                * merkle_tree.metadata.rollover_metadata.rollover_threshold
+                / 100) as usize;
+            let next_index = merkle_tree.next_index as usize;
+            let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
                 fullness,
