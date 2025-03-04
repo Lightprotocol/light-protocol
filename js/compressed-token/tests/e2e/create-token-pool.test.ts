@@ -16,6 +16,7 @@ import {
     newAccountWithLamports,
     sendAndConfirmTx,
     getTestRpc,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
@@ -96,10 +97,12 @@ describe('createTokenPool', () => {
     let mintKeypair: Keypair;
     let mint: PublicKey;
     let mintAuthority: Keypair;
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();

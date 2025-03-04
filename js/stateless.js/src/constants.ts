@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { ActiveTreeBundle, TreeType } from './state/types';
+import { StateTreeContext, TreeType } from './state/types';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -37,7 +37,7 @@ export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
         new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl
+            // TODO: can add check to ensure its consistent with the idl.
             lightProgram,
         ),
     )[0];
@@ -104,7 +104,7 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+export const localTestActiveStateTreeInfo = (): StateTreeContext[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),
@@ -117,6 +117,12 @@ export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
             treeType: TreeType.State,
+        },
+        {
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
+            cpiContext: PublicKey.default,
+            treeType: TreeType.BatchedState,
         },
     ];
 };
@@ -144,6 +150,9 @@ export const defaultTestStateTreeAccounts2 = () => {
         merkleTree2: new PublicKey(merkleTree2Pubkey),
     };
 };
+
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree and nullifier
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';

@@ -7,7 +7,7 @@ import {
 } from '@solana/web3.js';
 import { buildAndSignTx, sendAndConfirmTx } from './send-and-confirm';
 import { dedupeSigner } from '../actions';
-import { ActiveTreeBundle, TreeType } from '../state/types';
+import { StateTreeContext, TreeType } from '../state/types';
 
 /**
  * Create two lookup tables storing all public state tree and queue addresses
@@ -215,7 +215,7 @@ export async function getLightStateTreeInfo({
     connection: Connection;
     stateTreeLookupTableAddress: PublicKey;
     nullifyTableAddress: PublicKey;
-}): Promise<ActiveTreeBundle[]> {
+}): Promise<StateTreeContext[]> {
     const stateTreeLookupTable = await connection.getAddressLookupTable(
         stateTreeLookupTableAddress,
     );
@@ -238,13 +238,13 @@ export async function getLightStateTreeInfo({
     const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
     const nullifyTablePubkeys = nullifyTable.value.state.addresses;
 
-    const bundles: ActiveTreeBundle[] = [];
+    const contexts: StateTreeContext[] = [];
 
     for (let i = 0; i < stateTreePubkeys.length; i += 3) {
         const tree = stateTreePubkeys[i];
         // Skip rolledover (full or almost full) Merkle trees
         if (!nullifyTablePubkeys.includes(tree)) {
-            bundles.push({
+            contexts.push({
                 tree,
                 queue: stateTreePubkeys[i + 1],
                 cpiContext: stateTreePubkeys[i + 2],
@@ -253,5 +253,5 @@ export async function getLightStateTreeInfo({
         }
     }
 
-    return bundles;
+    return contexts;
 }

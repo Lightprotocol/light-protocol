@@ -11,7 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
+    pickRandomStateTreeContext,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -19,15 +20,16 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 /**
  * Mint compressed tokens to a solana address from an external mint authority
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint for the account
- * @param destination    Address of the account to mint to
- * @param authority      Minting authority
- * @param amount         Amount to mint
- * @param merkleTree     State tree account that the compressed tokens should be
- *                       part of. Defaults to random public state tree account.
- * @param confirmOptions Options for confirming the transaction
+ * @param rpc                       Rpc to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Mint for the account
+ * @param destination               Address of the account to mint to
+ * @param authority                 Minting authority
+ * @param amount                    Amount to mint
+ * @param outputStateTreeContext    State tree context that the compressed
+ *                                  tokens should be part of. Defaults to random
+ *                                  public state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -38,7 +40,7 @@ export async function approveAndMintTo(
     destination: PublicKey,
     authority: Signer,
     amount: number | BN,
-    merkleTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -57,10 +59,9 @@ export async function approveAndMintTo(
         tokenProgramId,
     );
 
-    if (!merkleTree) {
+    if (!outputStateTreeContext) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
+        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -70,7 +71,7 @@ export async function approveAndMintTo(
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
         toPubkey: destination,
-        merkleTree,
+        outputStateTreeContext,
         tokenProgramId,
     });
 

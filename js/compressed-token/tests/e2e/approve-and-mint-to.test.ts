@@ -15,7 +15,7 @@ import {
     newAccountWithLamports,
     sendAndConfirmTx,
     getTestRpc,
-    defaultTestStateTreeAccounts,
+    StateTreeContext,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
@@ -64,6 +64,7 @@ describe('approveAndMintTo', () => {
     let mintKeypair: Keypair;
     let mint: PublicKey;
     let mintAuthority: Keypair;
+    let outputStateTreeContext: StateTreeContext;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -73,7 +74,7 @@ describe('approveAndMintTo', () => {
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
-
+        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
         /// Create external SPL mint
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
@@ -91,7 +92,7 @@ describe('approveAndMintTo', () => {
             bob,
             mintAuthority,
             1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
@@ -125,7 +126,7 @@ describe('approveAndMintTo', () => {
             bob,
             token22MintAuthority,
             1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeContext,
         );
 
         await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);

@@ -5,68 +5,92 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-import { LightSystemProgram, sumUpLamports } from '../programs';
-import { Rpc } from '../rpc';
-import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import {
+    LightSystemProgram,
+    selectMinCompressedSolAccountsForTransfer,
+    sumUpLamports,
+} from '../programs';
+import { pickRandomStateTreeContext, Rpc } from '../rpc';
+import {
+    buildAndSignTx,
+    selectInputAccountsForTransfer,
+    sendAndConfirmTx,
+    validateNumbers,
+    validateNumbersForInclusionProof,
+} from '../utils';
 import BN from 'bn.js';
-import { CompressedAccountWithMerkleContext, bn } from '../state';
+import {
+    CompressedAccountWithMerkleContext,
+    StateTreeContext,
+    TreeType,
+    bn,
+} from '../state';
 
 /**
  * Decompress lamports into a solana account
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param lamports        Amount of lamports to compress
- * @param toAddress       Address of the recipient compressed account
- * @param outputStateTree Optional output state tree. Defaults to a current shared state tree.
- * @param confirmOptions  Options for confirming the transaction
+ * @param rpc                       RPC to use
+ * @param payer                     Payer of the transaction and initialization fees
+ * @param lamports                  Amount of lamports to compress
+ * @param toAddress                 Address of the recipient compressed account
+ * @param outputStateTreeContext    Optional output state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  * @return Transaction signature
  */
-/// TODO: add multisig support
-/// TODO: add support for payer != owner
 export async function decompress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
     recipient: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeContext?: StateTreeContext,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    /// TODO: use dynamic state tree and nullifier queue
-
-    const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
-        (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
-
     lamports = bn(lamports);
+    const allAccounts = await rpc.getCompressedAccountsByOwner(payer.publicKey);
 
-    const inputLamports = sumUpLamports(
-        userCompressedAccountsWithMerkleContext,
-    );
+    const {
+        selectedAccounts: maybeInputAccounts,
+        inputLamports,
+        discardedLamports,
+    } = selectInputAccountsForTransfer(allAccounts.items, lamports);
 
-    if (lamports.gt(inputLamports)) {
-        throw new Error(
-            `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}`,
+    if (!outputStateTreeContext) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        outputStateTreeContext = pickRandomStateTreeContext(
+            stateTreeInfo,
+            TreeType.BatchedState,
         );
     }
 
+    if (lamports.gt(inputLamports)) {
+        throw new Error(
+            `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}, unavailable for this action: ${discardedLamports.toString()}`,
+        );
+    }
+
+    const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
+        maybeInputAccounts,
+        lamports,
+    );
+
     const proof = await rpc.getValidityProof(
-        userCompressedAccountsWithMerkleContext.map(x => bn(x.hash)),
+        inputAccounts.map(x => bn(x.hash)),
     );
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
-        outputStateTree: outputStateTree,
-        inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
+        outputStateTreeContext,
+        inputCompressedAccounts: inputAccounts,
         recentValidityProof: proof.compressedProof,
         recentInputStateRootIndices: proof.rootIndices,
         lamports,
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],
