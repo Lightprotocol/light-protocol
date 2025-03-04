@@ -88,6 +88,7 @@ describe('test-rpc', () => {
             Number(compressedTestAccount.lamports),
             compressLamportsAmount,
         );
+
         assert.equal(
             compressedTestAccount.owner.toBase58(),
             payer.publicKey.toBase58(),
@@ -134,6 +135,7 @@ describe('test-rpc', () => {
             payer.publicKey,
             outputStateTreeContext,
         );
+        console.log(`txId V1 (transfer) ${compressLamportsAmount}`, tx);
 
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -165,13 +167,14 @@ describe('test-rpc', () => {
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {
         for (let lamports = 1; lamports <= 10; lamports++) {
-            await decompress(
+            const txId = await decompress(
                 rpc,
                 payer,
                 lamports,
                 payer.publicKey,
                 outputStateTreeContext,
             );
+            console.log(`txId (decompress) ${lamports}`, txId);
         }
     });
     it('getIndexerHealth', async () => {
@@ -266,6 +269,7 @@ describe('test-rpc Tree v2', () => {
             payer.publicKey,
             outputStateTreeContext,
         );
+        console.log(`txId (compress) ${compressLamportsAmount}`, id1);
     });
 
     it('getCompressedAccountsByOwner', async () => {
@@ -302,6 +306,9 @@ describe('test-rpc Tree v2', () => {
         assert.equal(compressedTestAccount.data?.data, null);
 
         postCompressBalance = await rpc.getBalance(payer.publicKey);
+        console.log('postCompressBalance', postCompressBalance);
+        console.log('preCompressBalance', preCompressBalance);
+        console.log('compressLamportsAmount', compressLamportsAmount);
         assert.equal(
             postCompressBalance,
             preCompressBalance - compressLamportsAmount - 5000 - 5000 - 1,
@@ -314,28 +321,10 @@ describe('test-rpc Tree v2', () => {
             payer.publicKey,
         );
         const refHash = compressedAccounts.items[0].hash;
-        const compressedAccountProof = await rpc.getCompressedAccountProof(
-            bn(refHash),
-        );
-        const proof = compressedAccountProof.merkleProof.map(x => x.toString());
-
-        expect(proof.length).toStrictEqual(32);
-        expect(compressedAccountProof.hash).toStrictEqual(refHash);
-
-        expect(compressedAccountProof.leafIndex).toStrictEqual(
-            compressedAccounts.items[0].leafIndex,
-        );
-        expect(compressedAccountProof.rootIndex).toStrictEqual(2);
-        preCompressBalance = await rpc.getBalance(payer.publicKey);
-
-        // in: tree2 out: tree
-        const tx = await transfer(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer,
-            payer.publicKey,
-            outputStateTreeContext,
+        await expect(
+            rpc.getCompressedAccountProof(bn(refHash)),
+        ).rejects.toThrowError(
+            'Record Not Found: Leaf nodes not found for hashes. BatchedState in TestRpc.',
         );
 
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
@@ -343,8 +332,6 @@ describe('test-rpc Tree v2', () => {
         );
 
         expect(compressedAccounts1.items.length).toStrictEqual(1);
-        postCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(postCompressBalance, preCompressBalance - 5000 - 1 - 5000); // TODO: confirm this.
 
         await compress(
             rpc,
@@ -362,7 +349,14 @@ describe('test-rpc Tree v2', () => {
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {
         for (let lamports = 1; lamports <= 10; lamports++) {
-            await decompress(rpc, payer, lamports, payer.publicKey);
+            const txId = await decompress(
+                rpc,
+                payer,
+                lamports,
+                payer.publicKey,
+                outputStateTreeContext,
+            );
+            console.log(`txId (decompress) ${lamports}`, txId);
         }
     });
     it('getIndexerHealth', async () => {
@@ -412,5 +406,15 @@ describe('test-rpc Tree v2', () => {
         );
 
         expect(compressedBalance?.eq(bn(refCompressLamports))).toBeTruthy();
+
+        const tx = await transfer(
+            rpc,
+            payer,
+            compressLamportsAmount,
+            payer,
+            payer.publicKey,
+            outputStateTreeContext,
+        );
+        console.log(`txId V2 (transfer) ${compressLamportsAmount}`, tx);
     });
 });

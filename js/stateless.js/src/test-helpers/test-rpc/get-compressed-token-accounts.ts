@@ -86,15 +86,8 @@ async function parseEventWithTokenTlvData(
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const maybeTree =
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
-            console.log(
-                'parseEventWithTokenTlvData - "maybeTree"',
-                maybeTree.toBase58(),
-            );
 
             const { queue, treeType, tree } = getQueueForTree(ctxs, maybeTree);
-            console.log('after getQueueForTree - tree', tree.toBase58());
-            console.log('after getQueueForTree - queue', queue.toBase58());
-            console.log('parseEventWithTokenTlvData - treeType', treeType);
 
             const merkleContext: MerkleContext = {
                 merkleTree: tree,

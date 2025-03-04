@@ -42,6 +42,7 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    CompressedProof,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     TreeType,
@@ -301,18 +302,23 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         for (const [treeKey, { leaves }] of leavesByTree.entries()) {
             const merkleTree = new PublicKey(treeKey);
             const { queue, treeType } = getQueueForTree(ctxs, merkleTree);
-            console.log(
-                'getMultipleCompressedAccountProofs - QUEUE , TREE TYPE',
-                queue.toBase58(),
-                treeType,
-            );
-            const treeDepth = treeType === TreeType.State ? this.depth : 32;
-            const tree = new MerkleTree(
-                treeDepth,
-                this.lightWasm,
-                [],
-                // leaves.map(leaf => bn(leaf).toString()),
-            );
+
+            let tree: MerkleTree | undefined;
+            if (treeType === TreeType.State) {
+                tree = new MerkleTree(
+                    this.depth,
+                    this.lightWasm,
+                    leaves.map(leaf => bn(leaf).toString()),
+                );
+            } else if (treeType === TreeType.BatchedState) {
+                throw new Error(
+                    'Record Not Found: Leaf nodes not found for hashes. BatchedState in TestRpc.',
+                );
+            } else {
+                throw new Error(
+                    `Invalid tree type: ${treeType} in test-rpc.ts`,
+                );
+            }
 
             for (let i = 0; i < hashes.length; i++) {
                 const hashStr = hashes[i].toString();
@@ -689,70 +695,87 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
             /// inclusion
-            const merkleProofsWithContext =
-                await this.getMultipleCompressedAccountProofs(hashes);
-
-            /// Test-RPC
-            let infoArray: { queue: PublicKey; treeType: TreeType }[] = [];
             const ctxs = await this.getCachedActiveStateTreeInfo();
+            let infoArray: {
+                queue: PublicKey;
+                treeType: TreeType;
+                tree: PublicKey;
+            }[] = [];
 
-            merkleProofsWithContext.forEach(async proof => {
-                const { queue, treeType } = getQueueForTree(
+            for (const hash of hashes) {
+                const proof = await this.getCompressedAccount(undefined, hash);
+                const { queue, treeType, tree } = getQueueForTree(
                     ctxs,
-                    proof.merkleTree,
+                    proof?.merkleTree!,
                 );
-                infoArray.push({ queue, treeType });
-            });
+                infoArray.push({ queue, treeType, tree });
+            }
+
             const hasV1Accounts = infoArray.some(
                 info => info.treeType === TreeType.State,
             );
-            const hasV2Accounts = infoArray.some(
-                info => info.treeType === TreeType.BatchedState,
-            );
 
-            if (hasV1Accounts && hasV2Accounts) {
-                throw new Error(
-                    'Validity Proofs for mixed trees (v1 and v2) are not supported.',
+            // if (!hasV1Accounts) {
+            //     throw new Error(
+            //         'Validity Proofs for BatchedState trees are not supported.',
+            //     );
+            // }
+
+            let compressedProof: CompressedProof | null = null;
+            if (infoArray.some(info => info.treeType === TreeType.State)) {
+                const merkleProofsWithContext =
+                    await this.getMultipleCompressedAccountProofs(
+                        hashes.filter(
+                            (_, index) =>
+                                infoArray[index].treeType === TreeType.State,
+                        ),
+                    );
+                const inputs = convertMerkleProofsWithContextToHex(
+                    merkleProofsWithContext,
                 );
+
+                compressedProof = await proverRequest(
+                    this.proverEndpoint,
+                    'inclusion',
+                    inputs,
+                    this.log,
+                );
+                validityProof = {
+                    compressedProof,
+                    roots: merkleProofsWithContext.map(proof => proof.root),
+                    rootIndices: merkleProofsWithContext.map(
+                        proof => proof.rootIndex,
+                    ),
+                    leafIndices: merkleProofsWithContext.map(
+                        proof => proof.leafIndex,
+                    ),
+                    leaves: merkleProofsWithContext.map(proof =>
+                        bn(proof.hash),
+                    ),
+                    merkleTrees: merkleProofsWithContext.map(
+                        proof => proof.merkleTree,
+                    ),
+                    queues: merkleProofsWithContext.map(proof => proof.queue),
+                    proveByIndices: hashes.map(() => true),
+                    treeTypes: merkleProofsWithContext.map(
+                        () => TreeType.State,
+                    ),
+                };
+            } else {
+                validityProof = {
+                    compressedProof: null,
+                    roots: [],
+                    rootIndices: hashes.map(hash => 0),
+                    leafIndices: hashes.map(hash => 0), // TODO: check
+                    leaves: hashes.map(hash => hash),
+                    merkleTrees: hashes.map(
+                        (_, index) => infoArray[index].tree,
+                    ),
+                    queues: hashes.map((_, index) => infoArray[index].queue),
+                    proveByIndices: hashes.map(() => true),
+                    treeTypes: hashes.map(() => TreeType.BatchedState),
+                };
             }
-
-            const inputs = convertMerkleProofsWithContextToHex(
-                merkleProofsWithContext,
-            );
-
-            const compressedProof = infoArray.some(
-                info => info.treeType === TreeType.State,
-            )
-                ? await proverRequest(
-                      this.proverEndpoint,
-                      'inclusion',
-                      inputs,
-                      this.log,
-                  )
-                : null;
-
-            console.log('hasV1Accounts', hasV1Accounts);
-            console.log('hasV2Accounts', hasV2Accounts);
-
-            validityProof = {
-                compressedProof,
-                roots: merkleProofsWithContext.map(proof => proof.root),
-                rootIndices: merkleProofsWithContext.map(
-                    proof => proof.rootIndex,
-                ),
-                leafIndices: merkleProofsWithContext.map(
-                    proof => proof.leafIndex,
-                ),
-                leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.merkleTree,
-                ),
-                queues: merkleProofsWithContext.map(proof => proof.queue),
-                proveByIndices: merkleProofsWithContext.map(() => false),
-                treeTypes: merkleProofsWithContext.map(() =>
-                    hasV1Accounts ? TreeType.State : TreeType.BatchedState,
-                ),
-            };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
             const newAddressProofs: MerkleContextWithNewAddressProof[] =
@@ -874,10 +897,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 treeTypes,
             };
         } else throw new Error('Invalid input');
-
-        console.log('validityProof', validityProof);
-        console.log('hashes:', hashes.length);
-        console.log('newAddresses:', newAddresses.length);
 
         return validityProof;
     }

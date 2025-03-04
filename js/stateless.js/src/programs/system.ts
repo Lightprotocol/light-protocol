@@ -376,7 +376,6 @@ export class LightSystemProgram {
         recentValidityProof,
         outputStateTreeContext,
     }: TransferParams): Promise<TransactionInstruction> {
-        console.log('inputs before packing', inputCompressedAccounts);
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
             inputCompressedAccounts,
@@ -396,11 +395,6 @@ export class LightSystemProgram {
             outputStateTreeContext,
         );
 
-        console.log(
-            'packedInputCompressedAccounts.rootIndices',
-            packedInputCompressedAccounts.map(e => e.rootIndex),
-        );
-
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
             proof: recentValidityProof,
@@ -413,9 +407,9 @@ export class LightSystemProgram {
             isCompress: false,
         };
 
-        console.log('proof', recentValidityProof);
-        console.log('inputs', packedInputCompressedAccounts);
-        console.log('outputs', packedOutputCompressedAccounts);
+        // console.log('proof', recentValidityProof);
+        // console.log('inputs', packedInputCompressedAccounts);
+        // console.log('outputs', packedOutputCompressedAccounts);
         const data = encodeInstructionDataInvoke(rawInputs);
 
         const accounts = invokeAccountsLayout({

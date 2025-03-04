@@ -78,8 +78,6 @@ export async function decompress(
         inputAccounts.map(x => bn(x.hash)),
     );
 
-    console.log('inputAccounts', inputAccounts);
-    console.log('proof', proof);
     const { blockhash } = await rpc.getLatestBlockhash();
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,

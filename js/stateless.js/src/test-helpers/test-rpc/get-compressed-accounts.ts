@@ -24,12 +24,9 @@ export function getQueueForTree(
     tree: PublicKey,
 ): { queue: PublicKey; treeType: TreeType; tree: PublicKey } {
     const index = info.findIndex(t => t.tree.equals(tree));
-    console.log('index', index);
+
     if (index !== -1) {
         const { queue, treeType } = info[index];
-        console.log('found v1? queue', queue?.toBase58());
-        console.log('found v1? tree', tree.toBase58());
-        console.log('found v1? treeType', treeType);
         if (!queue) {
             throw new Error('Queue must not be null for state tree');
         }
@@ -106,34 +103,12 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
                     event.outputCompressedAccounts[index].merkleTreeIndex
                 ];
 
-            console.log('smt', smt.toBase58());
-            console.log(
-                'event.pubkeyarray',
-                event.pubkeyArray.map(p => p.toBase58()),
-            );
-            console.log(
-                'event.outputCompressedAccounts[index]',
-                event.outputCompressedAccounts[index],
-            );
-
-            console.log('"tree" indexed', smt.toBase58());
-
             // In test-rpc we can do this with a static set of trees because it's local-only.
             const { queue, treeType, tree } = getQueueForTree(
                 ctxs,
                 new PublicKey(smt),
             );
-            console.log('treeType', treeType);
-            console.log('tree', tree.toBase58());
-            console.log('queue', queue.toBase58());
-            console.log(
-                'indices',
-                index,
-                'event.outputleafindices:',
-                event.outputLeafIndices,
-                'event.outputLeafIndices[index]:',
-                event.outputLeafIndices[index],
-            );
+
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
                 merkleTree: tree,
@@ -170,6 +145,5 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     );
     const sorted = unspentAccounts.sort((a, b) => b.leafIndex - a.leafIndex);
 
-    console.log('getCOmpressedAccountsForTest - sorted', sorted);
     return sorted;
 }

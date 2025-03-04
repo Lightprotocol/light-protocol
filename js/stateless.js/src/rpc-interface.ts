@@ -296,28 +296,6 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
     ) as Struct<RpcResult<WithRpcContext<T>>, null>;
 }
 
-/**
- * @internal
- */
-// export const CompressedAccountResult = pick({
-//     address: nullable(ArrayFromString),
-//     hash: BN254FromString,
-//     data: nullable(
-//         pick({
-//             data: Base64EncodedCompressedAccountDataResult,
-//             dataHash: BN254FromString,
-//             discriminator: BNFromStringOrNumber,
-//         }),
-//     ),
-//     lamports: BNFromStringOrNumber,
-//     owner: PublicKeyFromString,
-//     leafIndex: number(),
-//     tree: PublicKeyFromString,
-//     seq: nullable(BNFromStringOrNumber),
-//     slotCreated: BNFromStringOrNumber,
-//     queue: PublicKeyFromString,
-//     proveByIndex: boolean(),
-// });
 const ContextInfoResult = pick({
     treeType: number(),
     tree: PublicKeyFromString,
@@ -442,20 +420,52 @@ export const MerkleProofResult = pick({
     root: BN254FromString,
 });
 
-// /**
-//  * @internal
-//  */
-// export const MerkleProofResultV2 = pick({
-//     hash: BN254FromString,
-//     leafIndex: number(),
-//     merkleTree: PublicKeyFromString,
-//     proof: array(BN254FromString),
-//     rootSeq: number(),
-//     root: BN254FromString,
-//     queue: optional(PublicKeyFromString),
-//     proveByIndex: optional(boolean()),
-//     version: optional(number()),
-// });
+/**
+ * @internal
+ */
+export const MerkleProofResultV2 = pick({
+    hash: BN254FromString,
+    leafIndex: number(),
+    proof: array(BN254FromString),
+    root: BN254FromString,
+    rootSeq: number(),
+    proveByIndex: optional(boolean()),
+    context: ContextInfoResult,
+});
+
+
+// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+// #[serde(deny_unknown_fields, rename_all = "camelCase")]
+// pub struct GetCompressedAccountProofResponseValueV2 {
+//     pub proof: Vec<Hash>,
+//     pub root: Hash,
+//     pub leaf_index: u32,
+//     pub hash: Hash,
+//     pub root_seq: u64,
+//     pub prove_by_index: bool,
+//     pub context: ContextInfo,
+// }
+
+// impl From<MerkleProofWithContext> for GetCompressedAccountProofResponseValueV2 {
+//     fn from(proof: MerkleProofWithContext) -> Self {
+//         GetCompressedAccountProofResponseValueV2 {
+//             proof: proof.proof,
+//             root: proof.root,
+//             leaf_index: proof.leaf_index,
+//             hash: proof.hash,
+//             root_seq: proof.root_seq,
+//             prove_by_index: false,
+//             // Default values to be overridden as needed
+//             context: ContextInfo {
+//                 tree_type: 0,
+//                 merkle_tree: proof.merkle_tree,
+//                 queue: Default::default(),
+//                 cpi_context: None,
+//             },
+//         }
+//     }
+// }
+
 
 /**
  * @internal

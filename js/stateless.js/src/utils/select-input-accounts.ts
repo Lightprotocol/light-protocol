@@ -1,11 +1,8 @@
 import { bn } from '../state';
-
 import { TreeType } from '../state';
-
 import BN from 'bn.js';
 import { CompressedAccountWithMerkleContext } from '../state';
 import { sumUpLamports } from '../programs';
-import { validateNumbersForInclusionProof } from './validation';
 
 /**
  * Selects compressed accounts with the specified tree types and sums up their
@@ -22,11 +19,9 @@ export function selectAccountsByTreeType(
     selectedAccounts: CompressedAccountWithMerkleContext[];
     totalLamports: BN;
 } {
-    console.log('selectAccountsByTreeType accounts', accounts);
     const selectedAccounts = accounts.filter(
         item => item.lamports.gt(bn(0)) && treeTypes.includes(item.treeType),
     );
-    console.log('selectAccountsByTreeType selectedAccounts', selectedAccounts);
     const totalLamports = sumUpLamports(selectedAccounts);
     return { selectedAccounts, totalLamports };
 }
@@ -55,9 +50,6 @@ export function decideInputAccountsToUse(
     const inputLamportsV1 = sumUpLamports(accountsV1);
     const inputLamportsV2 = sumUpLamports(accountsV2);
 
-    console.log('lamports', lamports.toString());
-    console.log('inputLamportsV1', inputLamportsV1.toString());
-    console.log('inputLamportsV2', inputLamportsV2.toString());
     if (lamports.lte(inputLamportsV1)) {
         return {
             selectedAccounts: accountsV1,
