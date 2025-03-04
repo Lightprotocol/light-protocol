@@ -2,7 +2,7 @@ use light_bounded_vec::BoundedVecError;
 use light_hasher::errors::HasherError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ConcurrentMerkleTreeError {
     #[error("Integer overflow")]
     IntegerOverflow,

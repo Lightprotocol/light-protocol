@@ -14,7 +14,7 @@ use crate::{
     HIGHEST_ADDRESS_PLUS_ONE,
 };
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedReferenceMerkleTreeError {
     #[error("NonInclusionProofFailedLowerBoundViolated")]
     NonInclusionProofFailedLowerBoundViolated,

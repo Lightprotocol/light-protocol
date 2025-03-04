@@ -7,7 +7,7 @@ use light_hasher::{errors::HasherError, Hasher};
 use light_indexed_array::errors::IndexedArrayError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ReferenceMerkleTreeError {
     #[error("Leaf {0} does not exist")]
     LeafDoesNotExist(usize),

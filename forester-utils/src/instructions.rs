@@ -85,7 +85,8 @@ where
         .iter()
         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
         .unwrap()
-        .merkle_tree
+        .get_v2_indexed_merkle_tree()
+        .unwrap()
         .merkle_tree
         .rightmost_index;
 
