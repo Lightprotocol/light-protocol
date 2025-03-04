@@ -821,9 +821,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .iter()
         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
         .unwrap()
-        .merkle_tree
-        .merkle_tree
-        .rightmost_index;
+        .right_most_index();
 
     let addresses = indexer
         .get_queue_elements(

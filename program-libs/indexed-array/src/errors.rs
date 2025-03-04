@@ -2,7 +2,7 @@ use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedArrayError {
     #[error("Integer overflow")]
     IntegerOverflow,

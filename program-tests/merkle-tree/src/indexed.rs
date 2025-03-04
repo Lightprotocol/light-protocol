@@ -13,7 +13,7 @@ use thiserror::Error;
 
 use crate::{MerkleTree, ReferenceMerkleTreeError};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedReferenceMerkleTreeError {
     #[error("NonInclusionProofFailedLowerBoundViolated")]
     NonInclusionProofFailedLowerBoundViolated,
