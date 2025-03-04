@@ -39,7 +39,16 @@ export type MerkleContextV1 = {
     leafIndex: number;
 };
 
-export type MerkleContextWithMerkleProof = MerkleContextV1 & {
+export type MerkleContextWithMerkleProofV1 = MerkleContextV1 & {
+    /** Recent valid 'hash' proof path, expires after n slots */
+    merkleProof: BN254[];
+    /** Index of state root the merkleproof is valid for, expires after n slots */
+    rootIndex: number;
+    /** Current root */
+    root: BN254;
+};
+
+export type MerkleContextWithMerkleProof = MerkleContext & {
     /** Recent valid 'hash' proof path, expires after n slots */
     merkleProof: BN254[];
     /** Index of state root the merkleproof is valid for, expires after n slots */

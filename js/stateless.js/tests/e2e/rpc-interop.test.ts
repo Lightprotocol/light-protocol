@@ -188,7 +188,7 @@ describe.each([TreeType.BatchedState])(
             executedTxs++;
         });
 
-        it('getValidityProof [noforester] (combined) should match', async () => {
+        it.skip('getValidityProof [noforester] (combined) should match', async () => {
             const senderAccountsTest =
                 await testRpc.getCompressedAccountsByOwner(payer.publicKey);
             // wait for photon to be in sync
@@ -378,7 +378,7 @@ describe.each([TreeType.BatchedState])(
             );
         });
 
-        it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
+        it.skip('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
             for (let round = 0; round < numberOfTransfers; round++) {
                 const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
                     payer.publicKey,

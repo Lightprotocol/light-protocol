@@ -337,6 +337,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         queue: queue,
                         rootIndex: leaves.length,
                         root: root,
+                        treeType: treeType,
+                        proveByIndex: true,
                     };
 
                     merkleProofsMap.set(hashStr, merkleProof);
@@ -764,9 +766,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             } else {
                 validityProof = {
                     compressedProof: null,
-                    roots: [],
-                    rootIndices: hashes.map(hash => 0),
-                    leafIndices: hashes.map(hash => 0), // TODO: check
+                    roots: [bn(0)],
+                    rootIndices: hashes.map(_ => 0),
+                    leafIndices: hashes.map(_ => 0), // TODO: check
                     leaves: hashes.map(hash => hash),
                     merkleTrees: hashes.map(
                         (_, index) => infoArray[index].tree,

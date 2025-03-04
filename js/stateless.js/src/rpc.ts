@@ -26,7 +26,7 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
-    ValidityProofResult,
+    ValidityProofResultV2,
     NewAddressProofResult,
     LatestNonVotingSignaturesResult,
     LatestNonVotingSignatures,
@@ -42,8 +42,9 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
-    MerkleProofResult,
+    MerkleProofResultV2,
     CompressedAccountResultV2,
+    MerkleContextV2Result,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -57,6 +58,7 @@ import {
     CompressedProof,
     StateTreeContext,
     TreeType,
+    MerkleContext,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -801,7 +803,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(MerkleProofResult),
+            jsonRpcResultAndContext(MerkleProofResultV2),
         );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
@@ -817,14 +819,24 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const result = res.result.value;
 
-        const value: MerkleContextWithMerkleProof = {
+        const treeContext: MerkleContext = {
+            merkleTree: result.treeContext.tree,
+            queue: result.treeContext.queue,
             hash: result.hash.toArray('be', 32),
-            merkleTree: result.merkleTree,
             leafIndex: result.leafIndex,
+            treeType: result.treeContext.treeType,
+            proveByIndex: result.proveByIndex,
+        };
+        const value: MerkleContextWithMerkleProof = {
             merkleProof: result.proof,
-            queue: PublicKey.default,
             rootIndex: result.rootSeq % 2400,
             root: result.root,
+            hash: treeContext.hash,
+            merkleTree: treeContext.merkleTree,
+            leafIndex: treeContext.leafIndex,
+            queue: treeContext.queue,
+            treeType: treeContext.treeType,
+            proveByIndex: treeContext.proveByIndex,
         };
         return value;
     }
@@ -900,7 +912,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(array(MerkleProofResult)),
+            jsonRpcResultAndContext(array(MerkleProofResultV2)),
         );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
@@ -916,15 +928,26 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
+        // const treeContexts: MerkleContext[] = [];
         for (const proof of res.result.value) {
-            const value: MerkleContextWithMerkleProof = {
+            const ctx = {
+                merkleTree: proof.treeContext.tree,
+                queue: proof.treeContext.queue,
                 hash: proof.hash.toArray('be', 32),
-                merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
+                treeType: proof.treeContext.treeType,
+                proveByIndex: proof.proveByIndex,
+            };
+            const value: MerkleContextWithMerkleProof = {
+                hash: ctx.hash,
+                merkleTree: ctx.merkleTree,
+                leafIndex: ctx.leafIndex,
                 merkleProof: proof.proof,
-                queue: PublicKey.default, // TODO: add v2 support.
+                queue: ctx.queue,
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
+                treeType: ctx.treeType,
+                proveByIndex: ctx.proveByIndex,
             };
             merkleProofs.push(value);
         }
@@ -1711,7 +1734,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const res = create(
             unsafeRes,
-            jsonRpcResultAndContext(ValidityProofResult),
+            jsonRpcResultAndContext(ValidityProofResultV2),
         );
         if ('error' in res) {
             throw new SolanaJSONRPCError(
@@ -1727,41 +1750,84 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const result = res.result.value;
 
-        /// TODO: replace with photon Null(proof)
-        let compressedProof: CompressedProof | null = null;
-        if (
-            result.rootIndices.every(index => !index.inTree) ||
-            result.compressedProof === null
-        ) {
-            compressedProof = null;
-        } else {
-            compressedProof = result.compressedProof;
-        }
+        const proveByIndices = result.rootIndices.map(
+            index => index.proveByIndex,
+        );
 
-        const proveByIndices = result.rootIndices.map(index => !index.inTree);
+        checkQueuesAndTreesMatchResponse({
+            hashesWithTree: hashes,
+            newAddresses,
+            merkleContexts: result.merkleContexts,
+        });
 
         const value: CompressedProofWithContext = {
-            compressedProof: compressedProof,
-            merkleTrees: result.merkleTrees,
+            compressedProof: result.compressedProof,
+            merkleTrees: result.merkleContexts.map(ctx => ctx.tree),
             leafIndices: result.leafIndices,
-            queues: [
-                ...hashes.map(({ queue }) => queue),
-                ...newAddresses.map(({ queue }) => queue),
-            ],
+            queues: result.merkleContexts.map(ctx => ctx.queue),
             rootIndices: result.rootIndices.map(index => index.rootIndex),
             roots: result.roots,
             leaves: result.leaves,
             proveByIndices,
-            // TODO: replace with response value before Devnet/Mainnet.
-            treeTypes: [
-                ...hashes.map((_, index) =>
-                    proveByIndices[index]
-                        ? TreeType.BatchedState
-                        : TreeType.State,
-                ),
-                ...newAddresses.map(() => TreeType.Address),
-            ],
+            treeTypes: result.merkleContexts.map(ctx => ctx.treeType),
         };
         return { value, context: res.result.context };
     }
+}
+
+/**
+ * Helper function to validate the consistency of new addresses with their
+ * corresponding Merkle contexts.
+ *
+ * @param {Array<HashWithTree>} hashesWithTree - Array of hashes with their
+ * associated tree and queue.
+ * @param {Array<AddressWithTree>} newAddresses - Array of new addresses with
+ * their associated tree and queue.
+ * @param {Array<MerkleContextV2>} merkleContexts - Array of Merkle contexts to
+ * validate against.
+ * @throws Will throw an error if there is a mismatch between the expected and
+ * actual tree or queue.
+ */
+function checkQueuesAndTreesMatchResponse({
+    hashesWithTree,
+    newAddresses,
+    merkleContexts,
+}: {
+    hashesWithTree: HashWithTree[];
+    newAddresses: AddressWithTree[];
+    merkleContexts: MerkleContextV2Result[];
+}) {
+    hashesWithTree.forEach((hashWithTree, index) => {
+        const resTree = merkleContexts[index].tree;
+        const resQueue = merkleContexts[index].queue;
+
+        if (!hashWithTree.tree.equals(resTree)) {
+            throw new Error(
+                `Tree mismatch for hash ${encodeBN254toBase58(hashWithTree.hash)}: expected ${hashWithTree.tree.toBase58()}, got ${resTree.toBase58()}`,
+            );
+        }
+
+        if (hashWithTree.queue && !hashWithTree.queue.equals(resQueue)) {
+            throw new Error(
+                `Queue mismatch for hash ${encodeBN254toBase58(hashWithTree.hash)}: expected ${hashWithTree.queue.toBase58()}, got ${resQueue ? resQueue.toBase58() : 'null'}`,
+            );
+        }
+    });
+
+    newAddresses.forEach((addressWithTree, index) => {
+        const resTree = merkleContexts[index].tree;
+        const resQueue = merkleContexts[index].queue;
+
+        if (!addressWithTree.tree.equals(resTree)) {
+            throw new Error(
+                `Tree mismatch for address ${encodeBN254toBase58(addressWithTree.address)}: expected ${addressWithTree.tree.toBase58()}, got ${resTree.toBase58()}`,
+            );
+        }
+
+        if (addressWithTree.queue && !addressWithTree.queue.equals(resQueue)) {
+            throw new Error(
+                `Queue mismatch for address ${encodeBN254toBase58(addressWithTree.address)}: expected ${addressWithTree.queue.toBase58()}, got ${resQueue ? resQueue.toBase58() : 'null'}`,
+            );
+        }
+    });
 }

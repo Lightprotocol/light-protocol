@@ -24,6 +24,7 @@ import {
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     TokenData,
+    TreeType,
 } from './state';
 import BN from 'bn.js';
 
@@ -296,7 +297,7 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
     ) as Struct<RpcResult<WithRpcContext<T>>, null>;
 }
 
-const ContextInfoResult = pick({
+const TreeContextInfoResult = pick({
     treeType: number(),
     tree: PublicKeyFromString,
     queue: PublicKeyFromString,
@@ -307,8 +308,24 @@ const MerkleContextResultV2 = pick({
     tree: PublicKeyFromString,
     queue: PublicKeyFromString,
     cpiContext: nullable(PublicKeyFromString),
-    nextContext: nullable(ContextInfoResult),
+    nextTreeContext: nullable(TreeContextInfoResult),
 });
+
+export interface TreeContextInfoResult {
+    treeType: TreeType;
+    tree: PublicKey;
+    queue: PublicKey;
+    cpiContext: PublicKey | null;
+}
+
+export interface MerkleContextV2Result {
+    treeType: TreeType;
+    tree: PublicKey;
+    queue: PublicKey;
+    cpiContext: PublicKey | null;
+    nextTreeContext: TreeContextInfoResult | null;
+}
+
 /**
  * @internal
  */
@@ -408,17 +425,17 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
     cursor: nullable(string()),
 });
 
-/**
- * @internal
- */
-export const MerkleProofResult = pick({
-    hash: BN254FromString,
-    leafIndex: number(),
-    merkleTree: PublicKeyFromString,
-    proof: array(BN254FromString),
-    rootSeq: number(),
-    root: BN254FromString,
-});
+// /**
+//  * @internal
+//  */
+// export const MerkleProofResult = pick({
+//     hash: BN254FromString,
+//     leafIndex: number(),
+//     merkleTree: PublicKeyFromString,
+//     proof: array(BN254FromString),
+//     rootSeq: number(),
+//     root: BN254FromString,
+// });
 
 /**
  * @internal
@@ -429,43 +446,9 @@ export const MerkleProofResultV2 = pick({
     proof: array(BN254FromString),
     root: BN254FromString,
     rootSeq: number(),
-    proveByIndex: optional(boolean()),
-    context: ContextInfoResult,
+    proveByIndex: boolean(),
+    treeContext: TreeContextInfoResult,
 });
-
-
-// #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-// #[serde(deny_unknown_fields, rename_all = "camelCase")]
-// pub struct GetCompressedAccountProofResponseValueV2 {
-//     pub proof: Vec<Hash>,
-//     pub root: Hash,
-//     pub leaf_index: u32,
-//     pub hash: Hash,
-//     pub root_seq: u64,
-//     pub prove_by_index: bool,
-//     pub context: ContextInfo,
-// }
-
-// impl From<MerkleProofWithContext> for GetCompressedAccountProofResponseValueV2 {
-//     fn from(proof: MerkleProofWithContext) -> Self {
-//         GetCompressedAccountProofResponseValueV2 {
-//             proof: proof.proof,
-//             root: proof.root,
-//             leaf_index: proof.leaf_index,
-//             hash: proof.hash,
-//             root_seq: proof.root_seq,
-//             prove_by_index: false,
-//             // Default values to be overridden as needed
-//             context: ContextInfo {
-//                 tree_type: 0,
-//                 merkle_tree: proof.merkle_tree,
-//                 queue: Default::default(),
-//                 cpi_context: None,
-//             },
-//         }
-//     }
-// }
-
 
 /**
  * @internal
@@ -496,27 +479,39 @@ const CompressedProofResult = pick({
  */
 export const RootIndexResult = pick({
     rootIndex: number(),
-    inTree: boolean(),
+    proveByIndex: boolean(),
 });
 
 /**
  * @internal
  */
-export const ValidityProofResult = pick({
+export const ValidityProofResultV2 = pick({
     compressedProof: nullable(CompressedProofResult), // V2 can be null
     roots: array(BN254FromString),
     rootIndices: array(RootIndexResult),
     leafIndices: array(number()), // FIXME(photon): photon returns u32 which will eventually panic for addressV2
     leaves: array(BN254FromString),
-    merkleTrees: array(PublicKeyFromString),
-    queues: optional(array(PublicKeyFromString)),
-    treeTypes: optional(array(number())), // TODO: remove optional
+    merkleContexts: array(MerkleContextResultV2),
 });
+// /**
+//  * @internal
+//  */
+// export const ValidityProofResult = pick({
+//     compressedProof: nullable(CompressedProofResult), // V2 can be null
+//     roots: array(BN254FromString),
+//     rootIndices: array(RootIndexResult),
+//     leafIndices: array(number()), // FIXME(photon): photon returns u32 which will eventually panic for addressV2
+//     leaves: array(BN254FromString),
+//     merkleTrees: array(PublicKeyFromString),
+//     queues: optional(array(PublicKeyFromString)),
+//     treeTypes: optional(array(number())), // TODO: remove optional
+// });
 
 /**
  * @internal
  */
-export const MultipleMerkleProofsResult = array(MerkleProofResult);
+// export const MultipleMerkleProofsResult = array(MerkleProofResult);
+export const MultipleMerkleProofsResultV2 = array(MerkleProofResultV2);
 
 /**
  * @internal
