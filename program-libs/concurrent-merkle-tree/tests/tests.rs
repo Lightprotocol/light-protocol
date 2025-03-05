@@ -1024,12 +1024,13 @@ where
                 for leaf_i in 0..batch_size {
                     let leaf_index = (batch_i * batch_size) + leaf_i;
 
-                    let mut proof_with_canopy = BoundedVec::from_slice(
-                        reference_mt_with_canopy
-                            .get_proof_of_leaf(leaf_index, false)
-                            .unwrap()
-                            .as_slice(),
-                    );
+                    let inter_proof_with_canopy = reference_mt_with_canopy
+                        .get_proof_of_leaf(leaf_index, false)
+                        .unwrap();
+                    let mut proof_with_canopy = BoundedVec::with_capacity(HEIGHT);
+                    for node in inter_proof_with_canopy.iter() {
+                        proof_with_canopy.push(*node).unwrap();
+                    }
                     let proof_without_canopy = BoundedVec::from_slice(
                         reference_mt_without_canopy
                             .get_proof_of_leaf(leaf_index, true)
@@ -2222,12 +2223,16 @@ pub fn test_100_nullify_mt() {
                 .get_leaf_index(&leaf_cell.value_bytes())
                 .unwrap();
 
-            let mut proof = BoundedVec::from_slice(
+            let inter_proof = BoundedVec::from_slice(
                 crank_merkle_tree
                     .get_proof_of_leaf(leaf_index, false)
                     .unwrap()
                     .as_slice(),
             );
+            let mut proof = BoundedVec::with_capacity(onchain_merkle_tree.height);
+            for node in inter_proof.iter() {
+                proof.push(*node).unwrap();
+            }
             onchain_merkle_tree
                 .update(
                     change_log_index,
@@ -3021,12 +3026,11 @@ where
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = BoundedVec::from_slice(
-            reference_tree
-                .get_proof_of_leaf(leaf_index, false)
-                .unwrap()
-                .as_slice(),
-        );
+        let inter_proof_with_canopy = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        let mut proof = BoundedVec::with_capacity(HEIGHT);
+        for node in inter_proof_with_canopy.iter() {
+            proof.push(*node).unwrap();
+        }
         merkle_tree
             .update(
                 merkle_tree.changelog_index(),
