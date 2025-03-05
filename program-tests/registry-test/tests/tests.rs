@@ -521,8 +521,7 @@ async fn test_initialize_protocol_config() {
             0,
         )
         .await;
-        let expected_error_code = RegistryError::InvalidNetworkFee as u32 + 6000;
-        assert_rpc_error(result, 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 3, RegistryError::InvalidNetworkFee.into()).unwrap();
     }
 }
 
