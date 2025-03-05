@@ -1,6 +1,5 @@
 use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
-use forester_utils::{create_account_instruction, AccountZeroCopy};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -370,6 +369,9 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
 }
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use forester_utils::{
+    account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
+};
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
 use light_merkle_tree_metadata::queue::QueueType;
 

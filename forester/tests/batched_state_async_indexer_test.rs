@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, instructions::wait_for_indexer};
+use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,

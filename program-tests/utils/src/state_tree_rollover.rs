@@ -9,7 +9,9 @@ use account_compression::{
 use anchor_lang::{
     prelude::AccountLoader, Discriminator, InstructionData, Lamports, ToAccountMetas,
 };
-use forester_utils::{create_account_instruction, get_hash_set};
+use forester_utils::{
+    account_zero_copy::get_hash_set, instructions::create_account::create_account_instruction,
+};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::{errors::RpcError, RpcConnection};

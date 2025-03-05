@@ -2184,12 +2184,12 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-system-program",
- "log",
  "num-traits",
  "reqwest",
  "solana-sdk",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

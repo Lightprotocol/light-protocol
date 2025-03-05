@@ -6,7 +6,9 @@ use account_compression::{
 };
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
+use forester_utils::account_zero_copy::{
+    get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy,
+};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
