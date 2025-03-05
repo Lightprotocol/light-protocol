@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 use std::{collections::HashMap, mem};
 
 use account_compression::{
@@ -1929,7 +1929,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
         let path = reference_merkle_tree
             .get_path_of_leaf(merkle_tree.current_index(), true)
             .unwrap();
-        assert!(changelog_entry.path.eq_to(path));
+        assert!(changelog_entry.path.eq_to_vec(path));
     }
 }
 
@@ -1992,10 +1992,7 @@ pub async fn nullify<R: RpcConnection>(
     let payer = rpc.get_payer().insecure_clone();
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
-        .unwrap()
-        .to_array::<16>()
-        .unwrap()
-        .to_vec();
+        .unwrap();
 
     let instructions = [
         account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(

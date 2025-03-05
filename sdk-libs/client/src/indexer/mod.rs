@@ -394,6 +394,10 @@ impl AddressMerkleTreeBundle {
     }
 
     pub fn new_v2(accounts: AddressMerkleTreeAccounts) -> Result<Self, IndexerError> {
+        println!(
+            "added v2 address Merkle tree pubkey: {:?}",
+            accounts.merkle_tree
+        );
         let height = 40;
         let canopy = 0;
         let merkle_tree = IndexedMerkleTreeVersion::V2(Box::new(
@@ -624,12 +628,53 @@ impl AddressMerkleTreeBundle {
         }
     }
 
+    pub fn indexed_array_v1(&self) -> Option<&IndexedArray<Poseidon, usize>> {
+        println!(
+            "indexed_array_v2: merkle_tree pubkey: {:?}",
+            self.accounts.merkle_tree
+        );
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(_) => Some(&self.indexed_array),
+            _ => None,
+        }
+    }
+
     pub fn indexed_array_v2(
         &self,
     ) -> Option<&light_indexed_array::array::IndexedArray<Poseidon, usize>> {
+        println!(
+            "indexed_array_v2: merkle_tree pubkey: {:?}",
+            self.accounts.merkle_tree
+        );
         match &self.merkle_tree {
             IndexedMerkleTreeVersion::V2(tree) => Some(&tree.indexed_array),
             _ => None,
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        new_low_element: &IndexedElement<usize>,
+        new_element: &IndexedElement<usize>,
+        new_element_next_value: &BigUint,
+    ) -> Result<(), IndexerError> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => {
+                Ok(tree.update(new_low_element, new_element, new_element_next_value)?)
+            }
+            IndexedMerkleTreeVersion::V2(tree) => Ok(tree.update(
+                &light_indexed_array::array::IndexedElement::<usize> {
+                    index: new_low_element.index,
+                    value: new_low_element.value.clone(),
+                    next_index: new_low_element.next_index,
+                },
+                &light_indexed_array::array::IndexedElement::<usize> {
+                    index: new_element.index,
+                    value: new_element.value.clone(),
+                    next_index: new_element.next_index,
+                },
+                new_element_next_value,
+            )?),
         }
     }
 }

@@ -288,7 +288,10 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
-    let initial_merkle_tree_state = address_tree_bundle.merkle_tree.clone();
+    let initial_merkle_tree_state = address_tree_bundle
+        .get_v1_indexed_merkle_tree()
+        .unwrap()
+        .clone();
     // let initial_indexed_array_state = address_tree_bundle.indexed_array().clone();
     let mut update_errors: Vec<RpcError> = Vec::new();
     let address_merkle_tree =
@@ -327,7 +330,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
         if address.is_none() {
             break;
         }
-        let initial_indexed_array_state = address_tree_bundle.indexed_array_v2().unwrap().clone();
+        let initial_indexed_array_state = address_tree_bundle.indexed_array_v1().unwrap().clone();
         let (address, address_hashset_index) = address.unwrap();
         // Create new element from the dequeued value.
         let (old_low_address, old_low_address_next_value) = initial_indexed_array_state
@@ -338,7 +341,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             .unwrap();
 
         // Get the Merkle proof for updating low element.
-        let low_address_proof = address_tree_bundle
+        let low_address_proof = initial_merkle_tree_state
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
@@ -355,7 +358,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             bigint_to_be_bytes_array(&old_low_address.value).unwrap(),
             old_low_address.next_index as u64,
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
-            low_address_proof.try_into().unwrap(),
+            low_address_proof.to_array().unwrap(),
             Some(changelog_index),
             Some(indexed_changelog_index),
             signer_is_owner,
@@ -517,10 +520,9 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             let path = address_tree_bundle
                 .get_path_of_leaf(merkle_tree.current_index(), true)
                 .unwrap();
-            for i in 0..ADDRESS_MERKLE_TREE_HEIGHT as usize {
+            for (i, path_node) in path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
 
             let indexed_changelog_entry = merkle_tree

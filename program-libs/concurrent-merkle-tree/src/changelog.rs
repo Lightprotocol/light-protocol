@@ -45,6 +45,26 @@ impl<const HEIGHT: usize> ChangelogPath<HEIGHT> {
 
         true
     }
+
+    pub fn eq_to_vec(&self, other: Vec<[u8; 32]>) -> bool {
+        if other.len() != HEIGHT {
+            return false;
+        }
+
+        for (i, path_node) in other.iter().enumerate() {
+            let changelog_node = self.0[i];
+            match changelog_node {
+                Some(changelog_node) => {
+                    if changelog_node != *path_node {
+                        return false;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        true
+    }
 }
 
 impl<const HEIGHT: usize> Default for ChangelogPath<HEIGHT> {

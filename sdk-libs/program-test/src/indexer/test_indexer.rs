@@ -17,8 +17,8 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{
         Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
-        IndexedMerkleTreeVersion, Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo,
-        MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, StateMerkleTreeAccounts,
+        Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
+        MerkleProofWithContext, NewAddressProofWithContext, StateMerkleTreeAccounts,
         StateMerkleTreeBundle,
     },
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
@@ -33,7 +33,6 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_metadata::queue::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
@@ -51,15 +50,12 @@ use light_prover_client::{
     helpers::bigint_to_u8_32,
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
     inclusion_legacy::merkle_inclusion_proof_inputs::InclusionProofInputs as InclusionProofInputsLegacy,
-    non_inclusion::merkle_non_inclusion_proof_inputs::{
-        get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-    },
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
     non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
 use light_sdk::{
     proof::{BatchedTreeProofRpcResult, ProofRpcResult},
     token::{TokenData, TokenDataWithMerkleContext},
-    STATE_MERKLE_TREE_CANOPY_DEPTH,
 };
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
@@ -819,7 +815,8 @@ where
             .update(&new_low_element, &new_element, &new_element_next_value)
             .unwrap();
         self.address_merkle_trees[pos]
-            .append_with_low_element_index(new_low_element.index, &new_element.value);
+            .append_with_low_element_index(new_low_element.index, &new_element.value)
+            .unwrap();
         info!("Address tree updated");
     }
 
