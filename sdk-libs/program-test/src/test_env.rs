@@ -227,7 +227,7 @@ impl EnvAccountKeypairs {
             state_merkle_tree_2: Keypair::new(),
             nullifier_queue_2: Keypair::new(),
             cpi_context_2: Keypair::new(),
-            group_pda_seed: Keypair::from_bytes(GROUP_AUTHORITY_SEED).unwrap(),
+            group_pda_seed: Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap(),
         }
     }
 

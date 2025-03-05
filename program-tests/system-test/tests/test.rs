@@ -1,6 +1,9 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
-use account_compression::errors::AccountCompressionErrorCode;
+use account_compression::{
+    errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
@@ -1678,8 +1681,13 @@ async fn regenerate_accounts() {
         protocol_config,
         true,
         skip_register_programs,
+        false,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
         InitStateTreeAccountsInstructionData::test_default(),
-        InitAddressTreeAccountsInstructionData::test_default(),
+        Some(InitAddressTreeAccountsInstructionData::test_default()),
     )
     .await;
     let keypairs = EnvAccountKeypairs::for_regenerate_accounts();
