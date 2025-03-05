@@ -198,13 +198,6 @@ where
             .find(|&node| node.value == *value)
     }
 
-    // pub fn init(&mut self) -> Result<IndexedElementBundle<I>, IndexedArrayError> {
-    //     use num_traits::Num;
-    //     let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10)
-    //         .map_err(|_| IndexedArrayError::IntegerOverflow)?;
-    //     self.append(&init_value)
-    // }
-
     /// Returns the index of the low element for the given `value`, which is
     /// not yet the part of the array.
     ///
