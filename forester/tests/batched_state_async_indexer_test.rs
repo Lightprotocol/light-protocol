@@ -145,8 +145,7 @@ async fn test_state_indexer_async_batched() {
     let mut shutdown_senders = Vec::with_capacity(FORESTERS_NUM);
     let mut work_report_receivers = Vec::with_capacity(FORESTERS_NUM);
 
-    for i in 0..FORESTERS_NUM {
-        let config = &forester_configs[i];
+    for config in forester_configs.iter() {
         let (service_handle, shutdown_sender, work_report_receiver) =
             setup_forester_pipeline(config).await;
 
