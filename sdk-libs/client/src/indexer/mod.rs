@@ -1,6 +1,5 @@
 use std::{fmt::Debug, str::FromStr};
 
-use crate::{rpc::RpcConnection, transaction_params::FeeConfig};
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -11,8 +10,9 @@ use light_indexed_merkle_tree::{
     reference::IndexedMerkleTree,
 };
 use light_merkle_tree_metadata::queue::QueueType;
-use light_merkle_tree_reference::indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2;
-use light_merkle_tree_reference::MerkleTree;
+use light_merkle_tree_reference::{
+    indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2, MerkleTree,
+};
 use light_prover_client::non_inclusion::merkle_non_inclusion_proof_inputs::{
     get_non_inclusion_proof_inputs, NonInclusionMerkleProofInputs,
 };
@@ -28,6 +28,8 @@ use photon_api::models::{
 };
 use solana_sdk::{bs58, pubkey::Pubkey};
 use thiserror::Error;
+
+use crate::{rpc::RpcConnection, transaction_params::FeeConfig};
 
 pub mod photon_indexer;
 

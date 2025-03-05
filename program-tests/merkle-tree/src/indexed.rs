@@ -1,3 +1,5 @@
+use std::{fmt::Debug, marker::PhantomData};
+
 use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_hasher::{Hasher, HasherError};
 use light_indexed_array::{
@@ -7,8 +9,6 @@ use light_indexed_array::{
 };
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned, Zero};
-use std::fmt::Debug;
-use std::marker::PhantomData;
 use thiserror::Error;
 
 use crate::{MerkleTree, ReferenceMerkleTreeError};

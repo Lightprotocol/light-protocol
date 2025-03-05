@@ -1447,7 +1447,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         let params = CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),
@@ -1531,7 +1531,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),

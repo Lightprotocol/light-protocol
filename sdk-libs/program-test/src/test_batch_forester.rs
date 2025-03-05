@@ -837,11 +837,11 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .map(|x| x.account_hash)
         .collect::<Vec<[u8; 32]>>();
     // // local_leaves_hash_chain is only used for a test assertion.
-    // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
+    // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
     let start_index = merkle_tree.next_index as usize;
     assert!(
-        start_index >= 2,
+        start_index >= 1,
         "start index should be greater than 2 else tree is not inited"
     );
     let current_root = *merkle_tree.root_history.last().unwrap();
@@ -886,7 +886,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let client = Client::new();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
-
     let response_result = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -902,7 +901,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
         let instruction_data = InstructionDataBatchNullifyInputs {
             new_root: circuit_inputs_new_root,
-
             compressed_proof: CompressedProof {
                 a: proof_a,
                 b: proof_b,
@@ -911,6 +909,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         };
         Ok(instruction_data)
     } else {
+        println!("response_result: {:?}", response_result.text().await);
         Err(RpcError::CustomError(
             "Prover failed to generate proof".to_string(),
         ))

@@ -1581,10 +1581,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -1647,10 +1646,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -1723,10 +1721,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -3002,10 +2999,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -3060,10 +3056,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 

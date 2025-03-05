@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 use std::{collections::HashMap, mem};
 
 use account_compression::{
@@ -425,12 +425,12 @@ async fn test_full_nullifier_queue_default() {
 /// 1. no nullifiers
 /// 2. mismatch remaining accounts and addresses (removed error)
 /// 3. invalid queue accounts:
-/// 3.1 pass non queue account as queue account
-/// 3.2 pass address queue account
-/// 3.3 pass non associated queue account
+///     3.1 pass non queue account as queue account
+///     3.2 pass address queue account
+///     3.3 pass non associated queue account
 /// 4. invalid Merkle tree accounts:
-/// 4.1 pass non Merkle tree account as Merkle tree account
-/// 4.2 pass non associated Merkle tree account
+///     4.1 pass non Merkle tree account as Merkle tree account
+///     4.2 pass non associated Merkle tree account
 async fn failing_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,

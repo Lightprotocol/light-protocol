@@ -249,10 +249,12 @@ where
     ) -> Result<(IndexedElement<I>, BigUint), IndexedArrayError> {
         let low_element_index = self.find_low_element_index_for_nonexistent(value)?;
         let low_element = self.elements[low_element_index.into()].clone();
-        Ok((
-            low_element.clone(),
-            self.elements[low_element.next_index()].value.clone(),
-        ))
+        let next_value = if low_element.next_index == I::zero() {
+            self.highest_value.clone()
+        } else {
+            self.elements[low_element.next_index.into()].value.clone()
+        };
+        Ok((low_element.clone(), next_value))
     }
 
     /// Returns the index of the low element for the given `value`, which is

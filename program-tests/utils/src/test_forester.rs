@@ -292,7 +292,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
         .get_v1_indexed_merkle_tree()
         .unwrap()
         .clone();
-    // let initial_indexed_array_state = address_tree_bundle.indexed_array().clone();
+    let initial_indexed_array_state = address_tree_bundle.indexed_array_v1().unwrap().clone();
     let mut update_errors: Vec<RpcError> = Vec::new();
     let address_merkle_tree =
         get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
@@ -330,7 +330,6 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
         if address.is_none() {
             break;
         }
-        let initial_indexed_array_state = address_tree_bundle.indexed_array_v1().unwrap().clone();
         let (address, address_hashset_index) = address.unwrap();
         // Create new element from the dequeued value.
         let (old_low_address, old_low_address_next_value) = initial_indexed_array_state
