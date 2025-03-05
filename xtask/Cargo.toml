@@ -17,6 +17,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true }
 light-utils = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
+light-registry = { workspace = true }
 num-bigint = { workspace = true }
 rand = { workspace = true }
 quote = "1.0"
@@ -32,3 +33,4 @@ dirs = "6.0"
 serde_json = "1.0.139"
 solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }
+light-batched-merkle-tree = { workspace = true }

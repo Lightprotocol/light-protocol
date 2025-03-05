@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use clap::Parser;
 use dirs::home_dir;
+use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_program_test::test_env::create_state_merkle_tree_and_queue_account;
+use light_program_test::test_batch_forester::create_batched_state_merkle_tree;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 
 #[derive(Debug, Parser)]
@@ -30,7 +30,7 @@ pub struct Options {
     config: Option<String>,
 }
 
-pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
+pub async fn create_batch_state_tree(options: Options) -> anyhow::Result<()> {
     let rpc_url = if let Some(network) = options.network {
         if network == "local" {
             String::from("http://127.0.0.1:8899")
@@ -96,26 +96,14 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     };
     println!("read payer: {:?}", payer.pubkey());
 
-    let (merkle_tree_config, queue_config) = if let Some(config) = options.config {
+    let config = if let Some(config) = options.config {
         if config == "testnet" {
-            (
-                StateMerkleTreeConfig {
-                    changelog_size: 400,
-                    ..Default::default()
-                },
-                NullifierQueueConfig {
-                    capacity: 5000,
-                    ..Default::default()
-                },
-            )
+            InitStateTreeAccountsInstructionData::testnet_default()
         } else {
-            unimplemented!("Only testnet is implemented.")
+            unimplemented!()
         }
     } else {
-        (
-            StateMerkleTreeConfig::default(),
-            NullifierQueueConfig::default(),
-        )
+        InitStateTreeAccountsInstructionData::default()
     };
 
     for ((merkle_tree_keypair, nullifier_queue_keypair), cpi_context_keypair) in mt_keypairs
@@ -132,18 +120,14 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
         );
         let balance = rpc.get_balance(&payer.pubkey()).await.unwrap();
         println!("Payer balance: {:?}", balance);
-        let tx_hash = create_state_merkle_tree_and_queue_account(
+        let tx_hash = create_batched_state_merkle_tree(
             &payer,
             true,
             &mut rpc,
             merkle_tree_keypair,
             nullifier_queue_keypair,
-            Some(cpi_context_keypair),
-            None,
-            None,
-            options.index as u64,
-            &merkle_tree_config,
-            &queue_config,
+            cpi_context_keypair,
+            config,
         )
         .await
         .unwrap();
