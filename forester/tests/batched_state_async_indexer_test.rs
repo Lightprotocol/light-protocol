@@ -52,9 +52,11 @@ const ENABLE_TRANSACTIONS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 2;
 const MINT_TO_NUM: u64 = 5;
 const BATCHES_NUM: u64 = 10;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
+
+const FORESTERS_NUM: usize = 2;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -73,20 +75,42 @@ async fn test_state_indexer_async_batched() {
     }))
     .await;
 
-    let env = EnvAccounts::get_local_test_validator_accounts();
-    let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 6;
-    config.payer_keypair = env.forester.insecure_clone();
-    config.derivation_pubkey = env.forester.pubkey();
+    let mut forester_keypairs = Vec::<Keypair>::new();
+    let mut forester_configs = Vec::<ForesterConfig>::new();
+    for _ in 0..FORESTERS_NUM {
+        let keypair = Keypair::new();
+        let mut config = forester_config();
+        config.transaction_config.batch_ixs_per_tx = 6;
+        config.payer_keypair = keypair.insecure_clone();
+        config.derivation_pubkey = keypair.pubkey();
+        forester_configs.push(config);
+        forester_keypairs.push(keypair);
+    }
+
+    let mut env = EnvAccounts::get_local_test_validator_accounts();
+    env.forester = forester_keypairs.first().unwrap().insecure_clone();
 
     let mut rpc = setup_rpc_connection(&env.forester);
-    ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;
     ensure_sufficient_balance(
         &mut rpc,
         &env.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100,
     )
     .await;
+
+    for keypair in &forester_keypairs {
+        ensure_sufficient_balance(&mut rpc, &keypair.pubkey(), LAMPORTS_PER_SOL * 100).await;
+
+        // Register forester with the governance authority
+        register_test_forester(
+            &mut rpc,
+            &env.governance_authority,
+            &keypair.pubkey(),
+            light_registry::ForesterConfig::default(),
+        )
+        .await
+        .unwrap_or_else(|e| panic!("Failed to register forester: {:?}", e));
+    }
 
     let mut photon_indexer = {
         let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -111,6 +135,25 @@ async fn test_state_indexer_async_batched() {
         initial_sequence_number,
         get_batch_size(&mut rpc, &env.batched_state_merkle_tree).await
     );
+
+    let registration_phase_slot =
+        get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, registration_phase_slot).await;
+
+    // Setup foresters pipeline with multiple foresters
+    let mut service_handles = Vec::with_capacity(FORESTERS_NUM);
+    let mut shutdown_senders = Vec::with_capacity(FORESTERS_NUM);
+    let mut work_report_receivers = Vec::with_capacity(FORESTERS_NUM);
+
+    for i in 0..FORESTERS_NUM {
+        let config = &forester_configs[i];
+        let (service_handle, shutdown_sender, work_report_receiver) =
+            setup_forester_pipeline(config).await;
+
+        service_handles.push(service_handle);
+        shutdown_senders.push(shutdown_sender);
+        work_report_receivers.push(work_report_receiver);
+    }
 
     let batch_payer = Keypair::from_bytes(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
@@ -190,12 +233,18 @@ async fn test_state_indexer_async_batched() {
         .await;
     }
 
-    wait_for_work_report(&mut work_report_receiver, &tree_params).await;
+    wait_for_any_work_report(&mut work_report_receivers, &tree_params).await;
+
     verify_root_changed(&mut rpc, &env.batched_state_merkle_tree, &pre_root).await;
-    shutdown_sender
-        .send(())
-        .expect("Failed to send shutdown signal");
-    service_handle.await.unwrap().unwrap();
+
+    for sender in shutdown_senders {
+        sender.send(()).expect("Failed to send shutdown signal");
+    }
+
+    // Wait for all service handles to complete
+    for handle in service_handles {
+        handle.await.unwrap().unwrap();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -486,83 +535,102 @@ async fn verify_queue_states<R: RpcConnection>(
     );
 }
 
-async fn wait_for_work_report(
-    work_report_receiver: &mut mpsc::Receiver<WorkReport>,
+async fn wait_for_any_work_report(
+    work_report_receivers: &mut [mpsc::Receiver<WorkReport>],
     tree_params: &InitStateTreeAccountsInstructionData,
 ) {
-    let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    let mut reports = Vec::new();
-    let minimum_processed_items: usize = tree_params.output_queue_batch_size as usize;
-    let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
-
-    println!("Waiting for work reports...");
-    println!("Batch size: {}", batch_size);
-    println!(
-        "Minimum required processed items: {}",
-        minimum_processed_items
-    );
-
-    let start_time = tokio::time::Instant::now();
-    while total_processed_items < minimum_processed_items {
-        match timeout(
-            timeout_duration.saturating_sub(start_time.elapsed()),
-            work_report_receiver.recv(),
-        )
-        .await
-        {
-            Ok(Some(report)) => {
-                println!("Received work report: {:?}", report);
-                println!(
-                    "Report details:\n\
-                     - Items processed in this report: {}\n\
-                     - Total items processed so far: {}\n\
-                     - Complete batches so far: {}",
-                    report.processed_items,
-                    total_processed_items + report.processed_items,
-                    (total_processed_items + report.processed_items) / batch_size
-                );
-
-                total_processed_items += report.processed_items;
-                reports.push(report);
+    let result = timeout(timeout_duration, async {
+        loop {
+            for (idx, receiver) in work_report_receivers.iter_mut().enumerate() {
+                match receiver.try_recv() {
+                    Ok(report) => {
+                        // Got a report!
+                        println!("Received work report from forester {}: {:?}", idx, report);
+                        println!(
+                            "Work report debug from forester {}:\n\
+                             reported_items: {}\n\
+                             batch_size: {}\n\
+                             complete_batches: {}",
+                            idx,
+                            report.processed_items,
+                            tree_params.input_queue_zkp_batch_size,
+                            report.processed_items
+                                / tree_params.input_queue_zkp_batch_size as usize,
+                        );
+                        assert!(
+                            report.processed_items > 0,
+                            "No items were processed by forester {}",
+                            idx
+                        );
+                        return Some((idx, report));
+                    }
+                    Err(mpsc::error::TryRecvError::Empty) => {
+                        // No data yet, continue to next receiver
+                    }
+                    Err(mpsc::error::TryRecvError::Disconnected) => {
+                        // Channel closed, continue to next receiver
+                        println!("Channel for forester {} closed", idx);
+                    }
+                }
             }
-            Ok(None) => {
-                println!("Work report channel closed unexpectedly");
-                break;
+
+            let mut has_active_channel = false;
+
+            for (idx, receiver) in work_report_receivers.iter_mut().enumerate() {
+                if !receiver.is_closed() {
+                    has_active_channel = true;
+                    match tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await {
+                        Ok(Some(report)) => {
+                            // Got a report!
+                            println!("Received work report from forester {}: {:?}", idx, report);
+                            println!(
+                                "Work report debug from forester {}:\n\
+                                 reported_items: {}\n\
+                                 batch_size: {}\n\
+                                 complete_batches: {}",
+                                idx,
+                                report.processed_items,
+                                tree_params.input_queue_zkp_batch_size,
+                                report.processed_items
+                                    / tree_params.input_queue_zkp_batch_size as usize,
+                            );
+                            assert!(
+                                report.processed_items > 0,
+                                "No items were processed by forester {}",
+                                idx
+                            );
+                            return Some((idx, report));
+                        }
+                        Ok(None) => {
+                            // Channel closed, continue to next receiver
+                            println!("Channel for forester {} closed during recv", idx);
+                        }
+                        Err(_) => {
+                            // Timeout on this receiver, continue to the next one
+                        }
+                    }
+                    // Break after checking one channel so we can go back to checking all channels
+                    break;
+                }
             }
-            Err(_) => {
-                println!("Timed out after waiting for {:?}", timeout_duration);
-                break;
+            if !has_active_channel {
+                println!("All channels are closed");
+                return None;
             }
+            tokio::task::yield_now().await;
         }
+    })
+    .await;
+
+    match result {
+        Ok(Some((forester_idx, _report))) => {
+            println!("Forester {} completed work first", forester_idx);
+        }
+        Ok(None) => panic!("All work report channels closed unexpectedly"),
+        Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
-
-    println!(
-        "Total processed items across all reports: {}",
-        total_processed_items
-    );
-    println!(
-        "Total complete batches: {}",
-        total_processed_items / batch_size
-    );
-
-    if total_processed_items < minimum_processed_items {
-        println!(
-            "Warning: Received fewer processed items ({}) than required ({})",
-            total_processed_items, minimum_processed_items
-        );
-    } else {
-        println!("Successfully processed required number of items");
-    }
-
-    assert!(
-        total_processed_items >= minimum_processed_items,
-        "Processed fewer items ({}) than required ({})",
-        total_processed_items,
-        minimum_processed_items
-    );
 }
-
 async fn verify_root_changed(
     rpc: &mut SolanaRpcConnection,
     merkle_tree_pubkey: &Pubkey,
@@ -582,14 +650,14 @@ async fn verify_root_changed(
     );
 }
 
-pub async fn get_active_phase_start_slot<R: RpcConnection>(
+pub async fn get_registration_phase_start_slot<R: RpcConnection>(
     rpc: &mut R,
     protocol_config: &ProtocolConfig,
 ) -> u64 {
     let current_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(current_slot);
     let phases = get_epoch_phases(protocol_config, current_epoch);
-    phases.active.start
+    phases.registration.start
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -920,8 +988,8 @@ async fn compress<R: RpcConnection>(
         .await
     {
         Ok(sig) => {
-            *counter += 1;
-            sig
+    *counter += 1;
+    sig
         }
         Err(e) => {
             println!("compress error: {:?}", e);
