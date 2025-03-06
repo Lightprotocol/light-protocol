@@ -8,7 +8,8 @@ use account_compression::{
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use forester_utils::{
-    airdrop_lamports, forester_epoch::get_epoch_phases, get_concurrent_merkle_tree,
+    account_zero_copy::get_concurrent_merkle_tree, forester_epoch::get_epoch_phases,
+    utils::airdrop_lamports,
 };
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{

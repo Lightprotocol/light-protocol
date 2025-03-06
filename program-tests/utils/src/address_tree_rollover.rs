@@ -9,7 +9,7 @@ use anchor_lang::{
 };
 use forester_utils::{
     account_zero_copy::{get_hash_set, get_indexed_merkle_tree},
-    instructions::create_account::create_account_instruction,
+    instructions::create_account_instruction,
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions,

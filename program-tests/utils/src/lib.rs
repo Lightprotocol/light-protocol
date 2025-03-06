@@ -1,6 +1,13 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
+pub use forester_utils::{
+    account_zero_copy::{
+        get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
+    },
+    instructions::create_account_instruction,
+    utils::airdrop_lamports,
+};
 use light_merkle_tree_metadata::queue::QueueType;
 use solana_sdk::{
     instruction::InstructionError,
