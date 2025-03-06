@@ -461,7 +461,7 @@ async fn verify_queue_states<R: RpcConnection>(
         .unwrap();
     let output_queue =
         BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice()).unwrap();
-    // println!("output queue metadata: {:?}", output_queue.get_metadata());
+    println!("output queue metadata: {:?}", output_queue.get_metadata());
     let mut input_queue_account = rpc
         .get_account(env.batched_state_merkle_tree)
         .await
@@ -636,11 +636,6 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .get_compressed_token_accounts_by_owner_v2(&payer.pubkey(), Some(*mint))
         .await
         .unwrap();
-    // println!(
-    //     "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
-    //     payer.pubkey(),
-    //     input_compressed_accounts
-    // );
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -772,11 +767,6 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .get_compressed_accounts_by_owner_v2(&payer.pubkey())
         .await
         .unwrap_or(vec![]);
-    // println!(
-    //     "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
-    //     payer.pubkey(),
-    //     input_compressed_accounts
-    // );
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -918,7 +908,6 @@ async fn compress<R: RpcConnection>(
         None,
         true,
     );
-    // println!("compress instruction: {:?}", instruction);
     let mut instructions = vec![
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
