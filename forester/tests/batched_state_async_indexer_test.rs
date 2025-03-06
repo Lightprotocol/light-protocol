@@ -400,6 +400,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
 
+        sleep(Duration::from_millis(1000)).await;
         let batch_transfer_sig = transfer(
             rpc,
             indexer,
@@ -430,6 +431,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
+        sleep(Duration::from_millis(1000)).await;
     }
 
     let sig = create_v1_address(
