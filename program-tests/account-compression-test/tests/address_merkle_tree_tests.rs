@@ -18,7 +18,7 @@ use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
+use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{test_env::NOOP_PROGRAM_ID, test_rpc::ProgramTestRpcConnection};
 use light_test_utils::{
@@ -31,7 +31,7 @@ use light_test_utils::{
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
-    FeeConfig, RpcConnection, RpcError,
+    RpcConnection, RpcError,
 };
 use num_bigint::ToBigUint;
 use rand::thread_rng;
