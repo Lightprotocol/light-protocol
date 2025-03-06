@@ -613,12 +613,6 @@ impl AddressMerkleTreeBundle {
         }
     }
 
-    // pub fn indexed_array(&self) -> &IndexedArray<Poseidon, usize> {
-    //     match &self.merkle_tree {
-    //         IndexedMerkleTreeVersion::V1(_) => &self.indexed_array,
-    //         IndexedMerkleTreeVersion::V2(tree) => &tree.indexed_array,
-    //     }
-    // }
     pub fn get_path_of_leaf(
         &self,
         index: usize,
