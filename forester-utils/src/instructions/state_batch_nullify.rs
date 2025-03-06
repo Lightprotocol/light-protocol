@@ -2,7 +2,6 @@ use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
-    queue::BatchedQueueAccount,
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::{
@@ -11,7 +10,7 @@ use light_compressed_account::{
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::queue::QueueType;
 use light_prover_client::{
-    batch_update::get_batch_update_inputs,
+    batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
     gnark::{
         batch_update_json_formatter::update_inputs_string,
         constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -27,9 +26,18 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     rpc: &mut R,
     indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
-) -> Result<InstructionDataBatchNullifyInputs, ForesterUtilsError> {
-    debug!("create_nullify_batch_ix_data");
-    let (zkp_batch_size, old_root, root_history, leaves_hash_chain) = {
+) -> Result<Vec<InstructionDataBatchNullifyInputs>, ForesterUtilsError> {
+    debug!("create_multiple_nullify_batch_ix_data");
+    // Get the tree information and find out how many ZKP batches need processing
+    let (
+        batch_idx,
+        zkp_batch_size,
+        num_inserted_zkps,
+        num_ready_zkps,
+        old_root,
+        root_history,
+        leaves_hash_chains,
+    ) = {
         let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
@@ -42,78 +50,208 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let batch_idx = merkle_tree.queue_batches.pending_batch_index as usize;
         let zkp_size = merkle_tree.queue_batches.zkp_batch_size;
         let batch = &merkle_tree.queue_batches.batches[batch_idx];
-        let zkp_idx = batch.get_num_inserted_zkps();
-        let hash_chain = merkle_tree.hash_chain_stores[batch_idx][zkp_idx as usize];
+        let num_inserted_zkps = batch.get_num_inserted_zkps();
+        let num_current_zkp = batch.get_current_zkp_batch_index();
+        let num_ready_zkps = num_current_zkp.saturating_sub(num_inserted_zkps);
+
+        let mut leaves_hash_chains = Vec::new();
+        for i in num_inserted_zkps..num_current_zkp {
+            leaves_hash_chains.push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
+        }
+
         let root = *merkle_tree.root_history.last().unwrap();
         let root_history = merkle_tree.root_history.to_vec();
-        (zkp_size as u16, root, root_history, hash_chain)
+
+        (
+            batch_idx,
+            zkp_size as u16,
+            num_inserted_zkps,
+            num_ready_zkps,
+            root,
+            root_history,
+            leaves_hash_chains,
+        )
     };
+
     debug!(
-        "zkp_batch_size: {:?} old_root: {:?} : {:?}",
-        zkp_batch_size, old_root, leaves_hash_chain
+        "batch_idx: {}, zkp_batch_size: {}, num_inserted_zkps: {}, num_ready_zkps: {}, leaves_hash_chains: {:?}",
+        batch_idx, zkp_batch_size, num_inserted_zkps, num_ready_zkps, leaves_hash_chains.len()
     );
+
+    if leaves_hash_chains.is_empty() {
+        return Ok(Vec::new());
+    }
 
     wait_for_indexer(rpc, indexer).await?;
 
     let current_slot = rpc.get_slot().await.unwrap();
     debug!("current_slot: {}", current_slot);
 
-    let leaf_indices_tx_hashes = indexer
+    let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
+    let offset = num_inserted_zkps * zkp_batch_size as u64;
+
+    debug!(
+        "Requesting {} total elements with offset {}",
+        total_elements, offset
+    );
+
+    let all_queue_elements = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
             QueueType::BatchedInput,
-            zkp_batch_size,
-            None,
+            total_elements as u16,
+            Some(offset),
         )
         .await
-        .unwrap();
+        .map_err(|e| {
+            error!(
+                "create_multiple_nullify_batch_ix_data: failed to get queue elements from indexer: {:?}",
+                e
+            );
+            ForesterUtilsError::Indexer("Failed to get queue elements".into())
+        })?;
 
-    debug!("get_queue_elements len: {}", leaf_indices_tx_hashes.len());
-
-    let indexer_root = leaf_indices_tx_hashes.first().unwrap().root;
-
-    debug_assert_eq!(indexer_root, old_root, "root_history: {:?}", root_history);
-
-    let mut leaves = Vec::new();
-    let mut tx_hashes = Vec::new();
-    let mut old_leaves = Vec::new();
-    let mut path_indices = Vec::new();
-    let mut merkle_proofs = Vec::new();
-    let mut nullifiers = Vec::new();
-
-    for leaf_info in leaf_indices_tx_hashes.iter() {
-        path_indices.push(leaf_info.leaf_index as u32);
-        leaves.push(leaf_info.account_hash);
-        old_leaves.push(leaf_info.leaf);
-        merkle_proofs.push(leaf_info.proof.clone());
-        tx_hashes.push(leaf_info.tx_hash.unwrap());
-        let index_bytes = leaf_info.leaf_index.to_be_bytes();
-        let nullifier = Poseidon::hashv(&[
-            &leaf_info.account_hash,
-            &index_bytes,
-            &leaf_info.tx_hash.unwrap(),
-        ])
-        .unwrap();
-        nullifiers.push(nullifier);
+    debug!("Got {} queue elements in total", all_queue_elements.len());
+    if all_queue_elements.len() != total_elements {
+        return Err(ForesterUtilsError::Indexer(format!(
+            "Expected {} elements, got {}",
+            total_elements,
+            all_queue_elements.len()
+        )));
     }
 
-    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
-        old_root,
-        tx_hashes,
-        leaves.to_vec(),
-        leaves_hash_chain,
-        old_leaves,
-        merkle_proofs,
-        path_indices,
-        zkp_batch_size as u32,
-    )
-    .unwrap();
+    let indexer_root = all_queue_elements.first().unwrap().root;
+    debug_assert_eq!(
+        indexer_root, old_root,
+        "Root mismatch. Expected: {:?}, Got: {:?}. Root history: {:?}",
+        old_root, indexer_root, root_history
+    );
 
-    let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap()).unwrap();
+    let mut all_changelogs = Vec::new();
+    let mut proof_futures = Vec::new();
+
+    let mut current_root = old_root;
+
+    for (batch_offset, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
+        let start_idx = batch_offset * zkp_batch_size as usize;
+        let end_idx = start_idx + zkp_batch_size as usize;
+        let batch_elements = &all_queue_elements[start_idx..end_idx];
+
+        debug!(
+            "Processing batch {} with offset {}-{}",
+            batch_offset, start_idx, end_idx
+        );
+
+        // Process this batch's data
+        let mut leaves = Vec::new();
+        let mut tx_hashes = Vec::new();
+        let mut old_leaves = Vec::new();
+        let mut path_indices = Vec::new();
+        let mut merkle_proofs = Vec::new();
+        let mut nullifiers = Vec::new();
+
+        for (i, leaf_info) in batch_elements.iter().enumerate() {
+            let global_leaf_index = start_idx + i;
+            debug!(
+                "Element {}: local index={}, global index={}, reported index={}",
+                i, i, global_leaf_index, leaf_info.leaf_index
+            );
+
+            path_indices.push(leaf_info.leaf_index as u32);
+            leaves.push(leaf_info.account_hash);
+            old_leaves.push(leaf_info.leaf);
+            merkle_proofs.push(leaf_info.proof.clone());
+
+            // Make sure tx_hash exists
+            let tx_hash = match leaf_info.tx_hash {
+                Some(hash) => hash,
+                None => {
+                    return Err(ForesterUtilsError::Indexer(format!(
+                        "Missing tx_hash for leaf index {}",
+                        leaf_info.leaf_index
+                    )))
+                }
+            };
+
+            tx_hashes.push(tx_hash);
+
+            let index_bytes = leaf_info.leaf_index.to_be_bytes();
+            let nullifier =
+                Poseidon::hashv(&[&leaf_info.account_hash, &index_bytes, &tx_hash]).unwrap();
+            nullifiers.push(nullifier);
+        }
+
+        let (circuit_inputs, batch_changelog) =
+            get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+                current_root,
+                tx_hashes.clone(),
+                leaves.clone(),
+                *leaves_hash_chain,
+                old_leaves.clone(),
+                merkle_proofs.clone(),
+                path_indices.clone(),
+                zkp_batch_size as u32,
+                &all_changelogs,
+            )
+            .map_err(|e| {
+                error!("Failed to get batch update inputs: {:?}", e);
+                ForesterUtilsError::Prover("Failed to get batch update inputs".into())
+            })?;
+
+        all_changelogs.extend(batch_changelog);
+        current_root =
+            bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap())
+                .map_err(|_| {
+                    ForesterUtilsError::Prover("Failed to convert new root to bytes".into())
+                })?;
+
+        let proof_future = tokio::spawn(generate_nullify_zkp_proof(circuit_inputs));
+        proof_futures.push(proof_future);
+    }
+
+    // Wait for all proof generation to complete
+    let mut results = Vec::new();
+
+    for (i, future) in futures::future::join_all(proof_futures)
+        .await
+        .into_iter()
+        .enumerate()
+    {
+        match future {
+            Ok(result) => match result {
+                Ok((proof, new_root)) => {
+                    results.push(InstructionDataBatchNullifyInputs {
+                        new_root,
+                        compressed_proof: proof,
+                    });
+                    debug!("Successfully generated proof for batch {}", i);
+                }
+                Err(e) => {
+                    error!("Error generating proof for batch {}: {:?}", i, e);
+                    return Err(e);
+                }
+            },
+            Err(e) => {
+                error!("Task error for batch {}: {:?}", i, e);
+                return Err(ForesterUtilsError::Prover(format!(
+                    "Task error for batch {}: {:?}",
+                    i, e
+                )));
+            }
+        }
+    }
+
+    Ok(results)
+}
+async fn generate_nullify_zkp_proof(
+    inputs: BatchUpdateCircuitInputs,
+) -> Result<(CompressedProof, [u8; 32]), ForesterUtilsError> {
+    let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root.to_biguint().unwrap())
+        .map_err(|_| ForesterUtilsError::Prover("Failed to convert new root to bytes".into()))?;
 
     let client = Client::new();
-
     let json_str = update_inputs_string(&inputs);
+
     let response = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -121,63 +259,30 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         .send()
         .await
         .map_err(|e| {
-            error!(
-                "get_batched_nullify_ix_data: failed to send proof to server: {:?}",
-                e
-            );
+            error!("Failed to send proof to server: {:?}", e);
             ForesterUtilsError::Prover("Failed to send proof to server".into())
         })?;
 
-    let proof = if response.status().is_success() {
+    if response.status().is_success() {
         let body = response.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        CompressedProof {
-            a: proof_a,
-            b: proof_b,
-            c: proof_c,
-        }
+
+        Ok((
+            CompressedProof {
+                a: proof_a,
+                b: proof_b,
+                c: proof_c,
+            },
+            new_root,
+        ))
     } else {
-        error!(
-            "get_batched_nullify_ix_data: failed to get proof from server: {:?}, input: {:?}",
-            response.text().await,
-            json_str
-        );
-        {
-            let mut account = rpc.get_account(merkle_tree_pubkey).await.unwrap().unwrap();
-            let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-                account.data.as_mut_slice(),
-                &merkle_tree_pubkey.into(),
-            )
-            .unwrap();
-            let batched_output_queue = merkle_tree.metadata.associated_queue;
-            let mut output_queue_account = rpc
-                .get_account(Pubkey::from(batched_output_queue))
-                .await
-                .unwrap()
-                .unwrap();
-
-            let output_queue =
-                BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-                    .unwrap();
-
-            debug!("output queue metadata: {:?}", output_queue.get_metadata());
-            debug!("tree metadata: {:?}", merkle_tree.get_metadata());
-            debug!("root: {:?}", merkle_tree.get_root());
-            for (i, root) in merkle_tree.root_history.iter().enumerate() {
-                debug!("root {}: {:?}", i, root);
-            }
-        }
-
-        return Err(ForesterUtilsError::Prover(
-            "Failed to get proof from server".into(),
-        ));
-    };
-    debug!("proof: {:?}", proof);
-
-    Ok(InstructionDataBatchNullifyInputs {
-        new_root,
-        compressed_proof: proof,
-    })
+        let error_text = response.text().await.unwrap_or_default();
+        error!("Failed to get proof from server: {:?}", error_text);
+        Err(ForesterUtilsError::Prover(format!(
+            "Failed to get proof from server: {}",
+            error_text
+        )))
+    }
 }

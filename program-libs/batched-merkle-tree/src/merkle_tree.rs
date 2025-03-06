@@ -388,6 +388,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // 1. Create public inputs hash.
         let public_input_hash = {
+            msg!(
+                "first_ready_zkp_batch_index: {}",
+                first_ready_zkp_batch_index
+            );
             let leaves_hash_chain = queue_account.hash_chain_stores[pending_batch_index]
                 [first_ready_zkp_batch_index as usize];
             let old_root = self

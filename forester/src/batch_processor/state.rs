@@ -8,7 +8,7 @@ use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
 use solana_sdk::signer::Signer;
-use tracing::debug;
+use tracing::{debug, info, instrument, log::error};
 
 use super::common::BatchContext;
 use crate::{
@@ -18,37 +18,94 @@ use crate::{
     },
 };
 
+#[instrument(
+    level = "debug",
+    fields(
+        forester = %context.derivation,
+        epoch = %context.derivation,
+        merkle_tree = %context.merkle_tree,
+        output_queue = %context.output_queue,
+    ), skip(context, rpc))
+]
 pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
-    debug!("perform_append");
-    let instruction_data = create_append_batch_ix_data(
+    let instruction_data_vec = create_append_batch_ix_data(
         rpc,
         &mut *context.indexer.lock().await,
         context.merkle_tree,
         context.output_queue,
     )
     .await
-    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
-    let instruction = create_batch_append_instruction(
-        context.authority.pubkey(),
-        context.derivation,
-        context.merkle_tree,
-        context.output_queue,
-        context.epoch,
-        instruction_data
-            .try_to_vec()
-            .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+    .map_err(|e| {
+        error!("Failed to create append batch instruction data: {}", e);
+        BatchProcessError::InstructionData(e.to_string())
+    })?;
+
+    if instruction_data_vec.is_empty() {
+        debug!("No zkp batches to append");
+        return Ok(());
+    }
+
+    info!(
+        "Processing {} ZKP batch appends",
+        instruction_data_vec.len()
     );
 
-    rpc.create_and_send_transaction(
-        &[instruction],
-        &context.authority.pubkey(),
-        &[&context.authority],
-    )
-    .await?;
+    for (idx, instruction_data) in instruction_data_vec.iter().enumerate() {
+        debug!(
+            "Sending append transaction {}/{} for tree: {}",
+            idx + 1,
+            instruction_data_vec.len(),
+            context.merkle_tree
+        );
 
+        debug!(
+            "Instruction data size: {} bytes",
+            instruction_data.try_to_vec().map(|v| v.len()).unwrap_or(0)
+        );
+
+        let instruction = create_batch_append_instruction(
+            context.authority.pubkey(),
+            context.derivation,
+            context.merkle_tree,
+            context.output_queue,
+            context.epoch,
+            instruction_data
+                .try_to_vec()
+                .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+        );
+
+        match rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &context.authority.pubkey(),
+                &[&context.authority],
+            )
+            .await
+        {
+            Ok(tx) => {
+                info!(
+                    "Append transaction {}/{} sent successfully: {}",
+                    idx + 1,
+                    instruction_data_vec.len(),
+                    tx
+                );
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            }
+            Err(e) => {
+                error!(
+                    "Failed to send append transaction {}/{} for tree {}: {:?}",
+                    idx + 1,
+                    instruction_data_vec.len(),
+                    context.merkle_tree,
+                    e
+                );
+                return Err(e.into());
+            }
+        }
+    }
     update_test_indexer_after_append(
         rpc,
         context.indexer.clone(),
@@ -56,39 +113,93 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         context.output_queue,
     )
     .await
-    .expect("Failed to update test indexer after append");
+    .map_err(|e| {
+        error!("Failed to update test indexer after append: {:?}", e);
+        BatchProcessError::Indexer(e.to_string())
+    })?;
 
     Ok(())
 }
 
+/// Perform a state nullify operation for a Merkle tree
+#[instrument(
+    level = "debug",
+    fields(
+        forester = %context.derivation,
+        epoch = %context.epoch,
+        merkle_tree = %context.merkle_tree,
+    ),
+    skip(context, rpc)
+)]
 pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<()> {
-    debug!("perform_nullify");
     let batch_index = get_batch_index(context, rpc).await?;
-    debug!("batch_index: {:?}", batch_index);
-    let instruction_data =
+    let instruction_data_vec =
         create_nullify_batch_ix_data(rpc, &mut *context.indexer.lock().await, context.merkle_tree)
             .await
-            .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
+            .map_err(|e| {
+                error!("Failed to create nullify batch instruction data: {}", e);
+                BatchProcessError::InstructionData(e.to_string())
+            })?;
 
-    let instruction = create_batch_nullify_instruction(
-        context.authority.pubkey(),
-        context.derivation,
-        context.merkle_tree,
-        context.epoch,
-        instruction_data
-            .try_to_vec()
-            .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+    if instruction_data_vec.is_empty() {
+        debug!("No zkp batches to nullify");
+        return Ok(());
+    }
+
+    info!(
+        "Processing {} ZKP batch nullifications",
+        instruction_data_vec.len()
     );
 
-    rpc.create_and_send_transaction(
-        &[instruction],
-        &context.authority.pubkey(),
-        &[&context.authority],
-    )
-    .await?;
+    // Process each transaction sequentially as order matters
+    for (idx, instruction_data) in instruction_data_vec.iter().enumerate() {
+        debug!(
+            "Processing nullify transaction {}/{}",
+            idx + 1,
+            instruction_data_vec.len()
+        );
+
+        let instruction = create_batch_nullify_instruction(
+            context.authority.pubkey(),
+            context.derivation,
+            context.merkle_tree,
+            context.epoch,
+            instruction_data
+                .try_to_vec()
+                .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+        );
+
+        match rpc
+            .create_and_send_transaction(
+                &[instruction],
+                &context.authority.pubkey(),
+                &[&context.authority],
+            )
+            .await
+        {
+            Ok(tx) => {
+                info!(
+                    "Nullify transaction {}/{} sent successfully: {}",
+                    idx + 1,
+                    instruction_data_vec.len(),
+                    tx
+                );
+            }
+            Err(e) => {
+                error!(
+                    "Failed to send nullify transaction {}/{} for tree {}: {:?}",
+                    idx + 1,
+                    instruction_data_vec.len(),
+                    context.merkle_tree,
+                    e
+                );
+                return Err(e.into());
+            }
+        }
+    }
 
     update_test_indexer_after_nullification(
         rpc,
@@ -97,16 +208,23 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
         batch_index,
     )
     .await
-    .expect("Failed to update test indexer after nullification");
+    .map_err(|e| {
+        error!("Failed to update test indexer after nullification: {:?}", e);
+        BatchProcessError::Indexer(e.to_string())
+    })?;
 
     Ok(())
 }
 
+/// Get the current batch index from the Merkle tree account
 async fn get_batch_index<R: RpcConnection, I: Indexer<R>>(
     context: &BatchContext<R, I>,
     rpc: &mut R,
 ) -> Result<usize> {
-    let mut account = rpc.get_account(context.merkle_tree).await?.unwrap();
+    let mut account = rpc.get_account(context.merkle_tree).await?.ok_or_else(|| {
+        BatchProcessError::Rpc(format!("Account not found: {}", context.merkle_tree))
+    })?;
+
     let merkle_tree =
         light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),

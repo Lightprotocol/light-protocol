@@ -26,7 +26,7 @@ use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
-use tracing::info;
+use tracing::trace;
 
 use crate::errors::ForesterError;
 
@@ -221,7 +221,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    info!(
+    trace!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );
@@ -249,7 +249,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     };
 
     if is_already_rolled_over {
-        info!("Tree {:?} is already rolled over", tree_pubkey);
+        trace!("Tree {:?} is already rolled over", tree_pubkey);
         return Ok(false);
     }
 

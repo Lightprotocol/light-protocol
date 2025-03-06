@@ -43,11 +43,13 @@ members = [
 
 resolver = "2"
 
+[profile.dev]
+opt-level = 0
+debug = true
+strip = "none"
+
 [profile.release]
 overflow-checks = true
-
-[profile.test]
-opt-level = 2
 
 [workspace.dependencies]
 # Solana

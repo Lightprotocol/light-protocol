@@ -2126,7 +2126,6 @@ dependencies = [
  "env_logger 0.11.6",
  "forester-utils",
  "futures",
- "hex",
  "itertools 0.14.0",
  "lazy_static",
  "light-batched-merkle-tree",
@@ -3422,7 +3421,6 @@ dependencies = [
  "light-indexed-array",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "once_cell",
@@ -3434,6 +3432,7 @@ dependencies = [
  "sysinfo",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

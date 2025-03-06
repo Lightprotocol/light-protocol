@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
 use reqwest::Client;
 use tokio::sync::Mutex;
-use tracing::{debug, error};
+use tracing::{debug, error, log::trace};
 
 use crate::Result;
 
@@ -155,7 +155,7 @@ pub async fn push_metrics(url: &Option<String>) -> Result<()> {
     let url = match url {
         Some(url) => url,
         None => {
-            debug!("Pushgateway URL not set, skipping metrics push");
+            trace!("Pushgateway URL not set, skipping metrics push");
             return Ok(());
         }
     };

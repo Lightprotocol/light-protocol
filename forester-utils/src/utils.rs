@@ -37,10 +37,17 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
         .await
         .map_err(|_| ForesterUtilsError::Rpc("Failed to get rpc slot".into()))?;
 
-    let mut indexer_slot = indexer
-        .get_indexer_slot(rpc)
-        .await
-        .map_err(|_| ForesterUtilsError::Indexer("Failed to get indexer slot".into()))?;
+    let indexer_slot = indexer.get_indexer_slot(rpc).await;
+
+    let mut indexer_slot = match indexer_slot {
+        Ok(slot) => slot,
+        Err(e) => {
+            error!("failed to get indexer slot from indexer: {:?}", e);
+            return Err(ForesterUtilsError::Indexer(
+                "Failed to get indexer slot".into(),
+            ));
+        }
+    };
 
     let max_attempts = 20;
     let mut attempts = 0;

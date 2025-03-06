@@ -4,9 +4,9 @@ use ark_std::Zero;
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use log::info;
 use num_bigint::{BigInt, Sign, ToBigUint};
 use once_cell::{self, sync::Lazy};
+use tracing::info;
 
 use crate::{
     inclusion::{

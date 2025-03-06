@@ -99,7 +99,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 self.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let circuit_inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (circuit_inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
             old_root,
             account_next_index as u32,
             leaves,
@@ -107,6 +107,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             old_leaves,
             merkle_proofs,
             batch_size,
+            &[],
         )?;
         assert_eq!(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
@@ -183,7 +184,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         // local_leaves_hashchain is only used for a test assertion.
         let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers)?;
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-        let inputs = get_batch_update_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_update_inputs::<HEIGHT>(
             old_root,
             tx_hashes,
             leaves.iter().map(|(leaf, _)| *leaf).collect(),
@@ -192,6 +193,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             merkle_proofs,
             path_indices,
             batch_size,
+            &[],
         )?;
         let client = Client::new();
         let circuit_inputs_new_root =

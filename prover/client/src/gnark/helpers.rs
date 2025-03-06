@@ -6,12 +6,12 @@ use std::{
     time::Duration,
 };
 
-use log::info;
 use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
 use serde_json::json;
 use sysinfo::{Signal, System};
+use tracing::info;
 
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 

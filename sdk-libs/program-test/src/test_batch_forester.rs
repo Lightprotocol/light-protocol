@@ -161,7 +161,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
         }
 
         // TODO: remove unwraps
-        let circuit_inputs =
+        let (circuit_inputs, _) =
             get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 old_root,
                 merkle_tree_next_index as u32,
@@ -170,6 +170,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                 old_leaves,
                 merkle_proofs,
                 zkp_batch_size as u32,
+                &[],
             )
             .unwrap();
         assert_eq!(
@@ -315,7 +316,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     // local_leaves_hash_chain is only used for a test assertion.
     let local_nullifier_hash_chain = create_hash_chain_from_slice(&nullifiers).unwrap();
     assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+    let (inputs, _) = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
@@ -324,6 +325,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         merkle_proofs,
         path_indices,
         zkp_batch_size as u32,
+        &[],
     )
     .unwrap();
     let client = Client::new();
