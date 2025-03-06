@@ -132,7 +132,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let request: photon_api::models::GetQueueElementsPostRequest =
                 photon_api::models::GetQueueElementsPostRequest {
                     params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                        merkle_tree: bs58::encode(pubkey).into_string(),
+                        tree: bs58::encode(pubkey).into_string(),
                         queue_type: queue_type as u16,
                         num_elements,
                         start_offset,
@@ -159,7 +159,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     .collect();
                                 let root = Hash::from_base58(&x.root).unwrap();
                                 let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                let merkle_tree = Hash::from_base58(&x.merkle_tree).unwrap();
+                                let merkle_tree = Hash::from_base58(&x.tree).unwrap();
                                 let tx_hash =
                                     x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
                                 let account_hash = Hash::from_base58(&x.account_hash).unwrap();

@@ -20,7 +20,7 @@ docs/CompressedProofWithContext.md
 docs/CompressedProofWithContextV2.md
 docs/CompressionInfoV2.md
 docs/Context.md
-docs/ContextInfo.md
+docs/TreeContextInfo.md
 docs/DataSlice.md
 docs/DefaultApi.md
 docs/FilterSelector.md
