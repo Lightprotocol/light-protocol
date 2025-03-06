@@ -6,14 +6,20 @@ on:
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
-    branches: ["**"]
+    branches: ["main"]
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
     types: [opened, synchronize, reopened, ready_for_review]
 
