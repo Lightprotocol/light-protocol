@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
@@ -198,7 +197,6 @@ func testInclusionHappyPath32_12348(t *testing.T) {
 func testNonInclusionHappyPath40_12348(t *testing.T) {
 	for _, compressedAccounts := range []int{1, 2} {
 		tree := prover.BuildValidTestNonInclusionTree(40, compressedAccounts, false)
-		fmt.Printf("%+v", tree)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
 

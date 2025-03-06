@@ -1639,6 +1639,7 @@ where
         for tree in self.address_merkle_trees.iter() {
             println!("height {:?}", tree.height());
             println!("accounts {:?}", tree.accounts);
+            println!("root {:?}", tree.root());
         }
         println!("process_non_inclusion_proofs: addresses {:?}", addresses);
         for (i, address) in addresses.iter().enumerate() {

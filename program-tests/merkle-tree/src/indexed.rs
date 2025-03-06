@@ -75,45 +75,14 @@ where
             .unwrap()
             .hash::<H>(&init_next_value)
             .unwrap();
-        // let new_low_leaf = nullifier_bundle
-        //     .new_low_element
-        //     .hash::<H>(&nullifier_bundle.new_element.value)?;
-        // let new_leaf = nullifier_bundle
-        //     .new_element
-        //     .hash::<H>(&nullifier_bundle.new_element_next_value)?;
         merkle_tree.append(&new_leaf)?;
         assert_eq!(merkle_tree.leaf(0), new_leaf);
-        println!(
-            "inited height {} root {:?}",
-            merkle_tree.height,
-            merkle_tree.root()
-        );
-
         Ok(Self {
             merkle_tree,
             indexed_array,
             _index: PhantomData,
         })
     }
-
-    // /// Initializes the reference indexed merkle tree on par with the
-    // /// on-chain indexed concurrent merkle tree.
-    // /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
-    // pub fn init(&mut self) -> Result<(), ReferenceMerkleTreeError> {
-    //     let mut indexed_array = IndexedArray::<H, I>::default();
-    //     let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
-    //     let nullifier_bundle = indexed_array.append(&init_value)?;
-    //     let new_low_leaf = nullifier_bundle
-    //         .new_low_element
-    //         .hash::<H>(&nullifier_bundle.new_element.value)?;
-
-    //     self.merkle_tree.update(&new_low_leaf, 0)?;
-    //     let new_leaf = nullifier_bundle
-    //         .new_element
-    //         .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-    //     self.merkle_tree.append(&new_leaf)?;
-    //     Ok(())
-    // }
 
     pub fn get_path_of_leaf(
         &self,
@@ -176,11 +145,9 @@ where
     pub fn get_non_inclusion_proof(
         &self,
         value: &BigUint,
-        // indexed_array: &IndexedArray<H, I>,
     ) -> Result<NonInclusionProof, IndexedReferenceMerkleTreeError> {
         let (low_element, _next_value) =
             self.indexed_array.find_low_element_for_nonexistent(value)?;
-        println!("low element: {:?}", low_element);
         let merkle_proof =
             self.get_proof_of_leaf(usize::try_from(low_element.index).unwrap(), true)?;
         let higher_range_value = if low_element.next_index() == 0 {
@@ -201,7 +168,6 @@ where
             next_index: low_element.next_index(),
             merkle_proof,
         };
-        println!("non inclusion proof {:?}", non_inclusion_proof);
         Ok(non_inclusion_proof)
     }
 
