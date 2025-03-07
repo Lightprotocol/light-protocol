@@ -875,6 +875,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         epoch: epoch_info.epoch,
                         merkle_tree: tree.tree_accounts.merkle_tree,
                         output_queue: tree.tree_accounts.queue,
+                        ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
                     };
 
                     let start_time = Instant::now();

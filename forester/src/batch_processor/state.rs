@@ -18,8 +18,6 @@ use crate::{
     },
 };
 
-const CHUNK_SIZE: usize = 6;
-
 #[instrument(
     level = "debug",
     fields(
@@ -55,15 +53,17 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         instruction_data_vec.len()
     );
 
-    for (chunk_idx, instruction_chunk) in instruction_data_vec.chunks(CHUNK_SIZE).enumerate() {
+    for (chunk_idx, instruction_chunk) in
+        instruction_data_vec.chunks(context.ixs_per_tx).enumerate()
+    {
         debug!(
             "Sending append transaction chunk {}/{} for tree: {}",
             chunk_idx + 1,
-            instruction_data_vec.len().div_ceil(CHUNK_SIZE),
+            instruction_data_vec.len().div_ceil(context.ixs_per_tx),
             context.merkle_tree
         );
 
-        let mut instructions = Vec::with_capacity(CHUNK_SIZE);
+        let mut instructions = Vec::with_capacity(context.ixs_per_tx);
         for instruction_data in instruction_chunk {
             debug!(
                 "Instruction data size: {} bytes",
@@ -94,7 +94,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
                 info!(
                     "Append transaction chunk {}/{} sent successfully: {}",
                     chunk_idx + 1,
-                    instruction_data_vec.len().div_ceil(CHUNK_SIZE),
+                    instruction_data_vec.len().div_ceil(context.ixs_per_tx),
                     tx
                 );
             }
@@ -102,7 +102,7 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
                 error!(
                     "Failed to send append transaction chunk {}/{} for tree {}: {:?}",
                     chunk_idx + 1,
-                    instruction_data_vec.len().div_ceil(CHUNK_SIZE),
+                    instruction_data_vec.len().div_ceil(context.ixs_per_tx),
                     context.merkle_tree,
                     e
                 );
@@ -159,14 +159,16 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
         instruction_data_vec.len()
     );
 
-    for (chunk_idx, instruction_chunk) in instruction_data_vec.chunks(CHUNK_SIZE).enumerate() {
+    for (chunk_idx, instruction_chunk) in
+        instruction_data_vec.chunks(context.ixs_per_tx).enumerate()
+    {
         debug!(
             "Processing nullify transaction chunk {}/{}",
             chunk_idx + 1,
-            instruction_data_vec.len().div_ceil(CHUNK_SIZE)
+            instruction_data_vec.len().div_ceil(context.ixs_per_tx)
         );
 
-        let mut instructions = Vec::with_capacity(CHUNK_SIZE);
+        let mut instructions = Vec::with_capacity(context.ixs_per_tx);
         for instruction_data in instruction_chunk {
             instructions.push(create_batch_nullify_instruction(
                 context.authority.pubkey(),
@@ -191,7 +193,7 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
                 info!(
                     "Nullify transaction chunk {}/{} sent successfully: {}",
                     chunk_idx + 1,
-                    instruction_data_vec.len().div_ceil(CHUNK_SIZE),
+                    instruction_data_vec.len().div_ceil(context.ixs_per_tx),
                     tx
                 );
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -200,7 +202,7 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
                 error!(
                     "Failed to send nullify transaction chunk {}/{} for tree {}: {:?}",
                     chunk_idx + 1,
-                    instruction_data_vec.len().div_ceil(CHUNK_SIZE),
+                    instruction_data_vec.len().div_ceil(context.ixs_per_tx),
                     context.merkle_tree,
                     e
                 );

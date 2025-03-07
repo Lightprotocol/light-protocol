@@ -24,6 +24,7 @@ pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
+    pub ixs_per_tx: usize,
 }
 
 #[derive(Debug)]
