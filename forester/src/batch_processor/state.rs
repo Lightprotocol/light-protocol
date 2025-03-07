@@ -96,7 +96,6 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
                     instruction_data_vec.len().div_ceil(chunk_size),
                     tx
                 );
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             }
             Err(e) => {
                 error!(
