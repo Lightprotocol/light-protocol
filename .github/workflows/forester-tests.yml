@@ -6,14 +6,20 @@ on:
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
-    branches: ["**"]
+    branches: ["main"]
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -69,7 +75,7 @@ jobs:
             },
           ]
     name: test-${{ matrix.test-name.name }}
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: ${{ matrix.test-name.timeout }}
     steps:
       - uses: actions/checkout@v4

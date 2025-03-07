@@ -13,8 +13,8 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsPostRequestParams {
     /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "merkleTree")]
-    pub merkle_tree: String,
+    #[serde(rename = "tree")]
+    pub tree: String,
     #[serde(rename = "numElements")]
     pub num_elements: u16,
     #[serde(rename = "queueType")]
@@ -34,7 +34,7 @@ impl GetQueueElementsPostRequestParams {
         queue_type: u16,
     ) -> GetQueueElementsPostRequestParams {
         GetQueueElementsPostRequestParams {
-            merkle_tree,
+            tree: merkle_tree,
             num_elements,
             queue_type,
             start_offset: None,

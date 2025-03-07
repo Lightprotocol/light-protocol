@@ -15,8 +15,8 @@ pub struct MerkleContextV2 {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "cpiContext", skip_serializing_if = "Option::is_none")]
     pub cpi_context: Option<String>,
-    #[serde(rename = "nextContext", skip_serializing_if = "Option::is_none")]
-    pub next_context: Option<Box<models::ContextInfo>>,
+    #[serde(rename = "nextTreeContext", skip_serializing_if = "Option::is_none")]
+    pub next_tree_context: Option<Box<models::TreeContextInfo>>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "queue")]
     pub queue: String,
@@ -31,7 +31,7 @@ impl MerkleContextV2 {
     pub fn new(queue: String, tree: String, tree_type: u16) -> MerkleContextV2 {
         MerkleContextV2 {
             cpi_context: None,
-            next_context: None,
+            next_tree_context: None,
             queue,
             tree,
             tree_type,

@@ -132,7 +132,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let request: photon_api::models::GetQueueElementsPostRequest =
                 photon_api::models::GetQueueElementsPostRequest {
                     params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                        merkle_tree: bs58::encode(pubkey).into_string(),
+                        tree: bs58::encode(pubkey).into_string(),
                         queue_type: queue_type as u16,
                         num_elements,
                         start_offset,
@@ -159,7 +159,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     .collect();
                                 let root = Hash::from_base58(&x.root).unwrap();
                                 let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                let merkle_tree = Hash::from_base58(&x.merkle_tree).unwrap();
+                                let merkle_tree = Hash::from_base58(&x.tree).unwrap();
                                 let tx_hash =
                                     x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
                                 let account_hash = Hash::from_base58(&x.account_hash).unwrap();
@@ -792,34 +792,52 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContextV2, IndexerError> {
-        self.rate_limited_request(|| async {
-            let request = photon_api::models::GetValidityProofV2PostRequest {
-                params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
-                    hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
-                    // new_addresses: None,
-                    new_addresses_with_trees: Some(
-                        new_addresses_with_trees
-                            .iter()
-                            .map(|x| photon_api::models::AddressWithTree {
-                                address: x.address.to_base58(),
-                                tree: x.tree.to_string(),
-                            })
-                            .collect(),
-                    ),
-                }),
-                ..Default::default()
-            };
+        let max_retries = 4;
+        let mut retries = 0;
+        let mut delay = 1000;
 
-            let result = photon_api::apis::default_api::get_validity_proof_v2_post(
-                &self.configuration,
-                request,
-            )
-            .await?;
+        loop {
+            match self
+                .rate_limited_request(|| async {
+                    let request = photon_api::models::GetValidityProofV2PostRequest {
+                        params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
+                            hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
+                            new_addresses_with_trees: Some(
+                                new_addresses_with_trees
+                                    .iter()
+                                    .map(|x| photon_api::models::AddressWithTree {
+                                        address: x.address.to_base58(),
+                                        tree: x.tree.to_string(),
+                                    })
+                                    .collect(),
+                            ),
+                        }),
+                        ..Default::default()
+                    };
 
-            let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-            Ok(*result.value)
-        })
-        .await
+                    let result = photon_api::apis::default_api::get_validity_proof_v2_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
+
+                    let result = Self::extract_result("get_validity_proof_v2", result.result)?;
+                    Ok(*result.value)
+                })
+                .await
+            {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    if retries >= max_retries {
+                        return Err(e);
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                    retries += 1;
+                    delay *= 2;
+                    continue;
+                }
+            }
+        }
     }
 
     async fn get_indexer_slot(&self, _r: &mut R) -> Result<u64, IndexerError> {

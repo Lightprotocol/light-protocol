@@ -21,8 +21,8 @@ pub struct GetQueueElementsResponseValue {
     #[serde(rename = "leaf_index")]
     pub leaf_index: u64,
     /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "merkle_tree")]
-    pub merkle_tree: String,
+    #[serde(rename = "tree")]
+    pub tree: String,
     #[serde(rename = "proof")]
     pub proof: Vec<String>,
     /// A 32-byte hash represented as a base58 string.
@@ -40,7 +40,7 @@ impl GetQueueElementsResponseValue {
         account_hash: String,
         leaf: String,
         leaf_index: u64,
-        merkle_tree: String,
+        tree: String,
         proof: Vec<String>,
         root: String,
         root_seq: u64,
@@ -49,7 +49,7 @@ impl GetQueueElementsResponseValue {
             account_hash,
             leaf,
             leaf_index,
-            merkle_tree,
+            tree,
             proof,
             root,
             root_seq,
