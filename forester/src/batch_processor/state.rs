@@ -53,33 +53,37 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         instruction_data_vec.len()
     );
 
-    for (idx, instruction_data) in instruction_data_vec.iter().enumerate() {
+    let chunk_size = 7;
+    for (chunk_idx, instruction_chunk) in instruction_data_vec.chunks(chunk_size).enumerate() {
         debug!(
-            "Sending append transaction {}/{} for tree: {}",
-            idx + 1,
-            instruction_data_vec.len(),
+            "Sending append transaction chunk {}/{} for tree: {}",
+            chunk_idx + 1,
+            instruction_data_vec.len().div_ceil(chunk_size),
             context.merkle_tree
         );
 
-        debug!(
-            "Instruction data size: {} bytes",
-            instruction_data.try_to_vec().map(|v| v.len()).unwrap_or(0)
-        );
+        let mut instructions = Vec::with_capacity(chunk_size);
+        for instruction_data in instruction_chunk {
+            debug!(
+                "Instruction data size: {} bytes",
+                instruction_data.try_to_vec().map(|v| v.len()).unwrap_or(0)
+            );
 
-        let instruction = create_batch_append_instruction(
-            context.authority.pubkey(),
-            context.derivation,
-            context.merkle_tree,
-            context.output_queue,
-            context.epoch,
-            instruction_data
-                .try_to_vec()
-                .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
-        );
+            instructions.push(create_batch_append_instruction(
+                context.authority.pubkey(),
+                context.derivation,
+                context.merkle_tree,
+                context.output_queue,
+                context.epoch,
+                instruction_data
+                    .try_to_vec()
+                    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+            ));
+        }
 
         match rpc
             .create_and_send_transaction(
-                &[instruction],
+                &instructions,
                 &context.authority.pubkey(),
                 &[&context.authority],
             )
@@ -87,18 +91,18 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
         {
             Ok(tx) => {
                 info!(
-                    "Append transaction {}/{} sent successfully: {}",
-                    idx + 1,
-                    instruction_data_vec.len(),
+                    "Append transaction chunk {}/{} sent successfully: {}",
+                    chunk_idx + 1,
+                    instruction_data_vec.len().div_ceil(chunk_size),
                     tx
                 );
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             }
             Err(e) => {
                 error!(
-                    "Failed to send append transaction {}/{} for tree {}: {:?}",
-                    idx + 1,
-                    instruction_data_vec.len(),
+                    "Failed to send append transaction chunk {}/{} for tree {}: {:?}",
+                    chunk_idx + 1,
+                    instruction_data_vec.len().div_ceil(chunk_size),
                     context.merkle_tree,
                     e
                 );
@@ -155,27 +159,30 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
         instruction_data_vec.len()
     );
 
-    // Process each transaction sequentially as order matters
-    for (idx, instruction_data) in instruction_data_vec.iter().enumerate() {
+    let chunk_size = 7;
+    for (chunk_idx, instruction_chunk) in instruction_data_vec.chunks(chunk_size).enumerate() {
         debug!(
-            "Processing nullify transaction {}/{}",
-            idx + 1,
-            instruction_data_vec.len()
+            "Processing nullify transaction chunk {}/{}",
+            chunk_idx + 1,
+            instruction_data_vec.len().div_ceil(chunk_size)
         );
 
-        let instruction = create_batch_nullify_instruction(
-            context.authority.pubkey(),
-            context.derivation,
-            context.merkle_tree,
-            context.epoch,
-            instruction_data
-                .try_to_vec()
-                .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
-        );
+        let mut instructions = Vec::with_capacity(chunk_size);
+        for instruction_data in instruction_chunk {
+            instructions.push(create_batch_nullify_instruction(
+                context.authority.pubkey(),
+                context.derivation,
+                context.merkle_tree,
+                context.epoch,
+                instruction_data
+                    .try_to_vec()
+                    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?,
+            ));
+        }
 
         match rpc
             .create_and_send_transaction(
-                &[instruction],
+                &instructions,
                 &context.authority.pubkey(),
                 &[&context.authority],
             )
@@ -183,17 +190,18 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
         {
             Ok(tx) => {
                 info!(
-                    "Nullify transaction {}/{} sent successfully: {}",
-                    idx + 1,
-                    instruction_data_vec.len(),
+                    "Nullify transaction chunk {}/{} sent successfully: {}",
+                    chunk_idx + 1,
+                    instruction_data_vec.len().div_ceil(chunk_size),
                     tx
                 );
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             }
             Err(e) => {
                 error!(
-                    "Failed to send nullify transaction {}/{} for tree {}: {:?}",
-                    idx + 1,
-                    instruction_data_vec.len(),
+                    "Failed to send nullify transaction chunk {}/{} for tree {}: {:?}",
+                    chunk_idx + 1,
+                    instruction_data_vec.len().div_ceil(chunk_size),
                     context.merkle_tree,
                     e
                 );
