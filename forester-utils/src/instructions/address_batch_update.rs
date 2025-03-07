@@ -64,7 +64,11 @@ where
         .iter()
         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
         .unwrap()
-        .merkle_tree
+        .get_v2_indexed_merkle_tree()
+        .ok_or(ForesterUtilsError::Indexer(format!(
+            "Merkle tree {:?} is not a batched address Merkle tree",
+            merkle_tree_pubkey
+        )))?
         .merkle_tree
         .rightmost_index;
 
