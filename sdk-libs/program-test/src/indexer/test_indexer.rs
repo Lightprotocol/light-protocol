@@ -1125,7 +1125,8 @@ where
                         .merkle_tree
                         .append(new_leaf)
                         .unwrap();
-                } else {
+                } 
+                else {
                     result.unwrap();
                 }
             }

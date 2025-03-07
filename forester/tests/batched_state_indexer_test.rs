@@ -48,7 +48,7 @@ async fn test_state_indexer_batched() {
     env.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 4;
+    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
     let pool = SolanaRpcPool::<SolanaRpcConnection>::new(
