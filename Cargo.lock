@@ -63,7 +63,6 @@ dependencies = [
  "light-prover-client",
  "light-test-utils",
  "light-verifier",
- "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "serial_test",
@@ -837,12 +836,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2015e3793554aa5b6007e3a72959e84c1070039e74f13dde08fa64afe1ddd892"
-
-[[package]]
-name = "base64"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
@@ -1358,6 +1351,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
+ "forester-utils",
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
@@ -2126,7 +2120,6 @@ dependencies = [
  "env_logger 0.11.6",
  "forester-utils",
  "futures",
- "hex",
  "itertools 0.14.0",
  "lazy_static",
  "light-batched-merkle-tree",
@@ -2184,12 +2177,12 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-system-program",
- "log",
  "num-traits",
  "reqwest",
  "solana-sdk",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3375,7 +3368,6 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "async-trait",
- "base64 0.2.1",
  "borsh 0.10.3",
  "forester-utils",
  "light-batched-merkle-tree",
@@ -3390,8 +3382,6 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-system-program",
- "light-verifier",
- "light-zero-copy",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3422,7 +3412,6 @@ dependencies = [
  "light-indexed-array",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
- "log",
  "num-bigint 0.4.6",
  "num-traits",
  "once_cell",
@@ -3434,6 +3423,7 @@ dependencies = [
  "sysinfo",
  "thiserror 2.0.12",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

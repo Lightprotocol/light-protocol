@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use forester_utils::instructions::create_batch_update_address_tree_instruction_data;
+use forester_utils::instructions::address_batch_update::create_batch_update_address_tree_instruction_data;
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_merkle_tree_metadata::events::MerkleTreeEvent;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;

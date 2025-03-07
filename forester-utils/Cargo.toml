@@ -36,7 +36,7 @@ solana-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 # Logging
-log = { workspace = true }
+tracing = { workspace = true }
 
 # Big numbers
 num-traits = { workspace = true }

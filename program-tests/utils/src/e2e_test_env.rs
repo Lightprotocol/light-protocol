@@ -73,11 +73,11 @@ use account_compression::{
 use anchor_lang::AnchorSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
+    account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
-    airdrop_lamports,
     forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
     registry::register_test_forester,
-    AccountZeroCopy,
+    utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
     batch::BatchState,

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, instructions::wait_for_indexer};
+use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -52,10 +52,9 @@ const ENABLE_TRANSACTIONS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 2;
 const MINT_TO_NUM: u64 = 5;
 const BATCHES_NUM: u64 = 10;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
-const SLEEP_DURATION: Duration = Duration::from_secs(5);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -76,6 +75,7 @@ async fn test_state_indexer_async_batched() {
 
     let env = EnvAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
+    config.transaction_config.batch_ixs_per_tx = 6;
     config.payer_keypair = env.forester.insecure_clone();
     config.derivation_pubkey = env.forester.pubkey();
 
@@ -94,6 +94,12 @@ async fn test_state_indexer_async_batched() {
     };
     let protocol_config = get_protocol_config(&mut rpc).await;
 
+    let (service_handle, shutdown_sender, mut work_report_receiver) =
+        setup_forester_pipeline(&config).await;
+
+    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, active_phase_slot).await;
+
     let (initial_next_index, initial_sequence_number, pre_root) =
         get_initial_merkle_tree_state(&mut rpc, &env.batched_state_merkle_tree).await;
     println!(
@@ -105,12 +111,6 @@ async fn test_state_indexer_async_batched() {
         initial_sequence_number,
         get_batch_size(&mut rpc, &env.batched_state_merkle_tree).await
     );
-
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
-
-    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
-    wait_for_slot(&mut rpc, active_phase_slot).await;
 
     let batch_payer = Keypair::from_bytes(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
@@ -173,6 +173,7 @@ async fn test_state_indexer_async_batched() {
     let rng = &mut StdRng::seed_from_u64(rng_seed);
 
     if ENABLE_TRANSACTIONS {
+        println!("Execution first round of transactions");
         execute_test_transactions(
             &mut rpc,
             &mut photon_indexer,
@@ -400,6 +401,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
 
+        sleep(Duration::from_millis(1000)).await;
         let batch_transfer_sig = transfer(
             rpc,
             indexer,
@@ -409,7 +411,6 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
         println!("{} batch transfer: {:?}", i, batch_transfer_sig);
-        sleep(SLEEP_DURATION).await;
 
         let legacy_transfer_sig = transfer(
             rpc,
@@ -431,8 +432,8 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
         .await;
         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
+        sleep(Duration::from_millis(1000)).await;
     }
-    sleep(SLEEP_DURATION).await;
 
     let sig = create_v1_address(
         rpc,
@@ -491,24 +492,77 @@ async fn wait_for_work_report(
     work_report_receiver: &mut mpsc::Receiver<WorkReport>,
     tree_params: &InitStateTreeAccountsInstructionData,
 ) {
+    let batch_size = tree_params.output_queue_zkp_batch_size as usize;
+    let mut reports = Vec::new();
+    let minimum_processed_items: usize = tree_params.output_queue_batch_size as usize;
+    let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
-    match timeout(timeout_duration, work_report_receiver.recv()).await {
-        Ok(Some(report)) => {
-            println!("Received work report: {:?}", report);
-            println!(
-                "Work report debug:\n\
-                 reported_items: {}\n\
-                 batch_size: {}\n\
-                 complete_batches: {}",
-                report.processed_items,
-                tree_params.input_queue_zkp_batch_size,
-                report.processed_items / tree_params.input_queue_zkp_batch_size as usize,
-            );
-            assert!(report.processed_items > 0, "No items were processed");
+
+    println!("Waiting for work reports...");
+    println!("Batch size: {}", batch_size);
+    println!(
+        "Minimum required processed items: {}",
+        minimum_processed_items
+    );
+
+    let start_time = tokio::time::Instant::now();
+    while total_processed_items < minimum_processed_items {
+        match timeout(
+            timeout_duration.saturating_sub(start_time.elapsed()),
+            work_report_receiver.recv(),
+        )
+        .await
+        {
+            Ok(Some(report)) => {
+                println!("Received work report: {:?}", report);
+                println!(
+                    "Report details:\n\
+                     - Items processed in this report: {}\n\
+                     - Total items processed so far: {}\n\
+                     - Complete batches so far: {}",
+                    report.processed_items,
+                    total_processed_items + report.processed_items,
+                    (total_processed_items + report.processed_items) / batch_size
+                );
+
+                total_processed_items += report.processed_items;
+                reports.push(report);
+            }
+            Ok(None) => {
+                println!("Work report channel closed unexpectedly");
+                break;
+            }
+            Err(_) => {
+                println!("Timed out after waiting for {:?}", timeout_duration);
+                break;
+            }
         }
-        Ok(None) => panic!("Work report channel closed unexpectedly"),
-        Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
+
+    println!(
+        "Total processed items across all reports: {}",
+        total_processed_items
+    );
+    println!(
+        "Total complete batches: {}",
+        total_processed_items / batch_size
+    );
+
+    if total_processed_items < minimum_processed_items {
+        println!(
+            "Warning: Received fewer processed items ({}) than required ({})",
+            total_processed_items, minimum_processed_items
+        );
+    } else {
+        println!("Successfully processed required number of items");
+    }
+
+    assert!(
+        total_processed_items >= minimum_processed_items,
+        "Processed fewer items ({}) than required ({})",
+        total_processed_items,
+        minimum_processed_items
+    );
 }
 
 async fn verify_root_changed(
@@ -585,11 +639,6 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .get_compressed_token_accounts_by_owner_v2(&payer.pubkey(), Some(*mint))
         .await
         .unwrap();
-    println!(
-        "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
-        payer.pubkey(),
-        input_compressed_accounts
-    );
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -721,11 +770,6 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .get_compressed_accounts_by_owner_v2(&payer.pubkey())
         .await
         .unwrap_or(vec![]);
-    println!(
-        "get_compressed_accounts_by_owner_v2({:?}): input_compressed_accounts: {:?}",
-        payer.pubkey(),
-        input_compressed_accounts
-    );
     assert_eq!(
         std::cmp::min(input_compressed_accounts.len(), 1000),
         std::cmp::min(*counter as usize, 1000)
@@ -867,19 +911,25 @@ async fn compress<R: RpcConnection>(
         None,
         true,
     );
-    println!("compress instruction: {:?}", instruction);
     let mut instructions = vec![
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
             COMPUTE_BUDGET_LIMIT,
         ),
     ];
     instructions.push(instruction);
-    let sig = rpc
+    match rpc
         .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
-        .unwrap();
-    *counter += 1;
-    sig
+    {
+        Ok(sig) => {
+            *counter += 1;
+            sig
+        }
+        Err(e) => {
+            println!("compress error: {:?}", e);
+            panic!("compress error: {:?}", e);
+        }
+    }
 }
 
 async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(

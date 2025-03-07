@@ -3,10 +3,10 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use forester_utils::{
+    account_zero_copy::{get_concurrent_merkle_tree, get_indexed_merkle_tree},
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
-    create_account_instruction,
     forester_epoch::TreeType,
-    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    instructions::create_account::create_account_instruction,
     registry::RentExemption,
 };
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -26,7 +26,7 @@ use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
-use tracing::info;
+use tracing::trace;
 
 use crate::errors::ForesterError;
 
@@ -221,7 +221,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    info!(
+    trace!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );
@@ -249,7 +249,7 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     };
 
     if is_already_rolled_over {
-        info!("Tree {:?} is already rolled over", tree_pubkey);
+        trace!("Tree {:?} is already rolled over", tree_pubkey);
         return Ok(false);
     }
 

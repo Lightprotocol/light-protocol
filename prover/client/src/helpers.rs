@@ -1,7 +1,5 @@
-use env_logger::Builder;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{Hasher, Poseidon};
-use log::LevelFilter;
 use num_bigint::BigInt;
 
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
@@ -18,12 +16,6 @@ pub fn convert_endianness_128(bytes: &[u8]) -> Vec<u8> {
         .chunks(64)
         .flat_map(|b| b.iter().copied().rev().collect::<Vec<u8>>())
         .collect::<Vec<u8>>()
-}
-
-pub fn init_logger() {
-    let _ = Builder::new()
-        .filter_module("light_prover_client", LevelFilter::Info)
-        .try_init();
 }
 
 pub fn bigint_to_u8_32(n: &BigInt) -> Result<[u8; 32], Box<dyn std::error::Error>> {

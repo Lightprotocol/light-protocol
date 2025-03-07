@@ -13,17 +13,18 @@ use light_hasher::Poseidon;
 use num_traits::Zero;
 use solana_sdk::pubkey::Pubkey;
 
-use crate::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
+use crate::account_zero_copy::{
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
+};
 
 pub async fn get_address_bundle_config<R: RpcConnection>(
     rpc: &mut R,
     address_bundle: AddressMerkleTreeAccounts,
 ) -> (AddressMerkleTreeConfig, AddressQueueConfig) {
-    let address_queue_meta_data =
-        AccountZeroCopy::<account_compression::QueueAccount>::new(rpc, address_bundle.queue)
-            .await
-            .deserialized()
-            .metadata;
+    let address_queue_meta_data = AccountZeroCopy::<QueueAccount>::new(rpc, address_bundle.queue)
+        .await
+        .deserialized()
+        .metadata;
     let address_queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, address_bundle.queue).await };
     let queue_config = AddressQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
@@ -32,13 +33,10 @@ pub async fn get_address_bundle_config<R: RpcConnection>(
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
     let address_tree_meta_data =
-        AccountZeroCopy::<account_compression::AddressMerkleTreeAccount>::new(
-            rpc,
-            address_bundle.merkle_tree,
-        )
-        .await
-        .deserialized()
-        .metadata;
+        AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_bundle.merkle_tree)
+            .await
+            .deserialized()
+            .metadata;
     let address_tree =
         get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
             rpc,
@@ -70,13 +68,11 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
     rpc: &mut R,
     state_tree_bundle: StateMerkleTreeAccounts,
 ) -> (StateMerkleTreeConfig, NullifierQueueConfig) {
-    let address_queue_meta_data = AccountZeroCopy::<account_compression::QueueAccount>::new(
-        rpc,
-        state_tree_bundle.nullifier_queue,
-    )
-    .await
-    .deserialized()
-    .metadata;
+    let address_queue_meta_data =
+        AccountZeroCopy::<QueueAccount>::new(rpc, state_tree_bundle.nullifier_queue)
+            .await
+            .deserialized()
+            .metadata;
     let address_queue =
         unsafe { get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await };
     let queue_config = NullifierQueueConfig {
@@ -85,13 +81,10 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
     let address_tree_meta_data =
-        AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-            rpc,
-            state_tree_bundle.merkle_tree,
-        )
-        .await
-        .deserialized()
-        .metadata;
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.merkle_tree)
+            .await
+            .deserialized()
+            .metadata;
     let address_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
         rpc,
         state_tree_bundle.merkle_tree,
@@ -121,9 +114,7 @@ pub async fn address_tree_ready_for_rollover<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree: Pubkey,
 ) -> bool {
-    let account =
-        AccountZeroCopy::<account_compression::AddressMerkleTreeAccount>::new(rpc, merkle_tree)
-            .await;
+    let account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, merkle_tree).await;
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(account.account.data.len())
         .await

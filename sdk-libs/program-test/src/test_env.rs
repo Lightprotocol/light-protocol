@@ -5,9 +5,10 @@ use account_compression::{
     GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
 };
 use forester_utils::{
-    airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
+    instructions::create_account::create_account_instruction,
     registry::register_test_forester,
+    utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,

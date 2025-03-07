@@ -24,9 +24,7 @@ use light_prover_client::{
         inclusion_json_formatter_legacy,
         non_inclusion_json_formatter_legacy::non_inclusion_inputs_string,
     },
-    helpers::init_logger,
 };
-use log::info;
 use num_bigint::ToBigUint;
 use reqwest::Client;
 use serial_test::serial;
@@ -34,7 +32,6 @@ use serial_test::serial;
 #[serial]
 #[tokio::test]
 async fn prove_inclusion() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -76,7 +73,6 @@ async fn prove_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_combined() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -121,7 +117,6 @@ async fn prove_combined() {
 #[serial]
 #[tokio::test]
 async fn prove_non_inclusion() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -168,7 +163,6 @@ async fn prove_non_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_batch_update() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -182,7 +176,6 @@ async fn prove_batch_update() {
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
 
-    info!("initializing merkle tree");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     for _ in 0..2 {
         let mut leaves = vec![];
@@ -211,7 +204,7 @@ async fn prove_batch_update() {
         }
         let root = merkle_tree.root();
         let leaves_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
-        let inputs = get_batch_update_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_update_inputs::<HEIGHT>(
             root,
             vec![tx_hash; num_insertions],
             leaves,
@@ -220,6 +213,7 @@ async fn prove_batch_update() {
             merkle_proofs,
             path_indices,
             num_insertions as u32,
+            &[],
         )
         .unwrap();
         let client = Client::new();
@@ -246,8 +240,6 @@ async fn prove_batch_update() {
 #[serial]
 #[tokio::test]
 async fn prove_batch_append_with_proofs() {
-    init_logger();
-
     // Spawn the prover with specific configuration
     spawn_prover(
         true,
@@ -261,7 +253,6 @@ async fn prove_batch_append_with_proofs() {
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
-    info!("Initializing Merkle tree for append.");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     let mut current_index = 0;
     for i in 0..2 {
@@ -298,7 +289,7 @@ async fn prove_batch_append_with_proofs() {
         let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
 
         // Generate inputs for BatchAppendWithProofsCircuit
-        let inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
             root,
             (i * num_insertions) as u32,
             leaves.clone(),
@@ -306,6 +297,7 @@ async fn prove_batch_append_with_proofs() {
             old_leaves.clone(),
             merkle_proofs.clone(),
             num_insertions as u32,
+            &[],
         )
         .unwrap();
 
@@ -351,7 +343,6 @@ async fn prove_batch_address_append() {
     use light_hasher::Poseidon;
     use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 
-    init_logger();
     println!("spawning prover");
     spawn_prover(
         true,

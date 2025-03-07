@@ -1,6 +1,8 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use forester_utils::account_zero_copy::{
+    get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy,
+};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::{
     batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,

@@ -786,7 +786,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         })
         .await
     }
-
     async fn get_validity_proof_v2(
         &self,
         hashes: Vec<Hash>,

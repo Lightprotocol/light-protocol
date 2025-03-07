@@ -6,7 +6,7 @@ use tokio::{
     sync::broadcast,
     time::{interval, Duration},
 };
-use tracing::{debug, error, info};
+use tracing::{error, trace};
 
 use crate::{tree_data_sync::fetch_trees, Result};
 
@@ -37,7 +37,7 @@ impl<R: RpcConnection> TreeFinder<R> {
 
         loop {
             interval.tick().await;
-            debug!("Checking for new trees");
+            trace!("Checking for new trees");
 
             match self.check_for_new_trees().await {
                 Ok(new_trees) => {
@@ -45,7 +45,7 @@ impl<R: RpcConnection> TreeFinder<R> {
                         if let Err(e) = self.new_tree_sender.send(tree) {
                             error!("Failed to send new tree: {:?}", e);
                         } else {
-                            info!("New tree discovered and sent: {:?}", tree);
+                            trace!("New tree discovered: {:?}", tree);
                             self.known_trees.push(tree);
                         }
                     }

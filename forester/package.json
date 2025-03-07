@@ -5,7 +5,7 @@
   "scripts": {
     "build": "cargo build",
     "test": "RUSTFLAGS=\"--cfg tokio_unstable -D warnings\" cargo test --package forester -- --nocapture",
-    "test-state-batched-local": "cargo test --package forester test_state_batched -- --nocapture",
+    "test-state-batched-local": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_batched -- --nocapture",
     "test-state-batched-indexer": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_batched -- --nocapture",
     "test-state-batched-indexer-async": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_async_batched -- --nocapture",
     "test-fetch-root": "RUST_LOG=forester=debug,forester_utils=debug cargo test --package forester test_state_indexer_fetch_root -- --nocapture",

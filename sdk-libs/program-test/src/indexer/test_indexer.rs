@@ -6,7 +6,9 @@ use account_compression::{
 };
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use forester_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy};
+use forester_utils::account_zero_copy::{
+    get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy,
+};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -106,9 +108,8 @@ where
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_offset: Option<u64>,
+        _start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
-        println!("Getting queue elements...");
         let pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
         let address_tree_bundle = self
             .address_merkle_trees
@@ -119,9 +120,7 @@ where
                 num_elements as usize,
                 address_tree_bundle.queue_elements.len(),
             );
-            let queue_elements = address_tree_bundle.queue_elements
-                [start_offset.unwrap_or_default() as usize..end_offset]
-                .to_vec();
+            let queue_elements = address_tree_bundle.queue_elements[0..end_offset].to_vec();
 
             let merkle_proofs_with_context = queue_elements
                 .iter()
@@ -149,9 +148,7 @@ where
                     num_elements as usize,
                     state_tree_bundle.input_leaf_indices.len(),
                 );
-                let queue_elements = state_tree_bundle.input_leaf_indices
-                    [start_offset.unwrap_or_default() as usize..end_offset]
-                    .to_vec();
+                let queue_elements = state_tree_bundle.input_leaf_indices[0..end_offset].to_vec();
                 let merkle_proofs = queue_elements
                     .iter()
                     .map(|leaf_info| {
@@ -213,9 +210,8 @@ where
                     num_elements as usize,
                     state_tree_bundle.output_queue_elements.len(),
                 );
-                let queue_elements = state_tree_bundle.output_queue_elements
-                    [start_offset.unwrap_or_default() as usize..end_offset]
-                    .to_vec();
+                let queue_elements =
+                    state_tree_bundle.output_queue_elements[0..end_offset].to_vec();
                 let indices = queue_elements
                     .iter()
                     .map(|(_, index)| index)
@@ -1105,7 +1101,6 @@ where
         };
 
         let leaves = state_merkle_tree_bundle.output_queue_elements.to_vec();
-
         let batch_update_leaves = leaves[0..zkp_batch_size as usize].to_vec();
 
         for (i, (new_leaf, _)) in batch_update_leaves.iter().enumerate() {

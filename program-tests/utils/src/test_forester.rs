@@ -5,7 +5,9 @@ use account_compression::{
     AddressMerkleTreeAccount, StateMerkleTreeAccount, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
+use forester_utils::account_zero_copy::{
+    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
+};
 use light_client::{
     indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
     rpc::{errors::RpcError, RpcConnection},

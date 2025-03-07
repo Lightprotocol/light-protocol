@@ -15,7 +15,6 @@ mod test {
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
-        helpers::init_logger,
         inclusion::merkle_tree_info::MerkleTreeInfo,
         init_merkle_tree::inclusion_merkle_tree_inputs,
     };
@@ -26,7 +25,6 @@ mod test {
     #[serial]
     #[tokio::test]
     async fn prove_inclusion() {
-        init_logger();
         spawn_prover(
             true,
             ProverConfig {
@@ -78,7 +76,6 @@ mod test {
     #[tokio::test]
     #[ignore]
     async fn prove_inclusion_full() {
-        init_logger();
         spawn_prover(
             true,
             ProverConfig {

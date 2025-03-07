@@ -23,7 +23,7 @@ use solana_sdk::{
 
 use crate::{
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
-    create_account_instruction,
+    instructions::create_account::create_account_instruction,
 };
 
 /// Creates and asserts forester account creation.
