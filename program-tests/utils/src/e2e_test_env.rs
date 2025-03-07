@@ -669,7 +669,7 @@ where
                     &self.foresters,
                     self.slot,
                 ) {
-                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("\n --------------------------------------------------\n\t\t Empty v1 Address Queue\n --------------------------------------------------");
                     println!("epoch {}", self.epoch);
                     println!("forester {}", payer.pubkey());
                     if address_merkle_tree_bundle.accounts.queue
@@ -1292,6 +1292,7 @@ where
         // TODO: Add assert
     }
 
+    /// Only supports v1 address trees.
     pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
@@ -1361,22 +1362,17 @@ where
             nullifier_queue_keypair.pubkey(),
         )
         .await;
-        self.indexer
-            .get_address_merkle_trees_mut()
-            .push(AddressMerkleTreeBundle {
-                rollover_fee: queue_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: AddressMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    queue: nullifier_queue_keypair.pubkey(),
-                },
-                merkle_tree,
-                indexed_array,
-                queue_elements: vec![],
-            });
+        let mut bundle = AddressMerkleTreeBundle::new_v1(AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: nullifier_queue_keypair.pubkey(),
+        })
+        .unwrap();
+        bundle.rollover_fee = queue_account
+            .deserialized()
+            .metadata
+            .rollover_metadata
+            .rollover_fee as i64;
+        self.indexer.get_address_merkle_trees_mut().push(bundle);
         // TODO: Add assert
     }
 

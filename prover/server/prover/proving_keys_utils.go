@@ -135,16 +135,15 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 
 	var appendWithProofsKeys []string = []string{
 		keysDir + "append-with-proofs_32_10.key",
-		//keysDir + "append-with-proofs_32_100.key",
 		keysDir + "append-with-proofs_32_500.key",
-		//keysDir + "append-with-proofs_32_1000.key",
+		// keysDir + "append-with-proofs_32_1000.key",
 	}
 
 	var updateKeys []string = []string{
 		keysDir + "update_32_10.key",
-		//keysDir + "update_32_100.key",
+		// keysDir + "update_32_100.key",
 		keysDir + "update_32_500.key",
-		//keysDir + "update_32_1000.key",
+		// keysDir + "update_32_1000.key",
 	}
 
 	var appendWithProofsTestKeys []string = []string{

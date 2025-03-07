@@ -428,7 +428,7 @@ func testBatchAddressAppendHappyPath40_1000(t *testing.T) {
 }
 
 func runBatchAddressAppendTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, 2)
+	params, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, 1)
 	if err != nil {
 		t.Fatalf("Failed to build test tree: %v", err)
 	}
@@ -465,7 +465,7 @@ func testBatchAddressAppendWithPreviousState40_100(t *testing.T) {
 }
 
 func runBatchAddressAppendWithPreviousStateTest(t *testing.T, treeHeight uint32, batchSize uint32) {
-	startIndex := uint64(2)
+	startIndex := uint64(1)
 	params1, err := prover.BuildTestAddressTree(treeHeight, batchSize, nil, startIndex)
 	if err != nil {
 		t.Fatalf("Failed to build first test tree: %v", err)

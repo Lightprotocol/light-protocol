@@ -5,7 +5,7 @@ use light_concurrent_merkle_tree::{
 use light_utils::UtilsError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedMerkleTreeError {
     #[error("Integer overflow")]
     IntegerOverflow,

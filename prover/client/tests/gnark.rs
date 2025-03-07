@@ -135,7 +135,6 @@ async fn prove_non_inclusion() {
     {
         for i in 1..=2 {
             let (inputs, _) = non_inclusion_inputs_string(i);
-
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -350,7 +349,7 @@ pub fn print_circuit_test_data_json_formatted() {
 #[tokio::test]
 async fn prove_batch_address_append() {
     use light_hasher::Poseidon;
-    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+    use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 
     init_logger();
     println!("spawning prover");
@@ -371,12 +370,9 @@ async fn prove_batch_address_append() {
     }
 
     // Initialize indexing structures
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-    relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree =
+    let relayer_merkle_tree =
         IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
             .unwrap();
-    relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
     let current_root = relayer_merkle_tree.root();
@@ -391,7 +387,7 @@ async fn prove_batch_address_append() {
     // Generate non-inclusion proofs for each element
     for new_element_value in &new_element_values {
         let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(new_element_value, &relayer_indexing_array)
+            .get_non_inclusion_proof(new_element_value)
             .unwrap();
 
         low_element_values.push(non_inclusion_proof.leaf_lower_range_value);

@@ -138,7 +138,6 @@ func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
 
 		LeafLowerRangeValues:  circuit.NonInclusion.LeafLowerRangeValues,
 		LeafHigherRangeValues: circuit.NonInclusion.LeafHigherRangeValues,
-		NextIndices:           circuit.NonInclusion.NextIndices,
 
 		InPathElements: circuit.NonInclusion.InPathElements,
 		InPathIndices:  circuit.NonInclusion.InPathIndices,

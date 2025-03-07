@@ -27,7 +27,7 @@ ark-std = { workspace = true, default-features = false, features = [
     "parallel",
 ] }
 light-batched-merkle-tree = { workspace = true }
-
+light-indexed-array = { workspace = true }
 # solana
 groth16-solana = "0.0.3"
 solana-program = { workspace = true }

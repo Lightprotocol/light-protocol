@@ -116,10 +116,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         let proof: Vec<[u8; 32]> = state_tree_bundle
             .merkle_tree
             .get_proof_of_leaf(leaf_index, false)
-            .unwrap()
-            .to_array::<16>()
-            .unwrap()
-            .to_vec();
+            .unwrap();
         let ix = create_nullify_instruction(
             CreateNullifyInstructionInputs {
                 authority: forester.pubkey(),
@@ -291,10 +288,11 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
-    let initial_merkle_tree_state = address_tree_bundle.merkle_tree.clone();
-    let initial_indexed_array_state = address_tree_bundle.indexed_array.clone();
-    let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
-    let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
+    let initial_merkle_tree_state = address_tree_bundle
+        .get_v1_indexed_merkle_tree()
+        .unwrap()
+        .clone();
+    let initial_indexed_array_state = address_tree_bundle.indexed_array_v1().unwrap().clone();
     let mut update_errors: Vec<RpcError> = Vec::new();
     let address_merkle_tree =
         get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
@@ -323,7 +321,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
                 address_merkle_tree_pubkey,
             )
             .await;
-        assert_eq!(relayer_merkle_tree.root(), address_merkle_tree.root());
+        assert_eq!(address_tree_bundle.root(), address_merkle_tree.root());
         let address_queue =
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
@@ -474,10 +472,10 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
                 )
                 .await;
 
-            let (old_low_address, _) = relayer_indexing_array
+            let (old_low_address, _) = address_tree_bundle
                 .find_low_element_for_nonexistent(&address.value_biguint())
                 .unwrap();
-            let address_bundle = relayer_indexing_array
+            let address_bundle = address_tree_bundle
                 .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
                 .unwrap();
             let address_queue =
@@ -493,14 +491,14 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
                 old_sequence_number + address_queue.sequence_threshold + 2 // We are doing two Merkle tree operations
             );
 
-            relayer_merkle_tree
+            address_tree_bundle
                 .update(
                     &address_bundle.new_low_element,
                     &address_bundle.new_element,
                     &address_bundle.new_element_next_value,
                 )
                 .unwrap();
-            relayer_indexing_array
+            address_tree_bundle
                 .append_with_low_element_index(
                     address_bundle.new_low_element.index,
                     &address_bundle.new_element.value,
@@ -509,7 +507,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             assert_eq!(merkle_tree.sequence_number(), old_sequence_number + 2);
             assert_ne!(old_root, merkle_tree.root(), "Root did not change.");
             assert_eq!(
-                relayer_merkle_tree.root(),
+                address_tree_bundle.root(),
                 merkle_tree.root(),
                 "Root off-chain onchain inconsistent."
             );
@@ -518,20 +516,19 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
                 .changelog
                 .get(merkle_tree.changelog_index())
                 .unwrap();
-            let path = relayer_merkle_tree
+            let path = address_tree_bundle
                 .get_path_of_leaf(merkle_tree.current_index(), true)
                 .unwrap();
-            for i in 0..ADDRESS_MERKLE_TREE_HEIGHT as usize {
+            for (i, path_node) in path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
 
             let indexed_changelog_entry = merkle_tree
                 .indexed_changelog
                 .get(merkle_tree.indexed_changelog_index())
                 .unwrap();
-            let proof = relayer_merkle_tree
+            let proof = address_tree_bundle
                 .get_proof_of_leaf(merkle_tree.current_index(), false)
                 .unwrap();
             assert_eq!(

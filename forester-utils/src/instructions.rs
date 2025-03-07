@@ -40,6 +40,12 @@ pub enum ForesterUtilsError {
     RpcError(String),
     #[error("indexer error: {0:?}")]
     IndexerError(String),
+    #[error("Converted indexer error: {0}")]
+    ConvertedIndexerError(#[from] light_client::indexer::IndexerError),
+    #[error("Converted rpc error: {0}")]
+    ConvertedRpcError(#[from] light_client::rpc::RpcError),
+    #[error("Batched Merkle tree error: {0}")]
+    BatchedMerkleTreeError(#[from] light_batched_merkle_tree::errors::BatchedMerkleTreeError),
 }
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
@@ -65,8 +71,7 @@ where
         let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &merkle_tree_pubkey.into(),
-        )
-        .unwrap();
+        )?;
 
         let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
         let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
@@ -85,7 +90,11 @@ where
         .iter()
         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
         .unwrap()
-        .merkle_tree
+        .get_v2_indexed_merkle_tree()
+        .ok_or(ForesterUtilsError::IndexerError(format!(
+            "Merkle tree {:?} is not a batched address Merkle tree",
+            merkle_tree_pubkey
+        )))?
         .merkle_tree
         .rightmost_index;
 
@@ -221,8 +230,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &merkle_tree_pubkey.into(),
-        )
-        .unwrap();
+        )?;
 
         (
             merkle_tree.next_index,
@@ -239,8 +247,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let (zkp_batch_size, leaves_hash_chain) = {
         let mut output_queue_account = rpc.get_account(output_queue_pubkey).await.unwrap().unwrap();
         let output_queue =
-            BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())
-                .unwrap();
+            BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice())?;
 
         let full_batch_index = output_queue.batch_metadata.pending_batch_index;
         let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
@@ -366,8 +373,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
         let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
             account.data.as_mut_slice(),
             &merkle_tree_pubkey.into(),
-        )
-        .unwrap();
+        )?;
 
         log::debug!("queue_batches: {:?}", merkle_tree.queue_batches);
 
