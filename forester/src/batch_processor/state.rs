@@ -105,18 +105,19 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
                 return Err(e.into());
             }
         }
+
+        update_test_indexer_after_append(
+            rpc,
+            context.indexer.clone(),
+            context.merkle_tree,
+            context.output_queue,
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to update test indexer after append: {:?}", e);
+            BatchProcessError::Indexer(e.to_string())
+        })?;
     }
-    update_test_indexer_after_append(
-        rpc,
-        context.indexer.clone(),
-        context.merkle_tree,
-        context.output_queue,
-    )
-    .await
-    .map_err(|e| {
-        error!("Failed to update test indexer after append: {:?}", e);
-        BatchProcessError::Indexer(e.to_string())
-    })?;
 
     Ok(())
 }
@@ -199,19 +200,19 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
                 return Err(e.into());
             }
         }
-    }
 
-    update_test_indexer_after_nullification(
-        rpc,
-        context.indexer.clone(),
-        context.merkle_tree,
-        batch_index,
-    )
-    .await
-    .map_err(|e| {
-        error!("Failed to update test indexer after nullification: {:?}", e);
-        BatchProcessError::Indexer(e.to_string())
-    })?;
+        update_test_indexer_after_nullification(
+            rpc,
+            context.indexer.clone(),
+            context.merkle_tree,
+            batch_index,
+        )
+        .await
+        .map_err(|e| {
+            error!("Failed to update test indexer after nullification: {:?}", e);
+            BatchProcessError::Indexer(e.to_string())
+        })?;
+    }
 
     Ok(())
 }
