@@ -714,9 +714,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContextV2, IndexerError> {
-        let max_retries = 8;
+        let max_retries = 4;
         let mut retries = 0;
-        let mut delay = 100;
+        let mut delay = 1000;
 
         loop {
             let response = {
@@ -735,28 +735,37 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }),
                     ..Default::default()
                 };
-                let result = photon_api::apis::default_api::get_validity_proof_v2_post(
+
+                match photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
-                )
-                .await?;
-                let result = Self::extract_result("get_validity_proof_v2", result.result)?;
-                Ok(*result.value)
+                ).await {
+                    Ok(api_result) => {
+                        match Self::extract_result("get_validity_proof_v2", api_result.result) {
+                            Ok(result) => Ok(*result.value),
+                            Err(e) => Err(e)
+                        }
+                    },
+                    Err(e) => Err(IndexerError::from(e))
+                }
             };
 
             match response {
                 Ok(result) => return Ok(result),
                 Err(e) => {
-                    if retries >= max_retries {
-                        error!("Failed to get validity proof after {} retries", retries);
+                    retries += 1;
+
+                    if retries > max_retries {
+                        error!("Failed to get validity proof after {} retries: {:?}", retries - 1, e);
                         return Err(e);
                     }
+
                     warn!(
-                        "Failed to get validity proof, retrying in {} ms (retry {}/{})",
-                        delay, retries, max_retries
-                    );
+                    "Failed to get validity proof, retrying in {} ms (retry {}/{}): {:?}",
+                    delay, retries, max_retries, e
+                );
+
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-                    retries += 1;
                     delay *= 2;
                     continue;
                 }
