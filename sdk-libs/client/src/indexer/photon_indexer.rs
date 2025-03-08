@@ -739,14 +739,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 match photon_api::apis::default_api::get_validity_proof_v2_post(
                     &self.configuration,
                     request,
-                ).await {
+                )
+                .await
+                {
                     Ok(api_result) => {
                         match Self::extract_result("get_validity_proof_v2", api_result.result) {
                             Ok(result) => Ok(*result.value),
-                            Err(e) => Err(e)
+                            Err(e) => Err(e),
                         }
-                    },
-                    Err(e) => Err(IndexerError::from(e))
+                    }
+                    Err(e) => Err(IndexerError::from(e)),
                 }
             };
 
@@ -756,14 +758,18 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     retries += 1;
 
                     if retries > max_retries {
-                        error!("Failed to get validity proof after {} retries: {:?}", retries - 1, e);
+                        error!(
+                            "Failed to get validity proof after {} retries: {:?}",
+                            retries - 1,
+                            e
+                        );
                         return Err(e);
                     }
 
                     warn!(
-                    "Failed to get validity proof, retrying in {} ms (retry {}/{}): {:?}",
-                    delay, retries, max_retries, e
-                );
+                        "Failed to get validity proof, retrying in {} ms (retry {}/{}): {:?}",
+                        delay, retries, max_retries, e
+                    );
 
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                     delay *= 2;
