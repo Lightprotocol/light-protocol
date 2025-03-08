@@ -12,7 +12,7 @@ import { TreeType } from '../../src';
 import { Rpc } from '../../src';
 
 // Helper function to create different types of state trees
-export async function getStateTreeContextByTypeForTest(
+export async function getStateTreeInfoByTypeForTest(
     rpc: Rpc,
     type: TreeType,
 ): Promise<StateTreeInfo> {

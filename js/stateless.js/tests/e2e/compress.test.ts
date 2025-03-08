@@ -14,7 +14,7 @@ import {
 import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    getStateTreeContextByTypeForTest,
+    getStateTreeInfoByTypeForTest,
     txFees,
     txFeesV2Accounts,
 } from './shared';
@@ -34,7 +34,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             const lightWasm = await WasmFactory.getInstance();
             rpc = await getTestRpc(lightWasm);
             payer = await newAccountWithLamports(rpc, 1e9, 256);
-            outputStateTreeInfo = await getStateTreeContextByTypeForTest(
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
                 rpc,
                 treeType,
             );

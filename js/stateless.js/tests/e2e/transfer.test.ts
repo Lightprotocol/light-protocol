@@ -6,7 +6,7 @@ import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
 import { transfer } from '../../src/actions/transfer';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { getStateTreeContextByTypeForTest } from './shared';
+import { getStateTreeInfoByTypeForTest } from './shared';
 
 describe.each([TreeType.StateV1, TreeType.StateV2])(
     'Test with %s state tree',
@@ -21,7 +21,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             rpc = await getTestRpc(lightWasm);
             payer = await newAccountWithLamports(rpc, 2e9, 256);
             bob = await newAccountWithLamports(rpc, 2e9, 256);
-            outputStateTreeInfo = await getStateTreeContextByTypeForTest(
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
                 rpc,
                 treeType,
             );

@@ -33,11 +33,11 @@ export enum TreeType {
  *
  * Example:
  * ```typescript
- * const stateTreeContexts = await getCachedActiveStateTreeInfos();
- * const randomStateTreeContext = pickStateTreeInfo(stateTreeContexts);
+ * const stateTreeInfos = await getCachedActiveStateTreeInfos();
+ * const randomStateTreeInfo = pickStateTreeInfo(stateTreeInfos);
  * const ix = CompressedTokenProgram.compress({
  *     ... // other params
- *     outputStateTreeInfo: randomStateTreeContext
+ *     outputStateTreeInfo: randomStateTreeInfo
  * });
  * ```
  */

@@ -18,7 +18,7 @@ describe('test-rpc V1', () => {
     let rpc: TestRpc;
     let payer: Signer;
     let outputStateTreeInfo: StateTreeInfo;
-    let outputStateTreeContext2: StateTreeInfo;
+    let outputStateTreeInfoV2: StateTreeInfo;
 
     let preCompressBalance: number;
     let postCompressBalance: number;
@@ -33,7 +33,7 @@ describe('test-rpc V1', () => {
 
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = stateTreeInfo[0];
-        outputStateTreeContext2 = stateTreeInfo[1];
+        outputStateTreeInfoV2 = stateTreeInfo[1];
 
         refPayer = await newAccountWithLamports(rpc, 1e9, 200);
         payer = await newAccountWithLamports(rpc, 1e9, 148);
@@ -56,7 +56,7 @@ describe('test-rpc V1', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            outputStateTreeContext2,
+            outputStateTreeInfoV2,
         );
     });
 
@@ -79,7 +79,7 @@ describe('test-rpc V1', () => {
         // assumes 1 acc per tree
         assert.equal(
             compressedTestAccount.queue.toBase58(),
-            outputStateTreeContext2.queue!.toBase58(),
+            outputStateTreeInfoV2.queue!.toBase58(),
         );
         assert.equal(compressedTestAccount.leafIndex, 0);
         assert.equal(

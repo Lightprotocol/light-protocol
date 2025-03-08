@@ -582,7 +582,6 @@ export function getPublicInputHash(
     }
 }
 
-
 /**
  *
  */
@@ -786,7 +785,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<MerkleContextWithMerkleProof> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getCompressedAccountProof',
+            'getCompressedAccountProofV2',
             { hash: encodeBN254toBase58(hash) },
         );
         const res = create(
@@ -894,7 +893,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<MerkleContextWithMerkleProof[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getMultipleCompressedAccountProofs',
+            'getMultipleCompressedAccountProofsV2',
             hashes.map(hash => encodeBN254toBase58(hash)),
         );
 

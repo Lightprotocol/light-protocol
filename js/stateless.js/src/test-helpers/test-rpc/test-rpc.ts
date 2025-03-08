@@ -265,8 +265,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         ).then(events => events.reverse());
         const leavesByTree: Map<
             string,
-            { leaves: number[][]; leafIndices: number[] }
+            { leaves: number[][]; leafIndices: number[]; treeType: TreeType }
         > = new Map();
+
+        const cachedStateTreeInfos = await this.getCachedActiveStateTreeInfos();
 
         for (const event of events) {
             for (
@@ -282,26 +284,28 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 const treeKey = merkleTree.toBase58();
 
                 if (!leavesByTree.has(treeKey)) {
+                    const { treeType } = getQueueForTree(
+                        cachedStateTreeInfos,
+                        merkleTree,
+                    );
                     leavesByTree.set(treeKey, {
                         leaves: [],
                         leafIndices: [],
+                        treeType: treeType,
                     });
                 }
 
-                leavesByTree.get(treeKey)!.leaves.push(hash);
-                leavesByTree
-                    .get(treeKey)!
-                    .leafIndices.push(event.outputLeafIndices[index]);
+                const treeData = leavesByTree.get(treeKey)!;
+                treeData.leaves.push(hash);
+                treeData.leafIndices.push(event.outputLeafIndices[index]);
             }
         }
 
         const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
             new Map();
-        const ctxs = await this.getCachedActiveStateTreeInfos();
 
-        for (const [treeKey, { leaves }] of leavesByTree.entries()) {
+        for (const [treeKey, { leaves, treeType }] of leavesByTree.entries()) {
             const merkleTree = new PublicKey(treeKey);
-            const { queue, treeType } = getQueueForTree(ctxs, merkleTree);
 
             let tree: MerkleTree | undefined;
             if (treeType === TreeType.StateV1) {
@@ -311,9 +315,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     leaves.map(leaf => bn(leaf).toString()),
                 );
             } else if (treeType === TreeType.StateV2) {
-                throw new Error(
-                    'Record Not Found: Leaf nodes not found for hashes. BatchedState in TestRpc.',
-                );
+                /// In V2 State trees, The Merkle tree stays empty until the
+                /// first forester transaction. And since test-rpc is only used
+                /// for non-forested tests, we must return a tree with
+                /// zerovalues.
+                tree = new MerkleTree(32, this.lightWasm, []);
             } else {
                 throw new Error(
                     `Invalid tree type: ${treeType} in test-rpc.ts`,
@@ -334,8 +340,33 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         merkleTree: merkleTree,
                         leafIndex: leafIndex,
                         merkleProof: bnPathElements,
-                        queue: queue,
+                        queue: getQueueForTree(cachedStateTreeInfos, merkleTree)
+                            .queue,
                         rootIndex: leaves.length,
+                        root: root,
+                        treeType: treeType,
+                        proveByIndex: true,
+                    };
+
+                    merkleProofsMap.set(hashStr, merkleProof);
+                }
+
+                if (leafIndex === -1 && treeType === TreeType.StateV2) {
+                    const pathElements = tree._zeros.slice(0, -1);
+                    const bnPathElements = pathElements.map(value => bn(value));
+                    const root = bn(tree.root());
+
+                    const { tree: treeV2, queue } = getQueueForTree(
+                        cachedStateTreeInfos,
+                        merkleTree,
+                    );
+                    const merkleProof: MerkleContextWithMerkleProof = {
+                        hash: new Array(32).fill(0),
+                        merkleTree: treeV2,
+                        leafIndex: 0,
+                        merkleProof: bnPathElements,
+                        queue,
+                        rootIndex: 0,
                         root: root,
                         treeType: treeType,
                         proveByIndex: true,
@@ -352,12 +383,34 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
                 .leaves[leafIndex];
             const hashArr = bn(computedHash).toArray('be', 32);
-            if (!hashArr.every((val, index) => val === proof.hash[index])) {
+            if (
+                !hashArr.every((val, index) => val === proof.hash[index]) &&
+                proof.treeType === TreeType.StateV1 // V2 is always zeros
+            ) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
                 );
             }
         });
+
+        // Ensure all requested hashes belong to the same tree type
+        const uniqueTreeTypes = new Set(
+            hashes.map(hash => {
+                const proof = merkleProofsMap.get(hash.toString());
+                if (!proof) {
+                    throw new Error(
+                        `Proof not found for hash: ${hash.toString()}`,
+                    );
+                }
+                return proof.treeType;
+            }),
+        );
+
+        if (uniqueTreeTypes.size > 1) {
+            throw new Error(
+                'Requested hashes belong to different tree types (V1/V2)',
+            );
+        }
 
         // Return proofs in the order of requested hashes
         return hashes.map(hash => merkleProofsMap.get(hash.toString())!);

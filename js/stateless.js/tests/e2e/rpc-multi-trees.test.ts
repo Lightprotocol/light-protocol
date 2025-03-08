@@ -27,7 +27,7 @@ describe('rpc-multi-trees', () => {
     let executedTxs = 0;
 
     let outputStateTreeInfo: StateTreeInfo;
-    let outputStateTreeContext2: StateTreeInfo;
+    let outputStateTreeInfoV2: StateTreeInfo;
     beforeAll(async () => {
         // const lightWasm = await WasmFactory.getInstance();
         // rpc = await getTestRpc(lightWasm);
@@ -35,7 +35,7 @@ describe('rpc-multi-trees', () => {
 
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = stateTreeInfo[0];
-        outputStateTreeContext2 = stateTreeInfo[1];
+        outputStateTreeInfoV2 = stateTreeInfo[1];
 
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
@@ -88,12 +88,12 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            outputStateTreeContext2,
+            outputStateTreeInfoV2,
         );
 
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
-        expect(acc!.merkleTree).toEqual(outputStateTreeContext2.tree);
-        expect(acc!.queue).toEqual(outputStateTreeContext2.queue!);
+        expect(acc!.merkleTree).toEqual(outputStateTreeInfoV2.tree);
+        expect(acc!.queue).toEqual(outputStateTreeInfoV2.queue!);
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {
@@ -101,15 +101,15 @@ describe('rpc-multi-trees', () => {
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
 
         const hash = bn(acc!.hash);
-        expect(acc?.merkleTree).toEqual(outputStateTreeContext2.tree);
-        expect(acc?.queue).toEqual(outputStateTreeContext2.queue!);
+        expect(acc?.merkleTree).toEqual(outputStateTreeInfoV2.tree);
+        expect(acc?.queue).toEqual(outputStateTreeInfoV2.queue!);
 
         const validityProof = await rpc.getValidityProof([hash]);
 
         expect(validityProof.merkleTrees[0]).toEqual(
-            outputStateTreeContext2.tree,
+            outputStateTreeInfoV2.tree,
         );
-        expect(validityProof.queues[0]).toEqual(outputStateTreeContext2.queue!);
+        expect(validityProof.queues[0]).toEqual(outputStateTreeInfoV2.queue!);
 
         await transfer(
             rpc,
@@ -134,11 +134,9 @@ describe('rpc-multi-trees', () => {
         const validityProof2 = await rpc.getValidityProof([hash]);
 
         expect(validityProof2.merkleTrees[0]).toEqual(
-            outputStateTreeContext2.tree,
+            outputStateTreeInfoV2.tree,
         );
-        expect(validityProof2.queues[0]).toEqual(
-            outputStateTreeContext2.queue!,
-        );
+        expect(validityProof2.queues[0]).toEqual(outputStateTreeInfoV2.queue!);
     });
 
     it('getValidityProof [noforester] (combined) should return correct trees and queues', async () => {
@@ -241,13 +239,7 @@ describe('rpc-multi-trees', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            outputStateTreeContext2,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, outputStateTreeInfoV2);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(

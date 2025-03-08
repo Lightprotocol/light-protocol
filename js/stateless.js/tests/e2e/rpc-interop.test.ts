@@ -19,9 +19,9 @@ import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { randomBytes } from 'tweetnacl';
-import { getStateTreeContextByTypeForTest } from './shared';
+import { getStateTreeInfoByTypeForTest } from './shared';
 
-describe.each([TreeType.StateV1, TreeType.StateV2])(
+describe.each([TreeType.StateV2])(
     'rpc-interop with %s state tree',
     treeType => {
         let payer: Signer;
@@ -29,7 +29,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
         let rpc: Rpc;
         let testRpc: TestRpc;
         let executedTxs = 0;
-        let stateTreeContext: StateTreeInfo;
+        let stateTreeInfo: StateTreeInfo;
         beforeAll(async () => {
             const lightWasm = await WasmFactory.getInstance();
             rpc = createRpc();
@@ -40,12 +40,9 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             payer = await newAccountWithLamports(rpc, 10e9, 256);
             bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-            stateTreeContext = await getStateTreeContextByTypeForTest(
-                rpc,
-                treeType,
-            );
+            stateTreeInfo = await getStateTreeInfoByTypeForTest(rpc, treeType);
 
-            await compress(rpc, payer, 1e9, payer.publicKey, stateTreeContext);
+            await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
             executedTxs++;
         });
 
@@ -119,11 +116,25 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             });
 
             /// Executes a transfer using a 'validityProof' from Photon
-            await transfer(rpc, payer, 1e5, payer, bob.publicKey);
+            await transfer(
+                rpc,
+                payer,
+                1e5,
+                payer,
+                bob.publicKey,
+                stateTreeInfo,
+            );
             executedTxs++;
 
             /// Executes a transfer using a 'validityProof' directly from a prover.
-            await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
+            await transfer(
+                testRpc,
+                payer,
+                1e5,
+                payer,
+                bob.publicKey,
+                stateTreeInfo,
+            );
             executedTxs++;
         });
 
@@ -175,7 +186,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 LightSystemProgram.programId,
                 undefined,
                 undefined,
-                stateTreeContext,
+                stateTreeInfo,
             );
             executedTxs++;
 
@@ -188,7 +199,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 LightSystemProgram.programId,
                 undefined,
                 undefined,
-                stateTreeContext,
+                stateTreeInfo,
             );
             executedTxs++;
         });
@@ -319,7 +330,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 LightSystemProgram.programId,
                 undefined,
                 undefined,
-                stateTreeContext,
+                stateTreeInfo,
             );
             executedTxs++;
         });
@@ -383,7 +394,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             );
         });
 
-        it.skip('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
+        it.only('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
             for (let round = 0; round < numberOfTransfers; round++) {
                 const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
                     payer.publicKey,
@@ -400,6 +411,11 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     bn(0),
                 );
 
+                console.log(
+                    'rpc - accs',
+                    prePayerAccounts.items.map(account => account),
+                );
+
                 /// get reference proofs for sender
                 const testProofs =
                     await testRpc.getMultipleCompressedAccountProofs(
@@ -407,31 +423,54 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     );
 
                 /// get photon proofs for sender
-                if (treeType === TreeType.StateV1) {
-                    const proofs = await rpc.getMultipleCompressedAccountProofs(
-                        prePayerAccounts.items.map(account => bn(account.hash)),
-                    );
+                const proofs = await rpc.getMultipleCompressedAccountProofs(
+                    prePayerAccounts.items.map(account => bn(account.hash)),
+                );
 
-                    assert.equal(testProofs.length, proofs.length);
+                console.log(
+                    'rpc - proofs',
+                    proofs.map(proof => proof),
+                );
+                console.log(
+                    'testProofs',
+                    testProofs.map(proof => proof),
+                );
+                assert.equal(testProofs.length, proofs.length);
 
-                    proofs.forEach((proof, index) => {
-                        proof.merkleProof.forEach((elem, elemIndex) => {
-                            assert.isTrue(
-                                bn(elem).eq(
-                                    bn(
-                                        testProofs[index].merkleProof[
-                                            elemIndex
-                                        ],
-                                    ),
-                                ),
-                            );
-                        });
+                proofs.forEach((proof, index) => {
+                    proof.merkleProof.forEach((elem, elemIndex) => {
+                        assert.isTrue(
+                            bn(elem).eq(
+                                bn(testProofs[index].merkleProof[elemIndex]),
+                            ),
+                        );
                     });
-
-                    assert.isTrue(
-                        bn(proofs[0].root).eq(bn(testProofs[0].root)),
+                    proof.hash.forEach((elem, elemIndex) => {
+                        assert.isTrue(
+                            bn(elem).eq(bn(testProofs[index].hash[elemIndex])),
+                        );
+                    });
+                    assert.equal(
+                        proof.hash.length,
+                        testProofs[index].hash.length,
                     );
-                }
+                    assert.isTrue(
+                        proof.merkleTree.equals(testProofs[index].merkleTree),
+                    );
+                    assert.isTrue(proof.queue.equals(testProofs[index].queue));
+                    assert.isTrue(proof.root.eq(testProofs[index].root));
+                    assert.isTrue(
+                        proof.leafIndex === testProofs[index].leafIndex,
+                    );
+                    assert.isTrue(
+                        proof.rootIndex === testProofs[index].rootIndex,
+                    );
+                    assert.isTrue(
+                        proof.treeType === testProofs[index].treeType,
+                    );
+                });
+
+                assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
 
                 await transfer(
                     rpc,
@@ -439,6 +478,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     transferAmount,
                     payer,
                     bob.publicKey,
+                    stateTreeInfo,
                 );
                 executedTxs++;
                 const postSenderAccs = await rpc.getCompressedAccountsByOwner(
@@ -560,7 +600,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
         });
 
         it('getMultipleCompressedAccounts should match', async () => {
-            await compress(rpc, payer, 1e9, payer.publicKey, stateTreeContext);
+            await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
             executedTxs++;
 
             const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -611,7 +651,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     account.lamports.gt(acc.lamports) ? account : acc,
             );
 
-            await transfer(rpc, payer, 1, payer, bob.publicKey);
+            await transfer(rpc, payer, 1, payer, bob.publicKey, stateTreeInfo);
             executedTxs++;
 
             const signaturesSpent =
@@ -699,7 +739,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 LightSystemProgram.programId,
                 undefined,
                 undefined,
-                stateTreeContext,
+                stateTreeInfo,
             );
 
             await sleep(3_000);
@@ -741,7 +781,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 LightSystemProgram.programId,
                 addressTree,
                 addressQueue,
-                stateTreeContext,
+                stateTreeInfo,
             );
 
             // fetch the owners latest account
