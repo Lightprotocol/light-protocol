@@ -18,8 +18,8 @@ pub struct CompressedProofWithContextV2 {
     pub leaf_indices: Vec<u32>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
-    #[serde(rename = "merkleContext")]
-    pub merkle_context: Vec<models::MerkleContextV2>,
+    #[serde(rename = "merkleContexts")]
+    pub merkle_contexts: Vec<models::MerkleContextV2>,
     #[serde(rename = "rootIndices")]
     pub root_indices: Vec<models::RootIndex>,
     #[serde(rename = "roots")]
@@ -38,7 +38,7 @@ impl CompressedProofWithContextV2 {
             compressed_proof: None,
             leaf_indices,
             leaves,
-            merkle_context,
+            merkle_contexts: merkle_context,
             root_indices,
             roots,
         }
