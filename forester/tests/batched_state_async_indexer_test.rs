@@ -82,7 +82,7 @@ async fn test_state_indexer_async_batched() {
     for _ in 0..FORESTERS_NUM {
         let keypair = Keypair::new();
         let mut config = forester_config();
-        config.transaction_config.batch_ixs_per_tx = 6;
+        config.transaction_config.batch_ixs_per_tx = 4;
         config.payer_keypair = keypair.insecure_clone();
         config.derivation_pubkey = keypair.pubkey();
         forester_configs.push(config);
