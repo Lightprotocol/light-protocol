@@ -1,7 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
+use forester_utils::{
+    forester_epoch::get_epoch_phases, registry::register_test_forester, utils::wait_for_indexer,
+};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -100,8 +102,6 @@ async fn test_state_indexer_async_batched() {
 
     for keypair in &forester_keypairs {
         ensure_sufficient_balance(&mut rpc, &keypair.pubkey(), LAMPORTS_PER_SOL * 100).await;
-
-        // Register forester with the governance authority
         register_test_forester(
             &mut rpc,
             &env.governance_authority,
@@ -118,10 +118,7 @@ async fn test_state_indexer_async_batched() {
     };
     let protocol_config = get_protocol_config(&mut rpc).await;
 
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
-
-    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
 
     let (initial_next_index, initial_sequence_number, pre_root) =
@@ -987,8 +984,8 @@ async fn compress<R: RpcConnection>(
         .await
     {
         Ok(sig) => {
-    *counter += 1;
-    sig
+            *counter += 1;
+            sig
         }
         Err(e) => {
             println!("compress error: {:?}", e);

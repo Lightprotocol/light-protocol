@@ -30,7 +30,7 @@ impl CompressedProofWithContextV2 {
     pub fn new(
         leaf_indices: Vec<u32>,
         leaves: Vec<String>,
-        merkle_context: Vec<models::MerkleContextV2>,
+        merkle_contexts: Vec<models::MerkleContextV2>,
         root_indices: Vec<models::RootIndex>,
         roots: Vec<String>,
     ) -> CompressedProofWithContextV2 {
@@ -38,7 +38,7 @@ impl CompressedProofWithContextV2 {
             compressed_proof: None,
             leaf_indices,
             leaves,
-            merkle_contexts: merkle_context,
+            merkle_contexts,
             root_indices,
             roots,
         }
