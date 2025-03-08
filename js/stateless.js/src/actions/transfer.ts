@@ -5,22 +5,15 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import BN from 'bn.js';
 import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
-import { pickRandomStateTreeContext, Rpc } from '../rpc';
-
-import {
-    bn,
-    CompressedAccountWithMerkleContext,
-    StateTreeContext,
-    TreeType,
-} from '../state';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
+import { Rpc } from '../rpc';
+import { bn, StateTreeInfo, TreeType } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
-import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 import { selectInputAccountsForTransfer } from '../utils/select-input-accounts';
 
 /**
@@ -31,7 +24,7 @@ import { selectInputAccountsForTransfer } from '../utils/select-input-accounts';
  * @param lamports                  Number of lamports to transfer
  * @param owner                     Owner of the compressed lamports
  * @param toAddress                 Destination address of the recipient
- * @param outputStateTreeContext    State tree context that the compressed lamports should be
+ * @param outputStateTreeInfo    State tree context that the compressed lamports should be
  *                                  inserted into. Defaults to the default state tree context.
  * @param confirmOptions            Options for confirming the transaction
  *
@@ -43,16 +36,16 @@ export async function transfer(
     lamports: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
     }
 
@@ -86,7 +79,7 @@ export async function transfer(
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

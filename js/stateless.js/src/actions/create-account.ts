@@ -9,7 +9,8 @@ import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForPdaCreation,
 } from '../programs';
-import { pickRandomStateTreeContext, Rpc } from '../rpc';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
+import { Rpc } from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -18,7 +19,7 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { bn, StateTreeContext, TreeType } from '../state';
+import { bn, StateTreeInfo, TreeType } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -45,7 +46,7 @@ export async function createAccount(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -57,11 +58,11 @@ export async function createAccount(
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, addressTree);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
     }
     const proof = await rpc.getValidityProofV0(undefined, [
@@ -85,7 +86,7 @@ export async function createAccount(
         newAddress: Array.from(address.toBytes()),
         recentValidityProof: proof.compressedProof!,
         programId,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(
@@ -113,7 +114,7 @@ export async function createAccount(
  *                                  address tree.
  * @param addressQueue              Optional address queue. Defaults to a current shared
  *                                  address queue.
- * @param outputStateTreeContext    Optional output state tree context.
+ * @param outputStateTreeInfo    Optional output state tree context.
  * @param confirmOptions            Options for confirming the transaction
  *
  * @return  Transaction signature
@@ -126,7 +127,7 @@ export async function createAccountWithLamports(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
@@ -140,11 +141,11 @@ export async function createAccountWithLamports(
         lamports,
     );
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
     }
 
@@ -181,7 +182,7 @@ export async function createAccountWithLamports(
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         programId,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(

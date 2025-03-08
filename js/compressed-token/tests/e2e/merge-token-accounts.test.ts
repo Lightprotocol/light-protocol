@@ -6,7 +6,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -18,12 +18,12 @@ describe('mergeTokenAccounts', () => {
     let owner: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
-        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
+        outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -50,7 +50,7 @@ describe('mergeTokenAccounts', () => {
                 owner.publicKey,
                 mintAuthority,
                 bn(100),
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
         }
     });
@@ -62,13 +62,7 @@ describe('mergeTokenAccounts', () => {
         );
         expect(preAccounts.items.length).to.be.greaterThan(1);
 
-        await mergeTokenAccounts(
-            rpc,
-            payer,
-            mint,
-            owner,
-            outputStateTreeContext,
-        );
+        await mergeTokenAccounts(rpc, payer, mint, owner, outputStateTreeInfo);
 
         const postAccounts = await rpc.getCompressedTokenAccountsByOwner(
             owner.publicKey,
@@ -92,7 +86,7 @@ describe('mergeTokenAccounts', () => {
                 payer,
                 mint,
                 owner,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
             console.log('First merge succeeded');
 
@@ -113,7 +107,7 @@ describe('mergeTokenAccounts', () => {
                 payer,
                 mint,
                 owner,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
             console.log('Second merge succeeded');
         } catch (error) {

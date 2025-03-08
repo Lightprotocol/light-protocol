@@ -23,7 +23,7 @@ const merkleContext1 = createMerkleContext(
     queue,
     hash,
     leafIndex,
-    TreeType.State,
+    TreeType.StateV1,
     false,
 );
 const merkleContext2 = createMerkleContext(
@@ -31,7 +31,7 @@ const merkleContext2 = createMerkleContext(
     queue,
     hash,
     leafIndex,
-    TreeType.BatchedState,
+    TreeType.StateV2,
     false,
 );
 const account0 = createCompressedAccountWithMerkleContext(
@@ -60,7 +60,7 @@ describe('selectAccountsByTreeType', () => {
     it('should select accounts with specified tree types and sum their lamports (0)', () => {
         const { selectedAccounts, totalLamports } = selectAccountsByTreeType(
             accounts,
-            [TreeType.State],
+            [TreeType.StateV1],
         );
         expect(selectedAccounts).toEqual([account1]);
         expect(totalLamports.toString()).toBe('1');
@@ -68,7 +68,7 @@ describe('selectAccountsByTreeType', () => {
     it('should select accounts with specified tree types and sum their lamports (2)', () => {
         const { selectedAccounts, totalLamports } = selectAccountsByTreeType(
             accounts,
-            [TreeType.BatchedState],
+            [TreeType.StateV2],
         );
 
         expect(selectedAccounts).toEqual([account2, account3]);
@@ -78,7 +78,7 @@ describe('selectAccountsByTreeType', () => {
     it('should return empty if no accounts match the tree types', () => {
         const { selectedAccounts, totalLamports } = selectAccountsByTreeType(
             accounts,
-            [TreeType.BatchedAddress],
+            [TreeType.AddressV2],
         );
         expect(selectedAccounts).toEqual([]);
         expect(totalLamports.toString()).toBe('0');

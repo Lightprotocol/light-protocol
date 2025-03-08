@@ -11,8 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomStateTreeContext,
-    StateTreeContext,
+    pickStateTreeInfo,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
@@ -26,7 +26,7 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
  * @param destination               Address of the account to mint to
  * @param authority                 Minting authority
  * @param amount                    Amount to mint
- * @param outputStateTreeContext    State tree context that the compressed
+ * @param outputStateTreeInfo    State tree context that the compressed
  *                                  tokens should be part of. Defaults to random
  *                                  public state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -40,7 +40,7 @@ export async function approveAndMintTo(
     destination: PublicKey,
     authority: Signer,
     amount: number | BN,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -59,9 +59,9 @@ export async function approveAndMintTo(
         tokenProgramId,
     );
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -71,7 +71,7 @@ export async function approveAndMintTo(
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
         toPubkey: destination,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 

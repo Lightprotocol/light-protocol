@@ -6,7 +6,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    StateTreeContext,
+    StateTreeInfo,
     TreeType,
 } from '@lightprotocol/stateless.js';
 import {
@@ -31,7 +31,7 @@ describe('compressSplTokenAccount', () => {
     let aliceAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -40,7 +40,7 @@ describe('compressSplTokenAccount', () => {
 
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
-        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
+        outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
 
         mint = (
             await createMint(
@@ -68,7 +68,7 @@ describe('compressSplTokenAccount', () => {
             alice.publicKey,
             mintAuthority,
             bn(1000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         await decompress(rpc, payer, mint, bn(1000), alice, aliceAta);
@@ -90,7 +90,7 @@ describe('compressSplTokenAccount', () => {
             mint,
             alice,
             aliceAta,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         // Get final balances
@@ -142,7 +142,7 @@ describe('compressSplTokenAccount', () => {
                 mint,
                 alice,
                 aliceAta,
-                outputStateTreeContext,
+                outputStateTreeInfo,
                 bn(testAmount.add(bn(1))), // Try to leave more than available
             ),
         ).rejects.toThrow();
@@ -168,7 +168,7 @@ describe('compressSplTokenAccount', () => {
             mint,
             alice,
             aliceAta,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             remainingAmount,
         );
 
@@ -228,7 +228,7 @@ describe('compressSplTokenAccount', () => {
             mint,
             alice,
             aliceAta,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             bn(balanceBefore.value.amount),
         );
 
@@ -266,17 +266,17 @@ describe('compressSplTokenAccount', () => {
                 mint,
                 nonOwner, // wrong signer
                 aliceAta,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             ),
         ).rejects.toThrow();
     });
 
     it('should fail with invalid state tree', async () => {
-        const invalidTreeContext: StateTreeContext = {
+        const invalidTreeContext: StateTreeInfo = {
             tree: Keypair.generate().publicKey,
             queue: Keypair.generate().publicKey,
             cpiContext: null,
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
         };
 
         // Mint some tokens to ensure non-zero balance
@@ -340,7 +340,7 @@ describe('compressSplTokenAccount', () => {
             alice.publicKey,
             mintAuthority,
             bn(1000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         await decompress(rpc, payer, mint, bn(1000), alice, aliceAta);
@@ -359,7 +359,7 @@ describe('compressSplTokenAccount', () => {
             mint,
             alice,
             aliceAta,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         // Get final balances

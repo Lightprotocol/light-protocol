@@ -7,19 +7,19 @@ export enum TreeType {
     /**
      * v1 state merkle tree
      */
-    State = 1,
+    StateV1 = 1,
     /**
      * v1 address merkle tree
      */
-    Address = 2,
+    AddressV1 = 2,
     /**
      * v2 state merkle tree
      */
-    BatchedState = 3,
+    StateV2 = 3,
     /**
      * v2 address merkle tree
      */
-    BatchedAddress = 4,
+    AddressV2 = 4,
 }
 
 /**
@@ -28,20 +28,20 @@ export enum TreeType {
  *
  * Onchain Accounts are subject to Solana's write-lock limits.
  *
- * To load balance transactions, use {@link pickRandomStateTreeContext} to
+ * To load balance transactions, use {@link pickStateTreeInfo} to
  * select a random tree from active Trees.
  *
  * Example:
  * ```typescript
- * const stateTreeContexts = await getCachedActiveStateTreeInfo();
- * const randomStateTreeContext = pickRandomStateTreeContext(stateTreeContexts);
+ * const stateTreeContexts = await getCachedActiveStateTreeInfos();
+ * const randomStateTreeContext = pickStateTreeInfo(stateTreeContexts);
  * const ix = CompressedTokenProgram.compress({
  *     ... // other params
- *     outputStateTreeContext: randomStateTreeContext
+ *     outputStateTreeInfo: randomStateTreeContext
  * });
  * ```
  */
-export type StateTreeContext = {
+export type StateTreeInfo = {
     /**
      * Account containing the Sparse Merkle tree in which a compressed
      * account is stored.

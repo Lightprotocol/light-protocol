@@ -3,7 +3,7 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
-    StateTreeContext,
+    StateTreeInfo,
     TreeType,
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
@@ -100,7 +100,7 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
  *                                          input state. The expiry is tied to
  *                                          the proof.
  * @param outputCompressedAccounts          Ix output state to be created
- * @param outputStateTreeContext            Context of state tree to be inserted
+ * @param outputStateTreeInfo            Context of state tree to be inserted
  *                                          into the output state. Gets padded
  *                                          to the length of
  *                                          outputCompressedAccounts.
@@ -112,7 +112,7 @@ export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateTreeContext: StateTreeContext,
+    outputStateTreeInfo: StateTreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -160,9 +160,9 @@ export function packCompressedAccounts(
     // internal. v2 trees require the output queue account instead of directly
     // appending to the merkle tree.
     const outputTreeOrQueue =
-        outputStateTreeContext.treeType === TreeType.BatchedState
-            ? outputStateTreeContext.queue!
-            : outputStateTreeContext.tree;
+        outputStateTreeInfo.treeType === TreeType.StateV2
+            ? outputStateTreeInfo.queue!
+            : outputStateTreeInfo.tree;
 
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(

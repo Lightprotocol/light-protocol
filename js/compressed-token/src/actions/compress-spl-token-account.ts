@@ -10,7 +10,7 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -25,7 +25,7 @@ import { CompressedTokenProgram } from '../program';
  * @param mint                      Mint of the token to compress
  * @param owner                     Owner of the token account
  * @param tokenAccount              Token account to compress
- * @param outputStateTreeContext    State tree context to insert the compressed
+ * @param outputStateTreeInfo    State tree context to insert the compressed
  *                                  token account into
  * @param remainingAmount           Optional: amount to leave in token account.
  *                                  Default: 0
@@ -39,7 +39,7 @@ export async function compressSplTokenAccount(
     mint: PublicKey,
     owner: Signer,
     tokenAccount: PublicKey,
-    outputStateTreeContext: StateTreeContext,
+    outputStateTreeInfo: StateTreeInfo,
     remainingAmount?: BN,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
@@ -54,7 +54,7 @@ export async function compressSplTokenAccount(
         tokenAccount,
         mint,
         remainingAmount,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 

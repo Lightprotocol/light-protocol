@@ -80,7 +80,7 @@ async function parseEventWithTokenTlvData(
     rpc: Rpc,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-    const ctxs = await rpc.getCachedActiveStateTreeInfo();
+    const ctxs = await rpc.getCachedActiveStateTreeInfos();
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
@@ -95,7 +95,7 @@ async function parseEventWithTokenTlvData(
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
                 treeType: treeType,
-                proveByIndex: treeType === TreeType.BatchedState,
+                proveByIndex: treeType === TreeType.StateV2,
             };
 
             if (!compressedAccount.compressedAccount.data)

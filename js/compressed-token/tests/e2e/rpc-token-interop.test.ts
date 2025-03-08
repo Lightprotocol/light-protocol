@@ -7,7 +7,7 @@ import {
     createRpc,
     getTestRpc,
     defaultTestStateTreeAccounts,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -22,7 +22,7 @@ describe('rpc-interop token', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         rpc = createRpc();
@@ -31,7 +31,7 @@ describe('rpc-interop token', () => {
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
-        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
+        outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
 
         testRpc = await getTestRpc(lightWasm);
 
@@ -55,7 +55,7 @@ describe('rpc-interop token', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
@@ -263,7 +263,7 @@ describe('rpc-interop token', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(

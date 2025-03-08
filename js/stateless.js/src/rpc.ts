@@ -57,7 +57,7 @@ import {
     createMerkleContext,
     TokenData,
     CompressedProof,
-    StateTreeContext,
+    StateTreeInfo,
     TreeType,
     MerkleContext,
 } from './state';
@@ -76,7 +76,7 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
+import { getActiveStateTreeInfos } from './utils/get-light-state-tree-info';
 import { validateNumbersForProof } from './utils';
 
 /** @internal */
@@ -582,53 +582,6 @@ export function getPublicInputHash(
     }
 }
 
-/**
- * @deprecated use {@link pickRandomStateTreeContext} instead.
- * Get a random tree and queue from the active state tree addresses.
- *
- * Prevents write lock contention on state trees.
- *
- * @param info - The active state tree addresses
- * @returns A random tree and queue
- */
-export function pickRandomTreeAndQueue(info: StateTreeContext[]): {
-    tree: PublicKey;
-    queue: PublicKey;
-} {
-    const length = info.length;
-    const index = Math.floor(Math.random() * length);
-
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-    return {
-        tree: info[index].tree,
-        queue: info[index].queue,
-    };
-}
-
-/**
- * Get a random State tree and context from the active state tree addresses.
- *
- * Prevents write lock contention on state trees.
- *
- * @param info - The active state tree addresses
- * @returns A random tree and queue
- */
-export function pickRandomStateTreeContext(
-    info: StateTreeContext[],
-    treeType: TreeType,
-): StateTreeContext {
-    const filteredInfo = info.filter(t => t.treeType === treeType);
-    const length = filteredInfo.length;
-    const index = Math.floor(Math.random() * length);
-
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-
-    return filteredInfo[index];
-}
 
 /**
  *
@@ -636,7 +589,7 @@ export function pickRandomStateTreeContext(
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    activeStateTreeInfo: StateTreeContext[] | null = null;
+    activeStateTreeInfos: StateTreeInfo[] | null = null;
 
     constructor(
         endpoint: string,
@@ -652,57 +605,57 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: StateTreeContext[]): void {
-        this.activeStateTreeInfo = info;
+    setStateTreeInfo(info: StateTreeInfo[]): void {
+        this.activeStateTreeInfos = info;
     }
 
     /**
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getCachedActiveStateTreeInfo(): Promise<StateTreeContext[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             /// We don't have ALUTs on Localnet.
             return localTestActiveStateTreeInfo();
         }
 
-        let info: StateTreeContext[] | null = null;
-        if (!this.activeStateTreeInfo) {
+        let info: StateTreeInfo[] | null = null;
+        if (!this.activeStateTreeInfos) {
             const { mainnet, devnet } = defaultStateTreeLookupTables();
             try {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress:
                         mainnet[0].stateTreeLookupTable,
                     nullifyTableAddress: mainnet[0].nullifyTable,
                 });
-                this.activeStateTreeInfo = info;
+                this.activeStateTreeInfos = info;
             } catch {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress: devnet[0].stateTreeLookupTable,
                     nullifyTableAddress: devnet[0].nullifyTable,
                 });
-                this.activeStateTreeInfo = info;
+                this.activeStateTreeInfos = info;
             }
         }
-        if (!this.activeStateTreeInfo) {
+        if (!this.activeStateTreeInfos) {
             throw new Error(
-                `activeStateTreeInfo should not be null ${JSON.stringify(
-                    this.activeStateTreeInfo,
+                `activeStateTreeInfos should not be null ${JSON.stringify(
+                    this.activeStateTreeInfos,
                 )}`,
             );
         }
 
-        return this.activeStateTreeInfo!;
+        return this.activeStateTreeInfos!;
     }
 
     /**
      * Fetch the latest state tree addresses from the cluster.
      */
-    async getLatestActiveStateTreeInfo(): Promise<StateTreeContext[]> {
-        this.activeStateTreeInfo = null;
-        return await this.getCachedActiveStateTreeInfo();
+    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
+        this.activeStateTreeInfos = null;
+        return await this.getCachedActiveStateTreeInfos();
     }
 
     /**

@@ -15,18 +15,18 @@ import {
     localTestActiveStateTreeInfo,
     merkletreePubkey,
 } from '../../../src/constants';
-import { StateTreeContext } from '../../../src/state';
+import { StateTreeInfo } from '../../../src/state';
 import { getQueueForTree } from '../../../src/test-helpers/test-rpc/get-compressed-accounts';
 import { PublicKey } from '@solana/web3.js';
 import { TreeType } from '../../../src/state';
 
 describe.only('getQueueForTree', () => {
-    const stateTreeInfo: StateTreeContext[] = localTestActiveStateTreeInfo();
+    const stateTreeInfo: StateTreeInfo[] = localTestActiveStateTreeInfo();
 
     it('should return the correct queue for a tree of type State (v1)', () => {
         const tree = new PublicKey(merkletreePubkey);
         const result = getQueueForTree(stateTreeInfo, tree);
-        expect(result.treeType).toBe(TreeType.State);
+        expect(result.treeType).toBe(TreeType.StateV1);
         expect(result.tree.equals(tree)).toBe(true);
     });
 
@@ -35,7 +35,7 @@ describe.only('getQueueForTree', () => {
         const tree = new PublicKey(batchQueue);
         const queue = new PublicKey(batchMerkleTree);
         const result = getQueueForTree(stateTreeInfo, tree);
-        expect(result.treeType).toBe(TreeType.BatchedState);
+        expect(result.treeType).toBe(TreeType.StateV2);
         expect(result.tree.equals(queue)).toBe(true);
         expect(result.queue.equals(tree)).toBe(true);
     });
@@ -44,7 +44,7 @@ describe.only('getQueueForTree', () => {
         const tree = new PublicKey(batchMerkleTree);
         const queue = new PublicKey(batchQueue);
         const result = getQueueForTree(stateTreeInfo, tree);
-        expect(result.treeType).toBe(TreeType.BatchedState);
+        expect(result.treeType).toBe(TreeType.StateV2);
         expect(result.tree.equals(tree)).toBe(true);
         expect(result.queue.equals(queue)).toBe(true);
     });
@@ -52,7 +52,7 @@ describe.only('getQueueForTree', () => {
     it('should throw an error if no queue is found for the tree', () => {
         const tree = new PublicKey(PublicKey.default);
         expect(() => getQueueForTree(stateTreeInfo, tree)).toThrow(
-            'No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually.',
+            'No associated queue found for tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually.',
         );
     });
 });

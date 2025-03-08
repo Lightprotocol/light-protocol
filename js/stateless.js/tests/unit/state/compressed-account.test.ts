@@ -51,7 +51,7 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            TreeType.State,
+            TreeType.StateV1,
             false,
         );
         const accountWithMerkleContext =
@@ -65,7 +65,7 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
             proveByIndex: false,
             readOnly: false,
         });
@@ -84,7 +84,7 @@ describe('createMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            TreeType.State,
+            TreeType.StateV1,
             false,
         );
         expect(merkleContext).toEqual({
@@ -92,7 +92,7 @@ describe('createMerkleContext function', () => {
             queue,
             hash,
             leafIndex,
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
             proveByIndex: false,
         });
     });

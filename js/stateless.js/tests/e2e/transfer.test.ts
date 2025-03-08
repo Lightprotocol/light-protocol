@@ -1,27 +1,27 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc, StateTreeContext, TreeType } from '../../src';
+import { Rpc, StateTreeInfo, TreeType } from '../../src';
 import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
 import { transfer } from '../../src/actions/transfer';
 import { getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { getStateTreeContextByTypeForTest } from './shared';
 
-describe.each([TreeType.State, TreeType.BatchedState])(
+describe.each([TreeType.StateV1, TreeType.StateV2])(
     'Test with %s state tree',
     treeType => {
         let rpc: Rpc;
         let payer: Signer;
         let bob: Signer;
-        let outputStateTreeContext: StateTreeContext;
+        let outputStateTreeInfo: StateTreeInfo;
 
         beforeAll(async () => {
             const lightWasm = await WasmFactory.getInstance();
             rpc = await getTestRpc(lightWasm);
             payer = await newAccountWithLamports(rpc, 2e9, 256);
             bob = await newAccountWithLamports(rpc, 2e9, 256);
-            outputStateTreeContext = await getStateTreeContextByTypeForTest(
+            outputStateTreeInfo = await getStateTreeContextByTypeForTest(
                 rpc,
                 treeType,
             );
@@ -33,7 +33,7 @@ describe.each([TreeType.State, TreeType.BatchedState])(
                 payer,
                 1e9,
                 payer.publicKey,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
         });
 

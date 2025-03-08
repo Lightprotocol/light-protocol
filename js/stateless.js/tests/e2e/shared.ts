@@ -2,7 +2,7 @@ import {
     ADDRESS_QUEUE_ROLLOVER_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
     bn,
-    StateTreeContext,
+    StateTreeInfo,
     STATE_MERKLE_TREE_NETWORK_FEE,
     ADDRESS_TREE_NETWORK_FEE,
 } from '../../src';
@@ -15,12 +15,12 @@ import { Rpc } from '../../src';
 export async function getStateTreeContextByTypeForTest(
     rpc: Rpc,
     type: TreeType,
-): Promise<StateTreeContext> {
-    const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+): Promise<StateTreeInfo> {
+    const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
     switch (type) {
-        case TreeType.State:
+        case TreeType.StateV1:
             return stateTreeInfo[0];
-        case TreeType.BatchedState:
+        case TreeType.StateV2:
             return stateTreeInfo[2];
 
         default:

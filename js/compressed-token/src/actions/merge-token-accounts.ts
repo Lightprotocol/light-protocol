@@ -11,8 +11,9 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     bn,
-    StateTreeContext,
-    pickRandomStateTreeContext,
+    StateTreeInfo,
+    pickStateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
@@ -24,7 +25,7 @@ import { CompressedTokenProgram } from '../program';
  * @param payer                     Payer of the transaction fees
  * @param mint                      Public key of the token's mint
  * @param owner                     Owner of the token accounts to be merged
- * @param outputStateTreeContext    State tree context that the compressed
+ * @param outputStateTreeInfo    State tree context that the compressed
  *                                  tokens should be part of. Defaults to the
  *                                  default state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -36,12 +37,12 @@ export async function mergeTokenAccounts(
     payer: Signer,
     mint: PublicKey,
     owner: Signer,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo, TreeType.StateV2);
     }
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -81,7 +82,7 @@ export async function mergeTokenAccounts(
                 owner: owner.publicKey,
                 mint,
                 inputCompressedTokenAccounts: batch,
-                outputStateTreeContext: outputStateTreeContext!,
+                outputStateTreeInfo: outputStateTreeInfo!,
                 recentValidityProof: proof.compressedProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });

@@ -11,8 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeContext,
-    pickRandomStateTreeContext,
+    StateTreeInfo,
+    pickStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -30,7 +30,7 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
  * @param owner                     Owner of the compressed tokens
  * @param toAddress                 Destination **uncompressed** (associated) token account
  *                                  address.
- * @param outputStateTreeContext    State tree context that any changes to
+ * @param outputStateTreeInfo    State tree context that any changes to
  *                                  compressed tokens should be inserted into.
  *                                  Defaults to the default state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -45,7 +45,7 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -55,9 +55,9 @@ export async function decompress(
 
     amount = bn(amount);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -82,7 +82,7 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress, // TODO: add explicit check that it is a token account
         amount,
-        outputStateTreeContext: outputStateTreeContext,
+        outputStateTreeInfo: outputStateTreeInfo,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
         tokenProgramId,

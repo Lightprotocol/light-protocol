@@ -11,8 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeContext,
-    pickRandomStateTreeContext,
+    StateTreeInfo,
+    pickStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 
@@ -28,7 +28,7 @@ import { CompressedTokenProgram } from '../program';
  * @param authority                 Minting authority
  * @param amount                    Amount to mint. Can be an array of amounts
  *                                  if the destination is an array of addresses.
- * @param outputStateTreeContext    State tree context that the compressed
+ * @param outputStateTreeInfo    State tree context that the compressed
  *                                  tokens should be part of. Defaults to the
  *                                  default state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -42,7 +42,7 @@ export async function mintTo(
     destination: PublicKey | PublicKey[],
     authority: Signer,
     amount: number | BN | number[] | BN[],
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -52,9 +52,9 @@ export async function mintTo(
 
     const additionalSigners = dedupeSigner(payer, [authority]);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
     const ix = await CompressedTokenProgram.mintTo({
@@ -63,7 +63,7 @@ export async function mintTo(
         authority: authority.publicKey,
         amount: amount,
         toPubkey: destination,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 

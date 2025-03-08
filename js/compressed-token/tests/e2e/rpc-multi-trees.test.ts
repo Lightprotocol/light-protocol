@@ -5,7 +5,7 @@ import {
     newAccountWithLamports,
     bn,
     createRpc,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
@@ -20,14 +20,16 @@ describe('rpc-multi-trees', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let outputStateTreeContext: StateTreeContext;
-    let outputStateTreeContext2: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
+    let outputStateTreeContext2: StateTreeInfo;
 
     beforeAll(async () => {
         rpc = createRpc();
 
-        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
-        outputStateTreeContext2 = (await rpc.getCachedActiveStateTreeInfo())[1];
+        outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
+        outputStateTreeContext2 = (
+            await rpc.getCachedActiveStateTreeInfos()
+        )[1];
 
         payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
@@ -53,7 +55,7 @@ describe('rpc-multi-trees', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         // should auto land in same tree
@@ -111,7 +113,7 @@ describe('rpc-multi-trees', () => {
             bob.publicKey,
             mintAuthority,
             mintAmount,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -127,7 +129,7 @@ describe('rpc-multi-trees', () => {
         const newlyMintedAccount = senderAccounts.items.find(
             account =>
                 account.compressedAccount.merkleTree.toBase58() ===
-                outputStateTreeContext.tree.toBase58(),
+                outputStateTreeInfo.tree.toBase58(),
         );
 
         expect(previousAccount).toBeDefined();

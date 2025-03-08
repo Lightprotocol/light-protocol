@@ -5,12 +5,12 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import { LightSystemProgram } from '../programs';
-import { pickRandomStateTreeContext, Rpc } from '../rpc';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
-import { StateTreeContext, TreeType } from '../state';
+import { StateTreeInfo, TreeType } from '../state';
+import { Rpc } from '../rpc';
 
 /**
  * Compress lamports to a solana address
@@ -29,16 +29,16 @@ export async function compress(
     payer: Signer,
     lamports: number | BN,
     toAddress: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
     }
 
@@ -46,7 +46,7 @@ export async function compress(
         payer: payer.publicKey,
         toAddress,
         lamports,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(

@@ -10,8 +10,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeContext,
-    pickRandomStateTreeContext,
+    StateTreeInfo,
+    pickStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -28,7 +28,7 @@ import { CompressedTokenProgram } from '../program';
  * @param owner                     Owner of the compressed tokens.
  * @param sourceTokenAccount        Source (associated) token account
  * @param toAddress                 Destination address of the recipient
- * @param outputStateTreeContext    State tree context that the compressed
+ * @param outputStateTreeInfo    State tree context that the compressed
  *                                  tokens should be part of. Defaults to the
  *                                  default state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -44,7 +44,7 @@ export async function compress(
     owner: Signer,
     sourceTokenAccount: PublicKey,
     toAddress: PublicKey | Array<PublicKey>,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -52,9 +52,9 @@ export async function compress(
         ? tokenProgramId
         : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
     const compressIx = await CompressedTokenProgram.compress({
@@ -64,7 +64,7 @@ export async function compress(
         toAddress,
         amount,
         mint,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 

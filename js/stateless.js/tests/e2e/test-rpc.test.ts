@@ -3,24 +3,22 @@ import { Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_NETWORK_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { compress, decompress, transfer } from '../../src/actions';
 import {
     bn,
     CompressedAccountWithMerkleContext,
-    StateTreeContext,
-    TreeType,
+    StateTreeInfo,
 } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
-describe('test-rpc', () => {
+describe('test-rpc V1', () => {
     let rpc: TestRpc;
     let payer: Signer;
-    let outputStateTreeContext: StateTreeContext;
-    let outputStateTreeContext2: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
+    let outputStateTreeContext2: StateTreeInfo;
 
     let preCompressBalance: number;
     let postCompressBalance: number;
@@ -33,8 +31,8 @@ describe('test-rpc', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
 
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = stateTreeInfo[0];
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = stateTreeInfo[0];
         outputStateTreeContext2 = stateTreeInfo[1];
 
         refPayer = await newAccountWithLamports(rpc, 1e9, 200);
@@ -46,7 +44,7 @@ describe('test-rpc', () => {
             refPayer,
             refCompressLamports,
             refPayer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         /// compress
@@ -133,7 +131,7 @@ describe('test-rpc', () => {
             compressLamportsAmount,
             payer,
             payer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         console.log(`txId V1 (transfer) ${compressLamportsAmount}`, tx);
 
@@ -156,7 +154,7 @@ describe('test-rpc', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -172,9 +170,8 @@ describe('test-rpc', () => {
                 payer,
                 lamports,
                 payer.publicKey,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
-            console.log(`txId (decompress) ${lamports}`, txId);
         }
     });
     it('getIndexerHealth', async () => {
@@ -227,10 +224,10 @@ describe('test-rpc', () => {
     });
 });
 
-describe('test-rpc Tree v2', () => {
+describe('test-rpc V2', () => {
     let rpc: TestRpc;
     let payer: Signer;
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     let preCompressBalance: number;
     let postCompressBalance: number;
@@ -243,8 +240,8 @@ describe('test-rpc Tree v2', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
 
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = stateTreeInfo[2];
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = stateTreeInfo[2];
 
         refPayer = await newAccountWithLamports(rpc, 1e9, 256);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
@@ -255,7 +252,7 @@ describe('test-rpc Tree v2', () => {
             refPayer,
             refCompressLamports,
             refPayer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         /// compress
@@ -267,7 +264,7 @@ describe('test-rpc Tree v2', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         console.log(`txId (compress) ${compressLamportsAmount}`, id1);
     });
@@ -292,7 +289,7 @@ describe('test-rpc Tree v2', () => {
         // assumes 1 acc per tree
         assert.equal(
             compressedTestAccount.queue.toBase58(),
-            outputStateTreeContext.queue!.toBase58(),
+            outputStateTreeInfo.queue!.toBase58(),
         );
         assert.equal(compressedTestAccount.leafIndex, 1);
         assert.equal(
@@ -306,9 +303,7 @@ describe('test-rpc Tree v2', () => {
         assert.equal(compressedTestAccount.data?.data, null);
 
         postCompressBalance = await rpc.getBalance(payer.publicKey);
-        console.log('postCompressBalance', postCompressBalance);
-        console.log('preCompressBalance', preCompressBalance);
-        console.log('compressLamportsAmount', compressLamportsAmount);
+
         assert.equal(
             postCompressBalance,
             preCompressBalance - compressLamportsAmount - 5000 - 5000 - 1,
@@ -338,7 +333,7 @@ describe('test-rpc Tree v2', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -354,9 +349,8 @@ describe('test-rpc Tree v2', () => {
                 payer,
                 lamports,
                 payer.publicKey,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
-            console.log(`txId (decompress) ${lamports}`, txId);
         }
     });
     it('getIndexerHealth', async () => {
@@ -413,7 +407,7 @@ describe('test-rpc Tree v2', () => {
             compressLamportsAmount,
             payer,
             payer.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         console.log(`txId V2 (transfer) ${compressLamportsAmount}`, tx);
     });

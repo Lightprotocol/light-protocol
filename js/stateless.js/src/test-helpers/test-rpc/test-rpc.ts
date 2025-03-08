@@ -55,7 +55,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { StateTreeContext } from '../../state/types';
+import { StateTreeInfo } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
@@ -122,7 +122,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    activeStateTreeInfo: StateTreeContext[] | null = null;
+    activeStateTreeInfos: StateTreeInfo[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -162,21 +162,21 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: StateTreeContext[]): void {
-        this.activeStateTreeInfo = info;
+    setStateTreeInfo(info: StateTreeInfo[]): void {
+        this.activeStateTreeInfos = info;
     }
 
     /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfo(): Promise<StateTreeContext[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
     /**
      * Returns local test state trees.
      */
-    async getLatestActiveStateTreeInfo(): Promise<StateTreeContext[]> {
+    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
     /**
@@ -297,20 +297,20 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
         const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
             new Map();
-        const ctxs = await this.getCachedActiveStateTreeInfo();
+        const ctxs = await this.getCachedActiveStateTreeInfos();
 
         for (const [treeKey, { leaves }] of leavesByTree.entries()) {
             const merkleTree = new PublicKey(treeKey);
             const { queue, treeType } = getQueueForTree(ctxs, merkleTree);
 
             let tree: MerkleTree | undefined;
-            if (treeType === TreeType.State) {
+            if (treeType === TreeType.StateV1) {
                 tree = new MerkleTree(
                     this.depth,
                     this.lightWasm,
                     leaves.map(leaf => bn(leaf).toString()),
                 );
-            } else if (treeType === TreeType.BatchedState) {
+            } else if (treeType === TreeType.StateV2) {
                 throw new Error(
                     'Record Not Found: Leaf nodes not found for hashes. BatchedState in TestRpc.',
                 );
@@ -697,7 +697,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
             /// inclusion
-            const ctxs = await this.getCachedActiveStateTreeInfo();
+            const ctxs = await this.getCachedActiveStateTreeInfos();
             let infoArray: {
                 queue: PublicKey;
                 treeType: TreeType;
@@ -714,7 +714,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
 
             const hasV1Accounts = infoArray.some(
-                info => info.treeType === TreeType.State,
+                info => info.treeType === TreeType.StateV1,
             );
 
             // if (!hasV1Accounts) {
@@ -724,12 +724,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             // }
 
             let compressedProof: CompressedProof | null = null;
-            if (infoArray.some(info => info.treeType === TreeType.State)) {
+            if (infoArray.some(info => info.treeType === TreeType.StateV1)) {
                 const merkleProofsWithContext =
                     await this.getMultipleCompressedAccountProofs(
                         hashes.filter(
                             (_, index) =>
-                                infoArray[index].treeType === TreeType.State,
+                                infoArray[index].treeType === TreeType.StateV1,
                         ),
                     );
                 const inputs = convertMerkleProofsWithContextToHex(
@@ -760,7 +760,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     queues: merkleProofsWithContext.map(proof => proof.queue),
                     proveByIndices: hashes.map(() => true),
                     treeTypes: merkleProofsWithContext.map(
-                        () => TreeType.State,
+                        () => TreeType.StateV1,
                     ),
                 };
             } else {
@@ -775,7 +775,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     ),
                     queues: hashes.map((_, index) => infoArray[index].queue),
                     proveByIndices: hashes.map(() => true),
-                    treeTypes: hashes.map(() => TreeType.BatchedState),
+                    treeTypes: hashes.map(() => TreeType.StateV2),
                 };
             }
         } else if (hashes.length === 0 && newAddresses.length > 0) {
@@ -807,7 +807,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
                 queues: newAddressProofs.map(proof => proof.queue),
                 proveByIndices: newAddressProofs.map(_ => false),
-                treeTypes: newAddressProofs.map(_ => TreeType.Address),
+                treeTypes: newAddressProofs.map(_ => TreeType.AddressV1),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -816,7 +816,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             /// Test-RPC
             let infoArray: { queue: PublicKey; treeType: TreeType }[] = [];
             merkleProofsWithContext.forEach(async proof => {
-                const ctxs = await this.getCachedActiveStateTreeInfo();
+                const ctxs = await this.getCachedActiveStateTreeInfos();
                 const { queue, treeType } = getQueueForTree(
                     ctxs,
                     proof.merkleTree,
@@ -825,10 +825,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             });
 
             const hasV1Accounts = infoArray.some(
-                info => info.treeType === TreeType.State,
+                info => info.treeType === TreeType.StateV1,
             );
             const hasV2Accounts = infoArray.some(
-                info => info.treeType === TreeType.BatchedState,
+                info => info.treeType === TreeType.StateV2,
             );
             if (hasV1Accounts && hasV2Accounts) {
                 throw new Error(
@@ -860,9 +860,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             const treeTypes = [
                 ...merkleProofsWithContext.map(() =>
-                    hasV1Accounts ? TreeType.State : TreeType.BatchedState,
+                    hasV1Accounts ? TreeType.StateV1 : TreeType.StateV2,
                 ),
-                ...newAddressProofs.map(() => TreeType.Address),
+                ...newAddressProofs.map(() => TreeType.AddressV1),
             ];
 
             validityProof = {

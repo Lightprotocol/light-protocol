@@ -8,23 +8,16 @@ import {
 import {
     LightSystemProgram,
     selectMinCompressedSolAccountsForTransfer,
-    sumUpLamports,
 } from '../programs';
-import { pickRandomStateTreeContext, Rpc } from '../rpc';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
+import { Rpc } from '../rpc';
 import {
     buildAndSignTx,
     selectInputAccountsForTransfer,
     sendAndConfirmTx,
-    validateNumbers,
-    validateNumbersForInclusionProof,
 } from '../utils';
+import { StateTreeInfo, TreeType, bn } from '../state';
 import BN from 'bn.js';
-import {
-    CompressedAccountWithMerkleContext,
-    StateTreeContext,
-    TreeType,
-    bn,
-} from '../state';
 
 /**
  * Decompress lamports into a solana account
@@ -33,7 +26,7 @@ import {
  * @param payer                     Payer of the transaction and initialization fees
  * @param lamports                  Amount of lamports to compress
  * @param toAddress                 Address of the recipient compressed account
- * @param outputStateTreeContext    Optional output state tree context.
+ * @param outputStateTreeInfo    Optional output state tree context.
  * @param confirmOptions            Options for confirming the transaction
  *
  * @return Transaction signature
@@ -43,7 +36,7 @@ export async function decompress(
     payer: Signer,
     lamports: number | BN,
     recipient: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
@@ -55,11 +48,11 @@ export async function decompress(
         discardedLamports,
     } = selectInputAccountsForTransfer(allAccounts.items, lamports);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
     }
 
@@ -82,7 +75,7 @@ export async function decompress(
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         inputCompressedAccounts: inputAccounts,
         recentValidityProof: proof.compressedProof,
         recentInputStateRootIndices: proof.rootIndices,

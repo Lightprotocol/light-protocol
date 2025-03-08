@@ -87,10 +87,10 @@ export function selectInputAccountsForTransfer(
     discardedLamports: BN;
 } {
     const { selectedAccounts: accountsV1, totalLamports: inputLamportsV1 } =
-        selectAccountsByTreeType(accounts, [TreeType.State]);
+        selectAccountsByTreeType(accounts, [TreeType.StateV1]);
 
     const { selectedAccounts: accountsV2, totalLamports: inputLamportsV2 } =
-        selectAccountsByTreeType(accounts, [TreeType.BatchedState]);
+        selectAccountsByTreeType(accounts, [TreeType.StateV2]);
 
     return decideInputAccountsToUse(lamports, accountsV1, accountsV2);
 }

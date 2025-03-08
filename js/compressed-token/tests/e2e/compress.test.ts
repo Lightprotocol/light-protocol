@@ -16,7 +16,7 @@ import {
     buildAndSignTx,
     sendAndConfirmTx,
     getTestRpc,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -93,14 +93,14 @@ describe('compress', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let lut: PublicKey;
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
 
-        outputStateTreeContext = (await rpc.getCachedActiveStateTreeInfo())[0];
+        outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
 
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -132,7 +132,7 @@ describe('compress', () => {
             bob.publicKey,
             mintAuthority,
             bn(10000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
@@ -161,7 +161,7 @@ describe('compress', () => {
             bob,
             bobAta,
             charlie.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         await assertCompress(
             rpc,
@@ -198,7 +198,7 @@ describe('compress', () => {
             bob,
             bobAta,
             recipients.slice(0, 11),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         for (let i = 0; i < recipients.length; i++) {
@@ -234,7 +234,7 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients.slice(0, 11),
-                outputStateTreeContext,
+                outputStateTreeInfo,
             ),
         ).rejects.toThrow(
             'Amount and toAddress arrays must have the same length',
@@ -249,7 +249,7 @@ describe('compress', () => {
                 bob,
                 bobAta,
                 recipients,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             ),
         ).rejects.toThrow(
             'Both amount and toAddress must be arrays or both must be single values',
@@ -269,7 +269,7 @@ describe('compress', () => {
             toAddress: recipients,
             amount: amounts,
             mint,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         });
 
         const { blockhash } = await rpc.getLatestBlockhash();
@@ -326,7 +326,7 @@ describe('compress', () => {
             bob.publicKey,
             mintAuthority,
             bn(10000),
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         await decompress(
@@ -352,7 +352,7 @@ describe('compress', () => {
             bob,
             bobToken2022Ata,
             charlie.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         await assertCompress(
             rpc,

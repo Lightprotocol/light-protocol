@@ -18,7 +18,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
-    StateTreeContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -76,7 +76,7 @@ export type CompressParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -108,7 +108,7 @@ export type CompressSplTokenAccountParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -146,7 +146,7 @@ export type DecompressParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -185,7 +185,7 @@ export type TransferParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -250,7 +250,7 @@ export type MergeTokenAccountsParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: Recent validity proof for state inclusion
      */
@@ -289,7 +289,7 @@ export type MintToParams = {
      * The context for the State tree in which the compressed account output
      * should be stored.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -343,7 +343,7 @@ export type ApproveAndMintToParams = {
      * Public key of the state tree to mint into. Defaults to a public state
      * tree if unspecified.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -640,7 +640,7 @@ export class CompressedTokenProgram {
             mint,
             feePayer,
             authority,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             toPubkey,
             amount,
             tokenProgramId,
@@ -671,7 +671,7 @@ export class CompressedTokenProgram {
             noopProgram: systemKeys.noopProgram,
             accountCompressionAuthority: systemKeys.accountCompressionAuthority,
             accountCompressionProgram: systemKeys.accountCompressionProgram,
-            merkleTree: outputStateTreeContext.tree, // TODO(v2): queue.
+            merkleTree: outputStateTreeInfo.tree, // TODO(v2): queue.
             selfProgram: this.programId,
             systemProgram: SystemProgram.programId,
             solPoolPda: null, // TODO: add lamports support
@@ -699,7 +699,7 @@ export class CompressedTokenProgram {
             feePayer,
             authorityTokenAccount,
             authority,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             toPubkey,
             tokenProgramId,
         } = params;
@@ -724,7 +724,7 @@ export class CompressedTokenProgram {
             toAddress: toPubkey,
             mint,
             amount: params.amount,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             tokenProgramId,
         });
 
@@ -742,7 +742,7 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
             recentValidityProof,
             amount,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             toAddress,
         } = params;
 
@@ -758,7 +758,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
@@ -878,7 +878,7 @@ export class CompressedTokenProgram {
             source,
             toAddress,
             mint,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             tokenProgramId,
         } = params;
 
@@ -922,7 +922,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts: [],
-            outputStateTreeContext,
+            outputStateTreeInfo,
             rootIndices: [],
             tokenTransferOutputs,
         });
@@ -978,7 +978,7 @@ export class CompressedTokenProgram {
             payer,
             inputCompressedTokenAccounts,
             toAddress,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
             tokenProgramId,
@@ -997,7 +997,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
         });
@@ -1058,7 +1058,7 @@ export class CompressedTokenProgram {
             payer,
             owner,
             inputCompressedTokenAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1075,7 +1075,7 @@ export class CompressedTokenProgram {
                 (sum, account) => sum.add(account.parsed.amount),
                 new BN(0),
             ),
-            outputStateTreeContext,
+            outputStateTreeInfo,
             recentInputStateRootIndices,
             recentValidityProof,
         });
@@ -1092,7 +1092,7 @@ export class CompressedTokenProgram {
             tokenAccount,
             mint,
             remainingAmount,
-            outputStateTreeContext,
+            outputStateTreeInfo,
             tokenProgramId,
         } = params;
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
@@ -1100,7 +1100,7 @@ export class CompressedTokenProgram {
         // TODO(v2): queue.
         const remainingAccountMetas: AccountMeta[] = [
             {
-                pubkey: outputStateTreeContext.tree,
+                pubkey: outputStateTreeInfo.tree,
                 isSigner: false,
                 isWritable: true,
             },

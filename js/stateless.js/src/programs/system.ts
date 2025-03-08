@@ -10,7 +10,7 @@ import {
     CompressedAccountWithMerkleContext,
     CompressedProof,
     InstructionDataInvoke,
-    StateTreeContext,
+    StateTreeInfo,
     TreeType,
     bn,
     createCompressedAccount,
@@ -57,7 +57,7 @@ type CreateAccountWithSeedParams = {
     /**
      * State tree context.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Public key of the program to assign as the owner of the created account
      */
@@ -115,7 +115,7 @@ type TransferParams = {
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
      * of input state.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /// TODO:
@@ -140,7 +140,7 @@ type CompressParams = {
     /**
      * The state tree context that the tx output should be inserted into.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -178,7 +178,7 @@ type DecompressParams = {
     /**
      * The state tree context that the tx output should be inserted into.
      */
-    outputStateTreeContext: StateTreeContext;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
@@ -307,7 +307,7 @@ export class LightSystemProgram {
         newAddressParams,
         newAddress,
         recentValidityProof,
-        outputStateTreeContext,
+        outputStateTreeInfo,
         inputCompressedAccounts,
         inputStateRootIndices,
         lamports,
@@ -328,7 +328,7 @@ export class LightSystemProgram {
             inputCompressedAccounts ?? [],
             inputStateRootIndices ?? [],
             outputCompressedAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         const { newAddressParamsPacked, remainingAccounts } =
@@ -374,7 +374,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
@@ -392,7 +392,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -407,9 +407,6 @@ export class LightSystemProgram {
             isCompress: false,
         };
 
-        // console.log('proof', recentValidityProof);
-        // console.log('inputs', packedInputCompressedAccounts);
-        // console.log('outputs', packedOutputCompressedAccounts);
         const data = encodeInstructionDataInvoke(rawInputs);
 
         const accounts = invokeAccountsLayout({
@@ -439,7 +436,7 @@ export class LightSystemProgram {
         payer,
         toAddress,
         lamports,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -458,7 +455,7 @@ export class LightSystemProgram {
             [],
             [],
             [outputCompressedAccount],
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -504,7 +501,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -523,7 +520,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
@@ -607,10 +604,12 @@ export function selectMinCompressedSolAccountsForPdaCreation(
 
     const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
     // Only V1 is supported with Combined ValidityProofs.
-    accounts = accounts.filter(account => account.treeType === TreeType.State);
+    accounts = accounts.filter(
+        account => account.treeType === TreeType.StateV1,
+    );
     let nonEligibleAmount = bn(0);
     for (const account of accounts) {
-        if (account.treeType !== TreeType.State) {
+        if (account.treeType !== TreeType.StateV1) {
             nonEligibleAmount = nonEligibleAmount.add(account.lamports);
         }
     }

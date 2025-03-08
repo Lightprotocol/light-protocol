@@ -11,8 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    StateTreeContext,
-    pickRandomStateTreeContext,
+    StateTreeInfo,
+    pickStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -29,7 +29,7 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
  * @param amount                    Number of tokens to transfer
  * @param owner                     Owner of the compressed tokens
  * @param toAddress                 Destination address of the recipient
- * @param outputStateTreeContext    State tree context that the compressed
+ * @param outputStateTreeInfo    State tree context that the compressed
  *                                  tokens should be inserted into. Defaults to
  *                                  the default state tree context.
  * @param confirmOptions            Options for confirming the transaction
@@ -43,14 +43,14 @@ export async function transfer(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeContext?: StateTreeContext,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
 
-    if (!outputStateTreeContext) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(stateTreeInfo);
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
@@ -76,7 +76,7 @@ export async function transfer(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTreeContext,
+        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

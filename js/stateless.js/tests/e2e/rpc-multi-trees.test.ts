@@ -1,10 +1,10 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc, createRpc, pickRandomStateTreeContext } from '../../src/rpc';
+import { Rpc, createRpc, pickStateTreeInfo } from '../../src/rpc';
 import {
     LightSystemProgram,
-    StateTreeContext,
+    StateTreeInfo,
     TreeType,
     bn,
     compress,
@@ -26,15 +26,15 @@ describe('rpc-multi-trees', () => {
     let testRpc: TestRpc;
     let executedTxs = 0;
 
-    let outputStateTreeContext: StateTreeContext;
-    let outputStateTreeContext2: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
+    let outputStateTreeContext2: StateTreeInfo;
     beforeAll(async () => {
         // const lightWasm = await WasmFactory.getInstance();
         // rpc = await getTestRpc(lightWasm);
         rpc = createRpc();
 
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = stateTreeInfo[0];
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = stateTreeInfo[0];
         outputStateTreeContext2 = stateTreeInfo[1];
 
         /// These are constant test accounts in between test runs
@@ -42,13 +42,7 @@ describe('rpc-multi-trees', () => {
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
         // tree 1
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            outputStateTreeContext,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, outputStateTreeInfo);
         executedTxs++;
     });
 
@@ -72,8 +66,8 @@ describe('rpc-multi-trees', () => {
             dataSlice: { offset: 1, length: 2 },
         });
 
-        expect(accs.items[0].merkleTree).toEqual(outputStateTreeContext.tree);
-        expect(accs.items[0].queue).toEqual(outputStateTreeContext.queue!);
+        expect(accs.items[0].merkleTree).toEqual(outputStateTreeInfo.tree);
+        expect(accs.items[0].queue).toEqual(outputStateTreeInfo.queue!);
 
         assert.equal(accs.items.length, 1);
     });
@@ -123,7 +117,7 @@ describe('rpc-multi-trees', () => {
             1e5,
             payer,
             bob.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
 
@@ -133,7 +127,7 @@ describe('rpc-multi-trees', () => {
             1e5,
             payer,
             bob.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
 
@@ -204,7 +198,7 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
     });
@@ -240,7 +234,7 @@ describe('rpc-multi-trees', () => {
                 transferAmount,
                 payer,
                 bob.publicKey,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
             executedTxs++;
         }
@@ -286,32 +280,26 @@ describe('rpc-multi-trees-v2', () => {
     let testRpc: TestRpc;
     let executedTxs = 0;
 
-    let outputStateTreeContext: StateTreeContext;
+    let outputStateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         // const lightWasm = await WasmFactory.getInstance();
         // rpc = await getTestRpc(lightWasm);
         rpc = createRpc();
 
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        outputStateTreeContext = pickRandomStateTreeContext(
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
             stateTreeInfo,
-            TreeType.BatchedState,
+            TreeType.StateV2,
         );
-        expect(outputStateTreeContext.treeType).toEqual(TreeType.BatchedState);
-        expect(outputStateTreeContext).toEqual(stateTreeInfo[2]);
+        expect(outputStateTreeInfo.treeType).toEqual(TreeType.StateV2);
+        expect(outputStateTreeInfo).toEqual(stateTreeInfo[2]);
 
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
         // tree 1
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            outputStateTreeContext,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, outputStateTreeInfo);
         executedTxs++;
     });
 
@@ -335,8 +323,8 @@ describe('rpc-multi-trees-v2', () => {
             dataSlice: { offset: 1, length: 2 },
         });
 
-        expect(accs.items[0].merkleTree).toEqual(outputStateTreeContext.tree);
-        expect(accs.items[0].queue).toEqual(outputStateTreeContext.queue!);
+        expect(accs.items[0].merkleTree).toEqual(outputStateTreeInfo.tree);
+        expect(accs.items[0].queue).toEqual(outputStateTreeInfo.queue!);
 
         assert.equal(accs.items.length, 1);
     });
@@ -357,12 +345,12 @@ describe('rpc-multi-trees-v2', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
 
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
-        expect(acc!.merkleTree).toEqual(outputStateTreeContext.tree);
-        expect(acc!.queue).toEqual(outputStateTreeContext.queue!);
+        expect(acc!.merkleTree).toEqual(outputStateTreeInfo.tree);
+        expect(acc!.queue).toEqual(outputStateTreeInfo.queue!);
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {
@@ -370,15 +358,13 @@ describe('rpc-multi-trees-v2', () => {
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
 
         const hash = bn(acc!.hash);
-        expect(acc?.merkleTree).toEqual(outputStateTreeContext.tree);
-        expect(acc?.queue).toEqual(outputStateTreeContext.queue!);
+        expect(acc?.merkleTree).toEqual(outputStateTreeInfo.tree);
+        expect(acc?.queue).toEqual(outputStateTreeInfo.queue!);
 
         const validityProof = await rpc.getValidityProof([hash]);
 
-        expect(validityProof.merkleTrees[0]).toEqual(
-            outputStateTreeContext.tree,
-        );
-        expect(validityProof.queues[0]).toEqual(outputStateTreeContext.queue!);
+        expect(validityProof.merkleTrees[0]).toEqual(outputStateTreeInfo.tree);
+        expect(validityProof.queues[0]).toEqual(outputStateTreeInfo.queue!);
 
         await transfer(
             rpc,
@@ -386,7 +372,7 @@ describe('rpc-multi-trees-v2', () => {
             1e5,
             payer,
             bob.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
 
@@ -396,16 +382,14 @@ describe('rpc-multi-trees-v2', () => {
             1e5,
             payer,
             bob.publicKey,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
 
         const validityProof2 = await rpc.getValidityProof([hash]);
 
-        expect(validityProof2.merkleTrees[0]).toEqual(
-            outputStateTreeContext.tree,
-        );
-        expect(validityProof2.queues[0]).toEqual(outputStateTreeContext.queue!);
+        expect(validityProof2.merkleTrees[0]).toEqual(outputStateTreeInfo.tree);
+        expect(validityProof2.queues[0]).toEqual(outputStateTreeInfo.queue!);
     });
 
     it('getValidityProof [noforester] (combined) should return correct trees and queues', async () => {
@@ -443,7 +427,7 @@ describe('rpc-multi-trees-v2', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            outputStateTreeContext,
+            outputStateTreeInfo,
         );
         executedTxs++;
     });
@@ -467,20 +451,14 @@ describe('rpc-multi-trees-v2', () => {
                 transferAmount,
                 payer,
                 bob.publicKey,
-                outputStateTreeContext,
+                outputStateTreeInfo,
             );
             executedTxs++;
         }
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            outputStateTreeContext,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, outputStateTreeInfo);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
