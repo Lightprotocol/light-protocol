@@ -456,6 +456,13 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
         }
     };
 
+    let signers = &vec![
+        payer,
+        merkle_tree_keypair,
+        queue_keypair,
+        cpi_context_keypair,
+    ];
+
     let transaction = Transaction::new_signed_with_payer(
         &[
             create_mt_account_ix,
@@ -464,15 +471,10 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
             instruction,
         ],
         Some(&payer.pubkey()),
-        &vec![
-            payer,
-            merkle_tree_keypair,
-            queue_keypair,
-            cpi_context_keypair,
-        ],
+        signers,
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction(transaction).await
+    rpc.process_transaction(transaction, signers).await
 }
 
 pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(

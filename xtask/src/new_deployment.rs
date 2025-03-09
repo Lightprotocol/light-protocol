@@ -119,15 +119,17 @@ pub async fn init_new_deployment(options: Options) -> anyhow::Result<()> {
         );
         let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
         // Create and sign a transaction
+        let payer = payer.insecure_clone();
+        let signers = &[&payer];
         let transaction = Transaction::new_signed_with_payer(
             &[transfer_instruction],
             Some(&payer.pubkey()),
-            &vec![&payer],
+            signers,
             latest_blockhash,
         );
 
         // Send the transaction
-        rpc.process_transaction(transaction).await?;
+        rpc.process_transaction(transaction, signers).await?;
     }
     let governance_authority = env_keypairs.governance_authority.insecure_clone();
     initialize_accounts(

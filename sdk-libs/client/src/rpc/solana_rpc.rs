@@ -24,6 +24,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     transaction::Transaction,
 };
+use solana_sdk::signature::Signer;
 use solana_transaction_status::{
     option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
 };
@@ -130,7 +131,7 @@ impl SolanaRpcConnection {
     async fn retry<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<T, RpcError>>,
+        Fut: std::future::Future<Output=Result<T, RpcError>>,
     {
         let mut attempts = 0;
         let start_time = Instant::now();
@@ -165,7 +166,7 @@ impl SolanaRpcConnection {
     async fn retry_with_tx_rate_limit<F, Fut, T>(&self, operation: F) -> Result<T, RpcError>
     where
         F: Fn() -> Fut,
-        Fut: std::future::Future<Output = Result<T, RpcError>>,
+        Fut: std::future::Future<Output=Result<T, RpcError>>,
     {
         let mut attempts = 0;
         let start_time = Instant::now();
@@ -195,6 +196,26 @@ impl SolanaRpcConnection {
                 }
             }
         }
+    }
+
+    fn resign_tx(transaction: &Transaction, signers: &[&Keypair], latest_blockhash: Hash) -> Transaction {
+        let mut new_tx = transaction.clone();
+        new_tx.message.recent_blockhash = latest_blockhash;
+        for (i, sig) in new_tx.signatures.as_slice().iter().enumerate() {
+            println!("old sig[{}] = {:?}", i, sig.to_string());
+        }
+        for (i, signer) in signers.iter().enumerate() {
+            println!("signer[{}] = {:?}", i, signer.pubkey().to_string());
+        }
+
+        let sig_count = new_tx.signatures.len();
+        new_tx.signatures = vec![Signature::default(); sig_count];
+        new_tx.sign(signers, latest_blockhash);
+
+        for (i, sig) in new_tx.signatures.as_slice().iter().enumerate() {
+            println!("new sig[{}] = {:?}", i, sig.to_string());
+        }
+        new_tx
     }
 }
 
@@ -324,27 +345,44 @@ impl RpcConnection for SolanaRpcConnection {
                 .get_program_accounts(program_id)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
+    /// Process a transaction with the ability to refresh the blockhash and re-sign
+    /// This solves the issue with rate limiting causing stale blockhashes
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
     ) -> Result<Signature, RpcError> {
         self.retry_with_tx_rate_limit(|| async {
+            let latest_blockhash = self.client.get_latest_blockhash()?;
+            let tx_to_send = if transaction.message.recent_blockhash != latest_blockhash {
+                Self::resign_tx(&transaction, signers, latest_blockhash)
+            } else {
+                transaction.clone()
+            };
             self.client
-                .send_and_confirm_transaction(&transaction)
+                .send_and_confirm_transaction(&tx_to_send)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn process_transaction_with_context(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
     ) -> Result<(Signature, Slot), RpcError> {
         self.retry_with_tx_rate_limit(|| async {
-            let signature = self.client.send_and_confirm_transaction(&transaction)?;
+            let latest_blockhash = self.client.get_latest_blockhash()?;
+            let tx_to_send = if transaction.message.recent_blockhash != latest_blockhash {
+                    Self::resign_tx(&transaction, signers, latest_blockhash)
+            } else {
+                transaction.clone()
+            };
+
+            let signature = self.client.send_and_confirm_transaction(&tx_to_send)?;
             let sig_info = self.client.get_signature_statuses(&[signature])?;
             let slot = sig_info
                 .value
@@ -354,15 +392,16 @@ impl RpcConnection for SolanaRpcConnection {
                 .ok_or_else(|| RpcError::CustomError("Failed to get slot".into()))?;
             Ok((signature, slot))
         })
-        .await
+            .await
     }
 
     async fn process_transaction_with_config(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
-        self.send_transaction_with_config(&transaction, RpcSendTransactionConfig { ..config })
+        self.send_transaction_with_config(&transaction, signers,RpcSendTransactionConfig { ..config })
             .await
     }
 
@@ -377,22 +416,31 @@ impl RpcConnection for SolanaRpcConnection {
         T: BorshDeserialize + Send + Debug,
     {
         let pre_balance = self.client.get_balance(payer)?;
-        let latest_blockhash = self.client.get_latest_blockhash()?;
+        let (signature, slot, transaction) = self.retry_with_tx_rate_limit(|| async {
+            let latest_blockhash = self.client.get_latest_blockhash()?;
 
-        let mut instructions_vec = vec![
-            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
-        ];
-        instructions_vec.extend_from_slice(instructions);
+            let mut instructions_vec = vec![
+                solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
+            ];
+            instructions_vec.extend_from_slice(instructions);
 
-        let transaction = Transaction::new_signed_with_payer(
-            instructions_vec.as_slice(),
-            Some(payer),
-            signers,
-            latest_blockhash,
-        );
+            let transaction = Transaction::new_signed_with_payer(
+                instructions_vec.as_slice(),
+                Some(payer),
+                signers,
+                latest_blockhash,
+            );
 
-        let (signature, slot) = self
-            .process_transaction_with_context(transaction.clone())
+            let signature = self.client.send_and_confirm_transaction(&transaction)?;
+            let sig_info = self.client.get_signature_statuses(&[signature])?;
+            let slot = sig_info
+                .value
+                .first()
+                .and_then(|s| s.as_ref())
+                .map(|s| s.slot)
+                .ok_or_else(|| RpcError::CustomError("Failed to get slot".into()))?;
+            Ok((signature, slot, transaction))
+        })
             .await?;
 
         let mut parsed_event = None;
@@ -405,11 +453,11 @@ impl RpcConnection for SolanaRpcConnection {
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to parse event: {:?}, type: {:?}, ix data: {:?}",
-                        e,
-                        std::any::type_name::<T>(),
-                        ix_data
-                    );
+                    "Failed to parse event: {:?}, type: {:?}, ix data: {:?}",
+                    e,
+                    std::any::type_name::<T>(),
+                    ix_data
+                );
                 }
             }
         }
@@ -435,9 +483,9 @@ impl RpcConnection for SolanaRpcConnection {
 
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
-                    * transaction_params.fee_config.address_queue_rollover as i64
+                * transaction_params.fee_config.address_queue_rollover as i64
                 - i64::from(transaction_params.num_output_compressed_accounts)
-                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
                 - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
                 - network_fee;
@@ -457,7 +505,7 @@ impl RpcConnection for SolanaRpcConnection {
                 .confirm_transaction(&signature)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
@@ -467,7 +515,7 @@ impl RpcConnection for SolanaRpcConnection {
                 .map(|response| response.value)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     fn set_account(&mut self, _address: &Pubkey, _account: &AccountSharedData) {
@@ -483,7 +531,7 @@ impl RpcConnection for SolanaRpcConnection {
                 .get_minimum_balance_for_rent_exemption(data_len)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn airdrop_lamports(
@@ -507,11 +555,11 @@ impl RpcConnection for SolanaRpcConnection {
                     Err(RpcError::CustomError("Airdrop not confirmed".into()))
                 }
             })
-            .await?;
+                .await?;
 
             Ok(signature)
         })
-        .await
+            .await
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
@@ -528,7 +576,7 @@ impl RpcConnection for SolanaRpcConnection {
                 .map(|response| response.0)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
@@ -542,11 +590,17 @@ impl RpcConnection for SolanaRpcConnection {
         ))
     }
 
-    async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError> {
+    async fn send_transaction(&self, transaction: &Transaction, signers: &[&Keypair]) -> Result<Signature, RpcError> {
         self.retry_with_tx_rate_limit(|| async {
+            let latest_blockhash = self.client.get_latest_blockhash()?;
+            let tx_to_send = if transaction.message.recent_blockhash != latest_blockhash {
+                Self::resign_tx(&transaction, signers, latest_blockhash)
+            } else {
+                transaction.clone()
+            };
             self.client
                 .send_transaction_with_config(
-                    transaction,
+                    &tx_to_send,
                     RpcSendTransactionConfig {
                         skip_preflight: true,
                         max_retries: Some(self.retry_config.max_retries as usize),
@@ -555,20 +609,27 @@ impl RpcConnection for SolanaRpcConnection {
                 )
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn send_transaction_with_config(
         &self,
         transaction: &Transaction,
+        signers: &[&Keypair],
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
         self.retry_with_tx_rate_limit(|| async {
+            let latest_blockhash = self.client.get_latest_blockhash()?;
+            let tx_to_send = if transaction.message.recent_blockhash != latest_blockhash {
+                Self::resign_tx(transaction, signers, latest_blockhash)
+            } else {
+                transaction.clone()
+            };
             self.client
-                .send_transaction_with_config(transaction, config)
+                .send_transaction_with_config(&tx_to_send, config)
                 .map_err(RpcError::from)
         })
-        .await
+            .await
     }
 
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError> {
@@ -586,7 +647,7 @@ impl RpcConnection for SolanaRpcConnection {
                 .map_err(RpcError::from)?
                 .slot)
         })
-        .await
+            .await
     }
     async fn get_signature_statuses(
         &self,
@@ -646,7 +707,7 @@ impl RpcConnection for SolanaRpcConnection {
         );
 
         let (signature, slot) = self
-            .process_transaction_with_context(transaction.clone())
+            .process_transaction_with_context(transaction.clone(), signers)
             .await?;
 
         let mut vec = Vec::new();
@@ -747,9 +808,9 @@ impl RpcConnection for SolanaRpcConnection {
 
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
-                    * transaction_params.fee_config.address_queue_rollover as i64
+                * transaction_params.fee_config.address_queue_rollover as i64
                 - i64::from(transaction_params.num_output_compressed_accounts)
-                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
                 - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
                 - network_fee;

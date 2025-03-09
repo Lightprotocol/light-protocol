@@ -18,13 +18,15 @@ pub async fn airdrop_lamports<R: RpcConnection>(
     let transfer_instruction =
         system_instruction::transfer(&rpc.get_payer().pubkey(), destination_pubkey, lamports);
     let latest_blockhash = rpc.get_latest_blockhash().await?;
+
+    let payer = rpc.get_payer().insecure_clone();
     let transaction = Transaction::new_signed_with_payer(
         &[transfer_instruction],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer()],
+        Some(&payer.pubkey()),
+        &[&payer],
         latest_blockhash,
     );
-    rpc.process_transaction(transaction).await?;
+    rpc.process_transaction(transaction, &[&payer]).await?;
     Ok(())
 }
 

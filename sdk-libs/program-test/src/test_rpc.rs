@@ -104,6 +104,7 @@ impl RpcConnection for ProgramTestRpcConnection {
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+        _signers: &[&Keypair],
     ) -> Result<Signature, RpcError> {
         let sig = *transaction.signatures.first().unwrap();
         let result = self
@@ -119,6 +120,7 @@ impl RpcConnection for ProgramTestRpcConnection {
     async fn process_transaction_with_context(
         &mut self,
         transaction: Transaction,
+        _signers: &[&Keypair],
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
         let result = self
@@ -135,6 +137,7 @@ impl RpcConnection for ProgramTestRpcConnection {
     async fn process_transaction_with_config(
         &mut self,
         transaction: Transaction,
+        _signers: &[&Keypair],
         _config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
         let sig = *transaction.signatures.first().unwrap();
@@ -352,13 +355,14 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(|_| RpcError::InvalidWarpSlot)
     }
 
-    async fn send_transaction(&self, _transaction: &Transaction) -> Result<Signature, RpcError> {
+    async fn send_transaction(&self, _transaction: &Transaction, _signers: &[&Keypair],) -> Result<Signature, RpcError> {
         unimplemented!("send transaction is unimplemented for ProgramTestRpcConnection")
     }
 
     async fn send_transaction_with_config(
         &self,
         _transaction: &Transaction,
+        _signers: &[&Keypair],
         _config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError> {
         unimplemented!("send transaction with config is unimplemented for ProgramTestRpcConnection")

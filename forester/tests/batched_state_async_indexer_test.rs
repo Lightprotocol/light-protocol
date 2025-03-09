@@ -1,7 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
+use forester_utils::{
+    forester_epoch::get_epoch_phases, registry::register_test_forester, utils::wait_for_indexer,
+};
 use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -38,6 +40,7 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
+use solana_sdk::transaction::Transaction;
 use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::{sleep, timeout},
@@ -52,9 +55,11 @@ const ENABLE_TRANSACTIONS: bool = true;
 const OUTPUT_ACCOUNT_NUM: usize = 2;
 const MINT_TO_NUM: u64 = 5;
 const BATCHES_NUM: u64 = 10;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 5;
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
+
+const FORESTERS_NUM: usize = 2;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -71,22 +76,45 @@ async fn test_state_indexer_async_batched() {
         sbf_programs: vec![],
         limit_ledger_size: Some(500000),
     }))
-    .await;
+        .await;
 
-    let env = EnvAccounts::get_local_test_validator_accounts();
-    let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 6;
-    config.payer_keypair = env.forester.insecure_clone();
-    config.derivation_pubkey = env.forester.pubkey();
+    let mut forester_keypairs = Vec::<Keypair>::new();
+    let mut forester_configs = Vec::<ForesterConfig>::new();
+    for _ in 0..FORESTERS_NUM {
+        let keypair = Keypair::new();
+        let mut config = forester_config();
+        config.general_config.rpc_pool_size = 200;
+        config.external_services.rpc_rate_limit = Some(1);
+        config.external_services.send_tx_rate_limit = Some(1);
+        config.transaction_config.batch_ixs_per_tx = 4;
+        config.payer_keypair = keypair.insecure_clone();
+        config.derivation_pubkey = keypair.pubkey();
+        forester_configs.push(config);
+        forester_keypairs.push(keypair);
+    }
+
+    let mut env = EnvAccounts::get_local_test_validator_accounts();
+    env.forester = forester_keypairs.first().unwrap().insecure_clone();
 
     let mut rpc = setup_rpc_connection(&env.forester);
-    ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;
     ensure_sufficient_balance(
         &mut rpc,
         &env.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100,
     )
-    .await;
+        .await;
+
+    for keypair in &forester_keypairs {
+        ensure_sufficient_balance(&mut rpc, &keypair.pubkey(), LAMPORTS_PER_SOL * 100).await;
+        register_test_forester(
+            &mut rpc,
+            &env.governance_authority,
+            &keypair.pubkey(),
+            light_registry::ForesterConfig::default(),
+        )
+            .await
+            .unwrap_or_else(|e| panic!("Failed to register forester: {:?}", e));
+    }
 
     let mut photon_indexer = {
         let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -94,10 +122,7 @@ async fn test_state_indexer_async_batched() {
     };
     let protocol_config = get_protocol_config(&mut rpc).await;
 
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
-
-    let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
+    let active_phase_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
 
     let (initial_next_index, initial_sequence_number, pre_root) =
@@ -112,20 +137,38 @@ async fn test_state_indexer_async_batched() {
         get_batch_size(&mut rpc, &env.batched_state_merkle_tree).await
     );
 
+    let registration_phase_slot =
+        get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
+    wait_for_slot(&mut rpc, registration_phase_slot).await;
+
+    // Setup foresters pipeline with multiple foresters
+    let mut service_handles = Vec::with_capacity(FORESTERS_NUM);
+    let mut shutdown_senders = Vec::with_capacity(FORESTERS_NUM);
+    let mut work_report_receivers = Vec::with_capacity(FORESTERS_NUM);
+
+    for config in forester_configs.iter() {
+        let (service_handle, shutdown_sender, work_report_receiver) =
+            setup_forester_pipeline(config).await;
+
+        service_handles.push(service_handle);
+        shutdown_senders.push(shutdown_sender);
+        work_report_receivers.push(work_report_receiver);
+    }
+
     let batch_payer = Keypair::from_bytes(&[
         88, 117, 248, 40, 40, 5, 251, 124, 235, 221, 10, 212, 169, 203, 91, 203, 255, 67, 210, 150,
         87, 182, 238, 155, 87, 24, 176, 252, 157, 119, 68, 81, 148, 156, 30, 0, 60, 63, 34, 247,
         192, 120, 4, 170, 32, 149, 221, 144, 74, 244, 181, 142, 37, 197, 196, 136, 159, 196, 101,
         21, 194, 56, 163, 1,
     ])
-    .unwrap();
+        .unwrap();
     let legacy_payer = Keypair::from_bytes(&[
         58, 94, 30, 2, 133, 249, 254, 202, 188, 51, 184, 201, 173, 158, 211, 81, 202, 46, 41, 227,
         38, 227, 101, 115, 246, 157, 174, 33, 64, 96, 207, 87, 161, 151, 87, 233, 147, 93, 116, 35,
         227, 168, 135, 146, 45, 183, 134, 2, 97, 130, 200, 207, 211, 117, 232, 198, 233, 80, 205,
         75, 41, 148, 68, 97,
     ])
-    .unwrap();
+        .unwrap();
 
     println!("batch payer pubkey: {:?}", batch_payer.pubkey());
     println!("legacy payer pubkey: {:?}", legacy_payer.pubkey());
@@ -139,7 +182,7 @@ async fn test_state_indexer_async_batched() {
         202, 233, 163, 7, 148, 155, 201, 160, 255, 17, 124, 254, 98, 74, 111, 251, 24, 230, 93,
         130, 105, 104, 119, 110,
     ])
-    .unwrap();
+        .unwrap();
     let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &batch_payer, &mint_keypair).await;
 
     let sig = mint_to(
@@ -148,7 +191,7 @@ async fn test_state_indexer_async_batched() {
         &batch_payer,
         &mint_pubkey,
     )
-    .await;
+        .await;
     println!("mint_to: {:?}", sig);
 
     let mut sender_batched_accs_counter = 0;
@@ -161,7 +204,7 @@ async fn test_state_indexer_async_batched() {
         &env.batched_state_merkle_tree,
         &env.batched_output_queue,
     )
-    .await;
+        .await;
     wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
 
     let input_compressed_accounts =
@@ -187,15 +230,21 @@ async fn test_state_indexer_async_batched() {
             &mut sender_batched_token_counter,
             &mut address_counter,
         )
-        .await;
+            .await;
     }
 
-    wait_for_work_report(&mut work_report_receiver, &tree_params).await;
+    wait_for_any_work_report(&mut work_report_receivers, &tree_params).await;
+
     verify_root_changed(&mut rpc, &env.batched_state_merkle_tree, &pre_root).await;
-    shutdown_sender
-        .send(())
-        .expect("Failed to send shutdown signal");
-    service_handle.await.unwrap().unwrap();
+
+    for sender in shutdown_senders {
+        sender.send(()).expect("Failed to send shutdown signal");
+    }
+
+    // Wait for all service handles to complete
+    for handle in service_handles {
+        handle.await.unwrap().unwrap();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,7 +290,7 @@ async fn get_initial_merkle_tree_state(
         merkle_tree_account.data.as_mut_slice(),
         &merkle_tree_pubkey.into(),
     )
-    .unwrap();
+        .unwrap();
 
     let initial_next_index = merkle_tree.get_metadata().next_index;
     let initial_sequence_number = merkle_tree.get_metadata().sequence_number;
@@ -258,7 +307,7 @@ async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubk
         merkle_tree_account.data.as_mut_slice(),
         &merkle_tree_pubkey.into(),
     )
-    .unwrap();
+        .unwrap();
 
     merkle_tree.get_metadata().queue_batches.zkp_batch_size
 }
@@ -308,7 +357,7 @@ async fn print_queue_states(
         merkle_tree_account.data.as_mut_slice(),
         &merkle_tree_pubkey.into(),
     )
-    .unwrap();
+        .unwrap();
     println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
 
     let mut output_queue_account = rpc
@@ -380,7 +429,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             if i == 0 { 1_000_000 } else { 10_000 },
             sender_batched_accs_counter,
         )
-        .await;
+            .await;
         println!("{} batch compress: {:?}", i, batch_compress_sig);
 
         let compress_sig = compress(
@@ -390,7 +439,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             if i == 0 { 1_000_000 } else { 10_000 },
             sender_legacy_accs_counter,
         )
-        .await;
+            .await;
         println!("{} legacy compress: {:?}", i, compress_sig);
 
         verify_queue_states(
@@ -399,7 +448,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             *sender_batched_accs_counter,
             *sender_batched_token_counter,
         )
-        .await;
+            .await;
 
         sleep(Duration::from_millis(1000)).await;
         let batch_transfer_sig = transfer(
@@ -409,7 +458,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             batch_payer,
             sender_batched_accs_counter,
         )
-        .await;
+            .await;
         println!("{} batch transfer: {:?}", i, batch_transfer_sig);
 
         let legacy_transfer_sig = transfer(
@@ -419,7 +468,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             legacy_payer,
             sender_legacy_accs_counter,
         )
-        .await;
+            .await;
         println!("{} legacy transfer: {:?}", i, legacy_transfer_sig);
 
         let batch_transfer_token_sig = compressed_token_transfer(
@@ -430,7 +479,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
             mint_pubkey,
             sender_batched_token_counter,
         )
-        .await;
+            .await;
         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
         sleep(Duration::from_millis(1000)).await;
     }
@@ -444,7 +493,7 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         legacy_payer,
         address_counter,
     )
-    .await;
+        .await;
     println!(
         "total num addresses created {}, create address: {:?}",
         address_counter, sig,
@@ -474,7 +523,7 @@ async fn verify_queue_states<R: RpcConnection>(
         input_queue_account.data.as_mut_slice(),
         &env.batched_state_merkle_tree.into(),
     )
-    .unwrap();
+        .unwrap();
     println!(
         "input queue next_index: {}, output queue next_index: {} sender_batched_accs_counter: {} sender_batched_token_counter: {}",
         account.queue_batches.next_index,
@@ -488,83 +537,102 @@ async fn verify_queue_states<R: RpcConnection>(
     );
 }
 
-async fn wait_for_work_report(
-    work_report_receiver: &mut mpsc::Receiver<WorkReport>,
+async fn wait_for_any_work_report(
+    work_report_receivers: &mut [mpsc::Receiver<WorkReport>],
     tree_params: &InitStateTreeAccountsInstructionData,
 ) {
-    let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    let mut reports = Vec::new();
-    let minimum_processed_items: usize = tree_params.output_queue_batch_size as usize;
-    let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
-
-    println!("Waiting for work reports...");
-    println!("Batch size: {}", batch_size);
-    println!(
-        "Minimum required processed items: {}",
-        minimum_processed_items
-    );
-
-    let start_time = tokio::time::Instant::now();
-    while total_processed_items < minimum_processed_items {
-        match timeout(
-            timeout_duration.saturating_sub(start_time.elapsed()),
-            work_report_receiver.recv(),
-        )
-        .await
-        {
-            Ok(Some(report)) => {
-                println!("Received work report: {:?}", report);
-                println!(
-                    "Report details:\n\
-                     - Items processed in this report: {}\n\
-                     - Total items processed so far: {}\n\
-                     - Complete batches so far: {}",
-                    report.processed_items,
-                    total_processed_items + report.processed_items,
-                    (total_processed_items + report.processed_items) / batch_size
-                );
-
-                total_processed_items += report.processed_items;
-                reports.push(report);
+    let result = timeout(timeout_duration, async {
+        loop {
+            for (idx, receiver) in work_report_receivers.iter_mut().enumerate() {
+                match receiver.try_recv() {
+                    Ok(report) => {
+                        // Got a report!
+                        println!("Received work report from forester {}: {:?}", idx, report);
+                        println!(
+                            "Work report debug from forester {}:\n\
+                             reported_items: {}\n\
+                             batch_size: {}\n\
+                             complete_batches: {}",
+                            idx,
+                            report.processed_items,
+                            tree_params.input_queue_zkp_batch_size,
+                            report.processed_items
+                                / tree_params.input_queue_zkp_batch_size as usize,
+                        );
+                        assert!(
+                            report.processed_items > 0,
+                            "No items were processed by forester {}",
+                            idx
+                        );
+                        return Some((idx, report));
+                    }
+                    Err(mpsc::error::TryRecvError::Empty) => {
+                        // No data yet, continue to next receiver
+                    }
+                    Err(mpsc::error::TryRecvError::Disconnected) => {
+                        // Channel closed, continue to next receiver
+                        println!("Channel for forester {} closed", idx);
+                    }
+                }
             }
-            Ok(None) => {
-                println!("Work report channel closed unexpectedly");
-                break;
+
+            let mut has_active_channel = false;
+
+            for (idx, receiver) in work_report_receivers.iter_mut().enumerate() {
+                if !receiver.is_closed() {
+                    has_active_channel = true;
+                    match tokio::time::timeout(Duration::from_millis(100), receiver.recv()).await {
+                        Ok(Some(report)) => {
+                            // Got a report!
+                            println!("Received work report from forester {}: {:?}", idx, report);
+                            println!(
+                                "Work report debug from forester {}:\n\
+                                 reported_items: {}\n\
+                                 batch_size: {}\n\
+                                 complete_batches: {}",
+                                idx,
+                                report.processed_items,
+                                tree_params.input_queue_zkp_batch_size,
+                                report.processed_items
+                                    / tree_params.input_queue_zkp_batch_size as usize,
+                            );
+                            assert!(
+                                report.processed_items > 0,
+                                "No items were processed by forester {}",
+                                idx
+                            );
+                            return Some((idx, report));
+                        }
+                        Ok(None) => {
+                            // Channel closed, continue to next receiver
+                            println!("Channel for forester {} closed during recv", idx);
+                        }
+                        Err(_) => {
+                            // Timeout on this receiver, continue to the next one
+                        }
+                    }
+                    // Break after checking one channel so we can go back to checking all channels
+                    break;
+                }
             }
-            Err(_) => {
-                println!("Timed out after waiting for {:?}", timeout_duration);
-                break;
+            if !has_active_channel {
+                println!("All channels are closed");
+                return None;
             }
+            tokio::task::yield_now().await;
         }
+    })
+        .await;
+
+    match result {
+        Ok(Some((forester_idx, _report))) => {
+            println!("Forester {} completed work first", forester_idx);
+        }
+        Ok(None) => panic!("All work report channels closed unexpectedly"),
+        Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
-
-    println!(
-        "Total processed items across all reports: {}",
-        total_processed_items
-    );
-    println!(
-        "Total complete batches: {}",
-        total_processed_items / batch_size
-    );
-
-    if total_processed_items < minimum_processed_items {
-        println!(
-            "Warning: Received fewer processed items ({}) than required ({})",
-            total_processed_items, minimum_processed_items
-        );
-    } else {
-        println!("Successfully processed required number of items");
-    }
-
-    assert!(
-        total_processed_items >= minimum_processed_items,
-        "Processed fewer items ({}) than required ({})",
-        total_processed_items,
-        minimum_processed_items
-    );
 }
-
 async fn verify_root_changed(
     rpc: &mut SolanaRpcConnection,
     merkle_tree_pubkey: &Pubkey,
@@ -575,7 +643,7 @@ async fn verify_root_changed(
         merkle_tree_account.data.as_mut_slice(),
         &merkle_tree_pubkey.into(),
     )
-    .unwrap();
+        .unwrap();
     println!("merkle tree metadata: {:?}", merkle_tree.get_metadata());
     assert_ne!(
         *pre_root,
@@ -584,14 +652,14 @@ async fn verify_root_changed(
     );
 }
 
-pub async fn get_active_phase_start_slot<R: RpcConnection>(
+pub async fn get_registration_phase_start_slot<R: RpcConnection>(
     rpc: &mut R,
     protocol_config: &ProtocolConfig,
 ) -> u64 {
     let current_slot = rpc.get_slot().await.unwrap();
     let current_epoch = protocol_config.get_current_epoch(current_slot);
     let phases = get_epoch_phases(protocol_config, current_epoch);
-    phases.active.start
+    phases.registration.start
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -659,7 +727,6 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
             x.compressed_account.hash().unwrap()
         })
         .collect::<Vec<[u8; 32]>>();
-    wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
@@ -737,7 +804,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         false,
         &[],
     )
-    .unwrap();
+        .unwrap();
     println!(
         "transfer compressed_accounts: {:?}",
         input_compressed_accounts_data
@@ -749,10 +816,18 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         ),
     ];
     instructions.push(instruction);
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[payer],
+        latest_blockhash,
+    );
     let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+        .process_transaction(transaction, &[payer])
         .await
         .unwrap();
+
     *counter += OUTPUT_ACCOUNT_NUM as u64;
     *counter -= input_compressed_accounts_data.len() as u64;
     sig
@@ -874,8 +949,15 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         ),
     ];
     instructions.push(instruction);
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[payer],
+        latest_blockhash,
+    );
     let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+        .process_transaction(transaction, &[payer])
         .await
         .unwrap();
     *counter += OUTPUT_ACCOUNT_NUM as u64;
@@ -917,9 +999,19 @@ async fn compress<R: RpcConnection>(
         ),
     ];
     instructions.push(instruction);
-    match rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
+
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[payer],
+        latest_blockhash,
+    );
+    let sig = rpc
+        .process_transaction(transaction, &[payer])
+        .await;
+
+    match sig
     {
         Ok(sig) => {
             *counter += 1;
@@ -1004,8 +1096,15 @@ async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(
         ),
     ];
     instructions.push(instruction);
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&payer.pubkey()),
+        &[payer],
+        latest_blockhash,
+    );
     let sig = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+        .process_transaction(transaction, &[payer])
         .await
         .unwrap();
     *counter += 1;

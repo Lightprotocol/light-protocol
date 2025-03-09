@@ -262,14 +262,14 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
             let cancel_signal_clone = cancel_signal.clone();
             let deadline = timeout_deadline;
-
+            let payer_clone = payer.insecure_clone();
             tokio::spawn(async move {
                 if cancel_signal_clone.load(Ordering::SeqCst) || Instant::now() >= deadline {
                     return;
                 }
 
                 if let Ok(mut rpc) = pool_clone.get_connection().await {
-                    let result = rpc.process_transaction_with_config(tx, config).await;
+                    let result = rpc.process_transaction_with_config(tx, &[&payer_clone], config).await;
                     if !cancel_signal_clone.load(Ordering::SeqCst) {
                         let _ = tx_sender.send(result).await;
                     }
