@@ -12,7 +12,7 @@ Fixed a bug where we lose precision on token amounts if compressed token account
 
 ### Breaking Changes
 
--   ActiveTreeBundle is now a tuple of `tree`, `queue`, `cpiContext`, and `treeType`. `treeType` is a new enum ensuring forward compatibility.
+-   StateTreeInfo is now a tuple of `tree`, `queue`, `cpiContext`, and `treeType`. `treeType` is a new enum ensuring forward compatibility.
 -   Updated LUT addresses for Mainnet and Devnet:
     -   stateTreeLookupTableMainnet = '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
     -   nullifiedStateTreeLookupTableMainnet = 'H9QD4u1fG7KmkAzn2tDXhheushxFe1EcrjGGyEFXeMqT';
@@ -34,7 +34,7 @@ Fixed a bug where we lose precision on token amounts if compressed token account
 -   Multiple State Tree support. Allows you to pass non-default state tree pubkeys to actions and instructions. Comes out of the box with public state trees.
 
     -   `pickRandomStateTreeAndQueue`
-    -   `getLightStateTreeInfo`
+    -   `getActiveStateTreeInfos`
 
 -   createMint allows passing of freezeAuthority in action
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    CompressedTokenAccountsByOwnerOrDelegateResult,
+    CompressedTokenAccountsByOwnerOrDelegateResultV2,
     jsonRpcResultAndContext,
     toCamelCase,
     wrapBigNumbersAsStrings,
@@ -154,6 +154,9 @@ describe('safely convert json response', async () => {
                                     "lamports": 0,
                                     "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
                                     "leafIndex": 73722,
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "proveByIndex": false,
+                                    "treeType": 1,
                                     "seq": 87594,
                                     "slotCreated": 320438700
                                 },
@@ -190,7 +193,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -225,6 +228,9 @@ describe('safely convert json response', async () => {
                                     "lamports": 0,
                                     "tree": "smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT",
                                     "leafIndex": 46382363,
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "proveByIndex": false,
+                                    "treeType": 1,
                                     "seq": 46497075,
                                     "slotCreated": 318579332
                                 },
@@ -261,7 +267,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -297,6 +303,9 @@ describe('safely convert json response', async () => {
                                     "lamports": 0,
                                     "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
                                     "leafIndex": 73722,
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "proveByIndex": false,
+                                    "treeType": 1,
                                     "seq": 87594,
                                     "slotCreated": 320438700
                                 },
@@ -332,7 +341,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -368,6 +377,9 @@ describe('safely convert json response', async () => {
                                 "lamports": 0,
                                 "tree": "smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT",
                                 "leafIndex": 56910290,
+                                "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                "proveByIndex": false,
+                                "treeType": 1,
                                 "seq": 57043968,
                                 "slotCreated": 320678665
                             },
@@ -393,6 +405,9 @@ describe('safely convert json response', async () => {
                                 "lamports": 0,
                                 "tree": "smt6ukQDSPPYHSshQovmiRUjG9jGFq2hW9vgrDFk5Yz",
                                 "leafIndex": 72303,
+                                "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                "proveByIndex": true,
+                                "treeType": 3,
                                 "seq": 86934,
                                 "slotCreated": 320679057
                             },
@@ -418,6 +433,9 @@ describe('safely convert json response', async () => {
                                 "lamports": 0,
                                 "tree": "smt9ReAYRF5eFjTd5gBJMn5aKwNRcmp3ub2CQr2vW7j",
                                 "leafIndex": 72930,
+                                "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                "proveByIndex": true,
+                                "treeType": 2,
                                 "seq": 87904,
                                 "slotCreated": 320848741
                             },
@@ -443,6 +461,9 @@ describe('safely convert json response', async () => {
                                 "lamports": 0,
                                 "tree": "smt9ReAYRF5eFjTd5gBJMn5aKwNRcmp3ub2CQr2vW7j",
                                 "leafIndex": 72930,
+                                "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                "proveByIndex": false,
+                                "treeType": 1,
                                 "seq": 87904,
                                 "slotCreated": 320848741
                             },
@@ -486,7 +507,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
