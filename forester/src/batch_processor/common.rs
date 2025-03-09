@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use std::time::Duration;
 use forester_utils::forester_epoch::TreeType;
 use light_batched_merkle_tree::{
     batch::{Batch, BatchState},
@@ -10,8 +10,8 @@ use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::SolanaRpcPool
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::{debug, info, log::error};
-
 use super::{address, error::Result, state, BatchProcessError};
 use crate::indexer_type::IndexerType;
 
@@ -25,6 +25,16 @@ pub struct BatchContext<R: RpcConnection, I: Indexer<R>> {
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
     pub ixs_per_tx: usize,
+    pub duration: Duration,
+    pub start_time: Instant,
+}
+
+impl<R: RpcConnection, I: Indexer<R>> BatchContext<R, I> {
+
+    pub fn is_eligible(&self) -> bool {
+        let now = Instant::now();
+        now.duration_since(self.start_time) <= self.duration
+    }
 }
 
 #[derive(Debug)]
@@ -52,6 +62,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         );
         let state = self.verify_batch_ready().await;
         debug!("Batch ready state: {:?}", state);
+
+        if !self.context.is_eligible() {
+            debug!("Forester is not eligible");
+            return Ok(0);
+        }
 
         match state {
             BatchReadyState::ReadyForAppend => match self.tree_type {

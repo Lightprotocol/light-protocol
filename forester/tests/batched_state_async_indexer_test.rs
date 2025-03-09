@@ -45,7 +45,7 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::{sleep, timeout},
 };
-
+use light_client::rpc::RetryConfig;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -83,9 +83,9 @@ async fn test_state_indexer_async_batched() {
     for _ in 0..FORESTERS_NUM {
         let keypair = Keypair::new();
         let mut config = forester_config();
-        config.general_config.rpc_pool_size = 200;
-        config.external_services.rpc_rate_limit = Some(1);
-        config.external_services.send_tx_rate_limit = Some(1);
+        config.general_config.rpc_pool_size = 400;
+        config.external_services.rpc_rate_limit = Some(100);
+        config.external_services.send_tx_rate_limit = Some(100);
         config.transaction_config.batch_ixs_per_tx = 4;
         config.payer_keypair = keypair.insecure_clone();
         config.derivation_pubkey = keypair.pubkey();
@@ -252,8 +252,12 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn setup_rpc_connection(forester: &Keypair) -> SolanaRpcConnection {
-    let mut rpc =
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::confirmed()));
+    let mut rpc = SolanaRpcConnection::new_with_retry(
+        SolanaRpcUrl::Localnet,
+        Some(CommitmentConfig::processed()),
+        Some(RetryConfig::default()),
+        Some(1),
+        Some(1));
     rpc.payer = forester.insecure_clone();
     rpc
 }
@@ -344,6 +348,7 @@ async fn wait_for_slot(rpc: &mut SolanaRpcConnection, target_slot: u64) {
             rpc.get_slot().await.unwrap()
         );
         sleep(Duration::from_millis(400)).await;
+        tokio::task::yield_now().await;
     }
 }
 
@@ -450,7 +455,11 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
             .await;
 
-        sleep(Duration::from_millis(1000)).await;
+        {
+            sleep(Duration::from_millis(1000)).await;
+            tokio::task::yield_now().await;
+        }
+
         let batch_transfer_sig = transfer(
             rpc,
             indexer,
@@ -481,7 +490,11 @@ async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
         )
             .await;
         println!("{} batch token transfer: {:?}", i, batch_transfer_token_sig);
-        sleep(Duration::from_millis(1000)).await;
+        {
+            sleep(Duration::from_millis(1000)).await;
+            tokio::task::yield_now().await;
+        }
+
     }
 
     let sig = create_v1_address(
