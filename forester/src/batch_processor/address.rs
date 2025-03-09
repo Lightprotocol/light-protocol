@@ -42,6 +42,11 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
         })?,
     );
 
+    if !context.is_eligible() {
+        debug!("Skipping address update due to eligibility check");
+        return Ok(0);
+    }
+
     let tx = rpc
         .create_and_send_transaction_with_event::<MerkleTreeEvent>(
             &[instruction],
