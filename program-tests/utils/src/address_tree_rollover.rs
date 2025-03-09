@@ -116,17 +116,18 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         data: instruction_data.data(),
     };
     let blockhash = context.get_latest_blockhash().await.unwrap();
+    let signers = &vec![
+        &payer,
+        new_queue_keypair,
+        new_address_merkle_tree_keypair,
+    ];
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, mt_account_create_ix, instruction],
         Some(&context.get_payer().pubkey()),
-        &vec![
-            &context.get_payer(),
-            &new_queue_keypair,
-            &new_address_merkle_tree_keypair,
-        ],
+        signers,
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, signers).await
 }
 
 pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
@@ -302,13 +303,14 @@ pub async fn perform_address_merkle_tree_roll_over_forester<R: RpcConnection>(
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
+    let signers = &vec![payer, &new_queue_keypair, &new_address_merkle_tree_keypair];
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
-        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+        signers,
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, signers).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -337,16 +339,17 @@ pub async fn perform_state_merkle_tree_roll_over_forester<R: RpcConnection>(
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
+    let signers = &vec![
+        payer,
+        &new_queue_keypair,
+        &new_address_merkle_tree_keypair,
+        &new_cpi_signature_keypair,
+    ];
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
-        &vec![
-            &payer,
-            &new_queue_keypair,
-            &new_address_merkle_tree_keypair,
-            &new_cpi_signature_keypair,
-        ],
+        signers,
         blockhash,
     );
-    context.process_transaction_with_context(transaction).await
+    context.process_transaction_with_context(transaction, signers).await
 }

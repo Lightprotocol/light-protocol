@@ -86,7 +86,6 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
         let current_estimated_slot = slot_tracker.estimated_current_slot();
 
         if current_estimated_slot >= target_slot {
-            // Double-check with actual RPC call
             let actual_slot = rpc.get_slot().await?;
             if actual_slot >= target_slot {
                 break;
@@ -106,6 +105,7 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
             sleep_duration.as_secs_f64()
         );
         sleep(sleep_duration).await;
+        tokio::task::yield_now().await;
     }
 
     trace!("Slot {} reached", target_slot);

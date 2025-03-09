@@ -55,11 +55,13 @@ pub async fn insert_addresses<R: RpcConnection>(
         data: instruction_data.data(),
     };
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
+    let payer = context.get_payer().insecure_clone();
+    let signers = &[&payer];
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
         Some(&context.get_payer().pubkey()),
-        &[&context.get_payer()],
+        signers,
         latest_blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, signers).await
 }

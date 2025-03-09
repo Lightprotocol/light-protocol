@@ -1,3 +1,4 @@
+use std::time::Duration;
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::system_instruction;
 use light_client::{
@@ -18,13 +19,15 @@ pub async fn airdrop_lamports<R: RpcConnection>(
     let transfer_instruction =
         system_instruction::transfer(&rpc.get_payer().pubkey(), destination_pubkey, lamports);
     let latest_blockhash = rpc.get_latest_blockhash().await?;
+
+    let payer = rpc.get_payer().insecure_clone();
     let transaction = Transaction::new_signed_with_payer(
         &[transfer_instruction],
-        Some(&rpc.get_payer().pubkey()),
-        &vec![&rpc.get_payer()],
+        Some(&payer.pubkey()),
+        &[&payer],
         latest_blockhash,
     );
-    rpc.process_transaction(transaction).await?;
+    rpc.process_transaction(transaction, &[&payer]).await?;
     Ok(())
 }
 
@@ -63,7 +66,10 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
             "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
             rpc_slot, indexer_slot
         );
-        sleep(std::time::Duration::from_millis(400)).await;
+        {
+            sleep(Duration::from_millis(400)).await;
+            tokio::task::yield_now().await;
+        }
         indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())

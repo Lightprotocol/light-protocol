@@ -1185,6 +1185,17 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(nullifier_queue_keypair),
     );
+    let signers = if registry {
+        let cpi_context_keypair = cpi_context_keypair.unwrap();
+        &vec![
+            payer,
+            merkle_tree_keypair,
+            nullifier_queue_keypair,
+            cpi_context_keypair,
+        ]
+    } else {
+        &vec![payer, merkle_tree_keypair, nullifier_queue_keypair]
+    };
 
     let transaction = if registry {
         let cpi_context_keypair = cpi_context_keypair.unwrap();
@@ -1220,12 +1231,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
                 instruction,
             ],
             Some(&payer.pubkey()),
-            &vec![
-                payer,
-                merkle_tree_keypair,
-                nullifier_queue_keypair,
-                cpi_context_keypair,
-            ],
+            signers,
             rpc.get_latest_blockhash().await.unwrap(),
         )
     } else {
@@ -1247,12 +1253,12 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
                 instruction,
             ],
             Some(&payer.pubkey()),
-            &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
+            signers,
             rpc.get_latest_blockhash().await.unwrap(),
         )
     };
 
-    rpc.process_transaction(transaction.clone()).await
+    rpc.process_transaction(transaction.clone(), signers).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1325,6 +1331,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         )
     };
 
+    let signers = &vec![payer, &address_queue_keypair, &address_merkle_tree_keypair];
     let transaction = Transaction::new_signed_with_payer(
         &[
             ComputeBudgetInstruction::set_compute_unit_limit(500_000),
@@ -1333,10 +1340,10 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
             instruction,
         ],
         Some(&payer.pubkey()),
-        &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
+        signers,
         context.get_latest_blockhash().await.unwrap(),
     );
-    let result = context.process_transaction(transaction.clone()).await;
+    let result = context.process_transaction(transaction.clone(), signers).await;
     #[allow(clippy::question_mark)]
     if let Err(e) = result {
         return Err(e);

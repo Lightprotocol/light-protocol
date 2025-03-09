@@ -296,18 +296,19 @@ pub async fn perform_state_merkle_tree_rollover_forester<R: RpcConnection>(
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
+    let signers = &vec![
+        payer,
+        &new_queue_keypair,
+        &new_address_merkle_tree_keypair,
+        &new_cpi_context_keypair,
+    ];
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
-        &vec![
-            &payer,
-            &new_queue_keypair,
-            &new_address_merkle_tree_keypair,
-            &new_cpi_context_keypair,
-        ],
+        signers,
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, signers).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -333,13 +334,14 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     )
     .await;
     let blockhash = context.get_latest_blockhash().await.unwrap();
+    let signers = &vec![payer, &new_queue_keypair, &new_address_merkle_tree_keypair];
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&payer.pubkey()),
-        &vec![&payer, &new_queue_keypair, &new_address_merkle_tree_keypair],
+        signers,
         blockhash,
     );
-    context.process_transaction(transaction).await
+    context.process_transaction(transaction, signers).await
 }
 
 #[allow(clippy::too_many_arguments)]
