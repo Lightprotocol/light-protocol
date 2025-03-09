@@ -21,15 +21,13 @@ describe('rpc-multi-trees', () => {
     let mint: PublicKey;
     let mintAuthority: Keypair;
     let outputStateTreeInfo: StateTreeInfo;
-    let outputStateTreeContext2: StateTreeInfo;
+    let outputStateTreeInfoV2: StateTreeInfo;
 
     beforeAll(async () => {
         rpc = createRpc();
 
         outputStateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
-        outputStateTreeContext2 = (
-            await rpc.getCachedActiveStateTreeInfos()
-        )[1];
+        outputStateTreeInfoV2 = (await rpc.getCachedActiveStateTreeInfos())[1];
 
         payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
@@ -66,7 +64,7 @@ describe('rpc-multi-trees', () => {
             bn(700),
             bob,
             charlie.publicKey,
-            outputStateTreeContext2,
+            outputStateTreeInfoV2,
         );
     });
 
@@ -84,11 +82,11 @@ describe('rpc-multi-trees', () => {
         expect(senderAccounts.length).toBe(1);
         expect(receiverAccounts.length).toBe(1);
         expect(senderAccounts[0].compressedAccount.merkleTree.toBase58()).toBe(
-            outputStateTreeContext2.tree.toBase58(),
+            outputStateTreeInfoV2.tree.toBase58(),
         );
         expect(
             receiverAccounts[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(outputStateTreeContext2.tree.toBase58());
+        ).toBe(outputStateTreeInfoV2.tree.toBase58());
     });
 
     it('getCompressedTokenAccountBalance should return consistent tree and queue ', async () => {
@@ -98,10 +96,10 @@ describe('rpc-multi-trees', () => {
         );
         expect(
             senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(outputStateTreeContext2.tree.toBase58());
+        ).toBe(outputStateTreeInfoV2.tree.toBase58());
         expect(
             senderAccounts.items[0].compressedAccount.queue?.toBase58(),
-        ).toBe(outputStateTreeContext2.queue?.toBase58());
+        ).toBe(outputStateTreeInfoV2.queue?.toBase58());
     });
 
     it('should return both compressed token accounts in different trees', async () => {
@@ -123,7 +121,7 @@ describe('rpc-multi-trees', () => {
         const previousAccount = senderAccounts.items.find(
             account =>
                 account.compressedAccount.merkleTree.toBase58() ===
-                outputStateTreeContext2.tree.toBase58(),
+                outputStateTreeInfoV2.tree.toBase58(),
         );
 
         const newlyMintedAccount = senderAccounts.items.find(
