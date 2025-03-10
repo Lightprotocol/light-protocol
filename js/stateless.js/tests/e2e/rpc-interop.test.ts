@@ -76,14 +76,14 @@ describe.each([TreeType.StateV2])(
             const senderAccountsTest =
                 await testRpc.getCompressedAccountsByOwner(payer.publicKey);
 
-            console.log(
-                'RPC',
-                senderAccounts.items.map(item => item),
-            );
-            console.log(
-                'TEST',
-                senderAccountsTest.items.map(item => item),
-            );
+            // console.log(
+            //     'RPC',
+            //     senderAccounts.items.map(item => item),
+            // );
+            // console.log(
+            //     'TEST',
+            //     senderAccountsTest.items.map(item => item),
+            // );
 
             const hash = bn(senderAccounts.items[0].hash);
             const hashTest = bn(senderAccountsTest.items[0].hash);
@@ -411,11 +411,6 @@ describe.each([TreeType.StateV2])(
                     bn(0),
                 );
 
-                console.log(
-                    'rpc - accs',
-                    prePayerAccounts.items.map(account => account),
-                );
-
                 /// get reference proofs for sender
                 const testProofs =
                     await testRpc.getMultipleCompressedAccountProofs(
@@ -427,14 +422,6 @@ describe.each([TreeType.StateV2])(
                     prePayerAccounts.items.map(account => bn(account.hash)),
                 );
 
-                console.log(
-                    'rpc - proofs',
-                    proofs.map(proof => proof),
-                );
-                console.log(
-                    'testProofs',
-                    testProofs.map(proof => proof),
-                );
                 assert.equal(testProofs.length, proofs.length);
 
                 proofs.forEach((proof, index) => {
@@ -462,6 +449,7 @@ describe.each([TreeType.StateV2])(
                     assert.isTrue(
                         proof.leafIndex === testProofs[index].leafIndex,
                     );
+
                     assert.isTrue(
                         proof.rootIndex === testProofs[index].rootIndex,
                     );
@@ -515,24 +503,24 @@ describe.each([TreeType.StateV2])(
         it('getCompressedAccountsByOwner should match', async () => {
             const senderAccountsTest =
                 await testRpc.getCompressedAccountsByOwner(payer.publicKey);
-            console.log('senderAccountsTest', senderAccountsTest.items);
+            // console.log('senderAccountsTest', senderAccountsTest.items);
 
             await sleep(3_000);
             const senderAccounts = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
             );
-            console.log('senderAccounts', senderAccounts.items);
+            // console.log('senderAccounts', senderAccounts.items);
             assert.equal(
                 senderAccounts.items.length,
                 senderAccountsTest.items.length,
             );
 
             senderAccounts.items.forEach((account, index) => {
-                console.log('RPC - senderAccount', account);
-                console.log(
-                    'TESTRPC - senderAccount',
-                    senderAccountsTest.items[index],
-                );
+                // console.log('RPC - senderAccount', account);
+                // console.log(
+                //     'TESTRPC - senderAccount',
+                //     senderAccountsTest.items[index],
+                // );
                 assert.equal(
                     account.owner.toBase58(),
                     senderAccountsTest.items[index].owner.toBase58(),
