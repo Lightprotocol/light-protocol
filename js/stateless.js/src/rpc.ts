@@ -1750,6 +1750,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             index => index.proveByIndex,
         );
 
+        console.log('hashes', hashes);
+        console.log('newAddresses', newAddresses);
+        console.log(
+            'result.merkleContexts',
+            result.merkleContexts.map(ctx => ctx),
+        );
         checkQueuesAndTreesMatchResponse({
             hashesWithTree: hashes,
             newAddresses,
@@ -1793,9 +1799,11 @@ function checkQueuesAndTreesMatchResponse({
     newAddresses: AddressWithTree[];
     merkleContexts: MerkleContextV2Result[];
 }) {
+    const merkleContextsState = merkleContexts.slice(0, hashesWithTree.length);
+    const merkleContextsAddress = merkleContexts.slice(hashesWithTree.length);
     hashesWithTree.forEach((hashWithTree, index) => {
-        const resTree = merkleContexts[index].tree;
-        const resQueue = merkleContexts[index].queue;
+        const resTree = merkleContextsState[index].tree;
+        const resQueue = merkleContextsState[index].queue;
 
         if (!hashWithTree.tree.equals(resTree)) {
             throw new Error(
@@ -1811,8 +1819,8 @@ function checkQueuesAndTreesMatchResponse({
     });
 
     newAddresses.forEach((addressWithTree, index) => {
-        const resTree = merkleContexts[index].tree;
-        const resQueue = merkleContexts[index].queue;
+        const resTree = merkleContextsAddress[index].tree;
+        const resQueue = merkleContextsAddress[index].queue;
 
         if (!addressWithTree.tree.equals(resTree)) {
             throw new Error(

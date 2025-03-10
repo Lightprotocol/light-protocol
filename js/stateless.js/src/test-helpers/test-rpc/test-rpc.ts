@@ -788,12 +788,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 info => info.treeType === TreeType.StateV1,
             );
 
-            // if (!hasV1Accounts) {
-            //     throw new Error(
-            //         'Validity Proofs for BatchedState trees are not supported.',
-            //     );
-            // }
-
             let compressedProof: CompressedProof | null = null;
             if (infoArray.some(info => info.treeType === TreeType.StateV1)) {
                 const merkleProofsWithContext =
@@ -867,9 +861,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // TODO(crank): make dynamic to enable forester support in
-                // test-rpc.ts. Currently this is a static root because the
-                // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(proof =>
                     proof.indexHashedIndexedElementLeaf.toNumber(),
@@ -885,14 +876,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const merkleProofsWithContext =
                 await this.getMultipleCompressedAccountProofs(hashes);
             /// Test-RPC
-            let infoArray: { queue: PublicKey; treeType: TreeType }[] = [];
-            merkleProofsWithContext.forEach(async proof => {
-                const ctxs = await this.getCachedActiveStateTreeInfos();
-                const { queue, treeType } = getQueueForTree(
+            let infoArray: {
+                queue: PublicKey;
+                tree: PublicKey;
+                treeType: TreeType;
+            }[] = [];
+            const ctxs = await this.getCachedActiveStateTreeInfos();
+            merkleProofsWithContext.forEach(proof => {
+                const { queue, tree, treeType } = getQueueForTree(
                     ctxs,
                     proof.merkleTree,
                 );
-                infoArray.push({ queue, treeType });
+                infoArray.push({ queue, tree, treeType });
             });
 
             const hasV1Accounts = infoArray.some(
@@ -901,6 +896,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const hasV2Accounts = infoArray.some(
                 info => info.treeType === TreeType.StateV2,
             );
+
             if (hasV1Accounts && hasV2Accounts) {
                 throw new Error(
                     'Validity Proofs for mixed state trees (v1 and v2) are not supported.',
