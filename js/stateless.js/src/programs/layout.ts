@@ -43,9 +43,9 @@ export const CompressedAccountLayout = struct(
 export const MerkleContextLayout = struct(
     [
         u8('merkleTreePubkeyIndex'),
-        u8('nullifierQueuePubkeyIndex'),
+        u8('queuePubkeyIndex'),
         u32('leafIndex'),
-        option(struct([u8('queueId'), u16('index')]), 'queueIndex'),
+        bool('proveByIndex'),
     ],
     'merkleContext',
 );
@@ -129,9 +129,9 @@ export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
         bool('isCompress'),
         option(
             struct([
-                bool('set_context'),
-                bool('first_set_context'),
-                u8('cpi_context_account_index'),
+                bool('setContext'),
+                bool('firstSetContext'),
+                u8('cpiContextAccountIndex'),
             ]),
             'compressedCpiContext',
         ),
@@ -154,14 +154,41 @@ export function decodeInstructionDataInvokeCpi(
 }
 
 export type invokeAccountsLayoutParams = {
+    /**
+     * Fee payer.
+     */
     feePayer: PublicKey;
+    /**
+     * Authority.
+     */
     authority: PublicKey;
+    /**
+     * The registered program pda
+     */
     registeredProgramPda: PublicKey;
+    /**
+     * Noop program.
+     */
     noopProgram: PublicKey;
+    /**
+     * Account compression authority.
+     */
     accountCompressionAuthority: PublicKey;
+    /**
+     * Account compression program.
+     */
     accountCompressionProgram: PublicKey;
+    /**
+     * Solana pool pda. Some() if compression or decompression is done.
+     */
     solPoolPda: PublicKey | null;
+    /**
+     * Decompression recipient.
+     */
     decompressionRecipient: PublicKey | null;
+    /**
+     * Solana system program.
+     */
     systemProgram: PublicKey;
 };
 

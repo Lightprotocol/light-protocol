@@ -146,9 +146,9 @@ describe('layout', () => {
                             delegateIndex: null,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
-                                nullifierQueuePubkeyIndex: 1,
+                                queuePubkeyIndex: 1,
                                 leafIndex: 10,
-                                queueIndex: null,
+                                proveByIndex: false,
                             },
                             rootIndex: 11,
                             lamports: null,
@@ -248,9 +248,9 @@ describe('layout', () => {
                             delegateIndex: 2,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 1,
-                                nullifierQueuePubkeyIndex: 2,
+                                queuePubkeyIndex: 2,
                                 leafIndex: 3,
-                                queueIndex: { queueId: 0, index: 4 },
+                                proveByIndex: true,
                             },
                             rootIndex: 5,
                             lamports: new BN(2000),

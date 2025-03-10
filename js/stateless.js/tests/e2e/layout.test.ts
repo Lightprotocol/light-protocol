@@ -144,9 +144,9 @@ describe('layout', () => {
                             },
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
-                                nullifierQueuePubkeyIndex: 1,
+                                queuePubkeyIndex: 1,
                                 leafIndex: 10,
-                                queueIndex: null,
+                                proveByIndex: false,
                             },
                             rootIndex: 0,
                             readOnly: false,
@@ -222,6 +222,7 @@ describe('layout', () => {
             it(`should encode/decode InstructionDataInvoke: ${description}`, () => {
                 const encoded = encodeInstructionDataInvoke(data);
                 const decoded = decodeInstructionDataInvoke(encoded);
+                
 
                 expect(deepEqual(decoded, data)).toBe(true);
 
