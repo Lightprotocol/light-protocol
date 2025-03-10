@@ -5,7 +5,7 @@
     "playwright": "^1.50.0",
     "prettier": "^3.4.2",
     "snarkjs": "^0.7.5",
-    "syncpack": "^13.0.1",
+    "syncpack": "^13.0.3",
     "typescript": "^5.7.2"
   },
   "packageManager": "pnpm@9.2.0"
