@@ -5,7 +5,7 @@ on:
     paths:
       - "programs/**"
       - "program-tests/**"
-      - "program-libs/verifier/**"
+      - "program-libs/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
       - "test-utils/**"

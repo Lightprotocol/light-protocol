@@ -79,6 +79,9 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
                     return Err(AccountError::InvalidDiscriminator.into());
                 }
+                if account_info.owner != &crate::ID {
+                    return Err(AccountError::AccountOwnedByWrongProgram.into());
+                }
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
                 // 1,670 CU
                 // TODO: get from RegisteredProgram account and compare
@@ -136,10 +139,17 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
-                    TreeType::BatchedAddress => Ok(AcpAccount::BatchedAddressTree(
-                        BatchedMerkleTreeAccount::address_from_account_info(account_info)
-                            .map_err(ProgramError::from)?,
-                    )),
+                    TreeType::BatchedAddress => {
+                        let tree =
+                            BatchedMerkleTreeAccount::address_from_account_info(account_info)
+                                .map_err(ProgramError::from)?;
+                        manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(
+                            registered_program_pda,
+                            authority,
+                            &tree,
+                        )?;
+                        Ok(AcpAccount::BatchedAddressTree(tree))
+                    }
                     TreeType::BatchedState => {
                         let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)
                             .map_err(ProgramError::from)?;

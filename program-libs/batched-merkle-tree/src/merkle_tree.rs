@@ -6,11 +6,13 @@ use light_account_checks::{
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
-    instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey,
+    instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
+    pubkey::Pubkey,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
+    events::{batch::BatchEvent, MerkleTreeEvent},
     merkle_tree::{MerkleTreeMetadata, TreeType},
     queue::{
         QueueType, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE, BATCHED_OUTPUT_QUEUE_TYPE,
@@ -33,11 +35,6 @@ use crate::{
         BATCHED_STATE_TREE_TYPE, NUM_BATCHES,
     },
     errors::BatchedMerkleTreeError,
-    event::{
-        BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent,
-        BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR, BATCH_APPEND_EVENT_DISCRIMINATOR,
-        BATCH_NULLIFY_EVENT_DISCRIMINATOR,
-    },
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
         deserialize_bloom_filter_stores, insert_into_current_queue_batch, BatchedQueueAccount,
@@ -301,7 +298,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 2. element:
             // H(452312848583266388373324160190187140051835877600158453279131187530910662655, 0, 0)
             // ... other elements: 0
-            account_metadata.next_index = 2;
+            account_metadata.next_index = 1;
         }
         let next_index = account_metadata.next_index;
 
@@ -349,7 +346,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         &mut self,
         queue_account_info: &AccountInfo<'_>,
         instruction_data: InstructionDataBatchAppendInputs,
-    ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         if self.tree_type != TreeType::BatchedState as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
@@ -381,12 +378,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         &mut self,
         queue_account: &mut BatchedQueueAccount,
         instruction_data: InstructionDataBatchAppendInputs,
-    ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         self.check_tree_is_full()?;
         let pending_batch_index = queue_account.batch_metadata.pending_batch_index as usize;
         let new_root = instruction_data.new_root;
         let circuit_batch_size = queue_account.batch_metadata.zkp_batch_size;
-        let start_index = self.next_index;
         let first_ready_zkp_batch_index = queue_account.batch_metadata.batches[pending_batch_index]
             .get_first_ready_zkp_batch()?;
 
@@ -399,7 +395,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 .last()
                 .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
             let mut start_index_bytes = [0u8; 32];
-            start_index_bytes[24..].copy_from_slice(&start_index.to_be_bytes());
+            start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
             create_hash_chain_from_array([
                 *old_root,
                 new_root,
@@ -409,7 +405,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         };
 
         // 2. Verify update proof and update tree account.
-        self.verify_update::<BATCHED_OUTPUT_QUEUE_TYPE>(
+        let (old_next_index, new_next_index) = self.verify_update::<BATCHED_OUTPUT_QUEUE_TYPE>(
             circuit_batch_size,
             instruction_data.compressed_proof,
             public_input_hash,
@@ -437,43 +433,45 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             self.zero_out_previous_batch_bloom_filter()?;
         }
         // 6. Return the batch append event.
-        Ok(BatchAppendEvent {
-            discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
-            tree_type: self.tree_type,
+        Ok(MerkleTreeEvent::BatchAppend(BatchEvent {
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             output_queue_pubkey: Some(queue_account.pubkey().to_bytes()),
             batch_index: pending_batch_index as u64,
-            batch_size: circuit_batch_size,
+            zkp_batch_size: circuit_batch_size,
             zkp_batch_index: first_ready_zkp_batch_index,
             new_root,
             root_index,
             sequence_number: self.sequence_number,
-            old_next_index: start_index,
-            new_next_index: self.next_index,
-        })
+            old_next_index,
+            new_next_index,
+        }))
     }
 
     /// Update the tree from the input queue account.
     pub fn update_tree_from_input_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
-    ) -> Result<BatchNullifyEvent, BatchedMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         if self.tree_type != TreeType::BatchedState as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
-        self.update_input_queue::<BATCHED_INPUT_QUEUE_TYPE>(instruction_data)
+        Ok(MerkleTreeEvent::BatchNullify(
+            self.update_input_queue::<BATCHED_INPUT_QUEUE_TYPE>(instruction_data)?,
+        ))
     }
 
     /// Update the tree from the address queue account.
     pub fn update_tree_from_address_queue(
         &mut self,
         instruction_data: InstructionDataAddressAppendInputs,
-    ) -> Result<BatchAddressAppendEvent, BatchedMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         if self.tree_type != TreeType::BatchedAddress as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
         self.check_tree_is_full()?;
-        self.update_input_queue::<BATCHED_ADDRESS_QUEUE_TYPE>(instruction_data)
+        Ok(MerkleTreeEvent::BatchAddressAppend(
+            self.update_input_queue::<BATCHED_ADDRESS_QUEUE_TYPE>(instruction_data)?,
+        ))
     }
 
     /// Update the tree from the input/address queue account.
@@ -494,13 +492,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     fn update_input_queue<const QUEUE_TYPE: u64>(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
-    ) -> Result<BatchNullifyEvent, BatchedMerkleTreeError> {
+    ) -> Result<BatchEvent, BatchedMerkleTreeError> {
         let pending_batch_index = self.queue_batches.pending_batch_index as usize;
         let first_ready_zkp_batch_index =
             self.queue_batches.batches[pending_batch_index].get_first_ready_zkp_batch()?;
         let new_root = instruction_data.new_root;
         let circuit_batch_size = self.queue_batches.zkp_batch_size;
-        let old_next_index = self.next_index;
 
         // 1. Create public inputs hash.
         let public_input_hash = {
@@ -528,7 +525,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         };
 
         // 2. Verify update proof and update tree account.
-        self.verify_update::<QUEUE_TYPE>(
+        let (old_next_index, new_next_index) = self.verify_update::<QUEUE_TYPE>(
             circuit_batch_size,
             instruction_data.compressed_proof,
             public_input_hash,
@@ -557,25 +554,18 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Needs to be executed post mark_as_inserted_in_merkle_tree.
             self.zero_out_previous_batch_bloom_filter()?;
         }
-        let discriminator = if QueueType::from(QUEUE_TYPE) == QueueType::BatchedInput {
-            BATCH_NULLIFY_EVENT_DISCRIMINATOR
-        } else {
-            BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR
-        };
 
-        // 6. Return the batch nullify/address append event.
-        Ok(BatchNullifyEvent {
-            discriminator,
-            tree_type: self.tree_type,
+        // 6. Return the batch event.
+        Ok(BatchEvent {
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             batch_index: pending_batch_index as u64,
-            batch_size: circuit_batch_size,
+            zkp_batch_size: circuit_batch_size,
             zkp_batch_index: first_ready_zkp_batch_index,
             new_root,
             root_index,
             sequence_number: self.sequence_number,
             old_next_index,
-            new_next_index: self.next_index,
+            new_next_index,
             output_queue_pubkey: None,
         })
     }
@@ -591,24 +581,31 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         proof: CompressedProof,
         public_input_hash: [u8; 32],
         new_root: [u8; 32],
-    ) -> Result<(), BatchedMerkleTreeError> {
+    ) -> Result<(u64, u64), BatchedMerkleTreeError> {
         // 1. Verify update proof.
-        if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
+        let (old_next_index, new_next_index) = if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
+            let old_next_index = self.next_index;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
+            (old_next_index, self.next_index)
         } else if QUEUE_TYPE == QueueType::BatchedInput as u64 {
+            let old_next_index = self.nullifier_next_index;
             verify_batch_update(batch_size, public_input_hash, &proof)?;
-            // 2. skip incrementing next index.
-            // The input queue update does not append new values
-            // hence no need to increment next_index.
+            // 2. incrementing nullifier next index.
+            // This index is used by the indexer to remove elements from the database nullifier queue.
+            // Nullifier next index is not used onchain.
+            self.nullifier_next_index += batch_size;
+            (old_next_index, self.nullifier_next_index)
         } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
+            let old_next_index = self.next_index;
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
+            (old_next_index, self.next_index)
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
-        }
+        };
         // 3. Increment sequence number.
         self.sequence_number += 1;
         // 4. Append new root to root history.
@@ -616,7 +613,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // it will overwrite the oldest root
         // once it is full.
         self.root_history.push(new_root);
-        Ok(())
+        Ok((old_next_index, new_next_index))
     }
 
     /// Insert nullifier into current batch.
@@ -647,11 +644,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         }
 
         // 2. Create nullifier Hash(value,leaf_index, tx_hash).
-        let nullifier = {
-            let leaf_index_bytes = leaf_index.to_be_bytes();
-            // Inclusion of the tx_hash enables zk proofs of how a value was spent.
-            Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])?
-        };
+        let nullifier = create_nullifier(compressed_account_hash, leaf_index, tx_hash)?;
         // 3. Insert nullifier into current batch.
         //      3.1. nullifier is inserted into the hash chain
         //          so that it can be inserted into the tree.
@@ -811,9 +804,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let batch_size = self.queue_batches.batch_size;
         let previous_pending_batch_index = if 0 == current_batch { 1 } else { 0 };
         let current_batch_is_half_full = {
+            let current_batch_is_not_inserted =
+                self.queue_batches.batches[current_batch].get_state() != BatchState::Inserted;
             let num_inserted_elements =
                 self.queue_batches.batches[current_batch].get_num_inserted_elements();
-            num_inserted_elements >= batch_size / 2
+            let current_batch_is_half_full = num_inserted_elements >= batch_size / 2;
+            current_batch_is_half_full && current_batch_is_not_inserted
         };
 
         let previous_pending_batch = self
@@ -977,7 +973,7 @@ pub fn get_merkle_tree_account_size(
 }
 
 pub fn assert_nullify_event(
-    event: BatchNullifyEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_account: &BatchedMerkleTreeAccount,
     mt_pubkey: Pubkey,
@@ -988,26 +984,24 @@ pub fn assert_nullify_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchNullifyEvent {
+    let ref_event = MerkleTreeEvent::BatchNullify(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_NULLIFY_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         // Next index is not modified by nullify.
-        old_next_index: old_account.next_index,
-        new_next_index: old_account.next_index,
-    };
+        old_next_index: old_account.nullifier_next_index,
+        new_next_index: old_account.nullifier_next_index + old_account.queue_batches.zkp_batch_size,
+    });
     assert_eq!(event, ref_event);
 }
 
 pub fn assert_batch_append_event_event(
-    event: BatchAppendEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_output_queue_account: &BatchedQueueAccount,
     old_account: &BatchedMerkleTreeAccount,
@@ -1019,26 +1013,24 @@ pub fn assert_batch_append_event_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchAppendEvent {
+    let ref_event = MerkleTreeEvent::BatchAppend(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: Some(old_output_queue_account.pubkey().to_bytes()),
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         old_next_index: old_account.next_index,
         new_next_index: old_account.next_index
             + old_output_queue_account.batch_metadata.zkp_batch_size,
-    };
+    });
     assert_eq!(event, ref_event);
 }
 
 pub fn assert_batch_adress_event(
-    event: BatchAddressAppendEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_account: &BatchedMerkleTreeAccount,
     mt_pubkey: Pubkey,
@@ -1049,20 +1041,18 @@ pub fn assert_batch_adress_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchAppendEvent {
+    let ref_event = MerkleTreeEvent::BatchAddressAppend(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         old_next_index: old_account.next_index,
         new_next_index: old_account.next_index + batch.zkp_batch_size,
-    };
+    });
     assert_eq!(event, ref_event);
 }
 
@@ -1120,7 +1110,7 @@ mod test {
     #[test]
     fn test_zero_out() {
         let current_slot = 1;
-        let mut account_data = vec![0u8; 3176];
+        let mut account_data = vec![0u8; 3184];
         let batch_size = 4;
         let zkp_batch_size = 1;
         let num_zkp_updates = batch_size / zkp_batch_size;
@@ -1296,10 +1286,6 @@ mod test {
             for batch in account.queue_batches.batches.iter_mut() {
                 println!("batch state: {:?}", batch);
             }
-            assert_eq!(
-                account.queue_batches.batches[0].get_num_inserted_elements(),
-                0
-            );
             account.zero_out_previous_batch_bloom_filter().unwrap();
             assert_eq!(account_data, account_data_ref);
         }
@@ -1513,7 +1499,7 @@ mod test {
 
     #[test]
     fn test_check_queue_next_index_reached_tree_capacity() {
-        let mut account_data = vec![0u8; 15720];
+        let mut account_data = vec![0u8; 15728];
         let batch_size = 200;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1567,7 +1553,7 @@ mod test {
 
     #[test]
     fn test_check_non_inclusion() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1667,7 +1653,7 @@ mod test {
 
     #[test]
     fn test_tree_is_full() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1702,7 +1688,7 @@ mod test {
     }
     #[test]
     fn test_increment_next_index() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;
@@ -1740,7 +1726,7 @@ mod test {
 
     #[test]
     fn test_get_pubkey_and_associated_queue() {
-        let mut account_data = vec![0u8; 3240];
+        let mut account_data = vec![0u8; 3248];
         let batch_size = 5;
         let zkp_batch_size = 1;
         let root_history_len = 10;

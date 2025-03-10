@@ -86,6 +86,26 @@ impl InitStateTreeAccountsInstructionData {
             close_threshold: None,
         }
     }
+
+    pub fn testnet_default() -> Self {
+        Self {
+            index: 0,
+            program_owner: None,
+            forester: None,
+            additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            bloom_filter_num_iters: 3,
+            input_queue_batch_size: 2000,
+            output_queue_batch_size: 2000,
+            input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            root_history_capacity: 20,
+            bloom_filter_capacity: 20_000 * 8,
+            network_fee: Some(5000),
+            rollover_threshold: Some(95),
+            close_threshold: None,
+        }
+    }
 }
 
 impl Default for InitStateTreeAccountsInstructionData {

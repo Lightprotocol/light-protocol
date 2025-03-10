@@ -28,6 +28,7 @@ light-compressed-account = { workspace = true }
 solana-sdk = { workspace = true }
 
 [dev-dependencies]
+forester-utils = { workspace = true }
 light-client = { workspace = true }
 light-sdk = { workspace = true }
 light-verifier = { workspace = true }

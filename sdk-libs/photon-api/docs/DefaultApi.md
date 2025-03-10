@@ -7,12 +7,18 @@ Method | HTTP request | Description
 [**get_compressed_account_balance_post**](DefaultApi.md#get_compressed_account_balance_post) | **POST** /getCompressedAccountBalance | 
 [**get_compressed_account_post**](DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 [**get_compressed_account_proof_post**](DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
+[**get_compressed_account_v2_post**](DefaultApi.md#get_compressed_account_v2_post) | **POST** /getCompressedAccountV2 | 
 [**get_compressed_accounts_by_owner_post**](DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
+[**get_compressed_accounts_by_owner_v2_post**](DefaultApi.md#get_compressed_accounts_by_owner_v2_post) | **POST** /getCompressedAccountsByOwnerV2 | 
 [**get_compressed_balance_by_owner_post**](DefaultApi.md#get_compressed_balance_by_owner_post) | **POST** /getCompressedBalanceByOwner | 
+[**get_compressed_mint_token_holders_post**](DefaultApi.md#get_compressed_mint_token_holders_post) | **POST** /getCompressedMintTokenHolders | 
 [**get_compressed_token_account_balance_post**](DefaultApi.md#get_compressed_token_account_balance_post) | **POST** /getCompressedTokenAccountBalance | 
 [**get_compressed_token_accounts_by_delegate_post**](DefaultApi.md#get_compressed_token_accounts_by_delegate_post) | **POST** /getCompressedTokenAccountsByDelegate | 
+[**get_compressed_token_accounts_by_delegate_v2_post**](DefaultApi.md#get_compressed_token_accounts_by_delegate_v2_post) | **POST** /getCompressedTokenAccountsByDelegateV2 | 
 [**get_compressed_token_accounts_by_owner_post**](DefaultApi.md#get_compressed_token_accounts_by_owner_post) | **POST** /getCompressedTokenAccountsByOwner | 
+[**get_compressed_token_accounts_by_owner_v2_post**](DefaultApi.md#get_compressed_token_accounts_by_owner_v2_post) | **POST** /getCompressedTokenAccountsByOwnerV2 | 
 [**get_compressed_token_balances_by_owner_post**](DefaultApi.md#get_compressed_token_balances_by_owner_post) | **POST** /getCompressedTokenBalancesByOwner | 
+[**get_compressed_token_balances_by_owner_v2_post**](DefaultApi.md#get_compressed_token_balances_by_owner_v2_post) | **POST** /getCompressedTokenBalancesByOwnerV2 | 
 [**get_compression_signatures_for_account_post**](DefaultApi.md#get_compression_signatures_for_account_post) | **POST** /getCompressionSignaturesForAccount | 
 [**get_compression_signatures_for_address_post**](DefaultApi.md#get_compression_signatures_for_address_post) | **POST** /getCompressionSignaturesForAddress | 
 [**get_compression_signatures_for_owner_post**](DefaultApi.md#get_compression_signatures_for_owner_post) | **POST** /getCompressionSignaturesForOwner | 
@@ -23,10 +29,14 @@ Method | HTTP request | Description
 [**get_latest_non_voting_signatures_post**](DefaultApi.md#get_latest_non_voting_signatures_post) | **POST** /getLatestNonVotingSignatures | 
 [**get_multiple_compressed_account_proofs_post**](DefaultApi.md#get_multiple_compressed_account_proofs_post) | **POST** /getMultipleCompressedAccountProofs | 
 [**get_multiple_compressed_accounts_post**](DefaultApi.md#get_multiple_compressed_accounts_post) | **POST** /getMultipleCompressedAccounts | 
+[**get_multiple_compressed_accounts_v2_post**](DefaultApi.md#get_multiple_compressed_accounts_v2_post) | **POST** /getMultipleCompressedAccountsV2 | 
 [**get_multiple_new_address_proofs_post**](DefaultApi.md#get_multiple_new_address_proofs_post) | **POST** /getMultipleNewAddressProofs | 
 [**get_multiple_new_address_proofs_v2_post**](DefaultApi.md#get_multiple_new_address_proofs_v2_post) | **POST** /getMultipleNewAddressProofsV2 | 
+[**get_queue_elements_post**](DefaultApi.md#get_queue_elements_post) | **POST** /getQueueElements | 
 [**get_transaction_with_compression_info_post**](DefaultApi.md#get_transaction_with_compression_info_post) | **POST** /getTransactionWithCompressionInfo | 
+[**get_transaction_with_compression_info_v2_post**](DefaultApi.md#get_transaction_with_compression_info_v2_post) | **POST** /getTransactionWithCompressionInfoV2 | 
 [**get_validity_proof_post**](DefaultApi.md#get_validity_proof_post) | **POST** /getValidityProof | 
+[**get_validity_proof_v2_post**](DefaultApi.md#get_validity_proof_v2_post) | **POST** /getValidityProofV2 | 
 
 
 
@@ -114,6 +124,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_compressed_account_v2_post
+
+> models::GetCompressedAccountV2Post200Response get_compressed_account_v2_post(get_compressed_account_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_account_v2_post_request** | [**GetCompressedAccountV2PostRequest**](GetCompressedAccountV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedAccountV2Post200Response**](_getCompressedAccountV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_compressed_accounts_by_owner_post
 
 > models::GetCompressedAccountsByOwnerPost200Response get_compressed_accounts_by_owner_post(get_compressed_accounts_by_owner_post_request)
@@ -142,6 +180,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_compressed_accounts_by_owner_v2_post
+
+> models::GetCompressedAccountsByOwnerV2Post200Response get_compressed_accounts_by_owner_v2_post(get_compressed_accounts_by_owner_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_accounts_by_owner_v2_post_request** | [**GetCompressedAccountsByOwnerV2PostRequest**](GetCompressedAccountsByOwnerV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedAccountsByOwnerV2Post200Response**](_getCompressedAccountsByOwnerV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_compressed_balance_by_owner_post
 
 > models::GetCompressedAccountBalancePost200Response get_compressed_balance_by_owner_post(get_compressed_balance_by_owner_post_request)
@@ -157,6 +223,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetCompressedAccountBalancePost200Response**](_getCompressedAccountBalance_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_compressed_mint_token_holders_post
+
+> models::GetCompressedMintTokenHoldersPost200Response get_compressed_mint_token_holders_post(get_compressed_mint_token_holders_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_mint_token_holders_post_request** | [**GetCompressedMintTokenHoldersPostRequest**](GetCompressedMintTokenHoldersPostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedMintTokenHoldersPost200Response**](_getCompressedMintTokenHolders_post_200_response.md)
 
 ### Authorization
 
@@ -226,6 +320,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_compressed_token_accounts_by_delegate_v2_post
+
+> models::GetCompressedTokenAccountsByDelegateV2Post200Response get_compressed_token_accounts_by_delegate_v2_post(get_compressed_token_accounts_by_delegate_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_token_accounts_by_delegate_v2_post_request** | [**GetCompressedTokenAccountsByDelegateV2PostRequest**](GetCompressedTokenAccountsByDelegateV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedTokenAccountsByDelegateV2Post200Response**](_getCompressedTokenAccountsByDelegateV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_compressed_token_accounts_by_owner_post
 
 > models::GetCompressedTokenAccountsByDelegatePost200Response get_compressed_token_accounts_by_owner_post(get_compressed_token_accounts_by_owner_post_request)
@@ -254,6 +376,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_compressed_token_accounts_by_owner_v2_post
+
+> models::GetCompressedTokenAccountsByDelegateV2Post200Response get_compressed_token_accounts_by_owner_v2_post(get_compressed_token_accounts_by_owner_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_token_accounts_by_owner_v2_post_request** | [**GetCompressedTokenAccountsByOwnerV2PostRequest**](GetCompressedTokenAccountsByOwnerV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedTokenAccountsByDelegateV2Post200Response**](_getCompressedTokenAccountsByDelegateV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_compressed_token_balances_by_owner_post
 
 > models::GetCompressedTokenBalancesByOwnerPost200Response get_compressed_token_balances_by_owner_post(get_compressed_token_balances_by_owner_post_request)
@@ -269,6 +419,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetCompressedTokenBalancesByOwnerPost200Response**](_getCompressedTokenBalancesByOwner_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_compressed_token_balances_by_owner_v2_post
+
+> models::GetCompressedTokenBalancesByOwnerV2Post200Response get_compressed_token_balances_by_owner_v2_post(get_compressed_token_balances_by_owner_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_token_balances_by_owner_v2_post_request** | [**GetCompressedTokenBalancesByOwnerV2PostRequest**](GetCompressedTokenBalancesByOwnerV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedTokenBalancesByOwnerV2Post200Response**](_getCompressedTokenBalancesByOwnerV2_post_200_response.md)
 
 ### Authorization
 
@@ -562,6 +740,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_multiple_compressed_accounts_v2_post
+
+> models::GetMultipleCompressedAccountsV2Post200Response get_multiple_compressed_accounts_v2_post(get_multiple_compressed_accounts_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_multiple_compressed_accounts_v2_post_request** | [**GetMultipleCompressedAccountsV2PostRequest**](GetMultipleCompressedAccountsV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetMultipleCompressedAccountsV2Post200Response**](_getMultipleCompressedAccountsV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_multiple_new_address_proofs_post
 
 > models::GetMultipleNewAddressProofsPost200Response get_multiple_new_address_proofs_post(get_multiple_new_address_proofs_post_request)
@@ -618,6 +824,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_queue_elements_post
+
+> models::GetQueueElementsPost200Response get_queue_elements_post(get_queue_elements_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_queue_elements_post_request** | [**GetQueueElementsPostRequest**](GetQueueElementsPostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetQueueElementsPost200Response**](_getQueueElements_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_transaction_with_compression_info_post
 
 > models::GetTransactionWithCompressionInfoPost200Response get_transaction_with_compression_info_post(get_transaction_with_compression_info_post_request)
@@ -646,6 +880,34 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
+## get_transaction_with_compression_info_v2_post
+
+> models::GetTransactionWithCompressionInfoV2Post200Response get_transaction_with_compression_info_v2_post(get_transaction_with_compression_info_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_transaction_with_compression_info_v2_post_request** | [**GetTransactionWithCompressionInfoV2PostRequest**](GetTransactionWithCompressionInfoV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetTransactionWithCompressionInfoV2Post200Response**](_getTransactionWithCompressionInfoV2_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
 ## get_validity_proof_post
 
 > models::GetValidityProofPost200Response get_validity_proof_post(get_validity_proof_post_request)
@@ -661,6 +923,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetValidityProofPost200Response**](_getValidityProof_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_validity_proof_v2_post
+
+> models::GetValidityProofV2Post200Response get_validity_proof_v2_post(get_validity_proof_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_validity_proof_v2_post_request** | [**GetValidityProofV2PostRequest**](GetValidityProofV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetValidityProofV2Post200Response**](_getValidityProofV2_post_200_response.md)
 
 ### Authorization
 

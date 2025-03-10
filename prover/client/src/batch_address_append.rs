@@ -3,12 +3,11 @@ use light_compressed_account::{
     bigint::bigint_to_be_bytes_array,
     hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
 };
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{
-    array::{IndexedArray, IndexedElement},
-    changelog::IndexedChangelogEntry,
-    reference::IndexedMerkleTree,
+use light_indexed_array::{
+    array::IndexedElement,
+    changelog::{IndexedChangelogEntry, RawIndexedElement},
 };
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use num_bigint::BigUint;
@@ -58,9 +57,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     // 3. only use elements start_index..end_index in the circuit (we need to
     // iterate over elements prior to start index to create changelog entries to
     // patch subsequent element proofs. The indexer won't be caught up yet.)
-    let inserted_elements = next_index - batch_start_index;
-    let end_index = inserted_elements + zkp_batch_size;
-    let new_element_values = new_element_values[0..end_index].to_vec();
+    let new_element_values = new_element_values[0..zkp_batch_size].to_vec();
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = vec![];
     let mut new_element_circuit_merkle_proofs = vec![];
@@ -106,14 +103,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             )
             .unwrap();
         }
-        if i >= inserted_elements {
-            patched_low_element_next_values
-                .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
-            patched_low_element_next_indices.push(low_element.next_index());
-            patched_low_element_indices.push(low_element.index);
-            patched_low_element_values
-                .push(bigint_to_be_bytes_array::<32>(&low_element.value).unwrap());
-        }
+        patched_low_element_next_values
+            .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
+        patched_low_element_next_indices.push(low_element.next_index());
+        patched_low_element_indices.push(low_element.index);
+        patched_low_element_values
+            .push(bigint_to_be_bytes_array::<32>(&low_element.value).unwrap());
+
         let new_low_element: IndexedElement<usize> = IndexedElement {
             index: low_element.index,
             value: low_element.value.clone(),
@@ -144,14 +140,12 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 new_low_element.index as u32,
             );
             changelog.push(changelog_entry);
-            if i >= inserted_elements {
-                low_element_circuit_merkle_proofs.push(
-                    merkle_proof
-                        .iter()
-                        .map(|hash| BigUint::from_bytes_be(hash))
-                        .collect(),
-                );
-            }
+            low_element_circuit_merkle_proofs.push(
+                merkle_proof
+                    .iter()
+                    .map(|hash| BigUint::from_bytes_be(hash))
+                    .collect(),
+            );
         }
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element_raw,
@@ -190,14 +184,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             new_root = updated_root;
 
             changelog.push(changelog_entry);
-            if i >= inserted_elements {
-                new_element_circuit_merkle_proofs.push(
-                    merkle_proof_array
-                        .iter()
-                        .map(|hash| BigUint::from_bytes_be(hash))
-                        .collect(),
-                );
-            }
+            new_element_circuit_merkle_proofs.push(
+                merkle_proof_array
+                    .iter()
+                    .map(|hash| BigUint::from_bytes_be(hash))
+                    .collect(),
+            );
+
             let new_element_raw = RawIndexedElement {
                 value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
                 next_index: new_element.next_index,
@@ -243,7 +236,7 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             .map(|v| BigUint::from_bytes_be(v))
             .collect(),
         low_element_proofs: low_element_circuit_merkle_proofs,
-        new_element_values: new_element_values[inserted_elements..]
+        new_element_values: new_element_values[0..]
             .iter()
             .map(|v| BigUint::from_bytes_be(v))
             .collect(),
@@ -262,11 +255,11 @@ pub fn get_test_batch_address_append_inputs(
     start_index: usize,
     tree_height: usize,
 ) -> BatchAddressAppendInputs {
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-    relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(tree_height, 0).unwrap();
-    relayer_merkle_tree.init().unwrap();
+    let mut relayer_merkle_tree = light_merkle_tree_reference::indexed::IndexedMerkleTree::<
+        Poseidon,
+        usize,
+    >::new(tree_height, 0)
+    .unwrap();
 
     let old_root = relayer_merkle_tree.root();
 
@@ -280,7 +273,7 @@ pub fn get_test_batch_address_append_inputs(
 
     for address in &addresses {
         let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(address, &relayer_indexing_array)
+            .get_non_inclusion_proof(address)
             .unwrap();
         relayer_merkle_tree
             .verify_non_inclusion_proof(&non_inclusion_proof)
@@ -302,9 +295,7 @@ pub fn get_test_batch_address_append_inputs(
             .collect();
         low_element_proofs.push(proof);
 
-        relayer_merkle_tree
-            .append(address, &mut relayer_indexing_array)
-            .unwrap();
+        relayer_merkle_tree.append(address).unwrap();
 
         let new_proof = relayer_merkle_tree
             .get_proof_of_leaf(relayer_merkle_tree.merkle_tree.rightmost_index - 1, true)

@@ -16,6 +16,7 @@ solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
 
+light-merkle-tree-metadata = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
@@ -23,6 +24,7 @@ light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
+light-indexed-array = { workspace = true }
 photon-api = { workspace = true }
 
 borsh = { workspace = true }
@@ -31,10 +33,11 @@ async-trait = { workspace = true }
 bb8 = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
+num-traits = { workspace = true }
 base64 = { workspace = true }
 
 governor = { workspace = true }
-tracing = { workspace = true}
+tracing = { workspace = true }
 
 [dev-dependencies]
 light-test-utils = { workspace = true, features = ["devenv"] }

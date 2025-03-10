@@ -73,11 +73,11 @@ use account_compression::{
 use anchor_lang::AnchorSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
+    account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
-    airdrop_lamports,
     forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
     registry::register_test_forester,
-    AccountZeroCopy,
+    utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
     batch::BatchState,
@@ -118,6 +118,7 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
+use light_merkle_tree_metadata::queue::QueueType;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
@@ -668,7 +669,7 @@ where
                     &self.foresters,
                     self.slot,
                 ) {
-                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("\n --------------------------------------------------\n\t\t Empty v1 Address Queue\n --------------------------------------------------");
                     println!("epoch {}", self.epoch);
                     println!("forester {}", payer.pubkey());
                     if address_merkle_tree_bundle.accounts.queue
@@ -762,12 +763,14 @@ where
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
-                                        full_batch_index,
-                                        0,
-                                        batch.batch_size,
+                                        QueueType::BatchedAddress,
+                                        batch.batch_size as u16,
+                                        None,
                                     )
                                     .await
                                     .unwrap();
+                                let addresses =
+                                    addresses.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
@@ -815,6 +818,7 @@ where
                                     addresses,
                                     self.indexer
                                         .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                        .await
                                         .unwrap()
                                         .try_into()
                                         .unwrap(),
@@ -1288,6 +1292,7 @@ where
         // TODO: Add assert
     }
 
+    /// Only supports v1 address trees.
     pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
@@ -1357,22 +1362,17 @@ where
             nullifier_queue_keypair.pubkey(),
         )
         .await;
-        self.indexer
-            .get_address_merkle_trees_mut()
-            .push(AddressMerkleTreeBundle {
-                rollover_fee: queue_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: AddressMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    queue: nullifier_queue_keypair.pubkey(),
-                },
-                merkle_tree,
-                indexed_array,
-                queue_elements: vec![],
-            });
+        let mut bundle = AddressMerkleTreeBundle::new_v1(AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: nullifier_queue_keypair.pubkey(),
+        })
+        .unwrap();
+        bundle.rollover_fee = queue_account
+            .deserialized()
+            .metadata
+            .rollover_metadata
+            .rollover_fee as i64;
+        self.indexer.get_address_merkle_trees_mut().push(bundle);
         // TODO: Add assert
     }
 
@@ -2675,15 +2675,6 @@ where
                 }
             }
 
-            // if !input_accounts.is_empty() {
-            //     for (i, input_account) in input_accounts.iter_mut().enumerate() {
-            //         if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
-            //             // input_account.root_index = root_index;
-            //         } else {
-            //             input_account.merkle_context.prove_by_index = true;
-            //         }
-            //     }
-            // }
             if !read_only_accounts.is_empty() {
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
                     if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
@@ -2768,6 +2759,7 @@ where
             user.pubkey(),
             ix_data.try_to_vec().unwrap(),
             remaining_accounts,
+            None,
         );
 
         let res = self

@@ -15,8 +15,9 @@ pub fn setup_telemetry() {
             .unwrap_or_else(|_| EnvFilter::new("info,forester=debug"));
 
         let file_env_filter = EnvFilter::new("info,forester=debug");
+
         let stdout_env_filter =
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));
 
         let stdout_layer = fmt::Layer::new()
             .with_writer(std::io::stdout)
@@ -28,9 +29,9 @@ pub fn setup_telemetry() {
             .with_filter(file_env_filter);
 
         tracing_subscriber::registry()
-            .with(env_filter)
             .with(stdout_layer)
             .with(file_layer)
+            .with(env_filter)
             .init();
 
         // Keep _guard in scope to keep the non-blocking writer alive

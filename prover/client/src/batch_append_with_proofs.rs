@@ -3,6 +3,7 @@ use light_compressed_account::hash_chain::create_hash_chain_from_array;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
 use serde::Serialize;
+use tracing::{error, info};
 
 use crate::{
     errors::ProverClientError,
@@ -29,6 +30,7 @@ impl BatchAppendWithProofsCircuitInputs {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     // get this from Merkle tree account
     current_root: [u8; 32],
@@ -43,7 +45,14 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
     old_leaves: Vec<[u8; 32]>,
     merkle_proofs: Vec<Vec<[u8; 32]>>,
     batch_size: u32,
-) -> Result<BatchAppendWithProofsCircuitInputs, ProverClientError> {
+    previous_changelogs: &[ChangelogEntry<HEIGHT>],
+) -> Result<
+    (
+        BatchAppendWithProofsCircuitInputs,
+        Vec<ChangelogEntry<HEIGHT>>,
+    ),
+    ProverClientError,
+> {
     let mut new_root = [0u8; 32];
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
@@ -53,19 +62,42 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         .zip(leaves.iter().zip(merkle_proofs.iter()))
         .enumerate()
     {
-        let mut bounded_vec_merkle_proof = BoundedVec::from_slice(merkle_proof.as_slice());
         let current_index = start_index as usize + i;
-        // Apply previous changes to keep proofs consistent.
+        info!("Updating root with leaf index: {}", current_index);
+        let mut bounded_vec_merkle_proof = BoundedVec::from_slice(merkle_proof.as_slice());
+
+        for change_log_entry in previous_changelogs.iter() {
+            match change_log_entry.update_proof(current_index, &mut bounded_vec_merkle_proof) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("previous_changelogs: couldn't update proof for index {}: current_root: {:?}: {:?}", current_index, current_root, e);
+                    return Err(ProverClientError::GenericError(format!(
+                        "ProverClientError: couldn't update proof for index {}: {:?}",
+                        current_index, e
+                    )));
+                }
+            }
+        }
+
         if i > 0 {
             for change_log_entry in changelog.iter() {
-                change_log_entry
-                    .update_proof(current_index, &mut bounded_vec_merkle_proof)
-                    .unwrap();
+                match change_log_entry.update_proof(current_index, &mut bounded_vec_merkle_proof) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("current changelogs: couldn't update proof for index {}: current_root: {:?}: {:?}",
+                            current_index,
+                            current_root,
+                            e);
+                        return Err(ProverClientError::GenericError(format!(
+                            "current changelogs: couldn't update proof for index {}: {:?}",
+                            current_index, e
+                        )));
+                    }
+                }
             }
         }
 
         let merkle_proof_array = bounded_vec_merkle_proof.to_array().unwrap();
-
         // Determine if we use the old or new leaf based on whether the old leaf is nullified (zeroed).
         let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
         let final_leaf = if is_old_leaf_zero {
@@ -78,7 +110,7 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         let (updated_root, changelog_entry) =
             compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
         new_root = updated_root;
-
+        println!("New root: {:?}", new_root);
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(
             merkle_proof_array
@@ -97,22 +129,25 @@ pub fn get_batch_append_with_proofs_inputs<const HEIGHT: usize>(
         leaves_hashchain,
         start_index_bytes,
     ])?;
-    Ok(BatchAppendWithProofsCircuitInputs {
-        public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
-        old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
-        new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),
-        leaves_hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
-        start_index,
-        old_leaves: old_leaves
-            .iter()
-            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
-            .collect(),
-        leaves: leaves
-            .iter()
-            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
-            .collect(),
-        merkle_proofs: circuit_merkle_proofs,
-        height: HEIGHT as u32,
-        batch_size,
-    })
+    Ok((
+        BatchAppendWithProofsCircuitInputs {
+            public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
+            old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
+            new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),
+            leaves_hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
+            start_index,
+            old_leaves: old_leaves
+                .iter()
+                .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+                .collect(),
+            leaves: leaves
+                .iter()
+                .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+                .collect(),
+            merkle_proofs: circuit_merkle_proofs,
+            height: HEIGHT as u32,
+            batch_size,
+        },
+        changelog,
+    ))
 }

@@ -37,10 +37,15 @@ async fn test_all_endpoints() {
         enable_indexer: true,
         prover_config: Some(ProverConfig {
             run_mode: None,
-            circuits: vec![ProofType::Combined],
+            circuits: vec![
+                ProofType::Combined,
+                ProofType::Inclusion,
+                ProofType::NonInclusion,
+            ],
         }),
         wait_time: 60,
         sbf_programs: vec![],
+        limit_ledger_size: None,
     };
 
     spawn_validator(config).await;
@@ -164,7 +169,7 @@ async fn test_all_endpoints() {
 
     let pubkey = payer_pubkey;
     let accounts = indexer
-        .get_compressed_accounts_by_owner(&pubkey)
+        .get_compressed_accounts_by_owner_v2(&pubkey)
         .await
         .unwrap();
     assert!(!accounts.is_empty());
@@ -225,6 +230,17 @@ async fn test_all_endpoints() {
         .get_compressed_token_accounts_by_owner(&pubkey, None)
         .await
         .unwrap();
+
+    assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
+    assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);
+
+    let hash = token_accounts[0].compressed_account.hash().unwrap();
+
+    let balance = indexer
+        .get_compressed_token_account_balance(None, Some(hash))
+        .await
+        .unwrap();
+    assert_eq!(balance, amount);
 
     assert_eq!(token_accounts[0].token_data.mint, mint.pubkey());
     assert_eq!(token_accounts[0].token_data.owner, payer_pubkey);

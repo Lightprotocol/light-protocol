@@ -7,7 +7,8 @@ import (
 	"testing"
 )
 
-func TestInclusionParameters_TestTree(t *testing.T) {
+// To regenerate test data, rename function to TestInclusionParameters_TestTree and run tests.
+func InclusionParameters_TestTree(t *testing.T) {
 	file, err := os.OpenFile("../test-data/inclusion.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
@@ -43,7 +44,8 @@ func TestInclusionParameters_TestTree(t *testing.T) {
 	}
 }
 
-func TestNonInclusionParameters_TestTree(t *testing.T) {
+// To regenerate test data, rename function to TestNonInclusionParameters_TestTree and run tests.
+func NonInclusionParameters_TestTree(t *testing.T) {
 	file, err := os.OpenFile("../test-data/non_inclusion.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Errorf("Error opening file: %v", err)
@@ -78,7 +80,8 @@ func TestNonInclusionParameters_TestTree(t *testing.T) {
 	}
 }
 
-func TestGenerateCombinedTestData(t *testing.T) {
+// To regenerate test data, rename function to TestGenerateCombinedTestData and run tests.
+func GenerateCombinedTestData(t *testing.T) {
 	file, err := os.OpenFile("../test-data/combined.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Errorf("Error opening file: %v", err)

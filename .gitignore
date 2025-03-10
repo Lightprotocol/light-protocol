@@ -20,6 +20,7 @@
 /cli/bin
 
 **/photon.log
+**/combined.log
 
 # Yarn
 **/.yarn
@@ -62,6 +63,7 @@
 
 **/.idea
 **/*.iml
+**/.fleet
 
 /**/dump.rdb
 
@@ -81,3 +83,4 @@ output.txt
 .nx/cache
 .nx/workspace-data
 output1.txt
+.zed

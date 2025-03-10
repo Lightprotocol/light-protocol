@@ -6,27 +6,40 @@ use light_compressed_account::compressed_account::{
 };
 use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
-    array::{IndexedArray, IndexedElement},
+    array::{IndexedArray, IndexedElement, IndexedElementBundle},
     reference::IndexedMerkleTree,
 };
-use light_merkle_tree_reference::MerkleTree;
+use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_reference::{
+    indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2, MerkleTree,
+};
+use light_prover_client::non_inclusion::merkle_non_inclusion_proof_inputs::{
+    get_non_inclusion_proof_inputs, NonInclusionMerkleProofInputs,
+};
 use light_sdk::{
     proof::ProofRpcResult,
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
 };
-use num_bigint::BigUint;
-use photon_api::models::{Account, CompressedProofWithContext, TokenAccountList, TokenBalanceList};
+use num_bigint::{BigInt, BigUint};
+use num_traits::ops::bytes::FromBytes;
+use photon_api::models::{
+    Account, CompressedProofWithContext, CompressedProofWithContextV2, TokenAccount,
+    TokenAccountList, TokenBalanceList,
+};
 use solana_sdk::{bs58, pubkey::Pubkey};
 use thiserror::Error;
 
-use crate::rpc::RpcConnection;
+use crate::{rpc::RpcConnection, transaction_params::FeeConfig};
 
 pub mod photon_indexer;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug, PartialEq)]
 pub enum IndexerError {
     #[error("Photon API error in {context}: {message}")]
     PhotonError { context: String, message: String },
+
+    #[error("RPC error: {0}")]
+    RpcError(String),
 
     #[error("Failed to deserialize account data: {0}")]
     DeserializeError(#[from] solana_sdk::program_error::ProgramError),
@@ -54,6 +67,19 @@ pub enum IndexerError {
 
     #[error("Unknown error: {0}")]
     Unknown(String),
+
+    #[error("Indexed Merkle tree reference v1 error: {0}")]
+    ReferenceIndexedMerkleTreeError(
+        #[from] light_indexed_merkle_tree::reference::IndexedReferenceMerkleTreeError,
+    ),
+    #[error("Indexed Merkle tree v1 error: {0}")]
+    IndexedMerkleTreeError(#[from] light_indexed_merkle_tree::errors::IndexedMerkleTreeError),
+    #[error("Reference Merkle tree error: {0}")]
+    ReferenceMerkleTreeError(#[from] light_merkle_tree_reference::ReferenceMerkleTreeError),
+    #[error("Indexed Merkle tree v2 error: {0}")]
+    IndexedMerkleTreeV2Error(#[from] IndexedReferenceMerkleTreeErrorV2),
+    #[error("Light indexed array error: {0}")]
+    LightIndexedArrayError(#[from] light_indexed_array::errors::IndexedArrayError),
 }
 
 impl IndexerError {
@@ -111,6 +137,18 @@ pub struct AddressWithTree {
     pub tree: Pubkey,
 }
 
+#[derive(Debug, Clone)]
+pub struct MerkleProofWithContext {
+    pub proof: Vec<[u8; 32]>,
+    pub root: [u8; 32],
+    pub leaf_index: u64,
+    pub leaf: [u8; 32],
+    pub merkle_tree: [u8; 32],
+    pub root_seq: u64,
+    pub tx_hash: Option<[u8; 32]>,
+    pub account_hash: [u8; 32],
+}
+
 pub trait Base58Conversions {
     fn to_base58(&self) -> String;
     fn from_base58(s: &str) -> Result<Self, IndexerError>
@@ -157,19 +195,22 @@ impl Base58Conversions for [u8; 32] {
 
 #[async_trait]
 pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
-    /// Returns queue elements from the queue with the given pubkey. For input
+    /// Returns queue elements from the queue with the given merkle tree pubkey. For input
     /// queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
     async fn get_queue_elements(
-        &self,
-        pubkey: [u8; 32],
-        batch: u64,
-        start_offset: u64,
-        end_offset: u64,
-    ) -> Result<Vec<[u8; 32]>, IndexerError>;
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        queue_type: QueueType,
+        num_elements: u16,
+        start_offset: Option<u64>,
+    ) -> Result<Vec<MerkleProofWithContext>, IndexerError>;
 
-    fn get_subtrees(&self, merkle_tree_pubkey: [u8; 32]) -> Result<Vec<[u8; 32]>, IndexerError>;
+    async fn get_subtrees(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+    ) -> Result<Vec<[u8; 32]>, IndexerError>;
 
     async fn create_proof_for_compressed_accounts(
         &mut self,
@@ -185,10 +226,16 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError>;
 
-    async fn get_compressed_accounts_by_owner(
+    async fn get_compressed_accounts_by_owner_v2(
         &self,
         owner: &Pubkey,
     ) -> Result<Vec<CompressedAccountWithMerkleContext>, IndexerError>;
+
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError>;
 
     async fn get_compressed_account(
         &self,
@@ -249,17 +296,13 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContext, IndexerError>;
 
-    fn get_proofs_by_indices(
-        &mut self,
-        merkle_tree_pubkey: Pubkey,
-        indices: &[u64],
-    ) -> Vec<ProofOfLeaf>;
+    async fn get_validity_proof_v2(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError>;
 
-    fn get_leaf_indices_tx_hashes(
-        &mut self,
-        merkle_tree_pubkey: Pubkey,
-        zkp_batch_size: usize,
-    ) -> Vec<LeafIndexInfo>;
+    async fn get_indexer_slot(&self, r: &mut R) -> Result<u64, IndexerError>;
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 }
@@ -271,6 +314,7 @@ pub struct MerkleProof {
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
     pub root_seq: u64,
+    pub root: [u8; 32],
 }
 
 // For consistency with the Photon API.
@@ -315,29 +359,332 @@ pub struct StateMerkleTreeBundle {
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
     pub version: u64,
-    pub output_queue_elements: Vec<[u8; 32]>,
+    pub output_queue_elements: Vec<([u8; 32], u64)>,
     pub input_leaf_indices: Vec<LeafIndexInfo>,
+}
+
+#[derive(Debug, Clone)]
+pub enum IndexedMerkleTreeVersion {
+    V1(Box<IndexedMerkleTree<Poseidon, usize>>),
+    V2(Box<light_merkle_tree_reference::indexed::IndexedMerkleTree<Poseidon, usize>>),
 }
 
 #[derive(Debug, Clone)]
 pub struct AddressMerkleTreeBundle {
     pub rollover_fee: i64,
-    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
-    pub indexed_array: Box<IndexedArray<Poseidon, usize>>,
+    pub merkle_tree: IndexedMerkleTreeVersion,
+    indexed_array: Box<IndexedArray<Poseidon, usize>>,
     pub accounts: AddressMerkleTreeAccounts,
     pub queue_elements: Vec<[u8; 32]>,
 }
 
+impl AddressMerkleTreeBundle {
+    pub fn new_v1(accounts: AddressMerkleTreeAccounts) -> Result<Self, IndexerError> {
+        let height = 26;
+        let canopy = 10;
+        let mut merkle_tree = Box::new(IndexedMerkleTree::<Poseidon, usize>::new(height, canopy)?);
+        merkle_tree.init()?;
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
+        indexed_array.init()?;
+        Ok(AddressMerkleTreeBundle {
+            merkle_tree: IndexedMerkleTreeVersion::V1(merkle_tree),
+            indexed_array,
+            accounts,
+            rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+            queue_elements: vec![],
+        })
+    }
+
+    pub fn new_v2(accounts: AddressMerkleTreeAccounts) -> Result<Self, IndexerError> {
+        println!(
+            "added v2 address Merkle tree pubkey: {:?}",
+            accounts.merkle_tree
+        );
+        let height = 40;
+        let canopy = 0;
+        let merkle_tree = IndexedMerkleTreeVersion::V2(Box::new(
+            light_merkle_tree_reference::indexed::IndexedMerkleTree::<Poseidon, usize>::new(
+                height, canopy,
+            )?,
+        ));
+
+        Ok(AddressMerkleTreeBundle {
+            merkle_tree,
+            indexed_array: Box::default(),
+            accounts,
+            rollover_fee: FeeConfig::default().address_queue_rollover as i64,
+            queue_elements: vec![],
+        })
+    }
+
+    pub fn get_v1_indexed_merkle_tree(&self) -> Option<&IndexedMerkleTree<Poseidon, usize>> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => Some(tree),
+            _ => None,
+        }
+    }
+
+    pub fn get_v1_indexed_merkle_tree_mut(
+        &mut self,
+    ) -> Option<&mut IndexedMerkleTree<Poseidon, usize>> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => Some(tree),
+            _ => None,
+        }
+    }
+
+    pub fn get_v2_indexed_merkle_tree(
+        &self,
+    ) -> Option<&light_merkle_tree_reference::indexed::IndexedMerkleTree<Poseidon, usize>> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V2(tree) => Some(tree),
+            _ => None,
+        }
+    }
+
+    pub fn get_v2_indexed_merkle_tree_mut(
+        &mut self,
+    ) -> Option<&mut light_merkle_tree_reference::indexed::IndexedMerkleTree<Poseidon, usize>> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V2(tree) => Some(tree),
+            _ => None,
+        }
+    }
+
+    pub fn get_subtrees(&self) -> Vec<[u8; 32]> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.get_subtrees(),
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.get_subtrees(),
+        }
+    }
+
+    pub fn root(&self) -> [u8; 32] {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.root(),
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.root(),
+        }
+    }
+
+    pub fn find_low_element_for_nonexistent(
+        &self,
+        value: &BigUint,
+    ) -> Result<(IndexedElement<usize>, BigUint), IndexerError> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(_) => {
+                Ok(self.indexed_array.find_low_element_for_nonexistent(value)?)
+            }
+            IndexedMerkleTreeVersion::V2(tree) => {
+                let (indexed_element, next_value) =
+                    tree.indexed_array.find_low_element_for_nonexistent(value)?;
+                Ok((
+                    IndexedElement {
+                        index: indexed_element.index,
+                        value: indexed_element.value.clone(),
+                        next_index: indexed_element.next_index,
+                    },
+                    next_value,
+                ))
+            }
+        }
+    }
+
+    pub fn new_element_with_low_element_index(
+        &self,
+        index: usize,
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<usize>, IndexerError> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(_) => Ok(self
+                .indexed_array
+                .new_element_with_low_element_index(index, value)?),
+            IndexedMerkleTreeVersion::V2(tree) => {
+                let res = tree
+                    .indexed_array
+                    .new_element_with_low_element_index(index, value)?;
+                Ok(IndexedElementBundle {
+                    new_element: IndexedElement {
+                        index: res.new_element.index,
+                        value: res.new_element.value.clone(),
+                        next_index: res.new_element.next_index,
+                    },
+                    new_low_element: IndexedElement {
+                        index: res.new_low_element.index,
+                        value: res.new_low_element.value.clone(),
+                        next_index: res.new_low_element.next_index,
+                    },
+                    new_element_next_value: res.new_element_next_value.clone(),
+                })
+            }
+        }
+    }
+
+    pub fn get_proof_of_leaf(
+        &self,
+        index: usize,
+        full: bool,
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => Ok(tree.get_proof_of_leaf(index, full)?.to_vec()),
+            IndexedMerkleTreeVersion::V2(tree) => Ok(tree.get_proof_of_leaf(index, full)?),
+        }
+    }
+
+    pub fn append(&mut self, value: &BigUint) -> Result<(), IndexerError> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => {
+                tree.append(value, &mut self.indexed_array)?;
+                Ok(())
+            }
+            IndexedMerkleTreeVersion::V2(tree) => {
+                tree.append(value)?;
+                Ok(())
+            }
+        }
+    }
+
+    pub fn get_non_inclusion_proof_inputs(
+        &self,
+        value: &[u8; 32],
+    ) -> Result<NonInclusionMerkleProofInputs, IndexerError> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => Ok(get_non_inclusion_proof_inputs(
+                value,
+                tree,
+                &self.indexed_array,
+            )),
+            IndexedMerkleTreeVersion::V2(merkle_tree) => {
+                let non_inclusion_proof =
+                    merkle_tree.get_non_inclusion_proof(&BigUint::from_be_bytes(value))?;
+                let proof = non_inclusion_proof
+                    .merkle_proof
+                    .iter()
+                    .map(|x| BigInt::from_be_bytes(x))
+                    .collect();
+                Ok(NonInclusionMerkleProofInputs {
+                    root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
+                    value: BigInt::from_be_bytes(value),
+                    leaf_lower_range_value: BigInt::from_be_bytes(
+                        &non_inclusion_proof.leaf_lower_range_value,
+                    ),
+                    leaf_higher_range_value: BigInt::from_be_bytes(
+                        &non_inclusion_proof.leaf_higher_range_value,
+                    ),
+                    merkle_proof_hashed_indexed_element_leaf: proof,
+                    index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
+                    next_index: BigInt::from(non_inclusion_proof.next_index),
+                })
+            }
+        }
+    }
+
+    pub fn right_most_index(&self) -> usize {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.rightmost_index,
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.rightmost_index,
+        }
+    }
+
+    pub fn append_with_low_element_index(
+        &mut self,
+        index: usize,
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<usize>, IndexerError> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(_) => Ok(self
+                .indexed_array
+                .append_with_low_element_index(index, value)?),
+            IndexedMerkleTreeVersion::V2(_) => {
+                unimplemented!("append_with_low_element_index")
+            }
+        }
+    }
+
+    pub fn sequence_number(&self) -> u64 {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.sequence_number as u64,
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.sequence_number as u64,
+        }
+    }
+
+    pub fn height(&self) -> usize {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.height,
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.height,
+        }
+    }
+
+    pub fn get_path_of_leaf(
+        &self,
+        index: usize,
+        full: bool,
+    ) -> Result<Vec<[u8; 32]>, IndexerError> {
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => Ok(tree.get_path_of_leaf(index, full)?.to_vec()),
+            IndexedMerkleTreeVersion::V2(tree) => Ok(tree.get_path_of_leaf(index, full)?),
+        }
+    }
+
+    pub fn indexed_array_v1(&self) -> Option<&IndexedArray<Poseidon, usize>> {
+        println!(
+            "indexed_array_v2: merkle_tree pubkey: {:?}",
+            self.accounts.merkle_tree
+        );
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(_) => Some(&self.indexed_array),
+            _ => None,
+        }
+    }
+
+    pub fn indexed_array_v2(
+        &self,
+    ) -> Option<&light_indexed_array::array::IndexedArray<Poseidon, usize>> {
+        println!(
+            "indexed_array_v2: merkle_tree pubkey: {:?}",
+            self.accounts.merkle_tree
+        );
+        match &self.merkle_tree {
+            IndexedMerkleTreeVersion::V2(tree) => Some(&tree.indexed_array),
+            _ => None,
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        new_low_element: &IndexedElement<usize>,
+        new_element: &IndexedElement<usize>,
+        new_element_next_value: &BigUint,
+    ) -> Result<(), IndexerError> {
+        match &mut self.merkle_tree {
+            IndexedMerkleTreeVersion::V1(tree) => {
+                Ok(tree.update(new_low_element, new_element, new_element_next_value)?)
+            }
+            IndexedMerkleTreeVersion::V2(tree) => Ok(tree.update(
+                &light_indexed_array::array::IndexedElement::<usize> {
+                    index: new_low_element.index,
+                    value: new_low_element.value.clone(),
+                    next_index: new_low_element.next_index,
+                },
+                &light_indexed_array::array::IndexedElement::<usize> {
+                    index: new_element.index,
+                    value: new_element.value.clone(),
+                    next_index: new_element.next_index,
+                },
+                new_element_next_value,
+            )?),
+        }
+    }
+}
+
 pub trait IntoPhotonAccount {
-    fn into_photon_account(self) -> photon_api::models::account::Account;
+    fn into_photon_account(self) -> Account;
 }
 
 pub trait IntoPhotonTokenAccount {
-    fn into_photon_token_account(self) -> photon_api::models::token_acccount::TokenAcccount;
+    fn into_photon_token_account(self) -> TokenAccount;
 }
 
 impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
-    fn into_photon_account(self) -> photon_api::models::account::Account {
+    fn into_photon_account(self) -> Account {
         let address = self.compressed_account.address.map(|a| a.to_base58());
 
         let hash = self
@@ -360,13 +707,13 @@ impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
             }));
         }
 
-        photon_api::models::account::Account {
+        Account {
             address,
             hash: hash.to_string(),
             lamports: self.compressed_account.lamports,
             data: account_data,
             owner: self.compressed_account.owner.to_string(),
-            seq: 0,
+            seq: None,
             slot_created: 0,
             leaf_index: self.merkle_context.leaf_index,
             tree: self.merkle_context.merkle_tree_pubkey.to_string(),
@@ -375,7 +722,7 @@ impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
 }
 
 impl IntoPhotonTokenAccount for TokenDataWithMerkleContext {
-    fn into_photon_token_account(self) -> photon_api::models::token_acccount::TokenAcccount {
+    fn into_photon_token_account(self) -> TokenAccount {
         let base_account = self.compressed_account.into_photon_account();
 
         let mut tlv = None;
@@ -397,7 +744,7 @@ impl IntoPhotonTokenAccount for TokenDataWithMerkleContext {
             tlv,
         };
 
-        photon_api::models::token_acccount::TokenAcccount {
+        TokenAccount {
             account: Box::new(base_account),
             token_data: Box::new(token_data),
         }

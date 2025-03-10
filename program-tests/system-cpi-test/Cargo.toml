@@ -45,6 +45,7 @@ light-prover-client = { workspace = true }
 light-verifier = { workspace = true }
 anchor-spl = { workspace = true }
 serial_test = { workspace = true }
+create-address-test-program = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

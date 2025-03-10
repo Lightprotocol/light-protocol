@@ -1,5 +1,5 @@
 use anchor_spl::token::{Mint, TokenAccount};
-use forester_utils::create_account_instruction;
+use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::{
     indexer::Indexer,
     rpc::{errors::RpcError, RpcConnection},
@@ -264,17 +264,26 @@ pub async fn create_token_pool<R: RpcConnection>(
 }
 
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+    let mint = Keypair::new();
+    create_mint_helper_with_keypair(rpc, payer, &mint).await
+}
+
+pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Keypair,
+) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
-    let mint = Keypair::new();
 
     let (instructions, pool) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
+        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, mint);
 
-    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
+    let _ = rpc
+        .create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
         .await
         .unwrap();
     assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;

@@ -69,7 +69,6 @@ pub trait IndexerType<R: RpcConnection>: sealed::Sealed {
         indexer: &mut impl Indexer<R>,
         merkle_tree_pubkey: Pubkey,
         output_queue: Pubkey,
-        num_inserted_zkps: u64,
     ) where
         Self: Sized;
 }
@@ -150,18 +149,12 @@ impl<R: RpcConnection + light_client::rpc::merkle_tree::MerkleTreeExt> IndexerTy
         indexer: &mut impl Indexer<R>,
         merkle_tree_pubkey: Pubkey,
         output_queue: Pubkey,
-        num_inserted_zkps: u64,
     ) where
         Self: Sized,
     {
         if let Some(test_indexer) = (indexer as &mut dyn Any).downcast_mut::<TestIndexer<R>>() {
             test_indexer
-                .update_test_indexer_after_append(
-                    rpc,
-                    merkle_tree_pubkey,
-                    output_queue,
-                    num_inserted_zkps,
-                )
+                .update_test_indexer_after_append(rpc, merkle_tree_pubkey, output_queue)
                 .await;
         }
     }
@@ -209,7 +202,6 @@ impl<R: RpcConnection> IndexerType<R> for PhotonIndexer<R> {
         _indexer: &mut impl Indexer<R>,
         _merkle_tree_pubkey: Pubkey,
         _output_queue: Pubkey,
-        _num_inserted_zkps: u64,
     ) {
         // No-op for production indexer
     }
@@ -328,14 +320,12 @@ pub async fn update_test_indexer_after_append<R: RpcConnection, I: Indexer<R> + 
     indexer: Arc<Mutex<I>>,
     merkle_tree_pubkey: Pubkey,
     output_queue: Pubkey,
-    num_inserted_zkps: u64,
 ) -> Result<(), ForesterError> {
     I::update_test_indexer_after_append(
         &mut *rpc,
         &mut *indexer.lock().await,
         merkle_tree_pubkey,
         output_queue,
-        num_inserted_zkps,
     )
     .await;
 

@@ -28,7 +28,10 @@ func TestCombined(t *testing.T) {
 	assert.Nil(err, "Error opening file: ", err)
 
 	scanner := bufio.NewScanner(file)
+	counter := 0
 	for scanner.Scan() {
+		fmt.Printf("Counter: %d\n", counter)
+		counter++
 		line := scanner.Text()
 		if line == "" {
 			continue

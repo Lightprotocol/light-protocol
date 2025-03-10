@@ -1,6 +1,13 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
+pub use forester_utils::{
+    account_zero_copy::{
+        get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree, AccountZeroCopy,
+    },
+    instructions::create_account_instruction,
+    utils::airdrop_lamports,
+};
 use light_merkle_tree_metadata::queue::QueueType;
 use solana_sdk::{
     instruction::InstructionError,
@@ -28,15 +35,12 @@ pub mod test_forester;
 
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
-    airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
-    get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree,
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions, register_test_forester,
         update_test_forester,
     },
-    AccountZeroCopy,
 };
 pub use light_client::{
     rpc::{

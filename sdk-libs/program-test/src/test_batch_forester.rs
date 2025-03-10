@@ -1,9 +1,7 @@
 use anchor_lang::AnchorDeserialize;
 use borsh::BorshSerialize;
-use forester_utils::{create_account_instruction, AccountZeroCopy};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
-    event::{BatchAppendEvent, BatchNullifyEvent},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
         assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
@@ -89,16 +87,8 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
         epoch,
         data.try_to_vec().unwrap(),
     );
-    let res = rpc
-        .create_and_send_transaction_with_event::<BatchAppendEvent>(
-            &[instruction],
-            &forester.pubkey(),
-            &[forester],
-            None,
-        )
-        .await?
-        .unwrap();
-    Ok(res.1)
+    rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
+        .await
 }
 
 pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
@@ -119,6 +109,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let output_queue =
         BatchedQueueAccount::output_from_bytes(output_queue_account.data.as_mut_slice()).unwrap();
     let full_batch_index = output_queue.batch_metadata.pending_batch_index;
+
     let zkp_batch_size = output_queue.batch_metadata.zkp_batch_size;
     let max_num_zkp_updates = output_queue.batch_metadata.get_num_zkp_batches();
 
@@ -131,7 +122,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
     let (proof, new_root) = {
         let start = num_inserted_zkps as usize * zkp_batch_size as usize;
         let end = start + zkp_batch_size as usize;
-        let batch_update_leaves = leaves[start..end].to_vec();
+        let batch_update_leaves = leaves[start..end].iter().map(|x| x.0).collect::<Vec<_>>();
         // if batch is complete, remove leaves from mock output queue
         if num_inserted_zkps == max_num_zkp_updates - 1 {
             for _ in 0..max_num_zkp_updates * zkp_batch_size {
@@ -170,7 +161,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
         }
 
         // TODO: remove unwraps
-        let circuit_inputs =
+        let (circuit_inputs, _) =
             get_batch_append_with_proofs_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 old_root,
                 merkle_tree_next_index as u32,
@@ -179,6 +170,7 @@ pub async fn create_append_batch_ix_data<Rpc: RpcConnection>(
                 old_leaves,
                 merkle_proofs,
                 zkp_batch_size as u32,
+                &[],
             )
             .unwrap();
         assert_eq!(
@@ -256,16 +248,8 @@ pub async fn perform_batch_nullify<Rpc: RpcConnection>(
         epoch,
         data.try_to_vec().unwrap(),
     );
-    let res = rpc
-        .create_and_send_transaction_with_event::<BatchNullifyEvent>(
-            &[instruction],
-            &forester.pubkey(),
-            &[forester],
-            None,
-        )
-        .await?
-        .unwrap();
-    Ok(res.1)
+    rpc.create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
+        .await
 }
 
 pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
@@ -332,7 +316,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
     // local_leaves_hash_chain is only used for a test assertion.
     let local_nullifier_hash_chain = create_hash_chain_from_slice(&nullifiers).unwrap();
     assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
-    let inputs = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+    let (inputs, _) = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         old_root,
         tx_hashes,
         leaves.to_vec(),
@@ -341,6 +325,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         merkle_proofs,
         path_indices,
         zkp_batch_size as u32,
+        &[],
     )
     .unwrap();
     let client = Client::new();
@@ -386,7 +371,11 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
 }
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use forester_utils::{
+    account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
+};
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
+use light_merkle_tree_metadata::queue::QueueType;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -817,7 +806,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     I: Indexer<R>,
 >(
     rpc: &mut R,
-    indexer: &I,
+    indexer: &mut I,
     merkle_tree_pubkey: Pubkey,
 ) -> Result<InstructionDataBatchNullifyInputs, RpcError> {
     let mut merkle_tree_account = rpc.get_account(merkle_tree_pubkey).await?.unwrap();
@@ -836,25 +825,27 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         .iter()
         .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
         .unwrap()
-        .merkle_tree
-        .merkle_tree
-        .rightmost_index;
+        .right_most_index();
 
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            full_batch_index,
-            0,
-            batch.batch_size,
+            QueueType::BatchedAddress,
+            batch.zkp_batch_size as u16,
+            None,
         )
         .await
         .unwrap();
+    let addresses = addresses
+        .iter()
+        .map(|x| x.account_hash)
+        .collect::<Vec<[u8; 32]>>();
     // // local_leaves_hash_chain is only used for a test assertion.
-    // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
+    // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
     let start_index = merkle_tree.next_index as usize;
     assert!(
-        start_index >= 2,
+        start_index >= 1,
         "start index should be greater than 2 else tree is not inited"
     );
     let current_root = *merkle_tree.root_history.last().unwrap();
@@ -887,6 +878,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             addresses,
             indexer
                 .get_subtrees(merkle_tree_pubkey.to_bytes())
+                .await
                 .unwrap()
                 .try_into()
                 .unwrap(),
@@ -898,7 +890,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let client = Client::new();
     let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
-
     let response_result = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -914,7 +905,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
         let instruction_data = InstructionDataBatchNullifyInputs {
             new_root: circuit_inputs_new_root,
-
             compressed_proof: CompressedProof {
                 a: proof_a,
                 b: proof_b,
@@ -923,6 +913,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
         };
         Ok(instruction_data)
     } else {
+        println!("response_result: {:?}", response_result.text().await);
         Err(RpcError::CustomError(
             "Prover failed to generate proof".to_string(),
         ))

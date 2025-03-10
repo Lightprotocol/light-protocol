@@ -1,10 +1,8 @@
-use std::mem;
-
 use account_compression::QueueAccount;
 use light_client::rpc::RpcConnection;
 use light_hash_set::HashSet;
 use solana_sdk::pubkey::Pubkey;
-use tracing::debug;
+use tracing::trace;
 
 use crate::Result;
 
@@ -21,11 +19,10 @@ pub async fn fetch_queue_item_data<R: RpcConnection>(
     processing_length: u16,
     queue_length: u16,
 ) -> Result<Vec<QueueItemData>> {
-    debug!("Fetching queue data for {:?}", queue_pubkey);
+    trace!("Fetching queue data for {:?}", queue_pubkey);
     let mut account = rpc.get_account(*queue_pubkey).await?.unwrap();
-    let queue: HashSet = unsafe {
-        HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
-    };
+    let queue: HashSet =
+        unsafe { HashSet::from_bytes_copy(&mut account.data[8 + size_of::<QueueAccount>()..])? };
     let end_index = (start_index + processing_length).min(queue_length);
 
     let filtered_queue = queue

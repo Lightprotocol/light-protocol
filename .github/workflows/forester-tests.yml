@@ -6,14 +6,20 @@ on:
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
   pull_request:
-    branches: ["**"]
+    branches: ["main"]
     paths:
       - "forester/**"
       - "forester-utils/**"
-      - "photon-api/**"
+      - "sdk-libs/photon-api/**"
+      - "programs/**"
+      - "program-libs/batched-merkle-tree/**"
+      - "scripts/**"
       - ".github/workflows/forester-tests.yml"
     types: [opened, synchronize, reopened, ready_for_review]
 
@@ -32,6 +38,12 @@ jobs:
         test-name:
           [
             {
+              name: "e2e",
+              command: "test_state_indexer_async_batched",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
               name: "address-batched",
               command: "test_address_batched",
               timeout: 60,
@@ -40,6 +52,12 @@ jobs:
             {
               name: "state-batched",
               command: "test_state_batched",
+              timeout: 60,
+              needs-test-program: false,
+            },
+            {
+              name: "state-photon-batched",
+              command: "test_state_indexer_batched",
               timeout: 60,
               needs-test-program: false,
             },
@@ -57,7 +75,7 @@ jobs:
             },
           ]
     name: test-${{ matrix.test-name.name }}
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
     timeout-minutes: ${{ matrix.test-name.timeout }}
     steps:
       - uses: actions/checkout@v4

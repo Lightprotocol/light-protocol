@@ -767,8 +767,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 // test-rpc.ts. Currently this is a static root because the
                 // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
-                leafIndices: newAddressProofs.map(
-                    proof => proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
+                leafIndices: newAddressProofs.map(proof =>
+                    proof.indexHashedIndexedElementLeaf.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),

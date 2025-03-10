@@ -98,7 +98,7 @@ async fn test_memo_program() {
     .unwrap();
 
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&memo::ID)
+        .get_compressed_accounts_by_owner_v2(&memo::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -129,7 +129,7 @@ async fn test_memo_program() {
     .unwrap();
 
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&memo::ID)
+        .get_compressed_accounts_by_owner_v2(&memo::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 1);
@@ -157,7 +157,7 @@ async fn test_memo_program() {
     .unwrap();
 
     let compressed_accounts = test_indexer
-        .get_compressed_accounts_by_owner(&memo::ID)
+        .get_compressed_accounts_by_owner_v2(&memo::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 0);

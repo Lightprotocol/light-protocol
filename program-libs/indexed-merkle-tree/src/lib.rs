@@ -377,7 +377,7 @@ where
             }
         }
         // Instantiate `new_low_element` - the low element with updated values.
-        let new_low_element = IndexedElement {
+        let new_low_element = IndexedElement::<I> {
             index: low_element.index,
             value: low_element.value.clone(),
             next_index: new_element.index,

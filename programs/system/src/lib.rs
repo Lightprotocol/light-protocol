@@ -49,7 +49,6 @@ pub mod light_system_program {
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
         // Check that Merkle tree is initialized.
         let data = ctx.accounts.associated_merkle_tree.data.borrow();
-
         let mut discriminator_bytes = [0u8; 8];
         discriminator_bytes.copy_from_slice(&data[0..8]);
         match discriminator_bytes {

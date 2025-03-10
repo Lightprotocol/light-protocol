@@ -315,9 +315,8 @@ impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
             Vec::<ZOutputCompressedAccountWithPackedContext>::zero_copy_at(bytes)?;
         let (relay_fee, bytes) = Option::<Ref<&'a [u8], U64>>::zero_copy_at(bytes)?;
         if relay_fee.is_some() {
-            unimplemented!("Relay fee not implemented");
+            return Err(ZeroCopyError::InvalidConversion);
         }
-
         let (new_address_params, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (compress_or_decompress_lamports, bytes) =
             Option::<Ref<&'a [u8], U64>>::zero_copy_at(bytes)?;
@@ -403,7 +402,7 @@ impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpi<'a> {
             Vec::<ZOutputCompressedAccountWithPackedContext>::zero_copy_at(bytes)?;
         let (option_relay_fee, bytes) = bytes.split_at(1);
         if option_relay_fee[0] == 1 {
-            unimplemented!(" Relay fee is unimplemented");
+            return Err(ZeroCopyError::InvalidConversion);
         }
         let (compress_or_decompress_lamports, bytes) =
             Option::<Ref<&'a [u8], U64>>::zero_copy_at(bytes)?;

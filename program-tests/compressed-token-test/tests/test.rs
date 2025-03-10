@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::str::FromStr;
+
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
@@ -9,6 +11,7 @@ use anchor_spl::{
     token::{Mint, TokenAccount},
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
+use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
 use light_client::indexer::Indexer;
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -32,15 +35,16 @@ use light_compressed_token::{
 };
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::setup_test_programs_with_accounts,
+    test_env::{setup_test_programs_with_accounts, EnvAccountKeypairs, EnvAccounts},
     test_rpc::ProgramTestRpcConnection,
 };
-use light_prover_client::gnark::helpers::{kill_prover, spawn_prover, ProofType, ProverConfig};
+use light_prover_client::gnark::helpers::{
+    kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
+};
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
+    assert_custom_error_or_program_error, assert_rpc_error,
     conversions::sdk_to_program_token_data,
-    create_account_instruction,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
         compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
@@ -50,12 +54,13 @@ use light_test_utils::{
         mint_tokens_helper_with_lamports, mint_wrapped_sol, perform_compress_spl_token_account,
         revoke_test, thaw_test, BurnInstructionMode,
     },
-    RpcConnection, RpcError,
+    RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
 };
 use light_verifier::VerifierError;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::{
+    commitment_config::CommitmentConfig,
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature},
@@ -1401,6 +1406,7 @@ async fn perform_transfer_22_test(
     batched_tree: bool,
 ) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = if batched_tree {
         env.batched_output_queue
@@ -1417,6 +1423,7 @@ async fn perform_transfer_22_test(
     };
     let mut test_indexer =
         TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, prover_config).await;
+
     let mint = if token_22 {
         create_mint_22_helper(&mut rpc, &payer).await
     } else {
@@ -5414,6 +5421,108 @@ async fn test_transfer_with_batched_tree() {
                 input_num, output_num
             );
             perform_transfer_22_test(input_num, output_num, 10_000, false, false, true).await
+        }
+    }
+}
+
+/// Used to generate photon test data
+/// Payer (En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP)
+/// has 3 token accounts with balance 12341 each.
+/// 4 recipients with hardcoded pubkeys the first 3 receive 9255 each and the last one 9258
+#[serial]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_transfer_with_photon_and_batched_tree() {
+    spawn_validator(LightValidatorConfig {
+        enable_indexer: false,
+        wait_time: 10,
+        prover_config: None,
+        sbf_programs: vec![],
+        limit_ledger_size: None,
+    })
+    .await;
+
+    let mut rpc =
+        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::confirmed()));
+    let env = EnvAccounts::get_local_test_validator_accounts();
+    let keypairs = EnvAccountKeypairs::program_test_default();
+    // Deterministic keypair
+    let payer = keypairs.forester.insecure_clone();
+    println!("payer pubkey: {:?}", payer.pubkey());
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let possible_inputs = [3];
+    let batched_tree = true;
+    let token_22 = true;
+    let amount = 12341;
+    for inputs in possible_inputs {
+        for outputs in 4..5 {
+            if inputs == 8 && outputs > 5 {
+                // 8 inputs and 7 outputs is the max we can do
+                break;
+            }
+            println!("\n\ninput num: {}, output num: {}\n\n", inputs, outputs);
+
+            let merkle_tree_pubkey = if batched_tree {
+                env.batched_output_queue
+            } else {
+                env.merkle_tree_pubkey
+            };
+
+            let mut test_indexer: TestIndexer<SolanaRpcConnection> =
+                TestIndexer::init_from_env(&payer, &env, None).await;
+
+            let mint = if token_22 {
+                create_mint_22_helper(&mut rpc, &payer).await
+            } else {
+                create_mint_helper(&mut rpc, &payer).await
+            };
+            mint_tokens_22_helper_with_lamports(
+                &mut rpc,
+                &mut test_indexer,
+                &merkle_tree_pubkey,
+                &payer,
+                &mint,
+                vec![amount; inputs],
+                vec![payer.pubkey(); inputs],
+                Some(1_000_000),
+                token_22,
+            )
+            .await;
+            println!("mint to successful");
+            let recipients = [
+                Pubkey::from_str("DyRWDm81iYePWsdw1Yn2ue8CPcp7Lba6XsB8DVSGM7HK").unwrap(),
+                Pubkey::from_str("3YzfcCyqUPE9oubX2Ct9xWn1u5urqmGu6wfcFavHsCQZ").unwrap(),
+                Pubkey::from_str("2ShDKqkcMmacgYeSsEjwjLVJcoERZ9jgZ8tFyssxd82S").unwrap(),
+                Pubkey::from_str("24fLJv6tHmsxQg5vDD7XWy85TMhFzJdkqZ9Ta3LtVReU").unwrap(),
+            ];
+            println!("recipients {:?}", recipients);
+            let input_compressed_accounts = test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None)
+                .await
+                .unwrap();
+            let equal_amount = (amount * inputs as u64) / outputs as u64;
+            let rest_amount = (amount * inputs as u64) % outputs as u64;
+            let mut output_amounts = vec![equal_amount; outputs - 1];
+            output_amounts.push(equal_amount + rest_amount);
+            compressed_transfer_22_test(
+                &payer,
+                &mut rpc,
+                &mut test_indexer,
+                &mint,
+                &payer,
+                &recipients,
+                &output_amounts,
+                None,
+                input_compressed_accounts.as_slice(),
+                &vec![merkle_tree_pubkey; outputs],
+                None,
+                false,
+                None,
+                token_22,
+            )
+            .await;
         }
     }
 }

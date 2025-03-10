@@ -5,9 +5,10 @@ use account_compression::{
     GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
 };
 use forester_utils::{
-    airdrop_lamports, create_account_instruction,
     forester_epoch::{Epoch, TreeAccounts, TreeType},
+    instructions::create_account::create_account_instruction,
     registry::register_test_forester,
+    utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
@@ -30,9 +31,10 @@ use light_registry::{
 };
 use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     pubkey,
     pubkey::Pubkey,
-    signature::{read_keypair_file, Keypair, Signature, Signer},
+    signature::{read_keypair_file, write_keypair_file, Keypair, Signature, Signer},
     system_instruction,
     transaction::Transaction,
 };
@@ -163,7 +165,7 @@ impl EnvAccounts {
             governance_authority: Keypair::from_bytes(&PAYER_KEYPAIR).unwrap(),
             governance_authority_pda: Pubkey::default(),
             group_pda: Pubkey::default(),
-            forester: Keypair::new(),
+            forester: Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap(),
             registered_program_pda: get_registered_program_pda(&light_system_program::ID),
             registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
             address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
@@ -199,6 +201,7 @@ pub struct EnvAccountKeypairs {
     pub state_merkle_tree_2: Keypair,
     pub nullifier_queue_2: Keypair,
     pub cpi_context_2: Keypair,
+    pub group_pda_seed: Keypair,
 }
 
 impl EnvAccountKeypairs {
@@ -225,6 +228,7 @@ impl EnvAccountKeypairs {
             state_merkle_tree_2: Keypair::new(),
             nullifier_queue_2: Keypair::new(),
             cpi_context_2: Keypair::new(),
+            group_pda_seed: Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap(),
         }
     }
 
@@ -306,6 +310,7 @@ impl EnvAccountKeypairs {
             state_merkle_tree_2,
             nullifier_queue_2,
             cpi_context_2,
+            group_pda_seed: Keypair::new(),
         }
     }
 
@@ -374,7 +379,155 @@ impl EnvAccountKeypairs {
             state_merkle_tree_2: Keypair::new(),
             nullifier_queue_2: Keypair::new(),
             cpi_context_2: Keypair::new(),
+            group_pda_seed: Keypair::new(),
         }
+    }
+
+    pub fn new_testnet_setup() -> EnvAccountKeypairs {
+        let prefix = String::from("../light-keypairs/testnet/");
+        let state_merkle_tree = Keypair::new();
+        let nullifier_queue = Keypair::new();
+        let governance_authority = Keypair::new();
+        let forester = Keypair::new();
+        let address_merkle_tree = Keypair::new();
+        let address_merkle_tree_queue = Keypair::new();
+        let cpi_context_account = Keypair::new();
+        let system_program =
+            read_keypair_file(format!("{}light_compressed_token-keypair.json", prefix)).unwrap();
+        let registry_program =
+            read_keypair_file(format!("{}light_registry-keypair.json", prefix)).unwrap();
+        EnvAccountKeypairs {
+            state_merkle_tree,
+            nullifier_queue,
+            governance_authority,
+            forester,
+            address_merkle_tree,
+            address_merkle_tree_queue,
+            cpi_context_account,
+            system_program,
+            registry_program,
+            batched_state_merkle_tree: Keypair::new(),
+            batched_output_queue: Keypair::new(),
+            batched_cpi_context: Keypair::new(),
+            batch_address_merkle_tree: Keypair::new(),
+            state_merkle_tree_2: Keypair::new(),
+            nullifier_queue_2: Keypair::new(),
+            cpi_context_2: Keypair::new(),
+            group_pda_seed: Keypair::new(),
+        }
+    }
+
+    /// Write all keypairs to files
+    pub fn write_to_files(&self, prefix: &str) {
+        write_keypair_file(
+            &self.batched_state_merkle_tree,
+            format!(
+                "{}batched-state{}.json",
+                prefix,
+                self.batched_state_merkle_tree.pubkey()
+            ),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.state_merkle_tree,
+            format!("{}smt1_{}.json", prefix, self.state_merkle_tree.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.nullifier_queue,
+            format!("{}nfq1_{}.json", prefix, self.nullifier_queue.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.governance_authority,
+            format!("{}ga1_{}.json", prefix, self.governance_authority.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.forester,
+            format!("{}forester_{}.json", prefix, self.forester.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.address_merkle_tree,
+            format!("{}amt1_{}.json", prefix, self.address_merkle_tree.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.address_merkle_tree_queue,
+            format!(
+                "{}aq1_{}.json",
+                prefix,
+                self.address_merkle_tree_queue.pubkey()
+            ),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.cpi_context_account,
+            format!("{}cpi1_{}.json", prefix, self.cpi_context_account.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.system_program,
+            format!("{}system_{}.json", prefix, self.system_program.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.registry_program,
+            format!("{}registry_{}.json", prefix, self.registry_program.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.batched_output_queue,
+            format!(
+                "{}batched-state/batched_output_queue_{}.json",
+                prefix,
+                self.batched_output_queue.pubkey()
+            ),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.batched_cpi_context,
+            format!(
+                "{}batched_cpi_context_{}.json",
+                prefix,
+                self.batched_cpi_context.pubkey()
+            ),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.batch_address_merkle_tree,
+            format!(
+                "{}batched_amt1_{}.json",
+                prefix,
+                self.batch_address_merkle_tree.pubkey()
+            ),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.state_merkle_tree_2,
+            format!("{}smt2_{}.json", prefix, self.state_merkle_tree_2.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.nullifier_queue_2,
+            format!("{}nfq2_{}.json", prefix, self.nullifier_queue_2.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.cpi_context_2,
+            format!("{}cpi2_{}.json", prefix, self.cpi_context_2.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &self.group_pda_seed,
+            format!(
+                "{}group_pda_seed_{}.json",
+                prefix,
+                self.group_pda_seed.pubkey()
+            ),
+        )
+        .unwrap();
     }
 }
 
@@ -546,6 +699,7 @@ pub async fn setup_test_programs_with_accounts_v2(
     )
     .await
 }
+
 pub async fn setup_test_programs_with_accounts_with_protocol_config(
     additional_programs: Option<Vec<(String, Pubkey)>>,
     protocol_config: ProtocolConfig,
@@ -587,8 +741,13 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
         protocol_config,
         register_forester_and_advance_to_active_phase,
         true,
+        false,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
         batched_tree_init_params,
-        batched_address_tree_init_params,
+        Some(batched_address_tree_init_params),
     )
     .await;
     (context, env_accounts)
@@ -620,8 +779,13 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
         protocol_config,
         register_forester_and_advance_to_active_phase,
         true,
+        false,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
         params,
-        InitAddressTreeAccountsInstructionData::test_default(),
+        Some(InitAddressTreeAccountsInstructionData::test_default()),
     )
     .await;
     (context, env_accounts)
@@ -637,20 +801,31 @@ pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> 
         ProtocolConfig::default(),
         false,
         false,
+        false,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
         params,
-        InitAddressTreeAccountsInstructionData::test_default(),
+        Some(InitAddressTreeAccountsInstructionData::test_default()),
     )
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn initialize_accounts<R: RpcConnection>(
     context: &mut R,
     keypairs: EnvAccountKeypairs,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
     skip_register_programs: bool,
+    skip_second_v1_tree: bool,
+    v1_state_tree_config: StateMerkleTreeConfig,
+    v1_nullifier_queue_config: NullifierQueueConfig,
+    v1_address_tree_config: AddressMerkleTreeConfig,
+    v1_address_queue_config: AddressQueueConfig,
     batched_tree_init_params: InitStateTreeAccountsInstructionData,
-    batched_address_tree_init_params: InitAddressTreeAccountsInstructionData,
+    batched_address_tree_init_params: Option<InitAddressTreeAccountsInstructionData>,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
     let protocol_config_pda = get_protocol_config_pda_address();
@@ -673,9 +848,8 @@ pub async fn initialize_accounts<R: RpcConnection>(
         .await
         .unwrap();
 
-    let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
     let group_pda = initialize_new_group(
-        &group_seed_keypair,
+        &keypairs.group_pda_seed,
         &keypairs.governance_authority,
         context,
         cpi_authority_pda.0,
@@ -734,23 +908,8 @@ pub async fn initialize_accounts<R: RpcConnection>(
         None,
         None,
         1,
-        &StateMerkleTreeConfig::default(),
-        &NullifierQueueConfig::default(),
-    )
-    .await
-    .unwrap();
-    create_state_merkle_tree_and_queue_account(
-        &keypairs.governance_authority,
-        true,
-        context,
-        &keypairs.state_merkle_tree_2,
-        &keypairs.nullifier_queue_2,
-        Some(&keypairs.cpi_context_2),
-        None,
-        None,
-        2,
-        &StateMerkleTreeConfig::default(),
-        &NullifierQueueConfig::default(),
+        &v1_state_tree_config,
+        &v1_nullifier_queue_config,
     )
     .await
     .unwrap();
@@ -758,6 +917,23 @@ pub async fn initialize_accounts<R: RpcConnection>(
         batched_tree_init_params.additional_bytes,
         ProtocolConfig::default().cpi_context_size
     );
+    if !skip_second_v1_tree {
+        create_state_merkle_tree_and_queue_account(
+            &keypairs.governance_authority,
+            true,
+            context,
+            &keypairs.state_merkle_tree_2,
+            &keypairs.nullifier_queue_2,
+            Some(&keypairs.cpi_context_2),
+            None,
+            None,
+            2,
+            &v1_state_tree_config,
+            &v1_nullifier_queue_config,
+        )
+        .await
+        .unwrap();
+    }
     create_batched_state_merkle_tree(
         &keypairs.governance_authority,
         true,
@@ -769,16 +945,16 @@ pub async fn initialize_accounts<R: RpcConnection>(
     )
     .await
     .unwrap();
-
-    create_batch_address_merkle_tree(
-        context,
-        &keypairs.governance_authority,
-        &keypairs.batch_address_merkle_tree,
-        batched_address_tree_init_params,
-    )
-    .await
-    .unwrap();
-
+    if let Some(batched_address_tree_init_params) = batched_address_tree_init_params {
+        create_batch_address_merkle_tree(
+            context,
+            &keypairs.governance_authority,
+            &keypairs.batch_address_merkle_tree,
+            batched_address_tree_init_params,
+        )
+        .await
+        .unwrap();
+    }
     create_address_merkle_tree_and_queue_account(
         &keypairs.governance_authority,
         true,
@@ -787,8 +963,8 @@ pub async fn initialize_accounts<R: RpcConnection>(
         &keypairs.address_merkle_tree_queue,
         None,
         None,
-        &AddressMerkleTreeConfig::default(),
-        &AddressQueueConfig::default(),
+        &v1_address_tree_config,
+        &v1_address_queue_config,
         0,
     )
     .await
@@ -1148,8 +1324,14 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
             queue_config.clone(),
         )
     };
+
     let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, mt_account_create_ix, instruction],
+        &[
+            ComputeBudgetInstruction::set_compute_unit_limit(500_000),
+            account_create_ix,
+            mt_account_create_ix,
+            instruction,
+        ],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
         context.get_latest_blockhash().await.unwrap(),
