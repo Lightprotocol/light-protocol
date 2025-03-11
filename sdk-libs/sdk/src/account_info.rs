@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use anchor_lang::prelude::Result;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -12,7 +11,10 @@ use light_compressed_account::{
 };
 use solana_program::pubkey::Pubkey;
 
-use crate::{account_meta::LightAccountMeta, error::LightSdkError};
+use crate::{
+    account_meta::LightAccountMeta,
+    error::{LightSdkError, Result},
+};
 
 /// Information about compressed account which is being initialized.
 #[derive(Debug)]

@@ -329,6 +329,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-sdk-test"
+version = "0.7.0"
+dependencies = [
+ "anchor-lang",
+ "light-client",
+ "light-compressed-account",
+ "light-hasher",
+ "light-program-test",
+ "light-prover-client",
+ "light-sdk",
+ "light-test-utils",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "anchor-spl"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1437,23 +1453,6 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
-
-[[package]]
-name = "counter"
-version = "0.0.11"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.3",
- "light-client",
- "light-compressed-account",
- "light-hasher",
- "light-program-test",
- "light-prover-client",
- "light-sdk",
- "light-test-utils",
- "solana-sdk",
- "tokio",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -3449,14 +3448,15 @@ dependencies = [
  "borsh 0.10.3",
  "light-compressed-account",
  "light-hasher",
- "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-sdk-macros",
  "light-system-program",
+ "light-verifier",
  "num-bigint 0.4.6",
  "solana-program",
  "solana-sdk",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -3654,23 +3654,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "memo"
-version = "0.0.1"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.3",
- "light-client",
- "light-compressed-account",
- "light-hasher",
- "light-program-test",
- "light-prover-client",
- "light-sdk",
- "light-test-utils",
- "solana-sdk",
- "tokio",
-]
-
-[[package]]
 name = "memoffset"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3816,23 +3799,6 @@ dependencies = [
  "mime",
  "spin 0.9.8",
  "version_check",
-]
-
-[[package]]
-name = "name-service-without-macros"
-version = "0.7.0"
-dependencies = [
- "anchor-lang",
- "borsh 0.10.3",
- "light-client",
- "light-compressed-account",
- "light-hasher",
- "light-program-test",
- "light-prover-client",
- "light-sdk",
- "light-test-utils",
- "solana-sdk",
- "tokio",
 ]
 
 [[package]]
@@ -5141,16 +5107,18 @@ checksum = "0495e4577c672de8254beb68d01a9b62d0e8a13c099edecdbedccce3223cd29f"
 
 [[package]]
 name = "sdk-test"
-version = "0.7.0"
+version = "1.0.0"
 dependencies = [
- "anchor-lang",
+ "borsh 0.10.3",
+ "light-account-checks",
  "light-client",
  "light-compressed-account",
  "light-hasher",
+ "light-macros",
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-test-utils",
+ "solana-program",
  "solana-sdk",
  "tokio",
 ]

@@ -1,4 +1,4 @@
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
@@ -29,7 +29,7 @@ pub struct NewAddressProofWithContext {
     pub new_element_next_value: Option<BigUint>,
 }
 
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<Option<u16>>,

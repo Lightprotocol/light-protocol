@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
-use anchor_lang::{context::Context, Bumps, Result};
+use crate::error::Result;
+use anchor_lang::{context::Context, Bumps};
 
 use crate::{
     account::LightAccounts,

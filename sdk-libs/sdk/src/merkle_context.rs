@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
-use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
 use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+
+use crate::{BorshDeserialize, BorshSerialize};
 
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]
@@ -85,13 +87,13 @@ pub fn pack_merkle_context(
     }
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,
