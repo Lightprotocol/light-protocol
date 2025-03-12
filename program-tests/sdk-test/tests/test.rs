@@ -16,12 +16,9 @@ use light_sdk::{
     address::derive_address,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
-    system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    system_accounts::SystemAccountMetaConfig,
 };
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    signature::Signer,
-};
+use solana_sdk::{instruction::Instruction, signature::Signer};
 
 #[tokio::test]
 async fn test_sdk_test() {
