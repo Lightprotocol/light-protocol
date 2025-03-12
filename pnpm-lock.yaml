@@ -522,7 +522,7 @@ importers:
 
   program-tests: {}
 
-  program-tests/anchor-sdk-test:
+  program-tests/sdk-anchor-test:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
