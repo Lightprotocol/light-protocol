@@ -196,6 +196,26 @@ pub struct SystemAccountMetaConfig {
     pub sol_pool_pda: Option<Pubkey>,
 }
 
+impl SystemAccountMetaConfig {
+    pub fn new(self_program: Pubkey) -> Self {
+        Self {
+            self_program,
+            cpi_context: None,
+            sol_compression_recipient: None,
+            sol_pool_pda: None,
+        }
+    }
+
+    pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
+        Self {
+            self_program,
+            cpi_context: Some(cpi_context),
+            sol_compression_recipient: None,
+            sol_pool_pda: None,
+        }
+    }
+}
+
 #[derive(Debug, Default, Copy, Clone)]
 pub struct SystemAccountInfoConfig {
     pub self_program: Pubkey,
@@ -203,6 +223,26 @@ pub struct SystemAccountInfoConfig {
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,
     pub sol_pool_pda: bool,
+}
+
+impl SystemAccountInfoConfig {
+    pub fn new(self_program: Pubkey) -> Self {
+        Self {
+            self_program,
+            cpi_context: false,
+            sol_compression_recipient: false,
+            sol_pool_pda: false,
+        }
+    }
+
+    pub fn new_with_cpi_context(self_program: Pubkey) -> Self {
+        Self {
+            self_program,
+            cpi_context: true,
+            sol_compression_recipient: false,
+            sol_pool_pda: false,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

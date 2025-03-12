@@ -2,19 +2,16 @@ use anchor_lang::prelude::*;
 use light_hasher::Discriminator;
 use light_sdk::{
     account::LightAccount, address::derive_address, error::LightSdkError,
-    instruction_data::LightInstructionData, light_account, light_system_accounts,
+    instruction_data::LightInstructionData, light_account,
     program_merkle_context::unpack_address_merkle_context, verify::verify_light_accounts,
-    LightHasher, LightTraits,
+    LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[program]
-pub mod anchor_sdk_test {
-    use light_sdk::{
-        system_accounts::LightCpiAccounts,
-        traits::{InvokeAccounts, LightSystemAccount},
-    };
+pub mod sdk_anchor_test {
+    use light_sdk::system_accounts::LightCpiAccounts;
 
     use super::*;
 
@@ -35,7 +32,7 @@ pub mod anchor_sdk_test {
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)
             .map_err(ProgramError::from)?;
         let address_merkle_context =
-            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+            unpack_address_merkle_context(address_merkle_context, &ctx.remaining_accounts[8..]);
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
             &address_merkle_context,
@@ -53,24 +50,20 @@ pub mod anchor_sdk_test {
             .map_err(ProgramError::from)?;
 
         my_compressed_account.name = name;
-        let mut system_accounts = vec![
-            ctx.accounts.get_light_system_program().clone(),
-            ctx.accounts.cpi_signer.clone(),
-            ctx.accounts.get_registered_program_pda().clone(),
-            ctx.accounts.get_noop_program().clone(),
-            ctx.accounts.get_account_compression_authority().clone(),
-            ctx.accounts.get_account_compression_program().clone(),
-            ctx.accounts.self_program.to_account_info(),
-            ctx.accounts.get_system_program().clone(),
-        ];
-        system_accounts.extend_from_slice(ctx.remaining_accounts);
+
         msg!(
             "system accounts: {:?}",
-            system_accounts.iter().map(|a| a.key).collect::<Vec<_>>()
+            ctx.remaining_accounts
+                .iter()
+                .map(|a| a.key)
+                .collect::<Vec<_>>()
         );
-        let light_cpi_accounts =
-            LightCpiAccounts::new(ctx.accounts.signer.as_ref(), &system_accounts, crate::ID)
-                .map_err(ProgramError::from)?;
+        let light_cpi_accounts = LightCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::ID,
+        )
+        .map_err(ProgramError::from)?;
 
         verify_light_accounts(
             &light_cpi_accounts,
@@ -102,7 +95,7 @@ pub mod anchor_sdk_test {
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)
             .map_err(ProgramError::from)?;
         let address_merkle_context =
-            unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
+            unpack_address_merkle_context(address_merkle_context, &ctx.remaining_accounts[8..]);
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
             &address_merkle_context,
@@ -122,24 +115,19 @@ pub mod anchor_sdk_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        let mut system_accounts = vec![
-            ctx.accounts.get_light_system_program().clone(),
-            ctx.accounts.cpi_signer.clone(),
-            ctx.accounts.get_registered_program_pda().clone(),
-            ctx.accounts.get_noop_program().clone(),
-            ctx.accounts.get_account_compression_authority().clone(),
-            ctx.accounts.get_account_compression_program().clone(),
-            ctx.accounts.self_program.to_account_info(),
-            ctx.accounts.get_system_program().clone(),
-        ];
-        system_accounts.extend_from_slice(ctx.remaining_accounts);
         msg!(
             "system accounts: {:?}",
-            system_accounts.iter().map(|a| a.key).collect::<Vec<_>>()
+            ctx.remaining_accounts
+                .iter()
+                .map(|a| a.key)
+                .collect::<Vec<_>>()
         );
-        let light_cpi_accounts =
-            LightCpiAccounts::new(ctx.accounts.signer.as_ref(), &system_accounts, crate::ID)
-                .map_err(ProgramError::from)?;
+        let light_cpi_accounts = LightCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::ID,
+        )
+        .map_err(ProgramError::from)?;
 
         verify_light_accounts(
             &light_cpi_accounts,
@@ -175,20 +163,13 @@ pub mod anchor_sdk_test {
             .map_err(ProgramError::from)?;
 
         my_compressed_account.nested = nested_data;
-        let mut system_accounts = vec![
-            ctx.accounts.get_light_system_program().clone(),
-            ctx.accounts.cpi_signer.clone(),
-            ctx.accounts.get_registered_program_pda().clone(),
-            ctx.accounts.get_noop_program().clone(),
-            ctx.accounts.get_account_compression_authority().clone(),
-            ctx.accounts.get_account_compression_program().clone(),
-            ctx.accounts.self_program.to_account_info(),
-            ctx.accounts.get_system_program().clone(),
-        ];
-        system_accounts.extend_from_slice(ctx.remaining_accounts);
-        let light_cpi_accounts =
-            LightCpiAccounts::new(ctx.accounts.signer.as_ref(), &system_accounts, crate::ID)
-                .map_err(ProgramError::from)?;
+
+        let light_cpi_accounts = LightCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::ID,
+        )
+        .map_err(ProgramError::from)?;
 
         verify_light_accounts(
             &light_cpi_accounts,
@@ -261,17 +242,13 @@ pub struct MyRegularAccount {
     name: String,
 }
 
-#[light_system_accounts]
-#[derive(Accounts, LightTraits)]
+#[derive(Accounts)]
 #[instruction(name: String)]
 pub struct WithCompressedAccount<'info> {
     #[account(mut)]
-    #[fee_payer]
     pub signer: Signer<'info>,
-    #[self_program]
-    pub self_program: Program<'info, crate::program::AnchorSdkTest>,
+    pub self_program: Program<'info, crate::program::SdkAnchorTest>,
     /// CHECK: Checked in light-system-program.
-    #[authority]
     pub cpi_signer: AccountInfo<'info>,
     // #[light_account(
     //     init,
@@ -280,17 +257,13 @@ pub struct WithCompressedAccount<'info> {
     // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
-#[light_system_accounts]
-#[derive(Accounts, LightTraits)]
+#[derive(Accounts)]
 pub struct WithNestedData<'info> {
     #[account(mut)]
-    #[fee_payer]
     pub signer: Signer<'info>,
-    #[self_program]
-    pub self_program: Program<'info, crate::program::AnchorSdkTest>,
-    /// CHECK: Checked in light-system-program.
-    #[authority]
-    pub cpi_signer: AccountInfo<'info>,
+    // pub self_program: Program<'info, crate::program::AnchorSdkTest>,
+    // /// CHECK: Checked in light-system-program.
+    // pub cpi_signer: AccountInfo<'info>,
     // #[light_account(
     //     init,
     //     seeds = [b"compressed".as_slice()],
@@ -298,17 +271,13 @@ pub struct WithNestedData<'info> {
     // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
-#[light_system_accounts]
-#[derive(Accounts, LightTraits)]
+#[derive(Accounts)]
 pub struct UpdateNestedData<'info> {
     #[account(mut)]
-    #[fee_payer]
     pub signer: Signer<'info>,
-    #[self_program]
-    pub self_program: Program<'info, crate::program::AnchorSdkTest>,
-    /// CHECK: Checked in light-system-program.
-    #[authority]
-    pub cpi_signer: AccountInfo<'info>,
+    // pub self_program: Program<'info, crate::program::AnchorSdkTest>,
+    // /// CHECK: Checked in light-system-program.
+    // pub cpi_signer: AccountInfo<'info>,
     // #[light_account(
     //     mut,
     //     seeds = [b"compressed".as_slice()],

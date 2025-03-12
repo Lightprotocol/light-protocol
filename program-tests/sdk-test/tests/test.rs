@@ -1,5 +1,5 @@
 #![cfg(feature = "test-sbf")]
-use std::println;
+use std::{println, vec};
 
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts},
@@ -48,6 +48,13 @@ async fn test_sdk_test() {
         }),
     )
     .await;
+    let system_account_meta_config = SystemAccountMetaConfig {
+        self_program: sdk_test::ID,
+        ..SystemAccountMetaConfig::default()
+    };
+    let mut accounts = RemainingAccounts::default();
+    accounts.insert_or_get_signer_mut(payer.pubkey());
+    accounts.add_system_accounts(system_account_meta_config);
 
     let mut remaining_accounts = RemainingAccounts::default();
 
@@ -98,24 +105,9 @@ async fn test_sdk_test() {
         };
         let inputs = inputs.serialize().unwrap();
 
+        let system_accounts = accounts.to_account_metas();
         let remaining_accounts = remaining_accounts.to_account_metas();
-
-        let system_account_meta_config = SystemAccountMetaConfig {
-            self_program: sdk_test::ID,
-            cpi_context: None,
-            sol_pool_pda: None,
-            sol_compression_recipient: None,
-        };
-        let accounts = [
-            vec![AccountMeta {
-                pubkey: payer.pubkey(),
-                is_signer: true,
-                is_writable: true,
-            }],
-            get_light_system_account_metas(system_account_meta_config),
-            remaining_accounts,
-        ]
-        .concat();
+        let accounts = vec![system_accounts, remaining_accounts].concat();
         let instruction = Instruction {
             program_id: sdk_test::ID,
             accounts,

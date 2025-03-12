@@ -33,7 +33,7 @@ members = [
     "program-tests/registry-test",
     "program-tests/system-cpi-test",
     "program-tests/system-test",
-    "program-tests/anchor-sdk-test/programs/anchor-sdk-test",
+    "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
