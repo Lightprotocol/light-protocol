@@ -9,6 +9,7 @@ members = [
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
     "program-libs/zero-copy",
+    "program-libs/zero-copy-derive",
     "program-libs/concurrent-merkle-tree",
     "program-libs/hash-set",
     "program-libs/indexed-merkle-tree",
