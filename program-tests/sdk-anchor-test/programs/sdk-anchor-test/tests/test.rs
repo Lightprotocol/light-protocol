@@ -17,23 +17,22 @@ use light_sdk::{
     address::derive_address,
     instruction_data::LightInstructionData,
     merkle_context::{AddressMerkleContext, RemainingAccounts},
-    utils::get_cpi_authority_pda,
-    verify::find_cpi_signer,
-    PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
+    system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
 };
 use light_test_utils::{RpcConnection, RpcError};
-use sdk_test::{MyCompressedAccount, NestedData};
+use sdk_anchor_test::{MyCompressedAccount, NestedData};
 use solana_sdk::{
     instruction::Instruction,
-    pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![(String::from("sdk_test"), sdk_test::ID)]))
-            .await;
+    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
+        String::from("sdk_anchor_test"),
+        sdk_anchor_test::ID,
+    )]))
+    .await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
@@ -65,15 +64,8 @@ async fn test_sdk_test() {
     let (address, _) = derive_address(
         &[b"compressed", b"test"],
         &address_merkle_context,
-        &sdk_test::ID,
+        &sdk_anchor_test::ID,
     );
-
-    let account_compression_authority = get_cpi_authority_pda(&PROGRAM_ID_LIGHT_SYSTEM);
-    let registered_program_pda = Pubkey::find_program_address(
-        &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
-        &PROGRAM_ID_ACCOUNT_COMPRESSION,
-    )
-    .0;
 
     with_nested_data(
         "test".to_string(),
@@ -83,16 +75,13 @@ async fn test_sdk_test() {
         &mut remaining_accounts,
         &payer,
         &address,
-        &account_compression_authority,
-        &registered_program_pda,
-        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
 
     // Check that it was created correctly.
     let compressed_accounts =
-        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -124,16 +113,13 @@ async fn test_sdk_test() {
         },
         &payer,
         compressed_account,
-        &account_compression_authority,
-        &registered_program_pda,
-        &PROGRAM_ID_LIGHT_SYSTEM,
     )
     .await
     .unwrap();
 
     // Check that it was updated correctly.
     let compressed_accounts =
-        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_test::ID);
+        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -154,9 +140,6 @@ async fn with_nested_data<R, I>(
     remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -191,27 +174,26 @@ where
     };
     let inputs = inputs.serialize().unwrap();
 
-    let instruction_data = sdk_test::instruction::WithNestedData { inputs, name };
+    let instruction_data = sdk_anchor_test::instruction::WithNestedData { inputs, name };
 
-    let cpi_signer = find_cpi_signer(&sdk_test::ID);
-
-    let accounts = sdk_test::accounts::WithNestedData {
+    let accounts = sdk_anchor_test::accounts::WithNestedData {
         signer: payer.pubkey(),
-        light_system_program: *light_system_program,
-        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: PROGRAM_ID_NOOP,
-        self_program: sdk_test::ID,
-        cpi_signer,
-        system_program: solana_sdk::system_program::id(),
     };
 
     let remaining_accounts = remaining_accounts.to_account_metas();
 
+    let config = SystemAccountMetaConfig {
+        self_program: sdk_anchor_test::ID,
+        ..Default::default()
+    };
     let instruction = Instruction {
-        program_id: sdk_test::ID,
-        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        program_id: sdk_anchor_test::ID,
+        accounts: [
+            accounts.to_account_metas(Some(true)),
+            get_light_system_account_metas(config),
+            remaining_accounts,
+        ]
+        .concat(),
         data: instruction_data.data(),
     };
 
@@ -235,9 +217,6 @@ async fn update_nested_data<R, I>(
     nested_data: NestedData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-    account_compression_authority: &Pubkey,
-    registered_program_pda: &Pubkey,
-    light_system_program: &Pubkey,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
@@ -269,30 +248,28 @@ where
         accounts: Some(vec![compressed_account]),
     };
     let inputs = inputs.serialize().unwrap();
-    let instruction_data = sdk_test::instruction::UpdateNestedData {
+    let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
         inputs,
         nested_data,
     };
 
-    let cpi_signer = find_cpi_signer(&sdk_test::ID);
-
-    let accounts = sdk_test::accounts::UpdateNestedData {
+    let accounts = sdk_anchor_test::accounts::UpdateNestedData {
         signer: payer.pubkey(),
-        light_system_program: *light_system_program,
-        account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-        account_compression_authority: *account_compression_authority,
-        registered_program_pda: *registered_program_pda,
-        noop_program: PROGRAM_ID_NOOP,
-        self_program: sdk_test::ID,
-        cpi_signer,
-        system_program: solana_sdk::system_program::id(),
     };
 
     let remaining_accounts = remaining_accounts.to_account_metas();
-
+    let config = SystemAccountMetaConfig {
+        self_program: sdk_anchor_test::ID,
+        ..Default::default()
+    };
     let instruction = Instruction {
-        program_id: sdk_test::ID,
-        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        program_id: sdk_anchor_test::ID,
+        accounts: [
+            accounts.to_account_metas(Some(true)),
+            get_light_system_account_metas(config),
+            remaining_accounts,
+        ]
+        .concat(),
         data: instruction_data.data(),
     };
 

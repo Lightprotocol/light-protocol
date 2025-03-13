@@ -1,7 +1,8 @@
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use solana_program::pubkey::Pubkey;
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
+use crate::{BorshDeserialize, BorshSerialize};
+
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Default)]
 pub struct MerkleTreeMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
@@ -11,7 +12,7 @@ pub struct MerkleTreeMetadata {
     pub next_merkle_tree: Pubkey,
 }
 // TODO: use merkle-tree/metadata/src/access.rs instead
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Default)]
 pub struct AccessMetadata {
     /// Owner of the Merkle tree.
     pub owner: Pubkey,
@@ -26,7 +27,7 @@ pub struct AccessMetadata {
     pub forester: Pubkey,
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Default)]
 pub struct RolloverMetadata {
     /// Unique index.
     pub index: u64,

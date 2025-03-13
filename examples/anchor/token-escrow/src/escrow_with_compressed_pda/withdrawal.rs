@@ -14,7 +14,11 @@ use light_compressed_token::process_transfer::{
     PackedTokenTransferOutputData,
 };
 use light_hasher::{DataHasher, Poseidon};
-use light_sdk::verify::verify;
+use light_sdk::{
+    system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
+    traits::*,
+    verify::verify,
+};
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithCompressedPda,
@@ -148,8 +152,32 @@ fn cpi_compressed_pda_withdrawal<'info>(
         is_compress: false,
         cpi_context: Some(cpi_context),
     };
-
-    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
+    let mut system_accounts = vec![
+        ctx.accounts.get_light_system_program().clone(),
+        ctx.accounts.get_authority().clone(),
+        ctx.accounts.get_registered_program_pda().clone(),
+        ctx.accounts.get_noop_program().clone(),
+        ctx.accounts.get_account_compression_authority().clone(),
+        ctx.accounts.get_account_compression_program().clone(),
+        ctx.accounts.self_program.to_account_info(),
+        ctx.accounts.get_system_program().clone(),
+        ctx.accounts
+            .get_cpi_context_account()
+            .unwrap_or(&ctx.accounts.get_light_system_program())
+            .clone(),
+    ];
+    system_accounts.extend_from_slice(ctx.remaining_accounts);
+    let light_accounts = LightCpiAccounts::new_with_config(
+        ctx.accounts.signer.as_ref(),
+        &system_accounts,
+        SystemAccountInfoConfig {
+            self_program: crate::ID,
+            cpi_context: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    verify(&light_accounts, &inputs_struct, &[&signer_seeds]).map_err(ProgramError::from)?;
 
     Ok(())
 }
