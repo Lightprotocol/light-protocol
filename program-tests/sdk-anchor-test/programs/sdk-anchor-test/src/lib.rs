@@ -247,42 +247,18 @@ pub struct MyRegularAccount {
 pub struct WithCompressedAccount<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    pub self_program: Program<'info, crate::program::SdkAnchorTest>,
-    /// CHECK: Checked in light-system-program.
-    pub cpi_signer: AccountInfo<'info>,
-    // #[light_account(
-    //     init,
-    //     seeds = [b"compressed".as_slice()],
-    // )]
-    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
 #[derive(Accounts)]
 pub struct WithNestedData<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    // pub self_program: Program<'info, crate::program::AnchorSdkTest>,
-    // /// CHECK: Checked in light-system-program.
-    // pub cpi_signer: AccountInfo<'info>,
-    // #[light_account(
-    //     init,
-    //     seeds = [b"compressed".as_slice()],
-    // )]
-    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateNestedData<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    // pub self_program: Program<'info, crate::program::AnchorSdkTest>,
-    // /// CHECK: Checked in light-system-program.
-    // pub cpi_signer: AccountInfo<'info>,
-    // #[light_account(
-    //     mut,
-    //     seeds = [b"compressed".as_slice()],
-    // )]
-    // pub my_compressed_account: LightAccount<MyCompressedAccount>,
 }
 
 #[derive(Accounts)]

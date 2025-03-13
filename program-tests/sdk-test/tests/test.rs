@@ -61,10 +61,6 @@ async fn test_sdk_test() {
     };
 
     let account_data = [1u8; 31];
-    println!(
-        "offchain address_merkle_context {:?}",
-        address_merkle_context
-    );
 
     let (address, _) = derive_address(
         &[b"compressed", &account_data],
