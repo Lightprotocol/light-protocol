@@ -34,9 +34,9 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     fn should_retry(&self, error: &RpcError) -> bool {
         match error {
             RpcError::TransactionError(TransactionError::InstructionError(
-                _,
-                InstructionError::Custom(6004),
-            )) => {
+                                           _,
+                                           InstructionError::Custom(6004),
+                                       )) => {
                 // Don't retry ForesterNotEligible error
                 false
             }
@@ -73,18 +73,25 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         &self,
         program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError>;
+
+    /// Process a transaction with the ability to refresh the blockhash and re-sign
+    /// This solves the issue with rate limiting causing stale blockhashes
     async fn process_transaction(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
     ) -> Result<Signature, RpcError>;
+
     async fn process_transaction_with_context(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
     ) -> Result<(Signature, Slot), RpcError>;
 
     async fn process_transaction_with_config(
         &mut self,
         transaction: Transaction,
+        signers: &[&Keypair],
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError>;
 
@@ -107,7 +114,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         let blockhash = self.get_latest_blockhash().await?;
         let transaction =
             Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
-        self.process_transaction(transaction).await
+        self.process_transaction(transaction, signers).await
     }
 
     async fn confirm_transaction(&self, signature: Signature) -> Result<bool, RpcError>;
@@ -118,7 +125,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
         data_len: usize,
     ) -> Result<u64, RpcError>;
     async fn airdrop_lamports(&mut self, to: &Pubkey, lamports: u64)
-        -> Result<Signature, RpcError>;
+                              -> Result<Signature, RpcError>;
 
     async fn get_anchor_account<T: BorshDeserialize>(
         &mut self,
@@ -137,10 +144,11 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError>;
     async fn get_slot(&mut self) -> Result<u64, RpcError>;
     async fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
-    async fn send_transaction(&self, transaction: &Transaction) -> Result<Signature, RpcError>;
+    async fn send_transaction(&self, transaction: &Transaction, signers: &[&Keypair],) -> Result<Signature, RpcError>;
     async fn send_transaction_with_config(
         &self,
         transaction: &Transaction,
+        signers: &[&Keypair],
         config: RpcSendTransactionConfig,
     ) -> Result<Signature, RpcError>;
     async fn get_transaction_slot(&mut self, signature: &Signature) -> Result<u64, RpcError>;
