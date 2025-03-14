@@ -1,0 +1,22 @@
+[package]
+name = "light-zero-copy-derive"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Proc macro for zero-copy deserialization"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full", "extra-traits"] }
+lazy_static = "1.4"
+
+[dev-dependencies]
+trybuild = "1.0"
+rand = "0.8"
+borsh = { workspace = true }
+light-zero-copy = { workspace = true, features = ["std"] }
+zerocopy = { workspace = true, features = ["derive"] }

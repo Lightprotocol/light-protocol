@@ -8,7 +8,10 @@ pub mod vec;
 use core::mem::{align_of, size_of};
 #[cfg(feature = "std")]
 pub mod borsh;
-
+#[cfg(feature = "std")]
+pub mod borsh_mut;
+#[cfg(feature = "derive")]
+pub use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 #[cfg(feature = "std")]
