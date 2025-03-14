@@ -46,7 +46,7 @@ export function pickRandomTreeAndQueue(info: StateTreeInfo[]): {
  */
 export function pickStateTreeInfo(
     info: StateTreeInfo[],
-    treeType: TreeType, // = TreeType.StateV2,
+    treeType: TreeType = TreeType.StateV2,
 ): StateTreeInfo {
     const filteredInfo = info.filter(t => t.treeType === treeType);
     const length = filteredInfo.length;

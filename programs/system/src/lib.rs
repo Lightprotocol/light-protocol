@@ -96,7 +96,8 @@ pub mod light_system_program {
         let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(inputs.as_slice()).unwrap();
         #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
-
+        msg!("inited zerocopy");
+        sol_log_compute_units();
         process_invoke_cpi(ctx, inputs, None, None)?;
         sol_log_compute_units();
         // 22,903 bytes heap with 33 outputs

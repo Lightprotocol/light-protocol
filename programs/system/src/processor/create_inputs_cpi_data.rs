@@ -1,5 +1,5 @@
 use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -40,6 +40,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut current_mt_index: u8 = 0;
     let mut is_first_iter = true;
     let mut seq_index = 0;
+
+    msg!("create_inputs_cpi_data ALLOCS DONE");
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -90,6 +92,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                     );
                 }
             };
+            msg!("current_hashed_mt done");
+            sol_log_compute_units();
         }
         // Without cpi context all input compressed accounts have the same owner.
         // With cpi context the owners will be different.
@@ -115,6 +119,11 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                 .merkle_tree_pubkey_index,
             remaining_accounts,
         );
+
+        msg!("set owner, current_hashed_mt, queue_index, tree_index done");
+        sol_log_compute_units();
+        msg!("insert_nullifier_input start");
+
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .compressed_account
@@ -136,12 +145,15 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
             queue_index,
             tree_index,
         };
+        msg!("nullifer {} done: {:?}", j, cpi_ix_data.nullifiers[j]);
         if j == 0 {
             hash_chain = cpi_ix_data.nullifiers[j].account_hash;
         } else {
             hash_chain = Poseidon::hashv(&[&hash_chain, &cpi_ix_data.nullifiers[j].account_hash])
                 .map_err(ProgramError::from)?;
         }
+        msg!("hash_chain done");
+        sol_log_compute_units();
     }
     cpi_ix_data.num_queues = input_compressed_accounts_with_merkle_context
         .iter()
@@ -153,6 +165,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                 .any(|y| y.merkle_context.nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
-
+    msg!("num_queues done");
+    sol_log_compute_units();
     Ok(hash_chain)
 }

@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use anchor_lang::{prelude::*, Bumps};
+use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Bumps};
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -108,6 +108,8 @@ pub fn process<
         hashed_pubkeys_capacity,
         invoking_program,
     )?;
+    msg!("context init done");
+    sol_log_compute_units();
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
     inputs
@@ -119,9 +121,13 @@ pub fn process<
             }
         });
 
+    msg!("context.addresses done");
+    sol_log_compute_units();
     // 2. Deserialize and check all Merkle tree and queue accounts.
     #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
+    msg!("accounts done");
+    sol_log_compute_units();
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut cpi_ix_bytes,
@@ -133,6 +139,8 @@ pub fn process<
         min(ctx.remaining_accounts.len(), num_new_addresses) as u8,
     )
     .map_err(ProgramError::from)?;
+    msg!("cpi_ix_data done");
+    sol_log_compute_units();
     cpi_ix_data.set_invoked_by_program(true);
     cpi_ix_data.bump = CPI_AUTHORITY_PDA_BUMP;
 
@@ -142,6 +150,9 @@ pub fn process<
     let num_of_read_only_addresses = read_only_addresses.len();
     let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
 
+    msg!("read_only_addresses allocation done");
+    sol_log_compute_units();
+
     let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
     // 5. Read address roots ---------------------------------------------------
     let address_tree_height = read_address_roots(
@@ -150,6 +161,9 @@ pub fn process<
         read_only_addresses.as_slice(),
         &mut new_address_roots,
     )?;
+
+    msg!("read_address_roots done");
+    sol_log_compute_units();
 
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
@@ -162,6 +176,9 @@ pub fn process<
         )?
     }
 
+    msg!("derive_new_addresses done");
+    sol_log_compute_units();
+
     // 7. Verify read only address non-inclusion in bloom filters
     #[cfg(feature = "readonly")]
     verify_read_only_address_queue_non_inclusion(&mut accounts, read_only_addresses.as_slice())?;
@@ -169,6 +186,9 @@ pub fn process<
     if !read_only_addresses.is_empty() {
         unimplemented!("Read only addresses are not supported in this build.")
     }
+
+    msg!("verify_read_only_address_queue_non_inclusion done");
+    sol_log_compute_units();
 
     // 8. Insert leaves (output compressed account hashes) ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
@@ -184,12 +204,19 @@ pub fn process<
         &mut cpi_ix_data,
         &accounts,
     )?;
+
+    msg!("create_outputs_cpi_data done");
+    sol_log_compute_units();
+
     #[cfg(feature = "debug")]
     check_vec_capacity(
         hashed_pubkeys_capacity,
         &context.hashed_pubkeys,
         "hashed_pubkeys",
     )?;
+
+    msg!("check_vec_capacity #0 done");
+    sol_log_compute_units();
 
     // 10. hash input compressed accounts ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
@@ -209,6 +236,8 @@ pub fn process<
             &mut cpi_ix_data,
             &accounts,
         )?;
+        msg!("create_inputs_cpi_data done");
+        sol_log_compute_units();
 
         #[cfg(feature = "debug")]
         check_vec_capacity(
@@ -216,6 +245,8 @@ pub fn process<
             &context.hashed_pubkeys,
             "hashed_pubkeys",
         )?;
+        msg!("check_vec_capacity #1 done");
+        sol_log_compute_units();
         // 8.1. Create a tx hash
         let current_slot = Clock::get()?.slot;
         cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
@@ -224,6 +255,8 @@ pub fn process<
             current_slot,
         )
         .map_err(ProgramError::from)?;
+        msg!("create_tx_hash_from_hash_chains done");
+        sol_log_compute_units();
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");
@@ -238,6 +271,8 @@ pub fn process<
         &inputs.compress_or_decompress_lamports.map(|x| (*x).into()),
         &inputs.is_compress,
     )?;
+    msg!("sum_check done");
+    sol_log_compute_units();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_sum_check");
     // 12. Compress or decompress lamports ---------------------------------------------------
@@ -253,11 +288,18 @@ pub fn process<
     } else if ctx.accounts.get_sol_pool_pda().is_some() {
         return err!(SystemProgramError::SolPoolPdaDefined);
     }
+
+    msg!("compress_or_decompress_lamports done");
+    sol_log_compute_units();
+
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
     let read_only_accounts = read_only_accounts.unwrap_or_else(|| {
         ZeroCopySliceBorsh::<ZPackedReadOnlyCompressedAccount>::from_bytes(&[0u8, 0u8, 0u8, 0u8])
             .unwrap()
     });
+
+    msg!("read_only_accounts allocation done");
+    sol_log_compute_units();
 
     #[cfg(feature = "readonly")]
     let num_prove_read_only_accounts_prove_by_index =
@@ -268,6 +310,9 @@ pub fn process<
     if !read_only_addresses.is_empty() {
         unimplemented!("Read only addresses are not supported in this build.")
     }
+
+    msg!("verify_read_only_account_inclusion_by_index done");
+    sol_log_compute_units();
 
     let num_read_only_accounts = read_only_accounts.len();
     let num_read_only_accounts_proof =
@@ -282,6 +327,10 @@ pub fn process<
         &new_address_roots,
         "new_address_roots",
     )?;
+
+    msg!("allocs and check_vec_capacity #2 done");
+    sol_log_compute_units();
+
     // 14. Read state roots ---------------------------------------------------
     let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = read_input_state_roots(
@@ -293,12 +342,18 @@ pub fn process<
         &mut input_compressed_account_roots,
     )?;
 
+    msg!("read_input_state_roots done");
+    sol_log_compute_units();
+
     #[cfg(feature = "debug")]
     check_vec_capacity(
         num_inclusion_proof_inputs,
         &input_compressed_account_roots,
         "input_compressed_account_roots",
     )?;
+
+    msg!("check_vec_capacity #3 done");
+    sol_log_compute_units();
 
     // 15. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
     if num_inclusion_proof_inputs != 0 || num_non_inclusion_proof_inputs != 0 {
@@ -391,10 +446,15 @@ pub fn process<
         return err!(SystemProgramError::EmptyInputs);
     }
 
+    msg!("provebyindex done");
+    sol_log_compute_units();
+
     // 16. Transfer network, address, and rollover fees ---------------------------------------------------
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(ctx.remaining_accounts, ctx.accounts.get_fee_payer())?;
+    msg!("transfer_fees done");
+    sol_log_compute_units();
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
     if inputs

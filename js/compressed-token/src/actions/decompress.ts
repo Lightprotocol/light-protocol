@@ -17,7 +17,7 @@ import {
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
-
+import bs58 from 'bs58';
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 
@@ -91,15 +91,37 @@ export async function decompress(
         recentValidityProof: proof.compressedProof,
         tokenProgramId,
     });
+    console.log(
+        'ix KEYS DECOMPRESS:',
+        ix.keys.map(key => key.pubkey.toBase58()) +
+            ' ' +
+            ix.keys.map(key => key.isSigner),
+    );
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
+    console.log('payer', payer.publicKey.toBase58());
+    console.log('owner', owner.publicKey.toBase58());
     const signedTx = buildAndSignTx(
         [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
         payer,
         blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
-    return txId;
+    console.log('signedTx', signedTx.signatures);
+    console.log('txid', bs58.encode(signedTx.signatures[0]));
+
+    const simulation = await rpc.simulateTransaction(signedTx);
+    console.log('simulation.context', simulation.context);
+    console.log(
+        'simulation.value.err.toString()',
+        simulation.value.err?.toString(),
+    );
+    console.log(
+        'simulation.value.err.valueOf()',
+        simulation.value.err?.valueOf(),
+    );
+    console.log('simulation.value.logs', simulation.value.logs);
+    // const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
+    return bs58.encode(signedTx.signatures[0]);
 }

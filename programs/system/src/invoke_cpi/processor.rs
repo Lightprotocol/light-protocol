@@ -1,4 +1,5 @@
 pub use anchor_lang::prelude::*;
+use anchor_lang::solana_program::log::sol_log_compute_units;
 use light_compressed_account::instruction_data::zero_copy::{
     ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
 };
@@ -31,6 +32,8 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
     )?;
+    msg!("cpi_signer_checks done");
+    sol_log_compute_units();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
     #[cfg(feature = "bench-sbf")]
@@ -55,6 +58,8 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
 
+    msg!("process_cpi_context done");
+    sol_log_compute_units();
     process(
         inputs.into(),
         Some(ctx.accounts.invoking_program.key()),

@@ -5,7 +5,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
-use solana_program::pubkey::Pubkey;
+use solana_program::{log::sol_log_compute_units, msg, pubkey::Pubkey};
 
 use crate::{
     address::pack_account,
@@ -263,6 +263,8 @@ impl ZCompressedAccount<'_> {
         &merkle_tree_hashed: &[u8; 32],
         leaf_index: &u32,
     ) -> Result<[u8; 32], CompressedAccountError> {
+        msg!("ZCompressedAccount hash_with_hashed_values ENTRY");
+        sol_log_compute_units();
         let capacity = 3
             + std::cmp::min(u64::from(self.lamports), 1) as usize
             + self.address.is_some() as usize
@@ -296,6 +298,8 @@ impl ZCompressedAccount<'_> {
             vec.push(data.data_hash.as_slice());
         }
         let hash = H::hashv(&vec)?;
+        msg!("ZCompressedAccount hash_with_hashed_values EXIT");
+        sol_log_compute_units();
         Ok(hash)
     }
 
