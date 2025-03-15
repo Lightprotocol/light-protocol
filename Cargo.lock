@@ -3443,10 +3443,12 @@ dependencies = [
  "light-sdk-macros",
  "light-system-program",
  "light-verifier",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-program",
  "solana-sdk",
  "thiserror 2.0.12",
+ "zerocopy 0.8.20",
 ]
 
 [[package]]
@@ -5141,9 +5143,11 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-zero-copy",
  "solana-program",
  "solana-sdk",
  "tokio",
+ "zerocopy 0.8.20",
 ]
 
 [[package]]

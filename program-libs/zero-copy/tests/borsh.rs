@@ -94,7 +94,7 @@ pub struct Struct4NestedDerived {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
+#[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, Clone, ZeroCopy, ZeroCopyEq)]
 pub struct Struct4Derived {
     pub a: u8,
     pub b: u16,

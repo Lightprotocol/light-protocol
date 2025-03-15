@@ -62,6 +62,15 @@ pub fn generate_struct_field_comparisons<'a>(
     struct_fields: &'a [&'a Field],
 ) -> impl Iterator<Item = TokenStream> + 'a {
     let field_types = analyze_struct_fields(struct_fields);
+    if field_types.iter().any(|x| {
+        if let FieldType::Option(_, _) = x {
+            true
+        } else {
+            false
+        }
+    }) {
+        unimplemented!("Options are not supported in ZeroCopyEq");
+    }
 
     field_types.into_iter().map(|field_type| {
         match field_type {

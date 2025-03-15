@@ -38,6 +38,8 @@ light-system-program = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 thiserror = { workspace = true }
 light-verifier = { workspace = true, features = ["solana"] }
+light-zero-copy = { workspace = true }
+zerocopy = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
