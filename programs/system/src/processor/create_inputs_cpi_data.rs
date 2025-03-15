@@ -34,6 +34,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     context
         .hashed_pubkeys
         .push((owner_pubkey.into(), hashed_owner));
+    msg!("hashed_pubkeys: {:?}", context.hashed_pubkeys);
     let mut current_hashed_mt = [0u8; 32];
     let mut hash_chain = [0u8; 32];
 
@@ -42,6 +43,10 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut seq_index = 0;
 
     msg!("create_inputs_cpi_data ALLOCS DONE");
+    msg!(
+        "input_compressed_accounts_with_merkle_context: {:?}",
+        input_compressed_accounts_with_merkle_context
+    );
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
