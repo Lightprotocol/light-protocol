@@ -47,23 +47,11 @@ mod zero_copy_struct_inner;
 /// 3. rename deserialize traits to ZeroCopy and ZeroCopyMut
 /// 4. check generated code by hand
 /// 5. fix partial eq generation for options
-#[proc_macro_derive(ZeroCopy, attributes(zero_copy))]
+/// 6. derive From<Z<structName> for structName> and From<Z<structName>Mut for structName>
+#[proc_macro_derive(ZeroCopy)]
 pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     // Parse the input DeriveInput
     let input = parse_macro_input!(input as DeriveInput);
-
-    // Check for the mutable attribute
-    let mut is_mutable = false;
-    for attr in &input.attrs {
-        if attr.path().is_ident("zero_copy") {
-            let _ = attr.parse_nested_meta(|meta| {
-                if meta.path.is_ident("mutable") {
-                    is_mutable = true;
-                }
-                Ok(())
-            });
-        }
-    }
 
     // Process the input to extract struct information
     let (name, z_struct_name, z_struct_meta_name, fields) = utils::process_input(&input);
@@ -355,7 +343,9 @@ mod tests {
         // Directly verify key structural elements instead of doing a full string comparison
         assert!(normalized_result.contains("pubstructZCompressedAccountMeta{"));
         assert!(normalized_result.contains("pubstructZCompressedAccount<'a>"));
-        assert!(normalized_result.contains("meta:zerocopy::Ref<&'a[u8],ZCompressedAccountMeta>"));
+        assert!(
+            normalized_result.contains("meta:light_zero_copy::Ref<&'a[u8],ZCompressedAccountMeta>")
+        );
         assert!(normalized_result.contains("pubowner:"));
         assert!(normalized_result.contains("publamports:"));
         assert!(normalized_result.contains("pubaddress:<Option<[u8;32]>"));
@@ -735,11 +725,11 @@ mod tests {
                 expected_struct_fields: 0,
                 assertions: vec![
                     ("pub a : u8", true),
-                    ("pub b : zerocopy :: little_endian :: U16", true), // Rule 1.3: Replace u16 with U16
-                    ("pub c : zerocopy :: little_endian :: U32", true), // Rule 1.3: Replace u32 with U32
-                    ("pub d : zerocopy :: little_endian :: U64", true), // Rule 1.3: Replace u64 with U64
+                    ("pub b : light_zero_copy :: little_endian :: U16", true), // Rule 1.3: Replace u16 with U16
+                    ("pub c : light_zero_copy :: little_endian :: U32", true), // Rule 1.3: Replace u32 with U32
+                    ("pub d : light_zero_copy :: little_endian :: U64", true), // Rule 1.3: Replace u64 with U64
                     ("pub e : u8", true),
-                    ("meta : zerocopy :: Ref < & 'a [u8] , ZAllPrimitivesMeta >", true),
+                    ("meta : light_zero_copy :: Ref < & 'a [u8] , ZAllPrimitivesMeta >", true),
                 ],
             },
 
@@ -773,10 +763,10 @@ mod tests {
                 expected_meta_fields: 2,
                 expected_struct_fields: 3,
                 assertions: vec![
-                    ("struct ZVecInMiddleMeta { pub a : u8 , pub b : zerocopy :: little_endian :: U16 , }", true),
+                    ("struct ZVecInMiddleMeta { pub a : u8 , pub b : light_zero_copy :: little_endian :: U16 , }", true),
                     ("pub data : & 'a [u8]", true),
-                    ("let (c , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U32 > :: from_prefix (bytes) ?", true),
-                    ("let (d , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U64 > :: from_prefix (bytes) ?", true),
+                    ("let (c , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?", true),
+                    ("let (d , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U64 > :: from_prefix (bytes) ?", true),
                 ],
             },
 
@@ -846,8 +836,8 @@ mod tests {
                 expected_struct_fields: 3,
                 assertions: vec![
                     ("let (opt , bytes) = < Option < u16 > as light_zero_copy :: borsh :: Deserialize > :: zero_copy_at (bytes) ?", true),
-                    ("let (b , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U16 > :: from_prefix (bytes) ?", true),
-                    ("let (c , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U32 > :: from_prefix (bytes) ?", true),
+                    ("let (b , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U16 > :: from_prefix (bytes) ?", true),
+                    ("let (c , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?", true),
                 ],
             },
         ];

@@ -323,8 +323,10 @@ fn readme() {
     // Use the struct with zero-copy deserialization
     let mut bytes = my_struct.try_to_vec().unwrap();
     let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
+    let org_struct: MyStruct = zero_copy.into();
     assert_eq!(zero_copy.a, 1);
     let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
+    let org_struct: MyStruct = zero_copy.into();
     zero_copy_mut.a = 42;
     let borsh = MyStruct::try_from_slice(&bytes).unwrap();
     assert_eq!(borsh.a, 42u8);

@@ -54,7 +54,7 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             },
             FieldType::Array(field_name, field_type) => {
                 quote! {
-                    let (#field_name, bytes) = zerocopy::Ref::<#mutability_tokens, #field_type>::from_prefix(bytes)?;
+                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_type>::from_prefix(bytes)?;
                 }
             },
             FieldType::Option(field_name, field_type) => {
@@ -75,19 +75,19 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::IntegerU64(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
                 quote! {
-                    let (#field_name, bytes) = zerocopy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
                 }
             },
             FieldType::IntegerU32(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
                 quote! {
-                    let (#field_name, bytes) = zerocopy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
                 }
             },
             FieldType::IntegerU16(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                 quote! {
-                    let (#field_name, bytes) = zerocopy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
                 }
             },
             FieldType::IntegerU8(field_name) => {
@@ -98,7 +98,7 @@ pub fn generate_deserialize_fields<'a, const MUT: bool>(
             FieldType::Copy(field_name, field_type) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    let (#field_name, bytes) = zerocopy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
+                    let (#field_name, bytes) = light_zero_copy::Ref::<#mutability_tokens, #field_ty_zerocopy>::from_prefix(bytes)?;
                 }
             },
             FieldType::NonCopy(field_name, field_type) => {
@@ -153,9 +153,9 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     } else {
         (
             quote! {
-                let (meta, bytes) = zerocopy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(bytes)?;
+                let (__meta, bytes) = light_zero_copy::Ref::< &'a #mutability [u8], #z_struct_meta_name>::from_prefix(bytes)?;
             },
-            quote!(meta,),
+            quote!(__meta,),
         )
     };
     let deserialize_fields = generate_deserialize_fields::<MUT>(struct_fields);
@@ -316,7 +316,7 @@ mod tests {
 
         let result = generate_deserialize_fields::<false>(&struct_fields).collect::<Vec<_>>();
         let result_str = result[0].to_string();
-        let expected = "let (count , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U32 > :: from_prefix (bytes) ?";
+        let expected = "let (count , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?";
         println!("{}", result_str);
         assert!(result_str.contains(expected));
     }
@@ -379,10 +379,10 @@ mod tests {
         assert!(result.contains("fn zero_copy_at (bytes : & 'a [u8]) -> Result"));
 
         // Check meta field extraction
-        assert!(result.contains("let (meta , bytes) = zerocopy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
+        assert!(result.contains("let (meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
 
         // Check field deserialization
-        assert!(result.contains("let (id , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U32 > :: from_prefix (bytes) ?"));
+        assert!(result.contains("let (id , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?"));
         assert!(result.contains("let (values , bytes) = light_zero_copy :: slice :: ZeroCopySliceBorsh :: < 'a , < u16 as light_zero_copy :: borsh :: ZeroCopyStructInner > :: ZeroCopyInner > :: from_bytes_at (bytes) ?"));
 
         // Check result structure
@@ -420,10 +420,10 @@ mod tests {
         assert!(result.contains("fn zero_copy_at (bytes : & 'a [u8]) -> Result"));
 
         // Check meta field extraction
-        assert!(!result.contains("let (meta , bytes) = zerocopy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
+        assert!(!result.contains("let (meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
 
         // Check field deserialization
-        assert!(result.contains("let (id , bytes) = zerocopy :: Ref :: < & 'a [u8] , zerocopy :: little_endian :: U32 > :: from_prefix (bytes) ?"));
+        assert!(result.contains("let (id , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?"));
         assert!(result.contains("let (values , bytes) = light_zero_copy :: slice :: ZeroCopySliceBorsh :: < 'a , < u16 as light_zero_copy :: borsh :: ZeroCopyStructInner > :: ZeroCopyInner > :: from_bytes_at (bytes) ?"));
 
         // Check result structure
@@ -515,7 +515,7 @@ mod tests {
 
             // Check for meta field extraction
             let meta_extraction_pattern = format!(
-                "let (meta , bytes) = zerocopy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
+                "let (meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
                 z_struct_meta_name
             );
             assert!(

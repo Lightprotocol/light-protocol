@@ -170,7 +170,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
             }
             FieldType::Array(field_name, field_type) => {
                 quote! {
-                    pub #field_name: zerocopy::Ref<#mutability , #field_type>
+                    pub #field_name: light_zero_copy::Ref<#mutability , #field_type>
                 }
             }
             FieldType::Option(field_name, field_type) => {
@@ -186,19 +186,19 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
             FieldType::IntegerU64(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u64));
                 quote! {
-                    pub #field_name: zerocopy::Ref<#mutability, #field_ty_zerocopy>
+                    pub #field_name: light_zero_copy::Ref<#mutability, #field_ty_zerocopy>
                 }
             }
             FieldType::IntegerU32(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u32));
                 quote! {
-                    pub #field_name: zerocopy::Ref<#mutability, #field_ty_zerocopy>
+                    pub #field_name: light_zero_copy::Ref<#mutability, #field_ty_zerocopy>
                 }
             }
             FieldType::IntegerU16(field_name) => {
                 let field_ty_zerocopy = utils::convert_to_zerocopy_type(&parse_quote!(u16));
                 quote! {
-                    pub #field_name: zerocopy::Ref<#mutability, #field_ty_zerocopy>
+                    pub #field_name: light_zero_copy::Ref<#mutability, #field_ty_zerocopy>
                 }
             }
             FieldType::IntegerU8(field_name) => {
@@ -219,7 +219,7 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
             FieldType::Copy(field_name, field_type) => {
                 let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
                 quote! {
-                    pub #field_name: zerocopy::Ref<#mutability , #zerocopy_type>
+                    pub #field_name: light_zero_copy::Ref<#mutability , #zerocopy_type>
                 }
             }
             FieldType::NonCopy(field_name, field_type) => {
@@ -290,14 +290,14 @@ pub fn generate_z_struct<const MUT: bool>(
             // ZStruct
             #[derive(Debug, PartialEq, #derive_clone)]
             pub struct #z_struct_name<'a> {
-                meta: zerocopy::Ref<#mutability  , #z_struct_meta_name>,
+                __meta: light_zero_copy::Ref<#mutability  , #z_struct_meta_name>,
                 #(#struct_fields_with_zerocopy_types,)*
             }
             impl<'a> core::ops::Deref for #z_struct_name<'a> {
-                type Target =  zerocopy::Ref<#mutability  , #z_struct_meta_name>;
+                type Target =  light_zero_copy::Ref<#mutability  , #z_struct_meta_name>;
 
                 fn deref(&self) -> &Self::Target {
-                    &self.meta
+                    &self.__meta
                 }
             }
 
@@ -307,7 +307,7 @@ pub fn generate_z_struct<const MUT: bool>(
             tokens.append_all(quote! {
                 impl<'a> core::ops::DerefMut for #z_struct_name<'a> {
                     fn deref_mut(&mut self) ->  &mut Self::Target {
-                        &mut self.meta
+                        &mut self.__meta
                     }
                 }
             });
@@ -494,10 +494,10 @@ mod tests {
                     i
                 );
 
-                // Check for zerocopy::Ref reference
+                // Check for light_zero_copy::Ref reference
                 assert!(
-                    result_str.contains("zerocopy :: Ref"),
-                    "Generated code missing zerocopy::Ref for iteration {}",
+                    result_str.contains("light_zero_copy :: Ref"),
+                    "Generated code missing light_zero_copy::Ref for iteration {}",
                     i
                 );
             }

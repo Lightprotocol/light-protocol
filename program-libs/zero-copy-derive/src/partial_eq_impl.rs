@@ -199,7 +199,7 @@ pub fn generate_partial_eq_impl(
         quote! {
             impl<'a> PartialEq<#name> for #z_struct_name<'a> {
                 fn eq(&self, other: &#name) -> bool {
-                    let meta: &#z_struct_meta_name = &self.meta;
+                    let meta: &#z_struct_meta_name = &self.__meta;
                     #(#meta_field_comparisons)*
                     #(#struct_field_comparisons)*
                     true
