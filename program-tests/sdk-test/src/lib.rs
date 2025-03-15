@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::{compressed_account::PackedMerkleContext, pubkey::Pubkey};
+use light_compressed_account::{instruction_data::data::NewAddressParamsPacked, pubkey::Pubkey};
 use light_hasher::{DataHasher, Discriminator, Poseidon};
 use light_macros::pubkey;
 use light_sdk::{
-    account_info::LightAccountInfo,
-    account_meta::InputAccountMetaWithAddress,
+    account_info::{LightAccountInfo, LightInputAccountInfo},
+    account_meta::InputAccountMetaWithAddressNoLamports,
     address::derive_address,
     error::LightSdkError,
     instruction_data::LightInstructionData,
@@ -94,10 +94,17 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
     let light_cpi_accounts =
         LightCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
     solana_program::msg!("my_compressed_account {:?}", my_compressed_account);
+    let address_context = &inputs.new_addresses.unwrap()[0];
     verify_light_account_infos(
         &light_cpi_accounts,
         inputs.proof,
         &[account_info],
+        Some(vec![NewAddressParamsPacked {
+            seed: address_seed,
+            address_queue_account_index: address_context.address_queue_pubkey_index,
+            address_merkle_tree_account_index: address_context.address_merkle_tree_pubkey_index,
+            address_merkle_tree_root_index: address_context.root_index,
+        }]),
         None,
         false,
         None,
@@ -111,21 +118,13 @@ pub fn update_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         signer: (*accounts[0].key).into(),
         data: instruction_data.input_compressed_account.data,
     };
-    let input_compressed_account_info = light_sdk::account_info::LightInputAccountInfo {
-        lamports: None,
-        address: instruction_data
-            .input_compressed_account
-            .meta
-            .address
-            .map(|x| *x),
-        data_hash: Some(my_compressed_account.hash::<Poseidon>().unwrap()),
-        merkle_context: instruction_data
-            .input_compressed_account
-            .meta
-            .merkle_context
-            .into(),
-        root_index: (*instruction_data.input_compressed_account.meta.root_index).into(),
-    };
+    // Should do sth about type conversions, could use const generics to signal a mode.
+    let input_compressed_account_info =
+        LightInputAccountInfo::from_input_account_meta_with_address_no_lamports(
+            &instruction_data.input_compressed_account.meta,
+            my_compressed_account.hash::<Poseidon>().unwrap(),
+        )
+        .unwrap();
 
     let mut account_info = LightAccountInfo::from_meta_mut(
         input_compressed_account_info,
@@ -153,6 +152,7 @@ pub fn update_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         &light_cpi_accounts,
         inputs.proof,
         &[account_info],
+        None,
         None,
         false,
         None,
@@ -185,5 +185,5 @@ pub struct UpdateInstructionData {
 #[derive(Debug, ZeroCopy)]
 pub struct InputMyCompressedAccountWithContext {
     pub data: [u8; 31],
-    pub meta: InputAccountMetaWithAddress,
+    pub meta: InputAccountMetaWithAddressNoLamports,
 }

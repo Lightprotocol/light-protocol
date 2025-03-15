@@ -59,6 +59,7 @@ pub fn verify_light_account_infos(
     light_cpi_accounts: &LightCpiAccounts,
     proof: Option<CompressedProof>,
     light_account_infos: &[LightAccountInfo],
+    new_address_params: Option<Vec<NewAddressParamsPacked>>,
     compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
     cpi_context: Option<CompressedCpiContext>,
@@ -71,16 +72,11 @@ pub fn verify_light_account_infos(
     .1;
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
-    let new_address_params = Vec::with_capacity(0);
     let mut input_compressed_accounts_with_merkle_context =
         Vec::with_capacity(light_account_infos.len());
     let mut output_compressed_accounts = Vec::with_capacity(light_account_infos.len());
 
     for light_account_info in light_account_infos.iter() {
-        // TODO: enable addresses
-        // if let Some(new_address_param) = light_account.new_address_params() {
-        //     new_address_params.push(new_address_param);
-        // }
         if let Some(input_account) = light_account_info.input_compressed_account()? {
             input_compressed_accounts_with_merkle_context.push(input_account);
         }
@@ -89,10 +85,10 @@ pub fn verify_light_account_infos(
         }
     }
 
-    // TODO: make zero copy
+    // TODO: make e2e zero copy version
     let instruction = InstructionDataInvokeCpi {
         proof,
-        new_address_params,
+        new_address_params: new_address_params.unwrap_or_default(),
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts,

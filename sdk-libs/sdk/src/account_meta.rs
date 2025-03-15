@@ -3,7 +3,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::compressed_account::{
     CompressedAccountWithMerkleContext, PackedMerkleContext,
 };
-use light_zero_copy::{ZeroCopy, ZeroCopyEq};
+use light_zero_copy::ZeroCopy;
 use solana_program::pubkey::Pubkey;
 
 use crate::merkle_context::{
@@ -14,26 +14,36 @@ use crate::merkle_context::{
 #[derive(Debug, ZeroCopy)]
 pub struct InputAccountMeta {
     pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
-    pub lamports: Option<u64>,
+    pub lamports: u64,
+    pub root_index: Option<u16>,
 }
 
-#[derive(Debug, ZeroCopyEq, ZeroCopy)]
+#[derive(Debug, ZeroCopy)]
 pub struct InputAccountMetaNoLamports {
     pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
+    pub root_index: Option<u16>,
+}
+
+#[derive(Debug, ZeroCopy)]
+pub struct InputAccountMetaWithAddressNoLamports {
+    /// Merkle tree context.
+    pub merkle_context: PackedMerkleContext,
+    /// Address.
+    pub address: [u8; 32],
+    /// Root index.
+    pub root_index: Option<u16>,
 }
 
 #[derive(Debug, ZeroCopy)]
 pub struct InputAccountMetaWithAddress {
-    /// Lamports.
-    pub lamports: Option<u64>,
-    /// Address.
-    pub address: Option<[u8; 32]>,
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
+    /// Lamports.
+    pub lamports: u64,
+    /// Address.
+    pub address: [u8; 32],
     /// Root index.
-    pub root_index: u16,
+    pub root_index: Option<u16>,
 }
 
 /// Client compressed account meta.
@@ -71,8 +81,13 @@ impl LightAccountMeta {
         remaining_accounts: &mut RemainingAccounts,
     ) -> crate::error::Result<Self> {
         let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
-        let address_merkle_context =
-            address_merkle_context.map(|ctx| pack_address_merkle_context(ctx, remaining_accounts));
+        let address_merkle_context = address_merkle_context.map(|ctx| {
+            pack_address_merkle_context(
+                ctx,
+                address_merkle_tree_root_index.unwrap(),
+                remaining_accounts,
+            )
+        });
         Ok(Self {
             lamports: None,
             address: None,

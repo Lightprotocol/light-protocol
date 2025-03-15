@@ -8,7 +8,10 @@ use light_compressed_account::{
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    account_meta::LightAccountMeta,
+    account_meta::{
+        LightAccountMeta, ZInputAccountMeta, ZInputAccountMetaNoLamports,
+        ZInputAccountMetaWithAddress, ZInputAccountMetaWithAddressNoLamports,
+    },
     error::{LightSdkError, Result},
 };
 
@@ -22,11 +25,62 @@ pub struct LightInputAccountInfo {
     /// Address.
     pub address: Option<[u8; 32]>,
     /// Data hash
-    pub data_hash: Option<[u8; 32]>,
+    pub data_hash: [u8; 32],
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
     /// Root index.
-    pub root_index: u16,
+    pub root_index: Option<u16>,
+}
+
+impl LightInputAccountInfo {
+    pub fn from_input_account_meta(meta: &ZInputAccountMeta, data_hash: [u8; 32]) -> Result<Self> {
+        Ok(Self {
+            lamports: Some((*meta.lamports).into()),
+            address: None,
+            data_hash,
+            merkle_context: (&meta.merkle_context).into(),
+            root_index: meta.root_index.map(|x| (*x).into()),
+        })
+    }
+
+    pub fn from_input_account_meta_no_lamports(
+        meta: &ZInputAccountMetaNoLamports,
+        data_hash: [u8; 32],
+    ) -> Result<Self> {
+        Ok(Self {
+            lamports: None,
+            address: None,
+            data_hash,
+            merkle_context: (&meta.merkle_context).into(),
+            root_index: meta.root_index.map(|x| (*x).into()),
+        })
+    }
+
+    pub fn from_input_account_meta_with_address(
+        meta: &ZInputAccountMetaWithAddress,
+        data_hash: [u8; 32],
+    ) -> Result<Self> {
+        Ok(Self {
+            lamports: Some((*meta.lamports).into()),
+            address: Some(*meta.address),
+            data_hash,
+            root_index: meta.root_index.map(|x| (*x).into()),
+            merkle_context: (&meta.merkle_context).into(),
+        })
+    }
+
+    pub fn from_input_account_meta_with_address_no_lamports(
+        meta: &ZInputAccountMetaWithAddressNoLamports,
+        data_hash: [u8; 32],
+    ) -> Result<Self> {
+        Ok(Self {
+            lamports: None,
+            address: Some(*meta.address),
+            data_hash,
+            root_index: meta.root_index.map(|x| (*x).into()),
+            merkle_context: (&meta.merkle_context).into(),
+        })
+    }
 }
 
 // TODO: consider to create LightOutputAccountInfo and wrap it in LightAccountInfo
@@ -120,19 +174,16 @@ impl<'a> LightAccountInfo<'a> {
         meta: &'a LightAccountMeta,
         discriminator: [u8; 8],
         owner: &'a Pubkey,
+        data_hash: [u8; 32],
     ) -> Result<Self> {
         let input = LightInputAccountInfo {
             lamports: meta.lamports,
             address: meta.address,
             // data: meta.data.as_deref(),
             // Needs to be assigned by the program.
-            data_hash: None,
-            merkle_context: meta
-                .merkle_context
-                .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
-                .merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedRootIndex)?,
+            data_hash,
+            merkle_context: meta.merkle_context.unwrap(),
+            root_index: meta.merkle_tree_root_index,
         };
 
         let account_info = LightAccountInfo {
@@ -173,11 +224,10 @@ impl<'a> LightAccountInfo<'a> {
                     let discriminator = self
                         .discriminator
                         .ok_or(LightSdkError::ExpectedDiscriminator)?;
-                    let data_hash = input.data_hash.ok_or(LightSdkError::ExpectedHash)?;
                     Some(CompressedAccountData {
                         discriminator,
                         data: Vec::new(),
-                        data_hash,
+                        data_hash: input.data_hash,
                     })
                 };
                 Ok(Some(PackedCompressedAccountWithMerkleContext {
@@ -188,7 +238,7 @@ impl<'a> LightAccountInfo<'a> {
                         data,
                     },
                     merkle_context: input.merkle_context,
-                    root_index: input.root_index,
+                    root_index: input.root_index.unwrap_or_default(),
                     read_only: false,
                 }))
             }
