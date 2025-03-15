@@ -3,6 +3,7 @@ use quote::{format_ident, quote};
 use syn::{parse_macro_input, DeriveInput};
 
 mod deserialize_impl;
+mod from_impl;
 mod meta_struct;
 mod partial_eq_impl;
 mod utils;
@@ -40,6 +41,7 @@ mod zero_copy_struct_inner;
 ///     1.7. A type that does not implement Copy must implement Deserialize, and is deserialized 1 by 1
 ///     1.8. is u8 deserialized as u8::zero_copy_at instead of Ref<&'a [u8], u8> for non  mut, for mut it is Ref<&'a mut [u8], u8>
 /// 2. Implement Deserialize and DeserializeMut which return Z<StructName> and Z<StructName>Mut
+/// 3. Implement From<Z<StructName>> for StructName and From<Z<StructName>Mut> for StructName
 ///
 /// TODOs:
 /// 1. test and fix boolean support for mut derivation (is just represented as u8)
@@ -47,7 +49,6 @@ mod zero_copy_struct_inner;
 /// 3. rename deserialize traits to ZeroCopy and ZeroCopyMut
 /// 4. check generated code by hand
 /// 5. fix partial eq generation for options
-/// 6. derive From<Z<structName> for structName> and From<Z<structName>Mut for structName>
 #[proc_macro_derive(ZeroCopy)]
 pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
     // Parse the input DeriveInput
@@ -119,6 +120,7 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
         #deserialize_impl
 
         #deserialize_impl_mut
+
     };
 
     // For testing, we could add assertions here to verify the output
@@ -154,6 +156,11 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
         &meta_fields,
         &struct_fields,
     );
+    // Generate From implementations
+    let from_impl =
+        from_impl::generate_from_impl::<false>(name, &z_struct_name, &meta_fields, &struct_fields);
+    // let from_impl_mut =
+    //     from_impl::generate_from_impl::<true>(name, &z_struct_name, &meta_fields, &struct_fields);
 
     let z_struct_name = format_ident!("{}Mut", z_struct_name);
     let z_struct_meta_name = format_ident!("{}Mut", z_struct_meta_name);
@@ -164,16 +171,22 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
         &meta_fields,
         &struct_fields,
     );
+
     TokenStream::from(quote! {
         #partial_eq_impl
         #mut_partial_eq_impl
+
+
+        #from_impl
+
+        // #from_impl_mut
     })
 }
 
 #[cfg(test)]
 mod tests {
     use quote::{format_ident, quote};
-    use syn::{parse_quote, Field};
+    use syn::{parse_quote, DeriveInput, Field};
 
     use super::*;
     use crate::utils::process_input;
@@ -185,6 +198,64 @@ mod tests {
         expected_meta_fields: usize,
         expected_struct_fields: usize,
         assertions: Vec<(&'static str, bool)>, // pattern, should_contain
+    }
+
+    // Basic test for the From implementation
+    #[test]
+    fn test_from_implementation() {
+        // Create a simple struct for testing
+        let input: DeriveInput = parse_quote! {
+            #[repr(C)]
+            #[derive(Debug, PartialEq)]
+            pub struct SimpleStruct {
+                pub a: u8,
+                pub b: u16,
+                pub vec: Vec<u8>,
+                pub c: u64,
+            }
+        };
+
+        // Process the input to extract struct information
+        let (name, z_struct_name, _z_struct_meta_name, fields) = utils::process_input(&input);
+
+        // Process the fields to separate meta fields and struct fields
+        let (meta_fields, struct_fields) = utils::process_fields(fields);
+
+        // Generate the From implementation
+        let from_impl = from_impl::generate_from_impl::<false>(
+            name,
+            &z_struct_name,
+            &meta_fields,
+            &struct_fields,
+        );
+
+        // Generate the mut From implementation
+        let from_impl_mut = from_impl::generate_from_impl::<true>(
+            name,
+            &z_struct_name,
+            &meta_fields,
+            &struct_fields,
+        );
+
+        // Convert to string for validation
+        let from_impl_str = from_impl.to_string();
+        let from_impl_mut_str = from_impl_mut.to_string();
+
+        // Check that the implementations are generated correctly
+        assert!(from_impl_str.contains("impl < 'a > From < ZSimpleStruct < 'a >> for SimpleStruct"));
+        assert!(from_impl_mut_str
+            .contains("impl < 'a > From < ZSimpleStructMut < 'a >> for SimpleStruct"));
+
+        // Check field handling for both implementations
+        assert!(from_impl_str.contains("a :"));
+        assert!(from_impl_str.contains("b :"));
+        assert!(from_impl_str.contains("vec :"));
+        assert!(from_impl_str.contains("c :"));
+
+        assert!(from_impl_mut_str.contains("a :"));
+        assert!(from_impl_mut_str.contains("b :"));
+        assert!(from_impl_mut_str.contains("vec :"));
+        assert!(from_impl_mut_str.contains("c :"));
     }
 
     #[test]

@@ -379,14 +379,14 @@ mod tests {
         assert!(result.contains("fn zero_copy_at (bytes : & 'a [u8]) -> Result"));
 
         // Check meta field extraction
-        assert!(result.contains("let (meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
+        assert!(result.contains("let (__meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , ZTestStructMeta > :: from_prefix (bytes) ?"));
 
         // Check field deserialization
         assert!(result.contains("let (id , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , light_zero_copy :: little_endian :: U32 > :: from_prefix (bytes) ?"));
         assert!(result.contains("let (values , bytes) = light_zero_copy :: slice :: ZeroCopySliceBorsh :: < 'a , < u16 as light_zero_copy :: borsh :: ZeroCopyStructInner > :: ZeroCopyInner > :: from_bytes_at (bytes) ?"));
 
         // Check result structure
-        assert!(result.contains("Ok ((ZTestStruct { meta , id , values ,"));
+        assert!(result.contains("Ok ((ZTestStruct { __meta , id , values ,"));
     }
 
     // Test for complete deserialize implementation generation
@@ -515,7 +515,7 @@ mod tests {
 
             // Check for meta field extraction
             let meta_extraction_pattern = format!(
-                "let (meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
+                "let (__meta , bytes) = light_zero_copy :: Ref :: < & 'a [u8] , {} > :: from_prefix (bytes) ?",
                 z_struct_meta_name
             );
             assert!(
@@ -541,7 +541,7 @@ mod tests {
 
             // Check for meta field in the returned struct
             assert!(
-                result_str.contains("meta ,"),
+                result_str.contains("__meta ,"),
                 "Generated code missing meta field in struct initialization for iteration {}",
                 i
             );

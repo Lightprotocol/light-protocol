@@ -219,6 +219,28 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
+impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
+    fn from(value: ZCompressedAccount<'a>) -> Self {
+        Self {
+            owner: value.__meta.owner,
+            lamports: u64::from(value.__meta.lamports),
+            address: value.address.map(|x| *x),
+            data: value.data.map(|x| x.into()),
+        }
+    }
+}
+
+impl<'a> From<&ZCompressedAccount<'a>> for CompressedAccount {
+    fn from(value: &ZCompressedAccount<'a>) -> Self {
+        Self {
+            owner: value.__meta.owner,
+            lamports: u64::from(value.__meta.lamports),
+            address: value.address.as_ref().map(|x| **x),
+            data: value.data.as_ref().map(|x| x.into()),
+        }
+    }
+}
+
 impl PartialEq<CompressedAccount> for ZCompressedAccount<'_> {
     fn eq(&self, other: &CompressedAccount) -> bool {
         if self.address.is_some()
@@ -307,7 +329,7 @@ fn readme() {
     use light_zero_copy_derive::ZeroCopy;
 
     #[repr(C)]
-    #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
+    #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq)]
     pub struct MyStruct {
         pub a: u8,
         pub b: u16,
@@ -323,10 +345,10 @@ fn readme() {
     // Use the struct with zero-copy deserialization
     let mut bytes = my_struct.try_to_vec().unwrap();
     let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
-    let org_struct: MyStruct = zero_copy.into();
     assert_eq!(zero_copy.a, 1);
-    let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
     let org_struct: MyStruct = zero_copy.into();
+    assert_eq!(org_struct, my_struct);
+    let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
     zero_copy_mut.a = 42;
     let borsh = MyStruct::try_from_slice(&bytes).unwrap();
     assert_eq!(borsh.a, 42u8);

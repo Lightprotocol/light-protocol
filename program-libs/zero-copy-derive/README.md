@@ -10,6 +10,7 @@ This crate provides two key derive macros:
    - The `zero_copy_at` and `zero_copy_at_mut` methods for deserialization
    - Full Borsh compatibility for serialization/deserialization
    - Efficient memory representation with no copying of data
+   - `From<Z<StructName>>` and `From<Z<StructName>Mut>` implementations for easy conversion back to the original struct
 
 2. `#[derive(ZeroCopyEq)]` - Adds equality comparison support:
    - Compare zero-copy instances with regular struct instances
@@ -36,6 +37,7 @@ The macro follows these rules when generating code:
 ```rust
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy_derive::ZeroCopy;
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut};
 
 #[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
@@ -53,10 +55,23 @@ let my_struct = MyStruct {
 };
 // Use the struct with zero-copy deserialization
 let mut bytes = my_struct.try_to_vec().unwrap();
+
+// Immutable zero-copy deserialization
 let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
-assert_eq!(zero_copy.a, 1);
+
+// Convert back to original struct using From implementation
+let converted: MyStruct = zero_copy.clone().into();
+assert_eq!(converted, my_struct);
+
+// Mutable zero-copy deserialization with modification
 let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
 zero_copy_mut.a = 42;
+
+// The change is reflected when we convert back to the original struct
+let modified: MyStruct = zero_copy_mut.into();
+assert_eq!(modified.a, 42);
+
+// And also when we deserialize directly from the modified bytes
 let borsh = MyStruct::try_from_slice(&bytes).unwrap();
 assert_eq!(borsh.a, 42u8);
 ```
