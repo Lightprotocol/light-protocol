@@ -49,6 +49,7 @@ jobs:
               light-verifier
               light-merkle-tree-metadata
               light-zero-copy
+              light-zero-copy-derive
               light-hash-set
               light-indexed-merkle-tree
               light-batched-merkle-tree

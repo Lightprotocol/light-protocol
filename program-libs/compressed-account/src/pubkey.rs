@@ -1,7 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_hasher::bytes::AsByteVec;
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError};
 use solana_program::pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 #[cfg(feature = "bytemuck-des")]
@@ -63,6 +64,22 @@ impl<'a> Deserialize<'a> for Pubkey {
     }
 }
 
+impl<'a> DeserializeMut<'a> for Pubkey {
+    type Output = Ref<&'a mut [u8], Pubkey>;
+
+    #[inline]
+    fn zero_copy_at_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
+    }
+}
+impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
+    fn eq(&self, other: &<Pubkey as Deserialize>::Output) -> bool {
+        self.0 == other.0
+    }
+}
+
 #[cfg(not(feature = "anchor"))]
 impl From<pubkey::Pubkey> for Pubkey {
     fn from(pubkey: pubkey::Pubkey) -> Self {
@@ -120,5 +137,11 @@ impl Pubkey {
 
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
+    }
+}
+
+impl AsByteVec for Pubkey {
+    fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+        vec![self.to_bytes().to_vec()]
     }
 }

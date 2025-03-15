@@ -5,6 +5,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -106,7 +107,9 @@ pub struct MerkleContext {
     pub prove_by_index: bool,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(
+    Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,

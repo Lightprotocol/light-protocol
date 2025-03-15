@@ -9,7 +9,7 @@ use std::vec::Vec;
 
 use zerocopy::{little_endian::U32, Ref};
 
-use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
+use crate::{add_padding, borsh_mut::DeserializeMut, errors::ZeroCopyError, ZeroCopyTraits};
 
 pub type ZeroCopySliceMutU64<'a, T> = ZeroCopySliceMut<'a, u64, T>;
 pub type ZeroCopySliceMutU32<'a, T> = ZeroCopySliceMut<'a, u32, T>;
@@ -273,5 +273,15 @@ where
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.as_slice())
+    }
+}
+
+impl<'a, T: ZeroCopyTraits + DeserializeMut<'a>> DeserializeMut<'a>
+    for ZeroCopySliceMutBorsh<'a, T>
+{
+    type Output = Self;
+
+    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+        ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
 }
