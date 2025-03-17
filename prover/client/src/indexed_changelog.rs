@@ -25,7 +25,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
         .enumerate()
         .filter_map(|(index, changelog_entry)| {
             if changelog_entry.element.index == low_element.index {
-                Some(indexed_changelog_index + index) // ) % indexed_changelogs.len()
+                Some(indexed_changelog_index + index)
             } else {
                 None
             }

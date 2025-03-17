@@ -24,7 +24,7 @@ pub struct AccountContext {
         rename = "nullifierQueueIndex",
         skip_serializing_if = "Option::is_none"
     )]
-    pub nullifier_queue_index: Option<i32>,
+    pub nullifier_queue_index: Option<u16>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "queue")]
     pub queue: String,

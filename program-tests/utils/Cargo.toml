@@ -28,6 +28,7 @@ light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
+light-indexed-array = { workspace = true }
 light-compressed-account = { workspace = true }
 light-program-test = { workspace = true }
 forester-utils = { workspace = true }

@@ -13,14 +13,14 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CompressionInfoV2 {
     #[serde(rename = "closedAccounts")]
-    pub closed_accounts: Vec<models::ClosedAccountWithOptionalTokenData>,
+    pub closed_accounts: Vec<models::ClosedAccountWithOptionalTokenDataV2>,
     #[serde(rename = "openedAccounts")]
     pub opened_accounts: Vec<models::AccountWithOptionalTokenDataV2>,
 }
 
 impl CompressionInfoV2 {
     pub fn new(
-        closed_accounts: Vec<models::ClosedAccountWithOptionalTokenData>,
+        closed_accounts: Vec<models::ClosedAccountWithOptionalTokenDataV2>,
         opened_accounts: Vec<models::AccountWithOptionalTokenDataV2>,
     ) -> CompressionInfoV2 {
         CompressionInfoV2 {

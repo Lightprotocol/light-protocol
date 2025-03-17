@@ -2,8 +2,10 @@ use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
 use light_compressed_account::hash_chain::create_hash_chain_from_slice;
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
-use light_merkle_tree_reference::MerkleTree;
+use light_indexed_array::changelog::IndexedChangelogEntry;
+use light_merkle_tree_reference::{sparse_merkle_tree::SparseMerkleTree, MerkleTree};
 use light_prover_client::{
     batch_address_append::{
         get_batch_address_append_circuit_inputs, get_test_batch_address_append_inputs,
@@ -329,7 +331,7 @@ pub fn print_circuit_test_data_json_formatted() {
     let start_index = 2;
     let tree_height = 4;
 
-    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height);
+    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height, None);
 
     let json_output = to_json(&inputs);
     println!("{}", json_output);
@@ -392,8 +394,23 @@ async fn prove_batch_address_append() {
         .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
         .collect::<Vec<_>>();
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
-    let batch_start_index = start_index;
-    // Generate circuit inputs
+
+    let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = relayer_merkle_tree
+        .merkle_tree
+        .get_subtrees()
+        .try_into()
+        .unwrap();
+    let mut sparse_merkle_tree = SparseMerkleTree::<
+        Poseidon,
+        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+    >::new(subtrees, start_index);
+
+    let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> =
+        Vec::new();
+    let mut indexed_changelog: Vec<
+        IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>,
+    > = Vec::new();
+
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
@@ -404,14 +421,11 @@ async fn prove_batch_address_append() {
             low_element_next_indices,
             low_element_proofs,
             new_element_values,
-            relayer_merkle_tree
-                .merkle_tree
-                .get_subtrees()
-                .try_into()
-                .unwrap(),
+            &mut sparse_merkle_tree,
             hash_chain,
-            batch_start_index,
             zkp_batch_size,
+            &mut changelog,
+            &mut indexed_changelog,
         )
         .unwrap();
     // Convert inputs to JSON format

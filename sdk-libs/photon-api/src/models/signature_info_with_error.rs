@@ -16,7 +16,7 @@ pub struct SignatureInfoWithError {
     #[serde(rename = "blockTime")]
     pub block_time: u64,
     #[serde(rename = "error", default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<Option<String>>,
+    pub error: Option<String>,
     /// A Solana transaction signature.
     #[serde(rename = "signature")]
     pub signature: String,
