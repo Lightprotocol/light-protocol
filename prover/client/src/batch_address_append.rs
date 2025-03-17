@@ -36,7 +36,6 @@ pub struct BatchAddressAppendInputs {
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
-    // Onchain account merkle tree next index.
     next_index: usize,
     current_root: [u8; 32],
     low_element_values: Vec<[u8; 32]>,
@@ -51,6 +50,21 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     batch_start_index: usize,
     zkp_batch_size: usize,
 ) -> Result<BatchAddressAppendInputs, ProverClientError> {
+    println!("=== get_batch_address_append_circuit_inputs ===");
+    println!("Inputs: ");
+    println!("next_index: {:?}", next_index);
+    println!("current_root: {:?}", current_root);
+    println!("low_element_values: {:?}", low_element_values);
+    println!("low_element_next_values: {:?}", low_element_next_values);
+    println!("low_element_indices: {:?}", low_element_indices);
+    println!("low_element_next_indices: {:?}", low_element_next_indices);
+    println!("low_element_proofs: {:?}", low_element_proofs);
+    println!("new_element_values: {:?}", new_element_values);
+    println!("subtrees: {:?}", subtrees);
+    println!("leaves_hashchain: {:?}", leaves_hashchain);
+    println!("batch_start_index: {:?}", batch_start_index);
+    println!("zkp_batch_size: {:?}", zkp_batch_size);
+
     // 1. input all elements of a batch.
     // 2. iterate over elements 0..end_index
     // 3. only use elements start_index..end_index in the circuit (we need to
@@ -163,10 +177,14 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             let mut bounded_vec_merkle_proof = BoundedVec::from_slice(proof.as_slice());
             let current_index = batch_start_index + i;
 
+            println!("changelog.len(): {:?}", changelog.len());
             for change_log_entry in changelog.iter() {
-                change_log_entry
-                    .update_proof(current_index, &mut bounded_vec_merkle_proof)
-                    .unwrap();
+                println!("current_index: {:?}", current_index);
+                println!("change_log_entry.index(): {:?}", change_log_entry.index());
+
+                let proof_update_result = change_log_entry
+                    .update_proof(current_index, &mut bounded_vec_merkle_proof);
+                println!("proof_update_result: {:?}", proof_update_result);
             }
 
             let reference_root =
