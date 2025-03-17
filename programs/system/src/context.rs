@@ -120,8 +120,8 @@ impl<'info> SystemContext<'info> {
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
-            msg!("paying fee: {:?}", fee);
-            msg!("to account: {:?}", accounts[*i as usize].key());
+            // msg!("paying fee: {:?}", fee);
+            // msg!("to account: {:?}", accounts[*i as usize].key());
             transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())

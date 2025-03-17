@@ -122,6 +122,7 @@ export async function decompress(
         simulation.value.err?.valueOf(),
     );
     console.log('simulation.value.logs', simulation.value.logs);
-    // const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
-    return bs58.encode(signedTx.signatures[0]);
+    // return bs58.encode(signedTx.signatures[0]);
+    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
+    return txId;
 }
