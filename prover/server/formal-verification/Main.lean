@@ -5,11 +5,22 @@ import FormalVerification.Merkle
 
 open LightProver (F)
 
+open LightProver renaming InclusionCircuit_10_10_10_32_10_10_32 → InclusionCircuit,
+                          NonInclusionCircuit_10_10_10_10_10_40_10_10_40 → NonInclusionCircuit,
+                          CombinedCircuit_10_10_10_32_10_10_10_10_10_10_40_10 → CombinedCircuit,
+                          BatchAppendWithProofsCircuit_10_10_32_10_32_10 → BatchAppendWithProofsCircuit,
+                          BatchUpdateCircuit_10_10_10_32_10_10_32_10 → BatchUpdateCircuit,
+                          BatchAddressTreeAppendCircuit_10_10_10_40_10_10_40_10_10_40 → BatchAddressTreeAppendCircuit
+
+abbrev SD := 32
+abbrev AD := 40
+abbrev B := 10
+
 theorem poseidon₂_testVector :
-  poseidon₂ vec![1, 2] = 7853200120776062878684798364095072458815029376092732009249414926327459813530 := rfl
+  poseidon₂ vec![1, 2] = 7853200120776062878684798364095072458815029376092732009249414926327459813530 := by native_decide
 
 theorem poseidon₃_testVector :
-  poseidon₃ vec![1, 2, 3] = 6542985608222806190361240322586112750744169038454362455181422643027100751666 := rfl
+  poseidon₃ vec![1, 2, 3] = 6542985608222806190361240322586112750744169038454362455181422643027100751666 := by native_decide
 
 axiom poseidon₂_collisionResistant : CollisionResistant poseidon₂
 instance : Fact (CollisionResistant poseidon₂) := ⟨poseidon₂_collisionResistant⟩
@@ -23,23 +34,23 @@ instance : Fact poseidon₂_no_zero_preimage := ⟨poseidon₂_nez⟩
 namespace InclusionCircuit
 
 theorem sound_and_complete
-  {trees : List.Vector (MerkleTree F poseidon₂ 26) 8}
-  {leaves : List.Vector F 8}:
-    (∃ih p₁ p₂, LightProver.InclusionCircuit_8_8_8_26_8_8_26 ih (trees.map (·.root)) leaves p₁ p₂)
-    ↔ ∀i (_: i∈[0:8]), leaves[i] ∈ trees[i]
+  {trees : List.Vector (MerkleTree F poseidon₂ SD) B}
+  {leaves : List.Vector F B}:
+    (∃ih p₁ p₂, InclusionCircuit ih (trees.map (·.root)) leaves p₁ p₂)
+    ↔ ∀i (_: i∈[0:B]), leaves[i] ∈ trees[i]
   := by simp [InclusionCircuit_correct]
 
 theorem inputHash_deterministic:
-    LightProver.InclusionCircuit_8_8_8_26_8_8_26 h₁ trees leaves i₁ p₁ ∧
-    LightProver.InclusionCircuit_8_8_8_26_8_8_26 h₂ trees leaves i₂ p₂ →
+    InclusionCircuit h₁ trees leaves i₁ p₁ ∧
+    InclusionCircuit h₂ trees leaves i₂ p₂ →
     h₁ = h₂ := by
   simp only [InclusionCircuit_rw]
   intros
   simp_all
 
 theorem inputHash_injective:
-    LightProver.InclusionCircuit_8_8_8_26_8_8_26 h trees₁ leaves₁ i₁ p₁ →
-    LightProver.InclusionCircuit_8_8_8_26_8_8_26 h trees₂ leaves₂ i₂ p₂ →
+    InclusionCircuit h trees₁ leaves₁ i₁ p₁ →
+    InclusionCircuit h trees₂ leaves₂ i₂ p₂ →
     trees₁ = trees₂ ∧ leaves₁ = leaves₂ := by
   simp only [InclusionCircuit_rw]
   rintro ⟨h₁, _⟩ ⟨h₂, _⟩
@@ -51,27 +62,27 @@ end InclusionCircuit
 namespace NonInclusionCircuit
 
 theorem sound_and_complete
-  {trees : List.Vector (RangeVector (2^26)) 8}
-  {leaves : List.Vector F 8}:
+  {trees : List.Vector (RangeVector (2^AD)) B}
+  {leaves : List.Vector F B}:
     (∃ih p₁ p₂ p₃ p₄,
-      LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26 ih (trees.map (·.root)) leaves p₁ p₂ p₃ p₄)
-    ↔ ∀i (_: i∈[0:8]), leaves[i].val ∈ trees[i]
+      NonInclusionCircuit ih (trees.map (·.root)) leaves p₁ p₂ p₃ p₄)
+    ↔ ∀i (_: i∈[0:B]), leaves[i].val ∈ trees[i]
   := by
     conv => lhs; arg 1; intro ih; rw [NonInclusionCircuit_correct]
     simp
 
 theorem inputHash_deterministic:
-    LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26 h₁ trees leaves lo₁ hi₁ i₁ p₁ →
-    LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26 h₂ trees leaves lo₂ hi₂ i₂ p₂ →
+    NonInclusionCircuit h₁ trees leaves lo₁ hi₁ i₁ p₁ →
+    NonInclusionCircuit h₂ trees leaves lo₂ hi₂ i₂ p₂ →
     h₁ = h₂ := by
-  unfold LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26
+  unfold NonInclusionCircuit
   simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8]
 
 theorem inputHash_injective:
-    LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26 h trees₁ leaves₁ lo₁ hi₁ i₁ p₁ →
-    LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26 h trees₂ leaves₂ lo₂ hi₂ i₂ p₂ →
+    NonInclusionCircuit h trees₁ leaves₁ lo₁ hi₁ i₁ p₁ →
+    NonInclusionCircuit h trees₂ leaves₂ lo₂ hi₂ i₂ p₂ →
     trees₁ = trees₂ ∧ leaves₁ = leaves₂ := by
-  unfold LightProver.NonInclusionCircuit_8_8_8_8_8_26_8_8_26
+  unfold NonInclusionCircuit
   simp only [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8]
   rintro ⟨h₁, _⟩ ⟨h₂, _⟩
   cases h₁
@@ -82,32 +93,32 @@ end NonInclusionCircuit
 namespace CombinedCircuit
 
 theorem sound_and_complete
-  {inclusionTrees : List.Vector (MerkleTree F poseidon₂ 26) 8}
-  {nonInclusionTrees : List.Vector (RangeVector (2^26)) 8}
-  {inclusionLeaves nonInclusionLeaves : List.Vector F 8}:
+  {inclusionTrees : List.Vector (MerkleTree F poseidon₂ SD) B}
+  {nonInclusionTrees : List.Vector (RangeVector (2^AD)) B}
+  {inclusionLeaves nonInclusionLeaves : List.Vector F B}:
     (∃ih p₁ p₂ p₃ p₄ p₅ p₆,
-      LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8
+      CombinedCircuit
         ih
         (inclusionTrees.map (·.root)) inclusionLeaves p₁ p₂
         (nonInclusionTrees.map (·.root)) nonInclusionLeaves p₃ p₄ p₅ p₆)
-    ↔ ∀i (_: i∈[0:8]), inclusionLeaves[i] ∈ inclusionTrees[i]
+    ↔ ∀i (_: i∈[0:B]), inclusionLeaves[i] ∈ inclusionTrees[i]
                       ∧ nonInclusionLeaves[i].val ∈ nonInclusionTrees[i]
   := by
     conv => lhs; arg 1; intro ih; rw [CombinedCircuit_correct]
     simp
 
 theorem inputHash_deterministic:
-    LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 h₁ inclusionTrees inclusionLeaves p₁ p₂ nonInclusionTrees nonInclusionLeaves p₃ p₄ p₅ p₆ →
-    LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 h₂ inclusionTrees inclusionLeaves q₁ q₂ nonInclusionTrees nonInclusionLeaves q₃ q₄ q₅ q₆ →
+    CombinedCircuit h₁ inclusionTrees inclusionLeaves p₁ p₂ nonInclusionTrees nonInclusionLeaves p₃ p₄ p₅ p₆ →
+    CombinedCircuit h₂ inclusionTrees inclusionLeaves q₁ q₂ nonInclusionTrees nonInclusionLeaves q₃ q₄ q₅ q₆ →
     h₁ = h₂ := by
-  unfold LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8
+  unfold CombinedCircuit
   simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8]
 
 theorem inputHash_injective:
-    LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 h inclusionTrees₁ inclusionLeaves₁ p₁ p₂ nonInclusionTrees₁ nonInclusionLeaves₁ p₃ p₄ p₅ p₆ →
-    LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8 h inclusionTrees₂ inclusionLeaves₂ q₁ q₂ nonInclusionTrees₂ nonInclusionLeaves₂ q₃ q₄ q₅ q₆ →
+    CombinedCircuit h inclusionTrees₁ inclusionLeaves₁ p₁ p₂ nonInclusionTrees₁ nonInclusionLeaves₁ p₃ p₄ p₅ p₆ →
+    CombinedCircuit h inclusionTrees₂ inclusionLeaves₂ q₁ q₂ nonInclusionTrees₂ nonInclusionLeaves₂ q₃ q₄ q₅ q₆ →
     inclusionTrees₁ = inclusionTrees₂ ∧ inclusionLeaves₁ = inclusionLeaves₂ ∧ nonInclusionTrees₁ = nonInclusionTrees₂ ∧ nonInclusionLeaves₁ = nonInclusionLeaves₂ := by
-  unfold LightProver.CombinedCircuit_8_8_8_26_8_8_8_8_8_8_26_8
+  unfold CombinedCircuit
   simp only [TwoInputsHashChain_rw, Poseidon2_iff_uniqueAssignment, LightProver.Gates, GatesGnark8, GatesDef.eq]
   rintro ⟨h₁, _⟩ ⟨h₂, _⟩
   rw [h₁] at h₂
@@ -119,16 +130,16 @@ end CombinedCircuit
 namespace BatchAppendWithProofsCircuit
 
 theorem sound_and_complete
-  {tree : MerkleTree F poseidon₂ 26} {newRoot startIndex : F} {leaves : List.Vector F 8}:
+  {tree : MerkleTree F poseidon₂ SD} {newRoot startIndex : F} {leaves : List.Vector F B}:
     (∃ih oldLeaves merkleProofs lh,
-      LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8
+      BatchAppendWithProofsCircuit
         ih tree.root newRoot lh startIndex oldLeaves leaves merkleProofs)
     ↔
-    (startIndex.val + 7 < 2^26) ∧
-    ∃(newTree : MerkleTree F poseidon₂ 26), newRoot = newTree.root ∧
-    ∀(i : Fin (2^26)),
-      (i.val ∈ [startIndex.val:(startIndex.val + 8)] → newTree[i] = if tree[i] = 0 then leaves[i.val - startIndex.val]! else tree[i]) ∧
-      (i.val ∉ [startIndex.val:(startIndex.val + 8)] → newTree[i] = tree[i])
+    (startIndex.val + (B - 1) < 2^SD) ∧
+    ∃(newTree : MerkleTree F poseidon₂ SD), newRoot = newTree.root ∧
+    ∀(i : Fin (2^SD)),
+      (i.val ∈ [startIndex.val:(startIndex.val + B)] → newTree[i] = if tree[i] = 0 then leaves[i.val - startIndex.val]! else tree[i]) ∧
+      (i.val ∉ [startIndex.val:(startIndex.val + B)] → newTree[i] = tree[i])
   := by
   simp [AppendWithProofs_rw]
   rw [eq_comm, Option.map_eq_some']
@@ -140,8 +151,8 @@ theorem sound_and_complete
     tauto
 
 theorem inputHash_deterministic:
-    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h₁ oldRoot newRoot p₁ startIndex p₂ leaves p₃ ∧
-    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h₂ oldRoot newRoot q₁ startIndex q₂ leaves q₃ →
+    BatchAppendWithProofsCircuit h₁ oldRoot newRoot p₁ startIndex p₂ leaves p₃ ∧
+    BatchAppendWithProofsCircuit h₂ oldRoot newRoot q₁ startIndex q₂ leaves q₃ →
     h₁ = h₂ := by
   intro ⟨hp₁, hp₂⟩
   have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₁)).1
@@ -149,8 +160,8 @@ theorem inputHash_deterministic:
   simp_all
 
 theorem inputHash_injective:
-    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h oldRoot₁ newRoot₁ p₁ startIndex₁ p₂ leaves₁ p₃ ∧
-    LightProver.BatchAppendWithProofsCircuit_8_8_26_8_26_8 h oldRoot₂ newRoot₂ q₁ startIndex₂ q₂ leaves₂ q₃ →
+    BatchAppendWithProofsCircuit h oldRoot₁ newRoot₁ p₁ startIndex₁ p₂ leaves₁ p₃ ∧
+    BatchAppendWithProofsCircuit h oldRoot₂ newRoot₂ q₁ startIndex₂ q₂ leaves₂ q₃ →
     oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ startIndex₁ = startIndex₂ ∧ leaves₁ = leaves₂ := by
   intro ⟨hp₁, hp₂⟩
   have := (AppendWithProofs_rw1.mp (Exists.intro _ hp₁)).1
@@ -162,12 +173,12 @@ end BatchAppendWithProofsCircuit
 namespace BatchUpdateCircuit
 
 theorem sound_and_complete
-  {tree : MerkleTree F poseidon₂ 26} {newRoot : F} {leaves txHashes indices : List.Vector F 8} (indices_distinct: ∀(i j : Fin 8), i ≠ j → indices[i] ≠ indices[j]):
-  (∃ih ps ols lhh, LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 ih tree.root newRoot lhh txHashes leaves ols ps indices) ↔
-    ∃(newTree : MerkleTree F poseidon₂ 26), newRoot = newTree.root ∧
-    ∃(hr : ∀ (i:Fin 8), indices[i].val < 2^26),
-    (∀i: Fin 8, newTree[indices[i].val]'(hr i) = poseidon₃ vec![leaves[i], indices[i], txHashes[i]]) ∧
-    (∀i: Fin (2^26), ↑i.val ∉ indices → newTree[i] = tree[i]) := by
+  {tree : MerkleTree F poseidon₂ SD} {newRoot : F} {leaves txHashes indices : List.Vector F B} (indices_distinct: ∀(i j : Fin B), i ≠ j → indices[i] ≠ indices[j]):
+  (∃ih ps ols lhh, BatchUpdateCircuit ih tree.root newRoot lhh txHashes leaves ols ps indices) ↔
+    ∃(newTree : MerkleTree F poseidon₂ SD), newRoot = newTree.root ∧
+    ∃(hr : ∀ (i:Fin B), indices[i].val < 2^SD),
+    (∀i: Fin B, newTree[indices[i].val]'(hr i) = poseidon₃ vec![leaves[i], indices[i], txHashes[i]]) ∧
+    (∀i: Fin (2^SD), ↑i.val ∉ indices → newTree[i] = tree[i]) := by
   simp [BatchUpdateCircuit_rw1, batchUpdate_rec_rw, batchUpdates_sem_of_distinct indices_distinct]
   apply Iff.intro <;> {
     rintro ⟨nt, _⟩
@@ -176,8 +187,8 @@ theorem sound_and_complete
   }
 
 theorem inputHash_deterministic :
-    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h₁ oldRoot newRoot lhh₁ txHashes leaves ols₁ ps₁ indices ∧
-    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h₂ oldRoot newRoot lhh₂ txHashes leaves ols₂ ps₂ indices →
+    BatchUpdateCircuit h₁ oldRoot newRoot lhh₁ txHashes leaves ols₁ ps₁ indices ∧
+    BatchUpdateCircuit h₂ oldRoot newRoot lhh₂ txHashes leaves ols₂ ps₂ indices →
     h₁ = h₂ := by
   intro ⟨hp₁, hp₂⟩
   have := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₁)).1
@@ -185,8 +196,8 @@ theorem inputHash_deterministic :
   simp_all
 
 theorem inputHash_injective :
-    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h oldRoot₁ newRoot₁ lhh₁ txHashes₁ leaves₁ ols₁ ps₁ indices₁ ∧
-    LightProver.BatchUpdateCircuit_8_8_8_26_8_8_26_8 h oldRoot₂ newRoot₂ lhh₂ txHashes₂ leaves₂ ols₂ ps₂ indices₂ →
+    BatchUpdateCircuit h oldRoot₁ newRoot₁ lhh₁ txHashes₁ leaves₁ ols₁ ps₁ indices₁ ∧
+    BatchUpdateCircuit h oldRoot₂ newRoot₂ lhh₂ txHashes₂ leaves₂ ols₂ ps₂ indices₂ →
     oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ txHashes₁ = txHashes₂ ∧ leaves₁ = leaves₂ ∧ indices₁ = indices₂ := by
   intro ⟨hp₁, hp₂⟩
   have t₁ := (BatchUpdateCircuit_rw1.mp (Exists.intro _ hp₁)).1
@@ -198,17 +209,17 @@ end BatchUpdateCircuit
 
 namespace BatchAddressAppendTreeCircuit
 
-theorem sound {ranges : RangeVector (2^26)} {elements : List.Vector F 8} {newRoot : F}:
-    (∃pih hch si lev lenv lei lep nep, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih ranges.root newRoot hch si lev lenv lei lep elements nep) →
-    ∃newRanges : RangeVector (2^26), newRanges.root = newRoot ∧ (∀i ∈ elements, i.val ∉ newRanges) ∧ (∀i, ↑i ∉ elements → (i ∈ ranges ↔ i ∈ newRanges)) := by
+theorem sound {ranges : RangeVector (2^AD)} {elements : List.Vector F B} {newRoot : F}:
+    (∃pih hch si lev lenv lei lep nep, BatchAddressTreeAppendCircuit pih ranges.root newRoot hch si lev lenv lei lep elements nep) →
+    ∃newRanges : RangeVector (2^AD), newRanges.root = newRoot ∧ (∀i ∈ elements, i.val ∉ newRanges) ∧ (∀i, ↑i ∉ elements → (i ∈ ranges ↔ i ∈ newRanges)) := by
   exact BatchAdressAppend_sound
 
-theorem complete {rv : RangeVector (2^26)} {elements startIndex}
-    (startIndex_small : startIndex + 8 < 2^26)
-    (elements_distinct : ∀(i j : Fin 8), i ≠ j → elements[i] ≠ elements[j])
+theorem complete {rv : RangeVector (2^AD)} {elements startIndex}
+    (startIndex_small : startIndex + B < 2^AD)
+    (elements_distinct : ∀(i j : Fin B), i ≠ j → elements[i] ≠ elements[j])
     (elements_mem : ∀ i ∈ elements, i.val ∈ rv)
-    (indices_empty : ∀ i ∈ [startIndex:(startIndex + 8)], rv.ranges i = none):
-    ∃lev lenv lei lep nep newRoot hch pih, LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 pih rv.root newRoot hch startIndex lev lenv lei lep elements nep := by
+    (indices_empty : ∀ i ∈ [startIndex:(startIndex + B)], rv.ranges i = none):
+    ∃lev lenv lei lep nep newRoot hch pih, BatchAddressTreeAppendCircuit pih rv.root newRoot hch startIndex lev lenv lei lep elements nep := by
   apply BatchAddressAppend_complete <;> simp_all [getElem]
   intro i hi
   have := indices_empty i hi
@@ -218,23 +229,23 @@ theorem complete {rv : RangeVector (2^26)} {elements startIndex}
   linarith [hi.2]
 
 theorem inputHash_deterministic:
-    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h₁ oldRoot newRoot lhh₁ startIndex lev₁ lenv₁ lei₁ lep₁ elements nep₁ ∧
-    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h₂ oldRoot newRoot lhh₂ startIndex lev₂ lenv₂ lei₂ lep₂ elements nep₂ →
+    BatchAddressTreeAppendCircuit h₁ oldRoot newRoot lhh₁ startIndex lev₁ lenv₁ lei₁ lep₁ elements nep₁ ∧
+    BatchAddressTreeAppendCircuit h₂ oldRoot newRoot lhh₂ startIndex lev₂ lenv₂ lei₂ lep₂ elements nep₂ →
     h₁ = h₂ := by
   intro ⟨hp₁, hp₂⟩
   have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
   have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
-  simp [HashChain_8_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw] at h₁ h₂
+  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw] at h₁ h₂
   simp_all
 
 theorem inputHash_injective:
-    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h oldRoot₁ newRoot₁ lhh₁ startIndex₁ lev₁ lenv₁ lei₁ lep₁ elements₁ nep₁ ∧
-    LightProver.BatchAddressTreeAppendCircuit_8_8_8_26_8_8_26_8_8_26 h oldRoot₂ newRoot₂ lhh₂ startIndex₂ lev₂ lenv₂ lei₂ lep₂ elements₂ nep₂ →
+    BatchAddressTreeAppendCircuit h oldRoot₁ newRoot₁ lhh₁ startIndex₁ lev₁ lenv₁ lei₁ lep₁ elements₁ nep₁ ∧
+    BatchAddressTreeAppendCircuit h oldRoot₂ newRoot₂ lhh₂ startIndex₂ lev₂ lenv₂ lei₂ lep₂ elements₂ nep₂ →
     oldRoot₁ = oldRoot₂ ∧ newRoot₁ = newRoot₂ ∧ startIndex₁ = startIndex₂ ∧ elements₁ = elements₂ := by
   intro ⟨hp₁, hp₂⟩
   have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
   have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
-  simp [HashChain_8_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw, hashChain_injective] at h₁ h₂
+  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw, hashChain_injective] at h₁ h₂
   rcases h₁ with ⟨rfl, h₁⟩
   rcases h₂ with ⟨rfl, h₂⟩
   rw [h₁] at h₂
