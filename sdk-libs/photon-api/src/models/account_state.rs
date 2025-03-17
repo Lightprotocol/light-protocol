@@ -11,6 +11,7 @@ use std::fmt::Display;
 
 use crate::models;
 
+///
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum AccountState {
     #[serde(rename = "initialized")]

@@ -4,7 +4,7 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**error** | Option<[**models::GetCompressedAccountPost200ResponseError**](_getCompressedAccount_post_200_response_error.md)> |  | [optional]
+**error** | Option<[**models::GetBatchAddressUpdateInfoPost200ResponseError**](_getBatchAddressUpdateInfo_post_200_response_error.md)> |  | [optional]
 **id** | **String** | An ID to identify the response. | 
 **jsonrpc** | **String** | The version of the JSON-RPC protocol. | 
 **result** | Option<[**models::GetCompressedTokenBalancesByOwnerV2Post200ResponseResult**](_getCompressedTokenBalancesByOwnerV2_post_200_response_result.md)> |  | [optional]

@@ -58,4 +58,4 @@ light-program-test = { workspace = true, features = ["devenv"] }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
 light-compressed-account = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true }create-address-test-program = { workspace = true }

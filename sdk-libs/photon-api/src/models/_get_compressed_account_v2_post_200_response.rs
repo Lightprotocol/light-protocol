@@ -13,7 +13,7 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedAccountV2Post200Response {
     #[serde(rename = "error", skip_serializing_if = "Option::is_none")]
-    pub error: Option<Box<models::GetCompressedAccountPost200ResponseError>>,
+    pub error: Option<Box<models::GetBatchAddressUpdateInfoPost200ResponseError>>,
     /// An ID to identify the response.
     #[serde(rename = "id")]
     pub id: Id,
