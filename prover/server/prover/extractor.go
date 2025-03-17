@@ -6,7 +6,7 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/extractor"
 )
 
-func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, error) {
+func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompressedAccounts uint32) (string, error) {
 	// Not checking for numberOfCompressedAccounts === 0 or treeHeight === 0
 
 	// Initialising MerkleProofs slice with correct dimensions
@@ -18,16 +18,16 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	batchUpdateWithProofsProofs := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
-		inclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
-		nonInclusionInPathElements[i] = make([]frontend.Variable, treeHeight)
-		addressAppendLowProofs[i] = make([]frontend.Variable, treeHeight)
-		addressAppendEmptyProofs[i] = make([]frontend.Variable, treeHeight)
-		batchUpdateProofs[i] = make([]frontend.Variable, treeHeight)
-		batchUpdateWithProofsProofs[i] = make([]frontend.Variable, treeHeight)
+		inclusionInPathElements[i] = make([]frontend.Variable, stateTreeHeight)
+		nonInclusionInPathElements[i] = make([]frontend.Variable, addressTreeHeight)
+		addressAppendLowProofs[i] = make([]frontend.Variable, addressTreeHeight)
+		addressAppendEmptyProofs[i] = make([]frontend.Variable, addressTreeHeight)
+		batchUpdateProofs[i] = make([]frontend.Variable, stateTreeHeight)
+		batchUpdateWithProofsProofs[i] = make([]frontend.Variable, stateTreeHeight)
 	}
 
 	inclusionCircuit := InclusionCircuit{
-		Height:                     treeHeight,
+		Height:                     stateTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Leaves:                     make([]frontend.Variable, numberOfCompressedAccounts),
@@ -36,7 +36,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	}
 
 	nonInclusionCircuit := NonInclusionCircuit{
-		Height:                     treeHeight,
+		Height:                     addressTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),
@@ -46,7 +46,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		InPathElements:             nonInclusionInPathElements,
 	}
 	inclusionProof := InclusionProof{
-		Height:                     treeHeight,
+		Height:                     stateTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Leaves:                     make([]frontend.Variable, numberOfCompressedAccounts),
@@ -55,7 +55,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 	}
 
 	nonInclusionProof := NonInclusionProof{
-		Height:                     treeHeight,
+		Height:                     addressTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
 		Values:                     make([]frontend.Variable, numberOfCompressedAccounts),
@@ -78,7 +78,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		NewElementValues:     make([]frontend.Variable, numberOfCompressedAccounts),
 		NewElementProofs:     addressAppendEmptyProofs,
 		BatchSize:            numberOfCompressedAccounts,
-		TreeHeight:           treeHeight,
+		TreeHeight:           addressTreeHeight,
 	}
 
 	batchUpdateCircuit := BatchUpdateCircuit{
@@ -87,7 +87,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		OldLeaves:    make([]frontend.Variable, numberOfCompressedAccounts),
 		MerkleProofs: batchUpdateProofs,
 		PathIndices:  make([]frontend.Variable, numberOfCompressedAccounts),
-		Height:       treeHeight,
+		Height:       stateTreeHeight,
 		BatchSize:    numberOfCompressedAccounts,
 	}
 
@@ -95,7 +95,7 @@ func ExtractLean(treeHeight uint32, numberOfCompressedAccounts uint32) (string, 
 		OldLeaves:    make([]frontend.Variable, numberOfCompressedAccounts),
 		Leaves:       make([]frontend.Variable, numberOfCompressedAccounts),
 		MerkleProofs: batchUpdateWithProofsProofs,
-		Height:       treeHeight,
+		Height:       stateTreeHeight,
 		BatchSize:    numberOfCompressedAccounts,
 	}
 
