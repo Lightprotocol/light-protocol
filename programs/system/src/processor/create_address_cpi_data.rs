@@ -109,13 +109,6 @@ pub fn derive_new_addresses<'info>(
             )
         })
         .count() as u8;
-    msg!(
-        "cpi_ix_data.num_address_queues: {:?}",
-        cpi_ix_data.num_address_queues
-    );
-    msg!(
-        "start output appends: {:?}",
-        cpi_ix_data.start_output_appends
-    );
+
     Ok(())
 }

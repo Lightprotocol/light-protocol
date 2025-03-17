@@ -3,7 +3,6 @@ use std::cmp::min;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{
     prelude::{AccountMeta, Context, Pubkey},
-    solana_program::{log::sol_log_compute_units, msg},
     Bumps, InstructionData, Key, Result, ToAccountInfo,
 };
 use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
@@ -75,9 +74,6 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
     } = cpi_context;
     let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
 
-    msg!("made ACP ixdata");
-    sol_log_compute_units();
-
     let data = instruction_data.data();
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
@@ -86,14 +82,12 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
         accounts,
         data,
     };
-    msg!("made instruction");
-    sol_log_compute_units();
+
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),
         seeds,
     )?;
-    msg!("invoked ACP");
-    sol_log_compute_units();
+
     Ok(())
 }

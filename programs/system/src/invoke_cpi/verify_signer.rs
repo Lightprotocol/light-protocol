@@ -1,5 +1,5 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
+use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::zero_copy::{
     ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
