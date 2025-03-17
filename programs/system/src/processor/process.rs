@@ -92,7 +92,7 @@ pub fn process<
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-
+    msg!("num new addresses: {}", num_new_addresses);
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
     // + number of times cpi context account was filled.
@@ -108,7 +108,6 @@ pub fn process<
         hashed_pubkeys_capacity,
         invoking_program,
     )?;
-
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
     inputs
@@ -123,7 +122,6 @@ pub fn process<
     // 2. Deserialize and check all Merkle tree and queue accounts.
     #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
-
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut cpi_ix_bytes,
@@ -135,7 +133,6 @@ pub fn process<
         min(ctx.remaining_accounts.len(), num_new_addresses) as u8,
     )
     .map_err(ProgramError::from)?;
-
     cpi_ix_data.set_invoked_by_program(true);
     cpi_ix_data.bump = CPI_AUTHORITY_PDA_BUMP;
 
@@ -187,7 +184,6 @@ pub fn process<
         &mut cpi_ix_data,
         &accounts,
     )?;
-
     #[cfg(feature = "debug")]
     check_vec_capacity(
         hashed_pubkeys_capacity,
@@ -220,7 +216,6 @@ pub fn process<
             &context.hashed_pubkeys,
             "hashed_pubkeys",
         )?;
-
         // 8.1. Create a tx hash
         let current_slot = Clock::get()?.slot;
         cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
@@ -258,7 +253,6 @@ pub fn process<
     } else if ctx.accounts.get_sol_pool_pda().is_some() {
         return err!(SystemProgramError::SolPoolPdaDefined);
     }
-
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
     let read_only_accounts = read_only_accounts.unwrap_or_else(|| {
         ZeroCopySliceBorsh::<ZPackedReadOnlyCompressedAccount>::from_bytes(&[0u8, 0u8, 0u8, 0u8])
@@ -288,7 +282,6 @@ pub fn process<
         &new_address_roots,
         "new_address_roots",
     )?;
-
     // 14. Read state roots ---------------------------------------------------
     let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = read_input_state_roots(
@@ -402,7 +395,6 @@ pub fn process<
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(ctx.remaining_accounts, ctx.accounts.get_fee_payer())?;
-
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
     if inputs

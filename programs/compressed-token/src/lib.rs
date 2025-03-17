@@ -34,7 +34,6 @@ pub mod light_compressed_token {
 
     use constants::{NOT_FROZEN, NUM_MAX_POOL_ACCOUNTS};
     use spl_compression::check_spl_token_pool_derivation_with_index;
-    use spl_token::solana_program::log::sol_log_compute_units;
 
     use super::*;
 
@@ -107,12 +106,8 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        msg!("ENTRY CTOKEN START");
-        sol_log_compute_units();
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
-        msg!("DESERIALIZE IXDATA DONE");
-        sol_log_compute_units();
         process_transfer::process_transfer(ctx, inputs)
     }
 

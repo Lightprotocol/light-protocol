@@ -218,7 +218,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 )))
             }
             QueueAccount::DISCRIMINATOR => {
-                // msg!("queue account: {:?}", account_info.key());
+                msg!("queue account: {:?}", account_info.key());
                 Ok(AcpAccount::V1Queue(account_info.to_account_info()))
             }
             _ => Err(AccountCompressionErrorCode::InvalidAccount.into()),

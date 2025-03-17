@@ -24,7 +24,6 @@ pub fn cpi_signer_checks(
     cpi_signer_check(invoking_programid, authority)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
-
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpd_input_checks");
     input_compressed_accounts_signer_check(
@@ -33,13 +32,11 @@ pub fn cpi_signer_checks(
     )?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpd_input_checks");
-
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
     output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_write_checks");
-
     Ok(())
 }
 
@@ -52,9 +49,9 @@ pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result
         .0;
     if derived_signer != *authority {
         msg!(
-            "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
-            derived_signer.key().log(),
-            authority.key().log()
+            "Cpi signer check failed. Derived cpi signer {} !=  authority {}",
+            derived_signer,
+            authority
         );
         return err!(SystemProgramError::CpiSignerCheckFailed);
     }

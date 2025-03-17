@@ -30,8 +30,6 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod account_compression {
 
-    use anchor_lang::solana_program::log::sol_log_compute_units;
-
     use super::*;
     use crate::processor::insert_into_queues::process_insert_into_queues;
 
@@ -155,8 +153,6 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
         bytes: Vec<u8>,
     ) -> Result<()> {
-        msg!("ACP CPI insert_into_queues ENTRY");
-        sol_log_compute_units();
         process_insert_into_queues(&ctx, bytes)
     }
 

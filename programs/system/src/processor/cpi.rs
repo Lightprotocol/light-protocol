@@ -82,12 +82,10 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
         accounts,
         data,
     };
-
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),
         seeds,
     )?;
-
     Ok(())
 }

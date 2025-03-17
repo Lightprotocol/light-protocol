@@ -31,6 +31,7 @@ use anchor_lang::Discriminator;
 pub mod light_system_program {
 
     use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
+    use anchor_lang::solana_program::log::sol_log_compute_units;
     use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
     use light_compressed_account::instruction_data::zero_copy::{
         ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
@@ -67,9 +68,13 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        sol_log_compute_units();
+
         #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("invoke_deserialize");
+        msg!("Invoke instruction");
         let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(inputs.as_slice()).unwrap();
+        sol_log_compute_units();
         #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("invoke_deserialize");
         input_compressed_accounts_signer_check(
@@ -77,6 +82,7 @@ pub mod light_system_program {
             &ctx.accounts.authority.key(),
         )?;
         process(inputs, None, ctx, 0, None, None)?;
+        sol_log_compute_units();
         Ok(())
     }
 
@@ -84,12 +90,15 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        sol_log_compute_units();
         #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
         let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(inputs.as_slice()).unwrap();
         #[cfg(feature = "bench-sbf")]
         bench_sbf_end!("cpda_deserialize");
+
         process_invoke_cpi(ctx, inputs, None, None)?;
+        sol_log_compute_units();
         // 22,903 bytes heap with 33 outputs
         #[cfg(feature = "bench-sbf")]
         light_heap::bench_sbf_end!("total_usage");

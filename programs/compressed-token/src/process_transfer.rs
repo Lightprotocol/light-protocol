@@ -14,7 +14,6 @@ use light_compressed_account::{
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
-use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -386,13 +385,6 @@ pub fn cpi_execute_compressed_transaction_transfer<
 
     cpi_ctx.remaining_accounts = remaining_accounts.to_vec();
     bench_sbf_end!("t_cpi_prep");
-
-    msg!("TEST BENCH START");
-    bench_sbf_start!("TEST");
-    sol_log_compute_units();
-    bench_sbf_end!("TEST");
-    msg!("CPI TO SYSTEM START");
-    sol_log_compute_units();
 
     bench_sbf_start!("t_invoke_cpi");
     light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
