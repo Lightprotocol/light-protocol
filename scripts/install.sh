@@ -2,9 +2,6 @@
 
 set -euo pipefail
 
-
-
-
 PREFIX="${PWD}/.local"
 INSTALL_LOG="${PREFIX}/.install_log"
 
@@ -170,16 +167,16 @@ install_jq() {
     fi
 }
 
-install_lld() {
-    if ! is_installed "lld"; then
-        if [[ "$OS" == "Darwin" ]]; then
-            echo "Installing lld on Mac..."
-            brew install llvm
-            ln -s "$(brew --prefix llvm)/bin/lld" "${PREFIX}/bin/lld"
-            log "lld"
-        fi
-    fi
-}
+# install_lld() {
+#     if ! is_installed "lld"; then
+#         if [[ "$OS" == "Darwin" ]]; then
+#             echo "Installing lld on Mac..."
+#             brew install llvm
+#             ln -s "$(brew --prefix llvm)/bin/lld" "${PREFIX}/bin/lld"
+#             log "lld"
+#         fi
+#     fi
+# }
 
 download_gnark_keys() {
     if ! is_installed "gnark_keys"; then
@@ -225,15 +222,14 @@ main() {
     if $reset_log; then
         rm -f "$INSTALL_LOG"
     fi
+    
     install_go
     install_rust
-    install_lld
     install_node
     install_pnpm
     install_solana
     install_anchor
     install_jq
-    
     download_gnark_keys "$key_type"
     install_dependencies
 
