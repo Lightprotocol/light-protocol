@@ -62,7 +62,7 @@ export function packCompressedTokenAccounts(
             inputCompressedTokenAccounts[0].parsed.delegate,
         );
     }
-    /// TODO: move pubkeyArray to remainingAccounts
+
     /// Currently just packs 'delegate' to pubkeyArray
     const packedInputTokenData: InputTokenDataWithContext[] = [];
 
@@ -97,9 +97,8 @@ export function packCompressedTokenAccounts(
         },
     );
 
-    // TODO(v2): queue.
-    // internal. v2 trees require the output queue account instead of directly
-    // appending to the merkle tree.
+    // V2 trees require the output queue account instead of directly appending
+    // to the merkle tree.
     const outputTreeOrQueue =
         outputStateTreeInfo.treeType === TreeType.StateV2
             ? outputStateTreeInfo.queue!
@@ -124,7 +123,7 @@ export function packCompressedTokenAccounts(
             tlv: null,
         });
     });
-    // to meta
+
     const remainingAccountMetas = _remainingAccounts.map(
         (account): AccountMeta => ({
             pubkey: account,

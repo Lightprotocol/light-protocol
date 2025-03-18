@@ -58,7 +58,7 @@ async function assertDecompress(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe.each([TreeType.StateV1, TreeType.StateV2])(
-    'decompress with state tree %s',
+    'decompress (treeType: %s)',
     treeType => {
         let rpc: Rpc;
         let payer: Signer;
@@ -114,7 +114,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             );
         });
 
-        const LOOP = 1;
+        const LOOP = 5;
         it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
             const lightWasm = await WasmFactory.getInstance();
             rpc = await getTestRpc(lightWasm);

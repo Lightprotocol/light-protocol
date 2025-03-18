@@ -91,6 +91,7 @@ async function createTestSplMint(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
+
 describe('createTokenPool', () => {
     let rpc: Rpc;
     let payer: Signer;

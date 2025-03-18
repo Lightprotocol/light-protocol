@@ -17,7 +17,7 @@ import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/s
 const TEST_TOKEN_DECIMALS = 2;
 
 describe.each([TreeType.StateV1, TreeType.StateV2])(
-    'rpc-interop token with state tree %s',
+    'rpc-interop (treeType: %s)',
     treeType => {
         let rpc: Rpc;
         let testRpc: Rpc;

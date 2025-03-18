@@ -53,15 +53,15 @@ export type CompressParams = {
      */
     payer: PublicKey;
     /**
-     * owner of the *uncompressed* token account.
+     * Owner of the uncompressed token account.
      */
     owner: PublicKey;
     /**
-     * source (associated) token account address.
+     * Source (associated) token account address.
      */
     source: PublicKey;
     /**
-     * owner of the compressed token account.
+     * Owner of the compressed token account.
      * To compress to a batch of recipients, pass an array of PublicKeys.
      */
     toAddress: PublicKey | PublicKey[];
@@ -70,12 +70,12 @@ export type CompressParams = {
      */
     mint: PublicKey;
     /**
-     * amount of tokens to compress.
+     * Amount of tokens to compress. Pass without decimals.
      */
     amount: number | BN | number[] | BN[];
     /**
-     * The context for the State tree in which the compressed account output
-     * should be stored.
+     * Contextual info about the state tree in which the compressed account
+     * output should be stored.
      */
     outputStateTreeInfo: StateTreeInfo;
     /**
@@ -486,7 +486,7 @@ export function createDecompressOutputState(
 
     validateSufficientBalance(changeAmount);
 
-    /// lamports gets decompressed
+    /// all lamports get decompressed
     if (changeAmount.eq(bn(0)) && inputLamports.eq(bn(0))) {
         return [];
     }
@@ -554,9 +554,11 @@ export class CompressedTokenProgram {
 
     /**
      * Construct createMint instruction for compressed tokens.
-     * @returns [createMintAccountInstruction, initializeMintInstruction, createTokenPoolInstruction]
+     * @returns [createMintAccountInstruction, initializeMintInstruction,
+     * createTokenPoolInstruction]
      *
-     * Note that `createTokenPoolInstruction` must be executed after `initializeMintInstruction`.
+     * Note that `createTokenPoolInstruction` must be executed after
+     * `initializeMintInstruction`.
      */
     static async createMint(
         params: CreateMintParams,
@@ -1103,7 +1105,6 @@ export class CompressedTokenProgram {
         } = params;
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        // TODO(v2): queue.
         const outputTreeOrQueue =
             outputStateTreeInfo.treeType === TreeType.StateV2
                 ? outputStateTreeInfo.queue!

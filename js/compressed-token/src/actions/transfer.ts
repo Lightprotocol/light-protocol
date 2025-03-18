@@ -24,18 +24,18 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 /**
  * Transfer compressed tokens from one owner to another
  *
- * @param rpc                       Rpc to use
- * @param payer                     Payer of the transaction fees
- * @param mint                      Mint of the compressed token
- * @param amount                    Number of tokens to transfer
- * @param owner                     Owner of the compressed tokens
- * @param toAddress                 Destination address of the recipient
- * @param outputStateTreeInfo    State tree context that the compressed
- *                                  tokens should be inserted into. Defaults to
- *                                  the default state tree context.
- * @param confirmOptions            Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint of the compressed token
+ * @param amount                Number of tokens to transfer
+ * @param owner                 Owner of the compressed tokens
+ * @param toAddress             Destination address of the recipient
+ * @param outputStateTreeInfo   State tree info that the compressed tokens
+ *                              should be inserted into. Defaults to a random
+ *                              active state tree info.
+ * @param confirmOptions        Options for confirming the transaction
  *
- * @return Signature of the confirmed transaction
+ * @return Transaction signature
  */
 export async function transfer(
     rpc: Rpc,

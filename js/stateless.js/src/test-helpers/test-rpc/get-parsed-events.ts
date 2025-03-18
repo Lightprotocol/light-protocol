@@ -241,7 +241,6 @@ export function parseLightTransaction(
             INSERT_INTO_QUEUES_DISCRIMINATOR,
         );
         if (discriminatorStr !== insertIntoQueuesDiscriminatorStr) {
-            // console.log('discriminator does not match');
         } else {
             const dataSlice = data.slice(12);
             appendInputsData =

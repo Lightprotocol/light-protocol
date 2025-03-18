@@ -26,7 +26,7 @@ import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/s
 const TEST_TOKEN_DECIMALS = 2;
 
 describe.each([TreeType.StateV1, TreeType.StateV2])(
-    'compressSplTokenAccount with state tree %s',
+    'compressSplTokenAccount (treeType: %s)',
     treeType => {
         let rpc: Rpc;
         let payer: Signer;

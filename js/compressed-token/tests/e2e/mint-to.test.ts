@@ -59,7 +59,7 @@ async function assertMintTo(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe.each([TreeType.StateV1, TreeType.StateV2])(
-    'mintTo with state tree %s',
+    'mintTo (treeType: %s)',
     treeType => {
         let rpc: Rpc;
         let payer: Signer;
