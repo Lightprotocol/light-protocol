@@ -40,14 +40,14 @@ pub use base58::Base58Conversions;
 pub use error::IndexerError;
 pub use types::{Address, AddressWithTree, Hash, MerkleProofWithContext, ProofOfLeaf};
 
-pub struct AddressSeq {
+pub struct AddressQueueIndex {
     pub address: [u8; 32],
-    pub seq: u64,
+    pub queue_index: u64,
 }
 
 pub struct BatchAddressUpdateIndexerResponse {
     pub batch_start_index: u64,
-    pub addresses: Vec<AddressSeq>,
+    pub addresses: Vec<AddressQueueIndex>,
     pub non_inclusion_proofs: Vec<NewAddressProofWithContext<40>>,
     pub subtrees: Vec<[u8; 32]>,
 }

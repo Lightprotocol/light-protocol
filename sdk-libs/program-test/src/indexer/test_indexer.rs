@@ -70,7 +70,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use light_client::indexer::AddressSeq;
+use light_client::indexer::AddressQueueIndex;
 use crate::{
     indexer::{
         utils::create_address_merkle_tree_and_queue_account_with_assert, TestIndexerExtensions,
@@ -755,10 +755,10 @@ where
             .await
             .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?;
 
-        let addresses: Vec<AddressSeq> = address_proofs.iter().map(|x| {
-            AddressSeq {
+        let addresses: Vec<AddressQueueIndex> = address_proofs.iter().map(|x| {
+            AddressQueueIndex {
                 address: x.account_hash,
-                seq: x.root_seq,
+                queue_index: x.root_seq,
             }
         }).collect();
         let non_inclusion_proofs = self
