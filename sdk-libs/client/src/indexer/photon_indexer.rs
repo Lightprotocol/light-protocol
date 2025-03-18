@@ -22,7 +22,7 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
 use tracing::{debug, error};
 
-use super::{AddressSeq, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
+use super::{AddressQueueIndex, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
@@ -890,9 +890,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
 
             let addresses = response.addresses.iter().map(|x| {
-                AddressSeq {
+                AddressQueueIndex {
                     address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
-                    seq: x.seq
+                    queue_index: x.queue_index
                 }
             })
                 .collect();
