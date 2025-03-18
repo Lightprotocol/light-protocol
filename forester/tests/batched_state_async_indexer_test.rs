@@ -166,7 +166,7 @@ async fn test_state_indexer_async_batched() {
 
     let input_compressed_accounts =
         get_token_accounts(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey).await;
-    validate_compressed_accounts_proof(&photon_indexer, &input_compressed_accounts).await;
+    validate_compressed_accounts_proof(&mut rpc, &photon_indexer, &input_compressed_accounts).await;
 
     let rng_seed = rand::thread_rng().gen::<u64>();
     println!("seed {}", rng_seed);
@@ -335,6 +335,7 @@ async fn get_token_accounts<R: RpcConnection, I: Indexer<R>>(
 }
 
 async fn validate_compressed_accounts_proof<R: RpcConnection, I: Indexer<R>>(
+    rpc: &mut R,
     indexer: &I,
     input_compressed_accounts: &[TokenDataWithMerkleContext],
 ) {
@@ -349,6 +350,7 @@ async fn validate_compressed_accounts_proof<R: RpcConnection, I: Indexer<R>>(
             .map(|x| bs58::encode(x).into_string())
             .collect::<Vec<_>>()
     );
+    wait_for_indexer(rpc, indexer).await.unwrap();
     let proof = indexer
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
