@@ -20,7 +20,7 @@ import { getQueueForTree } from '../../../src/test-helpers/test-rpc/get-compress
 import { PublicKey } from '@solana/web3.js';
 import { TreeType } from '../../../src/state';
 
-describe.only('getQueueForTree', () => {
+describe('getQueueForTree', () => {
     const stateTreeInfo: StateTreeInfo[] = localTestActiveStateTreeInfo();
 
     it('should return the correct queue for a tree of type State (v1)', () => {
