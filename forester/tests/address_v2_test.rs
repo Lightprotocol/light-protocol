@@ -37,7 +37,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
@@ -353,7 +353,7 @@ async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubk
     )
     .unwrap();
 
-    merkle_tree.get_metadata().queue_batches.zkp_batch_size
+    merkle_tree.get_metadata().queue_batches.batch_size
 }
 
 async fn get_initial_merkle_tree_state(
