@@ -89,9 +89,6 @@ async function parseEventWithTokenTlvData(
 
             const { queue, treeType, tree } = getQueueForTree(ctxs, maybeTree);
 
-            console.log(
-                `parseEventWithTokenTlvData: tree: ${tree.toBase58()}, queue: ${queue.toBase58()}, treeType: ${treeType}`,
-            );
             const merkleContext: MerkleContext = {
                 merkleTree: tree,
                 queue: queue,

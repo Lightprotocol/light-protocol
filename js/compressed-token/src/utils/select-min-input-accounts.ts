@@ -158,18 +158,13 @@ export function selectMinCompressedTokenAccountsForTransferOrPartial(
     accountsV1.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
     accountsV2.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
 
-    console.log('accountsV1', accountsV1);
-    console.log('accountsV2', accountsV2);
-
     // Select accounts from V1
     let [selectedAccounts, accumulatedAmount, accumulatedLamports] =
         selectAccountsFromList(accountsV1, transferAmount, maxInputs);
 
-    console.log('selectedAccountsV1', selectedAccounts);
     if (accumulatedAmount.lt(bn(transferAmount))) {
         const [selectedAccountsV2, accumulatedAmountV2, accumulatedLamportsV2] =
             selectAccountsFromList(accountsV2, transferAmount, maxInputs);
-        console.log('selectedAccountsV2', selectedAccountsV2);
         if (accumulatedAmountV2.gt(accumulatedAmount)) {
             selectedAccounts = selectedAccountsV2;
             accumulatedAmount = accumulatedAmountV2;

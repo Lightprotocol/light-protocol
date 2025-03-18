@@ -125,7 +125,7 @@ describe('test-rpc V1', () => {
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
         // in: tree2 out: tree
-        const tx = await transfer(
+        await transfer(
             rpc,
             payer,
             compressLamportsAmount,
@@ -133,7 +133,6 @@ describe('test-rpc V1', () => {
             payer.publicKey,
             outputStateTreeInfo,
         );
-        console.log(`txId V1 (transfer) ${compressLamportsAmount}`, tx);
 
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -259,14 +258,13 @@ describe('test-rpc V2', () => {
         compressLamportsAmount = 1e7;
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-        const id1 = await compress(
+        await compress(
             rpc,
             payer,
             compressLamportsAmount,
             payer.publicKey,
             outputStateTreeInfo,
         );
-        console.log(`txId (compress) ${compressLamportsAmount}`, id1);
     });
 
     it('getCompressedAccountsByOwner', async () => {
@@ -402,7 +400,7 @@ describe('test-rpc V2', () => {
 
         expect(compressedBalance?.eq(bn(refCompressLamports))).toBeTruthy();
 
-        const tx = await transfer(
+        await transfer(
             rpc,
             payer,
             compressLamportsAmount,
@@ -410,6 +408,5 @@ describe('test-rpc V2', () => {
             payer.publicKey,
             outputStateTreeInfo,
         );
-        console.log(`txId V2 (transfer) ${compressLamportsAmount}`, tx);
     });
 });

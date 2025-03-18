@@ -5,18 +5,15 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
     StateTreeInfo,
     TreeType,
-    createRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount, getMint } from '@solana/spl-token';
 import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
-import { CompressedTokenProgram } from '../../src/program';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -75,7 +72,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
         beforeAll(async () => {
             const lightWasm = await WasmFactory.getInstance();
             rpc = await getTestRpc(lightWasm);
-            // rpc = createRpc();
+
             outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
                 rpc,
                 treeType,
@@ -93,7 +90,6 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 mintKeypair,
             );
             mint = mintTx.mint;
-            console.log('mint txId', mintTx.transactionSignature);
 
             bob = await newAccountWithLamports(rpc, 1e9);
             charlie = await newAccountWithLamports(rpc, 1e9);
@@ -105,14 +101,9 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 charlie.publicKey,
             );
 
-            const tokenPoolPda =
-                CompressedTokenProgram.deriveTokenPoolPda(mint);
-            const tokenPoolPdaTokenBalanceBefore =
-                await rpc.getTokenAccountBalance(tokenPoolPda);
+            await getMint(rpc, mint);
 
-            const mintInfo = await getMint(rpc, mint);
-
-            const txId2 = await mintTo(
+            await mintTo(
                 rpc,
                 payer,
                 mint,
@@ -128,7 +119,6 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             const lightWasm = await WasmFactory.getInstance();
             rpc = await getTestRpc(lightWasm);
 
-            // rpc = createRpc();
             for (let i = 0; i < LOOP; i++) {
                 const recipientAtaBalanceBefore =
                     await rpc.getTokenAccountBalance(charlieAta);
@@ -137,7 +127,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                         mint,
                     });
 
-                const txId = await decompress(
+                await decompress(
                     rpc,
                     payer,
                     mint,

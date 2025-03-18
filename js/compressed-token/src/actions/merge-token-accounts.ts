@@ -21,16 +21,16 @@ import { CompressedTokenProgram } from '../program';
  * Merge multiple compressed token accounts for a given mint into a single
  * account
  *
- * @param rpc                       RPC to use
- * @param payer                     Payer of the transaction fees
- * @param mint                      Public key of the token's mint
- * @param owner                     Owner of the token accounts to be merged
- * @param outputStateTreeInfo    State tree context that the compressed
- *                                  tokens should be part of. Defaults to the
- *                                  default state tree context.
- * @param confirmOptions            Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Public key of the token's mint
+ * @param owner                 Owner of the token accounts to be merged
+ * @param outputStateTreeInfo   State tree info that the compressed tokens
+ *                              should be part of. Defaults a random active
+ *                              state tree info.
+ * @param confirmOptions        Options for confirming the transaction
  *
- * @return Array of transaction signatures
+ * @return Transaction signature
  */
 export async function mergeTokenAccounts(
     rpc: Rpc,

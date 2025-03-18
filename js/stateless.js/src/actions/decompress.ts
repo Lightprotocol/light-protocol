@@ -22,12 +22,13 @@ import BN from 'bn.js';
 /**
  * Decompress lamports into a solana account
  *
- * @param rpc                       RPC to use
- * @param payer                     Payer of the transaction and initialization fees
- * @param lamports                  Amount of lamports to compress
- * @param toAddress                 Address of the recipient compressed account
- * @param outputStateTreeInfo    Optional output state tree context.
- * @param confirmOptions            Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction and initialization fees
+ * @param lamports              Amount of lamports to decompress
+ * @param toAddress             Address of the recipient account
+ * @param outputStateTreeInfo   Optional output state tree info. Picks random
+ *                              active state tree info if not provided.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
  */
@@ -72,6 +73,7 @@ export async function decompress(
     );
 
     const { blockhash } = await rpc.getLatestBlockhash();
+
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,

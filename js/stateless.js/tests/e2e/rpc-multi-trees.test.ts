@@ -211,17 +211,13 @@ describe('rpc-multi-trees', () => {
             );
 
             proofs.forEach((proof, index) => {
-                console.log(`proof n:${index}: ${proof}`);
                 assert.isTrue(
                     proof.merkleTree.equals(
                         prePayerAccounts.items[index].merkleTree,
                     ),
                     `Iteration ${round + 1}: Mismatch in merkleTree for account index ${index}`,
                 );
-                console.log(
-                    'prePayerAccounts.items[index].queue',
-                    prePayerAccounts.items[index].queue,
-                );
+
                 // TODO V2 not supported set.
                 assert.isTrue(
                     // proof.queue.equals(PublicKey.default),

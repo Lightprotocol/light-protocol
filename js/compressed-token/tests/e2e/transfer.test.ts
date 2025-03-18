@@ -241,16 +241,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 bob.publicKey,
                 outputStateTreeInfo,
             );
-            console.log(
-                'charliePreCompressedTokenAccounts4',
-                charliePreCompressedTokenAccounts4.items.map(a => a.parsed),
-            );
-            console.log(
-                'charliePreCompressedTokenAccounts4 amount',
-                charliePreCompressedTokenAccounts4.items
-                    .reduce((acc, curr) => acc.add(curr.parsed.amount), bn(0))
-                    .toString(),
-            );
+
             await assertTransfer(
                 rpc,
                 charliePreCompressedTokenAccounts4.items,

@@ -20,21 +20,21 @@ import { CompressedTokenProgram } from '../program';
 /**
  * Mint compressed tokens to a solana address
  *
- * @param rpc                       Rpc to use
- * @param payer                     Payer of the transaction fees
- * @param mint                      Mint for the account
- * @param destination               Address of the account to mint to. Can be an
- *                                  array of addresses if the amount is an array
- *                                  of amounts.
- * @param authority                 Minting authority
- * @param amount                    Amount to mint. Can be an array of amounts
- *                                  if the destination is an array of addresses.
- * @param outputStateTreeInfo    State tree context that the compressed
- *                                  tokens should be part of. Defaults to the
- *                                  default state tree context.
- * @param confirmOptions            Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint for the account
+ * @param destination           Address of the account to mint to. Can be an
+ *                              array of addresses if the amount is an array of
+ *                              amounts.
+ * @param authority             Minting authority
+ * @param amount                Amount to mint. Can be an array of amounts if
+ *                              the destination is an array of addresses.
+ * @param outputStateTreeInfo   State tree info that the compressed tokens
+ *                              should be part of. Defaults to a random active
+ *                              state tree info.
+ * @param confirmOptions        Options for confirming the transaction
  *
- * @return Signature of the confirmed transaction
+ * @return Transaction signature
  */
 export async function mintTo(
     rpc: Rpc,
@@ -74,7 +74,7 @@ export async function mintTo(
     const { blockhash } = await rpc.getLatestBlockhash();
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         additionalSigners,

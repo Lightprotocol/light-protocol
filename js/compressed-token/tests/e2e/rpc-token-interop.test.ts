@@ -55,7 +55,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             bob = await newAccountWithLamports(rpc, 1e9, 256);
             charlie = await newAccountWithLamports(rpc, 1e9, 256);
 
-            const txId1 = await mintTo(
+            await mintTo(
                 rpc,
                 payer,
                 mint,
@@ -64,9 +64,8 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 bn(1000),
                 outputStateTreeInfo,
             );
-            console.log('txId1', txId1);
 
-            const txId2 = await transfer(
+            await transfer(
                 rpc,
                 payer,
                 mint,
@@ -75,7 +74,6 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 charlie.publicKey,
                 outputStateTreeInfo,
             );
-            console.log('txId2', txId2);
         });
 
         it('getCompressedTokenAccountsByOwner should match', async () => {
