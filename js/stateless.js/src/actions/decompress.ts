@@ -85,7 +85,7 @@ export async function decompress(
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         [],

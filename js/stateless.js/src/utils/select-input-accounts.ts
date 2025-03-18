@@ -8,9 +8,10 @@ import { sumUpLamports } from '../programs';
  * Selects compressed accounts with the specified tree types and sums up their
  * lamports.
  *
- * @param accounts List of compressed accounts with Merkle context
- * @param treeTypes Array of tree types to filter by
- * @returns An object containing the selected accounts and the total lamports
+ * @param accounts    List of compressed accounts with Merkle context
+ * @param treeTypes   Array of tree types to filter by
+ * @returns           An object containing the selected accounts and the total
+ *                    lamports
  */
 export function selectAccountsByTreeType(
     accounts: CompressedAccountWithMerkleContext[],
@@ -30,13 +31,13 @@ export function selectAccountsByTreeType(
  * Determines which accounts (V1 or V2) to use and which to discard based on the
  * required lamports.
  *
- * @param lamports Required lamports
- * @param inputLamportsV1 Total lamports from accounts of type V1
- * @param inputLamportsV2 Total lamports from accounts of type V2
- * @param accountsV1 Accounts of type V1
- * @param accountsV2 Accounts of type V2
- * @returns An object containing the selected and discarded accounts and their
- * lamports
+ * @param lamports          Required lamports
+ * @param inputLamportsV1   Total lamports from accounts of type V1
+ * @param inputLamportsV2   Total lamports from accounts of type V2
+ * @param accountsV1        Accounts of type V1
+ * @param accountsV2        Accounts of type V2
+ * @returns                 An object containing the selected and discarded
+ *                          accounts and their lamports
  */
 export function decideInputAccountsToUse(
     lamports: BN,
@@ -70,12 +71,14 @@ export function decideInputAccountsToUse(
 }
 
 /**
- * Selects compressed accounts with the specified tree types, sums up their lamports,
- * and determines which accounts to use and which to discard based on the required lamports.
+ * Selects compressed accounts with the specified tree types, sums up their
+ * lamports, and determines which accounts to use and which to discard based on
+ * the required lamports.
  *
- * @param accounts List of compressed accounts with Merkle context
- * @param lamports Required lamports
- * @returns An object containing the selected accounts, total input lamports, and discarded lamports
+ * @param accounts    List of compressed accounts with Merkle context
+ * @param lamports    Required lamports
+ * @returns           An object containing the selected accounts, total input
+ *                    lamports, and discarded lamports
  */
 
 export function selectInputAccountsForTransfer(

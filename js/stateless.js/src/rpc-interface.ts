@@ -600,26 +600,6 @@ export const SignatureListWithCursorResult = pick({
     cursor: nullable(string()),
 });
 
-// export const CompressedTransactionResult = pick({
-//     compressionInfo: pick({
-//         closedAccounts: array(
-//             pick({
-//                 account: CompressedAccountResult,
-//                 optionalTokenData: nullable(TokenDataResult),
-//             }),
-//         ),
-//         openedAccounts: array(
-//             pick({
-//                 account: CompressedAccountResultV2,
-//                 optionalTokenData: nullable(TokenDataResult),
-//             }),
-//         ),
-//     }),
-//     /// TODO: add transaction struct
-//     /// https://github.com/solana-labs/solana/blob/27eff8408b7223bb3c4ab70523f8a8dca3ca6645/transaction-status/src/lib.rs#L1061
-//     transaction: any(),
-// });
-
 const ClosedAccountResultV2 = pick({
     account: CompressedAccountResultV2,
     txHash: BN254FromString,

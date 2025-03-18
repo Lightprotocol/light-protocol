@@ -21,7 +21,7 @@ import { Rpc } from '../rpc';
  * @param blockhash             blockhash to use
  * @param lookupTableAccounts   lookup table accounts to include
  *
- * @return VersionedTransaction
+ * @return                      VersionedTransaction
  */
 export function buildTx(
     instructions: TransactionInstruction[],
@@ -46,7 +46,7 @@ export function buildTx(
  * @param confirmOptions    confirmation options
  * @param blockHashCtx      blockhash context for confirmation
  *
- * @return TransactionSignature
+ * @return                  TransactionSignature
  */
 export async function sendAndConfirmTx(
     rpc: Rpc,
@@ -80,7 +80,7 @@ export async function sendAndConfirmTx(
  * @param txId              transaction signature to confirm
  * @param confirmOptions    confirmation options
  * @param blockHashCtx      blockhash context for confirmation
- * @return SignatureResult
+ * @return                  SignatureResult
  */
 export async function confirmTx(
     rpc: Rpc,

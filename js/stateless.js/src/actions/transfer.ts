@@ -19,13 +19,14 @@ import { selectInputAccountsForTransfer } from '../utils/select-input-accounts';
 /**
  * Transfer compressed lamports from one owner to another
  *
- * @param rpc                       Rpc to use
+ * @param rpc                       Connection to use
  * @param payer                     Payer of transaction fees
  * @param lamports                  Number of lamports to transfer
  * @param owner                     Owner of the compressed lamports
  * @param toAddress                 Destination address of the recipient
- * @param outputStateTreeInfo    State tree context that the compressed lamports should be
- *                                  inserted into. Defaults to the default state tree context.
+ * @param outputStateTreeInfo       State tree context that the compressed
+ *                                  lamports should be inserted into. Defaults
+ *                                  to the default state tree context.
  * @param confirmOptions            Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction

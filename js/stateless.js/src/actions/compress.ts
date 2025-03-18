@@ -15,12 +15,13 @@ import { Rpc } from '../rpc';
 /**
  * Compress lamports to a solana address
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param lamports        Amount of lamports to compress
- * @param toAddress       Address of the recipient compressed account
- * @param outputStateTree Optional output state tree. Defaults to a current shared state tree.
- * @param confirmOptions  Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction and initialization fees
+ * @param lamports              Amount of lamports to compress
+ * @param toAddress             Address of the recipient compressed account
+ * @param outputStateTreeInfo   Optional output state tree info. Defaults to a
+ *                              current shared state tree.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
  */
@@ -50,7 +51,7 @@ export async function compress(
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         [],

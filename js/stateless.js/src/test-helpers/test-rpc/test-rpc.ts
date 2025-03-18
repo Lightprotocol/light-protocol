@@ -30,7 +30,6 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
-    CompressedAccountResultV2,
 } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
@@ -785,7 +784,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
             /// inclusion
-
             const infoArray: {
                 queue: PublicKey;
                 treeType: TreeType;
@@ -850,7 +848,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     compressedProof: null,
                     roots: [bn(0)],
                     rootIndices: hashes.map(_ => 0),
-                    leafIndices: hashes.map(_ => 0), // TODO: check
+                    leafIndices: hashes.map(_ => 0),
                     leaves: hashes.map(hash => hash),
                     merkleTrees: hashes.map(
                         (_, index) => infoArray[index].tree,
@@ -956,16 +954,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.root)),
                 rootIndices: merkleProofsWithContext
                     .map(proof => proof.rootIndex)
-                    // TODO(crank): make dynamic to enable forester support in
-                    // test-rpc.ts. Currently this is a static root because the
-                    // address tree doesn't advance.
                     .concat(newAddressProofs.map(_ => 3)),
                 leafIndices: merkleProofsWithContext
                     .map(proof => proof.leafIndex)
                     .concat(
-                        newAddressProofs.map(
-                            proof =>
-                                proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
+                        newAddressProofs.map(proof =>
+                            proof.indexHashedIndexedElementLeaf.toNumber(),
                         ),
                     ),
                 leaves: merkleProofsWithContext

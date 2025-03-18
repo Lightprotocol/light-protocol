@@ -240,8 +240,7 @@ export function parseLightTransaction(
         const insertIntoQueuesDiscriminatorStr = bs58.encode(
             INSERT_INTO_QUEUES_DISCRIMINATOR,
         );
-        if (discriminatorStr !== insertIntoQueuesDiscriminatorStr) {
-        } else {
+        if (discriminatorStr === insertIntoQueuesDiscriminatorStr) {
             const dataSlice = data.slice(12);
             appendInputsData =
                 deserializeAppendNullifyCreateAddressInputsIndexer(

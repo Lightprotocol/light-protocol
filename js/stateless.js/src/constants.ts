@@ -24,22 +24,18 @@ export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 
-// TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
 export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
-export const accountCompressionProgram = // also: merkletree program
+export const accountCompressionProgram =
     'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
+    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labeling. gov authority pda
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
-        new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl.
-            lightProgram,
-        ),
+        new PublicKey(lightProgram),
     )[0];
 
 export const defaultStaticAccounts = () => [

@@ -25,7 +25,7 @@ import BN from 'bn.js';
 /**
  * Create compressed account with address
  *
- * @param rpc               RPC to use
+ * @param rpc               Connection to use
  * @param payer             Payer of the transaction and initialization fees
  * @param seeds             Seeds to derive the new account address
  * @param programId         Owner of the new account
@@ -51,7 +51,6 @@ export async function createAccount(
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    // TODO: add V2 support.
     addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
     addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
 

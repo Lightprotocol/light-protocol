@@ -42,6 +42,7 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::{sleep, timeout},
 };
+
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -163,7 +164,8 @@ async fn test_state_indexer_async_batched() {
     .await;
     wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
 
-    let input_compressed_accounts = get_token_accounts(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey).await;
+    let input_compressed_accounts =
+        get_token_accounts(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey).await;
     validate_compressed_accounts_proof(&mut rpc, &photon_indexer, &input_compressed_accounts).await;
 
     let rng_seed = rand::thread_rng().gen::<u64>();
