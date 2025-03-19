@@ -16,8 +16,8 @@ use light_prover_client::{
     },
 };
 use reqwest::Client;
-use tracing::error;
-
+use tracing::{debug, error, warn};
+use light_compressed_account::hash_chain::create_hash_chain_from_slice;
 use crate::error::ForesterUtilsError;
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
@@ -49,6 +49,7 @@ where
         let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
         let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
         let zkp_batch_index = batch.get_num_inserted_zkps();
+        println!("full batch index: {}, zkp batch index: {}", full_batch_index, zkp_batch_index);
         let leaves_hash_chain =
             merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
         let start_index = merkle_tree.next_index;
@@ -64,6 +65,7 @@ where
         .map_err(|_| {
             ForesterUtilsError::Indexer("Failed to get batch address update info".into())
         })?;
+
 
     let batch_size = indexer_update_info.addresses.len();
 
@@ -86,6 +88,21 @@ where
         .iter()
         .map(|x| x.address)
         .collect::<Vec<[u8; 32]>>();
+
+    let addresses_hashchain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
+    if addresses_hashchain != leaves_hash_chain {
+        warn!("create_batch_update_address_tree_instruction_data: addresses hash chain does not match leaves hash chain");
+        warn!("addresses hash chain: {:?}", addresses_hashchain);
+        warn!("leaves hash chain: {:?}", leaves_hash_chain);
+        warn!("start index: {}", start_index);
+        warn!("indexer update info start index: {}", indexer_update_info.batch_start_index);
+        for (i, address) in addresses.iter().enumerate() {
+            warn!("address {}: {:?}", i, address);
+        }
+
+
+        panic!("Addresses hash chain does not match leaves hash chain");
+    }
 
     let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = indexer_update_info
         .subtrees
@@ -118,6 +135,8 @@ where
     let client = Client::new();
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs = to_json(&inputs);
+
+    debug!("prover inputs: {}", inputs);
 
     let response_result = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
