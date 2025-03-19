@@ -1,3 +1,4 @@
+use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{
@@ -9,14 +10,13 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext,
     },
 };
-use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     process_transfer::{
         add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
-        InputTokenDataWithContext,
+        InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
     },
     token_data::{AccountState, TokenData},
     FreezeInstruction,
@@ -118,6 +118,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
+        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -166,7 +167,21 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         token_data.serialize(&mut token_data_bytes)?;
 
-        let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
+        let discriminator_bytes: [u8; 8] = remaining_accounts[token_data_with_context
+            .merkle_context
+            .merkle_tree_pubkey_index
+            as usize]
+            .try_borrow_data()?[0..8]
+            .try_into()
+            .unwrap();
+        use anchor_lang::Discriminator;
+        let data_hash = match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash::<false>(),
+            BATCHED_DISCRIMINATOR => token_data.hash::<true>(),
+            _ => panic!(),
+        }
+        .map_err(ProgramError::from)?;
+
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
@@ -306,9 +321,9 @@ pub mod sdk {
 
 #[cfg(test)]
 pub mod test_freeze {
-    use anchor_lang::solana_program::account_info::AccountInfo;
+    use account_compression::StateMerkleTreeAccount;
+    use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_hasher::{DataHasher, Poseidon};
     use rand::Rng;
 
     use super::*;
@@ -321,7 +336,7 @@ pub mod test_freeze {
     fn test_freeze() {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let mut merkle_tree_account_lamports = 0;
-        let mut merkle_tree_account_data = Vec::new();
+        let mut merkle_tree_account_data = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
@@ -400,7 +415,7 @@ pub mod test_freeze {
                 owner,
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
-                outputs_merkle_tree_index: 1,
+                outputs_merkle_tree_index: 0,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<false, true>(
@@ -430,7 +445,7 @@ pub mod test_freeze {
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
                 vec![expected_change_token_data, expected_delegated_token_data],
-                vec![1u8; 2],
+                vec![0u8; 2],
             );
             assert_eq!(
                 output_compressed_accounts,
@@ -444,7 +459,7 @@ pub mod test_freeze {
                 owner,
                 input_token_data_with_context,
                 cpi_context: None,
-                outputs_merkle_tree_index: 1,
+                outputs_merkle_tree_index: 0,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<true, false>(
@@ -474,7 +489,7 @@ pub mod test_freeze {
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
                 vec![expected_change_token_data, expected_delegated_token_data],
-                vec![1u8; 2],
+                vec![0u8; 2],
             );
             assert_eq!(
                 output_compressed_accounts,
@@ -500,7 +515,7 @@ pub mod test_freeze {
             let change_data_struct = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: serialized_expected_token_data.clone(),
-                data_hash: token_data.hash::<Poseidon>().unwrap(),
+                data_hash: token_data.hash::<false>().unwrap(),
             };
             expected_compressed_output_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
@@ -543,7 +558,6 @@ pub mod test_freeze {
         owner: &Pubkey,
         remaining_accounts: &[Pubkey],
     ) -> Vec<PackedCompressedAccountWithMerkleContext> {
-        use light_hasher::DataHasher;
         input_token_data_with_context
             .iter()
             .map(|x| {
@@ -560,7 +574,7 @@ pub mod test_freeze {
                 };
                 let mut data = Vec::new();
                 token_data.serialize(&mut data).unwrap();
-                let data_hash = token_data.hash::<Poseidon>().unwrap();
+                let data_hash = token_data.hash::<false>().unwrap();
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
                         owner: crate::ID,

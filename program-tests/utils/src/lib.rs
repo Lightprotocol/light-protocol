@@ -8,7 +8,7 @@ pub use forester_utils::{
     instructions::create_account_instruction,
     utils::airdrop_lamports,
 };
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use solana_sdk::{
     instruction::InstructionError,
     pubkey::Pubkey,

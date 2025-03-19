@@ -147,9 +147,7 @@ mod migrate_state_test {
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
     use light_merkle_tree_metadata::{
-        access::AccessMetadata,
-        queue::{QueueMetadata, QueueType},
-        rollover::RolloverMetadata,
+        access::AccessMetadata, queue::QueueMetadata, rollover::RolloverMetadata, QueueType,
     };
     use rand::Rng;
     use solana_sdk::pubkey::Pubkey;

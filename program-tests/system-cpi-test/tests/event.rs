@@ -27,7 +27,6 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
@@ -88,7 +87,7 @@ async fn parse_batched_event_functional() {
                     .enumerate()
                     .map(|(i, x)| {
                         x.compressed_account
-                            .hash::<Poseidon>(&env.batched_state_merkle_tree, &(i as u32))
+                            .hash(&env.batched_state_merkle_tree, &(i as u32), true)
                             .unwrap()
                     })
                     .collect::<Vec<_>>(),
@@ -123,6 +122,7 @@ async fn parse_batched_event_functional() {
                     merkle_tree_pubkey: env.batched_state_merkle_tree,
                     prove_by_index: true,
                     nullifier_queue_pubkey: env.batched_output_queue,
+                    tree_type: light_compressed_account::TreeType::BatchedState,
                 })
             })
             .collect::<Vec<_>>();
@@ -176,7 +176,11 @@ async fn parse_batched_event_functional() {
             .iter()
             .map(|x| {
                 x.compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &x.merkle_context.leaf_index)
+                    .hash(
+                        &env.batched_state_merkle_tree,
+                        &x.merkle_context.leaf_index,
+                        true,
+                    )
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -185,7 +189,7 @@ async fn parse_batched_event_functional() {
             .enumerate()
             .map(|(i, x)| {
                 x.compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &((i + 8) as u32))
+                    .hash(&env.batched_state_merkle_tree, &((i + 8) as u32), true)
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -215,7 +219,7 @@ async fn parse_batched_event_functional() {
                     .enumerate()
                     .map(|(i, x)| {
                         x.compressed_account
-                            .hash::<Poseidon>(&env.batched_state_merkle_tree, &((i + 8) as u32))
+                            .hash(&env.batched_state_merkle_tree, &((i + 8) as u32), true)
                             .unwrap()
                     })
                     .collect::<Vec<_>>(),
@@ -264,6 +268,7 @@ async fn parse_batched_event_functional() {
                     merkle_tree_pubkey: env.batched_state_merkle_tree,
                     prove_by_index: true,
                     nullifier_queue_pubkey: env.batched_output_queue,
+                    tree_type: light_compressed_account::TreeType::BatchedState,
                 })
             })
             .collect::<Vec<_>>();
@@ -325,7 +330,11 @@ async fn parse_batched_event_functional() {
             .iter()
             .map(|x| {
                 x.compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &x.merkle_context.leaf_index)
+                    .hash(
+                        &env.batched_state_merkle_tree,
+                        &x.merkle_context.leaf_index,
+                        true,
+                    )
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -334,7 +343,7 @@ async fn parse_batched_event_functional() {
             .enumerate()
             .map(|(i, x)| {
                 x.compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &((i + 16) as u32))
+                    .hash(&env.batched_state_merkle_tree, &((i + 16) as u32), true)
                     .unwrap()
             })
             .collect::<Vec<_>>();
@@ -364,7 +373,7 @@ async fn parse_batched_event_functional() {
                     .enumerate()
                     .map(|(i, x)| {
                         x.compressed_account
-                            .hash::<Poseidon>(&env.batched_state_merkle_tree, &((i + 16) as u32))
+                            .hash(&env.batched_state_merkle_tree, &((i + 16) as u32), true)
                             .unwrap()
                     })
                     .collect::<Vec<_>>(),
@@ -442,7 +451,7 @@ async fn parse_multiple_batched_events_functional() {
                 output_leaf_indices: vec![0],
                 output_compressed_account_hashes: vec![output_accounts[0]
                     .compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &0u32)
+                    .hash(&env.batched_state_merkle_tree, &0u32, true)
                     .unwrap()],
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
@@ -471,7 +480,7 @@ async fn parse_multiple_batched_events_functional() {
             expected_event.event.output_compressed_account_hashes = vec![output_accounts[0]
                 .clone()
                 .compressed_account
-                .hash::<Poseidon>(&env.batched_state_merkle_tree, &(i as u32))
+                .hash(&env.batched_state_merkle_tree, &(i as u32), true)
                 .unwrap()];
             expected_event.event.output_leaf_indices = vec![i as u32];
             assert_eq!(events[i as usize], expected_event);
@@ -527,7 +536,7 @@ async fn generate_photon_test_data_multiple_events() {
                 output_leaf_indices: vec![0],
                 output_compressed_account_hashes: vec![output_accounts[0]
                     .compressed_account
-                    .hash::<Poseidon>(&env.batched_state_merkle_tree, &0u32)
+                    .hash(&env.batched_state_merkle_tree, &0u32, true)
                     .unwrap()],
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
@@ -556,7 +565,7 @@ async fn generate_photon_test_data_multiple_events() {
             expected_event.event.output_compressed_account_hashes = vec![output_accounts[0]
                 .clone()
                 .compressed_account
-                .hash::<Poseidon>(&env.batched_state_merkle_tree, &(i as u32))
+                .hash(&env.batched_state_merkle_tree, &(i as u32), true)
                 .unwrap()];
             expected_event.event.output_leaf_indices = vec![i as u32];
             assert_eq!(events[i as usize], expected_event);

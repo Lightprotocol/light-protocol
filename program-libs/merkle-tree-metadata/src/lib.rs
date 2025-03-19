@@ -11,3 +11,4 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
+pub use light_compressed_account::{QueueType, TreeType};

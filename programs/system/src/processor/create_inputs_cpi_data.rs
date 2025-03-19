@@ -40,6 +40,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut current_mt_index: u8 = 0;
     let mut is_first_iter = true;
     let mut seq_index = 0;
+    let mut is_batched = true;
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -69,6 +70,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                         tree.metadata.rollover_metadata.network_fee,
                         current_mt_index,
                     );
+                    is_batched = true;
                     // We only set sequence number for batched input queues.
                     cpi_ix_data.insert_input_sequence_number(
                         &mut seq_index,
@@ -78,6 +80,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                     tree.hashed_pubkey
                 }
                 AcpAccount::StateTree(_) => {
+                    is_batched = false;
                     context
                         .get_legacy_merkle_context(current_mt_index)
                         .unwrap()
@@ -118,13 +121,14 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .compressed_account
-                .hash_with_hashed_values::<Poseidon>(
+                .hash_with_hashed_values(
                     &hashed_owner,
                     &current_hashed_mt,
                     &input_compressed_account_with_context
                         .merkle_context
                         .leaf_index
                         .into(),
+                    is_batched,
                 )
                 .map_err(ProgramError::from)?,
             leaf_index: input_compressed_account_with_context

@@ -4,7 +4,7 @@ use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_hasher::{errors::HasherError, DataHasher};
+use light_hasher::{errors::HasherError, Hasher, Poseidon};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
@@ -51,13 +51,13 @@ impl TokenData {
     pub fn is_native(&self) -> bool {
         self.mint == spl_token::native_mint::id()
     }
-    pub fn hash_with_hashed_values<H: light_hasher::Hasher>(
+    pub fn hash_with_hashed_values(
         hashed_mint: &[u8; 32],
         hashed_owner: &[u8; 32],
-        amount_bytes: &[u8; 8],
+        amount_bytes: &[u8; 32],
         hashed_delegate: &Option<&[u8; 32]>,
     ) -> std::result::Result<[u8; 32], HasherError> {
-        Self::hash_inputs_with_hashed_values::<H, false>(
+        Self::hash_inputs_with_hashed_values::<false>(
             hashed_mint,
             hashed_owner,
             amount_bytes,
@@ -65,13 +65,13 @@ impl TokenData {
         )
     }
 
-    pub fn hash_frozen_with_hashed_values<H: light_hasher::Hasher>(
+    pub fn hash_frozen_with_hashed_values(
         hashed_mint: &[u8; 32],
         hashed_owner: &[u8; 32],
-        amount_bytes: &[u8; 8],
+        amount_bytes: &[u8; 32],
         hashed_delegate: &Option<&[u8; 32]>,
     ) -> std::result::Result<[u8; 32], HasherError> {
-        Self::hash_inputs_with_hashed_values::<H, true>(
+        Self::hash_inputs_with_hashed_values::<true>(
             hashed_mint,
             hashed_owner,
             amount_bytes,
@@ -82,33 +82,39 @@ impl TokenData {
     /// We should not hash pubkeys multiple times. For all we can assume mints
     /// are equal. For all input compressed accounts we assume owners are
     /// equal.
-    pub fn hash_inputs_with_hashed_values<H: light_hasher::Hasher, const FROZEN_INPUTS: bool>(
+    pub fn hash_inputs_with_hashed_values<const FROZEN_INPUTS: bool>(
         mint: &[u8; 32],
         owner: &[u8; 32],
-        amount_bytes: &[u8; 8],
+        amount_bytes: &[u8; 32],
         hashed_delegate: &Option<&[u8; 32]>,
     ) -> std::result::Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![mint.as_slice(), owner.as_slice(), amount_bytes.as_slice()];
         if let Some(hashed_delegate) = hashed_delegate {
             hash_inputs.push(hashed_delegate.as_slice());
         }
-        let state_bytes = [AccountState::Frozen as u8];
+        let mut state_bytes = [0u8; 32];
         if FROZEN_INPUTS {
+            state_bytes[31] = AccountState::Frozen as u8;
             hash_inputs.push(&state_bytes[..]);
         }
-        H::hashv(hash_inputs.as_slice())
+        Poseidon::hashv(hash_inputs.as_slice())
     }
 }
 
-impl DataHasher for TokenData {
-    fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
+impl TokenData {
+    pub fn hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
         let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())
             .unwrap()
             .0;
         let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())
             .unwrap()
             .0;
-        let amount_bytes = self.amount.to_le_bytes();
+        let mut amount_bytes = [0u8; 32];
+        if BATCHED {
+            amount_bytes[24..].copy_from_slice(self.amount.to_be_bytes().as_slice());
+        } else {
+            amount_bytes[24..].copy_from_slice(self.amount.to_le_bytes().as_slice());
+        }
         let hashed_delegate;
         let hashed_delegate_option = if let Some(delegate) = self.delegate {
             hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
@@ -119,14 +125,14 @@ impl DataHasher for TokenData {
             None
         };
         if self.state != AccountState::Initialized {
-            Self::hash_inputs_with_hashed_values::<H, true>(
+            Self::hash_inputs_with_hashed_values::<true>(
                 &hashed_mint,
                 &hashed_owner,
                 &amount_bytes,
                 &hashed_delegate_option,
             )
         } else {
-            Self::hash_inputs_with_hashed_values::<H, false>(
+            Self::hash_inputs_with_hashed_values::<false>(
                 &hashed_mint,
                 &hashed_owner,
                 &amount_bytes,
@@ -138,7 +144,7 @@ impl DataHasher for TokenData {
 
 #[cfg(test)]
 pub mod test {
-    use light_hasher::{Keccak, Poseidon};
+
     use rand::Rng;
 
     use super::*;
@@ -153,7 +159,7 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
+        let hashed_token_data = token_data.hash::<false>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
             .0;
@@ -164,11 +170,13 @@ pub mod test {
             hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
                 .unwrap()
                 .0;
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hashed_token_data_with_hashed_values =
-            TokenData::hash_inputs_with_hashed_values::<Poseidon, false>(
+            TokenData::hash_inputs_with_hashed_values::<false>(
                 &hashed_mint,
                 &hashed_owner,
-                &token_data.amount.to_le_bytes(),
+                &amount_bytes,
                 &Some(&hashed_delegate),
             )
             .unwrap();
@@ -182,24 +190,22 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
+        let hashed_token_data = token_data.hash::<false>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
             .0;
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice())
             .unwrap()
             .0;
-        let hashed_token_data_with_hashed_values = TokenData::hash_with_hashed_values::<Poseidon>(
-            &hashed_mint,
-            &hashed_owner,
-            &token_data.amount.to_le_bytes(),
-            &None,
-        )
-        .unwrap();
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hashed_token_data_with_hashed_values =
+            TokenData::hash_with_hashed_values(&hashed_mint, &hashed_owner, &amount_bytes, &None)
+                .unwrap();
         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
     }
 
-    fn equivalency_of_hash_functions_rnd_iters<H: light_hasher::Hasher, const ITERS: usize>() {
+    fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
         let mut rng = rand::thread_rng();
 
         for _ in 0..ITERS {
@@ -211,7 +217,7 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash::<H>().unwrap();
+            let hashed_token_data = token_data.hash::<false>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
                 .unwrap()
                 .0;
@@ -222,10 +228,12 @@ pub mod test {
                 hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
                     .unwrap()
                     .0;
-            let hashed_token_data_with_hashed_values = TokenData::hash_with_hashed_values::<H>(
+            let mut amount_bytes = [0u8; 32];
+            amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+            let hashed_token_data_with_hashed_values = TokenData::hash_with_hashed_values(
                 &hashed_mint,
                 &hashed_owner,
-                &token_data.amount.to_le_bytes(),
+                &amount_bytes,
                 &Some(&hashed_delegate),
             )
             .unwrap();
@@ -239,18 +247,20 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash::<H>().unwrap();
+            let hashed_token_data = token_data.hash::<false>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
                 .unwrap()
                 .0;
             let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice())
                 .unwrap()
                 .0;
+            let mut amount_bytes = [0u8; 32];
+            amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
             let hashed_token_data_with_hashed_values: [u8; 32] =
-                TokenData::hash_with_hashed_values::<H>(
+                TokenData::hash_with_hashed_values(
                     &hashed_mint,
                     &hashed_owner,
-                    &token_data.amount.to_le_bytes(),
+                    &amount_bytes,
                     &None,
                 )
                 .unwrap();
@@ -260,12 +270,7 @@ pub mod test {
 
     #[test]
     fn equivalency_of_hash_functions_iters_poseidon() {
-        equivalency_of_hash_functions_rnd_iters::<Poseidon, 10_000>();
-    }
-
-    #[test]
-    fn equivalency_of_hash_functions_iters_keccak() {
-        equivalency_of_hash_functions_rnd_iters::<Keccak, 100_000>();
+        equivalency_of_hash_functions_rnd_iters::<10_000>();
     }
 
     #[test]
@@ -288,14 +293,16 @@ pub mod test {
             hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
                 .unwrap()
                 .0;
-        let hash = TokenData::hash_with_hashed_values::<Poseidon>(
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hash = TokenData::hash_with_hashed_values(
             &hashed_mint,
             &hashed_owner,
-            &token_data.amount.to_le_bytes(),
+            &amount_bytes,
             &Some(&hashed_delegate),
         )
         .unwrap();
-        let other_hash = token_data.hash::<Poseidon>().unwrap();
+        let other_hash = token_data.hash::<false>().unwrap();
         assert_eq!(hash, other_hash);
     }
 
@@ -316,25 +323,21 @@ pub mod test {
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice())
             .unwrap()
             .0;
-        let hash = TokenData::hash_with_hashed_values::<Poseidon>(
-            &hashed_mint,
-            &hashed_owner,
-            &token_data.amount.to_le_bytes(),
-            &None,
-        )
-        .unwrap();
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hash =
+            TokenData::hash_with_hashed_values(&hashed_mint, &hashed_owner, &amount_bytes, &None)
+                .unwrap();
         vec_previous_hashes.push(hash);
         // different mint
         let hashed_mint_2 = hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice())
             .unwrap()
             .0;
-        let hash2 = TokenData::hash_with_hashed_values::<Poseidon>(
-            &hashed_mint_2,
-            &hashed_owner,
-            &token_data.amount.to_le_bytes(),
-            &None,
-        )
-        .unwrap();
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hash2 =
+            TokenData::hash_with_hashed_values(&hashed_mint_2, &hashed_owner, &amount_bytes, &None)
+                .unwrap();
         assert_to_previous_hashes(hash2, &mut vec_previous_hashes);
 
         // different owner
@@ -342,21 +345,21 @@ pub mod test {
             hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice())
                 .unwrap()
                 .0;
-        let hash3 = TokenData::hash_with_hashed_values::<Poseidon>(
-            &hashed_mint,
-            &hashed_owner_2,
-            &token_data.amount.to_le_bytes(),
-            &None,
-        )
-        .unwrap();
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hash3 =
+            TokenData::hash_with_hashed_values(&hashed_mint, &hashed_owner_2, &amount_bytes, &None)
+                .unwrap();
         assert_to_previous_hashes(hash3, &mut vec_previous_hashes);
 
         // different amount
         let different_amount: u64 = 101;
-        let hash4 = TokenData::hash_with_hashed_values::<Poseidon>(
+        let mut different_amount_bytes = [0u8; 32];
+        different_amount_bytes[24..].copy_from_slice(different_amount.to_le_bytes().as_slice());
+        let hash4 = TokenData::hash_with_hashed_values(
             &hashed_mint,
             &hashed_owner,
-            &different_amount.to_le_bytes(),
+            &different_amount_bytes,
             &None,
         )
         .unwrap();
@@ -367,10 +370,12 @@ pub mod test {
         let hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
             .unwrap()
             .0;
-        let hash7 = TokenData::hash_with_hashed_values::<Poseidon>(
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
+        let hash7 = TokenData::hash_with_hashed_values(
             &hashed_mint,
             &hashed_owner,
-            &token_data.amount.to_le_bytes(),
+            &amount_bytes,
             &Some(&hashed_delegate),
         )
         .unwrap();
@@ -379,11 +384,11 @@ pub mod test {
         // different account state
         let mut token_data = token_data;
         token_data.state = AccountState::Frozen;
-        let hash9 = token_data.hash::<Poseidon>().unwrap();
+        let hash9 = token_data.hash::<false>().unwrap();
         assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
         // different account state with delegate
         token_data.delegate = Some(delegate);
-        let hash10 = token_data.hash::<Poseidon>().unwrap();
+        let hash10 = token_data.hash::<false>().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
     }
 

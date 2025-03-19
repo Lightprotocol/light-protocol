@@ -16,6 +16,7 @@ use light_client::indexer::Indexer;
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
@@ -5329,6 +5330,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
                 nullifier_queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 prove_by_index: false,
+                tree_type: TreeType::State,
             })
             .collect::<Vec<MerkleContext>>(),
         &[

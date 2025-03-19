@@ -1,12 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::{QueueMetadata, QueueType},
-    rollover::RolloverMetadata,
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
+    queue::QueueMetadata, rollover::RolloverMetadata,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
@@ -354,6 +351,7 @@ fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     tree_type: u64,
 ) {
+    use light_compressed_account::QueueType;
     use light_hasher::Hasher;
 
     let queue = account.queue_batches;

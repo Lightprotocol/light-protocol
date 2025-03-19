@@ -17,7 +17,7 @@ use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::merkle_tree::MerkleTreeExt};
 use light_compressed_account::{
     address::derive_address_legacy, compressed_account::MerkleContext,
-    instruction_data::data::NewAddressParams,
+    instruction_data::data::NewAddressParams, TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_test::{
@@ -280,6 +280,7 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -494,12 +495,15 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         },
+
         input_cpda_merkle_context: MerkleContext {
             leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         },
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,

@@ -20,7 +20,6 @@ use light_compressed_account::{
         },
     },
 };
-use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::{
     processor::sol_compression::SOL_POOL_PDA_SEED,
@@ -314,18 +313,10 @@ pub async fn compressed_transaction_test<
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
-
+    // TODO: add Version to MerkleContext
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
         for compressed_account in inputs.input_compressed_accounts.iter() {
-            compressed_account_hashes.push(
-                compressed_account
-                    .compressed_account
-                    .hash::<Poseidon>(
-                        &compressed_account.merkle_context.merkle_tree_pubkey,
-                        &compressed_account.merkle_context.leaf_index,
-                    )
-                    .unwrap(),
-            );
+            compressed_account_hashes.push(compressed_account.hash().unwrap());
         }
         Some(compressed_account_hashes.to_vec())
     } else {
@@ -454,7 +445,6 @@ pub async fn compressed_transaction_test<
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(slot, &event.0.clone());
-
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
@@ -735,12 +725,14 @@ mod test {
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::State,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::State,
             },
         ];
 

@@ -375,7 +375,7 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,

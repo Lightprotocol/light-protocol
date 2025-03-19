@@ -3,7 +3,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{pubkey::Pubkey, QueueType};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
@@ -33,35 +33,6 @@ pub struct QueueMetadata {
     // Next queue to be used after rollover.
     pub next_queue: Pubkey,
     pub queue_type: u64,
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
-#[repr(u8)]
-pub enum QueueType {
-    NullifierQueue = 1,
-    AddressQueue = 2,
-    BatchedInput = 3,
-    BatchedAddress = 4,
-    BatchedOutput = 5,
-}
-
-pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
-pub const ADDRESS_QUEUE_TYPE: u64 = 2;
-pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
-pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
-pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
-
-impl From<u64> for QueueType {
-    fn from(value: u64) -> Self {
-        match value {
-            1 => QueueType::NullifierQueue,
-            2 => QueueType::AddressQueue,
-            3 => QueueType::BatchedInput,
-            4 => QueueType::BatchedAddress,
-            5 => QueueType::BatchedOutput,
-            _ => panic!("Invalid queue type"),
-        }
-    }
 }
 
 pub fn check_queue_type(

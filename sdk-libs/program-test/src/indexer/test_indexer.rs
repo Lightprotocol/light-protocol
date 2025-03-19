@@ -33,9 +33,10 @@ use light_compressed_account::{
     indexer_event::event::PublicTransactionEvent,
     instruction_data::compressed_proof::CompressedProof,
     tx_hash::create_tx_hash,
+    TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     gnark::{
@@ -542,14 +543,10 @@ where
                     .address
                     .map_or(false, |acc_addr| acc_addr == address)
             }),
-            (_, Some(hash)) => self.compressed_accounts.iter().find(|acc| {
-                acc.compressed_account
-                    .hash::<Poseidon>(
-                        &acc.merkle_context.merkle_tree_pubkey,
-                        &acc.merkle_context.leaf_index,
-                    )
-                    .map_or(false, |acc_hash| acc_hash == hash)
-            }),
+            (_, Some(hash)) => self
+                .compressed_accounts
+                .iter()
+                .find(|acc| acc.hash().map_or(false, |acc_hash| acc_hash == hash)),
             (None, None) => {
                 return Err(IndexerError::InvalidParameters(
                     "Either address or hash must be provided".to_string(),
@@ -602,11 +599,7 @@ where
             }),
             (_, Some(hash)) => self.token_compressed_accounts.iter().find(|acc| {
                 acc.compressed_account
-                    .compressed_account
-                    .hash::<Poseidon>(
-                        &acc.compressed_account.merkle_context.merkle_tree_pubkey,
-                        &acc.compressed_account.merkle_context.leaf_index,
-                    )
+                    .hash()
                     .map_or(false, |acc_hash| acc_hash == hash)
             }),
             (None, None) => {
@@ -644,14 +637,7 @@ where
                 let accounts = self
                     .compressed_accounts
                     .iter()
-                    .filter(|acc| {
-                        acc.compressed_account
-                            .hash::<Poseidon>(
-                                &acc.merkle_context.merkle_tree_pubkey,
-                                &acc.merkle_context.leaf_index,
-                            )
-                            .map_or(false, |hash| hashes.contains(&hash))
-                    })
+                    .filter(|acc| acc.hash().map_or(false, |hash| hashes.contains(&hash)))
                     .map(|acc| acc.clone().into_photon_account())
                     .collect();
                 Ok(accounts)
@@ -1780,15 +1766,10 @@ where
             println!("tx_hash {:?}", tx_hash);
             println!("slot {:?}", slot);
             let hash = event.input_compressed_account_hashes[i];
-            let index = self.compressed_accounts.iter().position(|x| {
-                x.compressed_account
-                    .hash::<Poseidon>(
-                        &x.merkle_context.merkle_tree_pubkey,
-                        &x.merkle_context.leaf_index,
-                    )
-                    .unwrap()
-                    == hash
-            });
+            let index = self
+                .compressed_accounts
+                .iter()
+                .position(|x| x.hash().unwrap() == hash);
             let (leaf_index, merkle_tree_pubkey) = if let Some(index) = index {
                 self.nullified_compressed_accounts
                     .push(self.compressed_accounts[index].clone());
@@ -1805,16 +1786,7 @@ where
                 let index = self
                     .token_compressed_accounts
                     .iter()
-                    .position(|x| {
-                        x.compressed_account
-                            .compressed_account
-                            .hash::<Poseidon>(
-                                &x.compressed_account.merkle_context.merkle_tree_pubkey,
-                                &x.compressed_account.merkle_context.leaf_index,
-                            )
-                            .unwrap()
-                            == hash
-                    })
+                    .position(|x| x.compressed_account.hash().unwrap() == hash)
                     .expect("input compressed account not found");
                 self.token_nullified_compressed_accounts
                     .push(self.token_compressed_accounts[index].clone());
@@ -1896,6 +1868,9 @@ where
                                         merkle_tree_pubkey,
                                         nullifier_queue_pubkey,
                                         prove_by_index: false,
+                                        tree_type: if merkle_tree.version == 2 {
+                                            TreeType::BatchedState
+                                        } else {TreeType::State}
                                     },
                                 },
                             };
@@ -1910,6 +1885,9 @@ where
                                 merkle_tree_pubkey,
                                 nullifier_queue_pubkey,
                                 prove_by_index: false,
+                                tree_type: if merkle_tree.version == 2 {
+                                    TreeType::BatchedState
+                                } else {TreeType::State}
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -1924,6 +1902,11 @@ where
                             merkle_tree_pubkey,
                             nullifier_queue_pubkey,
                             prove_by_index: false,
+                            tree_type: if merkle_tree.version == 2 {
+                                TreeType::BatchedState
+                            } else {
+                                TreeType::State
+                            },
                         },
                     };
                     compressed_accounts.push(compressed_account.clone());
@@ -1939,19 +1922,18 @@ where
             println!("Output is batched {:?}", is_batched);
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();
+                let leaf_hash = compressed_account
+                    .compressed_account
+                    .hash(
+                        &event.pubkey_array
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize],
+                        &event.output_leaf_indices[i],
+                        false,
+                    )
+                    .unwrap();
                 merkle_tree
                     .merkle_tree
-                    .append(
-                        &compressed_account
-                            .compressed_account
-                            .hash::<Poseidon>(
-                                &event.pubkey_array[event.output_compressed_accounts[i]
-                                    .merkle_tree_index
-                                    as usize],
-                                &event.output_leaf_indices[i],
-                            )
-                            .unwrap(),
-                    )
+                    .append(&leaf_hash)
                     .expect("insert failed");
             } else {
                 let merkle_tree = &mut self

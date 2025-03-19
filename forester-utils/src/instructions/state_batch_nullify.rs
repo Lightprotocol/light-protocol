@@ -8,7 +8,7 @@ use light_compressed_account::{
     bigint::bigint_to_be_bytes_array, instruction_data::compressed_proof::CompressedProof,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
     gnark::{

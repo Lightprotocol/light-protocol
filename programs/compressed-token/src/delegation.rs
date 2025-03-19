@@ -160,11 +160,13 @@ pub fn create_input_and_output_accounts_approve(
         lamports,
         &hashed_mint,
         &merkle_tree_indices,
+        remaining_accounts,
     )?;
     add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
+        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -251,11 +253,13 @@ pub fn create_input_and_output_accounts_revoke(
         lamports,
         &hashed_mint,
         &[inputs.output_account_merkle_tree_index],
+        remaining_accounts,
     )?;
     add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
+        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -446,7 +450,8 @@ pub mod sdk {
 
 #[cfg(test)]
 mod test {
-    use anchor_lang::solana_program::account_info::AccountInfo;
+    use account_compression::StateMerkleTreeAccount;
+    use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
 
     use super::*;
@@ -460,7 +465,7 @@ mod test {
     fn test_approve() {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let mut merkle_tree_account_lamports = 0;
-        let mut merkle_tree_account_data = Vec::new();
+        let mut merkle_tree_account_data = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
@@ -527,7 +532,7 @@ mod test {
             delegate,
             delegated_amount: 50,
             delegate_merkle_tree_index: 0,
-            change_account_merkle_tree_index: 1,
+            change_account_merkle_tree_index: 0,
             delegate_lamports: None,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
@@ -553,7 +558,7 @@ mod test {
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
             vec![expected_delegated_token_data, expected_change_token_data],
-            vec![0, 1],
+            vec![0, 0],
         );
 
         assert_eq!(
@@ -566,7 +571,7 @@ mod test {
     fn test_revoke() {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let mut merkle_tree_account_lamports = 0;
-        let mut merkle_tree_account_data = Vec::new();
+        let mut merkle_tree_account_data = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
@@ -630,7 +635,7 @@ mod test {
             mint,
             input_token_data_with_context,
             cpi_context: None,
-            output_account_merkle_tree_index: 1,
+            output_account_merkle_tree_index: 0,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
             create_input_and_output_accounts_revoke(&inputs, &authority, &remaining_accounts)
@@ -646,7 +651,7 @@ mod test {
             tlv: None,
         };
         let expected_compressed_output_accounts =
-            create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+            create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
         assert_eq!(
             output_compressed_accounts,
             expected_compressed_output_accounts
@@ -689,7 +694,7 @@ mod test {
             mint,
             input_token_data_with_context,
             cpi_context: None,
-            output_account_merkle_tree_index: 1,
+            output_account_merkle_tree_index: 0,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
             create_input_and_output_accounts_revoke(&inputs, &authority, &remaining_accounts)
@@ -705,7 +710,7 @@ mod test {
             tlv: None,
         };
         let mut expected_compressed_output_accounts =
-            create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
+            create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
         expected_compressed_output_accounts[0]
             .compressed_account
             .lamports = lamports_amount;
