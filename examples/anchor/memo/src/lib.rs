@@ -158,7 +158,7 @@ pub mod memo {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct MemoAccount {
-    #[truncate]
+    #[hash]
     pub authority: Pubkey,
     pub message: String,
 }

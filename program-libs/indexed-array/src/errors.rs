@@ -1,4 +1,3 @@
-use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use thiserror::Error;
 
@@ -20,8 +19,6 @@ pub enum IndexedArrayError {
     ElementDoesNotExist,
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
-    #[error("CompressedAccount error {0}")]
-    CompressedAccount(#[from] CompressedAccountError),
     #[error("Indexed array is full, cannot append more elements")]
     ArrayFull,
 }

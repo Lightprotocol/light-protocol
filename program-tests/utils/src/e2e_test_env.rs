@@ -102,7 +102,6 @@ use light_compressed_account::{
         derive_address, pack_new_address_params, pack_read_only_accounts,
         pack_read_only_address_params,
     },
-    bigint::bigint_to_be_bytes_array,
     compressed_account::{
         pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
         CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
@@ -114,7 +113,7 @@ use light_compressed_account::{
     },
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_hasher::Poseidon;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };

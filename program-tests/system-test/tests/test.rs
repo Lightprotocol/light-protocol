@@ -441,7 +441,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .compressed_account
-            .address = Some(hash_to_bn254_field_size_be([1u8; 32].as_slice()).unwrap().0);
+            .address = Some(hash_to_bn254_field_size_be([1u8; 32].as_slice()).unwrap());
         create_instruction_and_failing_transaction(
             context,
             payer,
@@ -474,7 +474,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
             data: vec![1u8; 1],
-            data_hash: hash_to_bn254_field_size_be([1u8; 32].as_slice()).unwrap().0,
+            data_hash: hash_to_bn254_field_size_be([1u8; 32].as_slice()).unwrap(),
         };
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
@@ -812,9 +812,7 @@ pub async fn failing_transaction_output<R: RpcConnection>(
 
         for account in inputs_struct.output_compressed_accounts.iter_mut() {
             let address = Some(
-                hash_to_bn254_field_size_be(Keypair::new().pubkey().to_bytes().as_slice())
-                    .unwrap()
-                    .0,
+                hash_to_bn254_field_size_be(Keypair::new().pubkey().to_bytes().as_slice()).unwrap(),
             );
             account.compressed_account.address = address;
         }

@@ -155,8 +155,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
             None => {
                 let hashed_owner =
                     hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
-                        .unwrap()
-                        .0;
+                        .map_err(ProgramError::from)?;
                 context
                     .hashed_pubkeys
                     .push((account.compressed_account.owner.into(), hashed_owner));

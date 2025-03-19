@@ -68,9 +68,7 @@ pub fn process_mint_to(
         mint_spl_to_pool_pda(&ctx, &amounts)?;
 
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
-        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
-            .unwrap()
-            .0;
+        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref()).unwrap();
         bench_sbf_start!("tm_output_compressed_accounts");
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];

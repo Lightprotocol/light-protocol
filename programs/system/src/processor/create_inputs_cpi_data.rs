@@ -28,9 +28,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
         .compressed_account
         .owner;
-    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes())
-        .unwrap()
-        .0;
+    let mut hashed_owner =
+        hash_to_bn254_field_size_be(&owner_pubkey.to_bytes()).map_err(ProgramError::from)?;
     context
         .hashed_pubkeys
         .push((owner_pubkey.into(), hashed_owner));

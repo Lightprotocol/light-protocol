@@ -221,9 +221,9 @@ pub fn hash_with_hashed_values(
 
     vec.push(merkle_tree_hashed.as_slice());
 
-    // Lamports are only hashed if non-zero to safe CU
-    // For safety we prefix the lamports with 1 in 1 byte.
-    // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+    // Lamports are only hashed if non-zero to save CU.
+    // For safety, we prefix lamports with 1 in 1 byte.
+    // Thus, even if the discriminator has the same value as the lamports, the hash will be different.
     let mut lamports_bytes = [0u8; 32];
     if *lamports != 0 {
         if is_batched {
@@ -279,13 +279,13 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let hashed_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
-            .unwrap()
-            .0;
-        self.hash_with_hashed_values(&hashed_owner, &hashed_mt, leaf_index, is_batched)
+        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())?;
+        self.hash_with_hashed_values(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes())?,
+            &hashed_mt,
+            leaf_index,
+            is_batched,
+        )
     }
 }
 
@@ -317,13 +317,12 @@ impl ZCompressedAccount<'_> {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let hashed_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
-            .unwrap()
-            .0;
-        self.hash_with_hashed_values(&hashed_owner, &hashed_mt, leaf_index, is_batched)
+        self.hash_with_hashed_values(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes())?,
+            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())?,
+            leaf_index,
+            is_batched,
+        )
     }
 }
 
@@ -366,12 +365,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
@@ -398,12 +395,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
@@ -427,12 +422,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
@@ -458,12 +451,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
             &data.data_hash,
@@ -487,12 +478,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
@@ -518,12 +507,10 @@ mod tests {
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
             hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
-                .0
                 .as_slice(),
         ])
         .unwrap();
@@ -579,12 +566,10 @@ mod tests {
             let mut hasher = light_poseidon::Poseidon::<Fr>::new_circom(7).unwrap();
             use ark_bn254::Fr;
             use ark_ff::{BigInteger, PrimeField};
-            let hashed_owner = hash_to_bn254_field_size_be(&owner.to_bytes()).unwrap().0;
+            let hashed_owner = hash_to_bn254_field_size_be(&owner.to_bytes()).unwrap();
             let owner = Fr::from_be_bytes_mod_order(hashed_owner.as_slice());
             let leaf_index = Fr::from_be_bytes_mod_order(leaf_index.to_le_bytes().as_ref());
-            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0;
+            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).unwrap();
             let merkle_tree_pubkey = Fr::from_be_bytes_mod_order(hashed_mt.as_slice());
             let lamports = Fr::from_be_bytes_mod_order(lamports.to_le_bytes().as_ref())
                 + Fr::from_be_bytes_mod_order(&[1u8, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -613,12 +598,10 @@ mod tests {
             let mut hasher = light_poseidon::Poseidon::<Fr>::new_circom(7).unwrap();
             use ark_bn254::Fr;
             use ark_ff::{BigInteger, PrimeField};
-            let hashed_owner = hash_to_bn254_field_size_be(&owner.to_bytes()).unwrap().0;
+            let hashed_owner = hash_to_bn254_field_size_be(&owner.to_bytes()).unwrap();
             let owner = Fr::from_be_bytes_mod_order(hashed_owner.as_slice());
             let leaf_index = Fr::from_be_bytes_mod_order(leaf_index.to_be_bytes().as_ref());
-            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0;
+            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).unwrap();
             let merkle_tree_pubkey = Fr::from_be_bytes_mod_order(hashed_mt.as_slice());
             let lamports = Fr::from_be_bytes_mod_order(lamports.to_be_bytes().as_ref())
                 + Fr::from_be_bytes_mod_order(&[1u8, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -686,9 +669,9 @@ mod tests {
 
             vec.push(merkle_tree_hashed.as_slice());
 
-            // Lamports are only hashed if non-zero to safe CU
-            // For safety we prefix the lamports with 1 in 1 byte.
-            // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+            // Lamports are only hashed if non-zero to save CU.
+            // For safety, we prefix lamports with 1 in 1 byte.
+            // Thus, even if the discriminator has the same value as the lamports, the hash will be different.
             let mut lamports_bytes = [1, 0, 0, 0, 0, 0, 0, 0, 0];
             if self.lamports != 0 {
                 lamports_bytes[1..].copy_from_slice(&self.lamports.to_le_bytes());
@@ -714,13 +697,9 @@ mod tests {
             &merkle_tree_pubkey: &Pubkey,
             leaf_index: &u32,
         ) -> Result<[u8; 32], CompressedAccountError> {
-            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0;
+            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).unwrap();
             self.legacy_hash_with_values::<H>(
-                &hash_to_bn254_field_size_be(&self.owner.to_bytes())
-                    .unwrap()
-                    .0,
+                &hash_to_bn254_field_size_be(&self.owner.to_bytes()).unwrap(),
                 &hashed_mt,
                 leaf_index,
             )

@@ -20,10 +20,9 @@ use light_batched_merkle_tree::{
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
-    instruction_data::compressed_proof::CompressedProof,
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
-use light_hasher::Poseidon;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,

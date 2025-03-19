@@ -1,12 +1,16 @@
-pub mod bytes;
+pub mod bigint;
+mod data_hasher;
 pub mod errors;
+pub mod hash_to_field_size;
 pub mod keccak;
 pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
+pub mod to_byte_array;
 pub mod zero_bytes;
 pub mod zero_indexed_leaf;
 
+pub use data_hasher::DataHasher;
 pub use keccak::Keccak;
 pub use poseidon::Poseidon;
 pub use sha256::Sha256;
@@ -25,10 +29,7 @@ pub trait Hasher {
     fn zero_indexed_leaf() -> [u8; 32];
 }
 
-pub trait DataHasher {
-    fn hash<H: crate::Hasher>(&self) -> Result<[u8; 32], HasherError>;
-}
-
+// TODO: remove once light-sdk is switched to account-checks
 pub trait Discriminator {
     const DISCRIMINATOR: [u8; 8];
     fn discriminator() -> [u8; 8] {
