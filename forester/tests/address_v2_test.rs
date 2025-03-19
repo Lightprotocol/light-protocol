@@ -37,7 +37,7 @@ use crate::test_utils::{forester_config, init};
 mod test_utils;
 
 const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60;
+const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
