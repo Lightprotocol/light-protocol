@@ -144,9 +144,9 @@ describe('layout', () => {
                             },
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
-                                nullifierQueuePubkeyIndex: 1,
+                                queuePubkeyIndex: 1,
                                 leafIndex: 10,
-                                queueIndex: null,
+                                proveByIndex: false,
                             },
                             rootIndex: 0,
                             readOnly: false,

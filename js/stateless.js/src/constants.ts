@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { ActiveTreeBundle, TreeType } from './state/types';
+import { StateTreeInfo, TreeType } from './state/types';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -24,22 +24,18 @@ export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 
-// TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
 export const lightProgram = 'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7';
-export const accountCompressionProgram = // also: merkletree program
+export const accountCompressionProgram =
     'compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labelling. gov authority pda
+    new PublicKey('35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh'); // TODO: better labeling. gov authority pda
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
-        new PublicKey(
-            // TODO: can add check to ensure its consistent with the idl
-            lightProgram,
-        ),
+        new PublicKey(lightProgram),
     )[0];
 
 export const defaultStaticAccounts = () => [
@@ -104,26 +100,32 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),
             queue: new PublicKey(nullifierQueuePubkey),
             cpiContext: new PublicKey(cpiContextPubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
         },
         {
             tree: new PublicKey(merkleTree2Pubkey),
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
+        },
+        {
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
+            cpiContext: PublicKey.default,
+            treeType: TreeType.StateV2,
         },
     ];
 };
 
 /**
  * Use only with Localnet testing.
- * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getLightStateTreeInfo}.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getActiveStateTreeInfos}.
  */
 export const defaultTestStateTreeAccounts = () => {
     return {
@@ -144,6 +146,9 @@ export const defaultTestStateTreeAccounts2 = () => {
         merkleTree2: new PublicKey(merkleTree2Pubkey),
     };
 };
+
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree and nullifier
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';

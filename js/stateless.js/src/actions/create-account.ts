@@ -7,9 +7,10 @@ import {
 } from '@solana/web3.js';
 import {
     LightSystemProgram,
-    selectMinCompressedSolAccountsForTransfer,
+    selectMinCompressedSolAccountsForPdaCreation,
 } from '../programs';
-import { pickRandomTreeAndQueue, Rpc } from '../rpc';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
+import { Rpc } from '../rpc';
 import {
     NewAddressParams,
     buildAndSignTx,
@@ -18,13 +19,13 @@ import {
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { bn } from '../state';
+import { bn, StateTreeInfo, TreeType } from '../state';
 import BN from 'bn.js';
 
 /**
  * Create compressed account with address
  *
- * @param rpc               RPC to use
+ * @param rpc               Connection to use
  * @param payer             Payer of the transaction and initialization fees
  * @param seeds             Seeds to derive the new account address
  * @param programId         Owner of the new account
@@ -45,7 +46,7 @@ export async function createAccount(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -56,10 +57,12 @@ export async function createAccount(
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, addressTree);
 
-    if (!outputStateTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
     }
 
     const proof = await rpc.getValidityProofV0(undefined, [
@@ -74,20 +77,20 @@ export async function createAccount(
         seed: seed,
         addressMerkleTreeRootIndex: proof.rootIndices[0],
         addressMerkleTreePubkey: proof.merkleTrees[0],
-        addressQueuePubkey: proof.nullifierQueues[0],
+        addressQueuePubkey: proof.queues[0],
     };
 
     const ix = await LightSystemProgram.createAccount({
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.compressedProof!,
         programId,
-        outputStateTree,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],
@@ -101,23 +104,21 @@ export async function createAccount(
 /**
  * Create compressed account with address and lamports
  *
- * @param rpc               RPC to use
- * @param payer             Payer of the transaction and initialization fees
- * @param seeds             Seeds to derive the new account address
- * @param lamports          Number of compressed lamports to initialize the
- *                          account with
- * @param programId         Owner of the new account
- * @param addressTree       Optional address tree. Defaults to a current shared
- *                          address tree.
- * @param addressQueue      Optional address queue. Defaults to a current shared
- *                          address queue.
- * @param outputStateTree   Optional output state tree. Defaults to a current
- *                          shared state tree.
- * @param confirmOptions    Options for confirming the transaction
+ * @param rpc                       RPC to use
+ * @param payer                     Payer of the transaction and initialization fees
+ * @param seeds                     Seeds to derive the new account address
+ * @param lamports                  Number of compressed lamports to initialize the
+ *                                  account with
+ * @param programId                 Owner of the new account
+ * @param addressTree               Optional address tree. Defaults to a current shared
+ *                                  address tree.
+ * @param addressQueue              Optional address queue. Defaults to a current shared
+ *                                  address queue.
+ * @param outputStateTreeInfo    Optional output state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
- * @return                  Transaction signature
+ * @return  Transaction signature
  */
-// TODO: add support for payer != user owner
 export async function createAccountWithLamports(
     rpc: Rpc,
     payer: Signer,
@@ -126,7 +127,7 @@ export async function createAccountWithLamports(
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
@@ -135,15 +136,16 @@ export async function createAccountWithLamports(
         payer.publicKey,
     );
 
-    const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
+    const [inputAccounts] = selectMinCompressedSolAccountsForPdaCreation(
         compressedAccounts.items,
         lamports,
     );
-
-    if (!outputStateTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
     }
 
     const { blockhash } = await rpc.getLatestBlockhash();
@@ -168,23 +170,22 @@ export async function createAccountWithLamports(
             proof.rootIndices[proof.rootIndices.length - 1],
         addressMerkleTreePubkey:
             proof.merkleTrees[proof.merkleTrees.length - 1],
-        addressQueuePubkey:
-            proof.nullifierQueues[proof.nullifierQueues.length - 1],
+        addressQueuePubkey: proof.queues[proof.queues.length - 1],
     };
 
     const ix = await LightSystemProgram.createAccount({
         payer: payer.publicKey,
         newAddressParams: params,
         newAddress: Array.from(address.toBytes()),
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.compressedProof!,
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         programId,
-        outputStateTree,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
         payer,
         blockhash,
         [],
