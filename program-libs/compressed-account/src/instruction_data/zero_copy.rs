@@ -6,7 +6,7 @@ use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
-use super::invoke_cpi::InstructionDataInvokeCpi;
+use super::{compressed_proof::ZCompressedProof, invoke_cpi::InstructionDataInvokeCpi};
 use crate::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -295,7 +295,7 @@ impl<'a> Deserialize<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct ZInstructionDataInvoke<'a> {
-    pub proof: Option<Ref<&'a [u8], CompressedProof>>,
+    pub proof: Option<ZCompressedProof<'a>>,
     pub input_compressed_accounts_with_merkle_context:
         Vec<ZPackedCompressedAccountWithMerkleContext<'a>>,
     pub output_compressed_accounts: Vec<ZOutputCompressedAccountWithPackedContext<'a>>,
@@ -339,7 +339,7 @@ impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct ZInstructionDataInvokeCpi<'a> {
-    pub proof: Option<Ref<&'a [u8], CompressedProof>>,
+    pub proof: Option<ZCompressedProof<'a>>,
     pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsPacked>,
     pub input_compressed_accounts_with_merkle_context:
         Vec<ZPackedCompressedAccountWithMerkleContext<'a>>,

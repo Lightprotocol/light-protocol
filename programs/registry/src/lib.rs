@@ -682,7 +682,11 @@ pub fn check_forester(
             return err!(RegistryError::InvalidNetworkFee);
         }
         Ok(())
-    } else if metadata.access_metadata.forester == authority.into() {
+    } else if metadata.access_metadata.forester
+        == <anchor_lang::prelude::Pubkey as Into<light_compressed_account::pubkey::Pubkey>>::into(
+            authority,
+        )
+    {
         Ok(())
     } else {
         err!(RegistryError::InvalidSigner)

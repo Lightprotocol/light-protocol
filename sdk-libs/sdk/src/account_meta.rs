@@ -3,16 +3,51 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::compressed_account::{
     CompressedAccountWithMerkleContext, PackedMerkleContext,
 };
+use light_zero_copy::ZeroCopy;
 use solana_program::pubkey::Pubkey;
 
-use crate::{
-    error::Result,
-    merkle_context::{
-        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
-        PackedAddressMerkleContext, RemainingAccounts,
-    },
+use crate::merkle_context::{
+    pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
+    PackedAddressMerkleContext, RemainingAccounts,
 };
 
+#[derive(Debug, ZeroCopy)]
+pub struct InputAccountMeta {
+    pub merkle_context: PackedMerkleContext,
+    pub lamports: u64,
+    pub root_index: Option<u16>,
+}
+
+#[derive(Debug, ZeroCopy)]
+pub struct InputAccountMetaNoLamports {
+    pub merkle_context: PackedMerkleContext,
+    pub root_index: Option<u16>,
+}
+
+#[derive(Debug, ZeroCopy)]
+pub struct InputAccountMetaWithAddressNoLamports {
+    /// Merkle tree context.
+    pub merkle_context: PackedMerkleContext,
+    /// Address.
+    pub address: [u8; 32],
+    /// Root index.
+    pub root_index: Option<u16>,
+}
+
+#[derive(Debug, ZeroCopy)]
+pub struct InputAccountMetaWithAddress {
+    /// Merkle tree context.
+    pub merkle_context: PackedMerkleContext,
+    /// Lamports.
+    pub lamports: u64,
+    /// Address.
+    pub address: [u8; 32],
+    /// Root index.
+    pub root_index: Option<u16>,
+}
+
+/// Client compressed account meta.
+/// TODO: move to client and or consider to remove (could be returned by rpc)
 #[derive(Debug, Clone, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct LightAccountMeta {
     /// Lamports.
@@ -44,10 +79,15 @@ impl LightAccountMeta {
         address_merkle_context: Option<&AddressMerkleContext>,
         address_merkle_tree_root_index: Option<u16>,
         remaining_accounts: &mut RemainingAccounts,
-    ) -> Result<Self> {
+    ) -> crate::error::Result<Self> {
         let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
-        let address_merkle_context =
-            address_merkle_context.map(|ctx| pack_address_merkle_context(ctx, remaining_accounts));
+        let address_merkle_context = address_merkle_context.map(|ctx| {
+            pack_address_merkle_context(
+                ctx,
+                address_merkle_tree_root_index.unwrap(),
+                remaining_accounts,
+            )
+        });
         Ok(Self {
             lamports: None,
             address: None,

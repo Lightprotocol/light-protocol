@@ -48,18 +48,16 @@ mod tests {
         LightAccountInfo {
             input: Some(LightInputAccountInfo {
                 lamports,
-
                 // None of the following values matter.
                 address: Some([1; 32]),
-                data: Some(b"ayy"),
-                data_hash: Some([0; 32]),
+                data_hash: [0; 32],
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
                     prove_by_index: false,
                 },
-                root_index: 0,
+                root_index: Some(0),
             }),
             owner,
             // None of the following values matter.
@@ -69,7 +67,6 @@ mod tests {
             data_hash: None,
             address: Some([1; 32]),
             output_merkle_tree_index: None,
-            new_address_params: None,
         }
     }
 
@@ -85,7 +82,6 @@ mod tests {
             data_hash: None,
             address: Some([1; 32]),
             output_merkle_tree_index: None,
-            new_address_params: None,
         }
     }
 

@@ -16,6 +16,8 @@ solana-program = { workspace = true, optional = true }
 thiserror = { workspace = true }
 arrayvec = { workspace = true }
 num-bigint = { workspace = true }
+zerocopy = { workspace = true }
+light-zero-copy = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 ark-bn254 = { workspace = true }

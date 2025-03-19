@@ -56,7 +56,9 @@ pub fn process_update_address_merkle_tree<'info>(
 
     {
         let merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-        if merkle_tree.metadata.associated_queue != ctx.accounts.queue.key().into() {
+        if merkle_tree.metadata.associated_queue
+            != <anchor_lang::prelude::Pubkey as Into<light_compressed_account::pubkey::Pubkey>>::into(ctx.accounts.queue.key())
+        {
             msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated address queue {:?} != provided queue {}",
             merkle_tree.metadata.associated_queue,
