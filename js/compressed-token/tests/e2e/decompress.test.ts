@@ -131,7 +131,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     rpc,
                     payer,
                     mint,
-                    bn(1000),
+                    bn(50),
                     bob,
                     charlieAta,
                     outputStateTreeInfo,
@@ -141,7 +141,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     bn(recipientAtaBalanceBefore.value.amount),
                     charlieAta,
                     mint,
-                    bn(1000),
+                    bn(50),
                     bob.publicKey,
                     senderCompressedTokenBalanceBefore.items,
                 );
