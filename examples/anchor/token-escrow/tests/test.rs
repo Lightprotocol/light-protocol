@@ -11,8 +11,7 @@
 // release compressed tokens
 
 use light_client::indexer::Indexer;
-use light_compressed_account::compressed_account::MerkleContext;
-use light_hasher::Poseidon;
+use light_compressed_account::{compressed_account::MerkleContext, TreeType};
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
@@ -232,15 +231,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     let compressed_input_account_with_context = input_compressed_token_account_data
         .compressed_account
         .clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -270,6 +261,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -401,15 +393,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         .clone();
     let compressed_input_account_with_context =
         escrow_token_data_with_context.compressed_account.clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -439,6 +423,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,

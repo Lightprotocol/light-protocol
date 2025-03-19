@@ -38,6 +38,7 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+num-bigint = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

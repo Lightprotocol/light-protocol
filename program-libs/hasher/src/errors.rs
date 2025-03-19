@@ -13,6 +13,8 @@ pub enum HasherError {
     PoseidonSyscall(#[from] PoseidonSyscallError),
     #[error("Unknown Solana syscall error: {0}")]
     UnknownSolanaSyscall(u64),
+    #[error("Poseidon hash inputs must be 32 bytes {0}")]
+    InvalidInputLength(usize),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -24,6 +26,7 @@ impl From<HasherError> for u32 {
             HasherError::Poseidon(_) => 7002,
             HasherError::PoseidonSyscall(e) => (u64::from(e)).try_into().unwrap_or(7003),
             HasherError::UnknownSolanaSyscall(e) => e.try_into().unwrap_or(7004),
+            HasherError::InvalidInputLength(_) => 7005,
         }
     }
 }

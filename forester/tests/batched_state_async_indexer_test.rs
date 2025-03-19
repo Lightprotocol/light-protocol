@@ -18,7 +18,6 @@ use light_compressed_account::{
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
-use light_hasher::Poseidon;
 use light_program_test::test_env::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_registry::{
@@ -784,14 +783,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .sum::<u64>();
     let compressed_account_hashes = input_compressed_accounts
         .iter()
-        .map(|x| {
-            x.compressed_account
-                .hash::<Poseidon>(
-                    &x.merkle_context.merkle_tree_pubkey,
-                    &x.merkle_context.leaf_index,
-                )
-                .unwrap()
-        })
+        .map(|x| x.hash().unwrap())
         .collect::<Vec<[u8; 32]>>();
     wait_for_indexer(rpc, indexer).await.unwrap();
     let proof_for_compressed_accounts = indexer

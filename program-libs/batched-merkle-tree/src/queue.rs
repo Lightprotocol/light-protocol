@@ -5,11 +5,8 @@ use light_account_checks::{
     checks::{check_account_info, set_discriminator},
     discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
 };
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
-use light_merkle_tree_metadata::{
-    errors::MerkleTreeMetadataError,
-    queue::{QueueMetadata, QueueType},
-};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType};
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};

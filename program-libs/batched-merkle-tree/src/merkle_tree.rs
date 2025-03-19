@@ -7,16 +7,14 @@ use light_account_checks::{
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
     instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
-    pubkey::Pubkey,
+    pubkey::Pubkey, QueueType, TreeType, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE,
+    BATCHED_OUTPUT_QUEUE_TYPE,
 };
 use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
     events::{batch::BatchEvent, MerkleTreeEvent},
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::{
-        QueueType, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE, BATCHED_OUTPUT_QUEUE_TYPE,
-    },
+    merkle_tree::MerkleTreeMetadata,
 };
 use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
