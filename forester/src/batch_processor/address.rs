@@ -20,6 +20,7 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
     let mut rpc = context.rpc_pool.get_connection().await?;
 
     // Create instruction data and get batch size
+    
     let (instruction_data, batch_size) = create_batch_update_address_tree_instruction_data(
         &mut *rpc,
         &mut *context.indexer.lock().await,

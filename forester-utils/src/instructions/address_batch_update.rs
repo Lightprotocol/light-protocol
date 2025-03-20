@@ -19,6 +19,7 @@ use reqwest::Client;
 use tracing::{debug, error, warn};
 use light_compressed_account::hash_chain::create_hash_chain_from_slice;
 use crate::error::ForesterUtilsError;
+use crate::utils::wait_for_indexer;
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
@@ -59,6 +60,8 @@ where
         (leaves_hash_chain, start_index, current_root, zkp_batch_size)
     };
 
+    wait_for_indexer(rpc, indexer).await.unwrap();
+
     let indexer_update_info = indexer
         .get_batch_address_update_info(merkle_tree_pubkey, batch_size)
         .await
@@ -90,17 +93,17 @@ where
         .collect::<Vec<[u8; 32]>>();
 
     let addresses_hashchain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
+
+    warn!("create_batch_update_address_tree_instruction_data: addresses hash chain does not match leaves hash chain");
+    warn!("addresses hash chain: {:?}", addresses_hashchain);
+    warn!("leaves hash chain: {:?}", leaves_hash_chain);
+    warn!("start index: {}", start_index);
+    warn!("indexer update info start index: {}", indexer_update_info.batch_start_index);
+    for (i, address) in addresses.iter().enumerate() {
+        warn!("address {}: {:?}", i, address);
+    }
+
     if addresses_hashchain != leaves_hash_chain {
-        warn!("create_batch_update_address_tree_instruction_data: addresses hash chain does not match leaves hash chain");
-        warn!("addresses hash chain: {:?}", addresses_hashchain);
-        warn!("leaves hash chain: {:?}", leaves_hash_chain);
-        warn!("start index: {}", start_index);
-        warn!("indexer update info start index: {}", indexer_update_info.batch_start_index);
-        for (i, address) in addresses.iter().enumerate() {
-            warn!("address {}: {:?}", i, address);
-        }
-
-
         panic!("Addresses hash chain does not match leaves hash chain");
     }
 
