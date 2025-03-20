@@ -540,10 +540,15 @@ mod tests {
 
     #[test]
     fn reference() {
-        let owner = Pubkey::new_unique();
-        let address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
-            .unwrap()
-            .0;
+        let owner = Pubkey::new_from_array([
+            0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
+        let address = [
+            0, 21, 245, 15, 61, 157, 224, 84, 69, 48, 190, 72, 43, 19, 47, 25, 14, 118, 20, 147,
+            40, 141, 175, 33, 233, 58, 36, 179, 73, 137, 84, 99,
+        ];
+
         let data = CompressedAccountData {
             discriminator: [0, 0, 0, 0, 0, 0, 0, 1],
             data: vec![2u8; 31],
@@ -557,7 +562,11 @@ mod tests {
             data: Some(data.clone()),
         };
         let bytes: Vec<u8> = compressed_account.try_to_vec().unwrap();
-        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey = Pubkey::new_from_array([
+            0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
+
         let leaf_index = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
