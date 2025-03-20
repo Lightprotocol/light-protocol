@@ -12,7 +12,6 @@
 
 use light_client::indexer::Indexer;
 use light_compressed_account::{compressed_account::MerkleContext, TreeType};
-use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
