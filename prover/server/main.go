@@ -147,7 +147,12 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType {
+					if circuit != prover.InclusionCircuitType &&
+						circuit != prover.NonInclusionCircuitType &&
+						circuit != prover.CombinedCircuitType &&
+						circuit != prover.BatchUpdateCircuitType &&
+						circuit != prover.BatchAppendWithProofsCircuitType &&
+						circuit != prover.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
