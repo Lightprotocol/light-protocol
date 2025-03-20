@@ -331,6 +331,7 @@ impl ZCompressedAccount<'_> {
 mod tests {
     use light_hasher::Poseidon;
     use light_zero_copy::borsh::Deserialize;
+    use rand::Rng;
 
     use super::*;
     /// Tests:
@@ -342,209 +343,6 @@ mod tests {
     /// 6. no address, no data, no lamports
     #[test]
     fn test_compressed_account_hash() {
-        let owner = Pubkey::new_unique();
-        let address = [1u8; 32];
-        let data = CompressedAccountData {
-            discriminator: [1u8; 8],
-            data: vec![2u8; 32],
-            data_hash: [3u8; 32],
-        };
-        let lamports = 100;
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports,
-            address: Some(address),
-            data: Some(data.clone()),
-        };
-        let merkle_tree_pubkey = Pubkey::new_unique();
-        let leaf_index = 1;
-        let hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
-            address.as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
-            &data.data_hash,
-        ])
-        .unwrap();
-        assert_eq!(hash, hash_manual);
-        assert_eq!(hash.len(), 32);
-
-        // no data
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports,
-            address: Some(address),
-            data: None,
-        };
-        let no_data_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
-            address.as_slice(),
-        ])
-        .unwrap();
-        assert_eq!(no_data_hash, hash_manual);
-        assert_ne!(hash, no_data_hash);
-
-        // no address
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports,
-            address: None,
-            data: Some(data.clone()),
-        };
-        let no_address_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
-            &data.data_hash,
-        ])
-        .unwrap();
-        assert_eq!(no_address_hash, hash_manual);
-        assert_ne!(hash, no_address_hash);
-        assert_ne!(no_data_hash, no_address_hash);
-
-        // no address no lamports
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports: 0,
-            address: None,
-            data: Some(data.clone()),
-        };
-        let no_address_no_lamports_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
-            &data.data_hash,
-        ])
-        .unwrap();
-        assert_eq!(no_address_no_lamports_hash, hash_manual);
-        assert_ne!(hash, no_address_no_lamports_hash);
-        assert_ne!(no_data_hash, no_address_no_lamports_hash);
-        assert_ne!(no_address_hash, no_address_no_lamports_hash);
-
-        // no address and no data
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports,
-            address: None,
-            data: None,
-        };
-        let no_address_no_data_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            [&[1u8], lamports.to_le_bytes().as_slice()]
-                .concat()
-                .as_slice(),
-        ])
-        .unwrap();
-        assert_eq!(no_address_no_data_hash, hash_manual);
-        assert_ne!(hash, no_address_no_data_hash);
-        assert_ne!(no_data_hash, no_address_no_data_hash);
-        assert_ne!(no_address_hash, no_address_no_data_hash);
-        assert_ne!(no_address_no_lamports_hash, no_address_no_data_hash);
-
-        // no address, no data, no lamports
-        let compressed_account = CompressedAccount {
-            owner,
-            lamports: 0,
-            address: None,
-            data: None,
-        };
-        let no_address_no_data_no_lamports_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
-            .unwrap();
-        let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-            leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
-        ])
-        .unwrap();
-        assert_eq!(no_address_no_data_no_lamports_hash, hash_manual);
-        assert_ne!(no_address_no_data_hash, no_address_no_data_no_lamports_hash);
-        assert_ne!(hash, no_address_no_data_no_lamports_hash);
-        assert_ne!(no_data_hash, no_address_no_data_no_lamports_hash);
-        assert_ne!(no_address_hash, no_address_no_data_no_lamports_hash);
-        assert_ne!(
-            no_address_no_lamports_hash,
-            no_address_no_data_no_lamports_hash
-        );
-    }
-
-    /// Tests:
-    /// 1. functional with all inputs set
-    /// 2. no data
-    /// 3. no address
-    /// 4. no address and no lamports
-    /// 5. no address and no data
-    /// 6. no address, no data, no lamports
-    #[test]
-    fn test_zcompressed_account_hash() {
         let owner = Pubkey::new_unique();
         let address = [1u8; 32];
         let data = CompressedAccountData {
@@ -843,71 +641,112 @@ mod tests {
         assert_eq!(hash.len(), 32);
     }
 
-    // fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
-    //     let mut rng = rand::thread_rng();
+    impl CompressedAccount {
+        pub fn legacy_hash_with_values<H: Hasher>(
+            &self,
+            &owner_hashed: &[u8; 32],
+            &merkle_tree_hashed: &[u8; 32],
+            leaf_index: &u32,
+        ) -> Result<[u8; 32], CompressedAccountError> {
+            let capacity = 3
+                + std::cmp::min(self.lamports, 1) as usize
+                + self.address.is_some() as usize
+                + self.data.is_some() as usize * 2;
+            let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
+            vec.push(owner_hashed.as_slice());
 
-    //     for _ in 0..ITERS {
-    //         let token_data = TokenData {
-    //             mint: Pubkey::new_unique(),
-    //             owner: Pubkey::new_unique(),
-    //             amount: rng.gen(),
-    //             delegate: Some(Pubkey::new_unique()),
-    //             state: AccountState::Initialized,
-    //             tlv: None,
-    //         };
-    //         let hashed_token_data = token_data.hash_legacy().unwrap();
-    //         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
-    //             .unwrap()
-    //             .0;
-    //         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice())
-    //             .unwrap()
-    //             .0;
-    //         let hashed_delegate =
-    //             hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
-    //                 .unwrap()
-    //                 .0;
-    //         let mut amount_bytes = [0u8; 32];
-    //         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
-    //         let hashed_token_data_with_hashed_values = TokenData::hash_with_hashed_values(
-    //             &hashed_mint,
-    //             &hashed_owner,
-    //             &amount_bytes,
-    //             &Some(&hashed_delegate),
-    //         )
-    //         .unwrap();
-    //         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
+            // leaf index and merkle tree pubkey are used to make every compressed account hash unique
+            let leaf_index = leaf_index.to_le_bytes();
+            vec.push(leaf_index.as_slice());
 
-    //         let token_data = TokenData {
-    //             mint: Pubkey::new_unique(),
-    //             owner: Pubkey::new_unique(),
-    //             amount: rng.gen(),
-    //             delegate: None,
-    //             state: AccountState::Initialized,
-    //             tlv: None,
-    //         };
-    //         let hashed_token_data = token_data.hash_legacy().unwrap();
-    //         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
-    //             .unwrap()
-    //             .0;
-    //         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice())
-    //             .unwrap()
-    //             .0;
-    //         let mut amount_bytes = [0u8; 32];
-    //         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
-    //         let hashed_token_data_with_hashed_values: [u8; 32] =
-    //             TokenData::hash_with_hashed_values(
-    //                 &hashed_mint,
-    //                 &hashed_owner,
-    //                 &amount_bytes,
-    //                 &None,
-    //             )
-    //             .unwrap();
-    //         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
-    //     }
-    // }
+            vec.push(merkle_tree_hashed.as_slice());
 
-    // #[test]
-    // fn equivalency_of_hash_functions_iters_poseidon() {
-    //     equivalency_of_hash_functions_rnd_iters::<10_000>();
-    // }
+            // Lamports are only hashed if non-zero to safe CU
+            // For safety we prefix the lamports with 1 in 1 byte.
+            // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+            let mut lamports_bytes = [1, 0, 0, 0, 0, 0, 0, 0, 0];
+            if self.lamports != 0 {
+                lamports_bytes[1..].copy_from_slice(&self.lamports.to_le_bytes());
+                vec.push(lamports_bytes.as_slice());
+            }
+
+            if self.address.is_some() {
+                vec.push(self.address.as_ref().unwrap().as_slice());
+            }
+
+            let mut discriminator_bytes = [2, 0, 0, 0, 0, 0, 0, 0, 0];
+            if let Some(data) = &self.data {
+                discriminator_bytes[1..].copy_from_slice(&data.discriminator);
+                vec.push(&discriminator_bytes);
+                vec.push(&data.data_hash);
+            }
+            let hash = H::hashv(&vec)?;
+            Ok(hash)
+        }
+
+        pub fn hash_legacy<H: Hasher>(
+            &self,
+            &merkle_tree_pubkey: &Pubkey,
+            leaf_index: &u32,
+        ) -> Result<[u8; 32], CompressedAccountError> {
+            let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0;
+            self.legacy_hash_with_values::<H>(
+                &hash_to_bn254_field_size_be(&self.owner.to_bytes())
+                    .unwrap()
+                    .0,
+                &hashed_mt,
+                leaf_index,
+            )
+        }
+    }
+
+    fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
+        let mut rng = rand::thread_rng();
+
+        for _ in 0..ITERS {
+            let account = CompressedAccount {
+                owner: Pubkey::new_unique(),
+                lamports: rng.gen::<u64>(),
+                address: if rng.gen_bool(0.5) {
+                    let mut address = rng.gen::<[u8; 32]>();
+                    address[0] = 0;
+                    Some(address)
+                } else {
+                    None
+                },
+                data: if rng.gen_bool(0.5) {
+                    Some(CompressedAccountData {
+                        discriminator: rng.gen(),
+                        data: Vec::new(), // not used in hash
+                        data_hash: Poseidon::hash(rng.gen::<u64>().to_be_bytes().as_slice())
+                            .unwrap(),
+                    })
+                } else {
+                    None
+                },
+            };
+            let leaf_index = rng.gen::<u32>();
+            let merkle_tree_pubkey = Pubkey::new_unique();
+            let hash_legacy = account
+                .hash_legacy::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
+                .unwrap();
+            let hash = account
+                .hash(&merkle_tree_pubkey, &leaf_index, false)
+                .unwrap();
+            let bytes: Vec<u8> = account.try_to_vec().unwrap();
+            let (z_account, _) = ZCompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
+            let z_hash = z_account
+                .hash(&merkle_tree_pubkey, &leaf_index, false)
+                .unwrap();
+            assert_eq!(hash_legacy, hash);
+            assert_eq!(hash, z_hash);
+        }
+    }
+
+    #[test]
+    fn equivalency_of_hash_functions() {
+        equivalency_of_hash_functions_rnd_iters::<100>();
+    }
 }
