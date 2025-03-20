@@ -158,6 +158,7 @@ impl TokenData {
 #[cfg(test)]
 pub mod test {
 
+    use num_bigint::BigUint;
     use rand::Rng;
 
     use super::*;
@@ -323,6 +324,35 @@ pub mod test {
     #[test]
     fn equivalency_of_hash_functions_iters_poseidon() {
         equivalency_of_hash_functions_rnd_iters::<10_000>();
+    }
+
+    #[test]
+    fn test_circuit_equivalence() {
+        // Convert hex strings to Pubkeys
+        let mint_pubkey = Pubkey::new_unique();
+        let owner_pubkey = Pubkey::new_unique();
+        let delegate_pubkey = Pubkey::new_unique();
+
+        let token_data = TokenData {
+            mint: mint_pubkey,
+            owner: owner_pubkey,
+            amount: 1000000u64,
+            delegate: Some(delegate_pubkey),
+            state: AccountState::Initialized, // Using Frozen state to match our circuit test
+            tlv: None,
+        };
+
+        // Calculate the hash with the Rust code
+        let rust_hash = token_data.hash().unwrap();
+
+        let circuit_hash_str =
+            "12698830169693734517877055378728747723888091986541703429186543307137690361131";
+        use std::str::FromStr;
+        let circuit_hash = BigUint::from_str(circuit_hash_str).unwrap().to_bytes_be();
+        let rust_hash_string = BigUint::from_bytes_be(rust_hash.as_slice()).to_string();
+        println!("Circuit hash string: {}", circuit_hash_str);
+        println!("rust_hash_string {}", rust_hash_string);
+        assert_eq!(rust_hash.to_vec(), circuit_hash);
     }
 
     #[test]

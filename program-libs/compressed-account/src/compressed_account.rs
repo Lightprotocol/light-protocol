@@ -331,6 +331,7 @@ impl ZCompressedAccount<'_> {
 mod tests {
     use light_hasher::Poseidon;
     use light_zero_copy::borsh::Deserialize;
+    use num_bigint::BigUint;
     use rand::Rng;
 
     use super::*;
@@ -639,6 +640,21 @@ mod tests {
         assert_eq!(hash.to_vec(), manual_hash_new);
         assert_eq!(z_hash.to_vec(), manual_hash_new);
         assert_eq!(hash.len(), 32);
+        use std::str::FromStr;
+        let circuit_reference_value = BigUint::from_str(
+            "15638319165413000277907073391141043184436601830909724248083671155000605125280",
+        )
+        .unwrap()
+        .to_bytes_be();
+        println!(
+            "lamports domain: {:?}",
+            BigUint::from_bytes_be(&[1u8, 0, 0, 0, 0, 0, 0, 0, 0]).to_string()
+        );
+        println!(
+            "discriminator domain: {:?}",
+            BigUint::from_bytes_be(&[2u8, 0, 0, 0, 0, 0, 0, 0, 0]).to_string()
+        );
+        assert_eq!(hash.to_vec(), circuit_reference_value);
     }
 
     impl CompressedAccount {
