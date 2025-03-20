@@ -355,9 +355,11 @@ pub async fn assert_escrow<R: RpcConnection + MerkleTreeExt>(
         compressed_escrow_pda_deserialized.discriminator,
         1u64.to_le_bytes(),
     );
+    let mut slot_bytes = [0u8; 32];
+    slot_bytes[24..].copy_from_slice(&compressed_escrow_pda_data.slot.to_be_bytes());
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
-        Poseidon::hash(&compressed_escrow_pda_data.slot.to_le_bytes()).unwrap(),
+        Poseidon::hash(&slot_bytes).unwrap(),
     );
 }
 pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
@@ -564,8 +566,10 @@ pub async fn assert_withdrawal<R: RpcConnection + MerkleTreeExt>(
         compressed_escrow_pda_deserialized.discriminator,
         1u64.to_le_bytes(),
     );
+    let mut slot_bytes = [0u8; 32];
+    slot_bytes[24..].copy_from_slice(&compressed_escrow_pda_data.slot.to_be_bytes());
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
-        Poseidon::hash(&compressed_escrow_pda_data.slot.to_le_bytes()).unwrap(),
+        Poseidon::hash(&slot_bytes).unwrap(),
     );
 }
