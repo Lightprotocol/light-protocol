@@ -85,10 +85,10 @@ impl TokenData {
     pub fn hash_inputs_with_hashed_values<const FROZEN_INPUTS: bool>(
         mint: &[u8; 32],
         owner: &[u8; 32],
-        amount_bytes: &[u8; 32],
+        amount_bytes: &[u8],
         hashed_delegate: &Option<&[u8; 32]>,
     ) -> std::result::Result<[u8; 32], HasherError> {
-        let mut hash_inputs = vec![mint.as_slice(), owner.as_slice(), amount_bytes.as_slice()];
+        let mut hash_inputs = vec![mint.as_slice(), owner.as_slice(), amount_bytes];
         if let Some(hashed_delegate) = hashed_delegate {
             hash_inputs.push(hashed_delegate.as_slice());
         }
@@ -218,6 +218,41 @@ pub mod test {
         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
     }
 
+    impl TokenData {
+        fn legacy_hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+            let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())
+                .unwrap()
+                .0;
+            let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())
+                .unwrap()
+                .0;
+            let amount_bytes = self.amount.to_le_bytes();
+            let hashed_delegate;
+            let hashed_delegate_option = if let Some(delegate) = self.delegate {
+                hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+                    .unwrap()
+                    .0;
+                Some(&hashed_delegate)
+            } else {
+                None
+            };
+            if self.state != AccountState::Initialized {
+                Self::hash_inputs_with_hashed_values::<true>(
+                    &hashed_mint,
+                    &hashed_owner,
+                    &amount_bytes,
+                    &hashed_delegate_option,
+                )
+            } else {
+                Self::hash_inputs_with_hashed_values::<false>(
+                    &hashed_mint,
+                    &hashed_owner,
+                    &amount_bytes,
+                    &hashed_delegate_option,
+                )
+            }
+        }
+    }
     fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
         let mut rng = rand::thread_rng();
 
@@ -251,6 +286,8 @@ pub mod test {
             )
             .unwrap();
             assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
+            let legacy_hash = token_data.legacy_hash().unwrap();
+            assert_eq!(hashed_token_data, legacy_hash);
 
             let token_data = TokenData {
                 mint: Pubkey::new_unique(),
@@ -278,6 +315,8 @@ pub mod test {
                 )
                 .unwrap();
             assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
+            let legacy_hash = token_data.legacy_hash().unwrap();
+            assert_eq!(hashed_token_data, legacy_hash);
         }
     }
 
