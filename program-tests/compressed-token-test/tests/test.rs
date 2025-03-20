@@ -3417,7 +3417,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -5288,7 +5288,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
