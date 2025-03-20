@@ -234,15 +234,7 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
     let compressed_input_account_with_context = input_compressed_token_account_data
         .compressed_account
         .clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
@@ -453,22 +445,10 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
         .unwrap()
         .clone();
     let token_escrow_account = token_escrow.compressed_account.clone();
-    let token_escrow_account_hash = token_escrow_account
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &token_escrow_account.merkle_context.leaf_index,
-        )
-        .unwrap();
+    let token_escrow_account_hash = token_escrow_account.hash().unwrap();
     println!("token_data_escrow {:?}", token_escrow);
     println!("token escrow_account {:?}", token_escrow_account);
-    let compressed_pda_hash = compressed_escrow_pda
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_escrow_pda.merkle_context.leaf_index,
-        )
-        .unwrap();
+    let compressed_pda_hash = compressed_escrow_pda.hash().unwrap();
     println!("compressed_pda_hash {:?}", compressed_pda_hash);
     println!("token_escrow_account_hash {:?}", token_escrow_account_hash);
     // compressed pda will go first into the proof because in the program

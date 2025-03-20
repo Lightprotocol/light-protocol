@@ -313,7 +313,6 @@ pub async fn compressed_transaction_test<
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
-    // TODO: add Version to MerkleContext
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
         for compressed_account in inputs.input_compressed_accounts.iter() {
             compressed_account_hashes.push(compressed_account.hash().unwrap());

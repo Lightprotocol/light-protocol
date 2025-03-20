@@ -102,7 +102,20 @@ impl TokenData {
 }
 
 impl TokenData {
-    pub fn hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
+    /// Hashes token data of token accounts.
+    ///
+    /// Note, hashing changed for token account data in batched Merkle trees.
+    /// For hashing of token account data stored in concurrent Merkle trees use hash_legacy().
+    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+        self._hash::<true>()
+    }
+
+    /// Hashes token data of token accounts stored in concurrent Merkle trees.
+    pub fn hash_legacy(&self) -> std::result::Result<[u8; 32], HasherError> {
+        self._hash::<false>()
+    }
+
+    fn _hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
         let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())
             .unwrap()
             .0;
@@ -159,7 +172,7 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash::<false>().unwrap();
+        let hashed_token_data = token_data.hash_legacy().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
             .0;
@@ -190,7 +203,7 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash::<false>().unwrap();
+        let hashed_token_data = token_data.hash_legacy().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
             .0;
@@ -217,7 +230,7 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash::<false>().unwrap();
+            let hashed_token_data = token_data.hash_legacy().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
                 .unwrap()
                 .0;
@@ -247,7 +260,7 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash::<false>().unwrap();
+            let hashed_token_data = token_data.hash_legacy().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
                 .unwrap()
                 .0;
@@ -302,7 +315,7 @@ pub mod test {
             &Some(&hashed_delegate),
         )
         .unwrap();
-        let other_hash = token_data.hash::<false>().unwrap();
+        let other_hash = token_data.hash_legacy().unwrap();
         assert_eq!(hash, other_hash);
     }
 
@@ -384,11 +397,11 @@ pub mod test {
         // different account state
         let mut token_data = token_data;
         token_data.state = AccountState::Frozen;
-        let hash9 = token_data.hash::<false>().unwrap();
+        let hash9 = token_data.hash_legacy().unwrap();
         assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
         // different account state with delegate
         token_data.delegate = Some(delegate);
-        let hash10 = token_data.hash::<false>().unwrap();
+        let hash10 = token_data.hash_legacy().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
     }
 

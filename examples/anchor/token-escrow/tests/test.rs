@@ -232,15 +232,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     let compressed_input_account_with_context = input_compressed_token_account_data
         .compressed_account
         .clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -402,15 +394,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         .clone();
     let compressed_input_account_with_context =
         escrow_token_data_with_context.compressed_account.clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(

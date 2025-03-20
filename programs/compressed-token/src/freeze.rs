@@ -176,8 +176,8 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             .unwrap();
         use anchor_lang::Discriminator;
         let data_hash = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash::<false>(),
-            BATCHED_DISCRIMINATOR => token_data.hash::<true>(),
+            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_legacy(),
+            BATCHED_DISCRIMINATOR => token_data.hash(),
             _ => panic!(),
         }
         .map_err(ProgramError::from)?;
@@ -515,7 +515,7 @@ pub mod test_freeze {
             let change_data_struct = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: serialized_expected_token_data.clone(),
-                data_hash: token_data.hash::<false>().unwrap(),
+                data_hash: token_data.hash_legacy().unwrap(),
             };
             expected_compressed_output_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
@@ -574,7 +574,7 @@ pub mod test_freeze {
                 };
                 let mut data = Vec::new();
                 token_data.serialize(&mut data).unwrap();
-                let data_hash = token_data.hash::<false>().unwrap();
+                let data_hash = token_data.hash_legacy().unwrap();
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
                         owner: crate::ID,
