@@ -9,8 +9,8 @@ use syn::{parse_str, Error, Fields, ItemStruct, Result};
 /// - DataHasher Hash -> [u8;32]
 ///
 /// - Attribute Macros:
-///     1. truncate
-///         hash with keccak256 and truncate to 31 bytes
+///     1. hash
+///         hash to bn254 field size (less than 254 bit), hash with keccak256 and truncate to 31 bytes
 ///     2. skip
 ///         ignore field
 ///     3. flatten
@@ -32,13 +32,13 @@ use syn::{parse_str, Error, Fields, ItemStruct, Result};
 ///     2. LEN >= 32  needs to be handled (can be truncated or implement custom ToByteArray)
 /// - Arrays (General):
 ///     1. if elements implement ToByteArray and are less than 13, hash of all elements
-///     2. More elements than 13 -> manual implementation or truncate
+///     2. More elements than 13 -> manual implementation or hash to field size
 /// - Vec<T>:
 ///     - we do not provide a blanket implementation since it could fail in production once a vector fills up
-///     - users need to truncate or do a manual implementation
+///     - users need to hash to field size or do a manual implementation
 /// - Strings:
-///     - we do not provide a blanket implementation since it could fail in production once a vector fills up
-///     - users need to truncate or do a manual implementation
+///     - we do not provide a blanket implementation since it could fail in production once a string fills up
+///     - users need to hash to field size or do a manual implementation
 /// - Enums, References, SmartPointers:
 ///     - Not supported
 pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
@@ -78,46 +78,46 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
     let mut field_assignments = Vec::new();
     fields.named.iter().enumerate().for_each(|(i, field)| {
         let field_name = &field.ident;
-        let truncate = field
+        let hash_to_field_size = field
             .attrs
             .iter()
-            .any(|attr| attr.path().is_ident("truncate"));
+            .any(|attr| attr.path().is_ident("hash"));
         let skip = field.attrs.iter().any(|attr| attr.path().is_ident("skip"));
         let flatten = field
             .attrs
             .iter()
             .any(|attr| attr.path().is_ident("flatten"));
 
-        // Truncate:
-        // 1. General case: self.#field_name.truncate()?
+        // HashToFieldSize:
+        // 1. General case: self.#field_name.hash_to_field_size()?
         // 2. Vec<u8> -> hashv_to_bn254_field_size_le(&[self.#field_name.as_slice()])
         // 3. Option<Vec<u8>> -> if let Some(#field_name) = self.#field_name { hashv_to_bn254_field_size_le(&[self.#field_name.as_slice()]) } else { [0u8;32] }
-        if truncate {
+        if hash_to_field_size {
             if !truncate_set {
                 truncate_code.push(quote! {
-                    use ::light_hasher::truncate::Truncate;
+                    use ::light_hasher::hash_to_field_size::HashToFieldSize;
                 });
                 truncate_set = true;
             }
             if field.ty.to_token_stream().to_string() == "Vec < u8 >"{
                 to_byte_arrays_fields.push(quote! {
-                    arrays[#i ] = ::light_hasher::truncate::hash_to_bn254_field_size_be(self.#field_name.as_slice());
+                    arrays[#i ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice());
                 });
                 if flatten_field_exists {
                     field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = ::light_hasher::truncate::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
+                        field_array[#i + num_flattned_fields ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
                         slices[#i + num_flattned_fields ] = field_array[#i +  num_flattned_fields].as_slice();
                     });
                 } else {
                     field_assignments.push(quote! {
-                        ::light_hasher::truncate::hash_to_bn254_field_size_be(self.#field_name.as_slice())
+                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                     });
                 }
             } else if field.ty.to_token_stream().to_string().starts_with("Option < Vec < u8 > >") {
-                // Truncate the inner type if something is an option.
+                // HashToFieldSize the inner type if something is an option.
                 to_byte_arrays_fields.push(quote! {
                     arrays[#i ] = if let Some(#field_name) = &self.#field_name {
-                        ::light_hasher::truncate::hash_to_bn254_field_size_be(self.#field_name.as_slice())
+                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                     } else {
                         [0u8;32]
                     };
@@ -125,7 +125,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 if flatten_field_exists {
                     field_assignments.push(quote! {
                         field_array[#i + num_flattned_fields ] = &self.#field_name {
-                            ::light_hasher::truncate::hash_to_bn254_field_size_be(self.#field_name.as_slice())
+                            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                         } else {
                             [0u8;32]
                         };
@@ -135,7 +135,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     field_assignments.push(quote! {
                         {
                             if let Some(#field_name) = &self.#field_name {
-                                    ::light_hasher::truncate::hashv_to_bn254_field_size_le(#field_name.as_slice()).as_slice()
+                                    ::light_hasher::hash_to_field_size::hashv_to_bn254_field_size_le(#field_name.as_slice()).as_slice()
                             } else {
                                     [0u8;32]
                             }
@@ -143,14 +143,11 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     });
                 }
             } else if field.ty.to_token_stream().to_string().starts_with("Option < ") {
-                // TODO: consider is it necessary to hash Poseidon(self.truncate) if is some ?
+                // TODO: consider is it necessary to hash Poseidon(self.hash_to_field_size) if is some ?
                 // - if we hash and truncate already it is not necessary
-                // - if somebody truncates by cutting off values it is necssary.
-                //   -> will just rename truncate trait to HashTruncate.
-                // Truncate the inner type if something is an option.
                 to_byte_arrays_fields.push(quote! {
                     arrays[#i ] = if let Some(#field_name) = &self.#field_name {
-                        #field_name.truncate()?
+                        #field_name.hash_to_field_size()?
                     } else {
                         [0u8;32]
                     };
@@ -158,7 +155,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 if flatten_field_exists {
                     field_assignments.push(quote! {
                         field_array[#i + num_flattned_fields ] = if let Some(#field_name) = &self.#field_name {
-                            #field_name.truncate()?
+                            #field_name.hash_to_field_size()?
                         } else {
                             [0u8;32]
                         };
@@ -168,7 +165,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     field_assignments.push(quote! {
                         {
                             if let Some(#field_name) = &self.#field_name {
-                                #field_name.truncate()?
+                                #field_name.hash_to_field_size()?
                             } else {
                                 [0u8;32]
                             }
@@ -177,15 +174,15 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 }
             } else {
                 to_byte_arrays_fields.push(quote! {
-                    arrays[#i ] = self.#field_name.truncate()?;
+                    arrays[#i ] = self.#field_name.hash_to_field_size()?;
                 });
                 if flatten_field_exists {
                     field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = self.#field_name.truncate()?;
+                        field_array[#i + num_flattned_fields ] = self.#field_name.hash_to_field_size()?;
                     });
                 } else {
                     field_assignments.push(quote! {
-                        self.#field_name.truncate()?
+                        self.#field_name.hash_to_field_size()?
                     });
                 }
             }
@@ -374,7 +371,7 @@ mod tests {
     fn test_truncate_option() {
         let input: ItemStruct = parse_quote! {
             struct TruncateOptionStruct {
-                #[truncate]
+                #[hash]
                 a: Option<String>,
             }
         };
@@ -384,7 +381,9 @@ mod tests {
 
         assert!(formatted_output.contains("const NUM_FIELDS: usize"));
         assert!(formatted_output.contains("1usize"));
-        assert!(formatted_output.contains("use ::light_hasher::truncate::Truncate"));
+        assert!(
+            formatted_output.contains("use ::light_hasher::hash_to_field_size::HashToFieldSize")
+        );
     }
 
     #[test]
@@ -392,7 +391,7 @@ mod tests {
         let input: ItemStruct = parse_quote! {
             struct MixedStruct {
                 a: u32,
-                #[truncate]
+                #[hash]
                 b: String,
                 c: Option<u64>,
             }
@@ -404,7 +403,7 @@ mod tests {
         assert!(formatted_output.contains("const NUM_FIELDS: usize"));
         assert!(formatted_output.contains("3usize"));
         assert!(formatted_output.contains("arrays[0usize] = self.a.to_byte_array()?"));
-        assert!(formatted_output.contains("arrays[1usize] = self.b.truncate()?"));
+        assert!(formatted_output.contains("arrays[1usize] = self.b.hash_to_field_size()?"));
         assert!(formatted_output.contains("arrays[2usize]"));
     }
 
@@ -430,7 +429,7 @@ mod tests {
         let input: ItemStruct = parse_quote! {
             struct OptionStruct {
                 a: Option<u32>,
-                #[truncate]
+                #[hash]
                 b: Option<String>,
             }
         };
@@ -440,7 +439,7 @@ mod tests {
         // and there shouldn't be an error when using truncate with Option<u32>
         let input: ItemStruct = parse_quote! {
             struct ValidStruct {
-                #[truncate]
+                #[hash]
                 a: Option<u32>,
             }
         };

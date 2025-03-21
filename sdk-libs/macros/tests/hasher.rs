@@ -9,14 +9,14 @@ pub struct MyAccount {
     pub a: bool,
     pub b: u64,
     pub c: MyNestedStruct,
-    #[truncate]
+    #[hash]
     pub d: [u8; 32],
     pub f: Option<usize>,
 }
 
 #[derive(LightHasher, Clone)]
 pub struct TruncateVec {
-    #[truncate]
+    #[hash]
     pub d: Vec<u8>,
 }
 
@@ -36,34 +36,9 @@ pub struct FlatMyAccount {
 pub struct MyNestedStruct {
     pub a: i32,
     pub b: u32,
-    #[truncate]
+    #[hash]
     pub c: String,
 }
-
-// impl ToByteArray for Option<MyNestedStruct> {
-//     const NUM_FIELDS: usize = 3;
-
-//     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
-//         if let Some(value) = &self {
-//             let mut byte_array = value.to_byte_array()?;
-//             byte_array[std::mem::size_of::<$int_ty>()] = 1;
-//             Ok(byte_array)
-//         } else {
-//             Ok([0; 32])
-//         }
-//     }
-
-//     fn to_byte_arrays<const NUM_FIELDS: usize>(
-//         &self,
-//     ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
-//         if Self::NUM_FIELDS != NUM_FIELDS {
-//             return Err(HasherError::InvalidNumFields);
-//         }
-//         let mut result = [[0; 32]; NUM_FIELDS];
-//         result[0] = self.to_byte_array()?;
-//         Ok(result)
-//     }
-// }
 
 #[derive(Clone)]
 pub struct MyNestedNonHashableStruct {
@@ -108,7 +83,7 @@ fn test_simple_hash() {
 /// - test_zero_values: assert_eq! zero-value field hash matches manual hash
 ///
 /// 2. Attribute Behavior:
-///    a. Truncate (Success):
+///    a. HashToFieldSize (Success):
 ///   - test_array_truncation: assert_ne! between different array hashes
 ///   - test_truncation_longer_array: assert_ne! between different long string hashes
 ///   - test_multiple_truncates: assert_ne! between multiple truncated field hashes
@@ -273,7 +248,7 @@ mod attribute_behavior {
         fn test_array_truncation() {
             #[derive(LightHasher)]
             struct TruncatedStruct {
-                #[truncate]
+                #[hash]
                 data: [u8; 32],
             }
 
@@ -300,7 +275,7 @@ mod attribute_behavior {
         fn test_truncation_longer_array() {
             #[derive(LightHasher)]
             struct LongTruncatedStruct {
-                #[truncate]
+                #[hash]
                 data: String,
             }
 
@@ -325,9 +300,9 @@ mod attribute_behavior {
         fn test_multiple_truncates() {
             #[derive(LightHasher)]
             struct MultiTruncate {
-                #[truncate]
+                #[hash]
                 data1: String,
-                #[truncate]
+                #[hash]
                 data2: String,
             }
 
@@ -355,7 +330,7 @@ mod attribute_behavior {
             #[derive(LightHasher)]
             struct NestedTruncate {
                 inner: MyNestedStruct,
-                #[truncate]
+                #[hash]
                 data: String,
             }
 
@@ -580,7 +555,7 @@ fn test_poseidon_width_limits() {
 fn test_32_array_length() {
     #[derive(LightHasher)]
     struct OversizedArray {
-        #[truncate]
+        #[hash]
         data: [u8; 32],
     }
 
@@ -596,7 +571,7 @@ fn test_32_array_length() {
 fn test_option_array() {
     #[derive(LightHasher)]
     struct OptionArray {
-        #[truncate]
+        #[hash]
         data: Option<[u8; 32]>,
     }
 
@@ -635,7 +610,7 @@ mod option_handling {
         struct BasicOptions {
             small: Option<u32>,
             large: Option<u64>,
-            #[truncate]
+            #[hash]
             empty_str: Option<String>,
         }
 
@@ -694,13 +669,13 @@ mod option_handling {
     fn test_truncated_option_variants() {
         #[derive(LightHasher)]
         struct TruncatedOptions {
-            #[truncate]
+            #[hash]
             empty_str: Option<String>,
-            #[truncate]
+            #[hash]
             short_str: Option<String>,
-            #[truncate]
+            #[hash]
             long_str: Option<String>,
-            #[truncate]
+            #[hash]
             large_array: Option<[u8; 64]>,
         }
 
@@ -834,9 +809,9 @@ mod option_handling {
         #[derive(LightHasher)]
         struct MixedOptions {
             basic: Option<u32>,
-            #[truncate]
+            #[hash]
             truncated_small: Option<String>,
-            #[truncate]
+            #[hash]
             truncated_large: Option<[u8; 64]>,
 
             nested_empty: Option<MyNestedStruct>,
@@ -936,7 +911,7 @@ mod option_handling {
         #[derive(LightHasher)]
         struct InnerWithOptions {
             basic: Option<u32>,
-            #[truncate]
+            #[hash]
             truncated: Option<String>,
         }
 
@@ -1006,7 +981,7 @@ mod option_uniqueness {
         struct OptionTest {
             a: Option<u64>,
             b: Option<u64>,
-            #[truncate]
+            #[hash]
             c: Option<String>,
 
             d: Option<MyNestedStruct>,
@@ -1149,9 +1124,9 @@ mod option_uniqueness {
     fn test_truncated_option_uniqueness() {
         #[derive(LightHasher)]
         struct TruncateTest {
-            #[truncate]
+            #[hash]
             a: Option<String>,
-            #[truncate]
+            #[hash]
             b: Option<[u8; 64]>,
         }
 
@@ -1199,9 +1174,9 @@ mod option_uniqueness {
 fn test_truncate_byte_representation() {
     #[derive(LightHasher)]
     struct TruncateTest {
-        #[truncate]
+        #[hash]
         data: String,
-        #[truncate]
+        #[hash]
         array: [u8; 64],
     }
 
@@ -1238,10 +1213,10 @@ fn test_byte_representation_combinations() {
     assert_eq!(with_some.to_byte_arrays().unwrap(), manual_some);
     assert_eq!(with_none.to_byte_arrays().unwrap(), manual_none);
 
-    // Option + Truncate
+    // Option + HashToFieldSize
     #[derive(LightHasher)]
     struct OptionTruncate {
-        #[truncate]
+        #[hash]
         opt: Option<String>,
     }
 
@@ -1285,7 +1260,7 @@ fn test_byte_representation_combinations() {
     #[derive(LightHasher)]
     struct Combined {
         basic: Option<u64>,
-        #[truncate]
+        #[hash]
         trunc: Option<String>,
 
         nest: Option<MyNestedStruct>,

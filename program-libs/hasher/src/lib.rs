@@ -1,10 +1,10 @@
 pub mod bytes;
 pub mod errors;
+pub mod hash_to_field_size;
 pub mod keccak;
 pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
-pub mod truncate;
 pub mod zero_bytes;
 pub mod zero_indexed_leaf;
 

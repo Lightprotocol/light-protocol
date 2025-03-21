@@ -141,9 +141,9 @@ impl Default for RData {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct NameRecord {
-    #[truncate]
+    #[hash]
     pub owner: Pubkey,
-    #[truncate]
+    #[hash]
     pub name: String,
     pub rdata: RData,
 }
