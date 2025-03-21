@@ -1,5 +1,7 @@
 use std::{sync::Arc, time::Duration};
-
+use num_bigint::BigUint;
+use rand::prelude::{StdRng, ThreadRng};
+use rand::{Rng, RngCore, SeedableRng};
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
 use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
@@ -31,7 +33,8 @@ use tokio::{
     sync::{mpsc, oneshot, Mutex},
     time::sleep,
 };
-
+use light_hasher::Poseidon;
+use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 use crate::test_utils::{forester_config, init};
 
 mod test_utils;
@@ -43,6 +46,13 @@ const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 #[serial]
 async fn test_create_v2_address() {
+    let mut thread_rng = ThreadRng::default();
+    let seed = 0; //thread_rng.next_u64();
+    // Keep this print so that in case the test fails
+    // we can use the seed to reproduce the error.
+    println!("\n\ne2e test seed {}\n\n", seed);
+    let mut rng = StdRng::seed_from_u64(seed);
+
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
@@ -91,6 +101,9 @@ async fn test_create_v2_address() {
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
     let batch_size = get_batch_size(&mut rpc, &env.batch_address_merkle_tree).await;
+
+
+
     for i in 0..batch_size {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_address(
@@ -100,6 +113,7 @@ async fn test_create_v2_address() {
             &env.registered_program_pda,
             &batch_payer,
             &env,
+            &mut rng
         )
         .await;
 
@@ -258,10 +272,11 @@ async fn create_v2_address<R: RpcConnection + MerkleTreeExt, I: Indexer<R>>(
     registered_program_pda: &Pubkey,
     payer: &Keypair,
     env: &EnvAccounts,
+    rng: &mut StdRng,
 ) -> Result<(), light_client::rpc::RpcError> {
-    let seed = rand::random();
-    let data: [u8; 31] = rand::random();
+    let data: [u8; 31] = [1; 31];
 
+    let seed = rng.gen();
     let address = derive_address(
         &seed,
         &batch_address_merkle_tree.to_bytes(),

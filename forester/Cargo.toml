@@ -48,6 +48,7 @@ warp = "0.3"
 dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
+num-bigint = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

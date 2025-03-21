@@ -66,7 +66,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
         println!("new_low_element_changelog_index: {}", new_low_element_changelog_index);
         println!("new_low_element: {:?}", new_low_element);
         println!("new_element: {:?}", new_element);
-        println!("indexed_changelogs: {:?}", indexed_changelogs);
+        // println!("indexed_changelogs: {:?}", indexed_changelogs);
 
         let new_low_element_changelog_entry = &indexed_changelogs[new_low_element_changelog_index];
         *changelog_index = new_low_element_changelog_entry.changelog_index + 1;
