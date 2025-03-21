@@ -329,9 +329,18 @@ pub mod test {
     #[test]
     fn test_circuit_equivalence() {
         // Convert hex strings to Pubkeys
-        let mint_pubkey = Pubkey::new_unique();
-        let owner_pubkey = Pubkey::new_unique();
-        let delegate_pubkey = Pubkey::new_unique();
+        let mint_pubkey = Pubkey::new_from_array([
+            0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
+        let owner_pubkey = Pubkey::new_from_array([
+            0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
+        let delegate_pubkey = Pubkey::new_from_array([
+            0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ]);
 
         let token_data = TokenData {
             mint: mint_pubkey,

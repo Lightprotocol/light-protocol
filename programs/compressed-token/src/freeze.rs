@@ -343,6 +343,9 @@ pub mod test_freeze {
         let delegate = Pubkey::new_unique();
         let mut delegate_account_lamports = 0;
         let mut delegate_account_data = Vec::new();
+        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports_1 = 0;
+        let mut merkle_tree_account_data_1 = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let remaining_accounts = vec![
             AccountInfo::new(
                 &merkle_tree_pubkey,
@@ -370,6 +373,16 @@ pub mod test_freeze {
                 false,
                 &mut delegate_account_lamports,
                 &mut delegate_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &merkle_tree_pubkey_1,
+                false,
+                false,
+                &mut merkle_tree_account_lamports_1,
+                &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
                 0,
@@ -415,7 +428,7 @@ pub mod test_freeze {
                 owner,
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
-                outputs_merkle_tree_index: 0,
+                outputs_merkle_tree_index: 3,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<false, true>(
@@ -445,7 +458,7 @@ pub mod test_freeze {
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
                 vec![expected_change_token_data, expected_delegated_token_data],
-                vec![0u8; 2],
+                vec![3u8; 2],
             );
             assert_eq!(
                 output_compressed_accounts,
@@ -459,7 +472,7 @@ pub mod test_freeze {
                 owner,
                 input_token_data_with_context,
                 cpi_context: None,
-                outputs_merkle_tree_index: 0,
+                outputs_merkle_tree_index: 3,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
                 create_input_and_output_accounts_freeze_or_thaw::<true, false>(
@@ -489,7 +502,7 @@ pub mod test_freeze {
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
                 vec![expected_change_token_data, expected_delegated_token_data],
-                vec![0u8; 2],
+                vec![3u8; 2],
             );
             assert_eq!(
                 output_compressed_accounts,

@@ -341,6 +341,9 @@ mod test {
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
+        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports_1 = 0;
+        let mut merkle_tree_account_data_1 = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let remaining_accounts = vec![
             AccountInfo::new(
                 &merkle_tree_pubkey,
@@ -358,6 +361,16 @@ mod test {
                 false,
                 &mut nullifier_queue_account_lamports,
                 &mut nullifier_queue_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &merkle_tree_pubkey_1,
+                false,
+                false,
+                &mut merkle_tree_account_lamports_1,
+                &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
                 0,
@@ -385,7 +398,7 @@ mod test {
                 input_token_data_with_context,
                 cpi_context: None,
                 burn_amount: std::cmp::min(50, test_amount),
-                change_account_merkle_tree_index: 0,
+                change_account_merkle_tree_index: 2,
                 delegated_transfer: None,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
@@ -413,7 +426,7 @@ mod test {
                 };
                 let expected_compressed_output_accounts = create_expected_token_output_accounts(
                     vec![expected_change_token_data],
-                    vec![0],
+                    vec![2],
                 );
 
                 assert_eq!(
@@ -433,6 +446,9 @@ mod test {
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
+        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports_1 = 0;
+        let mut merkle_tree_account_data_1 = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let remaining_accounts = vec![
             AccountInfo::new(
                 &merkle_tree_pubkey,
@@ -450,6 +466,16 @@ mod test {
                 false,
                 &mut nullifier_queue_account_lamports,
                 &mut nullifier_queue_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &merkle_tree_pubkey_1,
+                false,
+                false,
+                &mut merkle_tree_account_lamports_1,
+                &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
                 0,
@@ -473,7 +499,7 @@ mod test {
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
                 burn_amount,
-                change_account_merkle_tree_index: 0,
+                change_account_merkle_tree_index: 2,
                 delegated_transfer: None,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
@@ -507,7 +533,7 @@ mod test {
                 tlv: None,
             };
             let expected_compressed_output_accounts =
-                create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![2]);
 
             assert_eq!(
                 output_compressed_accounts,
@@ -524,6 +550,9 @@ mod test {
         let nullifier_queue_pubkey = Pubkey::new_unique();
         let mut nullifier_queue_account_lamports = 0;
         let mut nullifier_queue_account_data = Vec::new();
+        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let mut merkle_tree_account_lamports_1 = 0;
+        let mut merkle_tree_account_data_1 = StateMerkleTreeAccount::DISCRIMINATOR.to_vec();
         let remaining_accounts = vec![
             AccountInfo::new(
                 &merkle_tree_pubkey,
@@ -541,6 +570,16 @@ mod test {
                 false,
                 &mut nullifier_queue_account_lamports,
                 &mut nullifier_queue_account_data,
+                &account_compression::ID,
+                false,
+                0,
+            ),
+            AccountInfo::new(
+                &merkle_tree_pubkey_1,
+                false,
+                false,
+                &mut merkle_tree_account_lamports_1,
+                &mut merkle_tree_account_data_1,
                 &account_compression::ID,
                 false,
                 0,
@@ -571,7 +610,7 @@ mod test {
                 input_token_data_with_context: invalid_input_token_data_with_context,
                 cpi_context: None,
                 burn_amount: 50,
-                change_account_merkle_tree_index: 0,
+                change_account_merkle_tree_index: 2,
                 delegated_transfer: None,
             };
             let result = create_input_and_output_accounts_burn(
@@ -594,7 +633,7 @@ mod test {
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
                 burn_amount: 50,
-                change_account_merkle_tree_index: 0,
+                change_account_merkle_tree_index: 2,
                 delegated_transfer: None,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
@@ -626,7 +665,7 @@ mod test {
                 tlv: None,
             };
             let expected_compressed_output_accounts =
-                create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![2]);
 
             assert_eq!(
                 output_compressed_accounts,
@@ -643,7 +682,7 @@ mod test {
                 input_token_data_with_context: input_token_data_with_context.clone(),
                 cpi_context: None,
                 burn_amount: 50,
-                change_account_merkle_tree_index: 0,
+                change_account_merkle_tree_index: 2,
                 delegated_transfer: None,
             };
             let (compressed_input_accounts, output_compressed_accounts) =
@@ -677,7 +716,7 @@ mod test {
                 tlv: None,
             };
             let expected_compressed_output_accounts =
-                create_expected_token_output_accounts(vec![expected_change_token_data], vec![0]);
+                create_expected_token_output_accounts(vec![expected_change_token_data], vec![2]);
 
             assert_eq!(
                 output_compressed_accounts,
