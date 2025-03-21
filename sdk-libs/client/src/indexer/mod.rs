@@ -40,11 +40,13 @@ pub use base58::Base58Conversions;
 pub use error::IndexerError;
 pub use types::{Address, AddressWithTree, Hash, MerkleProofWithContext, ProofOfLeaf};
 
+#[derive(Debug)]
 pub struct AddressQueueIndex {
     pub address: [u8; 32],
     pub queue_index: u64,
 }
 
+#[derive(Debug)]
 pub struct BatchAddressUpdateIndexerResponse {
     pub batch_start_index: u64,
     pub addresses: Vec<AddressQueueIndex>,
@@ -319,7 +321,13 @@ impl AddressMerkleTreeBundle {
     pub fn get_subtrees(&self) -> Vec<[u8; 32]> {
         match &self.merkle_tree {
             IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.get_subtrees(),
-            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.get_subtrees(),
+            IndexedMerkleTreeVersion::V2(tree) => {
+                println!("get_subtrees v2, rightmost_index: {}", tree.merkle_tree.rightmost_index);
+                for i in 0..tree.merkle_tree.rightmost_index {
+                    println!("leaf[{}] = {:?}", i, tree.merkle_tree.get_leaf(i).unwrap());
+                }
+                tree.merkle_tree.get_subtrees()
+            },
         }
     }
 
