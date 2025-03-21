@@ -22,7 +22,7 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
 use tracing::{debug, error};
 
-use super::MerkleProofWithContext;
+use super::{AddressQueueIndex, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
@@ -814,6 +814,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         ..Default::default()
                     };
 
+                    println!("get_validity_proof_v2_post request: {:?}", request);
+
                     let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                         &self.configuration,
                         request,
@@ -854,5 +856,74 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         todo!()
+    }
+
+    async fn get_batch_address_update_info(
+        &mut self,
+        merkle_tree_pubkey: &Pubkey,
+        zkp_batch_size: u16,
+    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+        self.rate_limited_request(|| async {
+            let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
+            let request = photon_api::models::GetBatchAddressUpdateInfoPostRequest {
+                params: Box::new(photon_api::models::GetBatchAddressUpdateInfoPostRequestParams {
+                    batch_size: zkp_batch_size,
+                    tree: merkle_tree.to_base58(),
+                }),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_batch_address_update_info_post(
+                &self.configuration,
+                request,
+            )
+                .await?;
+
+            let response =
+                Self::extract_result("get_compressed_token_account_balance", result.result)?;
+
+
+            let addresses = response.addresses.iter().map(|x| {
+                AddressQueueIndex {
+                    address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
+                    queue_index: x.queue_index
+                }
+            })
+                .collect();
+
+            let mut proofs: Vec<NewAddressProofWithContext<40>> = vec![];
+            for proof in response.non_inclusion_proofs {
+                let proof = NewAddressProofWithContext::<40> {
+                    merkle_tree: merkle_tree_pubkey.to_bytes(),
+                    low_address_index: proof.low_element_leaf_index,
+                    low_address_value: Hash::from_base58(proof.lower_range_address.clone().as_ref()).unwrap(),
+                    low_address_next_index: proof.next_index,
+                    low_address_next_value: Hash::from_base58(proof.higher_range_address.clone().as_ref()).unwrap(),
+                    low_address_proof: proof.proof.iter().map(|x| Hash::from_base58(x.clone().as_ref()).unwrap()).collect::<Vec<_>>().try_into().unwrap(),
+                    root: Hash::from_base58(proof.root.clone().as_ref()).unwrap(),
+                    root_seq: proof.root_seq,
+
+                    new_low_element: None,
+                    new_element: None,
+                    new_element_next_value: None,
+                };
+                proofs.push(proof);
+            };
+
+            let subtrees = response.subtrees.iter().map(|x| {
+                let mut arr = [0u8; 32];
+                arr.copy_from_slice(x.as_slice());
+                arr
+            }).collect::<Vec<_>>();
+
+            let result = BatchAddressUpdateIndexerResponse {
+                batch_start_index: response.start_index,
+                addresses,
+                non_inclusion_proofs: proofs,
+                subtrees,
+            };
+            Ok(result)
+        })
+            .await
     }
 }
