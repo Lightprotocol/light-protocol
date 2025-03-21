@@ -278,10 +278,11 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
 
     let to_byte_array = if field_count == 1 && !flatten_field_exists {
         let string = field_assignments[0].to_string();
+        let alt_res = format!("Ok({})", string.as_str());
         // Removes clippy warning of ununeeded question mark.
         let str = match string.strip_suffix("?") {
             Some(s) => s,
-            None => &format!("Ok({})", string.as_str()),
+            None => &alt_res,
         };
         let field_assingment: TokenStream = parse_str(str).unwrap();
         // let first_field_name = first_field_name.expect("Expected first field name");
