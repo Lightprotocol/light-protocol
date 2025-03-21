@@ -279,13 +279,13 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let hashed_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
-            .unwrap()
-            .0;
-        self.hash_with_hashed_values(&hashed_owner, &hashed_mt, leaf_index, is_batched)
+        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes());
+        self.hash_with_hashed_values::<H>(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
+            &hashed_mt,
+            leaf_index,
+            is_batched,
+        )
     }
 }
 
@@ -317,13 +317,12 @@ impl ZCompressedAccount<'_> {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-            .unwrap()
-            .0;
-        let hashed_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
-            .unwrap()
-            .0;
-        self.hash_with_hashed_values(&hashed_owner, &hashed_mt, leaf_index, is_batched)
+        self.hash_with_hashed_values::<H>(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
+            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()),
+            leaf_index,
+            is_batched,
+        )
     }
 }
 
@@ -364,15 +363,9 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
                 .as_slice(),
@@ -396,15 +389,9 @@ mod tests {
             .unwrap();
 
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
                 .as_slice(),
@@ -425,15 +412,9 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
                 .as_slice(),
@@ -456,15 +437,9 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
             [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
             &data.data_hash,
         ])
@@ -485,15 +460,9 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
             [&[1u8], lamports.to_le_bytes().as_slice()]
                 .concat()
                 .as_slice(),
@@ -516,15 +485,9 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_be(&owner.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&owner.to_bytes()).as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()).as_slice(),
         ])
         .unwrap();
         assert_eq!(no_address_no_data_no_lamports_hash, hash_manual);

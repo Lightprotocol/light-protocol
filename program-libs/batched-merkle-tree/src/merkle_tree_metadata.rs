@@ -158,9 +158,7 @@ impl BatchedMerkleTreeMetadata {
             )
             .unwrap(),
             capacity: 2u64.pow(height),
-            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes())
-                .unwrap()
-                .0,
+            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes()),
             nullifier_next_index: 0,
         }
     }

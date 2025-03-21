@@ -72,10 +72,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     }
     bench_sbf_end!("t_process_compression");
     bench_sbf_start!("t_create_output_compressed_accounts");
-    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
-        Some(hashed_mint) => hashed_mint.0,
-        None => return err!(ErrorCode::HashToFieldError),
-    };
+    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes());
 
     let mut output_compressed_accounts = vec![
         OutputCompressedAccountWithPackedContext::default();
@@ -203,8 +200,6 @@ pub fn create_output_compressed_accounts(
     let mut sum_lamports = 0;
     let hashed_delegate_store = if let Some(delegate) = delegate {
         hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-            .unwrap()
-            .0
     } else {
         [0u8; 32]
     };
@@ -242,7 +237,7 @@ pub fn create_output_compressed_accounts(
         // TODO: remove serialization, just write bytes.
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
+        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref());
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes: [u8; 8] = remaining_accounts[merkle_tree_indices[i] as usize]
@@ -316,9 +311,7 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         .iter_mut()
         .enumerate()
     {
-        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes())
-            .unwrap()
-            .0;
+        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
 
@@ -359,7 +352,7 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         }?;
         let delegate_store;
         let hashed_delegate = if let Some(delegate) = input_token_data[i].delegate {
-            delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes()).unwrap().0;
+            delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes());
             Some(&delegate_store)
         } else {
             None

@@ -105,10 +105,7 @@ pub fn create_input_and_output_accounts_approve(
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
 
-    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
-        Some(hashed_mint) => hashed_mint.0,
-        None => return err!(ErrorCode::HashToFieldError),
-    };
+    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes());
 
     let lamports = if sum_lamports != 0 {
         let change_lamports = if change_lamports != 0 {
@@ -238,10 +235,7 @@ pub fn create_input_and_output_accounts_revoke(
     };
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); 1];
-    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
-        Some(hashed_mint) => hashed_mint.0,
-        None => return err!(ErrorCode::HashToFieldError),
-    };
+    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes());
 
     create_output_compressed_accounts(
         &mut output_compressed_accounts,

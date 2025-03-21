@@ -4,6 +4,7 @@ pub mod keccak;
 pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
+pub mod truncate;
 pub mod zero_bytes;
 pub mod zero_indexed_leaf;
 

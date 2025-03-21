@@ -86,30 +86,18 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     bigint < ark_bn254::Fr::MODULUS.into()
 }
 
-pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
-    let mut bump_seed = [u8::MAX];
-    // Loops with decreasing bump seed to find a valid hash which is less than
-    // bn254 Fr modulo field size.
-    for _ in 0..u8::MAX {
-        {
-            let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
-            // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-            // field size.
-            hashed_value[0] = 0;
-            if is_smaller_than_bn254_field_size_be(&hashed_value) {
-                return Some((hashed_value, bump_seed[0]));
-            }
-        }
-        bump_seed[0] -= 1;
-    }
-    None
+pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> [u8; 32] {
+    let bump_seed = [u8::MAX];
+    let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
+    // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+    // field size.
+    hashed_value[0] = 0;
+    hashed_value
 }
 
+/// TODO: add bump seed to hashv for equivalence with hash_to_bn254_field_size_be
 /// Hashes the provided `bytes` with Keccak256 and ensures the result fits
-/// in the BN254 prime field by repeatedly hashing the inputs with various
-/// "bump seeds" and truncating the resulting hash to 31 bytes.
-///
-/// The attempted "bump seeds" are bytes from 255 to 0.
+/// in the BN254 prime field by truncating the resulting hash to 31 bytes.
 ///
 /// # Examples
 ///
@@ -119,6 +107,7 @@ pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
 /// hashv_to_bn254_field_size_be(&[b"foo", b"bar"]);
 /// ```
 pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
+    // TODO: throw an error if the first element is not the bump seed.
     let mut hashed_value: [u8; 32] = hashv(bytes).to_bytes();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
@@ -210,9 +199,7 @@ mod tests {
     fn test_hash_to_bn254_field_size_be() {
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
-            let (hashed_value, bump) = hash_to_bn254_field_size_be(input_bytes.as_slice())
-                .expect("Failed to find a hash within BN254 field size");
-            assert_eq!(bump, 255, "Bump seed should be 0");
+            let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice());
             assert!(
                 is_smaller_than_bn254_field_size_be(&hashed_value),
                 "Hashed value should be within BN254 field size"
@@ -220,9 +207,7 @@ mod tests {
         }
 
         let max_input = [u8::MAX; 32];
-        let (hashed_value, bump) = hash_to_bn254_field_size_be(max_input.as_slice())
-            .expect("Failed to find a hash within BN254 field size");
-        assert_eq!(bump, 255, "Bump seed should be 255");
+        let hashed_value = hash_to_bn254_field_size_be(max_input.as_slice());
         assert!(
             is_smaller_than_bn254_field_size_be(&hashed_value),
             "Hashed value should be within BN254 field size"

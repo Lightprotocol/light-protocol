@@ -3473,8 +3473,10 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
+ "ark-bn254 0.5.0",
  "light-compressed-account",
  "light-hasher",
+ "light-poseidon 0.3.0",
  "prettyplease",
  "proc-macro2",
  "quote",
