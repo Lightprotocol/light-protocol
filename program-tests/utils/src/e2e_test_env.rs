@@ -158,7 +158,7 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use crate::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue,
@@ -805,6 +805,13 @@ where
                                     low_element_proofs
                                         .push(non_inclusion_proof.low_address_proof.to_vec());
                                 }
+
+                                let subtrees =   self.indexer
+                                    .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                    .await
+                                    .unwrap();
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index as usize);
+
                                 let inputs = get_batch_address_append_circuit_inputs::<
                                     { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
                                 >(
@@ -816,15 +823,10 @@ where
                                     low_element_next_indices,
                                     low_element_proofs,
                                     addresses,
-                                    self.indexer
-                                        .get_subtrees(merkle_tree_pubkey.to_bytes())
-                                        .await
-                                        .unwrap()
-                                        .try_into()
-                                        .unwrap(),
+                                    &mut sparse_merkle_tree,
                                     leaves_hash_chain,
-                                    batch_start_index,
                                     batch.zkp_batch_size as usize,
+                                    None,
                                 )
                                 .unwrap();
                                 let client = Client::new();

@@ -40,13 +40,13 @@ pub use base58::Base58Conversions;
 pub use error::IndexerError;
 pub use types::{Address, AddressWithTree, Hash, MerkleProofWithContext, ProofOfLeaf};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddressQueueIndex {
     pub address: [u8; 32],
     pub queue_index: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BatchAddressUpdateIndexerResponse {
     pub batch_start_index: u64,
     pub addresses: Vec<AddressQueueIndex>,
