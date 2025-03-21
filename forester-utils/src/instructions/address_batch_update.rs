@@ -1,3 +1,5 @@
+use crate::error::ForesterUtilsError;
+use crate::utils::{create_reference_address_tree, wait_for_indexer};
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
@@ -17,9 +19,6 @@ use light_prover_client::{
 };
 use reqwest::Client;
 use tracing::{debug, error, warn};
-use light_compressed_account::hash_chain::create_hash_chain_from_slice;
-use crate::error::ForesterUtilsError;
-use crate::utils::wait_for_indexer;
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
@@ -69,6 +68,8 @@ where
             ForesterUtilsError::Indexer("Failed to get batch address update info".into())
         })?;
 
+    let indexer_root = indexer_update_info.non_inclusion_proofs.first().unwrap().root;
+    assert_eq!(indexer_root, current_root);
 
     let batch_size = indexer_update_info.addresses.len();
 
@@ -111,7 +112,12 @@ where
         .subtrees
         .try_into()
         .map_err(|_| ForesterUtilsError::Prover("Failed to convert subtrees to array".into()))?;
-
+    let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index as usize);
+    let ref_tree = create_reference_address_tree(
+        merkle_tree_pubkey,
+        0,
+        start_index-1
+    );
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index as usize,
@@ -122,10 +128,10 @@ where
             low_element_next_indices,
             low_element_proofs,
             addresses,
-            subtrees,
+            &mut sparse_merkle_tree,
             leaves_hash_chain,
-            indexer_update_info.batch_start_index as usize,
             batch_size,
+            Some(ref_tree),
         )
         .map_err(|e| {
             error!(

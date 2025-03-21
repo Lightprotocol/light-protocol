@@ -1,5 +1,4 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use light_client::rpc::RpcConnection;
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
