@@ -119,7 +119,7 @@ impl Parse for InstructionArgs {
 ///   account fields (annotated with `#[light_account]` attribute) to it. As a
 ///   result, the original struct, later processed by Anchor macros, contains
 ///   only regular accounts.
-/// - Creates an extention trait, with `LightContextExt` prefix, which serves
+/// - Creates an extension trait, with `LightContextExt` prefix, which serves
 ///   as an extension to `LightContext` and defines these methods:
 ///   - `check_constraints`, where the checks extracted from `#[light_account]`
 ///     attributes are performed.
