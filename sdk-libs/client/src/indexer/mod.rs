@@ -9,7 +9,7 @@ use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement, IndexedElementBundle},
     reference::IndexedMerkleTree,
 };
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::{
     indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2, MerkleTree,
 };
@@ -686,15 +686,7 @@ pub trait IntoPhotonTokenAccount {
 impl IntoPhotonAccount for CompressedAccountWithMerkleContext {
     fn into_photon_account(self) -> Account {
         let address = self.compressed_account.address.map(|a| a.to_base58());
-
-        let hash = self
-            .compressed_account
-            .hash::<Poseidon>(
-                &self.merkle_context.merkle_tree_pubkey,
-                &self.merkle_context.leaf_index,
-            )
-            .unwrap()
-            .to_base58();
+        let hash = self.hash().unwrap().to_base58();
 
         let mut account_data = None;
         if let Some(data) = &self.compressed_account.data {
@@ -763,6 +755,7 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
             nullifier_queue_pubkey: Default::default(),
             leaf_index: account.leaf_index,
             prove_by_index: false,
+            tree_type: light_compressed_account::TreeType::State,
         };
 
         let mut compressed_account = CompressedAccount {

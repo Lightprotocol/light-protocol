@@ -186,7 +186,9 @@ fn create_compressed_pda_data(
 
 impl light_hasher::DataHasher for EscrowTimeLock {
     fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        H::hash(&self.slot.to_le_bytes())
+        let mut slot_bytes = [0u8; 32];
+        slot_bytes[24..].copy_from_slice(&self.slot.to_be_bytes());
+        H::hash(&slot_bytes)
     }
 }
 

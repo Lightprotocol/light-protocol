@@ -118,7 +118,7 @@ use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},

@@ -7,6 +7,7 @@ use light_client::{
 };
 use light_compressed_account::{
     compressed_account::MerkleContext, instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
@@ -564,26 +565,9 @@ pub async fn compressed_transfer_22_test<
     for account in input_compressed_accounts {
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
         input_compressed_account_token_data.push(account.token_data.clone());
-        input_compressed_account_hashes.push(
-            account
-                .compressed_account
-                .compressed_account
-                .hash::<Poseidon>(
-                    &account.compressed_account.merkle_context.merkle_tree_pubkey,
-                    &leaf_index,
-                )
-                .unwrap(),
-        );
+        input_compressed_account_hashes.push(account.compressed_account.hash().unwrap());
         sum_input_amounts += account.token_data.amount;
-        input_merkle_tree_context.push(MerkleContext {
-            merkle_tree_pubkey: account.compressed_account.merkle_context.merkle_tree_pubkey,
-            nullifier_queue_pubkey: account
-                .compressed_account
-                .merkle_context
-                .nullifier_queue_pubkey,
-            leaf_index,
-            prove_by_index: false,
-        });
+        input_merkle_tree_context.push(account.compressed_account.merkle_context);
     }
     let output_lamports = lamports
         .clone()

@@ -22,7 +22,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
-use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
     acp_sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},

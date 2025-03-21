@@ -3218,6 +3218,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-system-program",
+ "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",

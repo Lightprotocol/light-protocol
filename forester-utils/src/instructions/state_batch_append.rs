@@ -9,7 +9,7 @@ use light_compressed_account::{
     bigint::bigint_to_be_bytes_array, instruction_data::compressed_proof::CompressedProof,
 };
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     batch_append_with_proofs::{
         get_batch_append_with_proofs_inputs, BatchAppendWithProofsCircuitInputs,

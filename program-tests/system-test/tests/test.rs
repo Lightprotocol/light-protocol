@@ -21,8 +21,8 @@ use light_compressed_account::{
         compressed_proof::CompressedProof,
         data::{InstructionDataInvoke, NewAddressParams},
     },
+    TreeType,
 };
-use light_hasher::Poseidon;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -137,6 +137,10 @@ async fn invoke_failing_test() {
                 num_addresses = 0;
             }
             for num_outputs in 1..8 {
+                println!(
+                    "failing_transaction_inputs num_addresses: {}, num_outputs: {}, option: {}",
+                    num_addresses, num_outputs, options[j]
+                );
                 failing_transaction_inputs(
                     &mut context,
                     &mut test_indexer,
@@ -160,6 +164,10 @@ async fn invoke_failing_test() {
                 num_addresses = 0;
             }
             for num_outputs in 0..8 {
+                println!(
+                    "failing_transaction_inputs2 num_addresses: {}, num_outputs: {}, option: {}",
+                    num_addresses, num_outputs, options[j]
+                );
                 failing_transaction_inputs(
                     &mut context,
                     &mut test_indexer,
@@ -982,6 +990,7 @@ async fn invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1016,6 +1025,7 @@ async fn invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1038,13 +1048,7 @@ async fn invoke_test() {
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(vec![compressed_account_with_context
-                .compressed_account
-                .hash::<Poseidon>(
-                    &merkle_tree_pubkey,
-                    &compressed_account_with_context.merkle_context.leaf_index,
-                )
-                .unwrap()]),
+            Some(vec![compressed_account_with_context.hash().unwrap()]),
             Some(vec![
                 compressed_account_with_context
                     .merkle_context
@@ -1069,6 +1073,7 @@ async fn invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1118,6 +1123,7 @@ async fn invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1149,6 +1155,7 @@ async fn invoke_test() {
             leaf_index: 1,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1564,13 +1571,7 @@ async fn test_with_compression() {
     let compressed_account_with_context = test_indexer.compressed_accounts.last().unwrap().clone();
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
-            Some(vec![compressed_account_with_context
-                .compressed_account
-                .hash::<Poseidon>(
-                    &merkle_tree_pubkey,
-                    &compressed_account_with_context.merkle_context.leaf_index,
-                )
-                .unwrap()]),
+            Some(vec![compressed_account_with_context.hash().unwrap()]),
             Some(vec![
                 compressed_account_with_context
                     .merkle_context
@@ -1603,6 +1604,7 @@ async fn test_with_compression() {
             leaf_index: 0,
             nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
@@ -1859,6 +1861,7 @@ async fn batch_invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey: output_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[output_queue_pubkey],
         &[Some(0u16)],
@@ -1893,6 +1896,7 @@ async fn batch_invoke_test() {
             leaf_index: 0,
             nullifier_queue_pubkey: output_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::State,
         }],
         &[merkle_tree_pubkey],
         &[Some(0u16)],
@@ -1947,6 +1951,7 @@ async fn batch_invoke_test() {
                 leaf_index: compressed_account_with_context.merkle_context.leaf_index,
                 nullifier_queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
+                tree_type: TreeType::BatchedState,
             }],
             &[output_queue_pubkey],
             &[],
@@ -1997,6 +2002,7 @@ async fn batch_invoke_test() {
                 leaf_index: 0,
                 nullifier_queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
+                tree_type: TreeType::BatchedState,
             }],
             &[output_queue_pubkey],
             &[],
@@ -2042,6 +2048,7 @@ async fn batch_invoke_test() {
                 leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
                 nullifier_queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
+                tree_type: TreeType::BatchedState,
             }],
             &[output_queue_pubkey],
             &[],

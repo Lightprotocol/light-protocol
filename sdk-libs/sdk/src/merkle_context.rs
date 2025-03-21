@@ -104,6 +104,7 @@ pub fn pack_merkle_context(
         nullifier_queue_pubkey,
         leaf_index,
         prove_by_index,
+        ..
     } = merkle_context;
     let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
     let nullifier_queue_pubkey_index = remaining_accounts.insert_or_get(*nullifier_queue_pubkey);
@@ -266,6 +267,7 @@ mod test {
             nullifier_queue_pubkey,
             leaf_index: 69,
             prove_by_index: false,
+            ..Default::default()
         };
 
         let packed_merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
@@ -290,18 +292,21 @@ mod test {
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 10,
                 prove_by_index: false,
+                ..Default::default()
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 11,
                 prove_by_index: true,
+                ..Default::default()
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
                 nullifier_queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 12,
                 prove_by_index: false,
+                ..Default::default()
             },
         ];
 
