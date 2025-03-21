@@ -92,7 +92,6 @@ async fn test_create_v2_address() {
 
     let batch_size = get_batch_size(&mut rpc, &env.batch_address_merkle_tree).await;
     for i in 0..batch_size {
-        //tree_params.input_queue_batch_size {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_address(
             &mut rpc,

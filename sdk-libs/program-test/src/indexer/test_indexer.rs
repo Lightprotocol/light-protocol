@@ -754,12 +754,16 @@ where
             .await
             .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?;
 
-        let addresses: Vec<AddressQueueIndex> = address_proofs.iter().map(|x| {
-            AddressQueueIndex {
-                address: x.account_hash,
-                queue_index: x.root_seq,
-            }
-        }).collect();
+        let addresses: Vec<AddressQueueIndex> = address_proofs
+                .iter()
+                .enumerate()
+                .map(|(i, proof)| {
+                    AddressQueueIndex {
+                        address: proof.account_hash,
+                        queue_index: proof.root_seq + i as u64,
+                    }
+                })
+            .collect();
         let non_inclusion_proofs = self
             .get_multiple_new_address_proofs_h40(
                 merkle_tree_pubkey.to_bytes(),

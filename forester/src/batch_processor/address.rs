@@ -51,7 +51,7 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
             None,
         )
         .await?;
-    debug!("tx address BatchNullifyEvent: {:?}", tx);
+    debug!("tx batch address append: {:?}", tx);
 
     finalize_batch_address_tree_update(&mut *rpc, context.indexer.clone(), context.merkle_tree)
         .await
