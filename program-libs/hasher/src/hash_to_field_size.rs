@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::{bytes::ToByteArray, keccak::Keccak, Hasher, HasherError};
+use crate::{keccak::Keccak, to_byte_array::ToByteArray, Hasher, HasherError};
 
 pub const HASH_TO_FIELD_SIZE_SEED: u8 = u8::MAX;
 

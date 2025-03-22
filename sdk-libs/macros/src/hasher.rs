@@ -202,7 +202,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             }
             code.push(quote! {
                 {
-                    for (j, element) in <#field_type as ::light_hasher::bytes::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?.iter().enumerate() {
+                    for (j, element) in <#field_type as ::light_hasher::to_byte_array::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?.iter().enumerate() {
                         field_array[#i + j + num_flattned_fields ] = *element;
                         num_flattned_fields +=1;
                     }
@@ -248,7 +248,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             {
                 use ::light_hasher::DataHasher;
                 use ::light_hasher::Hasher;
-                use ::light_hasher::bytes::ToByteArray;
+                use ::light_hasher::to_byte_array::ToByteArray;
 
                 #(#truncate_code)*
                 #(#code)*
@@ -263,7 +263,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             {
                 use ::light_hasher::DataHasher;
                 use ::light_hasher::Hasher;
-                use ::light_hasher::bytes::ToByteArray;
+                use ::light_hasher::to_byte_array::ToByteArray;
                 #(#truncate_code)*
                 #(#code)*
                 H::hashv(&[
@@ -294,7 +294,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
     };
 
     Ok(quote! {
-        impl #impl_gen ::light_hasher::bytes::ToByteArray for #struct_name #type_gen #where_clause {
+        impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
             const NUM_FIELDS: usize = #field_count;
 
             fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
@@ -338,7 +338,8 @@ mod tests {
         let output = hasher(input).unwrap();
 
         let formatted_output = unparse(&syn::parse2(output).unwrap());
-        assert!(formatted_output.contains("impl ::light_hasher::bytes::ToByteArray for MyAccount"));
+        assert!(formatted_output
+            .contains("impl ::light_hasher::to_byte_array::ToByteArray for MyAccount"));
         assert!(formatted_output.contains("const NUM_FIELDS: usize = 4usize"));
         assert!(formatted_output.contains("fn to_byte_array"));
         assert!(formatted_output.contains("fn to_byte_arrays"));

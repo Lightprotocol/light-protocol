@@ -1,5 +1,4 @@
 pub mod bigint;
-pub mod bytes;
 mod data_hasher;
 pub mod errors;
 pub mod hash_to_field_size;
@@ -7,6 +6,7 @@ pub mod keccak;
 pub mod poseidon;
 pub mod sha256;
 pub mod syscalls;
+pub mod to_byte_array;
 pub mod zero_bytes;
 pub mod zero_indexed_leaf;
 
@@ -29,7 +29,7 @@ pub trait Hasher {
     fn zero_indexed_leaf() -> [u8; 32];
 }
 
-// TODO: remove once light-sdk is switched to account-checks Disciminator trait
+// TODO: remove once light-sdk is switched to account-checks
 pub trait Discriminator {
     const DISCRIMINATOR: [u8; 8];
     fn discriminator() -> [u8; 8] {

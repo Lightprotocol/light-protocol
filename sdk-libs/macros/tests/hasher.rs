@@ -1,7 +1,7 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_hasher::{bytes::ToByteArray, DataHasher, Hasher, Poseidon};
+use light_hasher::{to_byte_array::ToByteArray, DataHasher, Hasher, Poseidon};
 use light_sdk_macros::LightHasher;
 
 #[derive(LightHasher, Clone)]

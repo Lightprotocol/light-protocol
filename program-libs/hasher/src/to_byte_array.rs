@@ -132,7 +132,6 @@ impl_to_byte_array_for_integer_type!(u128);
 ///     1 => [0],
 ///     2 => [0, 1]
 /// }
-/// New implementation that allows specifying the type T as a parameter
 #[macro_export]
 macro_rules! impl_to_byte_array_for_array {
     // First specify the type T, then for each array, specify the length and indices
