@@ -126,6 +126,50 @@ impl_to_byte_array_for_integer_type!(usize);
 impl_to_byte_array_for_integer_type!(i128);
 impl_to_byte_array_for_integer_type!(u128);
 
+/// Example usage:
+/// impl_to_byte_array_for_array! {
+///     MyCustomType,
+///     1 => [0],
+///     2 => [0, 1]
+/// }
+/// New implementation that allows specifying the type T as a parameter
+#[macro_export]
+macro_rules! impl_to_byte_array_for_array {
+    // First specify the type T, then for each array, specify the length and indices
+    ($t:ty, $( $len:literal => [$($index:tt),*] );* $(;)?) => {
+        $(
+            impl ToByteArray for [$t; $len] {
+                const NUM_FIELDS: usize = $len;
+                const IS_PRIMITIVE: bool = false;
+
+                fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
+                    let arrays = [$(self[$index].to_byte_array()?),*];
+                    let slices = [$(arrays[$index].as_slice()),*];
+                    Poseidon::hashv(&slices)
+                }
+
+                fn to_byte_arrays<const NUM_FIELDS: usize>(
+                    &self,
+                ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
+                    if Self::NUM_FIELDS != NUM_FIELDS {
+                        return Err(HasherError::InvalidNumFields);
+                    }
+
+                    #[allow(clippy::unnecessary_to_owned)]
+                    let element_arrays = [$(self[$index].to_byte_array()?),*];
+
+                    let mut result = [[0u8; 32]; NUM_FIELDS];
+                    for i in 0..NUM_FIELDS {
+                        result[i] = element_arrays[i];
+                    }
+
+                    Ok(result)
+                }
+            }
+        )*
+    }
+}
+
 // Implementation for [u8; N] arrays with N <= 31
 macro_rules! impl_to_byte_array_for_u8_array {
     ($size:expr) => {
@@ -515,5 +559,88 @@ mod test {
         let byte_len = long_string.as_bytes().len();
         let result = long_string.to_byte_array();
         assert_eq!(result, Err(HasherError::InvalidInputLength(31, byte_len)));
+    }
+
+    // Define a custom type for testing the specific type array macro
+    #[derive(Default)]
+    struct TestType {
+        value: u32,
+    }
+
+    impl TestType {
+        fn new(value: u32) -> Self {
+            Self { value }
+        }
+    }
+
+    impl ToByteArray for TestType {
+        const NUM_FIELDS: usize = 1;
+        const IS_PRIMITIVE: bool = true;
+
+        fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
+            let mut result = [0u8; 32];
+            // Store the value in the last 4 bytes of the array
+            result[28..32].copy_from_slice(&self.value.to_be_bytes());
+            Ok(result)
+        }
+
+        fn to_byte_arrays<const NUM_FIELDS: usize>(
+            &self,
+        ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
+            if Self::NUM_FIELDS != NUM_FIELDS {
+                return Err(HasherError::InvalidNumFields);
+            }
+            Ok([self.to_byte_array()?; NUM_FIELDS])
+        }
+    }
+
+    // Use the new macro to implement ToByteArray for arrays of TestType
+    impl_to_byte_array_for_array! {
+        TestType,
+        1 => [0];
+        2 => [0, 1];
+        3 => [0, 1, 2]
+    }
+
+    #[test]
+    fn test_specific_type_array_implementation() {
+        // Test array of size 1
+        let test_array_1 = [TestType::new(42)];
+        let result_1 = test_array_1.to_byte_array().unwrap();
+
+        // Expected: Poseidon hash of a single element
+        let mut expected_element = [0u8; 32];
+        expected_element[28..32].copy_from_slice(&42u32.to_be_bytes());
+        let expected_1 = Poseidon::hashv(&[&expected_element]).unwrap();
+
+        assert_eq!(result_1, expected_1);
+
+        // Test array of size 2
+        let test_array_2 = [TestType::new(10), TestType::new(20)];
+        let result_2 = test_array_2.to_byte_array().unwrap();
+
+        // Expected: Poseidon hash of two elements
+        let mut elem1 = [0u8; 32];
+        let mut elem2 = [0u8; 32];
+        elem1[28..32].copy_from_slice(&10u32.to_be_bytes());
+        elem2[28..32].copy_from_slice(&20u32.to_be_bytes());
+        let expected_2 = Poseidon::hashv(&[&elem1, &elem2]).unwrap();
+
+        assert_eq!(result_2, expected_2);
+
+        // Test array of size 3
+        let test_array_3 = [TestType::new(1), TestType::new(2), TestType::new(3)];
+        let result_3 = test_array_3.to_byte_array().unwrap();
+
+        // Expected: Poseidon hash of three elements
+        let mut elem1 = [0u8; 32];
+        let mut elem2 = [0u8; 32];
+        let mut elem3 = [0u8; 32];
+        elem1[28..32].copy_from_slice(&1u32.to_be_bytes());
+        elem2[28..32].copy_from_slice(&2u32.to_be_bytes());
+        elem3[28..32].copy_from_slice(&3u32.to_be_bytes());
+        let expected_3 = Poseidon::hashv(&[&elem1, &elem2, &elem3]).unwrap();
+
+        assert_eq!(result_3, expected_3);
     }
 }

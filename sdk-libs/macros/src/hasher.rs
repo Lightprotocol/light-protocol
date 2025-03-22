@@ -22,7 +22,7 @@ use syn::{parse_str, Error, Fields, ItemStruct, Result};
 ///   - impl ToByteArray for Struct -> returns hash of all fields
 ///   - impl DataHasher for Struct -> returns hash of all fields
 /// - Options (primitive types PT):
-///     - Option<PT> -> [u8;32] -> Some: [..type_bytes_len] index type_bytes_len = [1] , None: [0;32]
+///     - Option<PT> -> [u8;32] -> Some: [32 - type_bytes_len..] 32 - index type_bytes_len -1 = [1] (BE prefix) , None: [0;32]
 /// - Option (General):
 ///     - Option<T> T must implement Hash -> Some: Hash(T::hash), None: [0u8;32]
 /// - Nested Structs:
@@ -30,7 +30,7 @@ use syn::{parse_str, Error, Fields, ItemStruct, Result};
 /// - Arrays (u8):
 ///     1. LEN < 32 implementation of ToByteArray is provided
 ///     2. LEN >= 32  needs to be handled (can be truncated or implement custom ToByteArray)
-/// - Arrays (General):
+/// - Arrays:
 ///     1. if elements implement ToByteArray and are less than 13, hash of all elements
 ///     2. More elements than 13 -> manual implementation or hash to field size
 /// - Vec<T>:
