@@ -42,6 +42,7 @@ import {
     mintToAccountsLayout,
     transferAccountsLayout,
     encodeFreezeInstructionData,
+    freezeAccountsLayout,
 } from './layout';
 import {
     CompressedTokenInstructionDataFreeze,
@@ -858,17 +859,23 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
         } = params;
 
-        const {
-            inputTokenDataWithContext,
-            packedOutputTokenData,
-            remainingAccountMetas,
-        } = packCompressedTokenAccounts({
-            inputCompressedTokenAccounts,
-            outputStateTrees: outputStateTree,
-            rootIndices: recentInputStateRootIndices,
-            tokenTransferOutputs: [],
-        });
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                outputStateTrees: outputStateTree,
+                rootIndices: recentInputStateRootIndices,
+                // We pass the same to pack remaining accounts correctly.
+                tokenTransferOutputs: inputCompressedTokenAccounts.map(acc => ({
+                    owner: acc.parsed.owner,
+                    amount: acc.parsed.amount,
+                    lamports: acc.compressedAccount.lamports,
+                    tlv: null,
+                })),
+            });
 
+        console.log('remaining accounts ', remainingAccountMetas);
+
+        console.log('inputTokenDataWithContext ', inputTokenDataWithContext);
         const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );
@@ -888,7 +895,7 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
-        const keys = transferAccountsLayout({
+        const keys = freezeAccountsLayout({
             feePayer: payer,
             authority: currentOwner,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
@@ -898,10 +905,8 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: undefined,
-            compressOrDecompressTokenAccount: undefined,
-            tokenProgram: undefined,
             systemProgram: SystemProgram.programId,
+            mint,
         });
 
         keys.push(...remainingAccountMetas);

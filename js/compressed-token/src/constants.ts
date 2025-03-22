@@ -13,12 +13,13 @@ export const MINT_TO_DISCRIMINATOR = Buffer.from([
 export const TRANSFER_DISCRIMINATOR = Buffer.from([
     163, 52, 200, 231, 140, 3, 69, 186,
 ]);
+
 export const COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([
     112, 230, 105, 101, 145, 202, 157, 97,
 ]);
 export const FREEZE_DISCRIMINATOR = Buffer.from([
-    112, 230, 105, 101, 145, 202, 157, 97,
+    255, 91, 207, 84, 251, 194, 254, 63,
 ]);
 export const THAW_DISCRIMINATOR = Buffer.from([
-    112, 230, 105, 101, 145, 202, 157, 97,
+    226, 249, 34, 57, 189, 21, 177, 101,
 ]);

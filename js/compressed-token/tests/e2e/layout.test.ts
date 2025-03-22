@@ -20,6 +20,12 @@ import {
     createTokenPoolAccountsLayout,
     transferAccountsLayout,
     CompressedTokenProgram,
+    MINT_TO_DISCRIMINATOR,
+    COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
+    TRANSFER_DISCRIMINATOR,
+    FREEZE_DISCRIMINATOR,
+    THAW_DISCRIMINATOR,
+    CREATE_TOKEN_POOL_DISCRIMINATOR,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
@@ -92,6 +98,37 @@ function deepEqual(ref: any, val: any) {
 const IX_DISCRIMINATOR = 8;
 const LENGTH_DISCRIMINATOR = 4;
 
+import { sha256 } from '@noble/hashes/sha256';
+
+function getAnchorDiscriminator(instructionName: string): Uint8Array {
+    const fullName = `global:${instructionName}`;
+    const hash = sha256(new TextEncoder().encode(fullName));
+    return hash.slice(0, 8);
+}
+
+describe('discriminator', () => {
+    it('anchor derivation should match constants', () => {
+        expect(getAnchorDiscriminator('mint_to')).toEqual(
+            new Uint8Array(MINT_TO_DISCRIMINATOR),
+        );
+        expect(getAnchorDiscriminator('compress_spl_token_account')).toEqual(
+            new Uint8Array(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR),
+        );
+        expect(getAnchorDiscriminator('transfer')).toEqual(
+            new Uint8Array(TRANSFER_DISCRIMINATOR),
+        );
+        expect(getAnchorDiscriminator('freeze')).toEqual(
+            new Uint8Array(FREEZE_DISCRIMINATOR),
+        );
+        expect(getAnchorDiscriminator('thaw')).toEqual(
+            new Uint8Array(THAW_DISCRIMINATOR),
+        );
+        expect(getAnchorDiscriminator('create_token_pool')).toEqual(
+            new Uint8Array(CREATE_TOKEN_POOL_DISCRIMINATOR),
+        );
+    });
+});
+
 describe('layout', () => {
     const mint = Keypair.generate().publicKey;
     const feePayer = Keypair.generate().publicKey;
@@ -111,6 +148,7 @@ describe('layout', () => {
     const selfProgram = CompressedTokenProgram.programId;
     const systemProgram = SystemProgram.programId;
     const solPoolPda = LightSystemProgram.deriveCompressedSolPda();
+
     describe('encode/decode transfer/compress/decompress', () => {
         const testCases = [
             {
