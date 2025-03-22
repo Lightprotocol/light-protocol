@@ -245,7 +245,6 @@ mod test {
     fn test_bigint_conversion_invalid_size() {
         let b8 = BigUint::from_bytes_be(&[1; 8]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b8);
-        println!("res {:?}", res);
         assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 8))));
         let res: Result<[u8; 7], HasherError> = bigint_to_be_bytes_array(&b8);
         assert!(matches!(res, Err(HasherError::InvalidInputLength(7, 8))));

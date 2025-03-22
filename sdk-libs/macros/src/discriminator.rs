@@ -9,7 +9,6 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
     let (impl_gen, type_gen, where_clause) = input.generics.split_for_impl();
 
     let mut discriminator = [0u8; 8];
-    // hash_be and hashv is the same for sha256
     discriminator.copy_from_slice(&Sha256::hash(account_name.to_string().as_bytes()).unwrap()[..8]);
     let discriminator: proc_macro2::TokenStream = format!("{discriminator:?}").parse().unwrap();
 
