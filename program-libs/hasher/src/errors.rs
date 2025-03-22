@@ -37,6 +37,7 @@ impl From<HasherError> for u32 {
     }
 }
 
+#[cfg(feature = "solana")]
 impl From<HasherError> for solana_program::program_error::ProgramError {
     fn from(e: HasherError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())

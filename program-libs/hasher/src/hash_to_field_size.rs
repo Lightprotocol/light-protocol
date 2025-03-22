@@ -92,9 +92,9 @@ pub fn hashv_to_bn254_field_size_be_const_array<const MAX_SLICES: usize>(
 /// # Examples
 ///
 /// ```
-/// use light_compressed_account::hashv_to_bn254_field_size_be;
+/// use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be;
 ///
-/// hashv_to_bn254_field_size_be(&[0u8;32]);
+/// hashv_to_bn254_field_size_be(&[&[0u8;32][..]]);
 /// ```
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Result<[u8; 32], HasherError> {
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
@@ -117,7 +117,6 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
 mod tests {
     use ark_ff::PrimeField;
     use num_bigint::{BigUint, ToBigUint};
-    use solana_program::pubkey::Pubkey;
 
     use super::*;
     use crate::bigint::bigint_to_be_bytes_array;
@@ -137,8 +136,10 @@ mod tests {
         assert!(!is_smaller_than_bn254_field_size_be(&bigint_bytes));
     }
 
+    #[cfg(feature = "solana")]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
+        use solana_program::pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
             let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice()).unwrap();
@@ -156,8 +157,10 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "solana")]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
+        use solana_program::pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();

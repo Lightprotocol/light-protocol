@@ -1,5 +1,3 @@
-use solana_program::pubkey::Pubkey;
-
 use crate::{Hasher, HasherError, Poseidon};
 
 pub trait ToByteArray {
@@ -39,7 +37,8 @@ macro_rules! impl_to_byte_array_for_integer_type {
     };
 }
 
-impl ToByteArray for Pubkey {
+#[cfg(feature = "solana")]
+impl ToByteArray for solana_program::pubkey::Pubkey {
     const NUM_FIELDS: usize = 1;
 
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
@@ -135,7 +134,7 @@ macro_rules! impl_to_byte_array_for_u8_array {
 
             fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
                 let mut result = [0u8; 32];
-                result[..$size].copy_from_slice(&self[..]);
+                result[32 - $size..].copy_from_slice(self.as_slice());
                 Ok(result)
             }
 
@@ -415,11 +414,14 @@ mod test {
         expected[28..32].copy_from_slice(&u32_value.to_be_bytes());
         assert_eq!(arrays[0], expected);
 
-        // Test to_byte_arrays for Pubkey
-        let pubkey = Pubkey::new_unique();
-        let arrays = pubkey.to_byte_arrays::<1>().unwrap();
-        assert_eq!(arrays.len(), 1);
-        assert_eq!(arrays[0], pubkey.to_bytes());
+        #[cfg(feature = "solana")]
+        {
+            // Test to_byte_arrays for Pubkey
+            let pubkey = solana_program::pubkey::Pubkey::new_unique();
+            let arrays = pubkey.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+            assert_eq!(arrays[0], pubkey.to_bytes());
+        }
 
         // Test to_byte_arrays for bool
         let bool_value = true;
@@ -472,14 +474,14 @@ mod test {
         let single_element_arr: [u8; 1] = [255];
         let result = single_element_arr.to_byte_array().unwrap();
         let mut expected = [0u8; 32];
-        expected[0] = 255;
+        expected[31] = 255;
         assert_eq!(result, expected);
 
         // Test with multi-element array
         let multi_element_arr: [u8; 4] = [1, 2, 3, 4];
         let result = multi_element_arr.to_byte_array().unwrap();
         let mut expected = [0u8; 32];
-        expected[0..4].copy_from_slice(&multi_element_arr);
+        expected[32 - 4..].copy_from_slice(&multi_element_arr);
         assert_eq!(result, expected);
 
         // Test with full 32-byte array
@@ -488,8 +490,8 @@ mod test {
             25, 26, 27, 28, 29, 30, 31,
         ];
         let result = full_arr.to_byte_array().unwrap();
-        assert_eq!(result[31], 0);
-        assert_eq!(&result[..31], full_arr.as_slice());
+        assert_eq!(result[0], 0);
+        assert_eq!(&result[1..], full_arr.as_slice());
     }
 
     #[test]

@@ -245,145 +245,176 @@ mod test {
     fn test_bigint_conversion_invalid_size() {
         let b8 = BigUint::from_bytes_be(&[1; 8]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b8);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        println!("res {:?}", res);
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 8))));
         let res: Result<[u8; 7], HasherError> = bigint_to_be_bytes_array(&b8);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 7))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(7, 8))));
         let res: Result<[u8; 8], HasherError> = bigint_to_be_bytes_array(&b8);
         assert!(res.is_ok());
 
         let b8 = BigUint::from_bytes_le(&[1; 8]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b8);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 8))));
         let res: Result<[u8; 7], HasherError> = bigint_to_le_bytes_array(&b8);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 7))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(7, 8))));
         let res: Result<[u8; 8], HasherError> = bigint_to_le_bytes_array(&b8);
         assert!(res.is_ok());
 
         let b16 = BigUint::from_bytes_be(&[1; 16]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b16);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 16))));
         let res: Result<[u8; 15], HasherError> = bigint_to_be_bytes_array(&b16);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 15))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(15, 16))));
         let res: Result<[u8; 16], HasherError> = bigint_to_be_bytes_array(&b16);
         assert!(res.is_ok());
 
         let b16 = BigUint::from_bytes_le(&[1; 16]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b16);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 16))));
         let res: Result<[u8; 15], HasherError> = bigint_to_le_bytes_array(&b16);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 15))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(15, 16))));
         let res: Result<[u8; 16], HasherError> = bigint_to_le_bytes_array(&b16);
         assert!(res.is_ok());
 
         let b32 = BigUint::from_bytes_be(&[1; 32]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b32);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 32))));
         let res: Result<[u8; 31], HasherError> = bigint_to_be_bytes_array(&b32);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 31))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(31, 32))));
         let res: Result<[u8; 32], HasherError> = bigint_to_be_bytes_array(&b32);
         assert!(res.is_ok());
 
         let b32 = BigUint::from_bytes_le(&[1; 32]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b32);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 32))));
         let res: Result<[u8; 31], HasherError> = bigint_to_le_bytes_array(&b32);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 31))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(31, 32))));
         let res: Result<[u8; 32], HasherError> = bigint_to_le_bytes_array(&b32);
         assert!(res.is_ok());
 
         let b64 = BigUint::from_bytes_be(&[1; 64]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b64);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 64))));
         let res: Result<[u8; 63], HasherError> = bigint_to_be_bytes_array(&b64);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 63))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(63, 64))));
         let res: Result<[u8; 64], HasherError> = bigint_to_be_bytes_array(&b64);
         assert!(res.is_ok());
 
         let b64 = BigUint::from_bytes_le(&[1; 64]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b64);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 64))));
         let res: Result<[u8; 63], HasherError> = bigint_to_le_bytes_array(&b64);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 63))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(63, 64))));
         let res: Result<[u8; 64], HasherError> = bigint_to_le_bytes_array(&b64);
         assert!(res.is_ok());
 
         let b128 = BigUint::from_bytes_be(&[1; 128]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b128);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 128))));
         let res: Result<[u8; 127], HasherError> = bigint_to_be_bytes_array(&b128);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 127))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(127, 128))
+        ));
         let res: Result<[u8; 128], HasherError> = bigint_to_be_bytes_array(&b128);
         assert!(res.is_ok());
 
         let b128 = BigUint::from_bytes_le(&[1; 128]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b128);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 128))));
         let res: Result<[u8; 127], HasherError> = bigint_to_le_bytes_array(&b128);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 127))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(127, 128))
+        ));
         let res: Result<[u8; 128], HasherError> = bigint_to_le_bytes_array(&b128);
         assert!(res.is_ok());
 
         let b256 = BigUint::from_bytes_be(&[1; 256]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b256);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 256))));
         let res: Result<[u8; 255], HasherError> = bigint_to_be_bytes_array(&b256);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 255))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(255, 256))
+        ));
         let res: Result<[u8; 256], HasherError> = bigint_to_be_bytes_array(&b256);
         assert!(res.is_ok());
 
         let b256 = BigUint::from_bytes_le(&[1; 256]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b256);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 256))));
         let res: Result<[u8; 255], HasherError> = bigint_to_le_bytes_array(&b256);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 255))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(255, 256))
+        ));
         let res: Result<[u8; 256], HasherError> = bigint_to_le_bytes_array(&b256);
         assert!(res.is_ok());
 
         let b512 = BigUint::from_bytes_be(&[1; 512]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b512);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 512))));
         let res: Result<[u8; 511], HasherError> = bigint_to_be_bytes_array(&b512);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 511))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(511, 512))
+        ));
         let res: Result<[u8; 512], HasherError> = bigint_to_be_bytes_array(&b512);
         assert!(res.is_ok());
 
         let b512 = BigUint::from_bytes_le(&[1; 512]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b512);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 512))));
         let res: Result<[u8; 511], HasherError> = bigint_to_le_bytes_array(&b512);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 511))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(511, 512))
+        ));
         let res: Result<[u8; 512], HasherError> = bigint_to_le_bytes_array(&b512);
         assert!(res.is_ok());
 
         let b768 = BigUint::from_bytes_be(&[1; 768]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b768);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 768))));
         let res: Result<[u8; 767], HasherError> = bigint_to_be_bytes_array(&b768);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 767))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(767, 768))
+        ));
         let res: Result<[u8; 768], HasherError> = bigint_to_be_bytes_array(&b768);
         assert!(res.is_ok());
 
         let b768 = BigUint::from_bytes_le(&[1; 768]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b768);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 768))));
         let res: Result<[u8; 767], HasherError> = bigint_to_le_bytes_array(&b768);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 767))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(767, 768))
+        ));
         let res: Result<[u8; 768], HasherError> = bigint_to_le_bytes_array(&b768);
         assert!(res.is_ok());
 
         let b1024 = BigUint::from_bytes_be(&[1; 1024]);
         let res: Result<[u8; 1], HasherError> = bigint_to_be_bytes_array(&b1024);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 1024))));
         let res: Result<[u8; 1023], HasherError> = bigint_to_be_bytes_array(&b1024);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1023))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(1023, 1024))
+        ));
         let res: Result<[u8; 1024], HasherError> = bigint_to_be_bytes_array(&b1024);
         assert!(res.is_ok());
 
         let b1024 = BigUint::from_bytes_le(&[1; 1024]);
         let res: Result<[u8; 1], HasherError> = bigint_to_le_bytes_array(&b1024);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1))));
+        assert!(matches!(res, Err(HasherError::InvalidInputLength(1, 1024))));
         let res: Result<[u8; 1023], HasherError> = bigint_to_le_bytes_array(&b1024);
-        assert!(matches!(res, Err(HasherError::InvalidInputLength(_, 1023))));
+        assert!(matches!(
+            res,
+            Err(HasherError::InvalidInputLength(1023, 1024))
+        ));
         let res: Result<[u8; 1024], HasherError> = bigint_to_le_bytes_array(&b1024);
         assert!(res.is_ok());
     }
