@@ -43,6 +43,7 @@
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/hasher.rs": "0.2.1",
         "@lightprotocol/programs": "workspace:*",
+        "@noble/hashes": "^1.5.0",
         "@rollup/plugin-alias": "^5.1.0",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^26.0.1",

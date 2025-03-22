@@ -78,6 +78,29 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
+export type CompressedTokenInstructionDataFreeze = {
+    /**
+     * Validity proof
+     */
+    proof: CompressedProof;
+    /**
+     * The owner of the token account
+     */
+    owner: PublicKey;
+    /**
+     * Input token data with packed merkle context
+     */
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    /**
+     * CPI context
+     */
+    cpiContext: CompressedCpiContext | null;
+    /**
+     * The index of the Merkle tree for a lamport change account.
+     */
+    outputsMerkleTreeIndex: number;
+};
+
 export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
