@@ -1,10 +1,8 @@
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
-};
-use light_hasher::{Hasher, Poseidon};
+use light_compressed_account::hash_chain::create_hash_chain_from_slice;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     batch_address_append::{

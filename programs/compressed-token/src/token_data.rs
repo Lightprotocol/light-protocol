@@ -116,8 +116,8 @@ impl TokenData {
     }
 
     fn _hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
-        let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
+        let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())?;
+        let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())?;
         let mut amount_bytes = [0u8; 32];
         if BATCHED {
             amount_bytes[24..].copy_from_slice(self.amount.to_be_bytes().as_slice());
@@ -126,7 +126,7 @@ impl TokenData {
         }
         let hashed_delegate;
         let hashed_delegate_option = if let Some(delegate) = self.delegate {
-            hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());
+            hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())?;
             Some(&hashed_delegate)
         } else {
             None
@@ -168,10 +168,13 @@ pub mod test {
             tlv: None,
         };
         let hashed_token_data = token_data.hash_legacy().unwrap();
-        let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-        let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+        let hashed_mint =
+            hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+        let hashed_owner =
+            hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
         let hashed_delegate =
-            hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice());
+            hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
+                .unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hashed_token_data_with_hashed_values =
@@ -193,8 +196,10 @@ pub mod test {
             tlv: None,
         };
         let hashed_token_data = token_data.hash_legacy().unwrap();
-        let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-        let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+        let hashed_mint =
+            hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+        let hashed_owner =
+            hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hashed_token_data_with_hashed_values =
@@ -205,12 +210,12 @@ pub mod test {
 
     impl TokenData {
         fn legacy_hash(&self) -> std::result::Result<[u8; 32], HasherError> {
-            let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
-            let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
+            let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())?;
+            let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())?;
             let amount_bytes = self.amount.to_le_bytes();
             let hashed_delegate;
             let hashed_delegate_option = if let Some(delegate) = self.delegate {
-                hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());
+                hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())?;
                 Some(&hashed_delegate)
             } else {
                 None
@@ -245,10 +250,13 @@ pub mod test {
                 tlv: None,
             };
             let hashed_token_data = token_data.hash_legacy().unwrap();
-            let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-            let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+            let hashed_mint =
+                hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+            let hashed_owner =
+                hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
             let hashed_delegate =
-                hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice());
+                hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
+                    .unwrap();
             let mut amount_bytes = [0u8; 32];
             amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
             let hashed_token_data_with_hashed_values = TokenData::hash_with_hashed_values(
@@ -271,8 +279,10 @@ pub mod test {
                 tlv: None,
             };
             let hashed_token_data = token_data.hash_legacy().unwrap();
-            let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-            let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+            let hashed_mint =
+                hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+            let hashed_owner =
+                hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
             let mut amount_bytes = [0u8; 32];
             amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
             let hashed_token_data_with_hashed_values: [u8; 32] =
@@ -342,10 +352,13 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-        let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+        let hashed_mint =
+            hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+        let hashed_owner =
+            hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
         let hashed_delegate =
-            hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice());
+            hash_to_bn254_field_size_be(token_data.delegate.unwrap().to_bytes().as_slice())
+                .unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hash = TokenData::hash_with_hashed_values(
@@ -370,8 +383,10 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
-        let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
+        let hashed_mint =
+            hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice()).unwrap();
+        let hashed_owner =
+            hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice()).unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hash =
@@ -379,7 +394,8 @@ pub mod test {
                 .unwrap();
         vec_previous_hashes.push(hash);
         // different mint
-        let hashed_mint_2 = hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice());
+        let hashed_mint_2 =
+            hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice()).unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hash2 =
@@ -389,7 +405,7 @@ pub mod test {
 
         // different owner
         let hashed_owner_2 =
-            hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice());
+            hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice()).unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hash3 =
@@ -412,7 +428,7 @@ pub mod test {
 
         // different delegate
         let delegate = Pubkey::new_unique();
-        let hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());
+        let hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice()).unwrap();
         let mut amount_bytes = [0u8; 32];
         amount_bytes[24..].copy_from_slice(token_data.amount.to_le_bytes().as_slice());
         let hash7 = TokenData::hash_with_hashed_values(

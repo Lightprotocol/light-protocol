@@ -2,7 +2,6 @@ use solana_program::pubkey::Pubkey;
 
 use crate::{Hasher, HasherError, Poseidon};
 
-/// Be bytes.
 pub trait ToByteArray {
     const NUM_FIELDS: usize;
     const IS_PRIMITIVE: bool = false;
@@ -18,6 +17,8 @@ macro_rules! impl_to_byte_array_for_integer_type {
         impl ToByteArray for $int_ty {
             const IS_PRIMITIVE: bool = true;
             const NUM_FIELDS: usize = 1;
+
+            /// Big endian representation of $int_ty.
             fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
                 let bytes = self.to_be_bytes();
                 let mut result = [0; 32];
@@ -25,46 +26,19 @@ macro_rules! impl_to_byte_array_for_integer_type {
                 Ok(result)
             }
 
+            /// Big endian representation of $int_ty.
             fn to_byte_arrays<const NUM_FIELDS: usize>(
                 &self,
             ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
                 if Self::NUM_FIELDS != NUM_FIELDS {
                     return Err(HasherError::InvalidNumFields);
                 }
-                let mut result = [[0; 32]; NUM_FIELDS];
-                result[0] = self.to_byte_array()?;
-                Ok(result)
+                Ok([self.to_byte_array()?; NUM_FIELDS])
             }
         }
-
-        // impl ToByteArray for Option<$int_ty> {
-        //     const NUM_FIELDS: usize = 1;
-
-        //     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
-        //         if let Some(value) = &self {
-        //             let mut byte_array = value.to_byte_array()?;
-        //             byte_array[std::mem::size_of::<$int_ty>()] = 1;
-        //             Ok(byte_array)
-        //         } else {
-        //             Ok([0; 32])
-        //         }
-        //     }
-
-        //     fn to_byte_arrays<const NUM_FIELDS: usize>(
-        //         &self,
-        //     ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
-        //         if Self::NUM_FIELDS != NUM_FIELDS {
-        //             return Err(HasherError::InvalidNumFields);
-        //         }
-        //         let mut result = [[0; 32]; NUM_FIELDS];
-        //         result[0] = self.to_byte_array()?;
-        //         Ok(result)
-        //     }
-        // }
     };
 }
 
-// Special implementation for Pubkey
 impl ToByteArray for Pubkey {
     const NUM_FIELDS: usize = 1;
 
@@ -78,20 +52,21 @@ impl ToByteArray for Pubkey {
         if Self::NUM_FIELDS != NUM_FIELDS {
             return Err(HasherError::InvalidNumFields);
         }
-        let mut result = [[0; 32]; NUM_FIELDS];
-        result[0] = self.to_byte_array()?;
-        Ok(result)
+        Ok([self.to_byte_array()?; NUM_FIELDS])
     }
 }
 
 impl<T: ToByteArray> ToByteArray for Option<T> {
     const NUM_FIELDS: usize = 1;
 
+    /// Some(PrimitiveType) prefixed with 1 byte
+    /// Some(T) -> Poseidon::hash(T::to_byte_array())
+    /// None -> [0u8;32]
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
         if let Some(value) = &self {
             let byte_array = if T::IS_PRIMITIVE {
                 let mut byte_array = value.to_byte_array()?;
-                // Prefix with 1 to indicate Some
+                // Prefix with 1 to indicate Some().
                 byte_array[32 - std::mem::size_of::<T>() - 1] = 1;
                 byte_array
             } else {
@@ -104,41 +79,41 @@ impl<T: ToByteArray> ToByteArray for Option<T> {
         }
     }
 
+    /// Some(PrimitiveType) prefixed with 1 byte
+    /// Some(T) -> Poseidon::hash(T::to_byte_array())
+    /// None -> [0u8;32]
     fn to_byte_arrays<const NUM_FIELDS: usize>(
         &self,
     ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
         if Self::NUM_FIELDS != NUM_FIELDS {
             return Err(HasherError::InvalidNumFields);
         }
-        let mut result = [[0; 32]; NUM_FIELDS];
-        result[0] = self.to_byte_array()?;
-        Ok(result)
+        Ok([self.to_byte_array()?; NUM_FIELDS])
     }
 }
 
-// Special implementation for bool since it doesn't implement ToBeBytes
 impl ToByteArray for bool {
     const NUM_FIELDS: usize = 1;
+    const IS_PRIMITIVE: bool = true;
 
+    /// Big endian representation of bool.
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
         let mut bytes = [0u8; 32];
         bytes[31] = *self as u8;
         Ok(bytes)
     }
 
+    /// Big endian representation of bool.
     fn to_byte_arrays<const NUM_FIELDS: usize>(
         &self,
     ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
         if Self::NUM_FIELDS != NUM_FIELDS {
             return Err(HasherError::InvalidNumFields);
         }
-        let mut result = [[0; 32]; NUM_FIELDS];
-        result[0] = self.to_byte_array()?;
-        Ok(result)
+        Ok([self.to_byte_array()?; NUM_FIELDS])
     }
 }
 
-// Implement for all integer types
 impl_to_byte_array_for_integer_type!(i8);
 impl_to_byte_array_for_integer_type!(u8);
 impl_to_byte_array_for_integer_type!(i16);
@@ -152,7 +127,7 @@ impl_to_byte_array_for_integer_type!(usize);
 impl_to_byte_array_for_integer_type!(i128);
 impl_to_byte_array_for_integer_type!(u128);
 
-// Implementation for [u8; N] arrays with N <= 32
+// Implementation for [u8; N] arrays with N <= 31
 macro_rules! impl_to_byte_array_for_u8_array {
     ($size:expr) => {
         impl ToByteArray for [u8; $size] {
@@ -170,15 +145,13 @@ macro_rules! impl_to_byte_array_for_u8_array {
                 if Self::NUM_FIELDS != NUM_FIELDS {
                     return Err(HasherError::InvalidNumFields);
                 }
-                let mut result = [[0; 32]; NUM_FIELDS];
-                result[0] = self.to_byte_array()?;
-                Ok(result)
+                Ok([self.to_byte_array()?; NUM_FIELDS])
             }
         }
     };
 }
 
-// Implement for common array sizes until 31 so that it is less than field size for sure-
+// Implement for common array sizes until 31 so that it is less than field size.
 impl_to_byte_array_for_u8_array!(0);
 impl_to_byte_array_for_u8_array!(1);
 impl_to_byte_array_for_u8_array!(2);
@@ -211,27 +184,31 @@ impl_to_byte_array_for_u8_array!(29);
 impl_to_byte_array_for_u8_array!(30);
 impl_to_byte_array_for_u8_array!(31);
 
-// Implementation for String
 impl ToByteArray for String {
     const NUM_FIELDS: usize = 1;
 
+    /// Max allowed String length is 31 bytes.
+    /// For longer strings hash to field size or provide a custom implementation.
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
         let bytes = self.as_bytes();
         let mut result = [0u8; 32];
-        let len = std::cmp::min(bytes.len(), 32);
-        result[..len].copy_from_slice(&bytes[..len]);
+        let byte_len = bytes.len();
+        if byte_len > 31 {
+            return Err(HasherError::InvalidInputLength(31, bytes.len()));
+        }
+        result[32 - byte_len..].copy_from_slice(bytes);
         Ok(result)
     }
 
+    /// Max allowed String length is 31 bytes.
+    /// For longer strings hash to field size or provide a custom implementation.
     fn to_byte_arrays<const NUM_FIELDS: usize>(
         &self,
     ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
         if Self::NUM_FIELDS != NUM_FIELDS {
             return Err(HasherError::InvalidNumFields);
         }
-        let mut result = [[0; 32]; NUM_FIELDS];
-        result[0] = self.to_byte_array()?;
-        Ok(result)
+        Ok([self.to_byte_array()?; NUM_FIELDS])
     }
 }
 
@@ -452,6 +429,35 @@ mod test {
         let mut expected = [0u8; 32];
         expected[31] = 1;
         assert_eq!(arrays[0], expected);
+
+        // Test to_byte_arrays for Option<bool>
+        {
+            let bool_value = Some(true);
+            let arrays = bool_value.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+
+            let mut expected = [0u8; 32];
+            expected[31] = 1;
+            expected[30] = 1;
+            assert_eq!(arrays[0], expected);
+        }
+        {
+            let bool_value = Some(false);
+            let arrays = bool_value.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+
+            let mut expected = [0u8; 32];
+            expected[30] = 1;
+            assert_eq!(arrays[0], expected);
+        }
+        {
+            let bool_value: Option<bool> = None;
+            let arrays = bool_value.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+
+            let expected = [0u8; 32];
+            assert_eq!(arrays[0], expected);
+        }
     }
 
     #[test]
@@ -498,15 +504,14 @@ mod test {
         let short_string = "foobar".to_string();
         let result = short_string.to_byte_array().unwrap();
         let mut expected = [0u8; 32];
-        expected[..6].copy_from_slice(b"foobar");
+        expected[32 - 6..].copy_from_slice(b"foobar");
         assert_eq!(result, expected);
 
         // Test with longer string that gets truncated
         let long_string =
-            "this is a string that is longer than 32 bytes and will be truncated".to_string();
-        let result = long_string.to_byte_array().unwrap();
-        let mut expected = [0u8; 32];
-        expected.copy_from_slice(&long_string.as_bytes()[..32]);
-        assert_eq!(result, expected);
+            "this is a string that is longer than 32 bytes and will be fail".to_string();
+        let byte_len = long_string.as_bytes().len();
+        let result = long_string.to_byte_array();
+        assert_eq!(result, Err(HasherError::InvalidInputLength(31, byte_len)));
     }
 }

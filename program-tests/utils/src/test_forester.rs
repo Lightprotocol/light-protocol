@@ -12,9 +12,8 @@ use light_client::{
     indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle},
     rpc::{errors::RpcError, RpcConnection},
 };
-use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
-use light_hasher::Poseidon;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use light_program_test::test_env::NOOP_PROGRAM_ID;
 use light_registry::{

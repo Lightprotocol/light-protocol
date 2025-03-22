@@ -1,8 +1,7 @@
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
-    instruction_data::compressed_proof::CompressedProof,
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use num_bigint::BigUint;
 use reqwest::Client;

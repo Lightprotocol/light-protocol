@@ -1,3 +1,4 @@
+pub mod bigint;
 pub mod bytes;
 pub mod errors;
 pub mod hash_to_field_size;

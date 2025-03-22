@@ -27,7 +27,6 @@ use light_client::{
     transaction_params::FeeConfig,
 };
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array,
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     hash_chain::create_hash_chain_from_slice,
     indexer_event::event::PublicTransactionEvent,
@@ -35,7 +34,7 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
     TreeType,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{

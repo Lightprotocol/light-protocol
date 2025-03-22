@@ -108,7 +108,7 @@ impl<'a> BloomFilter<'a> {
 
 #[cfg(test)]
 mod test {
-    use light_compressed_account::bigint::bigint_to_be_bytes_array;
+    use light_hasher::bigint::bigint_to_be_bytes_array;
     use num_bigint::{RandBigInt, ToBigUint};
     use rand::thread_rng;
 
