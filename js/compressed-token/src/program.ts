@@ -18,6 +18,8 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
+    CompressedCpiContext,
+    InputTokenDataWithContext,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -39,8 +41,10 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    encodeFreezeInstructionData,
 } from './layout';
 import {
+    CompressedTokenInstructionDataFreeze,
     CompressedTokenInstructionDataTransfer,
     TokenTransferOutputData,
 } from './types';
@@ -171,7 +175,6 @@ export type TransferParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-
      */
     recentInputStateRootIndices: number[];
     /**
@@ -185,6 +188,41 @@ export type TransferParams = {
      * of input state.
      */
     outputStateTrees?: PublicKey[] | PublicKey;
+};
+
+export type FreezeParams = {
+    /**
+     * The payer of the transaction
+     */
+    payer: PublicKey;
+    /**
+     * The freeze authority of the token account
+     */
+    freezeAuthority: PublicKey;
+    /**
+     * The mint of the token account
+     */
+    mint: PublicKey;
+    /**
+     * The input token data with packed merkle context
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
+    /**
+     * The recent state root indices of the input state. The expiry is tied to
+     * the proof.
+     */
+    recentInputStateRootIndices: number[];
+    /**
+     * The recent validity proof for state inclusion of the input state. It
+     * expires after n slots.
+     */
+    recentValidityProof: CompressedProof;
+    /**
+     * The state trees that the tx output should be inserted into. This can be a
+     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
+     * of input state.
+     */
+    outputStateTree: PublicKey;
 };
 
 /**
@@ -777,6 +815,72 @@ export class CompressedTokenProgram {
             lamportsChangeAccountMerkleTreeIndex: null,
         };
         const data = encodeTransferInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = transferAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            tokenPoolPda: undefined,
+            compressOrDecompressTokenAccount: undefined,
+            tokenProgram: undefined,
+            systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+    /**
+     * Construct freeze instruction for compressed tokens
+     */
+    static async freeze(params: FreezeParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentValidityProof,
+            outputStateTree,
+            recentInputStateRootIndices,
+        } = params;
+
+        const {
+            inputTokenDataWithContext,
+            packedOutputTokenData,
+            remainingAccountMetas,
+        } = packCompressedTokenAccounts({
+            inputCompressedTokenAccounts,
+            outputStateTrees: outputStateTree,
+            rootIndices: recentInputStateRootIndices,
+            tokenTransferOutputs: [],
+        });
+
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const rawData: CompressedTokenInstructionDataFreeze = {
+            proof: recentValidityProof,
+            owner: currentOwner,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputsMerkleTreeIndex: 0,
+        };
+        const data = encodeFreezeInstructionData(rawData);
 
         const {
             accountCompressionAuthority,
