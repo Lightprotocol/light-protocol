@@ -24,12 +24,12 @@ use light_batched_merkle_tree::{
     },
 };
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array,
     instruction_data::{
         compressed_proof::CompressedProof, insert_into_queues::InsertIntoQueuesInstructionDataMut,
     },
     tx_hash::create_tx_hash,
 };
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
     test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},

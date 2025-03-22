@@ -1,10 +1,7 @@
 use aligned_sized::aligned_sized;
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::QueueType,
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
 use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
@@ -161,9 +158,7 @@ impl BatchedMerkleTreeMetadata {
             )
             .unwrap(),
             capacity: 2u64.pow(height),
-            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes())
-                .unwrap()
-                .0,
+            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes()).unwrap(),
             nullifier_next_index: 0,
         }
     }

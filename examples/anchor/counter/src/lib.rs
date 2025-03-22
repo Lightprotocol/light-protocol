@@ -174,7 +174,7 @@ pub mod counter {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct CounterAccount {
-    #[truncate]
+    #[hash]
     pub owner: Pubkey,
     pub value: u64,
 }

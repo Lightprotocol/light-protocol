@@ -13,7 +13,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
-use light_merkle_tree_metadata::{merkle_tree::TreeType, queue::QueueType};
+use light_merkle_tree_metadata::{QueueType, TreeType};
 
 use crate::{
     context::{MerkleTreeContext, SystemContext},
@@ -99,8 +99,7 @@ pub(crate) fn try_from_account_info<'a, 'info>(
                     MerkleTreeContext {
                         rollover_fee: merkle_tree.metadata.rollover_metadata.rollover_fee,
                         hashed_pubkey: hash_to_bn254_field_size_be(&account_info.key().to_bytes())
-                            .unwrap()
-                            .0,
+                            .unwrap(),
                     },
                 );
 

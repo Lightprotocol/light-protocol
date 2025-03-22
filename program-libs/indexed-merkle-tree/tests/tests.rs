@@ -1159,7 +1159,6 @@ fn perform_change_log_test<
             );
 
             println!("old_low_address {:?}", old_low_address);
-            println!("res {:?}", res);
             assert!(matches!(
                 res,
                 Err(IndexedMerkleTreeError::ConcurrentMerkleTree(

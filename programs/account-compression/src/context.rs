@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-use light_merkle_tree_metadata::merkle_tree::TreeType;
+use light_merkle_tree_metadata::TreeType;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy_mut,

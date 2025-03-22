@@ -78,7 +78,7 @@ mod hash_chain_tests {
     use num_bigint::BigUint;
 
     use super::*;
-    use crate::bigint::bigint_to_be_bytes_array;
+    use crate::bigint_to_be_bytes_array;
 
     /// Tests for `create_hash_chain_from_slice` function:
     /// Functional tests:
