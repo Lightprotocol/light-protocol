@@ -13,6 +13,9 @@ import {
     any,
     nullable,
     Struct,
+    boolean,
+    optional,
+    lazy,
 } from 'superstruct';
 import {
     BN254,
@@ -20,8 +23,8 @@ import {
     CompressedProof,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
-    bn,
     TokenData,
+    TreeType,
 } from './state';
 import BN from 'bn.js';
 
@@ -114,15 +117,16 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
 export type CompressedProofWithContext = {
-    compressedProof: CompressedProof;
+    compressedProof: CompressedProof | null;
     roots: BN[];
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
     merkleTrees: PublicKey[];
-    nullifierQueues: PublicKey[];
+    queues: PublicKey[];
+    proveByIndices: boolean[];
+    treeTypes: number[];
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -293,10 +297,39 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
     ) as Struct<RpcResult<WithRpcContext<T>>, null>;
 }
 
+const TreeContextInfoResult = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+});
+const MerkleContextResultV2 = pick({
+    treeType: number(),
+    tree: PublicKeyFromString,
+    queue: PublicKeyFromString,
+    cpiContext: nullable(PublicKeyFromString),
+    nextTreeContext: nullable(TreeContextInfoResult),
+});
+
+export interface TreeContextInfoResult {
+    treeType: TreeType;
+    tree: PublicKey;
+    queue: PublicKey;
+    cpiContext: PublicKey | null;
+}
+
+export interface MerkleContextV2Result {
+    treeType: TreeType;
+    tree: PublicKey;
+    queue: PublicKey;
+    cpiContext: PublicKey | null;
+    nextTreeContext: TreeContextInfoResult | null;
+}
+
 /**
  * @internal
  */
-export const CompressedAccountResult = pick({
+export const CompressedAccountResultV2 = pick({
     address: nullable(ArrayFromString),
     hash: BN254FromString,
     data: nullable(
@@ -309,10 +342,33 @@ export const CompressedAccountResult = pick({
     lamports: BNFromStringOrNumber,
     owner: PublicKeyFromString,
     leafIndex: number(),
-    tree: PublicKeyFromString,
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
+    proveByIndex: boolean(),
+    merkleContext: MerkleContextResultV2,
 });
+
+// pub struct AccountV2 {
+//     pub hash: Hash,
+//     pub address: Option<SerializablePubkey>,
+//     pub data: Option<AccountData>,
+//     pub owner: SerializablePubkey,
+//     pub lamports: UnsignedInteger,
+//     pub leaf_index: UnsignedInteger,
+//     // For legacy trees is always Some() since the user tx appends directly to the Merkle tree
+//     // for batched tress:
+//     // 2.1. None when is in output queue
+//     // 2.2. Some once it was inserted into the Merkle tree from the output queue
+//     pub seq: Option<UnsignedInteger>,
+//     pub slot_created: UnsignedInteger,
+//     // Indicates if the account is not yet provable by validity_proof. The
+//     // account resides in on-chain RAM, with leaf_index mapping to its position.
+//     // This allows the protocol to prove the account's validity using only the
+//     // leaf_index. Consumers use this to decide if a validity proof is needed,
+//     // saving one RPC roundtrip.
+//     pub prove_by_index: bool,
+//     pub merkle_context: MerkleContextV2,
+// }
 
 export const TokenDataResult = pick({
     mint: PublicKeyFromString,
@@ -325,31 +381,31 @@ export const TokenDataResult = pick({
 /**
  * @internal
  */
-export const CompressedTokenAccountResult = pick({
+export const CompressedTokenAccountResultV2 = pick({
     tokenData: TokenDataResult,
-    account: CompressedAccountResult,
+    account: CompressedAccountResultV2,
 });
 
 /**
  * @internal
  */
-export const MultipleCompressedAccountsResult = pick({
-    items: array(CompressedAccountResult),
+export const MultipleCompressedAccountsResultV2 = pick({
+    items: array(CompressedAccountResultV2),
 });
 
 /**
  * @internal
  */
-export const CompressedAccountsByOwnerResult = pick({
-    items: array(CompressedAccountResult),
+export const CompressedAccountsByOwnerResultV2 = pick({
+    items: array(CompressedAccountResultV2),
     cursor: nullable(string()),
 });
 
 /**
  * @internal
  */
-export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
-    items: array(CompressedTokenAccountResult),
+export const CompressedTokenAccountsByOwnerOrDelegateResultV2 = pick({
+    items: array(CompressedTokenAccountResultV2),
     cursor: nullable(string()),
 });
 
@@ -391,16 +447,29 @@ export const LatestNonVotingSignaturesResultPaginated = pick({
     cursor: nullable(string()),
 });
 
+// /**
+//  * @internal
+//  */
+// export const MerkleProofResult = pick({
+//     hash: BN254FromString,
+//     leafIndex: number(),
+//     merkleTree: PublicKeyFromString,
+//     proof: array(BN254FromString),
+//     rootSeq: number(),
+//     root: BN254FromString,
+// });
+
 /**
  * @internal
  */
-export const MerkeProofResult = pick({
+export const MerkleProofResultV2 = pick({
     hash: BN254FromString,
     leafIndex: number(),
-    merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
-    rootSeq: number(),
     root: BN254FromString,
+    rootSeq: number(),
+    proveByIndex: boolean(),
+    treeContext: TreeContextInfoResult,
 });
 
 /**
@@ -430,21 +499,41 @@ const CompressedProofResult = pick({
 /**
  * @internal
  */
-export const ValidityProofResult = pick({
-    compressedProof: CompressedProofResult,
-    leafIndices: array(number()),
-    leaves: array(BN254FromString),
-    rootIndices: array(number()),
-    roots: array(BN254FromString),
-    merkleTrees: array(PublicKeyFromString),
-    // TODO: enable nullifierQueues
-    // nullifierQueues: array(PublicKeyFromString),
+export const RootIndexResult = pick({
+    rootIndex: number(),
+    proveByIndex: boolean(),
 });
 
 /**
  * @internal
  */
-export const MultipleMerkleProofsResult = array(MerkeProofResult);
+export const ValidityProofResultV2 = pick({
+    compressedProof: nullable(CompressedProofResult), // V2 can be null
+    roots: array(BN254FromString),
+    rootIndices: array(RootIndexResult),
+    leafIndices: array(number()), // FIXME(photon): photon returns u32 which will eventually panic for addressV2
+    leaves: array(BN254FromString),
+    merkleContexts: array(MerkleContextResultV2),
+});
+// /**
+//  * @internal
+//  */
+// export const ValidityProofResult = pick({
+//     compressedProof: nullable(CompressedProofResult), // V2 can be null
+//     roots: array(BN254FromString),
+//     rootIndices: array(RootIndexResult),
+//     leafIndices: array(number()), // FIXME(photon): photon returns u32 which will eventually panic for addressV2
+//     leaves: array(BN254FromString),
+//     merkleTrees: array(PublicKeyFromString),
+//     queues: optional(array(PublicKeyFromString)),
+//     treeTypes: optional(array(number())), // TODO: remove optional
+// });
+
+/**
+ * @internal
+ */
+// export const MultipleMerkleProofsResult = array(MerkleProofResult);
+export const MultipleMerkleProofsResultV2 = array(MerkleProofResultV2);
 
 /**
  * @internal
@@ -511,17 +600,23 @@ export const SignatureListWithCursorResult = pick({
     cursor: nullable(string()),
 });
 
-export const CompressedTransactionResult = pick({
+const ClosedAccountResultV2 = pick({
+    account: CompressedAccountResultV2,
+    txHash: BN254FromString,
+    nullifier: BN254FromString,
+});
+
+export const CompressedTransactionResultV2 = pick({
     compressionInfo: pick({
         closedAccounts: array(
             pick({
-                account: CompressedAccountResult,
+                account: ClosedAccountResultV2,
                 optionalTokenData: nullable(TokenDataResult),
             }),
         ),
         openedAccounts: array(
             pick({
-                account: CompressedAccountResult,
+                account: CompressedAccountResultV2,
                 optionalTokenData: nullable(TokenDataResult),
             }),
         ),

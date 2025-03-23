@@ -199,21 +199,21 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
     } else {
         let base_impls = quote! {
             impl<'info> ::light_sdk::traits::InvokeCpiAccounts<'info> for #name<'info> {
-                fn get_invoking_program(&self) -> &AccountInfo<'info> {
-                    &self.#self_program_field
+                fn get_invoking_program(&self) -> AccountInfo<'info> {
+                    self.#self_program_field.to_account_info()
                 }
             }
             impl<'info> ::light_sdk::traits::SignerAccounts<'info> for #name<'info> {
-                fn get_fee_payer(&self) -> &::anchor_lang::prelude::Signer<'info> {
-                    &self.#fee_payer_field
+                fn get_fee_payer(&self) -> ::anchor_lang::prelude::AccountInfo<'info> {
+                    self.#fee_payer_field.to_account_info()
                 }
                 fn get_authority(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#authority_field
                 }
             }
             impl<'info> ::light_sdk::traits::LightSystemAccount<'info> for #name<'info> {
-                fn get_light_system_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
-                    &self.#light_system_program_field
+                fn get_light_system_program(&self) -> ::anchor_lang::prelude::AccountInfo<'info> {
+                    self.#light_system_program_field.to_account_info()
                 }
             }
         };
@@ -231,8 +231,8 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 fn get_account_compression_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#account_compression_program_field
                 }
-                fn get_system_program(&self) -> &::anchor_lang::prelude::Program<'info, System> {
-                    &self.#system_program_field
+                fn get_system_program(&self) ->::anchor_lang::prelude::AccountInfo<'info> {
+                    self.#system_program_field.to_account_info()
                 }
                 fn get_compressed_sol_pda(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compressed_sol_pda_field

@@ -33,10 +33,6 @@ pub struct CompressedAccountWithMerkleContext {
 }
 impl CompressedAccountWithMerkleContext {
     pub fn hash(&self) -> Result<[u8; 32], CompressedAccountError> {
-        println!(
-            "self.merkle_context.merkle_tree_pubkey {:?}",
-            self.merkle_context.merkle_tree_pubkey
-        );
         self.compressed_account.hash::<Poseidon>(
             &self.merkle_context.merkle_tree_pubkey,
             &self.merkle_context.leaf_index,
@@ -107,8 +103,6 @@ pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub leaf_index: u32,
-    /// Index of leaf in queue. Placeholder of batched Merkle tree updates
-    /// currently unimplemented.
     pub prove_by_index: bool,
 }
 
@@ -247,14 +241,9 @@ impl CompressedAccount {
         &merkle_tree_pubkey: &Pubkey,
         leaf_index: &u32,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        println!(
-            "merkle_tree_pubkey.to_bytes() {:?}",
-            merkle_tree_pubkey.to_bytes()
-        );
         let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
             .unwrap()
             .0;
-        println!("hashed mt {:?}", hashed_mt);
         self.hash_with_hashed_values::<H>(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes())
                 .unwrap()

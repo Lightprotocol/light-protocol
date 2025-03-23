@@ -23,7 +23,6 @@ use tracing::debug;
 
 #[tokio::main]
 async fn main() -> Result<(), ForesterError> {
-    console_subscriber::init();
     setup_telemetry();
 
     let cli = Cli::parse();

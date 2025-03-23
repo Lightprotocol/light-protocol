@@ -1,16 +1,33 @@
 use std::collections::HashMap;
 
-use anchor_lang::prelude::{AccountMeta, AnchorDeserialize, AnchorSerialize, Pubkey};
 use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+
+use crate::{
+    system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    BorshDeserialize, BorshSerialize,
+};
 
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]
 pub struct RemainingAccounts {
     next_index: u8,
-    map: HashMap<Pubkey, u8>,
+    map: HashMap<Pubkey, (u8, AccountMeta)>,
 }
 
 impl RemainingAccounts {
+    pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> Self {
+        let mut remaining_accounts = RemainingAccounts::default();
+        remaining_accounts.add_system_accounts(config);
+        remaining_accounts
+    }
+
+    pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
+        for account in get_light_system_account_metas(config) {
+            self.insert_or_get_config(account.pubkey, account.is_signer, account.is_writable);
+        }
+    }
+
     /// Returns the index of the provided `pubkey` in the collection.
     ///
     /// If the provided `pubkey` is not a part of the collection, it gets
@@ -19,36 +36,50 @@ impl RemainingAccounts {
     /// If the privided `pubkey` already exists in the collection, its already
     /// existing index is returned.
     pub fn insert_or_get(&mut self, pubkey: Pubkey) -> u8 {
-        *self.map.entry(pubkey).or_insert_with(|| {
-            let index = self.next_index;
-            self.next_index += 1;
-            index
-        })
+        self.insert_or_get_config(pubkey, false, true)
+    }
+
+    pub fn insert_or_get_signer(&mut self, pubkey: Pubkey) -> u8 {
+        self.insert_or_get_config(pubkey, true, false)
+    }
+
+    pub fn insert_or_get_signer_mut(&mut self, pubkey: Pubkey) -> u8 {
+        self.insert_or_get_config(pubkey, true, true)
+    }
+
+    pub fn insert_or_get_config(
+        &mut self,
+        pubkey: Pubkey,
+        is_signer: bool,
+        is_writable: bool,
+    ) -> u8 {
+        self.map
+            .entry(pubkey)
+            .or_insert_with(|| {
+                let index = self.next_index;
+                self.next_index += 1;
+                (
+                    index,
+                    AccountMeta {
+                        pubkey,
+                        is_signer,
+                        is_writable,
+                    },
+                )
+            })
+            .0
     }
 
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
     pub fn to_account_metas(&self) -> Vec<AccountMeta> {
-        let mut remaining_accounts = self
-            .map
-            .iter()
-            .map(|(k, i)| {
-                (
-                    AccountMeta {
-                        pubkey: *k,
-                        is_signer: false,
-                        is_writable: true,
-                    },
-                    *i as usize,
-                )
-            })
-            .collect::<Vec<(AccountMeta, usize)>>();
+        let mut remaining_accounts = self.map.iter().collect::<Vec<_>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
-        remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+        remaining_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
         let remaining_accounts = remaining_accounts
             .iter()
-            .map(|(k, _)| k.clone())
+            .map(|(_, (_, k))| k.clone())
             .collect::<Vec<AccountMeta>>();
         remaining_accounts
     }
@@ -85,13 +116,13 @@ pub fn pack_merkle_context(
     }
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,

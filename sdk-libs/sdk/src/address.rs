@@ -1,9 +1,8 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
 use light_compressed_account::{
     hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
     instruction_data::data::{NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams},
 };
-use solana_program::account_info::AccountInfo;
+use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
 

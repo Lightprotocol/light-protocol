@@ -55,7 +55,6 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -368,7 +367,6 @@ pub async fn compressed_transaction_test<
                 inputs.rpc,
             )
             .await;
-
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
@@ -522,9 +520,7 @@ pub fn create_invoke_instruction(
             .output_compressed_accounts
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
-    println!("remaining accounts: {:?}", remaining_accounts);
     let mut inputs = Vec::new();
-    println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -638,10 +634,6 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: output_compressed_accounts[i].clone(),
             merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
         });
-        println!(
-            "output_compressed_accounts_with_context {:?}",
-            output_compressed_accounts_with_context
-        );
     }
 
     for (i, params) in new_address_params.iter().enumerate() {

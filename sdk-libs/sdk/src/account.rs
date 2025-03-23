@@ -1,6 +1,8 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
-use anchor_lang::prelude::{AnchorDeserialize, AnchorSerialize, Result};
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -10,19 +12,24 @@ use light_compressed_account::{
     },
 };
 use light_hasher::{DataHasher, Discriminator, Poseidon};
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::pubkey::Pubkey;
 
-use crate::{account_info::LightAccountInfo, account_meta::LightAccountMeta, error::LightSdkError};
+use crate::{
+    account_info::LightAccountInfo,
+    account_meta::LightAccountMeta,
+    error::{LightSdkError, Result},
+    BorshDeserialize, BorshSerialize,
+};
 pub trait LightAccounts<'a>: Sized {
     fn try_light_accounts(accounts: &'a [LightAccountInfo]) -> Result<Self>;
 }
 
-// TODO(vadorovsky): Implement `LightAccountLoader`.
-
+// TODO: replace Borsh trait bound with custom deserialize that can be implemented and can be borsh
 /// A wrapper which abstracts away the UTXO model.
+#[derive(Debug)]
 pub struct LightAccount<'info, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator + Debug,
 {
     /// State of the output account which can be modified by the developer in
     /// the program code.
@@ -33,7 +40,7 @@ where
 
 impl<'info, T> LightAccount<'info, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator + Debug,
 {
     pub fn from_meta_init(
         meta: &'info LightAccountMeta,
@@ -68,10 +75,9 @@ where
                 .as_ref()
                 .ok_or(LightSdkError::ExpectedData)?
                 .as_slice(),
-        )?;
-        let input_hash = account_state
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?;
+        )
+        .map_err(|_| LightSdkError::Borsh)?;
+        let input_hash = account_state.hash::<Poseidon>()?;
 
         // Set the input account hash.
         //
@@ -96,10 +102,9 @@ where
                 .as_ref()
                 .ok_or(LightSdkError::ExpectedData)?
                 .as_slice(),
-        )?;
-        let input_hash = account_state
-            .hash::<Poseidon>()
-            .map_err(ProgramError::from)?;
+        )
+        .map_err(|_| LightSdkError::Borsh)?;
+        let input_hash = account_state.hash::<Poseidon>()?;
 
         // Set the input account hash.
         //
@@ -129,13 +134,13 @@ where
             Some(merkle_tree_index) => {
                 let data = {
                     let discriminator = T::discriminator();
-                    let data_hash = self
-                        .account_state
-                        .hash::<Poseidon>()
-                        .map_err(ProgramError::from)?;
+                    let data_hash = self.account_state.hash::<Poseidon>()?;
                     Some(CompressedAccountData {
                         discriminator,
-                        data: self.account_state.try_to_vec()?,
+                        data: self
+                            .account_state
+                            .try_to_vec()
+                            .map_err(|_| LightSdkError::Borsh)?,
                         data_hash,
                     })
                 };
@@ -156,7 +161,7 @@ where
 
 impl<T> Deref for LightAccount<'_, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator + Debug,
 {
     type Target = T;
 
@@ -167,7 +172,7 @@ where
 
 impl<T> DerefMut for LightAccount<'_, T>
 where
-    T: AnchorDeserialize + AnchorSerialize + Clone + DataHasher + Default + Discriminator,
+    T: BorshDeserialize + BorshSerialize + Clone + DataHasher + Default + Discriminator + Debug,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.account_state

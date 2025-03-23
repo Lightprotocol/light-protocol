@@ -90,6 +90,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
+    debug!("run_pipeline");
     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),

@@ -104,7 +104,7 @@ impl BatchedMerkleTreeMetadata {
             rollover_fee,
         );
         // inited address tree contains two elements.
-        tree.next_index = 2;
+        tree.next_index = 1;
         tree
     }
 
@@ -154,7 +154,7 @@ impl BatchedMerkleTreeMetadata {
                 zkp_batch_size,
                 num_iters,
                 if tree_type == TreeType::BatchedAddress {
-                    2
+                    1
                 } else {
                     0
                 },

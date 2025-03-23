@@ -1,5 +1,5 @@
 use account_compression::QueueAccount;
-use forester_utils::{get_hash_set, AccountZeroCopy};
+use forester_utils::account_zero_copy::{get_hash_set, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,

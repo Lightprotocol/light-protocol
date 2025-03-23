@@ -1,20 +1,19 @@
 //! Types used
-
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::compressed_account::{
     CompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    error::LightSdkError,
+    error::Result,
     merkle_context::{
         pack_address_merkle_context, pack_merkle_context, AddressMerkleContext,
         PackedAddressMerkleContext, RemainingAccounts,
     },
 };
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, PartialEq, Default)]
 pub struct LightAccountMeta {
     /// Lamports.
     pub lamports: Option<u64>,
@@ -45,7 +44,7 @@ impl LightAccountMeta {
         address_merkle_context: Option<&AddressMerkleContext>,
         address_merkle_tree_root_index: Option<u16>,
         remaining_accounts: &mut RemainingAccounts,
-    ) -> Result<Self, LightSdkError> {
+    ) -> Result<Self> {
         let output_merkle_tree_index = remaining_accounts.insert_or_get(*output_merkle_tree);
         let address_merkle_context =
             address_merkle_context.map(|ctx| pack_address_merkle_context(ctx, remaining_accounts));

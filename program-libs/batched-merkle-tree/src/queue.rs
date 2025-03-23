@@ -377,7 +377,11 @@ impl<'a> BatchedQueueAccount<'a> {
     /// If current batch state is inserted, returns 0.
     pub fn get_num_inserted_in_current_batch(&self) -> u64 {
         let current_batch = self.batch_metadata.currently_processing_batch_index as usize;
-        self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        if self.batch_metadata.batches[current_batch].get_state() == BatchState::Inserted {
+            0
+        } else {
+            self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        }
     }
 
     /// Returns true if the pubkey is the associated Merkle tree of the queue.

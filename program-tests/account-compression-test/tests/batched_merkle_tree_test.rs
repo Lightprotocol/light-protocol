@@ -25,10 +25,10 @@ use light_batched_merkle_tree::{
 };
 use light_compressed_account::{
     bigint::bigint_to_be_bytes_array,
-    hash_chain::create_tx_hash,
     instruction_data::{
         compressed_proof::CompressedProof, insert_into_queues::InsertIntoQueuesInstructionDataMut,
     },
+    tx_hash::create_tx_hash,
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{

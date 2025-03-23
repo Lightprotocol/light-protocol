@@ -3,6 +3,8 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
+    StateTreeInfo,
+    TreeType,
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
@@ -29,15 +31,18 @@ export function getIndexOrAdd(
  * @internal
  * Pads output state trees with the 0th state tree of the input state.
  *
- * @param outputStateMerkleTrees            Optional output state trees to be
- *                                          inserted into the output state.
- *                                          Defaults to the 0th state tree of
- *                                          the input state. Gets padded to the
- *                                          length of outputCompressedAccounts.
- * @param numberOfOutputCompressedAccounts  The number of output compressed
- *                                          accounts.
- * @param inputCompressedAccountsWithMerkleContext The input compressed accounts
- *                                          with merkle context.
+ * @param outputStateMerkleTrees                    Optional output state trees
+ *                                                  to be inserted into the
+ *                                                  output state. Defaults to
+ *                                                  the 0th state tree of the
+ *                                                  input state. Gets padded to
+ *                                                  the length of
+ *                                                  outputCompressedAccounts.
+ * @param numberOfOutputCompressedAccounts          The number of output
+ *                                                  compressed accounts.
+ * @param inputCompressedAccountsWithMerkleContext  The input compressed
+ *                                                  accounts with merkle
+ *                                                  context.
  *
  * @returns Padded output state trees.
  */
@@ -92,26 +97,22 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
  *
  * Replaces PublicKey with index pointer to remaining accounts.
  *
+ * @param inputCompressedAccounts   Ix input state to be consumed
+ * @param inputStateRootIndices     The recent state root indices of the input
+ *                                  state. The expiry is tied to the proof.
+ * @param outputCompressedAccounts  Ix output state to be created
+ * @param outputStateTreeInfo       Context of state tree to be inserted into
+ *                                  the output state. Gets padded to the length
+ *                                  of outputCompressedAccounts.
  *
- * @param inputCompressedAccounts           Ix input state to be consumed
- * @param inputStateRootIndices             The recent state root indices of the
- *                                          input state. The expiry is tied to
- *                                          the proof.
- * @param outputCompressedAccounts          Ix output state to be created
- * @param outputStateMerkleTrees            Optional output state trees to be
- *                                          inserted into the output state.
- *                                          Defaults to the 0th state tree of
- *                                          the input state. Gets padded to the
- *                                          length of outputCompressedAccounts.
- *
- * @param remainingAccounts                 Optional existing array of accounts
- *                                          to append to.
+ * @param remainingAccounts         Optional existing array of accounts to
+ *                                  append to.
  **/
 export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateMerkleTrees?: PublicKey[] | PublicKey,
+    outputStateTreeInfo: StateTreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -133,9 +134,9 @@ export function packCompressedAccounts(
             account.merkleTree,
         );
 
-        const nullifierQueuePubkeyIndex = getIndexOrAdd(
+        const queuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.nullifierQueue,
+            account.queue,
         );
 
         packedInputCompressedAccounts.push({
@@ -147,26 +148,25 @@ export function packCompressedAccounts(
             },
             merkleContext: {
                 merkleTreePubkeyIndex,
-                nullifierQueuePubkeyIndex,
+                queuePubkeyIndex,
                 leafIndex: account.leafIndex,
-                queueIndex: null,
+                proveByIndex: account.proveByIndex,
             },
             rootIndex: inputStateRootIndices[index],
             readOnly: false,
         });
     });
 
-    if (
-        outputStateMerkleTrees === undefined &&
-        inputCompressedAccounts.length === 0
-    ) {
-        throw new Error(
-            'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
-        );
-    }
+    // internal. v2 trees require the output queue account instead of directly
+    // appending to the merkle tree.
+    const outputTreeOrQueue =
+        outputStateTreeInfo.treeType === TreeType.StateV2
+            ? outputStateTreeInfo.queue!
+            : outputStateTreeInfo.tree;
+
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateMerkleTrees,
+        outputTreeOrQueue,
         outputCompressedAccounts.length,
         inputCompressedAccounts,
     );

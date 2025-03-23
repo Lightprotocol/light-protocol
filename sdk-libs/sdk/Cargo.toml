@@ -15,29 +15,29 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap"]
+default = []
 test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
-legacy = ["account-compression", "light-system-program"]
+legacy = ["account-compression", "light-system-program", "anchor-lang"]
+anchor = ["anchor-lang"]
 
 [dependencies]
-
 solana-program = { workspace = true }
-anchor-lang = { workspace = true }
+anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
 borsh = { workspace = true }
 
 light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-hasher = { workspace = true, features = ["solana"] }
-light-heap = { workspace = true, optional = true }
 light-indexed-merkle-tree = { workspace = true }
 account-compression = { workspace = true, optional = true }
 light-system-program = { workspace = true, optional = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
+thiserror = { workspace = true }
+light-verifier = { workspace = true, features = ["solana"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

@@ -59,6 +59,7 @@ impl SystemContext<'_> {
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,
             None => {
+                msg!("NOT FOUND, hashing pubkey {:?}", pubkey);
                 let hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes()).unwrap().0;
                 self.hashed_pubkeys.push((pubkey, hashed_pubkey));
                 hashed_pubkey
@@ -120,8 +121,8 @@ impl<'info> SystemContext<'info> {
         fee_payer: &AccountInfo<'info>,
     ) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
-            msg!("paying fee: {:?}", fee);
-            msg!("to account: {:?}", accounts[*i as usize].key());
+            // msg!("paying fee: {:?}", fee);
+            // msg!("to account: {:?}", accounts[*i as usize].key());
             transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())

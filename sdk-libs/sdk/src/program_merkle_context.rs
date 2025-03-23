@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::AccountInfo, Key};
+use solana_program::account_info::AccountInfo;
 
 use crate::merkle_context::{AddressMerkleContext, PackedAddressMerkleContext};
 
@@ -11,11 +11,11 @@ pub fn pack_address_merkle_contexts(
         .map(|x| {
             let address_merkle_tree_pubkey_index = remaining_accounts
                 .iter()
-                .position(|account| account.key() == x.address_merkle_tree_pubkey)
+                .position(|account| *account.key == x.address_merkle_tree_pubkey)
                 .unwrap() as u8;
             let address_queue_pubkey_index = remaining_accounts
                 .iter()
-                .position(|account| account.key() == x.address_queue_pubkey)
+                .position(|account| *account.key == x.address_queue_pubkey)
                 .unwrap() as u8;
             PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index,
@@ -40,9 +40,9 @@ pub fn unpack_address_merkle_contexts(
         .iter()
         .map(|x| {
             let address_merkle_tree_pubkey =
-                remaining_accounts[x.address_merkle_tree_pubkey_index as usize].key();
+                *remaining_accounts[x.address_merkle_tree_pubkey_index as usize].key;
             let address_queue_pubkey =
-                remaining_accounts[x.address_queue_pubkey_index as usize].key();
+                *remaining_accounts[x.address_queue_pubkey_index as usize].key;
             AddressMerkleContext {
                 address_merkle_tree_pubkey,
                 address_queue_pubkey,

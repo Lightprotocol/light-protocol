@@ -1,0 +1,36 @@
+[package]
+name = "sdk-test"
+version = "1.0.0"
+description = "Test program using generalized account compression"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "sdk_test"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+test-sbf = []
+default = []
+
+[dependencies]
+light-sdk = { workspace = true }
+light-hasher = { workspace = true, features = ["solana"] }
+light-compressed-account = { workspace = true }
+solana-program = { workspace = true }
+light-macros = { workspace = true }
+light-account-checks = { workspace = true }
+borsh = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+tokio = { workspace = true }
+# TODO: get light prover client from light-program test
+light-prover-client = { workspace = true }
+solana-sdk = { workspace = true }
+light-client = { workspace = true, features = ["devenv"] }

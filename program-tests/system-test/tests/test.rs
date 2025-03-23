@@ -1,6 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::errors::AccountCompressionErrorCode;
+use account_compression::{
+    errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
+    NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
@@ -151,7 +154,7 @@ async fn invoke_failing_test() {
         }
     }
     for mut num_addresses in 0..=2 {
-        for j in 0..6 {
+        for (j, option) in options.iter().enumerate() {
             // there is no combined circuit instantiation for 8 inputs and addresses
             if j == 5 {
                 num_addresses = 0;
@@ -162,7 +165,7 @@ async fn invoke_failing_test() {
                     &mut test_indexer,
                     &payer,
                     &env,
-                    options[j],
+                    *option,
                     0,
                     num_addresses,
                     num_outputs,
@@ -1678,8 +1681,13 @@ async fn regenerate_accounts() {
         protocol_config,
         true,
         skip_register_programs,
+        false,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
         InitStateTreeAccountsInstructionData::test_default(),
-        InitAddressTreeAccountsInstructionData::test_default(),
+        Some(InitAddressTreeAccountsInstructionData::test_default()),
     )
     .await;
     let keypairs = EnvAccountKeypairs::for_regenerate_accounts();
@@ -2121,16 +2129,12 @@ async fn batch_invoke_test() {
         let input_compressed_accounts = vec![
             compressed_account_with_context_1.compressed_account,
             compressed_account_with_context_2.compressed_account,
-        ]
-        .iter()
-        .cloned()
-        .collect::<Vec<_>>();
+        ];
 
-        let merkle_context = [
+        let merkle_context = vec![
             compressed_account_with_context_1.merkle_context,
             compressed_account_with_context_2.merkle_context,
-        ]
-        .to_vec();
+        ];
         let output_compressed_accounts = vec![
             CompressedAccount {
                 lamports: 0,
@@ -2244,10 +2248,9 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        // TODO: investigate why it fails on ix 0 should fail on ix 1
         assert_rpc_error(
             result,
-            0,
+            1,
             BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
@@ -2276,10 +2279,9 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        // TODO: investigate why it fails on ix 0 should fail on ix 1
         assert_rpc_error(
             result,
-            0,
+            1,
             BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
         )
         .unwrap();
@@ -2308,8 +2310,12 @@ async fn batch_invoke_test() {
             compressed_account_with_context_1.clone(),
         )
         .await;
-        assert_rpc_error(result, 1, light_bloom_filter::BloomFilterError::Full.into()).unwrap();
-        // TODO: failed with BatchedMerkleTreeError::InclusionProofByIndexFailed
+        assert_rpc_error(
+            result,
+            1,
+            BatchedMerkleTreeError::InclusionProofByIndexFailed.into(),
+        )
+        .unwrap();
     }
     println!("pre 12 ------------------");
     // 12. spend account by zkp  but mark as spent by index
@@ -2559,6 +2565,7 @@ pub async fn create_compressed_accounts_in_batch_merkle_tree(
         BatchedQueueAccount::output_from_bytes(&mut output_queue_account.data).unwrap();
     let fullness = output_queue.get_num_inserted_in_current_batch();
     let remaining_leaves = output_queue.get_metadata().batch_metadata.batch_size - fullness;
+
     for _ in 0..remaining_leaves {
         create_output_accounts(context, payer, test_indexer, output_queue_pubkey, 1, true).await?;
     }

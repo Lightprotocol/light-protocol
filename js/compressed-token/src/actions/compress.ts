@@ -10,7 +10,9 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
+    StateTreeInfo,
+    pickStateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -20,17 +22,17 @@ import { CompressedTokenProgram } from '../program';
 /**
  * Compress SPL tokens
  *
- * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the compressed token
- * @param amount                Number of tokens to transfer
- * @param owner                 Owner of the compressed tokens.
- * @param sourceTokenAccount    Source (associated) token account
- * @param toAddress             Destination address of the recipient
- * @param merkleTree            State tree account that the compressed tokens
- *                              should be inserted into. Defaults to a default
- *                              state tree account.
- * @param confirmOptions        Options for confirming the transaction
+ * @param rpc                       Rpc connection to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Mint of the compressed token
+ * @param amount                    Number of tokens to transfer
+ * @param owner                     Owner of the compressed tokens.
+ * @param sourceTokenAccount        Source (associated) token account
+ * @param toAddress                 Destination address of the recipient
+ * @param outputStateTreeInfo    State tree context that the compressed
+ *                                  tokens should be part of. Defaults to the
+ *                                  default state tree context.
+ * @param confirmOptions            Options for confirming the transaction
  *
  *
  * @return Signature of the confirmed transaction
@@ -43,7 +45,7 @@ export async function compress(
     owner: Signer,
     sourceTokenAccount: PublicKey,
     toAddress: PublicKey | Array<PublicKey>,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -51,10 +53,12 @@ export async function compress(
         ? tokenProgramId
         : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
-    if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
     }
 
     const compressIx = await CompressedTokenProgram.compress({
@@ -64,7 +68,7 @@ export async function compress(
         toAddress,
         amount,
         mint,
-        outputStateTree: merkleTree,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 
@@ -73,7 +77,7 @@ export async function compress(
     const signedTx = buildAndSignTx(
         [
             ComputeBudgetProgram.setComputeUnitLimit({
-                units: 1_000_000,
+                units: 550_000,
             }),
             compressIx,
         ],

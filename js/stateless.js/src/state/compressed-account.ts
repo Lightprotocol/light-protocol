@@ -1,6 +1,6 @@
 import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
-import { CompressedAccount, CompressedAccountData } from './types';
+import { CompressedAccount, CompressedAccountData, TreeType } from './types';
 import { BN254, bn } from './BN254';
 
 export type CompressedAccountWithMerkleContext = CompressedAccount &
@@ -15,11 +15,37 @@ export type MerkleContext = {
     /** State Merkle tree */
     merkleTree: PublicKey;
     /** The state nullfier queue belonging to merkleTree */
-    nullifierQueue: PublicKey;
+    queue: PublicKey;
     /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
-    hash: number[]; // TODO: BN254;
+    hash: number[];
     /** 'hash' position within the Merkle tree */
     leafIndex: number;
+    /** Version */
+    treeType: TreeType;
+    /** Whether to prove by index or by validity proof */
+    proveByIndex: boolean;
+};
+/**
+ * Context for compressed account inserted into a state Merkle tree V1
+ * */
+export type MerkleContextV1 = {
+    /** State Merkle tree */
+    merkleTree: PublicKey;
+    /** The state nullfier queue belonging to merkleTree */
+    queue: PublicKey;
+    /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
+    hash: number[];
+    /** 'hash' position within the Merkle tree */
+    leafIndex: number;
+};
+
+export type MerkleContextWithMerkleProofV1 = MerkleContextV1 & {
+    /** Recent valid 'hash' proof path, expires after n slots */
+    merkleProof: BN254[];
+    /** Index of state root the merkleproof is valid for, expires after n slots */
+    rootIndex: number;
+    /** Current root */
+    root: BN254;
 };
 
 export type MerkleContextWithMerkleProof = MerkleContext & {
@@ -57,12 +83,16 @@ export const createCompressedAccountWithMerkleContext = (
 
 export const createMerkleContext = (
     merkleTree: PublicKey,
-    nullifierQueue: PublicKey,
+    queue: PublicKey,
     hash: number[], // TODO: BN254,
     leafIndex: number,
+    treeType: TreeType,
+    proveByIndex: boolean,
 ): MerkleContext => ({
     merkleTree,
-    nullifierQueue,
+    queue,
     hash,
     leafIndex,
+    treeType,
+    proveByIndex,
 });

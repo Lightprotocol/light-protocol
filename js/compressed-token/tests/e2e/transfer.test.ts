@@ -18,6 +18,8 @@ import {
     dedupeSigner,
     buildAndSignTx,
     sendAndConfirmTx,
+    StateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -29,7 +31,8 @@ import {
 } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
-import { selectMinCompressedTokenAccountsForTransfer } from '../../src/utils/select-input-accounts';
+import { selectMinCompressedTokenAccountsForTransfer } from '../../src/utils';
+import { getStateTreeInfoByTypeForTest } from '../../../stateless.js/tests/e2e/shared';
 
 /**
  * Assert that we created recipient and change-account for the sender, with all
@@ -91,328 +94,350 @@ async function assertTransfer(
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('transfer', () => {
-    let rpc: TestRpc;
-    let payer: Signer;
-    let bob: Signer;
-    let charlie: Signer;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'transfer with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Signer;
+        let bob: Signer;
+        let charlie: Signer;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let outputStateTreeInfo: StateTreeInfo;
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc, 1e9);
-        mintAuthority = Keypair.generate();
-        const mintKeypair = Keypair.generate();
-
-        mint = (
-            await createMint(
+        beforeAll(async () => {
+            const lightWasm = await WasmFactory.getInstance();
+            rpc = await getTestRpc(lightWasm);
+            payer = await newAccountWithLamports(rpc, 1e9);
+            mintAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
                 rpc,
-                payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-            )
-        ).mint;
-    });
+                treeType,
+            );
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                )
+            ).mint;
+        });
 
-    beforeEach(async () => {
-        bob = await newAccountWithLamports(rpc, 1e9);
-        charlie = await newAccountWithLamports(rpc, 1e9);
+        beforeEach(async () => {
+            bob = await newAccountWithLamports(rpc, 1e9);
+            charlie = await newAccountWithLamports(rpc, 1e9);
 
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-    });
-
-    it('should transfer from bob -> charlie', async () => {
-        /// send 700 from bob -> charlie
-        /// bob: 300, charlie: 700
-        const bobPreCompressedTokenAccounts = (
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint,
-            })
-        ).items;
-
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            merkleTree,
-        );
-
-        await assertTransfer(
-            rpc,
-            bobPreCompressedTokenAccounts,
-            mint,
-            bn(700),
-            bob.publicKey,
-            charlie.publicKey,
-            1,
-            1,
-        );
-
-        /// send 200 from bob -> charlie
-        /// bob: 100, charlie: (700+200)
-        const bobPreCompressedTokenAccounts2 =
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint,
-            });
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(200),
-            bob,
-            charlie.publicKey,
-            merkleTree,
-        );
-
-        await assertTransfer(
-            rpc,
-            bobPreCompressedTokenAccounts2.items,
-            mint,
-            bn(200),
-            bob.publicKey,
-            charlie.publicKey,
-            1,
-            2,
-        );
-
-        /// send 5 from charlie -> bob
-        /// bob: (100+5), charlie: (695+200)
-        const charliePreCompressedTokenAccounts3 =
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint,
-            });
-
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(5),
-            charlie,
-            bob.publicKey,
-            merkleTree,
-        );
-
-        await assertTransfer(
-            rpc,
-            charliePreCompressedTokenAccounts3.items,
-            mint,
-            bn(5),
-            charlie.publicKey,
-            bob.publicKey,
-            2,
-            2,
-        );
-
-        /// send 700 from charlie -> bob, 2 compressed account inputs
-        /// bob: (100+5+700), charlie: (195)
-        const charliePreCompressedTokenAccounts4 =
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint,
-            });
-        await transfer(rpc, payer, mint, bn(700), charlie, bob.publicKey);
-
-        await assertTransfer(
-            rpc,
-            charliePreCompressedTokenAccounts4.items,
-            mint,
-            bn(700),
-            charlie.publicKey,
-            bob.publicKey,
-            1,
-            3,
-        );
-
-        await expect(
-            transfer(
+            await mintTo(
                 rpc,
                 payer,
                 mint,
-                10000,
+                bob.publicKey,
+                mintAuthority,
+                bn(1000),
+                outputStateTreeInfo,
+            );
+        });
+
+        it('should transfer from bob -> charlie', async () => {
+            /// send 700 from bob -> charlie
+            /// bob: 300, charlie: 700
+            const bobPreCompressedTokenAccounts = (
+                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                    mint,
+                })
+            ).items;
+
+            await transfer(
+                rpc,
+                payer,
+                mint,
+                bn(700),
                 bob,
                 charlie.publicKey,
-                merkleTree,
-            ),
-        ).rejects.toThrow('Insufficient balance for transfer');
-    });
+                outputStateTreeInfo,
+            );
 
-    it('should transfer token 2022 from bob -> charlie', async () => {
-        const mintKeypair = Keypair.generate();
-
-        mint = (
-            await createMint(
+            await assertTransfer(
                 rpc,
-                payer,
-                mintAuthority.publicKey,
-                TEST_TOKEN_DECIMALS,
-                mintKeypair,
-                undefined,
-                true,
-            )
-        ).mint;
-        const mintAccountInfo = await rpc.getAccountInfo(mint);
-        assert.equal(
-            mintAccountInfo!.owner.toBase58(),
-            TOKEN_2022_PROGRAM_ID.toBase58(),
-        );
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        /// send 700 from bob -> charlie
-        /// bob: 300, charlie: 700
-
-        const bobPreCompressedTokenAccounts = (
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                bobPreCompressedTokenAccounts,
                 mint,
-            })
-        ).items;
+                bn(700),
+                bob.publicKey,
+                charlie.publicKey,
+                1,
+                1,
+            );
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-
-        await assertTransfer(
-            rpc,
-            bobPreCompressedTokenAccounts,
-            mint,
-            bn(700),
-            bob.publicKey,
-            charlie.publicKey,
-            1,
-            1,
-        );
-    });
-});
-
-describe('e2e transfer with multiple accounts', () => {
-    let rpc: Rpc;
-    let payer: Keypair | Signer;
-    let sender: Keypair | Signer;
-    let recipient: PublicKey;
-    let mint: PublicKey;
-    let mintAuthority: Keypair;
-
-    beforeAll(async () => {
-        rpc = await getTestRpc(await WasmFactory.getInstance());
-        payer = await newAccountWithLamports(rpc, 1e9);
-        mintAuthority = Keypair.generate();
-        const mintKeypair = Keypair.generate();
-
-        mint = (
-            await createMint(
+            /// send 200 from bob -> charlie
+            /// bob: 100, charlie: (700+200)
+            const bobPreCompressedTokenAccounts2 =
+                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                    mint,
+                });
+            await transfer(
                 rpc,
                 payer,
-                mintAuthority.publicKey,
-                9,
-                mintKeypair,
-            )
-        ).mint;
-    });
+                mint,
+                bn(200),
+                bob,
+                charlie.publicKey,
+                outputStateTreeInfo,
+            );
 
-    beforeEach(async () => {
-        sender = await newAccountWithLamports(rpc, 1e9);
-        recipient = (await newAccountWithLamports(rpc, 1e9)).publicKey;
-    });
+            await assertTransfer(
+                rpc,
+                bobPreCompressedTokenAccounts2.items,
+                mint,
+                bn(200),
+                bob.publicKey,
+                charlie.publicKey,
+                1,
+                2,
+            );
 
-    it('should transfer using 4 accounts', async () => {
-        // Mint specific amounts to create multiple token accounts
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            sender.publicKey,
-            mintAuthority,
-            new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            sender.publicKey,
-            mintAuthority,
-            new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            sender.publicKey,
-            mintAuthority,
-            new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            sender.publicKey,
-            mintAuthority,
-            new BN(25),
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            /// send 5 from charlie -> bob
+            /// bob: (100+5), charlie: (695+200)
+            const charliePreCompressedTokenAccounts3 =
+                await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                    mint,
+                });
 
-        const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
-            sender.publicKey,
-            { mint },
-        );
-        expect(senderAccounts.items.length).toBe(4);
-        const totalAmount = senderAccounts.items.reduce(
-            (sum, account) => sum.add(account.parsed.amount),
-            new BN(0),
-        );
-        expect(totalAmount.eq(new BN(100))).toBe(true);
+            await transfer(
+                rpc,
+                payer,
+                mint,
+                bn(5),
+                charlie,
+                bob.publicKey,
+                outputStateTreeInfo,
+            );
 
-        const transferAmount = new BN(100);
+            await assertTransfer(
+                rpc,
+                charliePreCompressedTokenAccounts3.items,
+                mint,
+                bn(5),
+                charlie.publicKey,
+                bob.publicKey,
+                2,
+                2,
+            );
 
-        await transferHelper(
-            rpc,
-            payer,
-            mint,
-            sender,
-            transferAmount,
-            recipient,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+            /// send 700 from charlie -> bob, 2 compressed account inputs
+            /// bob: (100+5+700), charlie: (195)
+            const charliePreCompressedTokenAccounts4 =
+                await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                    mint,
+                });
+            await transfer(
+                rpc,
+                payer,
+                mint,
+                bn(700),
+                charlie,
+                bob.publicKey,
+                outputStateTreeInfo,
+            );
 
-        assertTransfer(
-            rpc,
-            senderAccounts.items,
-            mint,
-            transferAmount,
-            sender.publicKey,
-            recipient,
-        );
-    });
-});
+            await assertTransfer(
+                rpc,
+                charliePreCompressedTokenAccounts4.items,
+                mint,
+                bn(700),
+                charlie.publicKey,
+                bob.publicKey,
+                1,
+                3,
+            );
+
+            await expect(
+                transfer(
+                    rpc,
+                    payer,
+                    mint,
+                    10000,
+                    bob,
+                    charlie.publicKey,
+                    outputStateTreeInfo,
+                ),
+            ).rejects.toThrow('Insufficient balance for transfer');
+        });
+
+        it('should transfer token 2022 from bob -> charlie', async () => {
+            const mintKeypair = Keypair.generate();
+
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    TEST_TOKEN_DECIMALS,
+                    mintKeypair,
+                    undefined,
+                    true,
+                )
+            ).mint;
+            const mintAccountInfo = await rpc.getAccountInfo(mint);
+            assert.equal(
+                mintAccountInfo!.owner.toBase58(),
+                TOKEN_2022_PROGRAM_ID.toBase58(),
+            );
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                bob.publicKey,
+                mintAuthority,
+                bn(1000),
+                outputStateTreeInfo,
+            );
+
+            /// send 700 from bob -> charlie
+            /// bob: 300, charlie: 700
+
+            const bobPreCompressedTokenAccounts = (
+                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                    mint,
+                })
+            ).items;
+
+            await transfer(
+                rpc,
+                payer,
+                mint,
+                bn(700),
+                bob,
+                charlie.publicKey,
+                outputStateTreeInfo,
+            );
+
+            await assertTransfer(
+                rpc,
+                bobPreCompressedTokenAccounts,
+                mint,
+                bn(700),
+                bob.publicKey,
+                charlie.publicKey,
+                1,
+                1,
+            );
+        });
+    },
+);
+
+describe.each([TreeType.StateV1, TreeType.StateV2])(
+    'e2e transfer with multiple accounts with state tree %s',
+    treeType => {
+        let rpc: Rpc;
+        let payer: Keypair | Signer;
+        let sender: Keypair | Signer;
+        let recipient: PublicKey;
+        let mint: PublicKey;
+        let mintAuthority: Keypair;
+        let outputStateTreeInfo: StateTreeInfo;
+
+        beforeAll(async () => {
+            rpc = await getTestRpc(await WasmFactory.getInstance());
+            outputStateTreeInfo = await getStateTreeInfoByTypeForTest(
+                rpc,
+                treeType,
+            );
+            payer = await newAccountWithLamports(rpc, 1e9);
+            mintAuthority = Keypair.generate();
+            const mintKeypair = Keypair.generate();
+
+            mint = (
+                await createMint(
+                    rpc,
+                    payer,
+                    mintAuthority.publicKey,
+                    9,
+                    mintKeypair,
+                )
+            ).mint;
+        });
+
+        beforeEach(async () => {
+            sender = await newAccountWithLamports(rpc, 1e9);
+            recipient = (await newAccountWithLamports(rpc, 1e9)).publicKey;
+        });
+
+        it('should transfer using 4 accounts', async () => {
+            // Mint specific amounts to create multiple token accounts
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                new BN(25),
+                outputStateTreeInfo,
+            );
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                new BN(25),
+                outputStateTreeInfo,
+            );
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                new BN(25),
+                outputStateTreeInfo,
+            );
+            await mintTo(
+                rpc,
+                payer,
+                mint,
+                sender.publicKey,
+                mintAuthority,
+                new BN(25),
+                outputStateTreeInfo,
+            );
+
+            const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
+                sender.publicKey,
+                { mint },
+            );
+            expect(senderAccounts.items.length).toBe(4);
+            const totalAmount = senderAccounts.items.reduce(
+                (sum, account) => sum.add(account.parsed.amount),
+                new BN(0),
+            );
+            expect(totalAmount.eq(new BN(100))).toBe(true);
+
+            const transferAmount = new BN(100);
+
+            await transferHelper(
+                rpc,
+                payer,
+                mint,
+                sender,
+                transferAmount,
+                recipient,
+                outputStateTreeInfo,
+            );
+
+            assertTransfer(
+                rpc,
+                senderAccounts.items,
+                mint,
+                transferAmount,
+                sender.publicKey,
+                recipient,
+            );
+        });
+    },
+);
 
 async function transferHelper(
     rpc: Rpc,
@@ -421,7 +446,7 @@ async function transferHelper(
     owner: Signer,
     amount: BN,
     toAddress: PublicKey,
-    merkleTree: PublicKey,
+    outputStateTreeInfo: StateTreeInfo,
 ) {
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
@@ -444,7 +469,7 @@ async function transferHelper(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTrees: merkleTree,
+        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

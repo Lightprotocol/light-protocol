@@ -5,51 +5,53 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import { LightSystemProgram } from '../programs';
-import { pickRandomTreeAndQueue, Rpc } from '../rpc';
+import { pickStateTreeInfo } from '../utils/get-light-state-tree-info';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
+import { StateTreeInfo, TreeType } from '../state';
+import { Rpc } from '../rpc';
 
 /**
  * Compress lamports to a solana address
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param lamports        Amount of lamports to compress
- * @param toAddress       Address of the recipient compressed account
- * @param outputStateTree Optional output state tree. Defaults to a current shared state tree.
- * @param confirmOptions  Options for confirming the transaction
+ * @param rpc                   Connection to use
+ * @param payer                 Payer of the transaction and initialization fees
+ * @param lamports              Amount of lamports to compress
+ * @param toAddress             Address of the recipient compressed account
+ * @param outputStateTreeInfo   Optional output state tree info. Defaults to a
+ *                              current shared state tree.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
  */
-/// TODO: add multisig support
-/// TODO: add support for payer != owner
 export async function compress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
     toAddress: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    if (!outputStateTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        outputStateTree = tree;
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = pickStateTreeInfo(
+            stateTreeInfo,
+            TreeType.StateV2,
+        );
     }
 
     const ix = await LightSystemProgram.compress({
         payer: payer.publicKey,
         toAddress,
         lamports,
-        outputStateTree,
+        outputStateTreeInfo,
     });
 
     const tx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         [],

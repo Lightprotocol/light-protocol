@@ -8,7 +8,8 @@ use account_compression::{
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use forester_utils::{
-    airdrop_lamports, forester_epoch::get_epoch_phases, get_concurrent_merkle_tree,
+    account_zero_copy::get_concurrent_merkle_tree, forester_epoch::get_epoch_phases,
+    utils::airdrop_lamports,
 };
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
@@ -521,8 +522,7 @@ async fn test_initialize_protocol_config() {
             0,
         )
         .await;
-        let expected_error_code = RegistryError::InvalidNetworkFee as u32 + 6000;
-        assert_rpc_error(result, 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 3, RegistryError::InvalidNetworkFee.into()).unwrap();
     }
 }
 
@@ -1448,7 +1448,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         let params = CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),
@@ -1532,7 +1532,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),

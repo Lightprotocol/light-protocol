@@ -59,7 +59,7 @@ pub struct MerkleTreeSequenceNumber {
     pub seq: U64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InsertIntoQueuesInstructionData<'a> {
     meta: Ref<&'a [u8], InsertIntoQueuesInstructionDataMeta>,
     pub leaves: ZeroCopySlice<'a, u8, AppendLeavesInput, false>,

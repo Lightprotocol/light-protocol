@@ -2,7 +2,6 @@
 pub mod batch;
 pub mod constants;
 pub mod errors;
-pub mod event;
 pub mod initialize_address_tree;
 pub mod initialize_state_tree;
 pub mod merkle_tree;

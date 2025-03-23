@@ -62,7 +62,6 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
-	nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 
 	nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
@@ -86,7 +85,6 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 			Values:                     nonInclusionValues,
 			LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
 			LeafHigherRangeValues:      nonInclusionLeafHigherRangeValues,
-			NextIndices:                nonInclusionLeafIndices,
 			InPathIndices:              nonInclusionInPathIndices,
 			InPathElements:             nonInclusionInPathElements,
 			NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
@@ -138,7 +136,6 @@ func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, er
 		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
 		circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
-		circuit.NonInclusion.NextIndices[i] = params.NonInclusionParameters.Inputs[i].NextIndex
 		circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
 		circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeHeight)
 		for j := 0; j < int(ps.NonInclusionTreeHeight); j++ {

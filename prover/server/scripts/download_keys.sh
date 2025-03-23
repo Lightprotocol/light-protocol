@@ -5,7 +5,7 @@ set -e
 # Configuration
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/prover/server/proving-keys"
-BASE_URL="https://light.fra1.cdn.digitaloceanspaces.com/proving-keys"
+BASE_URL="https://light.fra1.digitaloceanspaces.com/proving-keys-06-03-25"
 CHECKSUM_URL="${BASE_URL}/CHECKSUM"
 MAX_RETRIES=3
 RETRY_DELAY=5
@@ -32,7 +32,7 @@ download_file() {
                 "$url"; then
             return 0
         fi
-        
+
         echo "Download failed. Retrying in $RETRY_DELAY seconds..."
         rm -f "$output"  # Remove failed download
         attempt=$((attempt + 1))
@@ -46,19 +46,19 @@ verify_checksum() {
     local checksum_file="$2"
     local expected
     local actual
-    
+
     if command -v sha256sum >/dev/null 2>&1; then
         CHECKSUM_CMD="sha256sum"
     else
         CHECKSUM_CMD="shasum -a 256"
     fi
-    
+
     expected=$(grep "${file##*/}" "$checksum_file" | cut -d' ' -f1)
     actual=$($CHECKSUM_CMD "$file" | cut -d' ' -f1)
-    
+
     echo "Expected checksum: $expected"
     echo "Actual checksum:   $actual"
-    
+
     [ "$expected" = "$actual" ]
 }
 
@@ -94,9 +94,8 @@ case "$1" in
             "non-inclusion_40:1 2 3 4 8"
             "combined_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
             "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
-            "append-with-proofs_32:10 100 500 1000"
-            "update_32:10 100 500 1000"
-            "address-append_40:10 100 250 500 1000"
+            "append-with-proofs_32:500"
+            "update_32:500"
         )
         ;;
     *)
@@ -109,17 +108,17 @@ esac
 for group in "${SUFFIXES[@]}"; do
     base=${group%:*}
     suffixes=${group#*:}
-    
+
     for suffix in $suffixes; do
         for ext in key vkey; do
             file="${base}_${suffix}.${ext}"
             output="${KEYS_DIR}/${file}"
-            
+
             if [ -f "$output" ] && verify_checksum "$output" "$CHECKSUM_FILE"; then
                 echo "Skipping $file (already downloaded and verified)"
                 continue
             fi
-            
+
             if download_file "${BASE_URL}/${file}" "$output"; then
                 echo "Verifying checksum for $file..."
                 if ! verify_checksum "$output" "$CHECKSUM_FILE"; then

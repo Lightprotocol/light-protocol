@@ -3,12 +3,11 @@ use light_compressed_account::{
     bigint::bigint_to_be_bytes_array,
     hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
 };
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{
-    array::{IndexedArray, IndexedElement},
-    changelog::IndexedChangelogEntry,
-    reference::IndexedMerkleTree,
+use light_indexed_array::{
+    array::IndexedElement,
+    changelog::{IndexedChangelogEntry, RawIndexedElement},
 };
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use num_bigint::BigUint;
@@ -256,11 +255,11 @@ pub fn get_test_batch_address_append_inputs(
     start_index: usize,
     tree_height: usize,
 ) -> BatchAddressAppendInputs {
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-    relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(tree_height, 0).unwrap();
-    relayer_merkle_tree.init().unwrap();
+    let mut relayer_merkle_tree = light_merkle_tree_reference::indexed::IndexedMerkleTree::<
+        Poseidon,
+        usize,
+    >::new(tree_height, 0)
+    .unwrap();
 
     let old_root = relayer_merkle_tree.root();
 
@@ -274,7 +273,7 @@ pub fn get_test_batch_address_append_inputs(
 
     for address in &addresses {
         let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(address, &relayer_indexing_array)
+            .get_non_inclusion_proof(address)
             .unwrap();
         relayer_merkle_tree
             .verify_non_inclusion_proof(&non_inclusion_proof)
@@ -296,9 +295,7 @@ pub fn get_test_batch_address_append_inputs(
             .collect();
         low_element_proofs.push(proof);
 
-        relayer_merkle_tree
-            .append(address, &mut relayer_indexing_array)
-            .unwrap();
+        relayer_merkle_tree.append(address).unwrap();
 
         let new_proof = relayer_merkle_tree
             .get_proof_of_leaf(relayer_merkle_tree.merkle_tree.rightmost_index - 1, true)

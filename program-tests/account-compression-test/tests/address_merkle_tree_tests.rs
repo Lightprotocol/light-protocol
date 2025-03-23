@@ -18,7 +18,7 @@ use light_compressed_account::bigint::bigint_to_be_bytes_array;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
+use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{test_env::NOOP_PROGRAM_ID, test_rpc::ProgramTestRpcConnection};
 use light_test_utils::{
@@ -31,7 +31,7 @@ use light_test_utils::{
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
-    FeeConfig, RpcConnection, RpcError,
+    RpcConnection, RpcError,
 };
 use num_bigint::ToBigUint;
 use rand::thread_rng;
@@ -620,12 +620,10 @@ async fn update_address_merkle_tree_failing_tests(
 
     let (address, address_hashset_index) = address_queue.first_no_seq().unwrap().unwrap();
     let (low_element, low_element_next_value) = address_merkle_tree_bundle
-        .indexed_array
         .find_low_element_for_nonexistent(&address.value_biguint())
         .unwrap();
     // Get the Merkle proof for updating low element.
     let low_element_proof = address_merkle_tree_bundle
-        .merkle_tree
         .get_proof_of_leaf(low_element.index, false)
         .unwrap();
     let value_index = address_hashset_index;
@@ -643,7 +641,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -665,7 +663,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -686,7 +684,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -713,7 +711,7 @@ async fn update_address_merkle_tree_failing_tests(
         invalid_low_element_value,
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -740,7 +738,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         invalid_low_element_next_index,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -767,7 +765,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         invalid_low_element_next_value,
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -783,7 +781,7 @@ async fn update_address_merkle_tree_failing_tests(
     .unwrap();
 
     // CHECK: 8 invalid low element proof
-    let mut invalid_low_element_proof = low_element_proof.to_array().unwrap();
+    let mut invalid_low_element_proof = low_element_proof.clone();
     invalid_low_element_proof.get_mut(0).unwrap()[0] = 0;
     let error_invalid_low_element_proof = update_merkle_tree(
         &mut context,
@@ -795,7 +793,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        invalid_low_element_proof,
+        invalid_low_element_proof.try_into().unwrap(),
         None,
         None,
         true,
@@ -834,7 +832,7 @@ async fn update_address_merkle_tree_failing_tests(
             bigint_to_be_bytes_array(&low_element.value).unwrap(),
             low_element.next_index as u64,
             bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-            low_element_proof.to_array().unwrap(),
+            low_element_proof.clone().try_into().unwrap(),
             Some(invalid_changelog_index_low as u16),
             None,
             true,
@@ -861,7 +859,7 @@ async fn update_address_merkle_tree_failing_tests(
             bigint_to_be_bytes_array(&low_element.value).unwrap(),
             low_element.next_index as u64,
             bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-            low_element_proof.to_array().unwrap(),
+            low_element_proof.clone().try_into().unwrap(),
             Some(invalid_changelog_index_high as u16),
             None,
             true,
@@ -892,7 +890,7 @@ async fn update_address_merkle_tree_failing_tests(
             bigint_to_be_bytes_array(&low_element.value).unwrap(),
             low_element.next_index as u64,
             bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-            low_element_proof.to_array().unwrap(),
+            low_element_proof.clone().try_into().unwrap(),
             None,
             Some(invalid_indexed_changelog_index_high as u16),
             true,
@@ -920,7 +918,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -948,7 +946,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         Some(changelog_index as u16),
         Some(indexed_changelog_index as u16),
         true,
@@ -992,7 +990,7 @@ async fn update_address_merkle_tree_failing_tests(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         Some(changelog_index as u16),
         None,
         true,
@@ -1034,12 +1032,10 @@ async fn update_address_merkle_tree_wrap_around(
     ];
 
     let (low_element, low_element_next_value) = address_merkle_tree_bundle
-        .indexed_array
         .find_low_element_for_nonexistent(&address1)
         .unwrap();
     // Get the Merkle proof for updating low element.
     let low_element_proof = address_merkle_tree_bundle
-        .merkle_tree
         .get_proof_of_leaf(low_element.index, false)
         .unwrap();
 
@@ -1103,7 +1099,7 @@ async fn update_address_merkle_tree_wrap_around(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
@@ -1438,30 +1434,11 @@ pub async fn test_setup_with_address_merkle_tree(
     .await
     .unwrap();
 
-    // Local indexing array and queue. We will use them to get the correct
-    // elements and Merkle proofs, which we will modify later, to pass invalid
-    // values. 😈
-    let mut local_indexed_array = Box::<IndexedArray<Poseidon, usize>>::default();
-    local_indexed_array.init().unwrap();
-
-    let mut local_merkle_tree = Box::new(
-        reference::IndexedMerkleTree::<Poseidon, usize>::new(
-            ADDRESS_MERKLE_TREE_HEIGHT as usize,
-            ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
-        )
-        .unwrap(),
-    );
-    local_merkle_tree.init().unwrap();
-    let address_merkle_tree_bundle = AddressMerkleTreeBundle {
-        merkle_tree: local_merkle_tree,
-        indexed_array: local_indexed_array,
-        accounts: AddressMerkleTreeAccounts {
-            merkle_tree: address_merkle_tree_keypair.pubkey(),
-            queue: address_queue_keypair.pubkey(),
-        },
-        rollover_fee: FeeConfig::default().address_queue_rollover as i64,
-        queue_elements: vec![],
-    };
+    let address_merkle_tree_bundle = AddressMerkleTreeBundle::new_v1(AddressMerkleTreeAccounts {
+        merkle_tree: address_merkle_tree_keypair.pubkey(),
+        queue: address_queue_keypair.pubkey(),
+    })
+    .unwrap();
     (context, payer, address_merkle_tree_bundle)
 }
 
@@ -1476,16 +1453,20 @@ pub async fn test_with_invalid_low_element(
 ) {
     let payer = context.get_payer().insecure_clone();
     let (_, address_hashset_index) = address_queue.first_no_seq().unwrap().unwrap();
-    let low_element = address_merkle_tree_bundle.indexed_array.get(index).unwrap();
+    let low_element = address_merkle_tree_bundle
+        .indexed_array_v1()
+        .unwrap()
+        .get(index)
+        .unwrap();
     let low_element_next_value = address_merkle_tree_bundle
-        .indexed_array
+        .indexed_array_v1()
+        .unwrap()
         .get(low_element.next_index())
         .unwrap()
         .value
         .clone();
     // Get the Merkle proof for updating low element.
     let low_element_proof = address_merkle_tree_bundle
-        .merkle_tree
         .get_proof_of_leaf(low_element.index, false)
         .unwrap();
     let value_index = address_hashset_index;
@@ -1501,7 +1482,7 @@ pub async fn test_with_invalid_low_element(
         bigint_to_be_bytes_array(&low_element.value).unwrap(),
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-        low_element_proof.to_array().unwrap(),
+        low_element_proof.clone().try_into().unwrap(),
         None,
         None,
         true,
