@@ -10,6 +10,7 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -19,14 +20,16 @@ import { CompressedTokenProgram } from '../program';
 /**
  * Compress SPL tokens into compressed token format
  *
- * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
- * @param mint                  Mint of the token to compress
- * @param owner                 Owner of the token account
- * @param tokenAccount         Token account to compress
- * @param outputStateTree       State tree to insert the compressed token account into
- * @param remainingAmount      Optional: amount to leave in token account. Default: 0
- * @param confirmOptions       Options for confirming the transaction
+ * @param rpc                       Rpc connection to use
+ * @param payer                     Payer of the transaction fees
+ * @param mint                      Mint of the token to compress
+ * @param owner                     Owner of the token account
+ * @param tokenAccount              Token account to compress
+ * @param outputStateTreeInfo    State tree context to insert the compressed
+ *                                  token account into
+ * @param remainingAmount           Optional: amount to leave in token account.
+ *                                  Default: 0
+ * @param confirmOptions            Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -36,7 +39,7 @@ export async function compressSplTokenAccount(
     mint: PublicKey,
     owner: Signer,
     tokenAccount: PublicKey,
-    outputStateTree: PublicKey,
+    outputStateTreeInfo: StateTreeInfo,
     remainingAmount?: BN,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
@@ -51,7 +54,7 @@ export async function compressSplTokenAccount(
         tokenAccount,
         mint,
         remainingAmount,
-        outputStateTree,
+        outputStateTreeInfo,
         tokenProgramId,
     });
 

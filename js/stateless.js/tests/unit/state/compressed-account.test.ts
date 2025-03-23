@@ -6,6 +6,7 @@ import {
 } from '../../../src/state/compressed-account';
 import { PublicKey } from '@solana/web3.js';
 import { bn } from '../../../src/state/BN254';
+import { TreeType } from '../../../src/state';
 
 describe('createCompressedAccount function', () => {
     it('should create a compressed account with default values', () => {
@@ -42,14 +43,16 @@ describe('createCompressedAccountWithMerkleContext function', () => {
     it('should create a compressed account with merkle context', () => {
         const owner = PublicKey.unique();
         const merkleTree = PublicKey.unique();
-        const nullifierQueue = PublicKey.unique();
+        const queue = PublicKey.unique();
         const hash = new Array(32).fill(1);
         const leafIndex = 0;
         const merkleContext = createMerkleContext(
             merkleTree,
-            nullifierQueue,
+            queue,
             hash,
             leafIndex,
+            TreeType.StateV1,
+            false,
         );
         const accountWithMerkleContext =
             createCompressedAccountWithMerkleContext(merkleContext, owner);
@@ -59,9 +62,11 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             address: null,
             data: null,
             merkleTree,
-            nullifierQueue,
+            queue,
             hash,
             leafIndex,
+            treeType: TreeType.StateV1,
+            proveByIndex: false,
             readOnly: false,
         });
     });
@@ -70,21 +75,25 @@ describe('createCompressedAccountWithMerkleContext function', () => {
 describe('createMerkleContext function', () => {
     it('should create a merkle context', () => {
         const merkleTree = PublicKey.unique();
-        const nullifierQueue = PublicKey.unique();
+        const queue = PublicKey.unique();
         const hash = new Array(32).fill(1);
 
         const leafIndex = 0;
         const merkleContext = createMerkleContext(
             merkleTree,
-            nullifierQueue,
+            queue,
             hash,
             leafIndex,
+            TreeType.StateV1,
+            false,
         );
         expect(merkleContext).toEqual({
             merkleTree,
-            nullifierQueue,
+            queue,
             hash,
             leafIndex,
+            treeType: TreeType.StateV1,
+            proveByIndex: false,
         });
     });
 });

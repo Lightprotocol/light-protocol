@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    CompressedTokenAccountsByOwnerOrDelegateResult,
+    CompressedTokenAccountsByOwnerOrDelegateResultV2,
     jsonRpcResultAndContext,
     toCamelCase,
     wrapBigNumbersAsStrings,
@@ -150,12 +150,19 @@ describe('safely convert json response', async () => {
                                         "data": "1dIGwA1L2D6JdM7t5Gp6/GcuEzbicc2B1Y83y0aN1D+kOH8fxBZRU5LxMLe0XqySi6MXxORqVur8NEGW2l3m4ZCqrNzaIseKAAAA",
                                         "dataHash": "2TWLSZWJrrmmuZD9NGBbKNnEyAEBsAH4CC8HJF5NLJ1V"
                                     },
-                                    "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                     "lamports": 0,
-                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                    "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                     "leafIndex": 73722,
                                     "seq": 87594,
-                                    "slotCreated": 320438700
+                                    "slotCreated": 320438700,
+                                    "proveByIndex": false,
+                                    "merkleContext": {
+                                        "treeType": 1,
+                                        "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                        "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                        "cpiContext": null,
+                                        "nextTreeContext": null
+                                    }
                                 },
                                 "tokenData": {
                                     "mint": "FPfb74MgXL3Gj1jhkSKactfsiqgiJ162ZcswnuTnUzGE",
@@ -190,7 +197,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -223,10 +230,17 @@ describe('safely convert json response', async () => {
                                     },
                                     "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                     "lamports": 0,
-                                    "tree": "smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT",
                                     "leafIndex": 46382363,
+                                    "proveByIndex": false,
                                     "seq": 46497075,
-                                    "slotCreated": 318579332
+                                    "slotCreated": 318579332,
+                                    "merkleContext": {
+                                        "treeType": 1,
+                                        "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                        "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                        "cpiContext": null,
+                                        "nextTreeContext": null
+                                    }
                                 },
                                 "tokenData": {
                                     "mint": "DFrJxDoLMYt6bNYeNe8Wrjzj2UPUSLZLEMMYBLuTKcTk",
@@ -261,7 +275,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -295,10 +309,17 @@ describe('safely convert json response', async () => {
                                     },
                                     "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                     "lamports": 0,
-                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
                                     "leafIndex": 73722,
+                                    "proveByIndex": false,
                                     "seq": 87594,
-                                    "slotCreated": 320438700
+                                    "slotCreated": 320438700,
+                                    "merkleContext": {
+                                        "treeType": 1,
+                                        "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                        "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                        "cpiContext": null,
+                                        "nextTreeContext": null
+                                    }
                                 },
                                 "tokenData": {
                                     "mint": "FPfb74MgXL3Gj1jhkSKactfsiqgiJ162ZcswnuTnUzGE",
@@ -332,7 +353,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 
@@ -366,10 +387,17 @@ describe('safely convert json response', async () => {
                                 },
                                 "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                 "lamports": 0,
-                                "tree": "smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT",
                                 "leafIndex": 56910290,
+                                "proveByIndex": false,
                                 "seq": 57043968,
-                                "slotCreated": 320678665
+                                "slotCreated": 320678665,
+                                "merkleContext": {
+                                    "treeType": 1,
+                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "cpiContext": null,
+                                    "nextTreeContext": null
+                                }
                             },
                             "tokenData": {
                                 "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
@@ -391,10 +419,17 @@ describe('safely convert json response', async () => {
                                 },
                                 "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                 "lamports": 0,
-                                "tree": "smt6ukQDSPPYHSshQovmiRUjG9jGFq2hW9vgrDFk5Yz",
                                 "leafIndex": 72303,
+                                "proveByIndex": true,
                                 "seq": 86934,
-                                "slotCreated": 320679057
+                                "slotCreated": 320679057,
+                                "merkleContext": {
+                                    "treeType": 3,
+                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "cpiContext": null,
+                                    "nextTreeContext": null
+                                }
                             },
                             "tokenData": {
                                 "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
@@ -416,10 +451,17 @@ describe('safely convert json response', async () => {
                                 },
                                 "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                 "lamports": 0,
-                                "tree": "smt9ReAYRF5eFjTd5gBJMn5aKwNRcmp3ub2CQr2vW7j",
                                 "leafIndex": 72930,
+                                "proveByIndex": true,
                                 "seq": 87904,
-                                "slotCreated": 320848741
+                                "slotCreated": 320848741,
+                                "merkleContext": {
+                                    "treeType": 1,
+                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "cpiContext": null,
+                                    "nextTreeContext": null
+                                }
                             },
                             "tokenData": {
                                 "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
@@ -441,10 +483,17 @@ describe('safely convert json response', async () => {
                                 },
                                 "owner": "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
                                 "lamports": 0,
-                                "tree": "smt9ReAYRF5eFjTd5gBJMn5aKwNRcmp3ub2CQr2vW7j",
                                 "leafIndex": 72930,
+                                "proveByIndex": false,
                                 "seq": 87904,
-                                "slotCreated": 320848741
+                                "slotCreated": 320848741,
+                                "merkleContext": {
+                                    "treeType": 1,
+                                    "tree": "smt5uPaQT9n6b1qAkgyonmzRxtuazA53Rddwntqistc",
+                                    "queue": "nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X",
+                                    "cpiContext": null,
+                                    "nextTreeContext": null
+                                }
                             },
                             "tokenData": {
                                 "mint": "4XR7f5d3SyK7MpJ5Qk96HitRyV7x3AikJGXug88YbkPK",
@@ -486,7 +535,7 @@ describe('safely convert json response', async () => {
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
+                CompressedTokenAccountsByOwnerOrDelegateResultV2,
             ),
         );
 

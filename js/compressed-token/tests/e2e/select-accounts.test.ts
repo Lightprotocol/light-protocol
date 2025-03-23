@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, assert } from 'vitest';
 
 import BN from 'bn.js';
-import { ParsedTokenAccount } from '@lightprotocol/stateless.js';
+import { ParsedTokenAccount, TreeType } from '@lightprotocol/stateless.js';
 
 import {
     selectMinCompressedTokenAccountsForTransfer,
@@ -9,22 +9,31 @@ import {
     selectSmartCompressedTokenAccountsForTransfer,
     selectSmartCompressedTokenAccountsForTransferOrPartial,
 } from '../../src';
-import { ERROR_NO_ACCOUNTS_FOUND } from '../../src/utils/select-input-accounts';
+import { ERROR_NO_ACCOUNTS_FOUND } from '../../src/utils';
 
 describe('selectMinCompressedTokenAccountsForTransfer', () => {
     it('min: should select the largest account for a valid transfer where 1 account is enough', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(100) },
-                compressedAccount: { lamports: new BN(10) },
+                compressedAccount: {
+                    lamports: new BN(10),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -45,7 +54,10 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -64,15 +76,24 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -105,15 +126,24 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(0) },
-                compressedAccount: { lamports: new BN(0) },
+                compressedAccount: {
+                    lamports: new BN(0),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -134,15 +164,24 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN('1000000000000000000') },
-                compressedAccount: { lamports: new BN('100000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('100000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN('500000000000000000') },
-                compressedAccount: { lamports: new BN('50000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('50000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN('250000000000000000') },
-                compressedAccount: { lamports: new BN('25000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('25000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN('750000000000000000');
@@ -163,15 +202,24 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -194,21 +242,30 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
         const maxInputs = 2;
 
-        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+        const [selectedAccounts, total, totalLamports, maxPossibleAmountV1] =
             selectMinCompressedTokenAccountsForTransfer(
                 accounts,
                 transferAmount,
@@ -218,22 +275,31 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
         expect(selectedAccounts.length).toBe(2);
         expect(total.eq(new BN(80))).toBe(true);
         expect(totalLamports!.eq(new BN(8))).toBe(true);
-        expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
+        expect(maxPossibleAmountV1.eq(new BN(80))).toBe(true);
     });
 
     it('min: should throw if not enough accounts selected because of maxInputs lower than what WOULD be available', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(100);
@@ -246,7 +312,7 @@ describe('selectMinCompressedTokenAccountsForTransfer', () => {
                 maxInputs,
             ),
         ).toThrow(
-            'Account limit exceeded: max 80 (2 accounts) per transaction. Total balance: 105 (3 accounts). Consider multiple transfers to spend full balance.',
+            'Account limit exceeded: max 80 (2 V1 accounts) or 0 (0 V2 accounts) per transaction. Total balance: 105 (3 accounts). Consider multiple transfers to spend full balance.',
         );
     });
 });
@@ -256,36 +322,55 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(100) },
-                compressedAccount: { lamports: new BN(10) },
+                compressedAccount: {
+                    lamports: new BN(10),
+                    treeType: TreeType.StateV2,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV2,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV2,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
 
-        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferOrPartial(
-                accounts,
-                transferAmount,
-            );
+        const [
+            selectedAccounts,
+            total,
+            totalLamports,
+            maxPossibleAmountV1,
+            maxPossibleAmountV2,
+        ] = selectMinCompressedTokenAccountsForTransferOrPartial(
+            accounts,
+            transferAmount,
+        );
 
         expect(selectedAccounts.length).toBe(1);
         expect(total.eq(new BN(100))).toBe(true);
         expect(totalLamports!.eq(new BN(10))).toBe(true);
-        expect(maxPossibleAmount.eq(new BN(175))).toBe(true);
+
+        expect(maxPossibleAmountV1.eq(new BN(0))).toBe(true);
+        expect(maxPossibleAmountV2.eq(new BN(175))).toBe(true);
     });
 
     it('min orPartial: should return the maximum possible amount if there is not enough balance', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -295,7 +380,6 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
                 accounts,
                 transferAmount,
             );
-
         expect(selectedAccounts.length).toBe(1);
         expect(total.eq(new BN(30))).toBe(true);
         expect(totalLamports!.eq(new BN(3))).toBe(true);
@@ -306,15 +390,24 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -347,15 +440,24 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(0) },
-                compressedAccount: { lamports: new BN(0) },
+                compressedAccount: {
+                    lamports: new BN(0),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -376,15 +478,24 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
         const accounts = [
             {
                 parsed: { amount: new BN('1000000000000000000') },
-                compressedAccount: { lamports: new BN('100000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('100000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN('500000000000000000') },
-                compressedAccount: { lamports: new BN('50000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('50000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN('250000000000000000') },
-                compressedAccount: { lamports: new BN('25000000000000000') },
+                compressedAccount: {
+                    lamports: new BN('25000000000000000'),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN('750000000000000000');
@@ -405,97 +516,142 @@ describe('selectMinCompressedTokenAccountsForTransferorPartial', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(10) },
-                compressedAccount: { lamports: new BN(1) },
+                compressedAccount: {
+                    lamports: new BN(1),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
         const maxInputs = 3;
 
-        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferOrPartial(
-                accounts,
-                transferAmount,
-                maxInputs,
-            );
+        const [
+            selectedAccounts,
+            total,
+            totalLamports,
+            maxPossibleAmountV1,
+            maxPossibleAmountV2,
+        ] = selectMinCompressedTokenAccountsForTransferOrPartial(
+            accounts,
+            transferAmount,
+            maxInputs,
+        );
 
         expect(selectedAccounts.length).toBe(2);
         expect(total.eq(new BN(80))).toBe(true);
         expect(totalLamports!.eq(new BN(8))).toBe(true);
-        expect(maxPossibleAmount.eq(new BN(105))).toBe(true);
+        expect(maxPossibleAmountV1.eq(new BN(105))).toBe(true);
     });
 
     it('min orPartial: should handle max inputs less than accounts length', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
         const maxInputs = 2;
 
-        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferOrPartial(
-                accounts,
-                transferAmount,
-                maxInputs,
-            );
+        const [
+            selectedAccounts,
+            total,
+            totalLamports,
+            maxPossibleAmountV1,
+            maxPossibleAmountV2,
+        ] = selectMinCompressedTokenAccountsForTransferOrPartial(
+            accounts,
+            transferAmount,
+            maxInputs,
+        );
 
         expect(selectedAccounts.length).toBe(2);
         expect(total.eq(new BN(80))).toBe(true);
         expect(totalLamports!.eq(new BN(8))).toBe(true);
-        expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
+        expect(maxPossibleAmountV1.eq(new BN(80))).toBe(true);
     });
 
     it('min orPartial: should succeed and select 2 accounts with total 80', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(100);
         const maxInputs = 2;
 
-        const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
-            selectMinCompressedTokenAccountsForTransferOrPartial(
-                accounts,
-                transferAmount,
-                maxInputs,
-            );
+        const [
+            selectedAccounts,
+            total,
+            totalLamports,
+            maxPossibleAmountV1,
+            maxPossibleAmountV2,
+        ] = selectMinCompressedTokenAccountsForTransferOrPartial(
+            accounts,
+            transferAmount,
+            maxInputs,
+        );
 
         expect(selectedAccounts.length).toBe(2);
         expect(total.eq(new BN(80))).toBe(true);
         expect(totalLamports!.eq(new BN(8))).toBe(true);
-        expect(maxPossibleAmount.eq(new BN(80))).toBe(true);
+        expect(maxPossibleAmountV1.eq(new BN(80))).toBe(true);
     });
 });
 
@@ -504,15 +660,24 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(100) },
-                compressedAccount: { lamports: new BN(10) },
+                compressedAccount: {
+                    lamports: new BN(10),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -533,7 +698,10 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -550,15 +718,24 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(30) },
-                compressedAccount: { lamports: new BN(3) },
+                compressedAccount: {
+                    lamports: new BN(3),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);
@@ -591,15 +768,24 @@ describe('selectSmartCompressedTokenAccountsForTransfer', () => {
         const accounts = [
             {
                 parsed: { amount: new BN(0) },
-                compressedAccount: { lamports: new BN(0) },
+                compressedAccount: {
+                    lamports: new BN(0),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(50) },
-                compressedAccount: { lamports: new BN(5) },
+                compressedAccount: {
+                    lamports: new BN(5),
+                    treeType: TreeType.StateV1,
+                },
             },
             {
                 parsed: { amount: new BN(25) },
-                compressedAccount: { lamports: new BN(2) },
+                compressedAccount: {
+                    lamports: new BN(2),
+                    treeType: TreeType.StateV1,
+                },
             },
         ] as ParsedTokenAccount[];
         const transferAmount = new BN(75);

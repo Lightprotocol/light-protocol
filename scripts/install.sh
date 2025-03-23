@@ -102,7 +102,7 @@ install_rust() {
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
         cargo install cargo-expand --locked
-        cargo install --git https://github.com/Lightprotocol/photon.git --rev a779dbece532eb8cbb16f6d80974b85ebf37522b --locked
+        cargo install --git https://github.com/Lightprotocol/photon.git --rev f4c231e02f41e076a6988b0d8f5b5bd219434ad3 --locked
         log "rust"
     fi
 }
@@ -167,6 +167,17 @@ install_jq() {
     fi
 }
 
+# install_lld() {
+#     if ! is_installed "lld"; then
+#         if [[ "$OS" == "Darwin" ]]; then
+#             echo "Installing lld on Mac..."
+#             brew install llvm
+#             ln -s "$(brew --prefix llvm)/bin/lld" "${PREFIX}/bin/lld"
+#             log "lld"
+#         fi
+#     fi
+# }
+
 download_gnark_keys() {
     if ! is_installed "gnark_keys"; then
         echo "Downloading gnark keys..."
@@ -211,7 +222,7 @@ main() {
     if $reset_log; then
         rm -f "$INSTALL_LOG"
     fi
-
+    
     install_go
     install_rust
     install_node

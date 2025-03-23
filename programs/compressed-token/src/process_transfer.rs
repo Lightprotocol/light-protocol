@@ -38,7 +38,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: CompressedTokenInstructionDataTransfer,
 ) -> Result<()> {
-    bench_sbf_start!("t_context_and_check_sig");
     if inputs.input_token_data_with_context.is_empty()
         && inputs.compress_or_decompress_amount.is_none()
     {
@@ -52,8 +51,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             &inputs.input_token_data_with_context,
             &inputs.mint,
         )?;
-    bench_sbf_end!("t_context_and_check_sig");
-    bench_sbf_start!("t_sum_check");
     sum_check(
         &input_token_data,
         &inputs
@@ -64,13 +61,9 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs.compress_or_decompress_amount.as_ref(),
         inputs.is_compress,
     )?;
-    bench_sbf_end!("t_sum_check");
-    bench_sbf_start!("t_process_compression");
     if inputs.compress_or_decompress_amount.is_some() {
         process_compression_or_decompression(&inputs, &ctx)?;
     }
-    bench_sbf_end!("t_process_compression");
-    bench_sbf_start!("t_create_output_compressed_accounts");
     let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
@@ -130,9 +123,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .map(|data| data.merkle_tree_index)
             .collect::<Vec<u8>>(),
     )?;
-    bench_sbf_end!("t_create_output_compressed_accounts");
-
-    bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     if !compressed_input_accounts.is_empty() {
         add_token_data_to_input_compressed_accounts::<false>(
             &mut compressed_input_accounts,
@@ -140,7 +130,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             &hashed_mint,
         )?;
     }
-    bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
 
     // If input and output lamports are unbalanced create a change account
     // without token data.
