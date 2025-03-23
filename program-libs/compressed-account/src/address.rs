@@ -33,7 +33,7 @@ pub fn derive_address(
         merkle_tree_pubkey.as_slice(),
         program_id_bytes.as_slice(),
     ];
-    hashv_to_bn254_field_size_be_const_array(&slices)
+    hashv_to_bn254_field_size_be_const_array::<4>(&slices).unwrap()
 }
 
 pub fn add_and_get_remaining_account_indices(

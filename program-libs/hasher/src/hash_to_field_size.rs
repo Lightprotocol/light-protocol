@@ -77,20 +77,20 @@ pub fn hashv_to_bn254_field_size_be_array(bytes: &[[u8; 32]]) -> [u8; 32] {
 
 /// MAX_SLICES - 1 is usable.
 pub fn hashv_to_bn254_field_size_be_const_array<const MAX_SLICES: usize>(
-    bytes: &[&[u8]; MAX_SLICES],
-) -> [u8; 32] {
+    bytes: &[&[u8]],
+) -> Result<[u8; 32], HasherError> {
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
     let mut slices = ArrayVec::<&[u8], MAX_SLICES>::new();
-    // if bytes.len() > MAX_SLICES - 1 {
-    //     return Err(HasherError::InvalidInputLength(MAX_SLICES, bytes.len()));
-    // }
+    if bytes.len() > MAX_SLICES - 1 {
+        return Err(HasherError::InvalidInputLength(MAX_SLICES, bytes.len()));
+    }
     bytes.iter().for_each(|x| slices.push(x));
     slices.push(bump_seed.as_slice());
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices)?;
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
     hashed_value[0] = 0;
-    hashed_value
+    Ok(hashed_value)
 }
 
 /// Hashes the provided `bytes` with Keccak256 and ensures the result fits
