@@ -1713,16 +1713,14 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
         || mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress
         || mode == CreatePdaMode::UseReadOnlyAddressInAccount
     {
-        let mut read_only_address =
-            hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes()).unwrap();
+        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes());
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.push(read_only_address);
         address_merkle_tree_pubkeys.push(address_merkle_tree_pubkey);
     }
     if mode == CreatePdaMode::TwoReadOnlyAddresses {
-        let mut read_only_address =
-            hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes()).unwrap();
+        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes());
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.insert(0, read_only_address);
@@ -1870,7 +1868,7 @@ pub async fn assert_created_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         1u64.to_le_bytes(),
     );
     let truncated_user_pubkey =
-        hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes()).unwrap();
+        hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes());
 
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
