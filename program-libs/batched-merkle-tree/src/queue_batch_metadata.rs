@@ -1,4 +1,5 @@
-use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_compressed_account::QueueType;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_zero_copy::vec::ZeroCopyVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 

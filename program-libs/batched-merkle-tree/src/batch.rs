@@ -448,8 +448,8 @@ impl Batch {
 #[cfg(test)]
 mod tests {
 
-    use light_compressed_account::pubkey::Pubkey;
-    use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
+    use light_compressed_account::{pubkey::Pubkey, QueueType};
+    use light_merkle_tree_metadata::queue::QueueMetadata;
 
     use super::*;
     use crate::queue::BatchedQueueAccount;

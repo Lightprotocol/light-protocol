@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 use light_sdk::{
     proof::ProofRpcResult,
     token::{AccountState, TokenData, TokenDataWithMerkleContext},
@@ -336,6 +336,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     ),
                     nullifier_queue_pubkey,
                     leaf_index: acc.leaf_index,
+                    tree_type: light_compressed_account::TreeType::from(
+                        acc.merkle_context.tree_type as u64,
+                    ),
                     prove_by_index: false, // TODO: implement
                 };
 
@@ -424,6 +427,9 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                 )
                                 .unwrap(),
                                 leaf_index: account.account.leaf_index,
+                                tree_type: light_compressed_account::TreeType::from(
+                                    account.account.merkle_context.tree_type as u64,
+                                ),
                                 prove_by_index: account.account.prove_by_index,
                             },
                         },

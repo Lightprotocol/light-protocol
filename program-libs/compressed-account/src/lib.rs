@@ -18,6 +18,11 @@ pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
 
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {
     #[error("Invalid input size, expected at most {0}")]
@@ -121,6 +126,63 @@ pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
     hashed_value
 }
 
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
+#[repr(u8)]
+pub enum QueueType {
+    NullifierQueue = 1,
+    AddressQueue = 2,
+    BatchedInput = 3,
+    BatchedAddress = 4,
+    BatchedOutput = 5,
+}
+
+pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
+pub const ADDRESS_QUEUE_TYPE: u64 = 2;
+pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
+pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
+pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
+
+impl From<u64> for QueueType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => QueueType::NullifierQueue,
+            2 => QueueType::AddressQueue,
+            3 => QueueType::BatchedInput,
+            4 => QueueType::BatchedAddress,
+            5 => QueueType::BatchedOutput,
+            _ => panic!("Invalid queue type"),
+        }
+    }
+}
+
+#[repr(u64)]
+#[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+pub enum TreeType {
+    State = 1,
+    Address = 2,
+    BatchedState = 3,
+    BatchedAddress = 4,
+}
+
+#[allow(clippy::derivable_impls)]
+impl std::default::Default for TreeType {
+    fn default() -> Self {
+        TreeType::BatchedState
+    }
+}
+
+// from u64
+impl From<u64> for TreeType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => TreeType::State,
+            2 => TreeType::Address,
+            3 => TreeType::BatchedState,
+            4 => TreeType::BatchedAddress,
+            _ => panic!("Invalid TreeType"),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use num_bigint::ToBigUint;

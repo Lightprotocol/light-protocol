@@ -16,6 +16,7 @@ use light_client::indexer::Indexer;
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
@@ -3416,7 +3417,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -5287,7 +5288,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -5329,6 +5330,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
                 nullifier_queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 prove_by_index: false,
+                tree_type: TreeType::State,
             })
             .collect::<Vec<MerkleContext>>(),
         &[

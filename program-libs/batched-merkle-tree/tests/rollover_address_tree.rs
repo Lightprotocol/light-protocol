@@ -13,11 +13,9 @@ use light_batched_merkle_tree::{
     rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{pubkey::Pubkey, TreeType};
 use light_merkle_tree_metadata::{
-    errors::MerkleTreeMetadataError,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    rollover::RolloverMetadata,
+    errors::MerkleTreeMetadataError, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
 };
 use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
 use rand::thread_rng;
