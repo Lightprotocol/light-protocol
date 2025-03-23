@@ -1,5 +1,7 @@
 #![allow(unexpected_cfgs)]
 
+use std::fmt::Display;
+
 use light_hasher::HasherError;
 use thiserror::Error;
 
@@ -111,12 +113,23 @@ impl From<u64> for QueueType {
 }
 
 #[repr(u64)]
-#[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
 pub enum TreeType {
     State = 1,
     Address = 2,
     BatchedState = 3,
     BatchedAddress = 4,
+}
+
+impl Display for TreeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeType::State => write!(f, "State"),
+            TreeType::Address => write!(f, "Address"),
+            TreeType::BatchedState => write!(f, "BatchedState"),
+            TreeType::BatchedAddress => write!(f, "BatchedAddress"),
+        }
+    }
 }
 
 #[allow(clippy::derivable_impls)]

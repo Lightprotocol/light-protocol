@@ -5,7 +5,7 @@ use account_compression::{
     GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
 };
 use forester_utils::{
-    forester_epoch::{Epoch, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, TreeAccounts},
     instructions::create_account::create_account_instruction,
     registry::register_test_forester,
     utils::airdrop_lamports,
@@ -17,6 +17,7 @@ use light_batched_merkle_tree::{
 use light_client::rpc::{
     errors::RpcError, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
 };
+use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::get_registered_program_pda,
     protocol_config::state::ProtocolConfig,

@@ -35,7 +35,7 @@ pub mod test_forester;
 
 pub use create_address_test_program::ID as CREATE_ADDRESS_TEST_PROGRAM_ID;
 pub use forester_utils::{
-    forester_epoch::{Epoch, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, TreeAccounts},
     registry::{
         create_rollover_address_merkle_tree_instructions,
         create_rollover_state_merkle_tree_instructions, register_test_forester,

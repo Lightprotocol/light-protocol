@@ -3,9 +3,10 @@ use account_compression::{
     StateMerkleTreeAccount,
 };
 use borsh::BorshDeserialize;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
+use light_compressed_account::TreeType;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use tracing::trace;

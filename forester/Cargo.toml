@@ -12,6 +12,7 @@ solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
 account-compression = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
+light-compressed-account = { workspace = true }
 light-system-program = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true }

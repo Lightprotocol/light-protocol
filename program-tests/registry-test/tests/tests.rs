@@ -22,6 +22,7 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::indexer::Indexer;
+use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -77,7 +78,7 @@ use light_test_utils::{
     register_test_forester,
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
     update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
-    TreeAccounts, TreeType, CREATE_ADDRESS_TEST_PROGRAM_ID,
+    TreeAccounts, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
 use serial_test::serial;
 use solana_sdk::{

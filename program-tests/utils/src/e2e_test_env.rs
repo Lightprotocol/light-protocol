@@ -75,7 +75,7 @@ use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
     account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
-    forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, Forester, TreeAccounts},
     registry::register_test_forester,
     utils::airdrop_lamports,
 };
@@ -111,6 +111,7 @@ use light_compressed_account::{
         data::{NewAddressParams, ReadOnlyAddress},
         invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
     },
+    TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
