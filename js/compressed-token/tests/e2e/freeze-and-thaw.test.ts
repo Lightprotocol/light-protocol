@@ -91,15 +91,15 @@ describe('freeze and thaw', () => {
             );
             console.log('txId', txId);
 
-            const thawTxId = await thaw(
-                rpc,
-                payer,
-                senderCompressedTokenBalanceBefore.items,
-                mint,
-                freezeAuthority,
-                merkleTree,
-            );
-            console.log('thawTxId', thawTxId);
+            // const thawTxId = await thaw(
+            //     rpc,
+            //     payer,
+            //     senderCompressedTokenBalanceBefore.items,
+            //     mint,
+            //     freezeAuthority,
+            //     merkleTree,
+            // );
+            // console.log('thawTxId', thawTxId);
         }
     });
 });

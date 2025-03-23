@@ -908,6 +908,8 @@ export class CompressedTokenProgram {
             cpiContext: null,
             outputsMerkleTreeIndex: 0,
         };
+
+        console.log('rawData', rawData);
         const data = encodeFreezeInstructionData(rawData);
 
         const {

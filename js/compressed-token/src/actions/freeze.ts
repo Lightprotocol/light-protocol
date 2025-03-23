@@ -42,6 +42,7 @@ export async function freeze(
     const proof = await rpc.getValidityProof(
         accounts.map(account => bn(account.compressedAccount.hash)),
     );
+    console.log('proof', proof);
 
     const ix = await CompressedTokenProgram.freeze({
         payer: payer.publicKey,
@@ -52,6 +53,8 @@ export async function freeze(
         recentValidityProof: proof.compressedProof,
         mint,
     });
+
+    console.log('ix', ix);
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [freezeAuthority]);
