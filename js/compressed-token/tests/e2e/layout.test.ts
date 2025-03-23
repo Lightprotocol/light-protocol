@@ -106,8 +106,8 @@ function getAnchorDiscriminator(instructionName: string): Uint8Array {
     return hash.slice(0, 8);
 }
 
-describe('discriminator', () => {
-    it('anchor derivation should match constants', () => {
+describe('instruction discriminator', () => {
+    it('constants should match anchor derivation', () => {
         expect(getAnchorDiscriminator('mint_to')).toEqual(
             new Uint8Array(MINT_TO_DISCRIMINATOR),
         );
@@ -129,7 +129,7 @@ describe('discriminator', () => {
     });
 });
 
-describe('layout', () => {
+describe('instruction layout', () => {
     const mint = Keypair.generate().publicKey;
     const feePayer = Keypair.generate().publicKey;
     const authority = Keypair.generate().publicKey;

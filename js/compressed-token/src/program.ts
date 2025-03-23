@@ -43,6 +43,8 @@ import {
     transferAccountsLayout,
     encodeFreezeInstructionData,
     freezeAccountsLayout,
+    encodeThawInstructionData,
+    thawAccountsLayout,
 } from './layout';
 import {
     CompressedTokenInstructionDataFreeze,
@@ -441,6 +443,21 @@ export const parseTokenData = (
     const mint = compressedTokenAccounts[0].parsed.mint;
     const currentOwner = compressedTokenAccounts[0].parsed.owner;
     const delegate = compressedTokenAccounts[0].parsed.delegate;
+
+    if (compressedTokenAccounts.length > 1) {
+        for (const account of compressedTokenAccounts) {
+            if (!account.parsed.mint.equals(mint)) {
+                throw new Error(
+                    'All compressed token accounts must have the same mint',
+                );
+            }
+            if (!account.parsed.owner.equals(currentOwner)) {
+                throw new Error(
+                    'All compressed token accounts must have the same owner',
+                );
+            }
+        }
+    }
 
     return { mint, currentOwner, delegate };
 };
@@ -857,6 +874,81 @@ export class CompressedTokenProgram {
             recentValidityProof,
             outputStateTree,
             recentInputStateRootIndices,
+            freezeAuthority,
+            mint,
+        } = params;
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                outputStateTrees: outputStateTree,
+                rootIndices: recentInputStateRootIndices,
+                // We pass the same to pack remaining accounts correctly.
+                tokenTransferOutputs: inputCompressedTokenAccounts.map(acc => ({
+                    owner: acc.parsed.owner,
+                    amount: acc.parsed.amount,
+                    lamports: acc.compressedAccount.lamports,
+                    tlv: null,
+                })),
+            });
+
+        console.log('remaining accounts ', remainingAccountMetas);
+
+        console.log('inputTokenDataWithContext ', inputTokenDataWithContext);
+
+        const { mint: currentMint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+        if (!currentMint.equals(mint)) throw new Error('Mint mismatch');
+
+        const rawData: CompressedTokenInstructionDataFreeze = {
+            proof: recentValidityProof,
+            owner: currentOwner,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputsMerkleTreeIndex: 0,
+        };
+        const data = encodeFreezeInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = freezeAccountsLayout({
+            feePayer: payer,
+            authority: freezeAuthority,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+            mint,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+
+    /**
+     * Construct thaw instruction for compressed tokens
+     */
+    static async thaw(params: FreezeParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentValidityProof,
+            outputStateTree,
+            recentInputStateRootIndices,
         } = params;
 
         const { inputTokenDataWithContext, remainingAccountMetas } =
@@ -887,7 +979,7 @@ export class CompressedTokenProgram {
             cpiContext: null,
             outputsMerkleTreeIndex: 0,
         };
-        const data = encodeFreezeInstructionData(rawData);
+        const data = encodeThawInstructionData(rawData);
 
         const {
             accountCompressionAuthority,
@@ -895,7 +987,7 @@ export class CompressedTokenProgram {
             registeredProgramPda,
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
-        const keys = freezeAccountsLayout({
+        const keys = thawAccountsLayout({
             feePayer: payer,
             authority: currentOwner,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,

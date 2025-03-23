@@ -225,7 +225,7 @@ export function encodeThawInstructionData(
     data: CompressedTokenInstructionDataThaw,
 ): Buffer {
     const buffer = Buffer.alloc(1000);
-    const len = CompressedTokenInstructionDataFreezeLayout.encode(data, buffer);
+    const len = CompressedTokenInstructionDataThawLayout.encode(data, buffer);
 
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
@@ -240,7 +240,7 @@ export function encodeThawInstructionData(
 export function decodeThawInstructionData(
     buffer: Buffer,
 ): CompressedTokenInstructionDataThaw {
-    return CompressedTokenInstructionDataFreezeLayout.decode(
+    return CompressedTokenInstructionDataThawLayout.decode(
         buffer.slice(THAW_DISCRIMINATOR.length + 4),
     ) as CompressedTokenInstructionDataThaw;
 }
