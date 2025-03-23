@@ -159,7 +159,6 @@ mod basic_hashing {
             nested_struct.a.to_be_bytes().to_vec(),
             nested_struct.b.to_be_bytes().to_vec(),
             light_compressed_account::hash_to_bn254_field_size_be(nested_struct.c.as_bytes())
-                .unwrap()
                 .to_vec(),
         ];
 
@@ -184,9 +183,7 @@ mod basic_hashing {
             vec![u8::from(account.a)],
             account.b.to_be_bytes().to_vec(),
             account.c.hash::<Poseidon>().unwrap().to_vec(),
-            light_compressed_account::hash_to_bn254_field_size_be(&account.d)
-                .unwrap()
-                .to_vec(),
+            light_compressed_account::hash_to_bn254_field_size_be(&account.d).to_vec(),
             {
                 let mut bytes = vec![0; 32];
                 bytes[24..].copy_from_slice(&account.f.unwrap().to_be_bytes());
@@ -220,7 +217,7 @@ mod basic_hashing {
             [0u8; 32],
             [0u8; 32],
             zero_account.c.hash::<Poseidon>().unwrap(),
-            light_compressed_account::hash_to_bn254_field_size_be(&zero_account.d).unwrap(),
+            light_compressed_account::hash_to_bn254_field_size_be(&zero_account.d),
             {
                 let mut bytes = [0u8; 32];
                 bytes[24..].copy_from_slice(&zero_account.f.unwrap().to_be_bytes());
@@ -345,8 +342,7 @@ mod attribute_behavior {
 
             let manual_hash = Poseidon::hashv(&[
                 &test_struct.inner.hash::<Poseidon>().unwrap(),
-                &light_compressed_account::hash_to_bn254_field_size_be(test_struct.data.as_bytes())
-                    .unwrap(),
+                &light_compressed_account::hash_to_bn254_field_size_be(test_struct.data.as_bytes()),
             ])
             .unwrap();
 
@@ -565,7 +561,7 @@ fn test_32_array_length() {
 
     let test_struct = OversizedArray { data: [255u8; 32] };
     let expected_result =
-        Poseidon::hash(&hash_to_bn254_field_size_be(test_struct.data.as_slice()).unwrap()).unwrap();
+        Poseidon::hash(&hash_to_bn254_field_size_be(test_struct.data.as_slice())).unwrap();
     let result = test_struct.hash::<Poseidon>().unwrap();
     assert_eq!(result, expected_result);
 }
@@ -585,8 +581,7 @@ fn test_option_array() {
 
     let result = test_struct.hash::<Poseidon>().unwrap();
     assert_ne!(result, [0u8; 32],);
-    let expected_result =
-        Poseidon::hash(&hash_to_bn254_field_size_be(&[0u8; 32]).unwrap()).unwrap();
+    let expected_result = Poseidon::hash(&hash_to_bn254_field_size_be(&[0u8; 32])).unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -644,7 +639,7 @@ mod option_handling {
                 bytes[23] = 1; // Suffix with 1 for Some
                 bytes
             },
-            light_compressed_account::hash_to_bn254_field_size_be("".as_bytes()).unwrap(),
+            light_compressed_account::hash_to_bn254_field_size_be("".as_bytes()),
         ];
 
         assert_eq!(test_struct.to_byte_arrays().unwrap(), manual_bytes);
@@ -699,14 +694,12 @@ mod option_handling {
         };
 
         let manual_some_bytes = [
-            light_compressed_account::hash_to_bn254_field_size_be("".as_bytes()).unwrap(),
-            light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()).unwrap(),
-            light_compressed_account::hash_to_bn254_field_size_be("a".repeat(100).as_bytes())
-                .unwrap(),
+            light_compressed_account::hash_to_bn254_field_size_be("".as_bytes()),
+            light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()),
+            light_compressed_account::hash_to_bn254_field_size_be("a".repeat(100).as_bytes()),
             light_compressed_account::hash_to_bn254_field_size_be(
                 &test_struct.large_array.unwrap(),
-            )
-            .unwrap(),
+            ),
         ];
 
         assert_eq!(test_struct.to_byte_arrays().unwrap(), manual_some_bytes);
@@ -861,8 +854,8 @@ mod option_handling {
                 bytes[27] = 1;
                 bytes
             },
-            light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()).unwrap(),
-            light_compressed_account::hash_to_bn254_field_size_be(&[42u8; 64][..]).unwrap(),
+            light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()),
+            light_compressed_account::hash_to_bn254_field_size_be(&[42u8; 64][..]),
             Poseidon::hash(
                 &test_struct
                     .nested_empty
@@ -1193,8 +1186,8 @@ fn test_truncate_byte_representation() {
     };
 
     let manual_bytes = [
-        light_compressed_account::hash_to_bn254_field_size_be(test_struct.data.as_bytes()).unwrap(),
-        light_compressed_account::hash_to_bn254_field_size_be(&test_struct.array).unwrap(),
+        light_compressed_account::hash_to_bn254_field_size_be(test_struct.data.as_bytes()),
+        light_compressed_account::hash_to_bn254_field_size_be(&test_struct.array),
     ];
 
     assert_eq!(test_struct.to_byte_arrays().unwrap(), manual_bytes);
@@ -1232,8 +1225,9 @@ fn test_byte_representation_combinations() {
     };
     let with_none = OptionTruncate { opt: None };
 
-    let manual_some =
-        [light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()).unwrap()];
+    let manual_some = [light_compressed_account::hash_to_bn254_field_size_be(
+        "test".as_bytes(),
+    )];
     let manual_none = [[0u8; 32]];
 
     assert_eq!(with_some.to_byte_arrays().unwrap(), manual_some);
@@ -1290,7 +1284,7 @@ fn test_byte_representation_combinations() {
             bytes[23] = 1;
             bytes
         },
-        light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()).unwrap(),
+        light_compressed_account::hash_to_bn254_field_size_be("test".as_bytes()),
         Poseidon::hash(&with_some.nest.as_ref().unwrap().hash::<Poseidon>().unwrap()).unwrap(),
     ];
     let manual_none = [[0u8; 32]; 3];

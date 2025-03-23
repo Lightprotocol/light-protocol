@@ -102,7 +102,7 @@ pub(crate) fn derive_address_from_seed(
 
     // PANICS: Not being able to find the bump for truncating the hash is
     // practically impossible.
-    hashv_to_bn254_field_size_be(&[input.as_slice()]).unwrap()
+    hashv_to_bn254_field_size_be(&[input.as_slice()])
 }
 
 /// Derives an address from provided seeds. Returns that address and a singular
@@ -146,7 +146,7 @@ pub fn derive_address_from_params(params: NewAddressParams) -> [u8; 32] {
     // PANICS: Not being able to find the bump for truncating the hash is
     // practically impossible. Quite frankly, we should just remove that error
     // inside.
-    hash_to_bn254_field_size_be(input.as_slice()).unwrap()
+    hash_to_bn254_field_size_be(input.as_slice())
 }
 
 #[cfg(test)]

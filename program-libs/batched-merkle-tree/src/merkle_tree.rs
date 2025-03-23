@@ -242,7 +242,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Poseidon hashes required input size < bn254 field size.
         // To map 256bit pubkeys to < 254bit field size, we hash Pubkeys
         // and truncate the hash to 31 bytes/248 bits.
-        account_metadata.hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes())?;
+        account_metadata.hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes());
         account_metadata.metadata = metadata;
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;

@@ -77,8 +77,8 @@ impl BatchedQueueMetadata {
         // To map 256bit pubkeys to < 254bit field size, we hash Pubkeys
         // and truncate the hash to 31 bytes/248 bits.
         self.hashed_merkle_tree_pubkey =
-            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes())?;
-        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())?;
+            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes());
+        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
         Ok(())
     }
 }
@@ -664,8 +664,8 @@ fn test_batched_queue_metadata_init() {
         assert_eq!(batch.zkp_batch_size, zkp_batch_size);
         assert_eq!(batch.start_index, batch_size * (i as u64));
     }
-    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes()).unwrap();
-    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes()).unwrap();
+    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes());
+    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
     assert_eq!(
         metadata.hashed_merkle_tree_pubkey,
         hashed_merkle_tree_pubkey

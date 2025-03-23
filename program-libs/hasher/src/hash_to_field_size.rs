@@ -10,20 +10,20 @@ pub trait HashToFieldSize {
 
 impl<const N: usize> HashToFieldSize for [u8; N] {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        hash_to_bn254_field_size_be(self.as_slice())
+        Ok(hash_to_bn254_field_size_be(self.as_slice()))
     }
 }
 
 impl HashToFieldSize for String {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        hash_to_bn254_field_size_be(self.as_bytes())
+        Ok(hash_to_bn254_field_size_be(self.as_bytes()))
     }
 }
 
 #[cfg(feature = "solana")]
 impl HashToFieldSize for solana_program::pubkey::Pubkey {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        hash_to_bn254_field_size_be(&self.to_bytes())
+        Ok(hash_to_bn254_field_size_be(&self.to_bytes()))
     }
 }
 
@@ -41,50 +41,56 @@ where
         arrays.iter().for_each(|x| slices.push(x.as_slice()));
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
         slices.push(bump_seed.as_slice());
-        Keccak::hashv(slices.as_slice())
+        // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
+        let mut hashed_value = Keccak::hashv(slices.as_slice()).unwrap();
+        // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+        // field size.
+        hashed_value[0] = 0;
+        Ok(hashed_value)
     }
 }
 
-pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> Result<[u8; 32], HasherError> {
+pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
     let mut slices = Vec::with_capacity(bytes.len() + 1);
     bytes.iter().for_each(|x| slices.push(*x));
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
     slices.push(bump_seed.as_slice());
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices)?;
+    // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
     hashed_value[0] = 0;
-    Ok(hashed_value)
+    hashed_value
 }
 
-pub fn hashv_to_bn254_field_size_be_array(bytes: &[[u8; 32]]) -> Result<[u8; 32], HasherError> {
+pub fn hashv_to_bn254_field_size_be_array(bytes: &[[u8; 32]]) -> [u8; 32] {
     let mut slices = Vec::with_capacity(bytes.len() + 1);
     bytes.iter().for_each(|x| slices.push(x.as_slice()));
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
     slices.push(bump_seed.as_slice());
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices)?;
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
     hashed_value[0] = 0;
-    Ok(hashed_value)
+    hashed_value
 }
 
 /// MAX_SLICES - 1 is usable.
 pub fn hashv_to_bn254_field_size_be_const_array<const MAX_SLICES: usize>(
-    bytes: &[&[u8]],
-) -> Result<[u8; 32], HasherError> {
+    bytes: &[&[u8]; MAX_SLICES],
+) -> [u8; 32] {
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
     let mut slices = ArrayVec::<&[u8], MAX_SLICES>::new();
-    if bytes.len() > MAX_SLICES - 1 {
-        return Err(HasherError::InvalidInputLength(MAX_SLICES, bytes.len()));
-    }
+    // if bytes.len() > MAX_SLICES - 1 {
+    //     return Err(HasherError::InvalidInputLength(MAX_SLICES, bytes.len()));
+    // }
     bytes.iter().for_each(|x| slices.push(x));
     slices.push(bump_seed.as_slice());
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices)?;
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
     hashed_value[0] = 0;
-    Ok(hashed_value)
+    hashed_value
 }
 
 /// Hashes the provided `bytes` with Keccak256 and ensures the result fits
@@ -97,13 +103,13 @@ pub fn hashv_to_bn254_field_size_be_const_array<const MAX_SLICES: usize>(
 ///
 /// hashv_to_bn254_field_size_be(&[&[0u8;32][..]]);
 /// ```
-pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Result<[u8; 32], HasherError> {
+pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> [u8; 32] {
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&[bytes, bump_seed.as_ref()])?;
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&[bytes, bump_seed.as_ref()]).unwrap();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.
     hashed_value[0] = 0;
-    Ok(hashed_value)
+    hashed_value
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -143,7 +149,7 @@ mod tests {
         use solana_program::pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
-            let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice()).unwrap();
+            let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice());
             assert!(
                 is_smaller_than_bn254_field_size_be(&hashed_value),
                 "Hashed value should be within BN254 field size"
@@ -151,7 +157,7 @@ mod tests {
         }
 
         let max_input = [u8::MAX; 32];
-        let hashed_value = hash_to_bn254_field_size_be(max_input.as_slice()).unwrap();
+        let hashed_value = hash_to_bn254_field_size_be(max_input.as_slice());
         assert!(
             is_smaller_than_bn254_field_size_be(&hashed_value),
             "Hashed value should be within BN254 field size"
@@ -165,7 +171,7 @@ mod tests {
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
-            let hashed_value = hashv_to_bn254_field_size_be(input_bytes.as_slice()).unwrap();
+            let hashed_value = hashv_to_bn254_field_size_be(input_bytes.as_slice());
             assert!(
                 is_smaller_than_bn254_field_size_be(&hashed_value),
                 "Hashed value should be within BN254 field size"
@@ -174,7 +180,7 @@ mod tests {
 
         let max_input = [[u8::MAX; 32]; 16];
         let max_input = max_input.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
-        let hashed_value = hashv_to_bn254_field_size_be(max_input.as_slice()).unwrap();
+        let hashed_value = hashv_to_bn254_field_size_be(max_input.as_slice());
         assert!(
             is_smaller_than_bn254_field_size_be(&hashed_value),
             "Hashed value should be within BN254 field size"

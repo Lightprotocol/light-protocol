@@ -176,7 +176,7 @@ async fn test_all_endpoints() {
     let first_account = accounts[0].clone();
     let seed = rand::random::<[u8; 32]>();
     let new_addresses = vec![AddressWithTree {
-        address: hash_to_bn254_field_size_be(&seed).unwrap(),
+        address: hash_to_bn254_field_size_be(&seed),
         tree: env_accounts.address_merkle_tree_pubkey,
     }];
 
@@ -268,7 +268,7 @@ async fn test_all_endpoints() {
     assert!(!proofs.is_empty());
     assert_eq!(proofs[0].hash, account_hashes[0].to_base58());
 
-    let addresses = vec![hash_to_bn254_field_size_be(&seed).unwrap()];
+    let addresses = vec![hash_to_bn254_field_size_be(&seed)];
     let new_address_proofs = indexer
         .get_multiple_new_address_proofs(env_accounts.merkle_tree_pubkey.to_bytes(), addresses)
         .await

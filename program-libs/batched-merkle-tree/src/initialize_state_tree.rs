@@ -469,8 +469,7 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         tree_capacity: 2u64.pow(params.height),
         hashed_merkle_tree_pubkey: hash_to_bn254_field_size_be(
             &params.associated_merkle_tree.to_bytes(),
-        )
-        .unwrap(),
-        hashed_queue_pubkey: hash_to_bn254_field_size_be(&params.queue_pubkey.to_bytes()).unwrap(),
+        ),
+        hashed_queue_pubkey: hash_to_bn254_field_size_be(&params.queue_pubkey.to_bytes()),
     }
 }

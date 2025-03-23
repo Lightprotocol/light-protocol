@@ -19,7 +19,7 @@ pub fn derive_address_legacy(
     seed: &[u8; 32],
 ) -> Result<[u8; 32], CompressedAccountError> {
     let hash =
-        hash_to_bn254_field_size_be([merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice())?;
+        hash_to_bn254_field_size_be([merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice());
     Ok(hash)
 }
 
@@ -28,15 +28,12 @@ pub fn derive_address(
     merkle_tree_pubkey: &[u8; 32],
     program_id_bytes: &[u8; 32],
 ) -> [u8; 32] {
-    hashv_to_bn254_field_size_be_const_array::<4>(
-        [
-            seed.as_slice(),
-            merkle_tree_pubkey.as_slice(),
-            program_id_bytes.as_slice(),
-        ]
-        .as_slice(),
-    )
-    .unwrap()
+    let slices = [
+        seed.as_slice(),
+        merkle_tree_pubkey.as_slice(),
+        program_id_bytes.as_slice(),
+    ];
+    hashv_to_bn254_field_size_be_const_array(&slices)
 }
 
 pub fn add_and_get_remaining_account_indices(

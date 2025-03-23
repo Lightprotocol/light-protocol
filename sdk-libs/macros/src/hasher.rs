@@ -101,23 +101,23 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             }
             if field.ty.to_token_stream().to_string() == "Vec < u8 >"{
                 to_byte_arrays_fields.push(quote! {
-                    arrays[#i ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())?;
+                    arrays[#i ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice());
                 });
                 if flatten_field_exists {
                     field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())?.as_slice();
+                        field_array[#i + num_flattned_fields ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
                         slices[#i + num_flattned_fields ] = field_array[#i +  num_flattned_fields].as_slice();
                     });
                 } else {
                     field_assignments.push(quote! {
-                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())?
+                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                     });
                 }
             } else if field.ty.to_token_stream().to_string().starts_with("Option < Vec < u8 > >") {
                 // HashToFieldSize the inner type if something is an option.
                 to_byte_arrays_fields.push(quote! {
                     arrays[#i ] = if let Some(#field_name) = &self.#field_name {
-                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())?
+                        ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                     } else {
                         [0u8;32]
                     };
@@ -125,7 +125,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 if flatten_field_exists {
                     field_assignments.push(quote! {
                         field_array[#i + num_flattned_fields ] = &self.#field_name {
-                            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())?
+                            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                         } else {
                             [0u8;32]
                         };
@@ -135,7 +135,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     field_assignments.push(quote! {
                         {
                             if let Some(#field_name) = &self.#field_name {
-                                    ::light_hasher::hash_to_field_size::hashv_to_bn254_field_size_le(#field_name.as_slice()).as_slice()
+                                    ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
                             } else {
                                     [0u8;32]
                             }
@@ -404,7 +404,7 @@ mod tests {
         assert!(formatted_output.contains("const NUM_FIELDS: usize"));
         assert!(formatted_output.contains("3usize"));
         assert!(formatted_output.contains("arrays[0usize] = self.a.to_byte_array()?"));
-        assert!(formatted_output.contains("arrays[1usize] = self.b.hash_to_field_size()?"));
+        assert!(formatted_output.contains("arrays[1usize] = self.b.hash_to_field_size()"));
         assert!(formatted_output.contains("arrays[2usize]"));
     }
 
