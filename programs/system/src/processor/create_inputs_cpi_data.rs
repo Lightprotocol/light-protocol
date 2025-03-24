@@ -1,12 +1,9 @@
 use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
 use anchor_lang::prelude::*;
-use light_compressed_account::{
-    hash_to_bn254_field_size_be,
-    instruction_data::{
-        insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-        zero_copy::ZPackedCompressedAccountWithMerkleContext,
-    },
-};
+use light_compressed_account::{hash_to_bn254_field_size_be, instruction_data::{
+    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
+    zero_copy::ZPackedCompressedAccountWithMerkleContext,
+}};
 use light_hasher::{Hasher, Poseidon};
 
 use crate::context::SystemContext;
@@ -73,6 +70,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                     cpi_ix_data.insert_input_sequence_number(
                         &mut seq_index,
                         tree.pubkey(),
+                        &tree.metadata.associated_queue,
+                        tree.tree_type,
                         tree.queue_batches.next_index,
                     );
                     tree.hashed_pubkey

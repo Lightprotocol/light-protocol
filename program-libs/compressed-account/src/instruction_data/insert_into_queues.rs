@@ -54,7 +54,9 @@ pub struct InsertAddressInput {
     FromBytes, IntoBytes, KnownLayout, Immutable, Copy, Clone, PartialEq, Debug, Unaligned,
 )]
 pub struct MerkleTreeSequenceNumber {
-    pub pubkey: Pubkey,
+    pub tree_pubkey: Pubkey,
+    pub queue_pubkey: Pubkey,
+    pub tree_type: U64,
     /// For output queues the sequence number is the first leaf index.
     pub seq: U64,
 }
@@ -156,23 +158,27 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         self.meta.is_invoked_by_program = value as u8;
     }
 
-    pub fn insert_input_sequence_number(&mut self, index: &mut usize, pubkey: &Pubkey, seq: u64) {
-        Self::insert_sequence_number(&mut self.input_sequence_numbers, index, pubkey, seq);
+    pub fn insert_input_sequence_number(&mut self, index: &mut usize, tree_pubkey: &Pubkey, queue_pubkey: &Pubkey, tree_type: u64, seq: u64) {
+        Self::insert_sequence_number(&mut self.input_sequence_numbers, index, tree_pubkey, queue_pubkey, tree_type, seq);
     }
 
-    pub fn insert_address_sequence_number(&mut self, index: &mut usize, pubkey: &Pubkey, seq: u64) {
-        Self::insert_sequence_number(&mut self.address_sequence_numbers, index, pubkey, seq);
+    pub fn insert_address_sequence_number(&mut self, index: &mut usize, tree_pubkey: &Pubkey, queue_pubkey: &Pubkey, tree_type: u64, seq: u64) {
+        Self::insert_sequence_number(&mut self.address_sequence_numbers, index, tree_pubkey, queue_pubkey, tree_type, seq);
     }
 
     fn insert_sequence_number(
         sequence_numbers: &mut ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
         index: &mut usize,
-        pubkey: &Pubkey,
+        tree_pubkey: &Pubkey,
+        queue_pubkey: &Pubkey,
+        tree_type: u64,
         seq: u64,
     ) {
-        let pos = sequence_numbers.iter().position(|x| x.pubkey == *pubkey);
+        let pos = sequence_numbers.iter().position(|x| x.tree_pubkey == *tree_pubkey);
         if pos.is_none() {
-            sequence_numbers[*index].pubkey = *pubkey;
+            sequence_numbers[*index].tree_pubkey = *tree_pubkey;
+            sequence_numbers[*index].queue_pubkey = *queue_pubkey;
+            sequence_numbers[*index].tree_type = tree_type.into();
             sequence_numbers[*index].seq = seq.into();
             *index += 1;
         }

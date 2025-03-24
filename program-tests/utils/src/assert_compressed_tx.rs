@@ -11,10 +11,7 @@ use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts},
     rpc::RpcConnection,
 };
-use light_compressed_account::{
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
-};
+use light_compressed_account::{compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext}, indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent}, TreeType};
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use num_bigint::BigUint;
@@ -292,7 +289,7 @@ pub fn assert_public_transaction_event(
         let merkle_tree_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.pubkey == merkle_tree_pubkey);
+            .find(|x| x.tree_pubkey == merkle_tree_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
@@ -355,7 +352,9 @@ pub async fn assert_merkle_tree_after_tx<
                 println!("next index: {:?}", snapshot.next_index);
                 println!("prev sequence number: {:?}", snapshot.num_added_accounts);
                 sequence_numbers.push(MerkleTreeSequenceNumber {
-                    pubkey: snapshot.accounts.merkle_tree,
+                    tree_pubkey: snapshot.accounts.merkle_tree,
+                    queue_pubkey: snapshot.accounts.nullifier_queue,
+                    tree_type: TreeType::State as u64,
                     seq: merkle_tree.sequence_number() as u64,
                 });
                 if merkle_tree.root() == snapshot.root {
