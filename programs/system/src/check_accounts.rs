@@ -98,9 +98,7 @@ pub(crate) fn try_from_account_info<'a, 'info>(
                     index,
                     MerkleTreeContext {
                         rollover_fee: merkle_tree.metadata.rollover_metadata.rollover_fee,
-                        hashed_pubkey: hash_to_bn254_field_size_be(&account_info.key().to_bytes())
-                            .unwrap()
-                            .0,
+                        hashed_pubkey: hash_to_bn254_field_size_be(&account_info.key().to_bytes()),
                     },
                 );
 

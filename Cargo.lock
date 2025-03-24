@@ -3132,7 +3132,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "fastmurmur3",
- "light-compressed-account",
+ "light-hasher",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-program",
@@ -3268,7 +3268,11 @@ name = "light-hasher"
 version = "1.1.0"
 dependencies = [
  "ark-bn254 0.5.0",
+ "ark-ff 0.5.0",
+ "arrayvec",
  "light-poseidon 0.3.0",
+ "num-bigint 0.4.6",
+ "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
@@ -3286,7 +3290,6 @@ dependencies = [
 name = "light-indexed-array"
 version = "0.1.0"
 dependencies = [
- "light-compressed-account",
  "light-hasher",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3338,7 +3341,6 @@ dependencies = [
 name = "light-merkle-tree-reference"
 version = "1.1.0"
 dependencies = [
- "light-compressed-account",
  "light-hasher",
  "light-indexed-array",
  "num-bigint 0.4.6",
@@ -3473,8 +3475,10 @@ dependencies = [
 name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
+ "ark-bn254 0.5.0",
  "light-compressed-account",
  "light-hasher",
+ "light-poseidon 0.3.0",
  "prettyplease",
  "proc-macro2",
  "quote",

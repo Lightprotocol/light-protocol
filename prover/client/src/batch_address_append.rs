@@ -1,10 +1,9 @@
 use light_bounded_vec::BoundedVec;
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array,
-    hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
+use light_compressed_account::hash_chain::{
+    create_hash_chain_from_array, create_hash_chain_from_slice,
 };
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
-use light_hasher::Poseidon;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_array::{
     array::IndexedElement,
     changelog::{IndexedChangelogEntry, RawIndexedElement},

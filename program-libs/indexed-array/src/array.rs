@@ -1,7 +1,6 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
-use light_compressed_account::bigint::bigint_to_be_bytes_array;
-use light_hasher::Hasher;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher};
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned, Zero};
 

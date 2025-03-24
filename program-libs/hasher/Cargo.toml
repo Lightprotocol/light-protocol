@@ -7,17 +7,22 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = []
+solana = ["solana-program"]
+default = []
 
 [dependencies]
 light-poseidon = { workspace = true }
-solana-program = { workspace = true }
+solana-program = { workspace = true, optional = true }
 thiserror = { workspace = true }
+arrayvec = { workspace = true }
+num-bigint = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 ark-bn254 = { workspace = true }
 sha2 = "0.10"
 sha3 = "0.10"
+ark-ff = { workspace = true }
+
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
@@ -25,3 +30,7 @@ check-cfg = [
     'cfg(target_os, values("solana"))',
     'cfg(feature, values("frozen-abi", "no-entrypoint"))',
 ]
+
+[dev-dependencies]
+rand = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }

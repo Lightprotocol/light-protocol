@@ -154,6 +154,7 @@ create-address-program-test = { path = "program-tests/create-address-test-progra
 groth16-solana = { version = "0.0.3" }
 # anchor 0.29 requires 1.19
 bytemuck = { version = "1.19.0" }
+arrayvec = "0.7"
 
 # Math and crypto
 num-bigint = "0.4.6"

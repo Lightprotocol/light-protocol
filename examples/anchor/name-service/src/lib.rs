@@ -72,9 +72,9 @@ impl Default for RData {
 #[light_account]
 #[derive(Clone, Debug, Default)]
 pub struct NameRecord {
-    #[truncate]
+    #[hash]
     pub owner: Pubkey,
-    #[truncate]
+    #[hash]
     pub name: String,
     pub rdata: RData,
 }

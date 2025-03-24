@@ -1,7 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use light_compressed_account::bigint::bigint_to_be_bytes_array;
-use light_hasher::{Hasher, HasherError};
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, HasherError};
 use light_indexed_array::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedArrayError,

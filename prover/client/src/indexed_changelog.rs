@@ -98,8 +98,7 @@ mod tests {
     use std::str::FromStr;
 
     use light_bounded_vec::BoundedVec;
-    use light_compressed_account::bigint::bigint_to_be_bytes_array;
-    use light_hasher::Poseidon;
+    use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
     use light_indexed_array::{
         array::{IndexedArray, IndexedElement},
         changelog::{IndexedChangelogEntry, RawIndexedElement},

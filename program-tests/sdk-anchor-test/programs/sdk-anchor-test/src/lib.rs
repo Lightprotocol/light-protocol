@@ -197,7 +197,6 @@ pub mod sdk_anchor_test {
 #[derive(Clone, Debug, Default)]
 pub struct MyCompressedAccount {
     name: String,
-    #[nested]
     pub nested: NestedData,
 }
 

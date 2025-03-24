@@ -5,10 +5,9 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, instruction_data::compressed_proof::CompressedProof,
-};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     batch_append_with_proofs::{

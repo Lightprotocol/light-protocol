@@ -2,6 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
     instruction_data::data::{NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams},
 };
+use light_hasher::{Hasher, Keccak};
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
@@ -76,8 +77,18 @@ pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
 
     inputs.extend(seeds);
 
-    let seed = hashv_to_bn254_field_size_be(inputs.as_slice());
+    let seed = hashv_to_bn254_field_size_be_legacy(inputs.as_slice());
     seed
+}
+
+fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
+    let mut slices = Vec::with_capacity(bytes.len() + 1);
+    bytes.iter().for_each(|x| slices.push(*x));
+    let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
+    // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+    // field size.
+    hashed_value[0] = 0;
+    hashed_value
 }
 
 /// Derives an address for a compressed account, based on the provided singular
@@ -90,9 +101,8 @@ pub(crate) fn derive_address_from_seed(
     let input = [merkle_tree_pubkey, *address_seed].concat();
 
     // PANICS: Not being able to find the bump for truncating the hash is
-    // practically impossible. Quite frankly, we should just remove that error
-    // inside.
-    hash_to_bn254_field_size_be(input.as_slice()).unwrap().0
+    // practically impossible.
+    hashv_to_bn254_field_size_be(&[input.as_slice()])
 }
 
 /// Derives an address from provided seeds. Returns that address and a singular
@@ -136,7 +146,7 @@ pub fn derive_address_from_params(params: NewAddressParams) -> [u8; 32] {
     // PANICS: Not being able to find the bump for truncating the hash is
     // practically impossible. Quite frankly, we should just remove that error
     // inside.
-    hash_to_bn254_field_size_be(input.as_slice()).unwrap().0
+    hash_to_bn254_field_size_be(input.as_slice())
 }
 
 #[cfg(test)]

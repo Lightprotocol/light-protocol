@@ -98,9 +98,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     let output_len = compressed_input_accounts.len();
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); output_len];
-    let hashed_mint = hash_to_bn254_field_size_be(mint.to_bytes().as_slice())
-        .unwrap()
-        .0;
+    let hashed_mint = hash_to_bn254_field_size_be(mint.to_bytes().as_slice());
     create_token_output_accounts::<FROZEN_OUTPUTS>(
         inputs.input_token_data_with_context.as_slice(),
         remaining_accounts,

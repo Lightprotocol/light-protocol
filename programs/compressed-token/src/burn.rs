@@ -139,10 +139,7 @@ pub fn create_input_and_output_accounts_burn(
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
 
-    let hashed_mint = match hash_to_bn254_field_size_be(&mint.to_bytes()) {
-        Some(hashed_mint) => hashed_mint.0,
-        None => return err!(ErrorCode::HashToFieldError),
-    };
+    let hashed_mint = hash_to_bn254_field_size_be(&mint.to_bytes());
     let output_compressed_accounts = if change_amount > 0 || sum_lamports > 0 {
         let (is_delegate, authority, delegate) =
             if let Some(delegated_transfer) = inputs.delegated_transfer.as_ref() {

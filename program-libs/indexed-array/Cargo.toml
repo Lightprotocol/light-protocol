@@ -8,7 +8,6 @@ edition = "2021"
 
 [dependencies]
 light-hasher = { workspace = true, default-features = false }
-light-compressed-account = { workspace = true, default-features = false }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
 thiserror = { workspace = true }
