@@ -757,7 +757,7 @@ where
                                 let leaves_hash_chain = merkle_tree.hash_chain_stores
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
-                                let batch_start_index = merkle_tree.next_index as usize;
+                                let _batch_start_index = merkle_tree.next_index as usize;
 
                                 let addresses = self
                                     .indexer
@@ -810,7 +810,7 @@ where
                                     .get_subtrees(merkle_tree_pubkey.to_bytes())
                                     .await
                                     .unwrap();
-                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index as usize);
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index);
 
                                 let inputs = get_batch_address_append_circuit_inputs::<
                                     { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },

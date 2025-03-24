@@ -1,7 +1,4 @@
-use std::{sync::Arc, time::Duration};
-use num_bigint::BigUint;
-use rand::prelude::{StdRng, ThreadRng};
-use rand::{Rng, RngCore, SeedableRng};
+use crate::test_utils::{forester_config, init};
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
 use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
@@ -26,16 +23,13 @@ use light_registry::{
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
 };
+use rand::prelude::StdRng;
+use rand::{Rng, RngCore, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
-use tokio::{
-    sync::{mpsc, oneshot, Mutex},
-    time::sleep,
-};
-use light_hasher::Poseidon;
-use light_merkle_tree_reference::indexed::IndexedMerkleTree;
-use crate::test_utils::{forester_config, init};
+use std::{sync::Arc, time::Duration};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 mod test_utils;
 
@@ -46,10 +40,7 @@ const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
 #[serial]
 async fn test_create_v2_address() {
-    let mut thread_rng = ThreadRng::default();
-    let seed = 0; //thread_rng.next_u64();
-    // Keep this print so that in case the test fails
-    // we can use the seed to reproduce the error.
+    let seed = 0;
     println!("\n\ne2e test seed {}\n\n", seed);
     let mut rng = StdRng::seed_from_u64(seed);
 
@@ -196,17 +187,6 @@ async fn setup_forester_pipeline(
     (service_handle, shutdown_sender, work_report_receiver)
 }
 
-async fn wait_for_slot(rpc: &mut SolanaRpcConnection, target_slot: u64) {
-    while rpc.get_slot().await.unwrap() < target_slot {
-        println!(
-            "waiting for active phase slot: {}, current slot: {}",
-            target_slot,
-            rpc.get_slot().await.unwrap()
-        );
-        sleep(Duration::from_millis(400)).await;
-    }
-}
-
 async fn wait_for_work_report(
     work_report_receiver: &mut mpsc::Receiver<WorkReport>,
     tree_params: &InitAddressTreeAccountsInstructionData,
@@ -327,11 +307,7 @@ async fn create_v2_address<R: RpcConnection + MerkleTreeExt, I: Indexer<R>>(
     };
 
     let proof = test_rpc_result.proof; // photon_rpc_result.compressed_proof.unwrap();
-    let proof = CompressedProof {
-        a: <[u8; 32]>::try_from(proof.a).unwrap(),
-        b: <[u8; 64]>::try_from(proof.b).unwrap(),
-        c: <[u8; 32]>::try_from(proof.c).unwrap(),
-    };
+    let proof = CompressedProof { a: proof.a, b: proof.b, c: proof.c, };
 
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data,
