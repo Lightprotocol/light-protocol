@@ -65,11 +65,11 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     println!("zkp_batch_size: {:?}", zkp_batch_size);
 
     if let Some(indexed_merkle_tree) = indexed_merkle_tree.as_ref() {
+        let subtrees = sparse_merkle_tree.get_subtrees();
         let ref_subtrees = indexed_merkle_tree.merkle_tree.get_subtrees();
-        // assert_eq!(subtrees.to_vec(), ref_subtrees);
+        assert_eq!(subtrees.to_vec(), ref_subtrees);
         let ref_root = indexed_merkle_tree.merkle_tree.root();
         assert_eq!(current_root, ref_root);
-        // assert_eq!(merkle_tree.root(), ref_root);
     }
 
     // 1. input all elements of a batch.
@@ -403,9 +403,6 @@ pub fn get_test_batch_address_append_inputs(
 }
 
 mod test {
-    use light_compressed_account::hash_to_bn254_field_size_be;
-    use super::*;
-
     #[test]
     pub fn test_hashchain() {
         let addresses = [
@@ -436,13 +433,10 @@ mod test {
         // addresses.push( [0, 132, 90, 184, 112, 124, 193, 137, 177, 248, 128, 130, 142, 127, 104, 199, 130, 14, 239, 133, 151, 47, 123, 195, 200, 98, 50, 146, 53, 158, 84, 75]);
 
         let hashchain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
-        println!("haschain {:?}", hashchain);
+        println!("hashchain {:?}", hashchain);
 
         let onchain_hashchain = [47, 56, 214, 156, 25, 149, 26, 125, 7, 142, 146, 62, 240, 49, 179, 217, 233, 212, 187, 105, 181, 124, 92, 123, 37, 116, 116, 46, 218, 32, 69, 85];
-
     }
-
-
 
     #[test]
     pub fn test_get_batch_address_append_inputs() {
