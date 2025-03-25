@@ -158,12 +158,40 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         self.meta.is_invoked_by_program = value as u8;
     }
 
-    pub fn insert_input_sequence_number(&mut self, index: &mut usize, tree_pubkey: &Pubkey, queue_pubkey: &Pubkey, tree_type: u64, seq: u64) {
-        Self::insert_sequence_number(&mut self.input_sequence_numbers, index, tree_pubkey, queue_pubkey, tree_type, seq);
+    pub fn insert_input_sequence_number(
+        &mut self,
+        index: &mut usize,
+        tree_pubkey: &Pubkey,
+        queue_pubkey: &Pubkey,
+        tree_type: u64,
+        seq: u64,
+    ) {
+        Self::insert_sequence_number(
+            &mut self.input_sequence_numbers,
+            index,
+            tree_pubkey,
+            queue_pubkey,
+            tree_type,
+            seq,
+        );
     }
 
-    pub fn insert_address_sequence_number(&mut self, index: &mut usize, tree_pubkey: &Pubkey, queue_pubkey: &Pubkey, tree_type: u64, seq: u64) {
-        Self::insert_sequence_number(&mut self.address_sequence_numbers, index, tree_pubkey, queue_pubkey, tree_type, seq);
+    pub fn insert_address_sequence_number(
+        &mut self,
+        index: &mut usize,
+        tree_pubkey: &Pubkey,
+        queue_pubkey: &Pubkey,
+        tree_type: u64,
+        seq: u64,
+    ) {
+        Self::insert_sequence_number(
+            &mut self.address_sequence_numbers,
+            index,
+            tree_pubkey,
+            queue_pubkey,
+            tree_type,
+            seq,
+        );
     }
 
     fn insert_sequence_number(
@@ -174,7 +202,9 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         tree_type: u64,
         seq: u64,
     ) {
-        let pos = sequence_numbers.iter().position(|x| x.tree_pubkey == *tree_pubkey);
+        let pos = sequence_numbers
+            .iter()
+            .position(|x| x.tree_pubkey == *tree_pubkey);
         if pos.is_none() {
             sequence_numbers[*index].tree_pubkey = *tree_pubkey;
             sequence_numbers[*index].queue_pubkey = *queue_pubkey;

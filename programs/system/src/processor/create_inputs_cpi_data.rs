@@ -1,9 +1,12 @@
 use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
 use anchor_lang::prelude::*;
-use light_compressed_account::{hash_to_bn254_field_size_be, instruction_data::{
-    insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-    zero_copy::ZPackedCompressedAccountWithMerkleContext,
-}};
+use light_compressed_account::{
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
+        zero_copy::ZPackedCompressedAccountWithMerkleContext,
+    },
+};
 use light_hasher::{Hasher, Poseidon};
 
 use crate::context::SystemContext;

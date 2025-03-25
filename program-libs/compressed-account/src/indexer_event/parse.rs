@@ -434,9 +434,9 @@ fn create_batched_transaction_event(
             .nullifiers
             .iter()
             .filter(|x| {
-                input_sequence_numbers
-                    .iter()
-                    .any(|y| y.tree_pubkey == associated_instructions.accounts[x.tree_index as usize])
+                input_sequence_numbers.iter().any(|y| {
+                    y.tree_pubkey == associated_instructions.accounts[x.tree_index as usize]
+                })
             })
             .map(|n| {
                 Ok(BatchNullifyContext {

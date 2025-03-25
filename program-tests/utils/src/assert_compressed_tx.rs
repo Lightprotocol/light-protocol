@@ -11,7 +11,11 @@ use light_client::{
     indexer::{Indexer, StateMerkleTreeAccounts},
     rpc::RpcConnection,
 };
-use light_compressed_account::{compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext}, indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent}, TreeType};
+use light_compressed_account::{
+    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    TreeType,
+};
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use num_bigint::BigUint;
@@ -286,16 +290,16 @@ pub fn assert_public_transaction_event(
     );
     let mut updated_sequence_numbers = event.sequence_numbers.clone();
     for account in event.output_compressed_accounts.iter() {
-        let merkle_tree_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
+        let queue_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.tree_pubkey == merkle_tree_pubkey);
+            .find(|x| x.queue_pubkey == queue_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
             panic!(
-                "merkle tree pubkey not found in sequence numbers : {:?}",
-                merkle_tree_pubkey
+                "queue pubkey not found in sequence numbers : {:?}",
+                queue_pubkey
             );
         } else {
             let seq = &mut index.as_mut().unwrap().seq;

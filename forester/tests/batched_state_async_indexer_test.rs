@@ -61,7 +61,7 @@ async fn test_state_indexer_async_batched() {
     let tree_params = InitStateTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: false,
+        enable_indexer: true,
         wait_time: 10,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
