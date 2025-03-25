@@ -162,10 +162,10 @@ pub fn generate_deserialize_impl<const MUT: bool>(
     let init_fields = generate_init_fields(struct_fields);
 
     quote! {
-        impl<'a> #trait_name<'a> for #name {
-            type Output = #z_struct_name<'a>;
+        impl #trait_name for #name {
+            type Output<'a> = #z_struct_name<'a>;
 
-            fn #method_name(bytes: &'a #mutability [u8]) -> Result<(Self::Output,&'a #mutability [u8]), light_zero_copy::errors::ZeroCopyError> {
+            fn #method_name<'a>(bytes: &'a #mutability [u8]) -> Result<(Self::Output<'a>,&'a #mutability [u8]), light_zero_copy::errors::ZeroCopyError> {
                 #meta_des
                 #(#deserialize_fields)*
                 Ok((

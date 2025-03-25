@@ -29,9 +29,9 @@ pub struct ZPackedReadOnlyAddress {
     pub address_merkle_tree_account_index: u8,
 }
 
-impl<'a> Deserialize<'a> for ZPackedReadOnlyAddress {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZPackedReadOnlyAddress {
+    type Output<'a> = Self;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
         let (address, bytes) = bytes.split_at(size_of::<[u8; 32]>());
         let (address_merkle_tree_root_index, bytes) = U16::ref_from_prefix(bytes)?;
         let (address_merkle_tree_account_index, bytes) = u8::zero_copy_at(bytes)?;
@@ -75,9 +75,9 @@ impl ZPackedMerkleContext {
     }
 }
 
-impl<'a> Deserialize<'a> for ZPackedMerkleContext {
-    type Output = Ref<&'a [u8], Self>;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZPackedMerkleContext {
+    type Output<'a> = Ref<&'a [u8], Self>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (ref_value, bytes) = Ref::<&[u8], Self>::from_prefix(bytes)?;
         Ok((ref_value, bytes))
     }
@@ -101,11 +101,11 @@ impl<'a> From<&ZOutputCompressedAccountWithPackedContext<'a>>
     }
 }
 
-impl<'a> Deserialize<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
-    type Output = Self;
+impl Deserialize for ZOutputCompressedAccountWithPackedContext<'_> {
+    type Output<'a> = ZOutputCompressedAccountWithPackedContext<'a>;
 
     #[inline]
-    fn zero_copy_at(vec: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(vec: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (compressed_account, bytes) = ZCompressedAccount::zero_copy_at(vec)?;
         let (merkle_tree_index, bytes) = u8::zero_copy_at(bytes)?;
         Ok((
@@ -135,11 +135,11 @@ impl From<ZCompressedAccountData<'_>> for CompressedAccountData {
     }
 }
 
-impl<'a> Deserialize<'a> for ZCompressedAccountData<'a> {
-    type Output = Self;
+impl Deserialize for ZCompressedAccountData<'_> {
+    type Output<'a> = ZCompressedAccountData<'a>;
 
     #[inline]
-    fn zero_copy_at(
+    fn zero_copy_at<'a>(
         bytes: &'a [u8],
     ) -> Result<(ZCompressedAccountData<'a>, &'a [u8]), ZeroCopyError> {
         let (discriminator, bytes) = Ref::<&'a [u8], [u8; 8]>::from_prefix(bytes)?;
@@ -201,11 +201,13 @@ impl From<&ZCompressedAccount<'_>> for CompressedAccount {
     }
 }
 
-impl<'a> Deserialize<'a> for ZCompressedAccount<'a> {
-    type Output = Self;
+impl Deserialize for ZCompressedAccount<'_> {
+    type Output<'a> = ZCompressedAccount<'a>;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(ZCompressedAccount<'a>, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(
+        bytes: &'a [u8],
+    ) -> Result<(ZCompressedAccount<'a>, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) = Ref::<&[u8], AccountDesMeta>::from_prefix(bytes)?;
         let (address, bytes) = if meta.address_option == 1 {
             let (address, bytes) = Ref::<&[u8], [u8; 32]>::zero_copy_at(bytes)?;
@@ -273,9 +275,9 @@ impl Deref for ZPackedCompressedAccountWithMerkleContext<'_> {
     }
 }
 
-impl<'a> Deserialize<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZPackedCompressedAccountWithMerkleContext<'_> {
+    type Output<'a> = ZPackedCompressedAccountWithMerkleContext<'a>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (compressed_account, bytes) = ZCompressedAccount::zero_copy_at(bytes)?;
         let (meta, bytes) =
             Ref::<&[u8], ZPackedCompressedAccountWithMerkleContextMeta>::from_prefix(bytes)?;
@@ -305,9 +307,9 @@ pub struct ZInstructionDataInvoke<'a> {
     pub is_compress: bool,
 }
 
-impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZInstructionDataInvoke<'_> {
+    type Output<'a> = ZInstructionDataInvoke<'a>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (proof, bytes) = Option::<CompressedProof>::zero_copy_at(bytes)?;
         let (input_compressed_accounts_with_merkle_context, bytes) =
             Vec::<ZPackedCompressedAccountWithMerkleContext>::zero_copy_at(bytes)?;
@@ -391,9 +393,9 @@ impl<'a> From<ZInstructionDataInvokeCpi<'a>> for ZInstructionDataInvoke<'a> {
     }
 }
 
-impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpi<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZInstructionDataInvokeCpi<'_> {
+    type Output<'a> = ZInstructionDataInvokeCpi<'a>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (proof, bytes) = Option::<CompressedProof>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) = ZeroCopySliceBorsh::from_bytes_at(bytes)?;
         let (input_compressed_accounts_with_merkle_context, bytes) =
@@ -426,9 +428,9 @@ impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpi<'a> {
     }
 }
 
-impl Deserialize<'_> for CompressedCpiContext {
-    type Output = Self;
-    fn zero_copy_at(bytes: &[u8]) -> Result<(Self, &[u8]), ZeroCopyError> {
+impl Deserialize for CompressedCpiContext {
+    type Output<'a> = Self;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &[u8]), ZeroCopyError> {
         let (first_set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (set_context, bytes) = u8::zero_copy_at(bytes)?;
         let (cpi_context_account_index, bytes) = u8::zero_copy_at(bytes)?;
@@ -454,9 +456,9 @@ pub struct ZPackedReadOnlyCompressedAccount {
     pub root_index: U16,
 }
 
-impl<'a> Deserialize<'a> for ZPackedReadOnlyCompressedAccount {
-    type Output = Ref<&'a [u8], Self>;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZPackedReadOnlyCompressedAccount {
+    type Output<'a> = Ref<&'a [u8], Self>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], Self>::from_prefix(bytes)?)
     }
 }
@@ -468,9 +470,9 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
     pub read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
 }
 
-impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for ZInstructionDataInvokeCpiWithReadOnly<'_> {
+    type Output<'a> = ZInstructionDataInvokeCpiWithReadOnly<'a>;
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (invoke_cpi, bytes) = ZInstructionDataInvokeCpi::zero_copy_at(bytes)?;
         let (read_only_addresses, bytes) =
             Option::<ZeroCopySliceBorsh<ZPackedReadOnlyAddress>>::zero_copy_at(bytes)?;

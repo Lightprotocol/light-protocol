@@ -276,12 +276,10 @@ where
     }
 }
 
-impl<'a, T: ZeroCopyTraits + DeserializeMut<'a>> DeserializeMut<'a>
-    for ZeroCopySliceMutBorsh<'a, T>
-{
-    type Output = Self;
+impl<T: ZeroCopyTraits + DeserializeMut> DeserializeMut for ZeroCopySliceMutBorsh<'_, T> {
+    type Output<'a> = ZeroCopySliceMutBorsh<'a, T>;
 
-    fn zero_copy_at_mut(bytes: &'a mut [u8]) -> Result<(Self, &'a mut [u8]), ZeroCopyError> {
+    fn zero_copy_at_mut(bytes: &mut [u8]) -> Result<(Self::Output<'_>, &mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
 }

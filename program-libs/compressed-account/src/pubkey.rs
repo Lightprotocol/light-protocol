@@ -55,27 +55,29 @@ impl Pubkey {
     }
 }
 
-impl<'a> Deserialize<'a> for Pubkey {
-    type Output = Ref<&'a [u8], Pubkey>;
+impl Deserialize for Pubkey {
+    type Output<'a> = Ref<&'a [u8], Pubkey>;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Ref<&'a [u8], Pubkey>, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(
+        bytes: &'a [u8],
+    ) -> Result<(Ref<&'a [u8], Pubkey>, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], Pubkey>::from_prefix(bytes)?)
     }
 }
 
-impl<'a> DeserializeMut<'a> for Pubkey {
-    type Output = Ref<&'a mut [u8], Pubkey>;
+impl DeserializeMut for Pubkey {
+    type Output<'a> = Ref<&'a mut [u8], Pubkey>;
 
     #[inline]
-    fn zero_copy_at_mut(
+    fn zero_copy_at_mut<'a>(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
+    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
         Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
     }
 }
-impl PartialEq<<Pubkey as Deserialize<'_>>::Output> for Pubkey {
-    fn eq(&self, other: &<Pubkey as Deserialize>::Output) -> bool {
+impl PartialEq<<Pubkey as Deserialize>::Output<'_>> for Pubkey {
+    fn eq(&self, other: &<Pubkey as Deserialize>::Output<'_>) -> bool {
         self.0 == other.0
     }
 }

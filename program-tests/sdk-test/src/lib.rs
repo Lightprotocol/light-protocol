@@ -221,7 +221,7 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
 // }
 
 // pub struct AccountContext<'a> {
-//     des_instruction_data: <UpdateInstructionData as Deserialize<'a>>::Output,
+//     des_instruction_data: <UpdateInstructionData as Deserialize>::Output,
 //     cpi_data: Vec<u8>,
 //     system_account_infos: &'a [AccountInfo<'a>],
 //     // account_context: CustomAccountContextStruct,
@@ -308,7 +308,7 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
 //     verify_system_info(&light_cpi_accounts, vec)
 // }
 
-pub fn update_pda_with_light_account_loader<'b>(
+pub fn update_pda_with_light_account_loader(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
@@ -336,122 +336,58 @@ pub fn update_pda_with_light_account_loader<'b>(
     // 6. hash output account
     // 7. cpi system program
     {
-        let mut loader = LightAccountLoader::<
+        let mut loader = CAccountLoader::<
             ZInputAccountMetaWithAddressNoLamports,
             MyCompressedAccount,
         >::from_cpi_account_info(
             &mut cpi_data.light_account_infos[0], &program_id
         );
 
-        let output_hasher = {
-            let mut my_account = loader
-                .load_mut(
-                    &instruction_data.input_compressed_account.meta,
-                    MyCompressedAccount {
-                        signer: (*accounts[0].key).into(),
-                        data: *instruction_data.new_data,
-                    },
-                    instruction_data.output_merkle_tree_index,
-                )
-                .unwrap();
+        let mut my_account = loader
+            .load_mut(
+                &instruction_data.input_compressed_account.meta,
+                MyCompressedAccount {
+                    signer: (*accounts[0].key).into(),
+                    data: *instruction_data.new_data,
+                },
+                instruction_data.output_merkle_tree_index,
+            )
+            .unwrap();
 
-            // my_account.data = *instruction_data.new_data;
-            // let hash = my_account.hash::<Poseidon>().unwrap();
-            // drop(my_account);
-            [0u8; 32]
-        };
+        my_account.data = *instruction_data.new_data;
+        let output_hasher = my_account.hash::<Poseidon>().unwrap();
 
         loader.finalize(output_hasher).unwrap();
-        // Questions:
-        // 1. should from_z_meta_mut take data hasha nd data as inputs?
-        // 2. footguns:
-        //      1. no hashing of data
-        //      2. modifying the data after hashing
-        //      3. modify prior to adding input data.
-        // cpi_data.light_account_infos[0]
-        //     .from_z_meta_mut(
-        //         &instruction_data.input_compressed_account.meta,
-        //         input_hash,
-        //         MyCompressedAccount::discriminator(),
-        //         my_compressed_account_bytes,
-        //         instruction_data.output_merkle_tree_index,
-        //     )
-        //     .unwrap();
-        // from account loader
     }
     let light_cpi_accounts = LightCpiAccounts::new(&accounts[0], &accounts[1..], crate::ID)?;
     verify_system_info(&light_cpi_accounts, vec)
 }
 
-// #[derive(Debug)]
-// pub struct LightAccountLoader<
-//     'a,
-//     M: ZInputAccountMetaTrait<'a>,
-//     A: DeserializeMut<'a> + Deserialize<'a> + Discriminator,
-// > {
-//     /// Input account.
-//     // pub(crate) input: Option<LightInputAccountInfo>,
-//     pub(crate) input: Option<([u8; 32], &'a M)>,
-//     /// Owner of the account.
-//     ///
-//     /// Defaults to the program ID.
-//     pub owner: &'a Pubkey,
-//     /// Lamports.
-//     pub lamports: Option<u64>,
-//     /// Account data.
-//     pub data: &'a mut [u8],
-//     /// Data hash.
-//     pub data_hash: Option<[u8; 32]>,
-//     /// Address.
-//     pub address: Option<[u8; 32]>,
-//     /// New Merkle tree index. Set `None` for `close` account infos.
-//     pub output_merkle_tree_index: Option<u8>,
-//     pub phantom: std::marker::PhantomData<A>,
-// }
-
 // TODO: make loader from ZCAccountInfoMut<'a> -> so that we work over cpi memory
-pub struct LightAccountLoader<
+pub struct CAccountLoader<
     'a,
     'b,
-    'c,
-    M: ZInputAccountMetaTrait<'b>,
-    A: DeserializeMut<'c> + Deserialize<'c> + Discriminator + DataHasher,
+    M: ZInputAccountMetaTrait<'a>,
+    A: DeserializeMut + Deserialize + Discriminator + DataHasher,
 > {
-    pub owner: &'c Pubkey,
-    pub(crate) account: &'c mut ZCAccountInfoMut<'c>,
+    pub owner: &'a Pubkey,
+    pub(crate) account: &'a mut ZCAccountInfoMut<'a>,
     /// For close accounts we store data here.
     close_data: Option<Vec<u8>>,
-    /// Currently unused.
-    // loaded: Option<<A as DeserializeMut<'a>>::Output>,
     finalized: bool,
     phantom_a: std::marker::PhantomData<A>,
     phantom_m: std::marker::PhantomData<M>,
     phantom_b: std::marker::PhantomData<&'b ()>,
-    phantom_c: std::marker::PhantomData<&'c ()>,
 }
 
 impl<
         'a,
         'b,
-        'c,
-        M: ZInputAccountMetaTrait<'b>,
-        A: DeserializeMut<'c> + Deserialize<'c> + Discriminator + DataHasher,
-    > LightAccountLoader<'a, 'b, 'c, M, A>
+        M: ZInputAccountMetaTrait<'a>,
+        A: DeserializeMut + Deserialize + Discriminator + DataHasher,
+    > CAccountLoader<'a, 'b, M, A>
 {
-    // pub fn with_capacity(owner: &'a Pubkey, capacity: usize) -> Self {
-    //     Self {
-    //         input: None,
-    //         owner,
-    //         lamports: None,
-    //         data: vec![0u8; capacity],
-    //         data_hash: None,
-    //         address: None,
-    //         output_merkle_tree_index: None,
-    //         phantom: std::marker::PhantomData,
-    //     }
-    // }
-
-    pub fn from_cpi_account_info(account: &'c mut ZCAccountInfoMut<'a>, owner: &'c Pubkey) -> Self {
+    pub fn from_cpi_account_info(account: &'a mut ZCAccountInfoMut<'a>, owner: &'a Pubkey) -> Self {
         Self {
             owner,
             account,
@@ -461,7 +397,6 @@ impl<
             phantom_a: std::marker::PhantomData,
             phantom_m: std::marker::PhantomData,
             phantom_b: std::marker::PhantomData,
-            phantom_c: std::marker::PhantomData,
         }
     }
 
@@ -472,11 +407,7 @@ impl<
         input_account_meta: &M,
         input_account: A,
         output_merkle_tree_index: u8,
-        // ) -> Result<&mut [u8], CompressedAccountError> {
-    ) -> Result<<A as DeserializeMut<'c>>::Output, CompressedAccountError> {
-        // if let Some(loaded) = self.loaded.as_mut() {
-        //     return Ok(loaded);
-        // }
+    ) -> Result<<A as DeserializeMut>::Output<'_>, CompressedAccountError> {
         let input_data_hash = input_account.hash::<Poseidon>().unwrap();
         // Does not set the output data.
         // Can only be called once.
@@ -494,25 +425,19 @@ impl<
                 .unwrap()
                 .0,
         )
-        // Ok(&mut self.account.output.as_mut().unwrap().data[..])
     }
 
+    /// Finalize a mut or init loaded account.
+    /// Closed accounts are already finalized.
     pub fn finalize(&mut self, output_hash: [u8; 32]) -> Result<(), CompressedAccountError> {
         if self.finalized {
             solana_program::msg!("Already finalized");
             return Err(CompressedAccountError::InvalidArgument);
         }
-        // TODO: find a better solution while this is elegant because it forces hashing it cannot propagate a hash error.
-        // if let Some(loaded_account) = self.loaded.as_mut() {
-        // Doesn't work because of missing trait bound.
-        // let output_hash = loaded_account.hash::<Poseidon>().unwrap();
         if let Some(output) = self.account.output.as_mut() {
             output.data_hash = output_hash;
         }
         self.finalized = true;
-        // } else {
-        //     panic!("Dropped Accounloader without loading.")
-        // }
         Ok(())
     }
 
@@ -521,51 +446,36 @@ impl<
     //     meta: M,
     //     params: A,
     //     output_merkle_tree_index: u8,
-    // ) -> <A as DeserializeMut<'a>>::Output {
+    // ) -> <A as DeserializeMut>::Output {
     //     // call new and return A as zero copy
     //     A::zero_copy_at_mut(&mut self.account.output.as_mut().unwrap().data[..])
     //         .unwrap()
     //         .0
     // }
 
-    // pub fn get_zero_copy(&'a self) -> <A as Deserialize<'a>>::Output {
+    // pub fn get_zero_copy(&'a self) -> <A as Deserialize>::Output {
     //     A::zero_copy_at(&self.data[..]).unwrap().0
     // }
 
-    // pub fn get_zero_copy_mut(&'a mut self) -> <A as DeserializeMut<'a>>::Output {
+    // pub fn get_zero_copy_mut(&'a mut self) -> <A as DeserializeMut>::Output {
     //     A::zero_copy_at_mut(&mut self.data[..]).unwrap().0
     // }
 }
 
-// impl Drop for LightAccountLoader<'_, _, MyCompressedAccount> {
-//     fn drop(&mut self) {
-//         // TODO: find a better solution while this is elegant because it forces hashing it cannot propagate a hash error.
-//         if let Some(loaded_account) = self.loaded.as_mut() {
-//             let output_hash = loaded_account.hash::<Poseidon>().unwrap();
-//             if let Some(output) = self.account.output.as_mut() {
-//                 output.data_hash = output_hash;
-//             }
-//         } else {
-//             panic!("Dropped Accounloader without loading.")
-//         }
-//     }
-// }
-
-// // Safeguard, Accountloader has to be finalized before dropping.
-// impl<
-//         'a,
-//         'b,
-//         M: ZInputAccountMetaTrait<'a>,
-//         A: DeserializeMut<'a> + Deserialize<'a> + Discriminator + DataHasher,
-//     > Drop for LightAccountLoader<'a, 'b, M, A>
-// {
-//     fn drop(&mut self) {
-//         #[cfg(target_os = "solana")]
-//         if !self.finalized {
-//             panic!("Dropped Accounloader without finalizing.")
-//         }
-//     }
-// }
+// Safeguard, Accountloader has to be finalized before dropping.
+impl<
+        'a,
+        M: ZInputAccountMetaTrait<'a>,
+        A: DeserializeMut + Deserialize + Discriminator + DataHasher,
+    > Drop for CAccountLoader<'a, '_, M, A>
+{
+    fn drop(&mut self) {
+        #[cfg(target_os = "solana")]
+        if !self.finalized {
+            panic!("Dropped Accounloader without finalizing.")
+        }
+    }
+}
 
 // TODO: add account traits
 #[derive(
