@@ -1,7 +1,6 @@
 // adapted from https://github.com/helius-labs/helius-rust-sdk/blob/dev/src/optimized_transaction.rs
 // optimized for forester client
 use std::time::{Duration, Instant};
-
 use light_client::{rpc::RpcConnection, rpc_pool::SolanaConnectionManager};
 use solana_client::rpc_config::RpcSendTransactionConfig;
 use solana_sdk::{
@@ -81,6 +80,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
 pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     connection: &mut bb8::PooledConnection<'a, SolanaConnectionManager<R>>,
     transaction: &Transaction,
+    signers: &[&Keypair],
     send_transaction_config: RpcSendTransactionConfig,
     last_valid_block_height: u64,
     timeout: Duration,
@@ -90,7 +90,7 @@ pub async fn send_and_confirm_transaction<'a, R: RpcConnection>(
     while Instant::now().duration_since(start_time) < timeout
         && connection.get_slot().await? <= last_valid_block_height
     {
-        let result = connection.send_transaction_with_config(transaction, send_transaction_config);
+        let result = connection.send_transaction_with_config(transaction, signers, send_transaction_config);
 
         match result.await {
             Ok(signature) => {

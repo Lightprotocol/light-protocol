@@ -101,6 +101,12 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         data: instruction_data.data(),
     };
     let blockhash = rpc.get_latest_blockhash().await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let signers = &vec![
+        &payer,
+        &new_nullifier_queue_keypair,
+        &new_state_merkle_tree_keypair,
+    ];
     let transaction = Transaction::new_signed_with_payer(
         &[
             create_nullifier_queue_instruction,
@@ -108,14 +114,10 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
             instruction,
         ],
         Some(&rpc.get_payer().pubkey()),
-        &vec![
-            &rpc.get_payer(),
-            &new_nullifier_queue_keypair,
-            &new_state_merkle_tree_keypair,
-        ],
+        signers,
         blockhash,
     );
-    rpc.process_transaction_with_context(transaction).await
+    rpc.process_transaction_with_context(transaction, signers).await
 }
 
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(

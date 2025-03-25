@@ -82,6 +82,10 @@ pub(crate) async fn perform_append<R: RpcConnection, I: Indexer<R> + IndexerType
             ));
         }
 
+        if !context.is_eligible() {
+            debug!("Skipping append transaction chunk due to eligibility check");
+            return Ok(());
+        }
         match rpc
             .create_and_send_transaction(
                 &instructions,
@@ -181,6 +185,11 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
             ));
         }
 
+        if !context.is_eligible() {
+            debug!("Skipping append transaction chunk due to eligibility check");
+            return Ok(());
+        }
+
         match rpc
             .create_and_send_transaction(
                 &instructions,
@@ -196,7 +205,6 @@ pub(crate) async fn perform_nullify<R: RpcConnection, I: Indexer<R> + IndexerTyp
                     instruction_data_vec.len().div_ceil(context.ixs_per_tx),
                     tx
                 );
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             }
             Err(e) => {
                 error!(
