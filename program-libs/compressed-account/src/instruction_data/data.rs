@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -35,7 +36,9 @@ pub struct OutputCompressedAccountWithPackedContext {
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopy, ZeroCopyEq,
+)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -51,7 +54,9 @@ pub struct NewAddressParams {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,

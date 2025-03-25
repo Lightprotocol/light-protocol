@@ -218,3 +218,41 @@ pub fn invoke_cpi(
 
     Ok(())
 }
+
+pub fn verify_system_info(light_system_accounts: &LightCpiAccounts, data: Vec<u8>) -> Result<()> {
+    let account_infos = light_system_accounts.to_account_infos();
+    let account_metas = light_system_accounts.to_account_metas();
+    invoke_system_info_cpi(
+        light_system_accounts.invoking_program().key,
+        &account_infos,
+        account_metas,
+        data,
+    )
+}
+
+#[inline(always)]
+pub fn invoke_system_info_cpi(
+    invoking_program_id: &Pubkey,
+    account_infos: &[AccountInfo],
+    accounts_metas: Vec<AccountMeta>,
+    data: Vec<u8>,
+) -> Result<()> {
+    #[cfg(feature = "anchor")]
+    {
+        anchor_lang::prelude::msg!("ACCOUNT METAS (len: {}):", accounts_metas.len(),);
+        for (i, acc_meta) in accounts_metas.iter().enumerate() {
+            anchor_lang::prelude::msg!("{}: {:?}", i, acc_meta);
+        }
+    }
+
+    let instruction = Instruction {
+        program_id: PROGRAM_ID_LIGHT_SYSTEM,
+        accounts: accounts_metas,
+        data,
+    };
+    let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], invoking_program_id);
+    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
+
+    invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])?;
+    Ok(())
+}

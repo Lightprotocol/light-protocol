@@ -225,7 +225,7 @@ impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
             owner: value.__meta.owner,
             lamports: u64::from(value.__meta.lamports),
             address: value.address.map(|x| *x),
-            data: value.data.map(|x| x.into()),
+            data: value.data.as_ref().map(|x| x.into()),
         }
     }
 }
@@ -348,8 +348,10 @@ fn readme() {
     assert_eq!(zero_copy.a, 1);
     let org_struct: MyStruct = zero_copy.into();
     assert_eq!(org_struct, my_struct);
-    let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
-    zero_copy_mut.a = 42;
+    {
+        let (mut zero_copy_mut, _remaining) = MyStruct::zero_copy_at_mut(&mut bytes).unwrap();
+        zero_copy_mut.a = 42;
+    }
     let borsh = MyStruct::try_from_slice(&bytes).unwrap();
     assert_eq!(borsh.a, 42u8);
 }

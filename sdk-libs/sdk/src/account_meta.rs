@@ -48,7 +48,7 @@ pub struct InputAccountMetaWithAddress {
 
 /// Client compressed account meta.
 /// TODO: move to client and or consider to remove (could be returned by rpc)
-#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, PartialEq, Default)]
+#[derive(Debug, Clone, BorshDeserialize, BorshSerialize, PartialEq, Default, ZeroCopy)]
 pub struct LightAccountMeta {
     /// Lamports.
     pub lamports: Option<u64>,

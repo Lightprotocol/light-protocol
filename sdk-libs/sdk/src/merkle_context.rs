@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
@@ -123,7 +124,9 @@ pub struct AddressMerkleContext {
     pub address_queue_pubkey: Pubkey,
 }
 
-#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
+#[derive(
+    Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,
