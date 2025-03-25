@@ -557,6 +557,18 @@ export class CompressedTokenProgram {
         );
         return address;
     }
+    /** @internal */
+    static deriveTokenPoolPdaWithBump(
+        mint: PublicKey,
+        bump: number,
+    ): PublicKey {
+        const seeds = [POOL_SEED, mint.toBuffer(), Buffer.from([bump])];
+        const [address, _] = PublicKey.findProgramAddressSync(
+            seeds,
+            this.programId,
+        );
+        return address;
+    }
 
     /** @internal */
     static get deriveCpiAuthorityPda(): PublicKey {

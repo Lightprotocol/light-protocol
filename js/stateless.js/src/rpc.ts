@@ -597,6 +597,23 @@ export function getTreeForQueue(
     return info[index].tree;
 }
 
+export function deriveTokenPoolPdaWithBump(
+    mint: PublicKey,
+    bump: number,
+): PublicKey {
+    let seeds: Buffer[] = [];
+    if (bump === 0) {
+        seeds = [Buffer.from('pool'), mint.toBuffer()];
+    } else {
+        seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
+    }
+    const [address, _] = PublicKey.findProgramAddressSync(
+        seeds,
+        new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+    );
+    return address;
+}
+
 /**
  *
  */
@@ -621,6 +638,29 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
+    }
+
+    async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
+        const tokenPoolInfo0 = deriveTokenPoolPdaWithBump(mint, 0);
+        const tokenPoolInfo1 = deriveTokenPoolPdaWithBump(mint, 1);
+        const tokenPoolInfo2 = deriveTokenPoolPdaWithBump(mint, 2);
+        const tokenPoolInfo3 = deriveTokenPoolPdaWithBump(mint, 3);
+        const tokenPoolInfo4 = deriveTokenPoolPdaWithBump(mint, 4);
+        const tokenPoolInfo5 = deriveTokenPoolPdaWithBump(mint, 5);
+
+        const tokenPoolInfos = await Promise.all([
+            this.getTokenAccountBalance(tokenPoolInfo0),
+            this.getTokenAccountBalance(tokenPoolInfo1),
+            this.getTokenAccountBalance(tokenPoolInfo2),
+            this.getTokenAccountBalance(tokenPoolInfo3),
+            this.getTokenAccountBalance(tokenPoolInfo4),
+            this.getTokenAccountBalance(tokenPoolInfo5),
+        ]);
+        const infos: TokenPoolInfo[] = tokenPoolInfos.map(tokenPoolInfo => ({
+            tokenPool: mint,
+            tokenPoolInfo: tokenPoolInfo.value.amount,
+        }));
+        return infos;
     }
 
     /**
