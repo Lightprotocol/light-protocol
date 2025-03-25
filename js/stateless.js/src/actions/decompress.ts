@@ -7,34 +7,39 @@ import {
 } from '@solana/web3.js';
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
-import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import { buildAndSignTx, pickStateTreeInfo, sendAndConfirmTx } from '../utils';
 import BN from 'bn.js';
-import { CompressedAccountWithMerkleContext, bn } from '../state';
+import {
+    CompressedAccountWithMerkleContext,
+    StateTreeInfo,
+    bn,
+} from '../state';
 
 /**
  * Decompress lamports into a solana account
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param lamports        Amount of lamports to compress
- * @param toAddress       Address of the recipient compressed account
- * @param outputStateTree Optional output state tree. Defaults to a current shared state tree.
- * @param confirmOptions  Options for confirming the transaction
+ * @param rpc                   RPC to use
+ * @param payer                 Payer of the transaction and initialization fees
+ * @param lamports              Amount of lamports to compress
+ * @param toAddress             Address of the recipient compressed account
+ * @param outputStateTreeInfo   Optional output state tree. Defaults to fetching
+ *                              a current shared state tree.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
  */
-/// TODO: add multisig support
-/// TODO: add support for payer != owner
 export async function decompress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
     recipient: PublicKey,
-    outputStateTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    /// TODO: use dynamic state tree and nullifier queue
-
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+    }
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
         (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
 
@@ -58,7 +63,7 @@ export async function decompress(
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
-        outputStateTree: outputStateTree,
+        outputStateTreeInfo,
         inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
         recentValidityProof: proof.compressedProof,
         recentInputStateRootIndices: proof.rootIndices,

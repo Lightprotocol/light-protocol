@@ -71,8 +71,8 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
-import { ActiveTreeBundle } from './state/types';
+import { getActiveStateTreeInfos } from './utils/get-light-state-tree-info';
+import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
 
 /** @internal */
@@ -188,7 +188,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 /** @internal */
 function buildCompressedAccountWithMaybeTokenData(
     accountStructWithOptionalTokenData: any,
-    activeStateTreeInfo: ActiveTreeBundle[],
+    activeStateTreeInfo: StateTreeInfo[],
 ): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
@@ -559,7 +559,7 @@ export function getPublicInputHash(
  * @returns The queue for the given tree, or undefined if not found
  */
 export function getQueueForTree(
-    info: ActiveTreeBundle[],
+    info: StateTreeInfo[],
     tree: PublicKey,
 ): PublicKey {
     const index = info.findIndex(t => t.tree.equals(tree));
@@ -582,7 +582,7 @@ export function getQueueForTree(
  * @returns The tree for the given queue, or undefined if not found
  */
 export function getTreeForQueue(
-    info: ActiveTreeBundle[],
+    info: StateTreeInfo[],
     queue: PublicKey,
 ): PublicKey {
     const index = info.findIndex(q => q.queue?.equals(queue));
@@ -598,36 +598,12 @@ export function getTreeForQueue(
 }
 
 /**
- * Get a random tree and queue from the active state tree addresses.
- *
- * Prevents write lock contention on state trees.
- *
- * @param info - The active state tree addresses
- * @returns A random tree and queue
- */
-export function pickRandomTreeAndQueue(info: ActiveTreeBundle[]): {
-    tree: PublicKey;
-    queue: PublicKey;
-} {
-    const length = info.length;
-    const index = Math.floor(Math.random() * length);
-
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-    return {
-        tree: info[index].tree,
-        queue: info[index].queue,
-    };
-}
-
-/**
  *
  */
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
+    activeStateTreeInfo: StateTreeInfo[] | null = null;
 
     constructor(
         endpoint: string,
@@ -643,7 +619,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+    setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
     }
 
@@ -651,16 +627,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getCachedActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
 
-        let info: ActiveTreeBundle[] | null = null;
+        let info: StateTreeInfo[] | null = null;
         if (!this.activeStateTreeInfo) {
             const { mainnet, devnet } = defaultStateTreeLookupTables();
             try {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress:
                         mainnet[0].stateTreeLookupTable,
@@ -668,7 +644,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 });
                 this.activeStateTreeInfo = info;
             } catch {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress: devnet[0].stateTreeLookupTable,
                     nullifyTableAddress: devnet[0].nullifyTable,
@@ -690,7 +666,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the latest state tree addresses from the cluster.
      */
-    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
         this.activeStateTreeInfo = null;
         return await this.getCachedActiveStateTreeInfo();
     }

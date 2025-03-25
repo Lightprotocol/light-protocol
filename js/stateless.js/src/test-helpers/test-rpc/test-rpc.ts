@@ -51,7 +51,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { ActiveTreeBundle } from '../../state/types';
+import { StateTreeInfo } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
@@ -151,7 +151,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
+    activeStateTreeInfo: StateTreeInfo[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -207,21 +207,21 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+    setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
     }
 
     /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getCachedActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
     /**
      * Returns local test state trees.
      */
-    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 

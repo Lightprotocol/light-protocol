@@ -1,7 +1,7 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { ActiveTreeBundle, TreeType } from './state/types';
+import { StateTreeInfo, TreeType } from './state/types';
 
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
@@ -104,26 +104,26 @@ export const isLocalTest = (url: string) => {
 /**
  * @internal
  */
-export const localTestActiveStateTreeInfo = (): ActiveTreeBundle[] => {
+export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
     return [
         {
             tree: new PublicKey(merkletreePubkey),
             queue: new PublicKey(nullifierQueuePubkey),
             cpiContext: new PublicKey(cpiContextPubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
         },
         {
             tree: new PublicKey(merkleTree2Pubkey),
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
-            treeType: TreeType.State,
+            treeType: TreeType.StateV1,
         },
     ];
 };
 
 /**
  * Use only with Localnet testing.
- * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getLightStateTreeInfo}.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getActiveStateTreeInfos}.
  */
 export const defaultTestStateTreeAccounts = () => {
     return {
