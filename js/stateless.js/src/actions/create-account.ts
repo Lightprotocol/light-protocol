@@ -58,7 +58,7 @@ export async function createAccount(
     const address = deriveAddress(seed, addressTree);
 
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
@@ -140,7 +140,7 @@ export async function createAccountWithLamports(
     );
 
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 

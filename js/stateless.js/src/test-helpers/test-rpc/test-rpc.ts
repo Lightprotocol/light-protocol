@@ -214,14 +214,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
     /**
      * Returns local test state trees.
      */
-    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
+    async getActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 

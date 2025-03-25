@@ -12,9 +12,12 @@ import {
     Rpc,
     dedupeSigner,
     pickRandomTreeAndQueue,
+    StateTreeInfo,
+    pickStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
+import { StorageOptions } from '../types';
 
 /**
  * Mint compressed tokens to a solana address from an external mint authority
@@ -25,8 +28,7 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
  * @param destination    Address of the account to mint to
  * @param authority      Minting authority
  * @param amount         Amount to mint
- * @param merkleTree     State tree account that the compressed tokens should be
- *                       part of. Defaults to random public state tree account.
+ * @param storageOptions Options for storing the tokens accounts
  * @param confirmOptions Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -38,7 +40,7 @@ export async function approveAndMintTo(
     destination: PublicKey,
     authority: Signer,
     amount: number | BN,
-    merkleTree?: PublicKey,
+    storageOptions?: StorageOptions,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -57,10 +59,16 @@ export async function approveAndMintTo(
         tokenProgramId,
     );
 
-    if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
+    if (!storageOptions) storageOptions = {};
+    if (!storageOptions.stateTreeInfo) {
+        const stateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
+        const info = pickStateTreeInfo(stateTreeInfos);
+        storageOptions.stateTreeInfo = info;
+    }
+    if (!storageOptions.tokenPoolInfos) {
+        const tokenPoolInfos = await rpc.getTokenPoolInfos();
+        const info = pickTokenPoolInfos(tokenPoolInfos);
+        storageOptions.tokenPoolInfos = info;
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -70,7 +78,8 @@ export async function approveAndMintTo(
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
         toPubkey: destination,
-        merkleTree,
+        outputStateTreeInfo: storageOptions.stateTreeInfo,
+        tokenPoolInfos: storageOptions.tokenPoolInfos,
         tokenProgramId,
     });
 

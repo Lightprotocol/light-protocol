@@ -126,7 +126,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
 
     res.result.value.items.map(item => {
         const _account = item.account;
@@ -624,10 +624,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     *
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getCachedActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
@@ -666,9 +667,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the latest state tree addresses from the cluster.
      */
-    async getLatestActiveStateTreeInfo(): Promise<StateTreeInfo[]> {
+    async getActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         this.activeStateTreeInfo = null;
-        return await this.getCachedActiveStateTreeInfo();
+        return await this.getCachedActiveStateTreeInfos();
     }
 
     /**
@@ -706,7 +707,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return null;
         }
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const associatedQueue = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.tree!,
@@ -815,7 +816,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get proof for compressed account ${hash.toString()}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const associatedQueue = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.merkleTree,
@@ -860,7 +861,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get info for compressed accounts ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map(item => {
             const associatedQueue = getQueueForTree(
@@ -916,7 +917,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         for (const proof of res.result.value) {
             const associatedQueue = getQueueForTree(
                 activeStateTreeInfo,
@@ -974,7 +975,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             };
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.value.items.map(item => {
             const associatedQueue = getQueueForTree(
@@ -1233,7 +1234,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             maybeTokenData: TokenData | null;
         }[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.compressionInfo.closedAccounts.map(item => {
             closedAccounts.push(

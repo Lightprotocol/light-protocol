@@ -37,7 +37,7 @@ export async function decompress(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =

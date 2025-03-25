@@ -52,7 +52,7 @@ export async function transfer(
     lamports = bn(lamports);
 
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
     }
 
