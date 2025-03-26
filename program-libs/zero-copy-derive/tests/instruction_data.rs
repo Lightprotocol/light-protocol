@@ -40,7 +40,15 @@ impl DeserializeMut for Pubkey {
     ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
         Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
     }
+
+    fn byte_len(&self) -> usize {
+        32
+    }
 }
+
+// We should not implement DeserializeMut for primitive types directly
+// The implementation should be in the zero-copy crate
+
 impl PartialEq<<Pubkey as Deserialize>::Output<'_>> for Pubkey {
     fn eq(&self, other: &<Pubkey as Deserialize>::Output<'_>) -> bool {
         self.0 == other.0
@@ -344,6 +352,7 @@ fn readme() {
     };
     // Use the struct with zero-copy deserialization
     let mut bytes = my_struct.try_to_vec().unwrap();
+    assert_eq!(bytes.len(), my_struct.byte_len());
     let (zero_copy, _remaining) = MyStruct::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, 1);
     let org_struct: MyStruct = zero_copy.into();

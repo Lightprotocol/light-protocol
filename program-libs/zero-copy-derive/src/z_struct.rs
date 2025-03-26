@@ -381,12 +381,6 @@ pub fn generate_z_struct<const MUT: bool>(
                 #(#bool_accessor_methods)*
             }
 
-            // // Impl drop
-            // impl < 'a > Drop for #z_struct_name < 'a > {
-            //     fn drop ( & mut self ) {
-
-            //     }
-            // }
         });
     }
     z_struct
