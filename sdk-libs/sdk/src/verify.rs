@@ -250,6 +250,7 @@ pub fn invoke_system_info_cpi(
         accounts: accounts_metas,
         data,
     };
+    // TODO: hardcode with macro.
     let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], invoking_program_id);
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 

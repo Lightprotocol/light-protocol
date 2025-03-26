@@ -286,7 +286,7 @@ pub mod test {
     };
 
     use super::*;
-    use crate::slice::ZeroCopySliceBorsh;
+    use crate::{borsh_mut::DeserializeMut, slice::ZeroCopySliceBorsh};
 
     // Rules:
     // 1. create ZStruct for the struct

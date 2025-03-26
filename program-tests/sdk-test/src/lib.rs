@@ -32,11 +32,10 @@ use solana_program::{
 pub const ID: solana_program::pubkey::Pubkey =
     pubkey!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
-entrypoint!(process_instruction);
-
 #[repr(u8)]
 pub enum InstructionType {
     CreatePdaBorsh = 0,
+    UpdatePdaBorsh = 1,
     // TODO: add CreatePdaZeroCopy
 }
 
@@ -51,6 +50,8 @@ impl TryFrom<u8> for InstructionType {
     }
 }
 
+entrypoint!(process_instruction);
+
 pub fn process_instruction(
     _program_id: &solana_program::pubkey::Pubkey,
     accounts: &[AccountInfo],
@@ -60,6 +61,9 @@ pub fn process_instruction(
     let discriminator = InstructionType::try_from(instruction_data[0]).unwrap();
     match discriminator {
         InstructionType::CreatePdaBorsh => create_pda(accounts, &instruction_data[1..]),
+        InstructionType::UpdatePdaBorsh => {
+            update_pda_with_light_account_loader(accounts, &instruction_data[1..])
+        }
     }?;
     Ok(())
 }
@@ -312,12 +316,13 @@ pub fn update_pda_with_light_account_loader(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), LightSdkError> {
-    let (instruction_data, _) = UpdateInstructionData::zero_copy_at(instruction_data).unwrap();
+    let (instruction_data, remaining) =
+        UpdateInstructionData::zero_copy_at(instruction_data).unwrap();
     let program_id = crate::ID.into();
 
     // TODO: replace with SystemInfoInstructionData::bytes_required_for_capacity
     let instruction_data_capacity = 10480;
-    let mut vec = vec![0u8; instruction_data_capacity];
+    let mut cpi_data_bytes = vec![0u8; instruction_data_capacity];
     // This would be new not mut
     // We need a generic config.
     // An array for Compressed accounts which define the type of the account.
@@ -326,7 +331,7 @@ pub fn update_pda_with_light_account_loader(
     //    CompressedAccountType: MyCompressedAccount, Init (no input, address: bool), Close (no output, address: bool), Mut(in and output, address: bool)
     // }
     let (mut cpi_data, _) =
-        SystemInfoInstructionData::zero_copy_at_mut(vec.as_mut_slice()).unwrap();
+        SystemInfoInstructionData::zero_copy_at_mut(cpi_data_bytes.as_mut_slice()).unwrap();
     // Steps:
     // 1. build input account from onchain and instruction data
     // 2. hash input account
@@ -355,13 +360,22 @@ pub fn update_pda_with_light_account_loader(
             .unwrap();
 
         my_account.data = *instruction_data.new_data;
+
         let output_hasher = my_account.hash::<Poseidon>().unwrap();
 
         loader.finalize(output_hasher).unwrap();
     }
+
     let light_cpi_accounts = LightCpiAccounts::new(&accounts[0], &accounts[1..], crate::ID)?;
-    verify_system_info(&light_cpi_accounts, vec)
+    verify_system_info(&light_cpi_accounts, cpi_data_bytes)
 }
+
+// pub Instruction {
+//     #[constraint= signer = accounts[0].key]
+//     #[constraint= address = instruction_data.input_compressed_account.meta.address]
+//     #[constraint= address = instruction_data.input_compressed_account.meta.address]
+//     pub CompressedAccount
+// }
 
 // TODO: make loader from ZCAccountInfoMut<'a> -> so that we work over cpi memory
 pub struct CAccountLoader<
@@ -375,6 +389,7 @@ pub struct CAccountLoader<
     /// For close accounts we store data here.
     close_data: Option<Vec<u8>>,
     finalized: bool,
+
     phantom_a: std::marker::PhantomData<A>,
     phantom_m: std::marker::PhantomData<M>,
     phantom_b: std::marker::PhantomData<&'b ()>,

@@ -282,4 +282,8 @@ impl<T: ZeroCopyTraits + DeserializeMut> DeserializeMut for ZeroCopySliceMutBors
     fn zero_copy_at_mut(bytes: &mut [u8]) -> Result<(Self::Output<'_>, &mut [u8]), ZeroCopyError> {
         ZeroCopySliceMutBorsh::from_bytes_at(bytes)
     }
+
+    fn byte_len(&self) -> usize {
+        Self::metadata_size() + self.len() * size_of::<T>()
+    }
 }
