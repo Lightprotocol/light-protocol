@@ -5,7 +5,6 @@ use account_compression::{
 use forester_utils::{
     account_zero_copy::{get_concurrent_merkle_tree, get_indexed_merkle_tree},
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
-    forester_epoch::TreeType,
     instructions::create_account::create_account_instruction,
     registry::RentExemption,
 };
@@ -14,6 +13,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{RpcConnection, RpcError},
 };
+use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_registry::{
     account_compression_cpi::sdk::{

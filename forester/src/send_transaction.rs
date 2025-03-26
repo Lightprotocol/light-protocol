@@ -12,12 +12,13 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection, RpcError},
     rpc_pool::SolanaRpcPool,
 };
+use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::{
         create_nullify_instruction, create_update_address_merkle_tree_instruction,
