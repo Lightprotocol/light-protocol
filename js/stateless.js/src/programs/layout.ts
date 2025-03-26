@@ -237,7 +237,15 @@ export const PublicTransactionEventLayout: Layout<PublicTransactionEvent> =
             'outputCompressedAccounts',
         ),
         vec(u32(), 'outputLeafIndices'),
-        vec(struct([publicKey('pubkey'), u64('seq')]), 'sequenceNumbers'),
+        vec(
+            struct([
+                publicKey('tree_pubkey'),
+                publicKey('queue_pubkey'),
+                u64('tree_type'),
+                u64('seq'),
+            ]),
+            'sequenceNumbers',
+        ),
         option(u64(), 'relayFee'),
         bool('isCompress'),
         option(u64(), 'compressOrDecompressLamports'),
@@ -294,7 +302,12 @@ export const InsertAddressInputLayout = struct(
 );
 
 export const MerkleTreeSequenceNumberLayout = struct(
-    [publicKey('pubkey'), u64('seq')],
+    [
+        publicKey('tree_pubkey'),
+        publicKey('queue_pubkey'),
+        u64('tree_type'),
+        u64('seq'),
+    ],
     'merkleTreeSequenceNumber',
 );
 
@@ -434,7 +447,9 @@ export function convertToPublicTransactionEvent(
         ),
         outputLeafIndices: decoded.output_leaf_indices,
         sequenceNumbers: decoded.sequence_numbers.map((sn: any) => ({
-            pubkey: new PublicKey(sn.pubkey),
+            tree_pubkey: new PublicKey(sn.tree_pubkey),
+            queue_pubkey: new PublicKey(sn.queue_pubkey),
+            tree_type: new BN(sn.tree_type),
             seq: new BN(sn.seq),
         })),
         pubkeyArray: remainingAccounts
