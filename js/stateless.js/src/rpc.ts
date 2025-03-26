@@ -62,6 +62,7 @@ import {
     localTestActiveStateTreeInfo,
     isLocalTest,
     defaultStateTreeLookupTables,
+    COMPRESSED_TOKEN_PROGRAM_ID,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -609,9 +610,43 @@ export function deriveTokenPoolPdaWithBump(
     }
     const [address, _] = PublicKey.findProgramAddressSync(
         seeds,
-        new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
+        COMPRESSED_TOKEN_PROGRAM_ID,
     );
     return address;
+}
+
+export type TokenPoolActivity = {
+    signature: string;
+    amount: BN;
+    action: Action;
+};
+
+export type TokenPoolInfo = {
+    /**
+     * The mint of the token pool
+     */
+    mint: PublicKey;
+    /**
+     * The token pool address
+     */
+    tokenPoolAddress: PublicKey;
+    /**
+     * The token program of the token pool
+     */
+    tokenProgram: PublicKey;
+    /**
+     * count of txs and volume in the past 60 seconds.
+     */
+    activity?: {
+        txs: number;
+        amountAdded: BN;
+        amountRemoved: BN;
+    };
+};
+export enum Action {
+    Compress = 1,
+    Decompress = 2,
+    Transfer = 3,
 }
 
 /**
@@ -641,24 +676,22 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
-        const tokenPoolInfo0 = deriveTokenPoolPdaWithBump(mint, 0);
-        const tokenPoolInfo1 = deriveTokenPoolPdaWithBump(mint, 1);
-        const tokenPoolInfo2 = deriveTokenPoolPdaWithBump(mint, 2);
-        const tokenPoolInfo3 = deriveTokenPoolPdaWithBump(mint, 3);
-        const tokenPoolInfo4 = deriveTokenPoolPdaWithBump(mint, 4);
-        const tokenPoolInfo5 = deriveTokenPoolPdaWithBump(mint, 5);
-
-        const tokenPoolInfos = await Promise.all([
-            this.getTokenAccountBalance(tokenPoolInfo0),
-            this.getTokenAccountBalance(tokenPoolInfo1),
-            this.getTokenAccountBalance(tokenPoolInfo2),
-            this.getTokenAccountBalance(tokenPoolInfo3),
-            this.getTokenAccountBalance(tokenPoolInfo4),
-            this.getTokenAccountBalance(tokenPoolInfo5),
-        ]);
+        const tokenPoolInfos = await Promise.all(
+            Array.from({ length: 6 }, (_, i) => {
+                const tokenPoolPda = deriveTokenPoolPdaWithBump(mint, i);
+                return this.getTokenAccountBalance(tokenPoolPda).then(
+                    balance => ({
+                        tokenPoolPda,
+                        balance,
+                    }),
+                );
+            }),
+        );
         const infos: TokenPoolInfo[] = tokenPoolInfos.map(tokenPoolInfo => ({
-            tokenPool: mint,
-            tokenPoolInfo: tokenPoolInfo.value.amount,
+            mint,
+            tokenPoolAddress: tokenPoolInfo.tokenPoolPda,
+            tokenProgram: COMPRESSED_TOKEN_PROGRAM_ID,
+            activity: undefined,
         }));
         return infos;
     }

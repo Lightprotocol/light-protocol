@@ -79,41 +79,6 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
-export enum Action {
-    Compress = 1,
-    Decompress = 2,
-    Transfer = 3,
-}
-
-export type TokenPoolActivity = {
-    signature: string;
-    amount: BN;
-    action: Action;
-};
-
-export type TokenPoolInfo = {
-    /**
-     * The mint of the token pool
-     */
-    mint: PublicKey;
-    /**
-     * The token pool address
-     */
-    tokenPoolAddress: PublicKey;
-    /**
-     * The token program of the token pool
-     */
-    tokenProgram: PublicKey;
-    /**
-     * count of txs and volume in the past 60 seconds.
-     */
-    activity: {
-        txs: number;
-        amountAdded: BN;
-        amountRemoved: BN;
-    };
-};
-
 export type StorageOptions = {
     /**
      * State tree info
