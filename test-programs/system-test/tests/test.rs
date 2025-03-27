@@ -1511,7 +1511,7 @@ async fn regenerate_accounts() {
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
-        100_000_000_000,
+        1_000_000_000_000,
     )
     .await
     .unwrap();

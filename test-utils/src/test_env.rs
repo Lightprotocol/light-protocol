@@ -700,9 +700,8 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
-    let size =
-        account_compression::state::queue::QueueAccount::size(queue_config.capacity as usize)
-            .unwrap();
+    let size = account_compression::state::queue::QueueAccount::size(218_000).unwrap();
+    println!("queue account: size {}", size);
     let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,

@@ -4,6 +4,8 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+light-client = { workspace = true }
+light-test-utils = { path = "../test-utils", version = "1.0.0" }
 account-compression = { path = "../programs/account-compression", version = "1.0.0" }
 anyhow = "1.0"
 ark-bn254 = "0.4"
@@ -20,4 +22,7 @@ rand = "0.8"
 quote = "1.0"
 sha2 = "0.10"
 solana-program = { workspace = true }
+solana-sdk = { workspace = true }
 tabled = "0.15"
+tokio = { workspace = true, features = ["full"] }
+dirs = "6"

@@ -97,10 +97,11 @@ install_rust() {
         echo "Installing Rust..."
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
-        curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path        
+        curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
-        cargo install cargo-expand wasm-pack
+        cargo install wasm-pack --locked
+        cargo install cargo-expand --version 1.0.95 --locked
         cargo install photon-indexer --version $(get_version "photon") --locked
         log "rust"
     fi
@@ -149,7 +150,7 @@ install_anchor() {
         echo "Installing Anchor..."
         local version=$(get_version "anchor")
         local suffix=$(get_suffix "anchor")
-        local url="https://github.com/Lightprotocol/binaries/releases/download/${version}/anchor-${suffix}"        
+        local url="https://github.com/Lightprotocol/binaries/releases/download/${version}/anchor-${suffix}"
         download "$url" "${PREFIX}/bin/anchor"
         log "anchor"
     fi
