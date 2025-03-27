@@ -74,8 +74,6 @@ pub fn derive_new_addresses<'info>(
                         cpi_ix_data.insert_address_sequence_number(
                             &mut seq_index,
                             tree.pubkey(),
-                            tree.pubkey(),
-                            tree.tree_type,
                             tree.queue_batches.next_index,
                         );
 

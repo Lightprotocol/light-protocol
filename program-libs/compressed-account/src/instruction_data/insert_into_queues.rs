@@ -11,7 +11,7 @@ use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
-use crate::pubkey::Pubkey;
+use crate::{pubkey::Pubkey, TreeType};
 
 #[repr(C)]
 #[derive(
@@ -170,7 +170,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             &mut self.input_sequence_numbers,
             index,
             tree_pubkey,
-            queue_pubkey,
+            Some(queue_pubkey),
             tree_type,
             seq,
         );
@@ -180,16 +180,14 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         &mut self,
         index: &mut usize,
         tree_pubkey: &Pubkey,
-        queue_pubkey: &Pubkey,
-        tree_type: u64,
         seq: u64,
     ) {
         Self::insert_sequence_number(
             &mut self.address_sequence_numbers,
             index,
             tree_pubkey,
-            queue_pubkey,
-            tree_type,
+            None,
+            TreeType::BatchedAddress as u64,
             seq,
         );
     }
@@ -198,7 +196,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         sequence_numbers: &mut ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
         index: &mut usize,
         tree_pubkey: &Pubkey,
-        queue_pubkey: &Pubkey,
+        queue_pubkey: Option<&Pubkey>,
         tree_type: u64,
         seq: u64,
     ) {
@@ -207,7 +205,9 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             .position(|x| x.tree_pubkey == *tree_pubkey);
         if pos.is_none() {
             sequence_numbers[*index].tree_pubkey = *tree_pubkey;
-            sequence_numbers[*index].queue_pubkey = *queue_pubkey;
+            if let Some(queue_pubkey) = queue_pubkey {
+                sequence_numbers[*index].queue_pubkey = *queue_pubkey;
+            }
             sequence_numbers[*index].tree_type = tree_type.into();
             sequence_numbers[*index].seq = seq.into();
             *index += 1;
