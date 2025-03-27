@@ -85,9 +85,11 @@ impl Deref for InsertIntoQueuesInstructionData<'_> {
     }
 }
 
-impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> std::result::Result<(Self, &'a [u8]), ZeroCopyError> {
+impl Deserialize for InsertIntoQueuesInstructionData<'_> {
+    type Output<'a> = InsertIntoQueuesInstructionData<'a>;
+    fn zero_copy_at<'a>(
+        bytes: &'a [u8],
+    ) -> std::result::Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) = Ref::<&[u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
 
         let (leaves, bytes) = ZeroCopySlice::<u8, AppendLeavesInput, false>::from_bytes_at(bytes)?;

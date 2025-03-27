@@ -2345,6 +2345,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 
 [[package]]
+name = "glob"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
+
+[[package]]
 name = "goblin"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3271,12 +3277,14 @@ dependencies = [
  "ark-ff 0.5.0",
  "arrayvec",
  "light-poseidon 0.3.0",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
  "thiserror 2.0.12",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]
@@ -3445,6 +3453,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "light-batched-merkle-tree",
+ "light-compressed-account",
  "light-merkle-tree-metadata",
  "light-system-program",
  "solana-sdk",
@@ -3465,10 +3474,12 @@ dependencies = [
  "light-sdk-macros",
  "light-system-program",
  "light-verifier",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "solana-program",
  "solana-sdk",
  "thiserror 2.0.12",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]
@@ -3476,13 +3487,16 @@ name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
  "ark-bn254 0.5.0",
+ "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
  "light-poseidon 0.3.0",
+ "light-zero-copy",
  "prettyplease",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]
@@ -3580,9 +3594,26 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
+ "borsh 0.10.4",
+ "light-zero-copy-derive",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
+ "zerocopy 0.8.23",
+]
+
+[[package]]
+name = "light-zero-copy-derive"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "lazy_static",
+ "light-zero-copy",
+ "proc-macro2",
+ "quote",
+ "rand 0.8.5",
+ "syn 2.0.100",
+ "trybuild",
  "zerocopy 0.8.23",
 ]
 
@@ -4433,7 +4464,7 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d6ea3c4595b96363c13943497db34af4460fb474a95c43f4446ad341b8c9785"
 dependencies = [
- "toml",
+ "toml 0.5.11",
 ]
 
 [[package]]
@@ -5175,9 +5206,11 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
+ "light-zero-copy",
  "solana-program",
  "solana-sdk",
  "tokio",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]
@@ -5256,6 +5289,15 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "0.6.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
+dependencies = [
  "serde",
 ]
 
@@ -7315,6 +7357,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "target-triple"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ac9aa371f599d22256307c24a9d748c041e548cbf599f35d890f9d365361790"
+
+[[package]]
 name = "tarpc"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7713,10 +7761,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd87a5cdd6ffab733b2f74bc4fd7ee5fff6634124999ac278c35fc78c6120148"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit 0.22.24",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "toml_edit"
@@ -7736,6 +7799,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
  "indexmap 2.8.0",
+ "serde",
+ "serde_spanned",
  "toml_datetime",
  "winnow 0.7.3",
 ]
@@ -7851,6 +7916,21 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "trybuild"
+version = "1.0.104"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ae08be68c056db96f0e6c6dd820727cca756ced9e1f4cc7fdd20e2a55e23898"
+dependencies = [
+ "glob",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "target-triple",
+ "termcolor",
+ "toml 0.8.20",
+]
 
 [[package]]
 name = "tungstenite"

@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::queue::BatchedQueueAccount;
-use light_compressed_account::instruction_data::insert_into_queues::InsertNullifierInput;
+use light_compressed_account::{
+    instruction_data::insert_into_queues::InsertNullifierInput, pubkey::Pubkey,
+};
 use num_bigint::BigUint;
 
 use crate::{
@@ -177,7 +179,9 @@ fn process_nullifiers_v1<'info>(
         // Discriminator is already checked in try_from_account_infos.
         let queue = bytemuck::from_bytes::<QueueAccount>(&queue_data[8..QueueAccount::LEN]);
         // 3. Check queue and Merkle tree are associated.
-        if queue.metadata.associated_merkle_tree != (*merkle_pubkey).into() {
+        if queue.metadata.associated_merkle_tree
+            != <anchor_lang::prelude::Pubkey as Into<Pubkey>>::into(*merkle_pubkey)
+        {
             msg!(
                 "Queue account {:?} is not associated with Merkle tree  {:?}",
                 nullifier_queue.key(),

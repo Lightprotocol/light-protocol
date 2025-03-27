@@ -194,10 +194,10 @@ where
     }
 }
 
-impl<'a, T: ZeroCopyTraits + Deserialize<'a>> Deserialize<'a> for ZeroCopySliceBorsh<'a, T> {
-    type Output = Self;
+impl<T: ZeroCopyTraits + Deserialize> Deserialize for ZeroCopySliceBorsh<'_, T> {
+    type Output<'a> = ZeroCopySliceBorsh<'a, T>;
 
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         ZeroCopySliceBorsh::from_bytes_at(bytes)
     }
 }

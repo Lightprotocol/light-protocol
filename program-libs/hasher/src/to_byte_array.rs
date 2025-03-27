@@ -1,4 +1,5 @@
 use crate::{Hasher, HasherError, Poseidon};
+use zerocopy::little_endian::{I16, I32, I64, U16, U32, U64};
 
 pub trait ToByteArray {
     const NUM_FIELDS: usize;
@@ -54,6 +55,36 @@ impl ToByteArray for solana_program::pubkey::Pubkey {
         Ok([self.to_byte_array()?; NUM_FIELDS])
     }
 }
+
+macro_rules! impl_to_byte_array_zero_copy_primitive_types {
+    ($target:ty, $inner:ty) => {
+        impl ToByteArray for $target {
+            const NUM_FIELDS: usize = 1;
+            const IS_PRIMITIVE: bool = true;
+
+            fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
+                let bytes: $inner = (*self).into();
+                bytes.to_byte_array()
+            }
+
+            fn to_byte_arrays<const NUM_FIELDS: usize>(
+                &self,
+            ) -> Result<[[u8; 32]; NUM_FIELDS], HasherError> {
+                if Self::NUM_FIELDS != NUM_FIELDS {
+                    return Err(HasherError::InvalidNumFields);
+                }
+                Ok([self.to_byte_array()?; NUM_FIELDS])
+            }
+        }
+    };
+}
+
+impl_to_byte_array_zero_copy_primitive_types!(U16, u16);
+impl_to_byte_array_zero_copy_primitive_types!(U32, u32);
+impl_to_byte_array_zero_copy_primitive_types!(U64, u64);
+impl_to_byte_array_zero_copy_primitive_types!(I16, i16);
+impl_to_byte_array_zero_copy_primitive_types!(I32, i32);
+impl_to_byte_array_zero_copy_primitive_types!(I64, i64);
 
 impl<T: ToByteArray> ToByteArray for Option<T> {
     const NUM_FIELDS: usize = 1;

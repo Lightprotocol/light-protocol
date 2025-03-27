@@ -18,9 +18,7 @@ pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,
     seed: &[u8; 32],
 ) -> Result<[u8; 32], CompressedAccountError> {
-    let hash =
-        hash_to_bn254_field_size_be([merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice());
-    Ok(hash)
+        Ok(hash_to_bn254_field_size_be([merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice()))
 }
 
 pub fn derive_address(

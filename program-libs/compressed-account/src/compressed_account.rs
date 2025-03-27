@@ -5,7 +5,9 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 use solana_program::pubkey::Pubkey;
+use zerocopy::{Immutable, KnownLayout, Unaligned};
 
 use crate::{
     address::pack_account,
@@ -93,7 +95,10 @@ pub struct ReadOnlyCompressedAccount {
     pub root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
@@ -109,7 +114,9 @@ pub struct MerkleContext {
     pub tree_type: TreeType,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(
+    Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,

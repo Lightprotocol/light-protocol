@@ -28,6 +28,7 @@ light-system-program = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-merkle-tree-metadata = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
+light-compressed-account = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
