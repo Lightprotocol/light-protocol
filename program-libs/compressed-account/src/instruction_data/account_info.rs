@@ -27,14 +27,25 @@ pub struct SystemInfoInstructionData {
     pub light_account_infos: Vec<CAccountInfo>,
 }
 
+pub struct Config {
+    pub space: usize,
+    pub has_address: bool,
+}
+
+pub enum CAccountConfig {
+    Init(Config),
+    Mut(Config),
+    Close(Config),
+}
+
 impl SystemInfoInstructionData {
     // TODO: unit test
-    pub fn bytes_required_for_capacity(
+    fn bytes_required_for_capacity(
         proof: bool,
         new_addresses: usize,
         read_only_accounts: usize,
         read_only_addresses: usize,
-        light_account_infos: Vec<usize>,
+        light_account_infos: usize,
     ) -> usize {
         let proof_bytes = if proof { 256 } else { 0 };
         1 // bump
@@ -44,8 +55,32 @@ impl SystemInfoInstructionData {
             + size_of::<NewAddressParamsPacked>() * new_addresses
             + size_of::<PackedReadOnlyCompressedAccount>() * read_only_accounts
             + size_of::<PackedReadOnlyAddress>() * read_only_addresses
-            + light_account_infos.iter().sum::<usize>()
+            + light_account_infos
     }
+
+    // pub fn new<'a>(
+    //     proof: bool,
+    //     new_addresses: usize,
+    //     read_only_accounts: usize,
+    //     read_only_addresses: usize,
+    //     light_account_infos: Vec<CAccountConfig>,
+    //     bytes: &mut [u8],
+    // ) -> ZSystemInfoInstructionDataMut<'a> {
+    //     let min_size = Self::bytes_required_for_capacity(
+    //         proof,
+    //         new_addresses,
+    //         read_only_accounts,
+    //         read_only_addresses,
+    //         light_account_infos
+    //             .iter()
+    //             .map(|x| match x {
+    //                 CAccountConfig::Init(config) => config.space,
+    //                 CAccountConfig::Mut(config) => config.space,
+    //                 CAccountConfig::Close(config) => config.space,
+    //             })
+    //             .sum(),
+    //     );
+    // }
 }
 
 /// Zero copy casts:
@@ -53,7 +88,7 @@ impl SystemInfoInstructionData {
 ///
 /// With Bitmask:
 /// - 1 cast completely with lamports or without
-#[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, ZeroCopy, Default, BorshSerialize, BorshDeserialize)]
 pub struct CInAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
@@ -62,7 +97,7 @@ pub struct CInAccountInfo {
     /// Root index.
     pub root_index: u16,
     /// Lamports.
-    pub lamports: Option<u64>,
+    pub lamports: u64,
 }
 
 /// Zero copy casts:
@@ -70,24 +105,23 @@ pub struct CInAccountInfo {
 ///
 /// With Bitmask:
 /// 1 + 2 -> 3
-#[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, ZeroCopy, Default, BorshSerialize, BorshDeserialize)]
 pub struct COutAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
     pub output_merkle_tree_index: u8,
     /// Lamports.
-    pub lamports: Option<u64>,
+    pub lamports: u64,
     /// Account data.
     pub data: Vec<u8>,
 }
 
-/// TODO: expose owner by method.
 /// Zero copy casts: 11
 /// With Option bitmask: 1 (bits) + 1(meta) + 1(input) + 3 (output) = 6
 /// Max bytes: 1 (bit) + 40 + 59 (inputs) + 41 + data (output) = 141 + output data
 /// Bytes without lamports: 125 + output data
 /// No input not lamports: 83 + output data
-#[derive(Debug, ZeroCopy, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, ZeroCopy, Default, BorshSerialize, BorshDeserialize)]
 pub struct CAccountInfo {
     // TODO: optimize parsing by manually implementing ZeroCopy and using the bitmask.
     // bitmask: u8,

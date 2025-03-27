@@ -1,12 +1,17 @@
+use std::ops::{Deref, DerefMut};
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
     compressed_account::{PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount},
     instruction_data::{
-        account_info::{SystemInfoInstructionData, ZCAccountInfoMut, ZCInAccountInfoMut},
+        account_info::{
+            CAccountInfo, CInAccountInfo, COutAccountInfo, SystemInfoInstructionData,
+            ZCAccountInfoMut, ZCInAccountInfoMut,
+        },
         compressed_proof::{CompressedProof, ZCompressedProof},
         data::{NewAddressParamsPacked, PackedReadOnlyAddress},
         meta::{
-            InputAccountMetaWithAddressNoLamports, ZInputAccountMetaTrait,
+            InputAccountMetaTrait, InputAccountMetaWithAddressNoLamports, ZInputAccountMetaTrait,
             ZInputAccountMetaWithAddressNoLamports,
         },
     },
@@ -116,13 +121,13 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
     verify_light_account_infos(
         &light_cpi_accounts,
         inputs.proof.map(|x| x.into()),
-        &[account_info],
         Some(vec![NewAddressParamsPacked {
             seed: address_seed,
             address_queue_account_index: address_context.address_queue_pubkey_index,
             address_merkle_tree_account_index: address_context.address_merkle_tree_pubkey_index,
             address_merkle_tree_root_index: address_context.root_index.into(),
         }]),
+        &[account_info],
         None,
         false,
         None,
@@ -311,6 +316,67 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
 //     let light_cpi_accounts = LightCpiAccounts::new(&accounts[0], &accounts[1..], crate::ID)?;
 //     verify_system_info(&light_cpi_accounts, vec)
 // }
+//
+
+pub fn update_pda_with_light_borsh_account(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<(), LightSdkError> {
+    let (instruction_data, remaining) =
+        UpdateInstructionData::zero_copy_at(instruction_data).unwrap();
+    let program_id = crate::ID.into();
+
+    // // TODO: replace with SystemInfoInstructionData::bytes_required_for_capacity
+    // let instruction_data_capacity = 10480;
+    // let mut cpi_data_bytes = vec![0u8; instruction_data_capacity];
+    // This would be new not mut
+    // We need a generic config.
+    // An array for Compressed accounts which define the type of the account.
+    // With the generics we can initialize the cpi data correctly, and provide correct init and accessor methods for the accounts.
+    // Generics {
+    //    CompressedAccountType: MyCompressedAccount, Init (no input, address: bool), Close (no output, address: bool), Mut(in and output, address: bool)
+    // }
+
+    let (mut cpi_data, _) =
+        SystemInfoInstructionData::zero_copy_at_mut(cpi_data_bytes.as_mut_slice()).unwrap();
+
+    // Steps:
+    // 1. build input account from onchain and instruction data
+    // 2. hash input account
+    // 3. copy input account into cpi data
+    // 4. init output account in cpi data
+    // 5. modify output account
+    // 6. hash output account
+    // 7. cpi system program
+    {
+        let mut loader = CAccountLoader::<
+            ZInputAccountMetaWithAddressNoLamports,
+            MyCompressedAccount,
+        >::from_cpi_account_info(
+            &mut cpi_data.light_account_infos[0], &program_id
+        );
+
+        let mut my_account = loader
+            .load_mut(
+                &instruction_data.input_compressed_account.meta,
+                MyCompressedAccount {
+                    signer: (*accounts[0].key).into(),
+                    data: *instruction_data.new_data,
+                },
+                instruction_data.output_merkle_tree_index,
+            )
+            .unwrap();
+
+        my_account.data = *instruction_data.new_data;
+
+        let output_hasher = my_account.hash::<Poseidon>().unwrap();
+
+        loader.finalize(output_hasher).unwrap();
+    }
+
+    let light_cpi_accounts = LightCpiAccounts::new(&accounts[0], &accounts[1..], crate::ID)?;
+    verify_system_info(&light_cpi_accounts, cpi_data_bytes)
+}
 
 pub fn update_pda_with_light_account_loader(
     accounts: &[AccountInfo],
@@ -330,8 +396,10 @@ pub fn update_pda_with_light_account_loader(
     // Generics {
     //    CompressedAccountType: MyCompressedAccount, Init (no input, address: bool), Close (no output, address: bool), Mut(in and output, address: bool)
     // }
+
     let (mut cpi_data, _) =
         SystemInfoInstructionData::zero_copy_at_mut(cpi_data_bytes.as_mut_slice()).unwrap();
+
     // Steps:
     // 1. build input account from onchain and instruction data
     // 2. hash input account
@@ -376,6 +444,182 @@ pub fn update_pda_with_light_account_loader(
 //     #[constraint= address = instruction_data.input_compressed_account.meta.address]
 //     pub CompressedAccount
 // }
+
+pub struct CBorshAccount<
+    'a,
+    A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default,
+> {
+    owner: &'a Pubkey,
+    pub account: A,
+    account_info: CAccountInfo,
+}
+
+impl<'a, A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default>
+    CBorshAccount<'a, A>
+{
+    pub fn new_init(
+        owner: &'a Pubkey,
+        input_account_meta: &impl InputAccountMetaTrait,
+        output_merkle_tree_index: u8,
+    ) -> Self {
+        let output_account_info = {
+            COutAccountInfo {
+                lamports: input_account_meta.get_lamports(),
+                output_merkle_tree_index,
+                ..Default::default()
+            }
+        };
+
+        Self {
+            owner,
+            account: A::default(),
+            account_info: CAccountInfo {
+                discriminator: A::discriminator(),
+                address: input_account_meta.get_address(),
+                input: None,
+                output: Some(output_account_info),
+            },
+        }
+    }
+
+    pub fn new_mut(
+        owner: &'a Pubkey,
+        input_account_meta: &impl InputAccountMetaTrait,
+        input_account: A,
+        output_merkle_tree_index: u8,
+    ) -> Self {
+        let input_account_info = {
+            let input_data_hash = input_account.hash::<Poseidon>().unwrap();
+            CInAccountInfo {
+                data_hash: input_data_hash,
+                lamports: input_account_meta.get_lamports(),
+                merkle_context: *input_account_meta.get_merkle_context(),
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+            }
+        };
+        let output_account_info = {
+            COutAccountInfo {
+                lamports: input_account_meta.get_lamports(),
+                output_merkle_tree_index,
+                ..Default::default()
+            }
+        };
+
+        Self {
+            owner,
+            account: input_account,
+            account_info: CAccountInfo {
+                discriminator: A::discriminator(),
+                address: input_account_meta.get_address(),
+                input: Some(input_account_info),
+                output: Some(output_account_info),
+            },
+        }
+    }
+
+    pub fn new_close(
+        owner: &'a Pubkey,
+        input_account_meta: &impl InputAccountMetaTrait,
+        input_account: A,
+    ) -> Self {
+        let input_account_info = {
+            let input_data_hash = input_account.hash::<Poseidon>().unwrap();
+            CInAccountInfo {
+                data_hash: input_data_hash,
+                lamports: input_account_meta.get_lamports(),
+                merkle_context: *input_account_meta.get_merkle_context(),
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+            }
+        };
+        Self {
+            owner,
+            account: input_account,
+            account_info: CAccountInfo {
+                discriminator: A::discriminator(),
+                address: input_account_meta.get_address(),
+                input: Some(input_account_info),
+                output: None,
+            },
+        }
+    }
+
+    pub fn discriminator(&self) -> &[u8; 8] {
+        &self.account_info.discriminator
+    }
+
+    pub fn lamports(&self) -> u64 {
+        if let Some(output) = self.account_info.output.as_ref() {
+            output.lamports.unwrap_or_default()
+        } else if let Some(input) = self.account_info.input.as_ref() {
+            input.lamports.unwrap_or_default()
+        } else {
+            0
+        }
+    }
+
+    pub fn lamports_mut(&mut self) -> &mut u64 {
+        if let Some(output) = self.account_info.output.as_mut() {
+            if output.lamports.is_none() {
+                output.lamports = Some(0);
+            }
+            output.lamports.as_mut().unwrap()
+        } else if let Some(input) = self.account_info.input.as_mut() {
+            if input.lamports.is_none() {
+                input.lamports = Some(0);
+            }
+            input.lamports.as_mut().unwrap()
+        } else {
+            panic!("No lamports field available in account_info")
+        }
+    }
+
+    pub fn address(&self) -> &Option<[u8; 32]> {
+        &self.account_info.address
+    }
+
+    pub fn owner(&self) -> &Pubkey {
+        self.owner
+    }
+
+    pub fn in_account_info(&self) -> &Option<CInAccountInfo> {
+        &self.account_info.input
+    }
+
+    pub fn out_account_info(&mut self) -> &Option<COutAccountInfo> {
+        &self.account_info.output
+    }
+
+    /// 1. Serializes the account data and sets the output data hash.
+    /// 2. Returns CAccountInfo.
+    ///
+    /// Note this is an expensive operation
+    /// that should only be called once per instruction.
+    pub fn to_account_info(&mut self) -> &CAccountInfo {
+        if let Some(output) = self.account_info.output.as_mut() {
+            output.data_hash = self.account.hash::<Poseidon>().unwrap();
+            output.data = self.account.try_to_vec().unwrap();
+        }
+        &self.account_info
+    }
+}
+
+impl<'a, A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default> Deref
+    for CBorshAccount<'a, A>
+{
+    type Target = A;
+
+    fn deref(&self) -> &Self::Target {
+        &self.account
+    }
+}
+
+impl<'a, A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default> DerefMut
+    for CBorshAccount<'a, A>
+{
+    fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
+        &mut self.account
+    }
+}
 
 // TODO: make loader from ZCAccountInfoMut<'a> -> so that we work over cpi memory
 pub struct CAccountLoader<
@@ -515,6 +759,7 @@ pub struct UpdateInstructionData {
     pub input_compressed_account: InputMyCompressedAccountWithContext,
     pub new_data: [u8; 31],
     pub output_merkle_tree_index: u8,
+    pub light_system_ix_data: LightInstructionData,
 }
 
 #[derive(Debug, ZeroCopy)]

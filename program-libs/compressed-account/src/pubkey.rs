@@ -75,6 +75,10 @@ impl DeserializeMut for Pubkey {
     ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
         Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
     }
+
+    fn byte_len(&self) -> usize {
+        32
+    }
 }
 impl PartialEq<<Pubkey as Deserialize>::Output<'_>> for Pubkey {
     fn eq(&self, other: &<Pubkey as Deserialize>::Output<'_>) -> bool {
