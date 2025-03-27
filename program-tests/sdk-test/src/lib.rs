@@ -84,7 +84,7 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         .map_err(ProgramError::from)?;
 
     my_compressed_account.data = account_data.try_into().unwrap();
-
+    let new_address_params = my_compressed_account.new_address_params().unwrap();
     let config = SystemAccountInfoConfig {
         self_program: crate::ID,
         cpi_context: false,
@@ -98,6 +98,7 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         &light_cpi_accounts,
         inputs.proof,
         &[my_compressed_account],
+        Some(vec![new_address_params]),
         None,
         false,
         None,

@@ -278,7 +278,7 @@ impl Default for SystemAccountPubkeys {
 }
 
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program);
+    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
