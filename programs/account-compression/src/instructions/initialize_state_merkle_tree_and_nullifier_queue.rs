@@ -125,7 +125,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue<'info>(
         state_merkle_tree_config.roots_size as usize,
         state_merkle_tree_config.canopy_depth as usize,
     );
-    let queue_expected_size = QueueAccount::size(nullifier_queue_config.capacity as usize)?;
+    let queue_expected_size = QueueAccount::size(218_000)?;
     let merkle_tree_rent = check_account_balance_is_rent_exempt(
         &ctx.accounts.merkle_tree.to_account_info(),
         merkle_tree_expected_size,
