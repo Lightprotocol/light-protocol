@@ -19,9 +19,7 @@ use light_batched_merkle_tree::{
     rollover_state_tree::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
 use light_client::rpc::{RpcConnection, RpcError};
-use light_compressed_account::{
-    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
-};
+use light_compressed_account::{hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof, QueueType};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -374,7 +372,6 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
-use light_merkle_tree_metadata::queue::QueueType;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
