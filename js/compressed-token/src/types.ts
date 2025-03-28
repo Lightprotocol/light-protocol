@@ -3,6 +3,7 @@ import BN from 'bn.js';
 import {
     CompressedProof,
     PackedMerkleContext,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 export type CompressedCpiContext = {
@@ -76,6 +77,17 @@ export type CompressSplTokenAccountInstructionData = {
     owner: PublicKey;
     remainingAmount: BN | null;
     cpiContext: CompressedCpiContext | null;
+};
+
+export type StorageOptions = {
+    /**
+     * State tree info
+     */
+    stateTreeInfo?: StateTreeInfo;
+    /**
+     * Whether to store the token pool info in the state tree
+     */
+    tokenPoolInfos?: TokenPoolInfo | TokenPoolInfo[];
 };
 
 export type CompressedTokenInstructionDataTransfer = {

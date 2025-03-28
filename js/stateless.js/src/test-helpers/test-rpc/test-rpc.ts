@@ -14,6 +14,7 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfo,
 } from '../../constants';
@@ -29,6 +30,8 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
+    deriveTokenPoolPdaWithBump,
+    TokenPoolInfo,
 } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
@@ -51,7 +54,7 @@ import {
     convertNonInclusionMerkleProofInputsToHex,
     proverRequest,
 } from '../../rpc';
-import { ActiveTreeBundle } from '../../state/types';
+import { StateTreeInfo } from '../../state/types';
 
 export interface TestRpcConfig {
     /**
@@ -151,7 +154,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
+    activeStateTreeInfo: StateTreeInfo[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -207,21 +210,45 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+    setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
     }
 
+    async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
+        const tokenPoolInfos = await Promise.all(
+            Array.from({ length: 6 }, (_, i) => {
+                // TODO:
+                // 1. use getAccounts and parse them myself.
+                // 2. set initialized flag
+                // 3. test suite with local pools setup
+                const tokenPoolPda = deriveTokenPoolPdaWithBump(mint, i);
+                return this.getTokenAccountBalance(tokenPoolPda).then(
+                    balance => ({
+                        tokenPoolPda,
+                        balance,
+                    }),
+                );
+            }),
+        );
+        const infos: TokenPoolInfo[] = tokenPoolInfos.map(tokenPoolInfo => ({
+            mint,
+            tokenPoolAddress: tokenPoolInfo.tokenPoolPda,
+            tokenProgram: COMPRESSED_TOKEN_PROGRAM_ID,
+            activity: undefined,
+        }));
+        return infos;
+    }
     /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
     /**
      * Returns local test state trees.
      */
-    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 

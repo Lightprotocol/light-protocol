@@ -50,7 +50,7 @@ export async function mintTo(
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
         merkleTree = tree;
     }

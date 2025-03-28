@@ -78,7 +78,7 @@ describe('rpc-multi-trees', () => {
     let address: PublicKey;
     it('must create account with random output tree (pickRandomTreeAndQueue)', async () => {
         const tree = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+            await rpc.getCachedActiveStateTreeInfos(),
         );
 
         const seed = randomBytes(32);
@@ -121,7 +121,7 @@ describe('rpc-multi-trees', () => {
 
         /// Executes transfers using random output trees
         const tree1 = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+            await rpc.getCachedActiveStateTreeInfos(),
         );
         await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1.tree);
         executedTxs++;
@@ -129,7 +129,7 @@ describe('rpc-multi-trees', () => {
         randQueues.push(tree1.queue);
 
         const tree2 = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+            await rpc.getCachedActiveStateTreeInfos(),
         );
         await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2.tree);
         executedTxs++;
@@ -196,7 +196,7 @@ describe('rpc-multi-trees', () => {
         /// Creates a compressed account with address and lamports using a
         /// (combined) 'validityProof' from Photon
         const tree = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+            await rpc.getCachedActiveStateTreeInfos(),
         );
         await createAccountWithLamports(
             rpc,
@@ -239,7 +239,7 @@ describe('rpc-multi-trees', () => {
             });
 
             const tree = pickRandomTreeAndQueue(
-                await rpc.getCachedActiveStateTreeInfo(),
+                await rpc.getCachedActiveStateTreeInfos(),
             );
             await transfer(
                 rpc,

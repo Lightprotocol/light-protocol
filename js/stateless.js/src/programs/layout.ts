@@ -154,14 +154,41 @@ export function decodeInstructionDataInvokeCpi(
 }
 
 export type invokeAccountsLayoutParams = {
+    /**
+     * Fee payer.
+     */
     feePayer: PublicKey;
+    /**
+     * Authority.
+     */
     authority: PublicKey;
+    /**
+     * The registered program pda
+     */
     registeredProgramPda: PublicKey;
+    /**
+     * Noop program.
+     */
     noopProgram: PublicKey;
+    /**
+     * Account compression authority.
+     */
     accountCompressionAuthority: PublicKey;
+    /**
+     * Account compression program.
+     */
     accountCompressionProgram: PublicKey;
+    /**
+     * Solana pool pda. Some() if compression or decompression is done.
+     */
     solPoolPda: PublicKey | null;
+    /**
+     * Decompression recipient.
+     */
     decompressionRecipient: PublicKey | null;
+    /**
+     * Solana system program.
+     */
     systemProgram: PublicKey;
 };
 

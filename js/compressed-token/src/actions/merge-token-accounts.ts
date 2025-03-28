@@ -72,7 +72,7 @@ export async function mergeTokenAccounts(
                 owner: owner.publicKey,
                 mint,
                 inputCompressedTokenAccounts: batch,
-                outputStateTree: merkleTree!,
+                outputStateTreeInfo: merkleTree!,
                 recentValidityProof: proof.compressedProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });

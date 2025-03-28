@@ -29,7 +29,7 @@ describe('rpc-multi-trees', () => {
         rpc = createRpc();
 
         treeAndQueue = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfo(),
+            await rpc.getCachedActiveStateTreeInfos(),
         );
 
         payer = await newAccountWithLamports(rpc, 1e9, 252);

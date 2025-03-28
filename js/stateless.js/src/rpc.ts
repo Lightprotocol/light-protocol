@@ -44,6 +44,8 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
+    TokenPoolInfo,
+    deriveTokenPoolPdaWithBump,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -62,6 +64,7 @@ import {
     localTestActiveStateTreeInfo,
     isLocalTest,
     defaultStateTreeLookupTables,
+    COMPRESSED_TOKEN_PROGRAM_ID,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -71,8 +74,8 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getLightStateTreeInfo } from './utils/get-light-state-tree-info';
-import { ActiveTreeBundle } from './state/types';
+import { getActiveStateTreeInfos } from './utils/get-state-tree-infos';
+import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
 
 /** @internal */
@@ -126,7 +129,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
+    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
 
     res.result.value.items.map(item => {
         const _account = item.account;
@@ -188,7 +191,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 /** @internal */
 function buildCompressedAccountWithMaybeTokenData(
     accountStructWithOptionalTokenData: any,
-    activeStateTreeInfo: ActiveTreeBundle[],
+    activeStateTreeInfo: StateTreeInfo[],
 ): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
@@ -559,7 +562,7 @@ export function getPublicInputHash(
  * @returns The queue for the given tree, or undefined if not found
  */
 export function getQueueForTree(
-    info: ActiveTreeBundle[],
+    info: StateTreeInfo[],
     tree: PublicKey,
 ): PublicKey {
     const index = info.findIndex(t => t.tree.equals(tree));
@@ -582,7 +585,7 @@ export function getQueueForTree(
  * @returns The tree for the given queue, or undefined if not found
  */
 export function getTreeForQueue(
-    info: ActiveTreeBundle[],
+    info: StateTreeInfo[],
     queue: PublicKey,
 ): PublicKey {
     const index = info.findIndex(q => q.queue?.equals(queue));
@@ -598,36 +601,12 @@ export function getTreeForQueue(
 }
 
 /**
- * Get a random tree and queue from the active state tree addresses.
- *
- * Prevents write lock contention on state trees.
- *
- * @param info - The active state tree addresses
- * @returns A random tree and queue
- */
-export function pickRandomTreeAndQueue(info: ActiveTreeBundle[]): {
-    tree: PublicKey;
-    queue: PublicKey;
-} {
-    const length = info.length;
-    const index = Math.floor(Math.random() * length);
-
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-    return {
-        tree: info[index].tree,
-        queue: info[index].queue,
-    };
-}
-
-/**
  *
  */
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    activeStateTreeInfo: ActiveTreeBundle[] | null = null;
+    activeStateTreeInfo: StateTreeInfo[] | null = null;
 
     constructor(
         endpoint: string,
@@ -643,24 +622,50 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Manually set state tree addresses
      */
-    setStateTreeInfo(info: ActiveTreeBundle[]): void {
+    setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
     }
 
+    async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
+        const tokenPoolInfos = await Promise.all(
+            Array.from({ length: 6 }, (_, i) => {
+                // TODO:
+                // 1. use getAccounts and parse them myself.
+                // 2. set initialized flag
+                // 3. test suite with local pools setup
+                const tokenPoolPda = deriveTokenPoolPdaWithBump(mint, i);
+                return this.getTokenAccountBalance(tokenPoolPda).then(
+                    balance => ({
+                        tokenPoolPda,
+                        balance,
+                    }),
+                );
+            }),
+        );
+        const infos: TokenPoolInfo[] = tokenPoolInfos.map(tokenPoolInfo => ({
+            mint,
+            tokenPoolAddress: tokenPoolInfo.tokenPoolPda,
+            tokenProgram: COMPRESSED_TOKEN_PROGRAM_ID,
+            activity: undefined,
+        }));
+        return infos;
+    }
+
     /**
+     *
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getCachedActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
 
-        let info: ActiveTreeBundle[] | null = null;
+        let info: StateTreeInfo[] | null = null;
         if (!this.activeStateTreeInfo) {
             const { mainnet, devnet } = defaultStateTreeLookupTables();
             try {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress:
                         mainnet[0].stateTreeLookupTable,
@@ -668,7 +673,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 });
                 this.activeStateTreeInfo = info;
             } catch {
-                info = await getLightStateTreeInfo({
+                info = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLookupTableAddress: devnet[0].stateTreeLookupTable,
                     nullifyTableAddress: devnet[0].nullifyTable,
@@ -690,9 +695,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the latest state tree addresses from the cluster.
      */
-    async getLatestActiveStateTreeInfo(): Promise<ActiveTreeBundle[]> {
+    async getActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
         this.activeStateTreeInfo = null;
-        return await this.getCachedActiveStateTreeInfo();
+        return await this.getCachedActiveStateTreeInfos();
     }
 
     /**
@@ -730,7 +735,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return null;
         }
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const associatedQueue = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.tree!,
@@ -839,7 +844,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get proof for compressed account ${hash.toString()}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const associatedQueue = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.merkleTree,
@@ -884,7 +889,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get info for compressed accounts ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map(item => {
             const associatedQueue = getQueueForTree(
@@ -940,7 +945,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         for (const proof of res.result.value) {
             const associatedQueue = getQueueForTree(
                 activeStateTreeInfo,
@@ -998,7 +1003,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             };
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.value.items.map(item => {
             const associatedQueue = getQueueForTree(
@@ -1257,7 +1262,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             maybeTokenData: TokenData | null;
         }[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfo();
+        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.compressionInfo.closedAccounts.map(item => {
             closedAccounts.push(

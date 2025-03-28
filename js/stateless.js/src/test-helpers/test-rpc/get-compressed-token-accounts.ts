@@ -1,7 +1,10 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
-import { defaultTestStateTreeAccounts } from '../../constants';
+import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    defaultTestStateTreeAccounts,
+} from '../../constants';
 import { Rpc } from '../../rpc';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
@@ -20,10 +23,6 @@ import {
     u8,
     Layout,
 } from '@coral-xyz/borsh';
-
-const tokenProgramId: PublicKey = new PublicKey(
-    'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
-);
 
 type TokenData = {
     mint: PublicKey;
@@ -55,7 +54,7 @@ export type EventWithParsedTokenTlvData = {
  */
 export function parseTokenLayoutWithIdl(
     compressedAccount: CompressedAccount,
-    programId: PublicKey = tokenProgramId,
+    programId: PublicKey = COMPRESSED_TOKEN_PROGRAM_ID,
 ): TokenData | null {
     if (compressedAccount.data === null) return null;
 

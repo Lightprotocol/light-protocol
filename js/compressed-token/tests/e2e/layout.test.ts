@@ -41,11 +41,7 @@ const getTestProgram = (): Program<LightCompressedToken> => {
         },
     );
     setProvider(mockProvider);
-    return new Program(
-        IDL,
-        new PublicKey('cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m'),
-        mockProvider,
-    );
+    return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
 };
 
 function deepEqual(ref: any, val: any) {
