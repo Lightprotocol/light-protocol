@@ -6,7 +6,7 @@ require (
 	github.com/consensys/gnark v0.8.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/iden3/go-iden3-crypto v0.0.13
-	github.com/reilabs/gnark-lean-extractor/v2 v2.4.0-0.8.0
+	github.com/reilabs/gnark-lean-extractor/v2 v2.5.0-0.8.0
 	github.com/urfave/cli/v2 v2.10.2
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/zerolog v1.29.0
-	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/stretchr/testify v1.8.4
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
