@@ -8,7 +8,6 @@ use light_batched_merkle_tree::{
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_hasher::bigint::bigint_to_be_bytes_array;
-use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     gnark::{
@@ -19,6 +18,9 @@ use light_prover_client::{
 };
 use reqwest::Client;
 use tracing::{debug, error, warn};
+use light_compressed_account::hash_chain::create_hash_chain_from_slice;
+use light_hasher::Poseidon;
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
@@ -59,7 +61,7 @@ where
         (leaves_hash_chain, start_index, current_root, zkp_batch_size)
     };
 
-    wait_for_indexer(rpc, indexer).await.unwrap();
+    wait_for_indexer(rpc, indexer).await?;
 
     let indexer_update_info = indexer
         .get_batch_address_update_info(merkle_tree_pubkey, batch_size)

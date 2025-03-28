@@ -48,7 +48,7 @@ async fn test_create_v2_address() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 15,
+        wait_time: 10,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
@@ -60,6 +60,7 @@ async fn test_create_v2_address() {
         limit_ledger_size: Some(500000),
     }))
     .await;
+
 
     let env = EnvAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
