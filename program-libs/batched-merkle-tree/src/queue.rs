@@ -329,6 +329,14 @@ impl<'a> BatchedQueueAccount<'a> {
                     }
                     return Ok(true);
                 } else {
+                    #[cfg(target_os = "solana")]
+                    {
+                        solana_program::msg!(
+                            "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
+                            leaf_index,
+                            hash_chain_value,*element
+                        );
+                    }
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
             }
@@ -352,6 +360,14 @@ impl<'a> BatchedQueueAccount<'a> {
         }
         // If no value is found and a check is not enforced return ok.
         if prove_by_index {
+            #[cfg(target_os = "solana")]
+            {
+                solana_program::msg!(
+                    "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
+                    leaf_index,
+                    hash_chain_value
+                );
+            }
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {
             Ok(())

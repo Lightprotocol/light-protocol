@@ -1,14 +1,12 @@
 use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
-    error::{LightSdkError, Result},
-    find_cpi_signer_macro, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
+    error::Result, find_cpi_signer_macro, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
     PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 
 #[repr(usize)]
 pub enum LightSystemAccountIndex {
-    // FeePayer,
     LightSystemProgram,
     Authority,
     RegisteredProgramPda,
@@ -38,10 +36,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         accounts: &'c [AccountInfo<'info>],
         program_id: Pubkey,
     ) -> Result<Self> {
-        if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-            solana_program::msg!("accounts len {}", accounts.len());
-            return Err(LightSdkError::FewerAccountsThanSystemAccounts);
-        }
+        // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
+        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+        // }
         Ok(Self {
             fee_payer,
             accounts,
@@ -57,10 +55,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         accounts: &'c [AccountInfo<'info>],
         config: SystemAccountInfoConfig,
     ) -> Result<Self> {
-        if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-            solana_program::msg!("accounts len {}", accounts.len());
-            return Err(LightSdkError::FewerAccountsThanSystemAccounts);
-        }
+        // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
+        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+        // }
         Ok(Self {
             fee_payer,
             accounts,
@@ -185,6 +183,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         }
         len
     }
+
+    pub fn account_infos(&self) -> &'c [AccountInfo<'info>] {
+        self.accounts
+    }
 }
 
 // Offchain
@@ -278,7 +280,7 @@ impl Default for SystemAccountPubkeys {
 }
 
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program);
+    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),

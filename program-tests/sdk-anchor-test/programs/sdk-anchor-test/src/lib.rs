@@ -1,9 +1,8 @@
 use anchor_lang::prelude::*;
-use light_hasher::Discriminator;
 use light_sdk::{
-    account::LightAccount, address::derive_address, error::LightSdkError,
+    account_meta::InputAccountMeta, address::derive_address, error::LightSdkError,
     instruction_data::LightInstructionData, light_account,
-    program_merkle_context::unpack_address_merkle_context, verify::verify_light_accounts,
+    program_merkle_context::unpack_address_merkle_context, verify::verify_light_account_infos,
     LightHasher,
 };
 
@@ -11,117 +10,48 @@ declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[program]
 pub mod sdk_anchor_test {
-    use light_sdk::system_accounts::LightCpiAccounts;
+    use light_sdk::{
+        account::CBorshAccount, system_accounts::LightCpiAccounts, NewAddressParamsPacked,
+    };
 
     use super::*;
 
-    pub fn with_compressed_account<'info>(
-        ctx: Context<'_, '_, '_, 'info, WithCompressedAccount<'info>>,
-        inputs: Vec<u8>,
-        name: String,
-    ) -> Result<()> {
-        let (_, inputs) = LightInstructionData::deserialize(&inputs).map_err(ProgramError::from)?;
-        let accounts = inputs
-            .accounts
-            .as_ref()
-            .ok_or(LightSdkError::ExpectedAccounts)
-            .map_err(ProgramError::from)?;
-
-        let address_merkle_context = accounts[0]
-            .address_merkle_context
-            .ok_or(LightSdkError::ExpectedAddressMerkleContext)
-            .map_err(ProgramError::from)?;
-        let address_merkle_context =
-            unpack_address_merkle_context(address_merkle_context, &ctx.remaining_accounts[8..]);
-        let (address, address_seed) = derive_address(
-            &[b"compressed", name.as_bytes()],
-            &address_merkle_context,
-            &crate::ID,
-        );
-
-        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::from_meta_init(
-                &accounts[0],
-                MyCompressedAccount::discriminator(),
-                address,
-                address_seed,
-                &crate::ID,
-            )
-            .map_err(ProgramError::from)?;
-
-        my_compressed_account.name = name;
-
-        msg!(
-            "system accounts: {:?}",
-            ctx.remaining_accounts
-                .iter()
-                .map(|a| a.key)
-                .collect::<Vec<_>>()
-        );
-        let light_cpi_accounts = LightCpiAccounts::new(
-            ctx.accounts.signer.as_ref(),
-            ctx.remaining_accounts,
-            crate::ID,
-        )
-        .map_err(ProgramError::from)?;
-
-        verify_light_accounts(
-            &light_cpi_accounts,
-            inputs.proof,
-            &[my_compressed_account],
-            None,
-            false,
-            None,
-        )
-        .map_err(ProgramError::from)?;
-
-        Ok(())
-    }
-
     pub fn with_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
-        inputs: Vec<u8>,
+        light_ix_data: LightInstructionData,
+        output_merkle_tree_index: u8,
         name: String,
     ) -> Result<()> {
-        let (_, inputs) = LightInstructionData::deserialize(&inputs).map_err(ProgramError::from)?;
-        let accounts = inputs
-            .accounts
-            .as_ref()
-            .ok_or(LightSdkError::ExpectedAccounts)
-            .map_err(ProgramError::from)?;
+        let program_id = crate::ID.into();
 
-        let address_merkle_context = accounts[0]
-            .address_merkle_context
+        let address_merkle_context = light_ix_data
+            .new_addresses
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)
-            .map_err(ProgramError::from)?;
-        let address_merkle_context =
+            .map_err(ProgramError::from)?[0];
+        let address_merkle_context_unpacked =
             unpack_address_merkle_context(address_merkle_context, &ctx.remaining_accounts[8..]);
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
-            &address_merkle_context,
+            &address_merkle_context_unpacked,
             &crate::ID,
         );
+        let new_address_params = NewAddressParamsPacked {
+            seed: address_seed,
+            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+            address_merkle_tree_root_index: address_merkle_context.root_index,
+            address_merkle_tree_account_index: address_merkle_context
+                .address_merkle_tree_pubkey_index,
+        };
 
-        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::from_meta_init(
-                &accounts[0],
-                MyCompressedAccount::discriminator(),
-                address,
-                address_seed,
-                &crate::ID,
-            )
-            .map_err(ProgramError::from)?;
+        let mut my_compressed_account = CBorshAccount::<'_, MyCompressedAccount>::new_init(
+            &program_id,
+            Some(address),
+            output_merkle_tree_index,
+        );
 
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        msg!(
-            "system accounts: {:?}",
-            ctx.remaining_accounts
-                .iter()
-                .map(|a| a.key)
-                .collect::<Vec<_>>()
-        );
         let light_cpi_accounts = LightCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
@@ -129,10 +59,11 @@ pub mod sdk_anchor_test {
         )
         .map_err(ProgramError::from)?;
 
-        verify_light_accounts(
+        verify_light_account_infos(
             &light_cpi_accounts,
-            inputs.proof,
-            &[my_compressed_account],
+            light_ix_data.proof,
+            &[my_compressed_account.to_account_info().unwrap()],
+            Some(vec![new_address_params]),
             None,
             false,
             None,
@@ -144,23 +75,18 @@ pub mod sdk_anchor_test {
 
     pub fn update_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
-        inputs: Vec<u8>,
+        light_ix_data: LightInstructionData,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: InputAccountMeta,
         nested_data: NestedData,
     ) -> Result<()> {
-        let (_, inputs) = LightInstructionData::deserialize(&inputs).map_err(ProgramError::from)?;
-        let accounts = inputs
-            .accounts
-            .as_ref()
-            .ok_or(LightSdkError::ExpectedAccounts)
-            .map_err(ProgramError::from)?;
-
-        let mut my_compressed_account: LightAccount<'_, MyCompressedAccount> =
-            LightAccount::from_meta_mut(
-                &accounts[0],
-                MyCompressedAccount::discriminator(),
-                &crate::ID,
-            )
-            .map_err(ProgramError::from)?;
+        let program_id = crate::ID.into();
+        let mut my_compressed_account = CBorshAccount::<'_, MyCompressedAccount>::new_mut(
+            &program_id,
+            &account_meta,
+            my_compressed_account,
+        )
+        .map_err(ProgramError::from)?;
 
         my_compressed_account.nested = nested_data;
 
@@ -171,10 +97,11 @@ pub mod sdk_anchor_test {
         )
         .map_err(ProgramError::from)?;
 
-        verify_light_accounts(
+        verify_light_account_infos(
             &light_cpi_accounts,
-            inputs.proof,
-            &[my_compressed_account],
+            light_ix_data.proof,
+            &[my_compressed_account.to_account_info().unwrap()],
+            None,
             None,
             false,
             None,
@@ -196,7 +123,7 @@ pub mod sdk_anchor_test {
 #[light_account]
 #[derive(Clone, Debug, Default)]
 pub struct MyCompressedAccount {
-    name: String,
+    pub name: String,
     pub nested: NestedData,
 }
 

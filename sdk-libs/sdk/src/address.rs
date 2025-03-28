@@ -5,7 +5,7 @@ use light_compressed_account::{
 use light_hasher::{Hasher, Keccak};
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
-use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use crate::merkle_context::{AddressMerkleContext, CpiAccounts};
 
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],
@@ -14,7 +14,7 @@ pub struct AddressWithMerkleContext {
 
 pub fn pack_new_addresses_params(
     addresses_params: &[NewAddressParams],
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
 ) -> Vec<PackedNewAddressParams> {
     addresses_params
         .iter()
@@ -35,7 +35,7 @@ pub fn pack_new_addresses_params(
 
 pub fn pack_new_address_params(
     address_params: NewAddressParams,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
 ) -> PackedNewAddressParams {
     pack_new_addresses_params(&[address_params], remaining_accounts)[0]
 }

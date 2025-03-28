@@ -10,14 +10,14 @@ use crate::{
 
 /// Collection of remaining accounts which are sent to the program.
 #[derive(Default)]
-pub struct RemainingAccounts {
+pub struct CpiAccounts {
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
 }
 
-impl RemainingAccounts {
+impl CpiAccounts {
     pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> Self {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
         remaining_accounts.add_system_accounts(config);
         remaining_accounts
     }
@@ -87,7 +87,7 @@ impl RemainingAccounts {
 
 pub fn pack_merkle_contexts<'a, I>(
     merkle_contexts: I,
-    remaining_accounts: &'a mut RemainingAccounts,
+    remaining_accounts: &'a mut CpiAccounts,
 ) -> impl Iterator<Item = PackedMerkleContext> + 'a
 where
     I: Iterator<Item = &'a MerkleContext> + 'a,
@@ -97,7 +97,7 @@ where
 
 pub fn pack_merkle_context(
     merkle_context: &MerkleContext,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
 ) -> PackedMerkleContext {
     let MerkleContext {
         merkle_tree_pubkey,
@@ -127,25 +127,30 @@ pub struct AddressMerkleContext {
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,
+    pub root_index: u16,
 }
 
 /// Returns an iterator of [`PackedAddressMerkleContext`] and fills up
 /// `remaining_accounts` based on the given `merkle_contexts`.
 pub fn pack_address_merkle_contexts<'a, I>(
     address_merkle_contexts: I,
-    remaining_accounts: &'a mut RemainingAccounts,
+    root_index: &'a [u16],
+    remaining_accounts: &'a mut CpiAccounts,
 ) -> impl Iterator<Item = PackedAddressMerkleContext> + 'a
 where
     I: Iterator<Item = &'a AddressMerkleContext> + 'a,
 {
-    address_merkle_contexts.map(|x| pack_address_merkle_context(x, remaining_accounts))
+    address_merkle_contexts
+        .zip(root_index)
+        .map(|(x, root_index)| pack_address_merkle_context(x, remaining_accounts, *root_index))
 }
 
 /// Returns a [`PackedAddressMerkleContext`] and fills up `remaining_accounts`
 /// based on the given `merkle_context`.
 pub fn pack_address_merkle_context(
     address_merkle_context: &AddressMerkleContext,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
+    root_index: u16,
 ) -> PackedAddressMerkleContext {
     let AddressMerkleContext {
         address_merkle_tree_pubkey,
@@ -158,6 +163,7 @@ pub fn pack_address_merkle_context(
     PackedAddressMerkleContext {
         address_merkle_tree_pubkey_index,
         address_queue_pubkey_index,
+        root_index,
     }
 }
 
@@ -167,7 +173,7 @@ mod test {
 
     #[test]
     fn test_remaining_accounts() {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
 
         let pubkey_1 = Pubkey::new_unique();
         let pubkey_2 = Pubkey::new_unique();
@@ -258,7 +264,7 @@ mod test {
 
     #[test]
     fn test_pack_merkle_context() {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
 
         let merkle_tree_pubkey = Pubkey::new_unique();
         let nullifier_queue_pubkey = Pubkey::new_unique();
@@ -284,7 +290,7 @@ mod test {
 
     #[test]
     fn test_pack_merkle_contexts() {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
 
         let merkle_contexts = &[
             MerkleContext {
@@ -339,7 +345,7 @@ mod test {
 
     #[test]
     fn test_pack_address_merkle_context() {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
 
         let address_merkle_context = AddressMerkleContext {
             address_merkle_tree_pubkey: Pubkey::new_unique(),
@@ -347,19 +353,20 @@ mod test {
         };
 
         let packed_address_merkle_context =
-            pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts);
+            pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts, 2);
         assert_eq!(
             packed_address_merkle_context,
             PackedAddressMerkleContext {
                 address_merkle_tree_pubkey_index: 0,
                 address_queue_pubkey_index: 1,
+                root_index: 2,
             }
         )
     }
 
     #[test]
     fn test_pack_address_merkle_contexts() {
-        let mut remaining_accounts = RemainingAccounts::default();
+        let mut remaining_accounts = CpiAccounts::default();
 
         let address_merkle_contexts = &[
             AddressMerkleContext {
@@ -376,22 +383,28 @@ mod test {
             },
         ];
 
-        let packed_address_merkle_contexts =
-            pack_address_merkle_contexts(address_merkle_contexts.iter(), &mut remaining_accounts);
+        let packed_address_merkle_contexts = pack_address_merkle_contexts(
+            address_merkle_contexts.iter(),
+            &[6, 7, 8],
+            &mut remaining_accounts,
+        );
         assert_eq!(
             packed_address_merkle_contexts.collect::<Vec<_>>(),
             &[
                 PackedAddressMerkleContext {
                     address_merkle_tree_pubkey_index: 0,
                     address_queue_pubkey_index: 1,
+                    root_index: 6,
                 },
                 PackedAddressMerkleContext {
                     address_merkle_tree_pubkey_index: 2,
                     address_queue_pubkey_index: 3,
+                    root_index: 7,
                 },
                 PackedAddressMerkleContext {
                     address_merkle_tree_pubkey_index: 4,
                     address_queue_pubkey_index: 5,
+                    root_index: 8,
                 }
             ]
         );

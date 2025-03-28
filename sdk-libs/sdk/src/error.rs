@@ -40,6 +40,10 @@ pub enum LightSdkError {
     Borsh,
     #[error("Fewer accounts than number of system accounts.")]
     FewerAccountsThanSystemAccounts,
+    #[error("InvalidCpiSignerAccount")]
+    InvalidCpiSignerAccount,
+    #[error("Missing meta field: {0}")]
+    MissingField(String),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error("Program error: {0}")]
@@ -66,6 +70,8 @@ impl From<LightSdkError> for u32 {
             LightSdkError::TransferIntegerOverflow => 14015,
             LightSdkError::Borsh => 14016,
             LightSdkError::FewerAccountsThanSystemAccounts => 14017,
+            LightSdkError::InvalidCpiSignerAccount => 14018,
+            LightSdkError::MissingField(_) => 14019,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
         }

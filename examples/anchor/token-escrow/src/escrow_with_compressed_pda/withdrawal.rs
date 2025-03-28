@@ -1,4 +1,3 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{
@@ -17,7 +16,7 @@ use light_hasher::{DataHasher, Poseidon};
 use light_sdk::{
     system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
     traits::*,
-    verify::verify,
+    verify::verify_borsh,
 };
 
 use crate::{
@@ -135,10 +134,6 @@ fn cpi_compressed_pda_withdrawal<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    // Create CPI signer seed
-    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
-    let bump = [bump];
-    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
 
     // Create CPI inputs
@@ -177,7 +172,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         },
     )
     .unwrap();
-    verify(&light_accounts, &inputs_struct, &[&signer_seeds]).map_err(ProgramError::from)?;
+    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 
     Ok(())
 }
