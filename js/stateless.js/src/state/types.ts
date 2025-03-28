@@ -91,6 +91,7 @@ export interface QueueIndex {
     index: number; // u16
 }
 
+
 /**
  * Describe the generic compressed account details applicable to every
  * compressed account.

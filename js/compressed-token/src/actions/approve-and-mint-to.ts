@@ -66,9 +66,8 @@ export async function approveAndMintTo(
         storageOptions.stateTreeInfo = info;
     }
     if (!storageOptions.tokenPoolInfos) {
-        const tokenPoolInfos = await rpc.getTokenPoolInfos();
-        const info = pickTokenPoolInfos(tokenPoolInfos);
-        storageOptions.tokenPoolInfos = info;
+        const tokenPoolInfos = await rpc.getTokenPoolInfos(mint);
+        storageOptions.tokenPoolInfos = tokenPoolInfos;
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({

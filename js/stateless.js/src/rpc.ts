@@ -44,6 +44,8 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
+    TokenPoolInfo,
+    deriveTokenPoolPdaWithBump,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -72,7 +74,7 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getActiveStateTreeInfos } from './utils/get-light-state-tree-info';
+import { getActiveStateTreeInfos } from './utils/get-state-tree-infos';
 import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
 
@@ -598,57 +600,6 @@ export function getTreeForQueue(
     return info[index].tree;
 }
 
-export function deriveTokenPoolPdaWithBump(
-    mint: PublicKey,
-    bump: number,
-): PublicKey {
-    let seeds: Buffer[] = [];
-    if (bump === 0) {
-        seeds = [Buffer.from('pool'), mint.toBuffer()];
-    } else {
-        seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
-    }
-    const [address, _] = PublicKey.findProgramAddressSync(
-        seeds,
-        COMPRESSED_TOKEN_PROGRAM_ID,
-    );
-    return address;
-}
-
-export type TokenPoolActivity = {
-    signature: string;
-    amount: BN;
-    action: Action;
-};
-
-export type TokenPoolInfo = {
-    /**
-     * The mint of the token pool
-     */
-    mint: PublicKey;
-    /**
-     * The token pool address
-     */
-    tokenPoolAddress: PublicKey;
-    /**
-     * The token program of the token pool
-     */
-    tokenProgram: PublicKey;
-    /**
-     * count of txs and volume in the past 60 seconds.
-     */
-    activity?: {
-        txs: number;
-        amountAdded: BN;
-        amountRemoved: BN;
-    };
-};
-export enum Action {
-    Compress = 1,
-    Decompress = 2,
-    Transfer = 3,
-}
-
 /**
  *
  */
@@ -678,6 +629,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
         const tokenPoolInfos = await Promise.all(
             Array.from({ length: 6 }, (_, i) => {
+                // TODO:
+                // 1. use getAccounts and parse them myself.
+                // 2. set initialized flag
+                // 3. test suite with local pools setup
                 const tokenPoolPda = deriveTokenPoolPdaWithBump(mint, i);
                 return this.getTokenAccountBalance(tokenPoolPda).then(
                     balance => ({
