@@ -19,9 +19,7 @@ use light_batched_merkle_tree::{
     rollover_state_tree::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
 use light_client::rpc::{RpcConnection, RpcError};
-use light_compressed_account::{
-    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
-};
+use light_compressed_account::{hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof, QueueType};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
@@ -374,7 +372,7 @@ use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
 use light_client::indexer::{Indexer, StateMerkleTreeBundle};
-use light_merkle_tree_metadata::QueueType;
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -819,12 +817,6 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let zkp_batch_index = batch.get_num_inserted_zkps();
     let leaves_hash_chain =
         merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
-    let batch_start_index = indexer
-        .get_address_merkle_trees()
-        .iter()
-        .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
-        .unwrap()
-        .right_most_index();
 
     let addresses = indexer
         .get_queue_elements(
@@ -865,6 +857,13 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
 
         low_element_proofs.push(non_inclusion_proof.low_address_proof.to_vec());
     }
+
+    let subtrees = indexer
+        .get_subtrees(merkle_tree_pubkey.to_bytes())
+        .await
+        .unwrap();
+    let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index as usize);
+
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
@@ -875,15 +874,10 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
             low_element_next_indices,
             low_element_proofs,
             addresses,
-            indexer
-                .get_subtrees(merkle_tree_pubkey.to_bytes())
-                .await
-                .unwrap()
-                .try_into()
-                .unwrap(),
+            &mut sparse_merkle_tree,
             leaves_hash_chain,
-            batch_start_index,
             batch.zkp_batch_size as usize,
+            None,
         )
         .unwrap();
     let client = Client::new();

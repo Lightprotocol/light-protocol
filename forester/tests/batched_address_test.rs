@@ -24,10 +24,13 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::log::info;
-
+use light_client::indexer::Indexer;
+use light_client::indexer::photon_indexer::PhotonIndexer;
 use crate::test_utils::{forester_config, general_action_config, init, keypair_action_config};
 
 mod test_utils;
+
+const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -114,6 +117,10 @@ async fn test_address_batched() {
     let indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
 
+    let mut photon_rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    photon_rpc.payer = forester_keypair.insecure_clone();
+    let mut photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, photon_rpc);
+
     let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
         indexer,
@@ -168,6 +175,21 @@ async fn test_address_batched() {
     )
     .unwrap();
 
+    let photon_indexer_update_info = photon_indexer
+        .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+        .await
+        .unwrap();
+
+
+    let test_indexer_update_info = env.indexer
+        .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+        .await
+        .unwrap();
+
+    println!("photon_indexer_update_info {}: {:#?}", 0, photon_indexer_update_info);
+    println!("test_indexer_update_info {}: {:#?}", 0, test_indexer_update_info);
+
+
     for i in 0..merkle_tree.queue_batches.batch_size {
         println!("===================== tx {} =====================", i);
 
@@ -181,6 +203,22 @@ async fn test_address_batched() {
         .unwrap();
 
         sleep(Duration::from_millis(100)).await;
+
+        if (i+1) % 10 == 0 {
+            let photon_indexer_update_info = photon_indexer
+                .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+                .await
+                .unwrap();
+
+
+            let test_indexer_update_info = env.indexer
+                .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+                .await
+                .unwrap();
+
+            println!("photon_indexer_update_info {}: {:#?}", i + 1, photon_indexer_update_info);
+            println!("test_indexer_update_info {}: {:#?}", i + 1, test_indexer_update_info);
+        }
     }
 
     let zkp_batches = tree_params.input_queue_batch_size / tree_params.input_queue_zkp_batch_size;
