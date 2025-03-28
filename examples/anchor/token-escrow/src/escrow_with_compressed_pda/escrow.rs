@@ -22,7 +22,7 @@ use light_sdk::{
     light_system_accounts,
     system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
     traits::*,
-    verify::verify,
+    verify::verify_borsh,
     LightTraits,
 };
 
@@ -109,9 +109,6 @@ fn cpi_compressed_pda_transfer<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
-    let bump = [bump];
-    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_account(
@@ -146,7 +143,7 @@ fn cpi_compressed_pda_transfer<'info>(
     )
     .unwrap();
 
-    verify(&light_accounts, &inputs_struct, &[&signer_seeds]).map_err(ProgramError::from)?;
+    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 
     Ok(())
 }

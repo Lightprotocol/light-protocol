@@ -1,5 +1,5 @@
 use crate::{
-    account_info::LightAccountInfo,
+    account_info::CAccountInfo,
     error::{LightSdkError, Result},
 };
 
@@ -9,28 +9,41 @@ use crate::{
 /// account. It will update the lamport balances of both accounts if the
 /// transfer is successful.
 pub fn transfer_compressed_sol(
-    from: &mut LightAccountInfo,
-    to: &mut LightAccountInfo,
+    from: &mut CAccountInfo,
+    to: &mut CAccountInfo,
     lamports: u64,
 ) -> Result<()> {
-    let output_from = from
-        .input
-        .as_ref()
-        .ok_or(LightSdkError::TransferFromNoInput)?
-        .lamports
-        .ok_or(LightSdkError::TransferFromNoLamports)?
-        .checked_sub(lamports)
-        .ok_or(LightSdkError::TransferFromInsufficientLamports)?;
-    let output_to = to
-        .input
-        .as_ref()
-        .and_then(|input| input.lamports)
-        .unwrap_or(0)
-        .checked_add(lamports)
-        .ok_or(LightSdkError::TransferIntegerOverflow)?;
+    if let Some(output) = from.output.as_mut() {
+        output.lamports = output
+            .lamports
+            .checked_sub(lamports)
+            .ok_or(LightSdkError::TransferFromInsufficientLamports)?;
+    }
+    // Issue:
+    // - we must not modify the balance of the input account since we need the correct value
+    //  to verify the proof.
+    // - If an account has no output compressed account have to transfer all lamports from it.
+    // - However the account does not have an output balance to measure the difference.
+    // - We could solve this by using the output balance anyway but skipping output values
+    //      which only use lamports and no data (program owned compressed must have data).
+    // else if let Some(input) = from.input.as_mut() {
+    //     input.lamports = input
+    //         .lamports
+    //         .checked_sub(lamports)
+    //         .ok_or(LightSdkError::TransferFromInsufficientLamports)?
+    // }
+    else {
+        return Err(LightSdkError::TransferFromNoLamports);
+    };
 
-    from.lamports = Some(output_from);
-    to.lamports = Some(output_to);
+    if let Some(output) = to.output.as_mut() {
+        output.lamports = output
+            .lamports
+            .checked_add(lamports)
+            .ok_or(LightSdkError::TransferIntegerOverflow)?;
+    } else {
+        return Err(LightSdkError::TransferFromNoLamports);
+    }
 
     Ok(())
 }
@@ -41,18 +54,16 @@ mod tests {
     use solana_program::pubkey::Pubkey;
 
     use super::*;
-    use crate::account_info::LightInputAccountInfo;
+    use crate::account_info::{CAccountInfo, CInAccountInfo, COutAccountInfo};
 
     /// Creates a mock account with the given input lamports.
-    fn mock_account(owner: &Pubkey, lamports: Option<u64>) -> LightAccountInfo<'_> {
-        LightAccountInfo {
-            input: Some(LightInputAccountInfo {
-                lamports,
-
+    fn mock_account(_owner: &Pubkey, lamports: Option<u64>) -> CAccountInfo {
+        let input_lamports = lamports.unwrap_or(0);
+        CAccountInfo {
+            input: Some(CInAccountInfo {
+                lamports: input_lamports,
                 // None of the following values matter.
-                address: Some([1; 32]),
-                data: Some(b"ayy"),
-                data_hash: Some([0; 32]),
+                data_hash: [0; 32],
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
@@ -61,31 +72,33 @@ mod tests {
                 },
                 root_index: 0,
             }),
-            owner,
+            output: Some(COutAccountInfo {
+                lamports: input_lamports,
+                // None of the following values matter.
+                data_hash: [0; 32],
+                data: Vec::new(),
+                output_merkle_tree_index: 0,
+            }),
             // None of the following values matter.
-            lamports: None,
-            discriminator: Some([0; 8]),
-            data: None,
-            data_hash: None,
+            discriminator: [0; 8],
             address: Some([1; 32]),
-            output_merkle_tree_index: None,
-            new_address_params: None,
         }
     }
 
     /// Creates a mock account without input.
-    fn mock_account_without_input(owner: &Pubkey) -> LightAccountInfo<'_> {
-        LightAccountInfo {
+    fn mock_account_without_input(_owner: &Pubkey) -> CAccountInfo {
+        CAccountInfo {
             input: None,
-            owner,
+            output: Some(COutAccountInfo {
+                lamports: 0,
+                // None of the following values matter.
+                data_hash: [0; 32],
+                data: Vec::new(),
+                output_merkle_tree_index: 0,
+            }),
             // None of the following values matter.
-            lamports: None,
-            discriminator: Some([0; 8]),
-            data: None,
-            data_hash: None,
+            discriminator: [0; 8],
             address: Some([1; 32]),
-            output_merkle_tree_index: None,
-            new_address_params: None,
         }
     }
 
@@ -98,8 +111,8 @@ mod tests {
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
         assert!(result.is_ok());
-        assert_eq!(from.lamports, Some(700));
-        assert_eq!(to.lamports, Some(800));
+        assert_eq!(from.output.as_ref().unwrap().lamports, 700);
+        assert_eq!(to.output.as_ref().unwrap().lamports, 800);
     }
 
     #[test]
@@ -110,7 +123,7 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
-        assert_eq!(result, Err(LightSdkError::TransferFromNoInput));
+        assert_eq!(result, Err(LightSdkError::TransferFromInsufficientLamports));
     }
 
     #[test]
@@ -121,7 +134,7 @@ mod tests {
         let mut to = mock_account(&to_pubkey, Some(500));
 
         let result = transfer_compressed_sol(&mut from, &mut to, 300);
-        assert_eq!(result, Err(LightSdkError::TransferFromNoLamports));
+        assert_eq!(result, Err(LightSdkError::TransferFromInsufficientLamports));
     }
 
     #[test]
@@ -151,11 +164,12 @@ mod tests {
         let from_pubkey = Pubkey::new_unique();
         let mut from = mock_account(&from_pubkey, Some(1000));
         let to_pubkey = Pubkey::new_unique();
-        let mut to = mock_account(&to_pubkey, None);
+        let mut to = mock_account(&to_pubkey, Some(0));
+        to.output.as_mut().unwrap().lamports = 0;
 
         let result = transfer_compressed_sol(&mut from, &mut to, 500);
         assert!(result.is_ok());
-        assert_eq!(from.lamports, Some(500));
-        assert_eq!(to.lamports, Some(500));
+        assert_eq!(from.output.as_ref().unwrap().lamports, 500);
+        assert_eq!(to.output.as_ref().unwrap().lamports, 500);
     }
 }

@@ -1,14 +1,12 @@
 use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
-    error::{LightSdkError, Result},
-    find_cpi_signer_macro, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
+    error::Result, find_cpi_signer_macro, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
     PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 
 #[repr(usize)]
 pub enum LightSystemAccountIndex {
-    // FeePayer,
     LightSystemProgram,
     Authority,
     RegisteredProgramPda,
@@ -38,10 +36,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         accounts: &'c [AccountInfo<'info>],
         program_id: Pubkey,
     ) -> Result<Self> {
-        if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-            solana_program::msg!("accounts len {}", accounts.len());
-            return Err(LightSdkError::FewerAccountsThanSystemAccounts);
-        }
+        // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
+        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+        // }
         Ok(Self {
             fee_payer,
             accounts,
@@ -57,10 +55,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         accounts: &'c [AccountInfo<'info>],
         config: SystemAccountInfoConfig,
     ) -> Result<Self> {
-        if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-            solana_program::msg!("accounts len {}", accounts.len());
-            return Err(LightSdkError::FewerAccountsThanSystemAccounts);
-        }
+        // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
+        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
+        // }
         Ok(Self {
             fee_payer,
             accounts,
@@ -184,6 +182,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
             len -= 1;
         }
         len
+    }
+
+    pub fn account_infos(&self) -> &'c [AccountInfo<'info>] {
+        self.accounts
     }
 }
 

@@ -3,11 +3,10 @@ pub use light_sdk_macros::*;
 
 pub mod account;
 pub mod account_info;
-pub mod account_meta;
 pub mod address;
 pub mod constants;
 pub use constants::*;
-// pub mod context;
+pub mod account_meta;
 pub mod error;
 pub mod instruction_data;
 pub mod legacy;
@@ -26,4 +25,5 @@ pub mod verify;
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize, BorshSerialize};
+pub use light_compressed_account::instruction_data::data::*;
 pub use light_verifier;

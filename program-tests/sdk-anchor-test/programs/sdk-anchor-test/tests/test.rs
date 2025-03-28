@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::{
@@ -13,10 +13,12 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
-    account_meta::LightAccountMeta,
+    account_meta::InputAccountMeta,
     address::derive_address,
     instruction_data::LightInstructionData,
-    merkle_context::{AddressMerkleContext, RemainingAccounts},
+    merkle_context::{
+        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, CpiAccounts,
+    },
     system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
 };
 use light_test_utils::{RpcConnection, RpcError};
@@ -54,8 +56,6 @@ async fn test_sdk_test() {
     )
     .await;
 
-    let mut remaining_accounts = RemainingAccounts::default();
-
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
@@ -72,7 +72,6 @@ async fn test_sdk_test() {
         &mut rpc,
         &mut test_indexer,
         &env,
-        &mut remaining_accounts,
         &payer,
         &address,
     )
@@ -83,7 +82,7 @@ async fn test_sdk_test() {
     let compressed_accounts =
         test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
-    let compressed_account = &compressed_accounts[0];
+    let compressed_account = compressed_accounts[0].clone();
     let record = &compressed_account
         .compressed_account
         .data
@@ -96,7 +95,6 @@ async fn test_sdk_test() {
     update_nested_data(
         &mut rpc,
         &mut test_indexer,
-        &mut remaining_accounts,
         NestedData {
             one: 2,
             two: 3,
@@ -137,7 +135,6 @@ async fn with_nested_data<R, I>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
-    remaining_accounts: &mut RemainingAccounts,
     payer: &Keypair,
     address: &[u8; 32],
 ) -> Result<(), RpcError>
@@ -145,6 +142,8 @@ where
     R: RpcConnection + MerkleTreeExt,
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
+    let mut remaining_accounts = CpiAccounts::default();
+
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             None,
@@ -160,21 +159,23 @@ where
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
     };
-    let account = LightAccountMeta::new_init(
-        &env.merkle_tree_pubkey,
-        Some(&address_merkle_context),
-        Some(rpc_result.address_root_indices[0]),
-        remaining_accounts,
-    )
-    .unwrap();
+    let output_merkle_tree_index = remaining_accounts.insert_or_get(env.merkle_tree_pubkey);
+    let packed_address_merkle_context = pack_address_merkle_context(
+        &address_merkle_context,
+        &mut remaining_accounts,
+        rpc_result.address_root_indices[0],
+    );
 
-    let inputs = LightInstructionData {
-        proof: Some(rpc_result),
-        accounts: Some(vec![account]),
+    let light_ix_data = LightInstructionData {
+        proof: Some(rpc_result.proof),
+        new_addresses: Some(vec![packed_address_merkle_context]),
     };
-    let inputs = inputs.serialize().unwrap();
 
-    let instruction_data = sdk_anchor_test::instruction::WithNestedData { inputs, name };
+    let instruction_data = sdk_anchor_test::instruction::WithNestedData {
+        light_ix_data,
+        name,
+        output_merkle_tree_index,
+    };
 
     let accounts = sdk_anchor_test::accounts::WithNestedData {
         signer: payer.pubkey(),
@@ -182,10 +183,7 @@ where
 
     let remaining_accounts = remaining_accounts.to_account_metas();
 
-    let config = SystemAccountMetaConfig {
-        self_program: sdk_anchor_test::ID,
-        ..Default::default()
-    };
+    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
         accounts: [
@@ -213,15 +211,16 @@ where
 async fn update_nested_data<R, I>(
     rpc: &mut R,
     test_indexer: &mut I,
-    remaining_accounts: &mut RemainingAccounts,
     nested_data: NestedData,
     payer: &Keypair,
-    compressed_account: &CompressedAccountWithMerkleContext,
+    mut compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
 where
     R: RpcConnection + MerkleTreeExt,
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
+    let mut remaining_accounts = CpiAccounts::default();
+
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -236,20 +235,37 @@ where
         .await
         .unwrap();
 
-    let compressed_account = LightAccountMeta::new_mut(
-        compressed_account,
-        rpc_result.root_indices[0].unwrap(),
-        &merkle_tree_pubkey,
-        remaining_accounts,
-    );
-
-    let inputs = LightInstructionData {
-        proof: Some(rpc_result),
-        accounts: Some(vec![compressed_account]),
+    // let compressed_account = LightAccountMeta::new_mut(
+    //     compressed_account,
+    //     rpc_result.root_indices[0].unwrap(),
+    //     &merkle_tree_pubkey,
+    //     remaining_accounts,
+    // );
+    let packed_merkle_context =
+        pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);
+    let light_ix_data = LightInstructionData {
+        proof: Some(rpc_result.proof),
+        new_addresses: None,
     };
-    let inputs = inputs.serialize().unwrap();
+    let my_compressed_account = MyCompressedAccount::deserialize(
+        &mut compressed_account
+            .compressed_account
+            .data
+            .as_mut()
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        inputs,
+        light_ix_data,
+        my_compressed_account,
+        account_meta: InputAccountMeta {
+            merkle_context: packed_merkle_context,
+            address: compressed_account.compressed_account.address.unwrap(),
+            root_index: rpc_result.root_indices[0],
+            output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
+        },
         nested_data,
     };
 
@@ -258,10 +274,8 @@ where
     };
 
     let remaining_accounts = remaining_accounts.to_account_metas();
-    let config = SystemAccountMetaConfig {
-        self_program: sdk_anchor_test::ID,
-        ..Default::default()
-    };
+    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
+
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
         accounts: [

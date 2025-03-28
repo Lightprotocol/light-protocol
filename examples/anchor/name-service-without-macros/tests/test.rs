@@ -19,7 +19,7 @@ use light_sdk::{
     address::derive_address,
     error::LightSdkError,
     instruction_data::LightInstructionData,
-    merkle_context::{AddressMerkleContext, RemainingAccounts},
+    merkle_context::{AddressMerkleContext, CpiAccounts},
     utils::get_cpi_authority_pda,
     verify::find_cpi_signer,
     PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
@@ -70,7 +70,7 @@ async fn test_name_service() {
 
     let name = "example.io";
 
-    let mut remaining_accounts = RemainingAccounts::default();
+    let mut remaining_accounts = CpiAccounts::default();
 
     let address_merkle_context = AddressMerkleContext {
         address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
@@ -295,7 +295,7 @@ async fn create_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
     env: &EnvAccounts,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
     payer: &Keypair,
     address: &[u8; 32],
     account_compression_authority: &Pubkey,
@@ -377,7 +377,7 @@ where
 async fn update_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
     new_rdata: &RData,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
@@ -457,7 +457,7 @@ where
 async fn delete_record<R>(
     rpc: &mut R,
     test_indexer: &mut TestIndexer<R>,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut CpiAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
     account_compression_authority: &Pubkey,
