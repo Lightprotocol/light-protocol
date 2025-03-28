@@ -5,11 +5,8 @@ use light_account_checks::{
     checks::{check_account_info, set_discriminator},
     discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
 };
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
-use light_merkle_tree_metadata::{
-    errors::MerkleTreeMetadataError,
-    queue::{QueueMetadata, QueueType},
-};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType};
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
@@ -80,12 +77,8 @@ impl BatchedQueueMetadata {
         // To map 256bit pubkeys to < 254bit field size, we hash Pubkeys
         // and truncate the hash to 31 bytes/248 bits.
         self.hashed_merkle_tree_pubkey =
-            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes())
-                .unwrap()
-                .0;
-        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())
-            .unwrap()
-            .0;
+            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes());
+        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
         Ok(())
     }
 }
@@ -336,6 +329,14 @@ impl<'a> BatchedQueueAccount<'a> {
                     }
                     return Ok(true);
                 } else {
+                    #[cfg(target_os = "solana")]
+                    {
+                        solana_program::msg!(
+                            "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
+                            leaf_index,
+                            hash_chain_value,*element
+                        );
+                    }
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
             }
@@ -359,6 +360,14 @@ impl<'a> BatchedQueueAccount<'a> {
         }
         // If no value is found and a check is not enforced return ok.
         if prove_by_index {
+            #[cfg(target_os = "solana")]
+            {
+                solana_program::msg!(
+                    "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
+                    leaf_index,
+                    hash_chain_value
+                );
+            }
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {
             Ok(())
@@ -377,7 +386,11 @@ impl<'a> BatchedQueueAccount<'a> {
     /// If current batch state is inserted, returns 0.
     pub fn get_num_inserted_in_current_batch(&self) -> u64 {
         let current_batch = self.batch_metadata.currently_processing_batch_index as usize;
-        self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        if self.batch_metadata.batches[current_batch].get_state() == BatchState::Inserted {
+            0
+        } else {
+            self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        }
     }
 
     /// Returns true if the pubkey is the associated Merkle tree of the queue.
@@ -667,12 +680,8 @@ fn test_batched_queue_metadata_init() {
         assert_eq!(batch.zkp_batch_size, zkp_batch_size);
         assert_eq!(batch.start_index, batch_size * (i as u64));
     }
-    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes())
-        .unwrap()
-        .0;
-    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())
-        .unwrap()
-        .0;
+    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes());
+    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
     assert_eq!(
         metadata.hashed_merkle_tree_pubkey,
         hashed_merkle_tree_pubkey

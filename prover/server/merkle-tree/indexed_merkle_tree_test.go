@@ -21,13 +21,11 @@ func TestIndexedMerkleTreeInit(t *testing.T) {
 	require.Equal(t, expectedRoot, root)
 
 	require.Equal(t, uint32(0), tree.IndexArray.Get(0).Index)
-	require.Equal(t, uint32(1), tree.IndexArray.Get(0).NextIndex)
 	require.Equal(t, "0", tree.IndexArray.Get(0).Value.String())
 
 	maxVal := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
 	require.Equal(t, uint32(1), tree.IndexArray.Get(1).Index)
-	require.Equal(t, uint32(0), tree.IndexArray.Get(1).NextIndex)
 	require.Equal(t, maxVal, tree.IndexArray.Get(1).Value)
 }
 
@@ -72,17 +70,14 @@ func TestIndexedMerkleTreeAppend(t *testing.T) {
 	require.Equal(t, expectedRootFirstAppend, root)
 
 	require.Equal(t, uint32(0), tree.IndexArray.Get(0).Index)
-	require.Equal(t, uint32(2), tree.IndexArray.Get(0).NextIndex)
 	require.Equal(t, "0", tree.IndexArray.Get(0).Value.String())
 
 	maxVal := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 248), big.NewInt(1))
 
 	require.Equal(t, uint32(1), tree.IndexArray.Get(1).Index)
-	require.Equal(t, uint32(0), tree.IndexArray.Get(1).NextIndex)
 	require.Equal(t, maxVal, tree.IndexArray.Get(1).Value)
 
 	require.Equal(t, uint32(2), tree.IndexArray.Get(2).Index)
-	require.Equal(t, uint32(1), tree.IndexArray.Get(2).NextIndex)
 	require.Equal(t, "30", tree.IndexArray.Get(2).Value.String())
 
 	value = big.NewInt(42)

@@ -1,9 +1,7 @@
 use light_account_checks::{checks::check_account_balance_is_rent_exempt, error::AccountError};
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{pubkey::Pubkey, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
 use solana_program::{account_info::AccountInfo, msg};
@@ -62,6 +60,23 @@ impl InitAddressTreeAccountsInstructionData {
             bloom_filter_num_iters: 3,
             input_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            height: 40,
+            root_history_capacity: 20,
+            bloom_filter_capacity: 20_000 * 8,
+            network_fee: Some(5000),
+            rollover_threshold: Some(95),
+            close_threshold: None,
+        }
+    }
+
+    pub fn testnet_default() -> Self {
+        Self {
+            index: 0,
+            program_owner: None,
+            forester: None,
+            bloom_filter_num_iters: 3,
+            input_queue_batch_size: 2000,
+            input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             height: 40,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,

@@ -8,7 +8,6 @@ default = []
 devenv = []
 
 [dependencies]
-base64 = "0.2"
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true }
@@ -34,8 +33,6 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
-light-verifier = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }
-light-zero-copy = { workspace = true }

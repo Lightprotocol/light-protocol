@@ -12,6 +12,8 @@ quote = { workspace = true }
 syn = { workspace = true }
 
 light-hasher = { workspace = true }
+ark-bn254 = { workspace = true }
+light-poseidon = { workspace = true }
 
 [dev-dependencies]
 light-compressed-account = { workspace = true }

@@ -15,13 +15,13 @@ pub struct GetCompressedAccountProofPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: Box<models::MerkleProofWithContext>,
+    pub value: Box<models::GetCompressedAccountProofResponseValueV1>,
 }
 
 impl GetCompressedAccountProofPost200ResponseResult {
     pub fn new(
         context: models::Context,
-        value: models::MerkleProofWithContext,
+        value: models::GetCompressedAccountProofResponseValueV1,
     ) -> GetCompressedAccountProofPost200ResponseResult {
         GetCompressedAccountProofPost200ResponseResult {
             context: Box::new(context),

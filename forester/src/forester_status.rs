@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use anchor_lang::{AccountDeserialize, Discriminator};
-use forester_utils::forester_epoch::TreeType;
 use itertools::Itertools;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_compressed_account::TreeType;
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
 use tracing::{debug, warn};
@@ -175,15 +175,7 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
     run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
     for tree in &trees {
-        let tree_type = format!(
-            "[{}]",
-            match tree.tree_type {
-                TreeType::State => "State",
-                TreeType::Address => "Address",
-                TreeType::BatchedState => "BatchedState",
-                TreeType::BatchedAddress => "BatchedAddress",
-            }
-        );
+        let tree_type = format!("[{}]", tree.tree_type);
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)
             .await
             .unwrap();

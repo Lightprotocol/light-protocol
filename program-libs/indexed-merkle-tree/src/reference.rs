@@ -14,7 +14,7 @@ use crate::{
     HIGHEST_ADDRESS_PLUS_ONE,
 };
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedReferenceMerkleTreeError {
     #[error("NonInclusionProofFailedLowerBoundViolated")]
     NonInclusionProofFailedLowerBoundViolated,
@@ -26,6 +26,8 @@ pub enum IndexedReferenceMerkleTreeError {
     Reference(#[from] ReferenceMerkleTreeError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
+    #[error(transparent)]
+    BoundedVec(#[from] BoundedVecError),
 }
 
 #[derive(Debug, Clone)]
@@ -82,20 +84,42 @@ where
         Ok(())
     }
 
+    /// Initializes the reference indexed merkle tree on par with the
+    /// on-chain indexed concurrent merkle tree.
+    /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
+    pub fn init_opt(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
+        let mut indexed_array = IndexedArray::<H, I>::default();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = nullifier_bundle
+            .new_low_element
+            .hash::<H>(&nullifier_bundle.new_element.value)?;
+
+        self.merkle_tree.update(&new_low_leaf, 0)?;
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        self.merkle_tree.append(&new_leaf)?;
+        Ok(())
+    }
+
     pub fn get_path_of_leaf(
         &self,
         index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
-        self.merkle_tree.get_path_of_leaf(index, full)
+    ) -> Result<BoundedVec<[u8; 32]>, IndexedReferenceMerkleTreeError> {
+        let path = self.merkle_tree.get_path_of_leaf(index, full)?;
+        Ok(BoundedVec::from_slice(path.as_slice()))
     }
 
     pub fn get_proof_of_leaf(
         &self,
         index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
-        self.merkle_tree.get_proof_of_leaf(index, full)
+    ) -> Result<BoundedVec<[u8; 32]>, IndexedReferenceMerkleTreeError> {
+        Ok(BoundedVec::from_slice(
+            self.merkle_tree.get_proof_of_leaf(index, full)?.as_slice(),
+        ))
     }
 
     pub fn root(&self) -> [u8; 32] {
@@ -189,8 +213,7 @@ where
         };
         let leaf_hash = array_element.hash::<H>(&higher_end_value)?;
         self.merkle_tree
-            .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)
-            .unwrap();
+            .verify(&leaf_hash, proof.merkle_proof.as_slice(), proof.leaf_index)?;
         Ok(())
     }
 }

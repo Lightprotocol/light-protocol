@@ -1,4 +1,3 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
 use light_compressed_account::{
     compressed_account::PackedCompressedAccountWithMerkleContext,
     instruction_data::{
@@ -11,6 +10,7 @@ use light_compressed_account::{
         invoke_cpi::InstructionDataInvokeCpi,
     },
 };
+use solana_program::pubkey::Pubkey;
 
 use crate::PROGRAM_ID_ACCOUNT_COMPRESSION;
 

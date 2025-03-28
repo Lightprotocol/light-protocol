@@ -1,12 +1,9 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::{QueueMetadata, QueueType},
-    rollover::RolloverMetadata,
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
+    queue::QueueMetadata, rollover::RolloverMetadata,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
@@ -78,6 +75,26 @@ impl InitStateTreeAccountsInstructionData {
             output_queue_batch_size: 500,
             input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
             output_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+            height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+            root_history_capacity: 20,
+            bloom_filter_capacity: 20_000 * 8,
+            network_fee: Some(5000),
+            rollover_threshold: Some(95),
+            close_threshold: None,
+        }
+    }
+
+    pub fn testnet_default() -> Self {
+        Self {
+            index: 0,
+            program_owner: None,
+            forester: None,
+            additional_bytes: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
+            bloom_filter_num_iters: 3,
+            input_queue_batch_size: 2000,
+            output_queue_batch_size: 2000,
+            input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+            output_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             bloom_filter_capacity: 20_000 * 8,
@@ -334,6 +351,7 @@ fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
     ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
     tree_type: u64,
 ) {
+    use light_compressed_account::QueueType;
     use light_hasher::Hasher;
 
     let queue = account.queue_batches;
@@ -451,11 +469,7 @@ pub fn create_output_queue_account(params: CreateOutputQueueParams) -> BatchedQu
         tree_capacity: 2u64.pow(params.height),
         hashed_merkle_tree_pubkey: hash_to_bn254_field_size_be(
             &params.associated_merkle_tree.to_bytes(),
-        )
-        .unwrap()
-        .0,
-        hashed_queue_pubkey: hash_to_bn254_field_size_be(&params.queue_pubkey.to_bytes())
-            .unwrap()
-            .0,
+        ),
+        hashed_queue_pubkey: hash_to_bn254_field_size_be(&params.queue_pubkey.to_bytes()),
     }
 }

@@ -28,9 +28,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
         .compressed_account
         .owner;
-    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes())
-        .unwrap()
-        .0;
+    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes());
     context
         .hashed_pubkeys
         .push((owner_pubkey.into(), hashed_owner));
@@ -40,6 +38,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
     let mut current_mt_index: u8 = 0;
     let mut is_first_iter = true;
     let mut seq_index = 0;
+    let mut is_batched = true;
     for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
@@ -69,15 +68,19 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                         tree.metadata.rollover_metadata.network_fee,
                         current_mt_index,
                     );
+                    is_batched = true;
                     // We only set sequence number for batched input queues.
                     cpi_ix_data.insert_input_sequence_number(
                         &mut seq_index,
                         tree.pubkey(),
+                        &tree.metadata.associated_queue,
+                        tree.tree_type,
                         tree.queue_batches.next_index,
                     );
                     tree.hashed_pubkey
                 }
                 AcpAccount::StateTree(_) => {
+                    is_batched = false;
                     context
                         .get_legacy_merkle_context(current_mt_index)
                         .unwrap()
@@ -118,13 +121,14 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
                 .compressed_account
-                .hash_with_hashed_values::<Poseidon>(
+                .hash_with_hashed_values(
                     &hashed_owner,
                     &current_hashed_mt,
                     &input_compressed_account_with_context
                         .merkle_context
                         .leaf_index
                         .into(),
+                    is_batched,
                 )
                 .map_err(ProgramError::from)?,
             leaf_index: input_compressed_account_with_context

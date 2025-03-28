@@ -1,28 +1,9 @@
-use std::io::{self, Cursor};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{merkle_context::PackedAddressMerkleContext, BorshDeserialize, BorshSerialize};
 
-use crate::{account_meta::LightAccountMeta, proof::ProofRpcResult};
-
+#[derive(Debug, Default, Clone, BorshSerialize, PartialEq, BorshDeserialize)]
 pub struct LightInstructionData {
-    pub proof: Option<ProofRpcResult>,
-    pub accounts: Option<Vec<LightAccountMeta>>,
-}
-
-impl LightInstructionData {
-    pub fn deserialize(bytes: &[u8]) -> Result<Self, io::Error> {
-        let mut inputs = Cursor::new(bytes);
-
-        let proof = Option::<ProofRpcResult>::deserialize_reader(&mut inputs)?;
-        let accounts = Option::<Vec<LightAccountMeta>>::deserialize_reader(&mut inputs)?;
-
-        Ok(LightInstructionData { proof, accounts })
-    }
-
-    pub fn serialize(&self) -> Result<Vec<u8>, io::Error> {
-        let mut bytes = Vec::new();
-        self.proof.serialize(&mut bytes)?;
-        self.accounts.serialize(&mut bytes)?;
-        Ok(bytes)
-    }
+    pub proof: Option<CompressedProof>,
+    pub new_addresses: Option<Vec<PackedAddressMerkleContext>>,
 }

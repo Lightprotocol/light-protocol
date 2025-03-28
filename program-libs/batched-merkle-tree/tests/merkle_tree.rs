@@ -1300,7 +1300,7 @@ pub async fn perform_address_update(
                 account.get_metadata().queue_batches.batch_size as u32,
                 account.get_metadata().queue_batches.zkp_batch_size as u32,
                 *leaves_hash_chain,
-                next_index as usize, // % batch.zkp_batch_size as usize
+                next_index as usize,
                 batch_start_index as usize,
                 *current_root,
             )
@@ -1308,6 +1308,7 @@ pub async fn perform_address_update(
             .unwrap();
 
         mock_indexer.finalize_batch_address_update(10);
+        assert_eq!(mock_indexer.merkle_tree.root(), new_root);
         let instruction_data = InstructionDataBatchNullifyInputs {
             new_root,
             compressed_proof: CompressedProof {
@@ -1353,7 +1354,8 @@ fn assert_merkle_tree_update(
     let input_queue_current_batch = old_account.queue_batches.get_current_batch();
     let previous_batch_index = old_account.queue_batches.get_previous_batch_index();
     let is_half_full = input_queue_current_batch.get_num_inserted_elements()
-        >= input_queue_current_batch.batch_size / 2;
+        >= input_queue_current_batch.batch_size / 2
+        && input_queue_current_batch.get_state() != BatchState::Inserted;
     if is_half_full
         && input_queue_previous_batch_state == BatchState::Inserted
         && !old_account
@@ -1460,8 +1462,9 @@ fn assert_merkle_tree_update(
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
-        let zeroed_batch =
-            old_full_batch.get_num_inserted_elements() >= old_full_batch.batch_size / 2;
+        let zeroed_batch = old_full_batch.get_num_inserted_elements()
+            >= old_full_batch.batch_size / 2
+            && old_full_batch.get_state() != BatchState::Inserted;
         println!("zeroed_batch: {:?}", zeroed_batch);
 
         // let current_batch = old_account.queue_batches.get_current_batch();
@@ -1472,6 +1475,10 @@ fn assert_merkle_tree_update(
             .batches
             .get_mut(previous_full_batch_index)
             .unwrap();
+        println!(
+            "zeroing out values: {}",
+            zeroed_batch && state == BatchState::Inserted
+        );
         if zeroed_batch && state == BatchState::Inserted {
             previous_batch.set_bloom_filter_to_zeroed();
             let sequence_number = previous_batch.sequence_number;
@@ -1541,8 +1548,9 @@ fn assert_address_merkle_tree_update(
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
-        let zeroed_batch =
-            old_full_batch.get_num_inserted_elements() >= old_full_batch.batch_size / 2;
+        let zeroed_batch = old_full_batch.get_num_inserted_elements()
+            >= old_full_batch.batch_size / 2
+            && old_full_batch.get_state() != BatchState::Inserted;
         println!("zeroed_batch: {:?}", zeroed_batch);
         let state = account.queue_batches.batches[previous_full_batch_index].get_state();
         let previous_batch = old_account
@@ -1887,26 +1895,23 @@ async fn test_fill_state_queues_completely() {
         for i in 0..num_updates {
             println!("input update ----------------------------- {}", i);
             perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
+
+            let merkle_tree_account =
+                &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
+                    .unwrap();
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
             // the second batch is completely full.
             if i >= 4 {
-                let merkle_tree_account = &mut BatchedMerkleTreeAccount::state_from_bytes(
-                    &mut mt_account_data,
-                    &mt_pubkey,
-                )
-                .unwrap();
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(batch.bloom_filter_is_zeroed());
             } else {
-                let merkle_tree_account = &mut BatchedMerkleTreeAccount::state_from_bytes(
-                    &mut mt_account_data,
-                    &mt_pubkey,
-                )
-                .unwrap();
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(!batch.bloom_filter_is_zeroed());
             }
+            let batch_one = &merkle_tree_account.queue_batches.batches[1];
+            assert!(!batch_one.bloom_filter_is_zeroed());
+
             println!(
                 "performed input queue batched update {} created root {:?}",
                 i,
@@ -2188,8 +2193,10 @@ async fn test_fill_address_tree_completely() {
             for (i, batch) in merkle_tree_account.queue_batches.batches.iter().enumerate() {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 if i == 0 {
+                    // first batch is zeroed out since the second batch is full
                     assert!(batch.bloom_filter_is_zeroed());
                 } else {
+                    // second batch is not zeroed out since the first batch is empty
                     assert!(!batch.bloom_filter_is_zeroed());
                 }
             }

@@ -1,14 +1,12 @@
 use std::cmp;
 
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, RegisteredProgram};
-use forester_utils::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
+use forester_utils::account_zero_copy::{get_hash_set, get_indexed_merkle_tree, AccountZeroCopy};
 use light_client::rpc::{RpcConnection, RpcError};
 use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    queue::{QueueMetadata, QueueType},
-    rollover::RolloverMetadata,
+    access::AccessMetadata, fee::compute_rollover_fee, queue::QueueMetadata,
+    rollover::RolloverMetadata, QueueType,
 };
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use solana_sdk::{
