@@ -1,11 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::vec::ZeroCopyVecU64;
 use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::errors::BatchedMerkleTreeError;
+use crate::{errors::BatchedMerkleTreeError, BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 #[repr(u64)]

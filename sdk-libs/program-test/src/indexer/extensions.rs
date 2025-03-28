@@ -5,13 +5,13 @@ use light_client::{
         AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, MerkleProof,
         NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
-    rpc::RpcConnection,
+    rpc::{types::BatchedTreeProofRpcResult, RpcConnection},
 };
 use light_compressed_account::{
     compressed_account::CompressedAccountWithMerkleContext,
     indexer_event::event::PublicTransactionEvent,
 };
-use light_sdk::{proof::BatchedTreeProofRpcResult, token::TokenDataWithMerkleContext};
+use light_sdk::token::TokenDataWithMerkleContext;
 use solana_sdk::signature::Keypair;
 
 #[async_trait]

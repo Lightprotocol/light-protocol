@@ -14,9 +14,11 @@ use light_compressed_token::process_transfer::{
 };
 use light_hasher::{DataHasher, Poseidon};
 use light_sdk::{
-    system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
-    traits::*,
-    verify::verify_borsh,
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_borsh,
+    },
+    legacy::*,
 };
 
 use crate::{
@@ -162,10 +164,10 @@ fn cpi_compressed_pda_withdrawal<'info>(
             .clone(),
     ];
     system_accounts.extend_from_slice(ctx.remaining_accounts);
-    let light_accounts = LightCpiAccounts::new_with_config(
+    let light_accounts = CompressionCpiAccounts::new_with_config(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
-        SystemAccountInfoConfig {
+        CompressionCpiAccountsConfig {
             self_program: crate::ID,
             cpi_context: true,
             ..Default::default()

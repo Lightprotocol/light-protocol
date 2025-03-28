@@ -37,7 +37,7 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 light-client = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }

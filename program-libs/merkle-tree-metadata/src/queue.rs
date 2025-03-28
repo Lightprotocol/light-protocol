@@ -27,7 +27,6 @@ use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::R
 pub struct QueueMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
-
     // Queue associated with this Merkle tree.
     pub associated_merkle_tree: Pubkey,
     // Next queue to be used after rollover.

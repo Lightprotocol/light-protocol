@@ -43,3 +43,10 @@ impl From<HasherError> for solana_program::program_error::ProgramError {
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
+
+#[cfg(all(feature = "anchor", not(feature = "solana")))]
+impl From<HasherError> for anchor_lang::solana_program::program_error::ProgramError {
+    fn from(e: HasherError) -> Self {
+        anchor_lang::solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}

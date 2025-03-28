@@ -12,7 +12,8 @@ pub mod counter {
     use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
-        program_merkle_context::unpack_address_merkle_context, system_accounts::LightCpiAccounts,
+        program_merkle_context::unpack_address_merkle_context,
+        system_accounts::CompressionCpiAccounts,
     };
 
     use super::*;
@@ -48,7 +49,7 @@ pub mod counter {
 
         counter.owner = ctx.accounts.signer.key();
         counter.value = 0;
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
@@ -82,7 +83,7 @@ pub mod counter {
             return err!(CustomError::Unauthorized);
         }
         counter.value = counter.value.checked_add(1).ok_or(CustomError::Overflow)?;
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
@@ -117,7 +118,7 @@ pub mod counter {
 
         counter.value = counter.value.checked_sub(1).ok_or(CustomError::Underflow)?;
 
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,
@@ -152,7 +153,7 @@ pub mod counter {
         }
 
         counter.value = 0;
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.accounts.cpi_signer.as_ref(),
             ctx.remaining_accounts,

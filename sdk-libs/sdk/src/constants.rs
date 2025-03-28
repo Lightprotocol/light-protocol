@@ -1,5 +1,6 @@
 use light_macros::pubkey;
-use solana_program::pubkey::Pubkey;
+
+use crate::Pubkey;
 
 /// Seed of the CPI authority.
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";

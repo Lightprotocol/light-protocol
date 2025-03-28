@@ -16,10 +16,13 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
-    account_meta::InputAccountMeta,
-    instruction_data::LightInstructionData,
-    merkle_context::{pack_address_merkle_context, AddressMerkleContext, CpiAccounts},
-    system_accounts::SystemAccountMetaConfig,
+    cpi::accounts::SystemAccountMetaConfig,
+    instruction::{
+        account_meta::CompressedAccountMeta,
+        instruction_data::LightInstructionData,
+        merkle_context::{pack_address_merkle_context, AddressMerkleContext},
+        pack_accounts::PackedAccounts,
+    },
 };
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
@@ -111,11 +114,11 @@ pub async fn create_pda(
     address: [u8; 32],
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
-    let mut accounts = CpiAccounts::default();
+    let mut accounts = PackedAccounts::default();
     accounts.insert_or_get_signer_mut(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
 
-    let mut light_cpi_accounts = CpiAccounts::default();
+    let mut light_cpi_accounts = PackedAccounts::default();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -176,11 +179,11 @@ pub async fn update_pda(
     output_merkle_tree: Pubkey,
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
-    let mut accounts = CpiAccounts::default();
+    let mut accounts = PackedAccounts::default();
     accounts.insert_or_get_signer_mut(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
 
-    let mut light_cpi_accounts = CpiAccounts::default();
+    let mut light_cpi_accounts = PackedAccounts::default();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts2(
@@ -199,7 +202,7 @@ pub async fn update_pda(
 
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
-            meta: InputAccountMeta::from_compressed_account(
+            meta: CompressedAccountMeta::from_compressed_account(
                 &compressed_account,
                 &mut light_cpi_accounts,
                 rpc_result.root_indices[0],

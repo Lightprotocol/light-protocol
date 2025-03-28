@@ -21,7 +21,7 @@ light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-indexed-array = { workspace = true }

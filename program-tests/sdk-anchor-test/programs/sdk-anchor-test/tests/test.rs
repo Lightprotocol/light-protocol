@@ -13,13 +13,14 @@ use light_program_test::{
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
-    account_meta::InputAccountMeta,
-    address::derive_address,
-    instruction_data::LightInstructionData,
-    merkle_context::{
-        pack_address_merkle_context, pack_merkle_context, AddressMerkleContext, CpiAccounts,
+    address::v1::derive_address,
+    cpi::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    instruction::{
+        account_meta::CompressedAccountMeta,
+        instruction_data::LightInstructionData,
+        merkle_context::{pack_address_merkle_context, pack_merkle_context, AddressMerkleContext},
+        pack_accounts::PackedAccounts,
     },
-    system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
 };
 use light_test_utils::{RpcConnection, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};
@@ -62,7 +63,7 @@ async fn test_sdk_test() {
     };
 
     let (address, _) = derive_address(
-        &[b"compressed", b"test"],
+        &[b"compressed", b"test".as_slice()],
         &address_merkle_context,
         &sdk_anchor_test::ID,
     );
@@ -142,7 +143,7 @@ where
     R: RpcConnection + MerkleTreeExt,
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
-    let mut remaining_accounts = CpiAccounts::default();
+    let mut remaining_accounts = PackedAccounts::default();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -219,7 +220,7 @@ where
     R: RpcConnection + MerkleTreeExt,
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
-    let mut remaining_accounts = CpiAccounts::default();
+    let mut remaining_accounts = PackedAccounts::default();
 
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
@@ -260,7 +261,7 @@ where
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
         light_ix_data,
         my_compressed_account,
-        account_meta: InputAccountMeta {
+        account_meta: CompressedAccountMeta {
             merkle_context: packed_merkle_context,
             address: compressed_account.compressed_account.address.unwrap(),
             root_index: rpc_result.root_indices[0],

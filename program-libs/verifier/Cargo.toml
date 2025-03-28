@@ -8,12 +8,17 @@ edition = "2021"
 
 [features]
 solana = ["solana-program"]
+anchor = ["anchor-lang"]
 
 [dependencies]
 groth16-solana = { workspace = true }
 thiserror = { workspace = true }
-solana-program = { workspace = true, optional = true }
 light-compressed-account = { workspace = true }
+
+# Optional import for ProgramError conversion
+solana-program = { workspace = true, optional = true }
+# Optional import for ProgramError conversion
+anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

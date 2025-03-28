@@ -1,6 +1,7 @@
 use light_hasher::HasherError;
-use solana_program::program_error::ProgramError;
 use thiserror::Error;
+
+use crate::ProgramError;
 
 pub type Result<T> = std::result::Result<T, LightSdkError>;
 
@@ -80,7 +81,7 @@ impl From<LightSdkError> for u32 {
 
 impl From<LightSdkError> for ProgramError {
     fn from(e: LightSdkError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        ProgramError::Custom(e.into())
     }
 }
 

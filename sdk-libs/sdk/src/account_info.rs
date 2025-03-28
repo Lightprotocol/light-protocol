@@ -15,7 +15,7 @@ use light_compressed_account::{
     CompressedAccountError,
 };
 
-use crate::{account_meta::InputAccountMetaTrait, error::LightSdkError};
+use crate::{error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, msg};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct SystemInfoInstructionData {
@@ -28,11 +28,11 @@ pub struct SystemInfoInstructionData {
     pub new_addresses: Vec<NewAddressParamsPacked>,
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
-    pub light_account_infos: Vec<CAccountInfo>,
+    pub light_account_infos: Vec<CompressedAccountInfo>,
 }
 
 #[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct CInAccountInfo {
+pub struct InAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
     /// Merkle tree context.
@@ -44,7 +44,7 @@ pub struct CInAccountInfo {
 }
 
 #[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct COutAccountInfo {
+pub struct OutAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
     pub output_merkle_tree_index: u8,
@@ -55,20 +55,24 @@ pub struct COutAccountInfo {
 }
 
 #[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct CAccountInfo {
+pub struct CompressedAccountInfo {
     // TODO: optimize parsing by manually implementing ZeroCopy and using the bitmask.
     // bitmask: u8,
     pub discriminator: [u8; 8], // 1
     /// Address.
     pub address: Option<[u8; 32]>, // 2
     /// Input account.
-    pub input: Option<CInAccountInfo>, // 3
+    pub input: Option<InAccountInfo>, // 3
     /// Output account.
-    pub output: Option<COutAccountInfo>, // 5
+    pub output: Option<OutAccountInfo>, // 5
 }
 
-impl CInAccountInfo {
-    pub fn from_input_meta<T: InputAccountMetaTrait>(&mut self, meta: &T, data_hash: [u8; 32]) {
+impl InAccountInfo {
+    pub fn from_input_meta<T: CompressedAccountMetaTrait>(
+        &mut self,
+        meta: &T,
+        data_hash: [u8; 32],
+    ) {
         if let Some(input_lamports) = meta.get_lamports() {
             self.lamports = input_lamports;
         }
@@ -80,7 +84,7 @@ impl CInAccountInfo {
     }
 }
 
-impl CAccountInfo {
+impl CompressedAccountInfo {
     /// Initializes a compressed account info with address.
     /// 1. The account is zeroed, data has to be added in a separate step.
     /// 2. Once data is added the data hash has to be added.
@@ -95,17 +99,17 @@ impl CAccountInfo {
             if let Some(address) = address {
                 self_address.copy_from_slice(&address);
             } else {
-                solana_program::msg!("init: address is none");
+                msg!("init: address is none");
                 return Err(CompressedAccountError::InvalidAccountSize);
             }
         } else {
-            solana_program::msg!("init_with_address: address is none");
+            msg!("init_with_address: address is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
         if let Some(output) = self.output.as_mut() {
             output.output_merkle_tree_index = output_merkle_tree_index;
         } else {
-            solana_program::msg!("init_with_address: output is none");
+            msg!("init_with_address: output is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
         Ok(())
@@ -114,7 +118,7 @@ impl CAccountInfo {
     /// Initializes a compressed account info with address.
     /// 1. The account is zeroed, data has to be added in a separate step.
     /// 2. Once data is added the data hash has to be added.
-    pub fn from_meta_mut<M: InputAccountMetaTrait>(
+    pub fn from_meta_mut<M: CompressedAccountMetaTrait>(
         &mut self,
         // Input
         input_account_meta: &M,
@@ -123,9 +127,7 @@ impl CAccountInfo {
         output_merkle_tree_index: u8,
     ) -> Result<(), CompressedAccountError> {
         if self.discriminator != [0; 8] {
-            solana_program::msg!(
-                "from_z_meta_mut: discriminator is not zeroed. Account already loaded."
-            );
+            msg!("from_z_meta_mut: discriminator is not zeroed. Account already loaded.");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
         self.discriminator = discriminator;
@@ -134,18 +136,18 @@ impl CAccountInfo {
             if let Some(address) = input_account_meta.get_address().as_ref() {
                 *self_address = *address;
             } else {
-                solana_program::msg!("from_z_meta_mut: address is none");
+                msg!("from_z_meta_mut: address is none");
                 return Err(CompressedAccountError::InvalidAccountSize);
             }
         } else {
-            solana_program::msg!("from_z_meta_mut: address is none");
+            msg!("from_z_meta_mut: address is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
 
         if let Some(input) = self.input.as_mut() {
             input.from_input_meta(input_account_meta, input_data_hash);
         } else {
-            solana_program::msg!("from_z_meta_mut: input is none");
+            msg!("from_z_meta_mut: input is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
 
@@ -155,11 +157,11 @@ impl CAccountInfo {
             if let Some(input_lamports) = input_account_meta.get_lamports() {
                 output.lamports = input_lamports;
             } else {
-                solana_program::msg!("from_z_meta_mut: output lamports is none");
+                msg!("from_z_meta_mut: output lamports is none");
                 return Err(CompressedAccountError::InvalidAccountSize);
             }
         } else {
-            solana_program::msg!("from_z_meta_mut: output is none");
+            msg!("from_z_meta_mut: output is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
         Ok(())
@@ -168,7 +170,7 @@ impl CAccountInfo {
     /// Initializes a compressed account info with address.
     /// 1. The account is zeroed, data has to be added in a separate step.
     /// 2. Once data is added the data hash has to be added.
-    pub fn from_meta_close<M: InputAccountMetaTrait>(
+    pub fn from_meta_close<M: CompressedAccountMetaTrait>(
         &mut self,
         input_account_meta: &M,
         input_data_hash: [u8; 32],
@@ -180,18 +182,18 @@ impl CAccountInfo {
             if let Some(address) = input_account_meta.get_address() {
                 self_address.copy_from_slice(&address);
             } else {
-                solana_program::msg!("from_z_meta_mut: address is none");
+                msg!("from_z_meta_mut: address is none");
                 return Err(CompressedAccountError::InvalidAccountSize);
             }
         } else {
-            solana_program::msg!("from_z_meta_mut: address is none");
+            msg!("from_z_meta_mut: address is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
 
         if let Some(input) = self.input.as_mut() {
             input.from_input_meta(input_account_meta, input_data_hash);
         } else {
-            solana_program::msg!("from_z_meta_mut: input is none");
+            msg!("from_z_meta_mut: input is none");
             return Err(CompressedAccountError::InvalidAccountSize);
         }
 
@@ -200,7 +202,7 @@ impl CAccountInfo {
 
     pub(crate) fn input_compressed_account(
         &self,
-        owner: solana_program::pubkey::Pubkey,
+        owner: crate::Pubkey,
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError> {
         match self.input.as_ref() {
             Some(input) => {
@@ -227,7 +229,7 @@ impl CAccountInfo {
 
     pub fn output_compressed_account(
         &self,
-        owner: solana_program::pubkey::Pubkey,
+        owner: crate::Pubkey,
     ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError> {
         match self.output.as_ref() {
             Some(output) => {
