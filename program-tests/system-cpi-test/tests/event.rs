@@ -403,7 +403,7 @@ async fn parse_batched_event_functional() {
             },
             address_sequence_numbers: vec![MerkleTreeSequenceNumber {
                 tree_pubkey: env.batch_address_merkle_tree,
-                queue_pubkey: env.batch_address_merkle_tree,
+                queue_pubkey: Pubkey::default(),
                 tree_type: TreeType::BatchedAddress as u64,
                 seq: 0,
             }],
