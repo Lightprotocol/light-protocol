@@ -73,6 +73,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                     cpi_ix_data.insert_input_sequence_number(
                         &mut seq_index,
                         tree.pubkey(),
+                        &tree.metadata.associated_queue,
+                        tree.tree_type,
                         tree.queue_batches.next_index,
                     );
                     tree.hashed_pubkey

@@ -18,7 +18,7 @@ pub struct CompressedProofWithContextV2 {
     pub leaf_indices: Vec<u32>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
-    #[serde(rename = "merkleContext")]
+    #[serde(rename = "merkleContexts")]
     pub merkle_context: Vec<models::MerkleContextV2>,
     #[serde(rename = "rootIndices")]
     pub root_indices: Vec<models::RootIndex>,

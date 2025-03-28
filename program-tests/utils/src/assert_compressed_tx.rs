@@ -14,6 +14,7 @@ use light_client::{
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    TreeType,
 };
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
@@ -289,16 +290,16 @@ pub fn assert_public_transaction_event(
     );
     let mut updated_sequence_numbers = event.sequence_numbers.clone();
     for account in event.output_compressed_accounts.iter() {
-        let merkle_tree_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
+        let queue_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.pubkey == merkle_tree_pubkey);
+            .find(|x| x.queue_pubkey == queue_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
             panic!(
-                "merkle tree pubkey not found in sequence numbers : {:?}",
-                merkle_tree_pubkey
+                "queue pubkey not found in sequence numbers : {:?}",
+                queue_pubkey
             );
         } else {
             let seq = &mut index.as_mut().unwrap().seq;
@@ -355,7 +356,9 @@ pub async fn assert_merkle_tree_after_tx<
                 println!("next index: {:?}", snapshot.next_index);
                 println!("prev sequence number: {:?}", snapshot.num_added_accounts);
                 sequence_numbers.push(MerkleTreeSequenceNumber {
-                    pubkey: snapshot.accounts.merkle_tree,
+                    tree_pubkey: snapshot.accounts.merkle_tree,
+                    queue_pubkey: snapshot.accounts.nullifier_queue,
+                    tree_type: TreeType::State as u64,
                     seq: merkle_tree.sequence_number() as u64,
                 });
                 if merkle_tree.root() == snapshot.root {

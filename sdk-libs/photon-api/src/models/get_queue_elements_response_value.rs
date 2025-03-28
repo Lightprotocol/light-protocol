@@ -13,12 +13,12 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsResponseValue {
     /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "account_hash")]
+    #[serde(rename = "accountHash")]
     pub account_hash: String,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "leaf")]
     pub leaf: String,
-    #[serde(rename = "leaf_index")]
+    #[serde(rename = "leafIndex")]
     pub leaf_index: u64,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "tree")]
@@ -28,10 +28,10 @@ pub struct GetQueueElementsResponseValue {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "root")]
     pub root: String,
-    #[serde(rename = "root_seq")]
+    #[serde(rename = "rootSeq")]
     pub root_seq: u64,
     /// A 32-byte hash represented as a base58 string.
-    #[serde(rename = "tx_hash", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "txHash", skip_serializing_if = "Option::is_none")]
     pub tx_hash: Option<String>,
 }
 

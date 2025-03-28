@@ -6,6 +6,7 @@ use light_compressed_account::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
         zero_copy::ZOutputCompressedAccountWithPackedContext,
     },
+    TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
 
@@ -70,7 +71,9 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            pubkey: *output_queue.pubkey(),
+                            tree_pubkey: output_queue.metadata.associated_merkle_tree,
+                            queue_pubkey: *output_queue.pubkey(),
+                            tree_type: (TreeType::BatchedState as u64).into(),
                             seq: output_queue.batch_metadata.next_index.into(),
                         };
                     is_batched = true;
@@ -79,7 +82,9 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                 AcpAccount::StateTree((pubkey, tree)) => {
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            pubkey: (*pubkey).into(),
+                            tree_pubkey: (*pubkey).into(),
+                            queue_pubkey: (*pubkey).into(),
+                            tree_type: (TreeType::State as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
                     hashed_merkle_tree = context

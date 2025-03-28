@@ -47,20 +47,24 @@ pub struct BatchNullifyContext {
 // Separate type because zerocopy::U64 doesn't implement BorshSerialize.
 #[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
-    pub pubkey: Pubkey,
+    pub tree_pubkey: Pubkey,
+    pub queue_pubkey: Pubkey,
+    pub tree_type: u64,
     pub seq: u64,
 }
 
 impl MerkleTreeSequenceNumber {
     pub fn is_empty(&self) -> bool {
-        self.pubkey == Pubkey::default()
+        self.tree_pubkey == Pubkey::default()
     }
 }
 
 impl From<&InstructionDataSequenceNumber> for MerkleTreeSequenceNumber {
     fn from(seq: &InstructionDataSequenceNumber) -> Self {
         Self {
-            pubkey: seq.pubkey.into(),
+            tree_pubkey: seq.tree_pubkey.into(),
+            queue_pubkey: seq.queue_pubkey.into(),
+            tree_type: seq.tree_type.into(),
             seq: seq.seq.into(),
         }
     }

@@ -25,6 +25,7 @@ use light_compressed_account::{
     },
     nullifier::create_nullifier,
     tx_hash::create_tx_hash,
+    TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{
@@ -93,7 +94,9 @@ async fn parse_batched_event_functional() {
                     .collect::<Vec<_>>(),
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
-                    pubkey: env.batched_output_queue,
+                    tree_pubkey: env.batched_state_merkle_tree,
+                    queue_pubkey: env.batched_output_queue,
+                    tree_type: TreeType::BatchedState as u64,
                     seq: 0,
                 }],
                 relay_fee: None,
@@ -225,7 +228,9 @@ async fn parse_batched_event_functional() {
                     .collect::<Vec<_>>(),
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
-                    pubkey: env.batched_output_queue,
+                    tree_pubkey: env.batched_state_merkle_tree,
+                    queue_pubkey: env.batched_output_queue,
+                    tree_type: TreeType::BatchedState as u64,
                     seq: 8,
                 }],
                 relay_fee: None,
@@ -241,7 +246,9 @@ async fn parse_batched_event_functional() {
             },
             address_sequence_numbers: Vec::new(),
             input_sequence_numbers: vec![MerkleTreeSequenceNumber {
-                pubkey: env.batched_state_merkle_tree,
+                tree_pubkey: env.batched_state_merkle_tree,
+                queue_pubkey: env.batched_output_queue,
+                tree_type: TreeType::BatchedState as u64,
                 seq: 0,
             }],
             batch_input_accounts,
@@ -379,7 +386,9 @@ async fn parse_batched_event_functional() {
                     .collect::<Vec<_>>(),
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
-                    pubkey: env.batched_output_queue,
+                    tree_pubkey: env.batched_state_merkle_tree,
+                    queue_pubkey: env.batched_output_queue,
+                    tree_type: TreeType::BatchedState as u64,
                     seq: 16,
                 }],
                 relay_fee: None,
@@ -393,11 +402,15 @@ async fn parse_batched_event_functional() {
                 ],
             },
             address_sequence_numbers: vec![MerkleTreeSequenceNumber {
-                pubkey: env.batch_address_merkle_tree,
+                tree_pubkey: env.batch_address_merkle_tree,
+                queue_pubkey: Pubkey::default(),
+                tree_type: TreeType::BatchedAddress as u64,
                 seq: 0,
             }],
             input_sequence_numbers: vec![MerkleTreeSequenceNumber {
-                pubkey: env.batched_state_merkle_tree,
+                tree_pubkey: env.batched_state_merkle_tree,
+                queue_pubkey: env.batched_output_queue,
+                tree_type: TreeType::BatchedState as u64,
                 seq: 8,
             }],
             batch_input_accounts,
@@ -455,7 +468,9 @@ async fn parse_multiple_batched_events_functional() {
                     .unwrap()],
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
-                    pubkey: env.batched_output_queue,
+                    tree_pubkey: env.batched_state_merkle_tree,
+                    queue_pubkey: env.batched_output_queue,
+                    tree_type: TreeType::BatchedState as u64,
                     seq: 0,
                 }],
                 relay_fee: None,
@@ -474,7 +489,9 @@ async fn parse_multiple_batched_events_functional() {
         for i in 1..num_expected_events {
             let mut expected_event = expected_batched_event.clone();
             expected_event.event.sequence_numbers = vec![MerkleTreeSequenceNumber {
-                pubkey: env.batched_output_queue,
+                tree_pubkey: env.batched_state_merkle_tree,
+                queue_pubkey: env.batched_output_queue,
+                tree_type: TreeType::BatchedState as u64,
                 seq: i as u64,
             }];
             expected_event.event.output_compressed_account_hashes = vec![output_accounts[0]
@@ -540,7 +557,9 @@ async fn generate_photon_test_data_multiple_events() {
                     .unwrap()],
                 output_compressed_accounts: output_accounts.to_vec(),
                 sequence_numbers: vec![MerkleTreeSequenceNumber {
-                    pubkey: env.batched_output_queue,
+                    tree_pubkey: env.batched_state_merkle_tree,
+                    queue_pubkey: env.batched_output_queue,
+                    tree_type: TreeType::BatchedState as u64,
                     seq: 0,
                 }],
                 relay_fee: None,
@@ -559,7 +578,9 @@ async fn generate_photon_test_data_multiple_events() {
         for i in 1..num_expected_events {
             let mut expected_event = expected_batched_event.clone();
             expected_event.event.sequence_numbers = vec![MerkleTreeSequenceNumber {
-                pubkey: env.batched_output_queue,
+                tree_pubkey: env.batched_state_merkle_tree,
+                queue_pubkey: env.batched_output_queue,
+                tree_type: TreeType::BatchedState as u64,
                 seq: i as u64,
             }];
             expected_event.event.output_compressed_account_hashes = vec![output_accounts[0]
