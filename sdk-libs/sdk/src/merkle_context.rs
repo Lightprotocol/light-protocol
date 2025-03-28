@@ -167,239 +167,246 @@ pub fn pack_address_merkle_context(
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::*;
+#[cfg(test)]
+mod test {
+    use super::*;
 
-//     #[test]
-//     fn test_remaining_accounts() {
-//         let mut remaining_accounts = CpiAccounts::default();
+    #[test]
+    fn test_remaining_accounts() {
+        let mut remaining_accounts = CpiAccounts::default();
 
-//         let pubkey_1 = Pubkey::new_unique();
-//         let pubkey_2 = Pubkey::new_unique();
-//         let pubkey_3 = Pubkey::new_unique();
-//         let pubkey_4 = Pubkey::new_unique();
+        let pubkey_1 = Pubkey::new_unique();
+        let pubkey_2 = Pubkey::new_unique();
+        let pubkey_3 = Pubkey::new_unique();
+        let pubkey_4 = Pubkey::new_unique();
 
-//         // Initial insertion.
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_1), 0);
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_2), 1);
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
+        // Initial insertion.
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_1), 0);
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_2), 1);
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
-//         assert_eq!(
-//             remaining_accounts.to_account_metas().as_slice(),
-//             &[
-//                 AccountMeta {
-//                     pubkey: pubkey_1,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_2,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_3,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 }
-//             ]
-//         );
+        assert_eq!(
+            remaining_accounts.to_account_metas().as_slice(),
+            &[
+                AccountMeta {
+                    pubkey: pubkey_1,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_2,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_3,
+                    is_signer: false,
+                    is_writable: true,
+                }
+            ]
+        );
 
-//         // Insertion of already existing pubkeys.
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_1), 0);
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_2), 1);
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
+        // Insertion of already existing pubkeys.
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_1), 0);
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_2), 1);
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
-//         assert_eq!(
-//             remaining_accounts.to_account_metas().as_slice(),
-//             &[
-//                 AccountMeta {
-//                     pubkey: pubkey_1,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_2,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_3,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 }
-//             ]
-//         );
+        assert_eq!(
+            remaining_accounts.to_account_metas().as_slice(),
+            &[
+                AccountMeta {
+                    pubkey: pubkey_1,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_2,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_3,
+                    is_signer: false,
+                    is_writable: true,
+                }
+            ]
+        );
 
-//         // Again, initial insertion.
-//         assert_eq!(remaining_accounts.insert_or_get(pubkey_4), 3);
+        // Again, initial insertion.
+        assert_eq!(remaining_accounts.insert_or_get(pubkey_4), 3);
 
-//         assert_eq!(
-//             remaining_accounts.to_account_metas().as_slice(),
-//             &[
-//                 AccountMeta {
-//                     pubkey: pubkey_1,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_2,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_3,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 },
-//                 AccountMeta {
-//                     pubkey: pubkey_4,
-//                     is_signer: false,
-//                     is_writable: true,
-//                 }
-//             ]
-//         );
-//     }
+        assert_eq!(
+            remaining_accounts.to_account_metas().as_slice(),
+            &[
+                AccountMeta {
+                    pubkey: pubkey_1,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_2,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_3,
+                    is_signer: false,
+                    is_writable: true,
+                },
+                AccountMeta {
+                    pubkey: pubkey_4,
+                    is_signer: false,
+                    is_writable: true,
+                }
+            ]
+        );
+    }
 
-//     #[test]
-//     fn test_pack_merkle_context() {
-//         let mut remaining_accounts = CpiAccounts::default();
+    #[test]
+    fn test_pack_merkle_context() {
+        let mut remaining_accounts = CpiAccounts::default();
 
-//         let merkle_tree_pubkey = Pubkey::new_unique();
-//         let nullifier_queue_pubkey = Pubkey::new_unique();
-//         let merkle_context = MerkleContext {
-//             merkle_tree_pubkey,
-//             nullifier_queue_pubkey,
-//             leaf_index: 69,
-//             prove_by_index: false,
-//             ..Default::default()
-//         };
+        let merkle_tree_pubkey = Pubkey::new_unique();
+        let nullifier_queue_pubkey = Pubkey::new_unique();
+        let merkle_context = MerkleContext {
+            merkle_tree_pubkey,
+            nullifier_queue_pubkey,
+            leaf_index: 69,
+            prove_by_index: false,
+            ..Default::default()
+        };
 
-//         let packed_merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
-//         assert_eq!(
-//             packed_merkle_context,
-//             PackedMerkleContext {
-//                 merkle_tree_pubkey_index: 0,
-//                 nullifier_queue_pubkey_index: 1,
-//                 leaf_index: 69,
-//                 prove_by_index: false,
-//             }
-//         )
-//     }
+        let packed_merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
+        assert_eq!(
+            packed_merkle_context,
+            PackedMerkleContext {
+                merkle_tree_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 1,
+                leaf_index: 69,
+                prove_by_index: false,
+            }
+        )
+    }
 
-//     #[test]
-//     fn test_pack_merkle_contexts() {
-//         let mut remaining_accounts = CpiAccounts::default();
+    #[test]
+    fn test_pack_merkle_contexts() {
+        let mut remaining_accounts = CpiAccounts::default();
 
-//         let merkle_contexts = &[
-//             MerkleContext {
-//                 merkle_tree_pubkey: Pubkey::new_unique(),
-//                 nullifier_queue_pubkey: Pubkey::new_unique(),
-//                 leaf_index: 10,
-//                 prove_by_index: false,
-//                 ..Default::default()
-//             },
-//             MerkleContext {
-//                 merkle_tree_pubkey: Pubkey::new_unique(),
-//                 nullifier_queue_pubkey: Pubkey::new_unique(),
-//                 leaf_index: 11,
-//                 prove_by_index: true,
-//                 ..Default::default()
-//             },
-//             MerkleContext {
-//                 merkle_tree_pubkey: Pubkey::new_unique(),
-//                 nullifier_queue_pubkey: Pubkey::new_unique(),
-//                 leaf_index: 12,
-//                 prove_by_index: false,
-//                 ..Default::default()
-//             },
-//         ];
+        let merkle_contexts = &[
+            MerkleContext {
+                merkle_tree_pubkey: Pubkey::new_unique(),
+                nullifier_queue_pubkey: Pubkey::new_unique(),
+                leaf_index: 10,
+                prove_by_index: false,
+                ..Default::default()
+            },
+            MerkleContext {
+                merkle_tree_pubkey: Pubkey::new_unique(),
+                nullifier_queue_pubkey: Pubkey::new_unique(),
+                leaf_index: 11,
+                prove_by_index: true,
+                ..Default::default()
+            },
+            MerkleContext {
+                merkle_tree_pubkey: Pubkey::new_unique(),
+                nullifier_queue_pubkey: Pubkey::new_unique(),
+                leaf_index: 12,
+                prove_by_index: false,
+                ..Default::default()
+            },
+        ];
 
-//         let packed_merkle_contexts =
-//             pack_merkle_contexts(merkle_contexts.iter(), &mut remaining_accounts);
-//         assert_eq!(
-//             packed_merkle_contexts.collect::<Vec<_>>(),
-//             &[
-//                 PackedMerkleContext {
-//                     merkle_tree_pubkey_index: 0,
-//                     nullifier_queue_pubkey_index: 1,
-//                     leaf_index: 10,
-//                     prove_by_index: false
-//                 },
-//                 PackedMerkleContext {
-//                     merkle_tree_pubkey_index: 2,
-//                     nullifier_queue_pubkey_index: 3,
-//                     leaf_index: 11,
-//                     prove_by_index: true
-//                 },
-//                 PackedMerkleContext {
-//                     merkle_tree_pubkey_index: 4,
-//                     nullifier_queue_pubkey_index: 5,
-//                     leaf_index: 12,
-//                     prove_by_index: false,
-//                 }
-//             ]
-//         );
-//     }
+        let packed_merkle_contexts =
+            pack_merkle_contexts(merkle_contexts.iter(), &mut remaining_accounts);
+        assert_eq!(
+            packed_merkle_contexts.collect::<Vec<_>>(),
+            &[
+                PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 1,
+                    leaf_index: 10,
+                    prove_by_index: false
+                },
+                PackedMerkleContext {
+                    merkle_tree_pubkey_index: 2,
+                    nullifier_queue_pubkey_index: 3,
+                    leaf_index: 11,
+                    prove_by_index: true
+                },
+                PackedMerkleContext {
+                    merkle_tree_pubkey_index: 4,
+                    nullifier_queue_pubkey_index: 5,
+                    leaf_index: 12,
+                    prove_by_index: false,
+                }
+            ]
+        );
+    }
 
-//     #[test]
-//     fn test_pack_address_merkle_context() {
-//         let mut remaining_accounts = CpiAccounts::default();
+    #[test]
+    fn test_pack_address_merkle_context() {
+        let mut remaining_accounts = CpiAccounts::default();
 
-//         let address_merkle_context = AddressMerkleContext {
-//             address_merkle_tree_pubkey: Pubkey::new_unique(),
-//             address_queue_pubkey: Pubkey::new_unique(),
-//         };
+        let address_merkle_context = AddressMerkleContext {
+            address_merkle_tree_pubkey: Pubkey::new_unique(),
+            address_queue_pubkey: Pubkey::new_unique(),
+        };
 
-//         let packed_address_merkle_context =
-//             pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts);
-//         assert_eq!(
-//             packed_address_merkle_context,
-//             PackedAddressMerkleContext {
-//                 address_merkle_tree_pubkey_index: 0,
-//                 address_queue_pubkey_index: 1,
-//             }
-//         )
-//     }
+        let packed_address_merkle_context =
+            pack_address_merkle_context(&address_merkle_context, &mut remaining_accounts, 2);
+        assert_eq!(
+            packed_address_merkle_context,
+            PackedAddressMerkleContext {
+                address_merkle_tree_pubkey_index: 0,
+                address_queue_pubkey_index: 1,
+                root_index: 2,
+            }
+        )
+    }
 
-//     #[test]
-//     fn test_pack_address_merkle_contexts() {
-//         let mut remaining_accounts = CpiAccounts::default();
+    #[test]
+    fn test_pack_address_merkle_contexts() {
+        let mut remaining_accounts = CpiAccounts::default();
 
-//         let address_merkle_contexts = &[
-//             AddressMerkleContext {
-//                 address_merkle_tree_pubkey: Pubkey::new_unique(),
-//                 address_queue_pubkey: Pubkey::new_unique(),
-//             },
-//             AddressMerkleContext {
-//                 address_merkle_tree_pubkey: Pubkey::new_unique(),
-//                 address_queue_pubkey: Pubkey::new_unique(),
-//             },
-//             AddressMerkleContext {
-//                 address_merkle_tree_pubkey: Pubkey::new_unique(),
-//                 address_queue_pubkey: Pubkey::new_unique(),
-//             },
-//         ];
+        let address_merkle_contexts = &[
+            AddressMerkleContext {
+                address_merkle_tree_pubkey: Pubkey::new_unique(),
+                address_queue_pubkey: Pubkey::new_unique(),
+            },
+            AddressMerkleContext {
+                address_merkle_tree_pubkey: Pubkey::new_unique(),
+                address_queue_pubkey: Pubkey::new_unique(),
+            },
+            AddressMerkleContext {
+                address_merkle_tree_pubkey: Pubkey::new_unique(),
+                address_queue_pubkey: Pubkey::new_unique(),
+            },
+        ];
 
-//         let packed_address_merkle_contexts =
-//             pack_address_merkle_contexts(address_merkle_contexts.iter(), &mut remaining_accounts);
-//         assert_eq!(
-//             packed_address_merkle_contexts.collect::<Vec<_>>(),
-//             &[
-//                 PackedAddressMerkleContext {
-//                     address_merkle_tree_pubkey_index: 0,
-//                     address_queue_pubkey_index: 1,
-//                 },
-//                 PackedAddressMerkleContext {
-//                     address_merkle_tree_pubkey_index: 2,
-//                     address_queue_pubkey_index: 3,
-//                 },
-//                 PackedAddressMerkleContext {
-//                     address_merkle_tree_pubkey_index: 4,
-//                     address_queue_pubkey_index: 5,
-//                 }
-//             ]
-//         );
-//     }
-// }
+        let packed_address_merkle_contexts = pack_address_merkle_contexts(
+            address_merkle_contexts.iter(),
+            &[6, 7, 8],
+            &mut remaining_accounts,
+        );
+        assert_eq!(
+            packed_address_merkle_contexts.collect::<Vec<_>>(),
+            &[
+                PackedAddressMerkleContext {
+                    address_merkle_tree_pubkey_index: 0,
+                    address_queue_pubkey_index: 1,
+                    root_index: 6,
+                },
+                PackedAddressMerkleContext {
+                    address_merkle_tree_pubkey_index: 2,
+                    address_queue_pubkey_index: 3,
+                    root_index: 7,
+                },
+                PackedAddressMerkleContext {
+                    address_merkle_tree_pubkey_index: 4,
+                    address_queue_pubkey_index: 5,
+                    root_index: 8,
+                }
+            ]
+        );
+    }
+}
