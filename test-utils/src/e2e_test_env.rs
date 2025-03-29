@@ -787,7 +787,7 @@ where
         let queue_config = if !self.keypair_action_config.fee_assert {
             let capacity: u32 = gen_prime(&mut self.rng, 1..10000).unwrap();
             NullifierQueueConfig {
-                capacity: capacity as u16,
+                capacity: capacity as u64,
                 sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,
                 network_fee: None,
             }

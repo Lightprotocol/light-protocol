@@ -356,11 +356,11 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
-        100_000_000_000,
+        1000_000_000_000,
     )
     .await
     .unwrap();
-    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 1000_000_000_000)
         .await
         .unwrap();
     let env_accounts = initialize_accounts(
@@ -389,11 +389,11 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
-        100_000_000_000,
+        1000_000_000_000,
     )
     .await
     .unwrap();
-    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 10_000_000_000)
+    airdrop_lamports(&mut context, &keypairs.forester.pubkey(), 1000_000_000_000)
         .await
         .unwrap();
     let env_accounts = initialize_accounts(
@@ -700,7 +700,9 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
-    let size = account_compression::state::queue::QueueAccount::size(218_000).unwrap();
+    let size =
+        account_compression::state::queue::QueueAccount::size(queue_config.capacity as usize)
+            .unwrap();
     println!("queue account: size {}", size);
     let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),

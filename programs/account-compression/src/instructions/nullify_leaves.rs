@@ -42,7 +42,7 @@ impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],
-    leaves_queue_indices: &'a [u16],
+    leaves_queue_indices: &'a [u64],
     leaf_indices: &'a [u64],
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
@@ -85,7 +85,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 fn insert_nullifier<'a, 'c: 'info, 'info>(
     proofs: &[Vec<[u8; 32]>],
     change_log_indices: &[u64],
-    leaves_queue_indices: &[u16],
+    leaves_queue_indices: &[u64],
     leaf_indices: &[u64],
     ctx: &Context<'a, '_, 'c, 'info, NullifyLeaves<'info>>,
 ) -> Result<()> {
@@ -175,7 +175,7 @@ pub mod sdk_nullify {
 
     pub fn create_nullify_instruction(
         change_log_indices: &[u64],
-        leaves_queue_indices: &[u16],
+        leaves_queue_indices: &[u64],
         leaf_indices: &[u64],
         proofs: &[Vec<[u8; 32]>],
         payer: &Pubkey,

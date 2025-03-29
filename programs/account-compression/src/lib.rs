@@ -169,7 +169,7 @@ pub mod account_compression {
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
         change_log_indices: Vec<u64>,
-        leaves_queue_indices: Vec<u16>,
+        leaves_queue_indices: Vec<u64>,
         leaf_indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {

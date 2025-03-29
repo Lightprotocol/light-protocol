@@ -25,7 +25,7 @@ pub async fn get_address_bundle_config<R: RpcConnection>(
     let queue_config = AddressQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
         // rollover_threshold: address_queue_meta_data.rollover_threshold,
-        capacity: address_queue.get_capacity() as u16,
+        capacity: address_queue.get_capacity() as u64,
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
     let address_tree_meta_data =
@@ -78,7 +78,7 @@ pub async fn get_state_bundle_config<R: RpcConnection>(
         unsafe { get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.nullifier_queue).await };
     let queue_config = NullifierQueueConfig {
         network_fee: Some(address_queue_meta_data.rollover_metadata.network_fee),
-        capacity: address_queue.get_capacity() as u16,
+        capacity: address_queue.get_capacity() as u64,
         sequence_threshold: address_queue.sequence_threshold as u64,
     };
     let address_tree_meta_data =

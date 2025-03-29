@@ -11,7 +11,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     program_owner: Option<Pubkey>,
     forester: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
-    capacity: u16,
+    capacity: u64,
     sequence_threshold: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
@@ -51,7 +51,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     unsafe {
         queue_from_bytes_zero_copy_init(
             &mut nullifier_queue,
-            capacity.into(),
+            capacity as usize,
             sequence_threshold as usize,
         )
         .map_err(ProgramError::from)?;

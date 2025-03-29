@@ -15,7 +15,7 @@ pub struct CreateNullifyInstructionInputs {
     pub nullifier_queue: Pubkey,
     pub merkle_tree: Pubkey,
     pub change_log_indices: Vec<u64>,
-    pub leaves_queue_indices: Vec<u16>,
+    pub leaves_queue_indices: Vec<u64>,
     pub indices: Vec<u64>,
     pub proofs: Vec<Vec<[u8; 32]>>,
     pub derivation: Pubkey,

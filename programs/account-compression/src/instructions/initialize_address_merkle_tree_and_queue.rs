@@ -148,7 +148,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         program_owner,
         forester,
         ctx.accounts.merkle_tree.key(),
-        queue_config.capacity,
+        queue_config.capacity.try_into().unwrap(),
         queue_config.sequence_threshold,
         queue_config.network_fee.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,

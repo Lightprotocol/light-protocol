@@ -31,7 +31,7 @@ pub fn process_nullify(
     ctx: &Context<NullifyLeaves>,
     bump: u8,
     change_log_indices: Vec<u64>,
-    leaves_queue_indices: Vec<u16>,
+    leaves_queue_indices: Vec<u64>,
     indices: Vec<u64>,
     proofs: Vec<Vec<[u8; 32]>>,
 ) -> Result<()> {

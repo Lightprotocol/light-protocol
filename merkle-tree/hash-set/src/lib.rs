@@ -485,14 +485,14 @@ impl HashSet {
     }
 
     /// Returns a first available element that does not have a sequence number.
-    pub fn first_no_seq(&self) -> Result<Option<(HashSetCell, u16)>, HashSetError> {
+    pub fn first_no_seq(&self) -> Result<Option<(HashSetCell, u64)>, HashSetError> {
         for i in 0..self.capacity {
             // PANICS: The loop ensures the bounds.
             let bucket = self.get_bucket(i).unwrap();
 
             if let Some(bucket) = bucket {
                 if bucket.sequence_number.is_none() {
-                    return Ok(Some((*bucket, i as u16)));
+                    return Ok(Some((*bucket, i as u64)));
                 }
             }
         }

@@ -417,7 +417,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
                 nullifier_queue: item.tree_account.queue,
                 merkle_tree: item.tree_account.merkle_tree,
                 change_log_indices: vec![proof.root_seq % STATE_MERKLE_TREE_CHANGELOG],
-                leaves_queue_indices: vec![item.queue_item_data.index as u16],
+                leaves_queue_indices: vec![item.queue_item_data.index as u64],
                 indices: vec![proof.leaf_index],
                 proofs: vec![proof.proof.clone()],
                 authority,
