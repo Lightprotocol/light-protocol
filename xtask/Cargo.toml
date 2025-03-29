@@ -7,6 +7,7 @@ edition = "2021"
 light-client = { workspace = true }
 light-test-utils = { path = "../test-utils", version = "1.0.0" }
 account-compression = { path = "../programs/account-compression", version = "1.0.0" }
+anchor-lang = { workspace = true }
 anyhow = "1.0"
 ark-bn254 = "0.4"
 ark-ff = "0.4"

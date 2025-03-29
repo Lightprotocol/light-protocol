@@ -99,6 +99,10 @@ pub mod account_compression {
         process_rollover_address_merkle_tree_and_queue(ctx)
     }
 
+    pub fn close_trees<'info>(_ctx: Context<'_, '_, '_, 'info, CloseTrees<'info>>) -> Result<()> {
+        Ok(())
+    }
+
     /// initialize group (a group can be used to give multiple programs access
     /// to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
@@ -198,4 +202,33 @@ pub mod account_compression {
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
+}
+
+use std::str::FromStr;
+
+#[derive(Accounts)]
+pub struct CloseTrees<'info> {
+    #[account(mut, constraint = fee_payer.key() == Pubkey::from_str("D4CDVpjBDB4L3KMm3mWPymSneQEpDgEatLbeYCMDD8Uh").unwrap())]
+    /// Signer used to receive rollover accounts rentexemption reimbursement.
+    pub fee_payer: Signer<'info>,
+    #[account(mut,close = fee_payer, constraint = state_account_1.key() == Pubkey::from_str("smtB1XUpt3c7j7udurMdxmAGib7RzCyBXu95fAZoHyT").unwrap())]
+    pub state_account_1: AccountLoader<'info, StateMerkleTreeAccount>,
+    #[account(mut, close = fee_payer, constraint = nfq_1.key() == Pubkey::from_str("nfqByCmDtLy7pkKpazApswN5H3Y4RSgCVq7NpecLHza").unwrap())]
+    pub nfq_1: AccountLoader<'info, QueueAccount>,
+    #[account(mut, close = fee_payer, constraint = state_account_2.key() == Pubkey::from_str("smtCg6rdiVANNqgZtBUzSuR5ZCcCmutiBM1WF82dA5V").unwrap())]
+    pub state_account_2: AccountLoader<'info, StateMerkleTreeAccount>,
+    #[account(mut, close = fee_payer, constraint = nfq_2.key() == Pubkey::from_str("nfqCyWDJhvnCchFxZyTqMMirWhnQTLUzbFdSEHSxLH9").unwrap())]
+    pub nfq_2: AccountLoader<'info, QueueAccount>,
+    #[account(mut, close = fee_payer, constraint = state_account_3.key() == Pubkey::from_str("smtd4RMDUcdvvfnjYMq3HzyyqTmgojMHAYrKd5oSHGa").unwrap())]
+    pub state_account_3: AccountLoader<'info, StateMerkleTreeAccount>,
+    #[account(mut, close = fee_payer, constraint = nfq_3.key() == Pubkey::from_str("nfqDgCgnkyYmDav7SCT41MHLqBVDw7ZMZ9g3FUAhKA5").unwrap())]
+    pub nfq_3: AccountLoader<'info, QueueAccount>,
+    #[account(mut, close = fee_payer, constraint = state_account_4.key() == Pubkey::from_str("smtEC1YEbkASxidPBqCvv4ZnHpiGbEoTR6jxMorukfw").unwrap())]
+    pub state_account_4: AccountLoader<'info, StateMerkleTreeAccount>,
+    #[account(mut, close = fee_payer, constraint = nfq_4.key() == Pubkey::from_str("nfqEqgUCSzv46UsHVCKCS4xqVpmgJGP5TbFeeNcRVTT").unwrap())]
+    pub nfq_4: AccountLoader<'info, QueueAccount>,
+    #[account(mut, close = fee_payer, constraint = state_account_5.key() == Pubkey::from_str("smtFhRnMUAzVPvK3hpqW8bdZ57EGecBZ2amgTSHDfvh").unwrap())]
+    pub state_account_5: AccountLoader<'info, StateMerkleTreeAccount>,
+    #[account(mut, close = fee_payer, constraint = nfq_5.key() == Pubkey::from_str("nfqFogABA4EtEauP8ti3KA96qMv6QBoGda9cTAcfKph").unwrap())]
+    pub nfq_5: AccountLoader<'info, QueueAccount>,
 }

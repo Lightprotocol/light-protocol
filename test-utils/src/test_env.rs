@@ -30,6 +30,7 @@ use light_registry::utils::{
 };
 use light_registry::ForesterConfig;
 use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::signature::{read_keypair_file, Signature};
 use solana_sdk::{
     pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
@@ -740,6 +741,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         );
         Transaction::new_signed_with_payer(
             &[
+                ComputeBudgetInstruction::set_compute_unit_limit(1_400_000),
                 create_cpi_context_instruction,
                 merkle_tree_account_create_ix,
                 nullifier_queue_account_create_ix,
@@ -768,6 +770,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         );
         Transaction::new_signed_with_payer(
             &[
+                ComputeBudgetInstruction::set_compute_unit_limit(1_400_000),
                 merkle_tree_account_create_ix,
                 nullifier_queue_account_create_ix,
                 instruction,

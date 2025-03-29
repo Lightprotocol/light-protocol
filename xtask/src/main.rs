@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 
 mod bench;
+mod close_state_trees;
 mod create_state_tree;
 mod create_vkeyrs_from_gnark_key;
 mod fee;
@@ -43,6 +44,7 @@ enum Command {
     /// Example:
     /// cargo xtask create-state-tree --mt-pubkey ./target/tree-keypairs/smtAvYA5UbTRyKAkAj5kHs1CmrA42t6WkVLi4c6mA1f.json --nfq-pubkey ./target/tree-keypairs/nfqAroCRkcZBgsAJDNkptKpsSWyM6cgB9XpWNNiCEC4.json --cpi-pubkey ./target/tree-keypairs/cpiAb2eNFf6MQeqMWEyEjSN3VJcD5hghujhmtdcMuZp.json --index 10 --network local
     CreateStateTree(create_state_tree::Options),
+    CloseStateTrees(close_state_trees::Options),
 }
 
 #[tokio::main]
@@ -62,5 +64,6 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::Fee => fee::fees(),
         Command::HashSet(opts) => hash_set::hash_set(opts),
         Command::CreateStateTree(opts) => create_state_tree::create_state_tree(opts).await,
+        Command::CloseStateTrees(opts) => close_state_trees::close_state_trees(opts).await,
     }
 }

@@ -114,7 +114,10 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     } else {
         (
             StateMerkleTreeConfig::default(),
-            NullifierQueueConfig::default(),
+            NullifierQueueConfig {
+                capacity: 218_000,
+                ..Default::default()
+            },
         )
     };
 

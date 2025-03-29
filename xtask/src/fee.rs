@@ -44,7 +44,7 @@ pub fn fees() -> anyhow::Result<()> {
             )? + compute_rollover_fee(
                 state_merkle_tree_config.rollover_threshold.unwrap(),
                 ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                rent.minimum_balance(QueueAccount::size(ADDRESS_QUEUE_VALUES.into())?),
+                rent.minimum_balance(QueueAccount::size(ADDRESS_QUEUE_VALUES as usize)?),
             )?,
         },
     ];

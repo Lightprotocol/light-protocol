@@ -9528,6 +9528,7 @@ name = "xtask"
 version = "1.0.0"
 dependencies = [
  "account-compression",
+ "anchor-lang",
  "anyhow",
  "ark-bn254",
  "ark-ff",
