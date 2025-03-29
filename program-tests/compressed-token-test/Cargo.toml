@@ -30,7 +30,7 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 forester-utils = { workspace = true }
 light-client = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }

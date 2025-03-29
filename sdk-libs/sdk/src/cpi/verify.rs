@@ -2,35 +2,19 @@ use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
     data::NewAddressParamsPacked, invoke_cpi::InstructionDataInvokeCpi,
 };
-use solana_program::{
-    account_info::AccountInfo,
-    instruction::{AccountMeta, Instruction},
-    program::invoke_signed,
-    pubkey::Pubkey,
-};
 
 use crate::{
-    account_info::CAccountInfo,
+    account_info::CompressedAccountInfo,
+    cpi::accounts::CompressionCpiAccounts,
     error::{LightSdkError, Result},
-    system_accounts::LightCpiAccounts,
-    BorshSerialize, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
+    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, BorshSerialize, Instruction,
+    Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
 };
 
-pub fn find_cpi_signer(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), program_id).0
-}
-
-#[macro_export]
-macro_rules! find_cpi_signer_macro {
-    ($program_id:expr) => {
-        Pubkey::find_program_address([CPI_AUTHORITY_PDA_SEED].as_slice(), $program_id)
-    };
-}
-
-pub fn verify_light_account_infos(
-    light_cpi_accounts: &LightCpiAccounts,
+pub fn verify_compressed_account_infos(
+    light_cpi_accounts: &CompressionCpiAccounts,
     proof: Option<CompressedProof>,
-    light_accounts: &[CAccountInfo],
+    light_accounts: &[CompressedAccountInfo],
     new_address_params: Option<Vec<NewAddressParamsPacked>>,
     compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
@@ -65,7 +49,7 @@ pub fn verify_light_account_infos(
 /// Invokes the light system program to verify and apply a zk-compressed state
 /// transition. Serializes CPI instruction data, configures necessary accounts,
 /// and executes the CPI.
-pub fn verify_borsh<T>(light_system_accounts: &LightCpiAccounts, inputs: &T) -> Result<()>
+pub fn verify_borsh<T>(light_system_accounts: &CompressionCpiAccounts, inputs: &T) -> Result<()>
 where
     T: BorshSerialize,
 {
@@ -78,7 +62,10 @@ where
     verify_system_info(light_system_accounts, data)
 }
 
-pub fn verify_system_info(light_system_accounts: &LightCpiAccounts, data: Vec<u8>) -> Result<()> {
+pub fn verify_system_info(
+    light_system_accounts: &CompressionCpiAccounts,
+    data: Vec<u8>,
+) -> Result<()> {
     let account_infos = light_system_accounts.to_account_infos();
     let account_metas = light_system_accounts.to_account_metas();
     invoke_light_system_program(

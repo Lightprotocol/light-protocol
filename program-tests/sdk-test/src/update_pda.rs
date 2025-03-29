@@ -1,11 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::CBorshAccount,
-    account_meta::InputAccountMeta,
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_compressed_account_infos,
+    },
     error::LightSdkError,
-    instruction_data::LightInstructionData,
-    system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
-    verify::verify_light_account_infos,
+    instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
 };
 use solana_program::account_info::AccountInfo;
 
@@ -33,16 +34,16 @@ pub fn update_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.new_data;
 
-    let config = SystemAccountInfoConfig {
+    let config = CompressionCpiAccountsConfig {
         self_program: crate::ID,
         cpi_context: false,
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
     let light_cpi_accounts =
-        LightCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
+        CompressionCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
 
-    verify_light_account_infos(
+    verify_compressed_account_infos(
         &light_cpi_accounts,
         instruction_data.light_ix_data.proof,
         &[my_compressed_account.to_account_info()?],
@@ -62,6 +63,6 @@ pub struct UpdatePdaInstructionData {
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct UpdateMyCompressedAccount {
-    pub meta: InputAccountMeta,
+    pub meta: CompressedAccountMeta,
     pub data: [u8; 31],
 }

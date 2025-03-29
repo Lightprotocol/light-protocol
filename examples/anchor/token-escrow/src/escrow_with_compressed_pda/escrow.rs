@@ -18,12 +18,12 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    legacy::create_cpi_inputs_for_new_account,
-    light_system_accounts,
-    system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
-    traits::*,
-    verify::verify_borsh,
-    LightTraits,
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_borsh,
+    },
+    legacy::*,
+    light_system_accounts, LightTraits,
 };
 
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
@@ -132,10 +132,10 @@ fn cpi_compressed_pda_transfer<'info>(
             .clone(),
     ];
     system_accounts.extend_from_slice(ctx.remaining_accounts);
-    let light_accounts = LightCpiAccounts::new_with_config(
+    let light_accounts = CompressionCpiAccounts::new_with_config(
         ctx.accounts.signer.as_ref(),
         &system_accounts,
-        SystemAccountInfoConfig {
+        CompressionCpiAccountsConfig {
             self_program: crate::ID,
             cpi_context: true,
             ..Default::default()

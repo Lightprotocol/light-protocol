@@ -1,5 +1,5 @@
 use crate::{
-    account_info::CAccountInfo,
+    account_info::CompressedAccountInfo,
     error::{LightSdkError, Result},
 };
 
@@ -9,8 +9,8 @@ use crate::{
 /// account. It will update the lamport balances of both accounts if the
 /// transfer is successful.
 pub fn transfer_compressed_sol(
-    from: &mut CAccountInfo,
-    to: &mut CAccountInfo,
+    from: &mut CompressedAccountInfo,
+    to: &mut CompressedAccountInfo,
     lamports: u64,
 ) -> Result<()> {
     if let Some(output) = from.output.as_mut() {
@@ -51,16 +51,18 @@ pub fn transfer_compressed_sol(
 #[cfg(test)]
 mod tests {
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use solana_program::pubkey::Pubkey;
 
     use super::*;
-    use crate::account_info::{CAccountInfo, CInAccountInfo, COutAccountInfo};
+    use crate::{
+        account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+        Pubkey,
+    };
 
     /// Creates a mock account with the given input lamports.
-    fn mock_account(_owner: &Pubkey, lamports: Option<u64>) -> CAccountInfo {
+    fn mock_account(_owner: &Pubkey, lamports: Option<u64>) -> CompressedAccountInfo {
         let input_lamports = lamports.unwrap_or(0);
-        CAccountInfo {
-            input: Some(CInAccountInfo {
+        CompressedAccountInfo {
+            input: Some(InAccountInfo {
                 lamports: input_lamports,
                 // None of the following values matter.
                 data_hash: [0; 32],
@@ -72,7 +74,7 @@ mod tests {
                 },
                 root_index: 0,
             }),
-            output: Some(COutAccountInfo {
+            output: Some(OutAccountInfo {
                 lamports: input_lamports,
                 // None of the following values matter.
                 data_hash: [0; 32],
@@ -86,10 +88,10 @@ mod tests {
     }
 
     /// Creates a mock account without input.
-    fn mock_account_without_input(_owner: &Pubkey) -> CAccountInfo {
-        CAccountInfo {
+    fn mock_account_without_input(_owner: &Pubkey) -> CompressedAccountInfo {
+        CompressedAccountInfo {
             input: None,
-            output: Some(COutAccountInfo {
+            output: Some(OutAccountInfo {
                 lamports: 0,
                 // None of the following values matter.
                 data_hash: [0; 32],

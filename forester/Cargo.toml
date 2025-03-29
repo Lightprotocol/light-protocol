@@ -22,7 +22,7 @@ photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
 url = "2.2"

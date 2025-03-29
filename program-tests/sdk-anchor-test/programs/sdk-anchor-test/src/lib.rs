@@ -1,9 +1,13 @@
 use anchor_lang::prelude::*;
 use light_sdk::{
-    account_meta::InputAccountMeta, address::derive_address, error::LightSdkError,
-    instruction_data::LightInstructionData, light_account,
-    program_merkle_context::unpack_address_merkle_context, verify::verify_light_account_infos,
-    LightHasher,
+    address::v1::derive_address,
+    cpi::verify::verify_compressed_account_infos,
+    error::LightSdkError,
+    instruction::{
+        account_meta::CompressedAccountMeta, instruction_data::LightInstructionData,
+        merkle_context::unpack_address_merkle_context,
+    },
+    light_account, LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
@@ -11,7 +15,7 @@ declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 #[program]
 pub mod sdk_anchor_test {
     use light_sdk::{
-        account::CBorshAccount, system_accounts::LightCpiAccounts, NewAddressParamsPacked,
+        account::CBorshAccount, cpi::accounts::CompressionCpiAccounts, NewAddressParamsPacked,
     };
 
     use super::*;
@@ -52,14 +56,14 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        verify_light_account_infos(
+        verify_compressed_account_infos(
             &light_cpi_accounts,
             light_ix_data.proof,
             &[my_compressed_account.to_account_info().unwrap()],
@@ -77,7 +81,7 @@ pub mod sdk_anchor_test {
         ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
         light_ix_data: LightInstructionData,
         my_compressed_account: MyCompressedAccount,
-        account_meta: InputAccountMeta,
+        account_meta: CompressedAccountMeta,
         nested_data: NestedData,
     ) -> Result<()> {
         let program_id = crate::ID.into();
@@ -90,14 +94,14 @@ pub mod sdk_anchor_test {
 
         my_compressed_account.nested = nested_data;
 
-        let light_cpi_accounts = LightCpiAccounts::new(
+        let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::ID,
         )
         .map_err(ProgramError::from)?;
 
-        verify_light_account_infos(
+        verify_compressed_account_infos(
             &light_cpi_accounts,
             light_ix_data.proof,
             &[my_compressed_account.to_account_info().unwrap()],

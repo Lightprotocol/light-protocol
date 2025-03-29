@@ -37,8 +37,8 @@ macro_rules! impl_to_byte_array_for_integer_type {
     };
 }
 
-#[cfg(feature = "solana")]
-impl ToByteArray for solana_program::pubkey::Pubkey {
+#[cfg(any(feature = "solana", feature = "anchor"))]
+impl ToByteArray for crate::Pubkey {
     const NUM_FIELDS: usize = 1;
 
     fn to_byte_array(&self) -> Result<[u8; 32], HasherError> {
@@ -460,7 +460,15 @@ mod test {
         #[cfg(feature = "solana")]
         {
             // Test to_byte_arrays for Pubkey
-            let pubkey = solana_program::pubkey::Pubkey::new_unique();
+            let pubkey = crate::Pubkey::new_unique();
+            let arrays = pubkey.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+            assert_eq!(arrays[0], pubkey.to_bytes());
+        }
+        #[cfg(feature = "anchor")]
+        {
+            // Test to_byte_arrays for Pubkey
+            let pubkey = crate::Pubkey::new_unique();
             let arrays = pubkey.to_byte_arrays::<1>().unwrap();
             assert_eq!(arrays.len(), 1);
             assert_eq!(arrays[0], pubkey.to_bytes());

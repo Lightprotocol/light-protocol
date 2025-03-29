@@ -4,11 +4,14 @@ use light_compressed_account::{
 };
 use light_sdk::{
     account::CBorshAccount,
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_compressed_account_infos,
+    },
     error::LightSdkError,
-    instruction_data::LightInstructionData,
-    program_merkle_context::unpack_address_merkle_context,
-    system_accounts::{LightCpiAccounts, SystemAccountInfoConfig},
-    verify::verify_light_account_infos,
+    instruction::{
+        instruction_data::LightInstructionData, merkle_context::unpack_address_merkle_context,
+    },
     LightDiscriminator, LightHasher,
 };
 use solana_program::account_info::AccountInfo;
@@ -44,7 +47,7 @@ pub fn create_pda<const BATCHED: bool>(
         );
         (address, address_seed)
     } else {
-        light_sdk::address::derive_address(
+        light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
             &address_merkle_context,
             &crate::ID,
@@ -81,16 +84,16 @@ pub fn create_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.data;
 
-    let config = SystemAccountInfoConfig {
+    let config = CompressionCpiAccountsConfig {
         self_program: crate::ID,
         cpi_context: false,
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
     let light_cpi_accounts =
-        LightCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
+        CompressionCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
 
-    verify_light_account_infos(
+    verify_compressed_account_infos(
         &light_cpi_accounts,
         instruction_data.light_ix_data.proof,
         &[my_compressed_account.to_account_info()?],

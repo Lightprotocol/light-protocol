@@ -20,8 +20,8 @@ impl HashToFieldSize for String {
     }
 }
 
-#[cfg(feature = "solana")]
-impl HashToFieldSize for solana_program::pubkey::Pubkey {
+#[cfg(any(feature = "solana", feature = "anchor"))]
+impl HashToFieldSize for crate::Pubkey {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
         Ok(hash_to_bn254_field_size_be(&self.to_bytes()))
     }
@@ -143,10 +143,10 @@ mod tests {
         assert!(!is_smaller_than_bn254_field_size_be(&bigint_bytes));
     }
 
-    #[cfg(feature = "solana")]
+    #[cfg(any(feature = "solana", feature = "anchor"))]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
-        use solana_program::pubkey::Pubkey;
+        use crate::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
             let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice());
@@ -164,10 +164,10 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "solana")]
+    #[cfg(any(feature = "solana", feature = "anchor"))]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
-        use solana_program::pubkey::Pubkey;
+        use crate::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();

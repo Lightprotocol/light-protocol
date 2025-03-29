@@ -1,12 +1,10 @@
-use solana_program::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
-
 use crate::{
-    error::Result, find_cpi_signer_macro, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
-    PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
+    error::Result, find_cpi_signer_macro, AccountInfo, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
+    PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 
 #[repr(usize)]
-pub enum LightSystemAccountIndex {
+pub enum CompressionCpiAccountIndex {
     LightSystemProgram,
     Authority,
     RegisteredProgramPda,
@@ -23,13 +21,13 @@ pub enum LightSystemAccountIndex {
 pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
 
 // TODO: add unit tests
-pub struct LightCpiAccounts<'c, 'info> {
+pub struct CompressionCpiAccounts<'c, 'info> {
     fee_payer: &'c AccountInfo<'info>,
     accounts: &'c [AccountInfo<'info>],
-    config: SystemAccountInfoConfig,
+    config: CompressionCpiAccountsConfig,
 }
 
-impl<'c, 'info> LightCpiAccounts<'c, 'info> {
+impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     // TODO: consider to pass num of trees to split remaining accounts
     pub fn new(
         fee_payer: &'c AccountInfo<'info>,
@@ -37,13 +35,13 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         program_id: Pubkey,
     ) -> Result<Self> {
         // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     msg!("accounts len {}", accounts.len());
         //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
         // }
         Ok(Self {
             fee_payer,
             accounts,
-            config: SystemAccountInfoConfig {
+            config: CompressionCpiAccountsConfig {
                 self_program: program_id,
                 ..Default::default()
             },
@@ -53,10 +51,10 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
     pub fn new_with_config(
         fee_payer: &'c AccountInfo<'info>,
         accounts: &'c [AccountInfo<'info>],
-        config: SystemAccountInfoConfig,
+        config: CompressionCpiAccountsConfig,
     ) -> Result<Self> {
         // if accounts.len() < SYSTEM_ACCOUNTS_LEN {
-        //     solana_program::msg!("accounts len {}", accounts.len());
+        //     msg!("accounts len {}", accounts.len());
         //     return Err(LightSdkError::FewerAccountsThanSystemAccounts);
         // }
         Ok(Self {
@@ -73,21 +71,21 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
     pub fn light_system_program(&self) -> &'c AccountInfo<'info> {
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
-            .get(LightSystemAccountIndex::LightSystemProgram as usize)
+            .get(CompressionCpiAccountIndex::LightSystemProgram as usize)
             .unwrap()
     }
 
     pub fn authority(&self) -> &'c AccountInfo<'info> {
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
-            .get(LightSystemAccountIndex::Authority as usize)
+            .get(CompressionCpiAccountIndex::Authority as usize)
             .unwrap()
     }
 
     pub fn invoking_program(&self) -> &'c AccountInfo<'info> {
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
-            .get(LightSystemAccountIndex::InvokingProgram as usize)
+            .get(CompressionCpiAccountIndex::InvokingProgram as usize)
             .unwrap()
     }
 
@@ -125,7 +123,7 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
 
         if !self.config.sol_pool_pda {
             account_metas.insert(
-                LightSystemAccountIndex::SolPoolPda as usize,
+                CompressionCpiAccountIndex::SolPoolPda as usize,
                 AccountMeta {
                     pubkey: *self.light_system_program().key,
                     is_signer: false,
@@ -136,7 +134,7 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
 
         if !self.config.sol_compression_recipient {
             account_metas.insert(
-                LightSystemAccountIndex::DecompressionRecipent as usize,
+                CompressionCpiAccountIndex::DecompressionRecipent as usize,
                 AccountMeta {
                     pubkey: *self.light_system_program().key,
                     is_signer: false,
@@ -146,7 +144,7 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         }
         if !self.config.cpi_context {
             account_metas.insert(
-                LightSystemAccountIndex::CpiContext as usize,
+                CompressionCpiAccountIndex::CpiContext as usize,
                 AccountMeta {
                     pubkey: *self.light_system_program().key,
                     is_signer: false,
@@ -166,7 +164,7 @@ impl<'c, 'info> LightCpiAccounts<'c, 'info> {
         account_metas
     }
 
-    pub fn config(&self) -> &SystemAccountInfoConfig {
+    pub fn config(&self) -> &CompressionCpiAccountsConfig {
         &self.config
     }
 
@@ -219,7 +217,7 @@ impl SystemAccountMetaConfig {
 }
 
 #[derive(Debug, Default, Copy, Clone)]
-pub struct SystemAccountInfoConfig {
+pub struct CompressionCpiAccountsConfig {
     pub self_program: Pubkey,
     // TODO: move to instructiond data
     pub cpi_context: bool,
@@ -227,7 +225,7 @@ pub struct SystemAccountInfoConfig {
     pub sol_pool_pda: bool,
 }
 
-impl SystemAccountInfoConfig {
+impl CompressionCpiAccountsConfig {
     pub fn new(self_program: Pubkey) -> Self {
         Self {
             self_program,
@@ -264,9 +262,11 @@ impl Default for SystemAccountPubkeys {
             light_sytem_program: PROGRAM_ID_LIGHT_SYSTEM,
             system_program: Pubkey::default(),
             account_compression_program: PROGRAM_ID_ACCOUNT_COMPRESSION,
-            account_compression_authority: crate::utils::get_cpi_authority_pda(
+            account_compression_authority: Pubkey::find_program_address(
+                &[CPI_AUTHORITY_PDA_SEED],
                 &PROGRAM_ID_LIGHT_SYSTEM,
-            ),
+            )
+            .0,
             registered_program_pda: Pubkey::find_program_address(
                 &[PROGRAM_ID_LIGHT_SYSTEM.to_bytes().as_slice()],
                 &PROGRAM_ID_ACCOUNT_COMPRESSION,

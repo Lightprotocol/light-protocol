@@ -36,3 +36,8 @@ pub trait Discriminator {
         Self::DISCRIMINATOR
     }
 }
+
+#[cfg(all(feature = "anchor", not(feature = "solana")))]
+use anchor_lang::prelude::Pubkey;
+#[cfg(feature = "solana")]
+use solana_program::pubkey::Pubkey;

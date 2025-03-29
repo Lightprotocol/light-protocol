@@ -5,10 +5,7 @@ use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
 use light_merkle_tree_metadata::QueueType;
-use light_sdk::{
-    proof::ProofRpcResult,
-    token::{AccountState, TokenData, TokenDataWithMerkleContext},
-};
+use light_sdk::token::{AccountState, TokenData, TokenDataWithMerkleContext};
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{
@@ -30,7 +27,7 @@ use crate::{
         NewAddressProofWithContext,
     },
     rate_limiter::{RateLimiter, UseRateLimiter},
-    rpc::RpcConnection,
+    rpc::{types::ProofRpcResult, RpcConnection},
 };
 
 pub struct PhotonIndexer<R: RpcConnection> {

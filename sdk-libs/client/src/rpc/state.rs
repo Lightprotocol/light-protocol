@@ -1,6 +1,5 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
-
-use crate::{BorshDeserialize, BorshSerialize};
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Default)]
 pub struct MerkleTreeMetadata {

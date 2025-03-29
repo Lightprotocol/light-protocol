@@ -23,7 +23,11 @@ use light_client::{
         MerkleProofWithContext, NewAddressProofWithContext, StateMerkleTreeAccounts,
         StateMerkleTreeBundle,
     },
-    rpc::{merkle_tree::MerkleTreeExt, RpcConnection},
+    rpc::{
+        merkle_tree::MerkleTreeExt,
+        types::{BatchedTreeProofRpcResult, ProofRpcResult},
+        RpcConnection,
+    },
     transaction_params::FeeConfig,
 };
 use light_compressed_account::{
@@ -55,10 +59,7 @@ use light_prover_client::{
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
     non_inclusion_legacy::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs as NonInclusionProofInputsLegacy,
 };
-use light_sdk::{
-    proof::{BatchedTreeProofRpcResult, ProofRpcResult},
-    token::{TokenData, TokenDataWithMerkleContext},
-};
+use light_sdk::token::{TokenData, TokenDataWithMerkleContext};
 use log::{info, warn};
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;

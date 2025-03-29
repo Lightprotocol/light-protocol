@@ -31,7 +31,7 @@ account-compression = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-client = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-registry = { workspace = true }
 solana-cli-output = { workspace = true }
