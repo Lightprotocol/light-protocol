@@ -1,6 +1,4 @@
-use borsh::BorshDeserialize;
 use light_zero_copy::borsh::Deserialize;
-use solana_program::pubkey::Pubkey;
 
 use super::{
     error::ParseIndexerEventError,
@@ -22,6 +20,7 @@ use crate::{
         invoke_cpi::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
+    AnchorDeserialize, Pubkey,
 };
 
 #[derive(Debug, Clone, PartialEq)]

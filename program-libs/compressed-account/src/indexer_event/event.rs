@@ -1,9 +1,9 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
-
-use crate::instruction_data::{
-    data::OutputCompressedAccountWithPackedContext,
-    insert_into_queues::MerkleTreeSequenceNumber as InstructionDataSequenceNumber,
+use crate::{
+    instruction_data::{
+        data::OutputCompressedAccountWithPackedContext,
+        insert_into_queues::MerkleTreeSequenceNumber as InstructionDataSequenceNumber,
+    },
+    AnchorDeserialize, AnchorSerialize, Pubkey,
 };
 
 #[derive(Debug, Clone, Default, PartialEq)]

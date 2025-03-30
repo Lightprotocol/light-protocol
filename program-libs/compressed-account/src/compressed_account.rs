@@ -1,11 +1,6 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
-use solana_program::pubkey::Pubkey;
 
 use crate::{
     address::pack_account,
@@ -13,7 +8,7 @@ use crate::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext, zero_copy::ZCompressedAccount,
     },
-    CompressedAccountError, TreeType,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError, Pubkey, TreeType,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

@@ -7,6 +7,7 @@ use thiserror::Error;
 
 pub mod address;
 pub mod compressed_account;
+#[cfg(any(feature = "anchor", feature = "solana", feature = "pinocchio"))]
 pub mod constants;
 pub mod discriminators;
 pub mod hash_chain;
@@ -16,10 +17,30 @@ pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(feature = "solana")]
+use solana_program::{pubkey as pubkey_macro, pubkey::Pubkey};
+
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio")
+))]
+use anchor_lang::{
+    prelude::Pubkey, solana_program::pubkey as pubkey_macro, AnchorDeserialize, AnchorSerialize,
+};
+
+#[cfg(feature = "pinocchio")]
+use light_macros::pubkey as pubkey_macro;
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+use pinocchio::pubkey::Pubkey;
+
 pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
     hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},

@@ -7,25 +7,47 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["solana"]
 anchor = ["anchor-lang"]
-solana = []
+solana = ["solana-program"]
+pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 
 [dependencies]
 anyhow = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
-light-hasher = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 thiserror = { workspace = true }
-solana-program = { workspace = true }
-rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
-borsh = { workspace = true }
-bytemuck = { workspace = true, optional = true }
-anchor-lang = { workspace = true, optional = true }
+light-hasher = { workspace = true }
 light-zero-copy = { workspace = true }
+
+bytemuck = { workspace = true, optional = true }
+borsh = { workspace = true }
+
+solana-program = { workspace = true, optional = true }
+anchor-lang = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
+
+# TODO: can move to dev-dependencies?
+rand = { workspace = true }
+
+[target.'cfg(feature = "solana")'.dependencies]
+light-hasher = { workspace = true, features = ["solana"] }
+light-zero-copy = { workspace = true, features = ["solana"] }
+light-macros = { workspace = true, features = ["solana"] }
+
+# feature anchor dependencies
+[target.'cfg(feature = "anchor")'.dependencies]
+light-hasher = { workspace = true, features = ["anchor"] }
+light-zero-copy = { workspace = true, features = ["anchor"] }
+light-macros = { workspace = true, features = ["anchor"] }
+
+[target.'cfg(feature = "pinocchio")'.dependencies]
+light-hasher = { workspace = true, features = ["pinocchio"] }
+light-zero-copy = { workspace = true, features = ["pinocchio"] }
+light-macros = { workspace = true, features = ["pinocchio"] }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }
