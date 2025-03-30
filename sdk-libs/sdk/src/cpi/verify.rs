@@ -7,7 +7,7 @@ use crate::{
     account_info::CompressedAccountInfo,
     cpi::accounts::CompressionCpiAccounts,
     error::{LightSdkError, Result},
-    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, BorshSerialize, Instruction,
+    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
     Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
 };
 
@@ -51,7 +51,7 @@ pub fn verify_compressed_account_infos(
 /// and executes the CPI.
 pub fn verify_borsh<T>(light_system_accounts: &CompressionCpiAccounts, inputs: &T) -> Result<()>
 where
-    T: BorshSerialize,
+    T: AnchorSerialize,
 {
     let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
 

@@ -1,15 +1,19 @@
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
 use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use solana_program::{account_info::AccountInfo, msg};
 
+// Import the appropriately feature-gated types from lib.rs
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
         init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
+    msg,
     queue::BatchedQueueAccount,
+    AccountInfo,
 };
 
 #[derive(Debug)]
@@ -46,11 +50,11 @@ pub struct RolloverBatchStateTreeParams<'a> {
 /// additional bytes since those are the basis for the old trees rollover fee.
 /// If new additional_bytes is greater than old additional_bytes additional
 /// rent reimbursements need to be calculated outside of this function.
-pub fn rollover_batched_state_tree_from_account_info<'a>(
-    old_state_merkle_tree: &AccountInfo<'a>,
-    new_state_merkle_tree: &AccountInfo<'a>,
-    old_output_queue: &AccountInfo<'a>,
-    new_output_queue: &AccountInfo<'a>,
+pub fn rollover_batched_state_tree_from_account_info(
+    old_state_merkle_tree: &AccountInfo,
+    new_state_merkle_tree: &AccountInfo,
+    old_output_queue: &AccountInfo,
+    new_output_queue: &AccountInfo,
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
@@ -72,8 +76,8 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
     let queue_rent =
         check_account_balance_is_rent_exempt(new_output_queue, old_output_queue.data_len())?;
 
-    use solana_program::sysvar::Sysvar;
-    let additional_bytes_rent = solana_program::rent::Rent::get()?.minimum_balance(
+    use crate::Sysvar;
+    let additional_bytes_rent = crate::Rent::get()?.minimum_balance(
         old_output_queue_account
             .metadata
             .rollover_metadata
@@ -83,15 +87,15 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
     let new_mt_data = &mut new_state_merkle_tree.try_borrow_mut_data()?;
     let params = RolloverBatchStateTreeParams {
         old_merkle_tree: old_merkle_tree_account,
-        old_mt_pubkey: (*old_state_merkle_tree.key).into(),
+        old_mt_pubkey: (*old_state_merkle_tree.key()).into(),
         new_mt_data,
         new_mt_rent: merkle_tree_rent,
-        new_mt_pubkey: (*new_state_merkle_tree.key).into(),
+        new_mt_pubkey: (*new_state_merkle_tree.key()).into(),
         old_output_queue: old_output_queue_account,
-        old_queue_pubkey: (*old_output_queue.key).into(),
+        old_queue_pubkey: (*old_output_queue.key()).into(),
         new_output_queue_data: &mut new_output_queue.try_borrow_mut_data()?,
         new_output_queue_rent: queue_rent,
-        new_output_queue_pubkey: (*new_output_queue.key).into(),
+        new_output_queue_pubkey: (*new_output_queue.key()).into(),
         additional_bytes_rent,
         additional_bytes,
         network_fee,

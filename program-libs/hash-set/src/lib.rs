@@ -33,7 +33,6 @@ pub enum HashSetError {
     Utils(#[from] UtilsError),
 }
 
-#[cfg(feature = "solana")]
 impl From<HashSetError> for u32 {
     fn from(e: HashSetError) -> u32 {
         match e {

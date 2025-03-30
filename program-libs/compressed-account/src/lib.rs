@@ -24,6 +24,16 @@ pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
     hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
 };
+// Pinocchio framework imports
+#[cfg(feature = "pinocchio")]
+pub(crate) use pinocchio::program_error::ProgramError;
+#[cfg(feature = "pinocchio")]
+pub(crate) use pinocchio::pubkey::Pubkey;
+// Solana program imports (default framework)
+#[cfg(not(feature = "pinocchio"))]
+pub(crate) use solana_program::program_error::ProgramError;
+#[cfg(not(feature = "pinocchio"))]
+pub(crate) use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {
@@ -77,9 +87,10 @@ impl From<CompressedAccountError> for u32 {
     }
 }
 
-impl From<CompressedAccountError> for solana_program::program_error::ProgramError {
+// Convert compressed account errors to program errors for both frameworks
+impl From<CompressedAccountError> for ProgramError {
     fn from(e: CompressedAccountError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        ProgramError::Custom(e.into())
     }
 }
 

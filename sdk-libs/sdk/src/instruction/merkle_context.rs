@@ -1,15 +1,15 @@
 pub use light_compressed_account::compressed_account::{MerkleContext, PackedMerkleContext};
 
 use super::pack_accounts::PackedAccounts;
-use crate::{AccountInfo, BorshDeserialize, BorshSerialize, Pubkey};
+use crate::{AccountInfo, AnchorDeserialize, AnchorSerialize, Pubkey};
 
-#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct AddressMerkleContext {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_queue_pubkey: Pubkey,
 }
 
-#[derive(Debug, Clone, Copy, BorshDeserialize, BorshSerialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct PackedAddressMerkleContext {
     pub address_merkle_tree_pubkey_index: u8,
     pub address_queue_pubkey_index: u8,

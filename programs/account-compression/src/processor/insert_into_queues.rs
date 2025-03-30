@@ -29,10 +29,11 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     if inputs.nullifiers.is_empty() && inputs.addresses.is_empty() && inputs.leaves.is_empty() {
         return Err(AccountCompressionErrorCode::InputElementsEmpty.into());
     }
+
     let current_slot = Clock::get()?.slot;
-    msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
-    msg!("insert_leaves {:?}", inputs.leaves.len());
-    msg!("insert_addresses {:?}", inputs.addresses.len());
+    // msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
+    // msg!("insert_leaves {:?}", inputs.leaves.len());
+    // msg!("insert_addresses {:?}", inputs.addresses.len());
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");
@@ -65,6 +66,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &mut accounts,
         &current_slot,
     )?;
+
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_addresses");
     Ok(())

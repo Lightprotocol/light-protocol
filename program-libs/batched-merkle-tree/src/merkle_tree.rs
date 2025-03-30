@@ -23,10 +23,11 @@ use light_verifier::{
 use light_zero_copy::{
     cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError, vec::ZeroCopyVecU64,
 };
-use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::Ref;
 
 use super::batch::Batch;
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     batch::BatchState,
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, NUM_BATCHES},
@@ -36,7 +37,7 @@ use crate::{
         deserialize_bloom_filter_stores, insert_into_current_queue_batch, BatchedQueueAccount,
     },
     queue_batch_metadata::QueueBatches,
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 /// Public inputs:
@@ -91,7 +92,7 @@ impl Discriminator<ANCHOR_DISCRIMINATOR_LEN> for BatchedMerkleTreeAccount<'_> {
 impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Checks state Merkle tree account and returns the root.
     pub fn get_state_root_by_index(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::state_from_account_info(account_info)?;
@@ -102,7 +103,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
     /// Checks address Merkle tree account and returns the root.
     pub fn get_address_root_by_index(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::address_from_account_info(account_info)?;
@@ -118,7 +119,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. discriminator,
     /// 3. tree type is batched state tree type.
     pub fn state_from_account_info(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info::<BATCHED_STATE_MERKLE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -147,7 +148,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. discriminator,
     /// 3. tree type is batched address tree type.
     pub fn address_from_account_info(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info::<BATCHED_ADDRESS_MERKLE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -156,8 +157,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 
     fn from_account_info<const TREE_TYPE: u64>(
-        program_id: &solana_program::pubkey::Pubkey,
-        account_info: &AccountInfo<'a>,
+        program_id: &crate::Pubkey,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         check_account_info::<Self, ANCHOR_DISCRIMINATOR_LEN>(program_id, account_info)?;
         let mut data = account_info.try_borrow_mut_data()?;
@@ -165,7 +166,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key).into())
+        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key()).into())
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.
@@ -252,9 +253,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         account_metadata.queue_batches.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
-            msg!("merkle_tree_metadata: {:?}", account_metadata);
-            msg!("account_data.len(): {}", account_data_len);
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!("merkle_tree_metadata: {:?}", account_metadata);
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!("account_data.len(): {}", account_data_len);
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "account.get_account_size(): {}",
                 account_metadata.get_account_size()?
             );
@@ -340,7 +344,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 3. Returns the batch append event.
     pub fn update_tree_from_output_queue_account_info(
         &mut self,
-        queue_account_info: &AccountInfo<'_>,
+        queue_account_info: &AccountInfo,
         instruction_data: InstructionDataBatchAppendInputs,
     ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         if self.tree_type != TreeType::BatchedState as u64 {

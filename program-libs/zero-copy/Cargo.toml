@@ -9,10 +9,12 @@ edition = "2021"
 [features]
 default = []
 solana = ["solana-program"]
+pinocchio = ["dep:pinocchio"]
 std = []
 
 [dependencies]
 solana-program = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true, default-features = false }
 zerocopy = { workspace = true }
 

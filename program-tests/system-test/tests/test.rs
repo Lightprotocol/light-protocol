@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::println;
+
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
     NullifierQueueConfig, StateMerkleTreeConfig,
@@ -50,7 +52,6 @@ use light_test_utils::{
     },
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_verifier::VerifierError;
 use quote::format_ident;
 use serial_test::serial;
 use solana_cli_output::CliAccount;
@@ -365,7 +366,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -380,7 +381,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -402,7 +403,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
     //         payer,
     //         inputs_struct,
     //         remaining_accounts.clone(),
-    //         VerifierError::ProofVerificationFailed.into(),
+    //         SystemProgramError::ProofVerificationFailed.into(),
     //     )
     //     .await
     //     .unwrap();
@@ -421,7 +422,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
-            VerifierError::ProofVerificationFailed.into()
+            SystemProgramError::ProofVerificationFailed.into()
         } else {
             SystemProgramError::SumCheckFailed.into()
         };
@@ -447,7 +448,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -507,7 +508,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -620,7 +621,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -634,7 +635,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -648,7 +649,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -712,7 +713,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -800,7 +801,7 @@ pub async fn failing_transaction_output<R: RpcConnection>(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -922,6 +923,11 @@ async fn invoke_test() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
+    println!("merkle_tree_pubkey {:?}", merkle_tree_pubkey.to_bytes());
+    println!(
+        "nullifier_queue_pubkey {:?}",
+        nullifier_queue_pubkey.to_bytes()
+    );
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -961,6 +967,7 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
+
     let slot: u64 = context.get_slot().await.unwrap();
     let (created_compressed_accounts, _) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.0);
@@ -1817,7 +1824,6 @@ async fn batch_invoke_test() {
             run_mode: None,
             circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
         }),
-        // None,
     )
     .await;
     let payer_pubkey = payer.pubkey();
@@ -1874,7 +1880,13 @@ async fn batch_invoke_test() {
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
         .await;
-    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    // assert_rpc_error(result, 0, SystemProgramError::ProofVerificationFailed.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        SystemProgramError::ProofVerificationFailed.into(),
+    )
+    .unwrap();
 
     // 3. Should fail: input compressed account with invalid signer.
     let invalid_signer_compressed_accounts = vec![CompressedAccount {

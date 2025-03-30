@@ -16,14 +16,14 @@ solana-program = { workspace = true }
 solana-sdk = { workspace = true }
 solana-transaction-status = { workspace = true }
 
-light-merkle-tree-metadata = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 light-indexed-array = { workspace = true }
 photon-api = { workspace = true }
 
@@ -40,8 +40,8 @@ governor = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true }
+light-test-utils = { workspace = true, features = ["devenv"] }
 light-compressed-token = { workspace = true }
 spl-token = { workspace = true }
 rand = { workspace = true }

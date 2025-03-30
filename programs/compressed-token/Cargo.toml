@@ -27,11 +27,11 @@ anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 account-compression = { workspace = true, features = ["cpi", "no-idl"] }
-light-system-program = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-hasher = { workspace = true }
 light-heap = { workspace = true, optional = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 spl-token-2022 = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

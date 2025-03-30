@@ -873,8 +873,8 @@ export type LightSystemProgram = {
         },
         {
             code: 6009;
-            name: 'DeCompressLamportsUndefinedForCompressSol';
-            msg: 'DeCompressLamportsUndefinedForCompressSol';
+            name: 'DecompressLamportsUndefinedForCompressSol';
+            msg: 'DecompressLamportsUndefinedForCompressSol';
         },
         {
             code: 6010;
@@ -1897,8 +1897,8 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6009,
-            name: 'DeCompressLamportsUndefinedForCompressSol',
-            msg: 'DeCompressLamportsUndefinedForCompressSol',
+            name: 'DecompressLamportsUndefinedForCompressSol',
+            msg: 'DecompressLamportsUndefinedForCompressSol',
         },
         {
             code: 6010,

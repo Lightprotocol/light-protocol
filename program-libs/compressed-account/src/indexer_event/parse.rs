@@ -1,6 +1,4 @@
-use borsh::BorshDeserialize;
 use light_zero_copy::borsh::Deserialize;
-use solana_program::pubkey::Pubkey;
 
 use super::{
     error::ParseIndexerEventError,
@@ -19,9 +17,10 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
-        invoke_cpi::InstructionDataInvokeCpiWithReadOnly,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
+    AnchorDeserialize, Pubkey,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -311,16 +310,27 @@ fn deserialize_instruction<'a>(
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
             let accounts = accounts.split_at(11).1;
-            let data = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])?;
+            let data: InstructionDataInvokeCpiWithReadOnly =
+                InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])?;
             Ok(ExecutingSystemInstruction {
-                output_compressed_accounts: data.invoke_cpi.output_compressed_accounts,
+                output_compressed_accounts: data.output_compressed_accounts,
                 input_compressed_accounts: data
-                    .invoke_cpi
-                    .input_compressed_accounts_with_merkle_context,
-                is_compress: data.invoke_cpi.is_compress,
-                relay_fee: data.invoke_cpi.relay_fee,
-                compress_or_decompress_lamports: data.invoke_cpi.compress_or_decompress_lamports,
-                execute_cpi_context: data.invoke_cpi.cpi_context.is_some(),
+                    .input_compressed_accounts
+                    .iter()
+                    .map(|x| {
+                        x.into_packed_compressed_account_with_merkle_context(
+                            data.invoking_program_id,
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
+                relay_fee: None,
+                compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
+                    None
+                } else {
+                    Some(data.compress_or_decompress_lamports)
+                },
+                execute_cpi_context: data.with_cpi_context,
                 accounts,
             })
         }
@@ -421,7 +431,7 @@ fn create_batched_transaction_event(
                 address: x.address,
                 mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
             })
-            .collect(),
+            .collect::<Vec<_>>(),
         address_sequence_numbers: associated_instructions
             .insert_into_queues_instruction
             .address_sequence_numbers
@@ -520,7 +530,7 @@ fn create_nullifier_queue_indices(
     // 3. increment the sequence number
     internal_input_sequence_numbers.iter_mut().for_each(|seq| {
         for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if *merkle_tree_pubkey == seq.tree_pubkey.into() {
+            if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
                 nullifier_queue_indices[i] = seq.seq.into();
                 seq.seq += 1;
             }

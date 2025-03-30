@@ -1,14 +1,9 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-use solana_program::pubkey::Pubkey;
-
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     instruction_data::compressed_proof::CompressedProof,
+    AnchorDeserialize, AnchorSerialize, Pubkey,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]

@@ -1,22 +1,19 @@
-use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use aligned_sized::*;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{account_info::AccountInfo, pubkey::Pubkey},
-    Bumps,
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{Seed, Signer},
+    msg,
 };
-use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvoke;
 
 use crate::{
-    account_traits::{InvokeAccounts, SignerAccounts},
+    accounts::account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
+    utils::transfer_lamports_cpi,
 };
 
-#[account]
 #[aligned_sized(anchor)]
 pub struct CompressedSolPda {}
 
-#[constant]
 pub const SOL_POOL_PDA_SEED: &[u8] = b"sol_pool_pda";
 
 pub fn compress_or_decompress_lamports<
@@ -24,15 +21,18 @@ pub fn compress_or_decompress_lamports<
     'b,
     'c: 'info,
     'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+    A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-) -> Result<()> {
-    if inputs.is_compress {
-        compress_lamports(inputs, ctx)
+    is_compress: bool,
+    decompression_lamports: Option<u64>,
+    ctx: &'a A,
+) -> crate::Result<()> {
+    if is_compress {
+        msg!("is compress");
+        compress_lamports(decompression_lamports, ctx)
     } else {
-        decompress_lamports(inputs, ctx)
+        msg!("is decompress");
+        decompress_lamports(decompression_lamports, ctx)
     }
 }
 
@@ -41,25 +41,27 @@ pub fn decompress_lamports<
     'b,
     'c: 'info,
     'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+    A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-) -> Result<()> {
-    let recipient = match ctx.accounts.get_decompression_recipient().as_ref() {
-        Some(decompression_recipient) => decompression_recipient.to_account_info(),
-        None => return err!(SystemProgramError::DecompressRecipientUndefinedForDecompressSol),
+    decompression_lamports: Option<u64>,
+    ctx: &'a A,
+) -> crate::Result<()> {
+    let recipient = match ctx.get_decompression_recipient() {
+        Some(decompression_recipient) => decompression_recipient,
+        None => {
+            return Err(SystemProgramError::DecompressRecipientUndefinedForDecompressSol.into())
+        }
     };
-    let sol_pool_pda = match ctx.accounts.get_sol_pool_pda().as_ref() {
-        Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
-        None => return err!(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol),
+    let sol_pool_pda = match ctx.get_sol_pool_pda() {
+        Some(sol_pool_pda) => sol_pool_pda,
+        None => return Err(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol.into()),
     };
-    let lamports = match inputs.compress_or_decompress_lamports {
+    let lamports = match decompression_lamports {
         Some(lamports) => lamports,
-        None => return err!(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol),
+        None => return Err(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol.into()),
     };
 
-    transfer_lamports(&sol_pool_pda, &recipient, (*lamports).into())
+    transfer_lamports(sol_pool_pda, recipient, lamports)
 }
 
 pub fn compress_lamports<
@@ -67,42 +69,27 @@ pub fn compress_lamports<
     'b,
     'c: 'info,
     'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+    A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
-) -> Result<()> {
-    let recipient = match ctx.accounts.get_sol_pool_pda().as_ref() {
-        Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
-        None => return err!(SystemProgramError::CompressedSolPdaUndefinedForCompressSol),
+    decompression_lamports: Option<u64>,
+    ctx: &'a A,
+) -> crate::Result<()> {
+    let recipient = match ctx.get_sol_pool_pda() {
+        Some(sol_pool_pda) => sol_pool_pda,
+        None => return Err(SystemProgramError::CompressedSolPdaUndefinedForCompressSol.into()),
     };
-    let lamports = match inputs.compress_or_decompress_lamports {
+    let lamports = match decompression_lamports {
         Some(lamports) => lamports,
-        None => return err!(SystemProgramError::DeCompressLamportsUndefinedForCompressSol),
+        None => return Err(SystemProgramError::DecompressLamportsUndefinedForCompressSol.into()),
     };
 
-    transfer_lamports_cpi(
-        &ctx.accounts.get_fee_payer().to_account_info(),
-        &recipient,
-        (*lamports).into(),
-    )
+    transfer_lamports_cpi(ctx.get_fee_payer(), recipient, lamports)
 }
 
-pub fn transfer_lamports<'info>(
-    from: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-    lamports: u64,
-) -> Result<()> {
-    let instruction =
-        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID);
-    let bump = &[bump];
-    let seeds = &[&[SOL_POOL_PDA_SEED, bump][..]];
-    anchor_lang::solana_program::program::invoke_signed(
-        &instruction,
-        &[from.clone(), to.clone()],
-        seeds,
-    )?;
-    Ok(())
+pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {
+    let bump = &[255];
+    let seed_array = [Seed::from(SOL_POOL_PDA_SEED), Seed::from(bump)];
+    let signer = Signer::from(&seed_array);
+    let instruction = pinocchio_system::instructions::Transfer { from, to, lamports };
+    instruction.invoke_signed(&[signer])
 }
