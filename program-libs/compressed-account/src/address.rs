@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
-use solana_program::pubkey::Pubkey;
 
 use super::compressed_account::{
     pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
@@ -11,7 +10,7 @@ use crate::{
     instruction_data::data::{
         NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress, ReadOnlyAddress,
     },
-    CompressedAccountError,
+    CompressedAccountError, Pubkey,
 };
 
 pub fn derive_address_legacy(

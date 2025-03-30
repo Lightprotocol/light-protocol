@@ -3,8 +3,9 @@ use crate::{
         data::OutputCompressedAccountWithPackedContext,
         insert_into_queues::MerkleTreeSequenceNumber as InstructionDataSequenceNumber,
     },
-    AnchorDeserialize, AnchorSerialize, Pubkey,
+    Pubkey,
 };
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct BatchPublicTransactionEvent {
@@ -30,7 +31,7 @@ pub struct PublicTransactionEvent {
     pub message: Option<Vec<u8>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewAddress {
     pub address: [u8; 32],
     pub mt_pubkey: Pubkey,

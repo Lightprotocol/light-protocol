@@ -354,7 +354,7 @@ mod tests {
             data: Some(data.clone()),
         };
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
@@ -526,7 +526,7 @@ mod tests {
             0, 0, 0,
         ]);
 
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();

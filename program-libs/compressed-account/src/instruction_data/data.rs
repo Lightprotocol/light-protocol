@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
-use solana_program::pubkey::Pubkey;
-
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     instruction_data::compressed_proof::CompressedProof,
-    AnchorDeserialize, AnchorSerialize,
+    AnchorDeserialize, AnchorSerialize, Pubkey,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]

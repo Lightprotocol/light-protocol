@@ -1,21 +1,21 @@
 use super::MerkleTreeEvent;
-use crate::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct MerkleTreeEvents {
     pub events: Vec<MerkleTreeEvent>,
 }
 
 /// Node of the Merkle path with an index representing the position in a
 /// non-sparse Merkle tree.
-#[derive(BorshDeserialize, BorshSerialize, Debug, Eq, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, Eq, PartialEq)]
 pub struct PathNode {
     pub node: [u8; 32],
     pub index: u32,
 }
 
 /// Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 pub struct ChangelogEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
@@ -27,7 +27,7 @@ pub struct ChangelogEvent {
     pub index: u32,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 pub struct NullifierEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
@@ -40,7 +40,7 @@ pub struct NullifierEvent {
     pub seq: u64,
 }
 
-#[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, Eq, PartialEq)]
 pub struct RawIndexedElement<I>
 where
     I: Clone,
@@ -51,7 +51,7 @@ where
     pub index: I,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, Clone, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, Clone, PartialEq)]
 pub struct IndexedMerkleTreeUpdate<I>
 where
     I: Clone,
@@ -65,7 +65,7 @@ where
     pub new_high_element_hash: [u8; 32],
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 pub struct IndexedMerkleTreeEvent {
     /// Public key of the tree.
     pub id: [u8; 32],

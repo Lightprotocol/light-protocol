@@ -33,8 +33,31 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
         )
     })?;
 
+    #[cfg(feature = "solana")]
+    let import = quote! {
+        ::solana_program::pubkey::Pubkey
+    };
+
+    #[cfg(all(
+        feature = "anchor",
+        not(feature = "solana"),
+        not(feature = "pinocchio")
+    ))]
+    let import = quote! {
+        ::anchor_lang::prelude::Pubkey
+    };
+
+    #[cfg(all(
+        feature = "pinocchio",
+        not(feature = "solana"),
+        not(feature = "anchor")
+    ))]
+    let import = quote! {
+        ::solana_program::pubkey::Pubkey
+    };
+
     Ok(quote! {
-        ::solana_program::pubkey::Pubkey::new_from_array([ #(#arr),* ])
+        #import::new_from_array([ #(#arr),* ])
     })
 }
 

@@ -420,7 +420,7 @@ fn create_batched_transaction_event(
                 address: x.address,
                 mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
             })
-            .collect(),
+            .collect::<Vec<_>>(),
         address_sequence_numbers: associated_instructions
             .insert_into_queues_instruction
             .address_sequence_numbers

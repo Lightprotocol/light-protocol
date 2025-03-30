@@ -7,7 +7,6 @@ use thiserror::Error;
 
 pub mod address;
 pub mod compressed_account;
-#[cfg(any(feature = "anchor", feature = "solana", feature = "pinocchio"))]
 pub mod constants;
 pub mod discriminators;
 pub mod hash_chain;
@@ -17,29 +16,45 @@ pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
 
+// Pubkey type - used throughout the crate
 #[cfg(feature = "solana")]
-use solana_program::{pubkey as pubkey_macro, pubkey::Pubkey};
-
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use solana_program::pubkey::Pubkey;
 
 #[cfg(all(
     feature = "anchor",
     not(feature = "solana"),
     not(feature = "pinocchio")
 ))]
-use anchor_lang::{
-    prelude::Pubkey, solana_program::pubkey as pubkey_macro, AnchorDeserialize, AnchorSerialize,
-};
+pub use anchor_lang::prelude::Pubkey;
 
-#[cfg(feature = "pinocchio")]
-use light_macros::pubkey as pubkey_macro;
 #[cfg(all(
     feature = "pinocchio",
     not(feature = "solana"),
     not(feature = "anchor")
 ))]
-use pinocchio::pubkey::Pubkey;
+pub use pinocchio::pubkey::Pubkey;
+
+// ProgramError type - used for error handling
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio")
+))]
+use solana_program::program_error::ProgramError;
+
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio")
+))]
+use anchor_lang::prelude::ProgramError;
+
+// Import AnchorSerialize and AnchorDeserialize based on feature flags
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 
 pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
@@ -98,9 +113,58 @@ impl From<CompressedAccountError> for u32 {
     }
 }
 
-impl From<CompressedAccountError> for solana_program::program_error::ProgramError {
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+pub struct ProgramError {
+    pub custom: u32,
+}
+
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+impl ProgramError {
+    // Method name is capitalized to match solana/anchor implementation
+    #[allow(non_snake_case)]
+    pub fn Custom(custom: u32) -> Self {
+        Self { custom }
+    }
+}
+
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio")
+))]
+impl From<CompressedAccountError> for ProgramError {
     fn from(e: CompressedAccountError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio")
+))]
+impl From<CompressedAccountError> for ProgramError {
+    fn from(e: CompressedAccountError) -> Self {
+        ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+impl From<CompressedAccountError> for ProgramError {
+    fn from(e: CompressedAccountError) -> Self {
+        ProgramError::Custom(e.into())
     }
 }
 
