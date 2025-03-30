@@ -1,6 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use solana_program::pubkey::Pubkey;
+
+use crate::Pubkey;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
 #[repr(u8)]
@@ -8,7 +9,7 @@ pub enum AccountState {
     Initialized,
     Frozen,
 }
-
+// TODO: extract token data from program into into a separate crate, import it and remove this file.
 #[derive(Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account

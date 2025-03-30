@@ -4,15 +4,15 @@ use light_compressed_account::compressed_account::{
 
 use crate::{
     error::LightSdkError,
-    merkle_context::{pack_merkle_context, CpiAccounts},
+    instruction::{merkle_context::pack_merkle_context, pack_accounts::PackedAccounts},
     BorshDeserialize, BorshSerialize,
 };
 
-/// InputAccountMeta (context, address, root_index, output_merkle_tree_index)
-/// InputAccountMetaNoLamportsNoAddress (context, root_index, output_merkle_tree_index)
-/// InputAccountMetaWithLamportsNoAddress (context, root_index, output_merkle_tree_index)
-/// InputAccountMetaWithLamports (context, lamports, address, root_index, output_merkle_tree_index)
-pub trait InputAccountMetaTrait {
+/// CompressedAccountMeta (context, address, root_index, output_merkle_tree_index)
+/// CompressedAccountMetaNoLamportsNoAddress (context, root_index, output_merkle_tree_index)
+/// CompressedAccountMetaWithLamportsNoAddress (context, root_index, output_merkle_tree_index)
+/// CompressedAccountMetaWithLamports (context, lamports, address, root_index, output_merkle_tree_index)
+pub trait CompressedAccountMetaTrait {
     fn get_merkle_context(&self) -> &PackedMerkleContext;
     fn get_lamports(&self) -> Option<u64>;
     fn get_root_index(&self) -> Option<u16>;
@@ -21,13 +21,13 @@ pub trait InputAccountMetaTrait {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct InputAccountMetaNoLamportsNoAddress {
+pub struct CompressedAccountMetaNoLamportsNoAddress {
     pub merkle_context: PackedMerkleContext,
     pub output_merkle_tree_index: u8,
     pub root_index: Option<u16>,
 }
 
-impl InputAccountMetaTrait for InputAccountMetaNoLamportsNoAddress {
+impl CompressedAccountMetaTrait for CompressedAccountMetaNoLamportsNoAddress {
     fn get_merkle_context(&self) -> &PackedMerkleContext {
         &self.merkle_context
     }
@@ -49,12 +49,12 @@ impl InputAccountMetaTrait for InputAccountMetaNoLamportsNoAddress {
     }
 }
 
-impl InputAccountMetaNoLamportsNoAddress {
+impl CompressedAccountMetaNoLamportsNoAddress {
     pub fn from_compressed_account(
         compressed_account: &CompressedAccountWithMerkleContext,
-        cpi_accounts: &mut CpiAccounts,
+        cpi_accounts: &mut PackedAccounts,
         root_index: Option<u16>,
-        output_merkle_tree: &solana_program::pubkey::Pubkey,
+        output_merkle_tree: &crate::Pubkey,
     ) -> Self {
         let mut merkle_context =
             pack_merkle_context(&compressed_account.merkle_context, cpi_accounts);
@@ -62,7 +62,7 @@ impl InputAccountMetaNoLamportsNoAddress {
         if root_index.is_none() {
             merkle_context.prove_by_index = true;
         }
-        InputAccountMetaNoLamportsNoAddress {
+        CompressedAccountMetaNoLamportsNoAddress {
             merkle_context,
             root_index,
             output_merkle_tree_index,
@@ -71,14 +71,14 @@ impl InputAccountMetaNoLamportsNoAddress {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct InputAccountMetaNoAddress {
+pub struct CompressedAccountMetaNoAddress {
     pub merkle_context: PackedMerkleContext,
     pub output_merkle_tree_index: u8,
     pub lamports: u64,
     pub root_index: Option<u16>,
 }
 
-impl InputAccountMetaTrait for InputAccountMetaNoAddress {
+impl CompressedAccountMetaTrait for CompressedAccountMetaNoAddress {
     fn get_merkle_context(&self) -> &PackedMerkleContext {
         &self.merkle_context
     }
@@ -100,12 +100,12 @@ impl InputAccountMetaTrait for InputAccountMetaNoAddress {
     }
 }
 
-impl InputAccountMetaNoAddress {
+impl CompressedAccountMetaNoAddress {
     pub fn from_compressed_account(
         compressed_account: &CompressedAccountWithMerkleContext,
-        cpi_accounts: &mut CpiAccounts,
+        cpi_accounts: &mut PackedAccounts,
         root_index: Option<u16>,
-        output_merkle_tree: &solana_program::pubkey::Pubkey,
+        output_merkle_tree: &crate::Pubkey,
     ) -> Self {
         let mut merkle_context =
             pack_merkle_context(&compressed_account.merkle_context, cpi_accounts);
@@ -114,7 +114,7 @@ impl InputAccountMetaNoAddress {
         if root_index.is_none() {
             merkle_context.prove_by_index = true;
         }
-        InputAccountMetaNoAddress {
+        CompressedAccountMetaNoAddress {
             merkle_context,
             root_index,
             output_merkle_tree_index,
@@ -124,7 +124,7 @@ impl InputAccountMetaNoAddress {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct InputAccountMeta {
+pub struct CompressedAccountMeta {
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
     /// Address.
@@ -134,7 +134,7 @@ pub struct InputAccountMeta {
     pub output_merkle_tree_index: u8,
 }
 
-impl InputAccountMetaTrait for InputAccountMeta {
+impl CompressedAccountMetaTrait for CompressedAccountMeta {
     fn get_merkle_context(&self) -> &PackedMerkleContext {
         &self.merkle_context
     }
@@ -156,12 +156,12 @@ impl InputAccountMetaTrait for InputAccountMeta {
     }
 }
 
-impl InputAccountMeta {
+impl CompressedAccountMeta {
     pub fn from_compressed_account(
         compressed_account: &CompressedAccountWithMerkleContext,
-        cpi_accounts: &mut CpiAccounts,
+        cpi_accounts: &mut PackedAccounts,
         root_index: Option<u16>,
-        output_merkle_tree: &solana_program::pubkey::Pubkey,
+        output_merkle_tree: &crate::Pubkey,
     ) -> Result<Self, LightSdkError> {
         let mut merkle_context =
             pack_merkle_context(&compressed_account.merkle_context, cpi_accounts);
@@ -176,7 +176,7 @@ impl InputAccountMeta {
         if root_index.is_none() {
             merkle_context.prove_by_index = true;
         }
-        Ok(InputAccountMeta {
+        Ok(CompressedAccountMeta {
             merkle_context,
             address,
             root_index,
@@ -186,7 +186,7 @@ impl InputAccountMeta {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
-pub struct InputAccountMetaWithLamports {
+pub struct CompressedAccountMetaWithLamports {
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
     /// Lamports.
@@ -198,7 +198,7 @@ pub struct InputAccountMetaWithLamports {
     pub root_index: Option<u16>,
 }
 
-impl InputAccountMetaTrait for InputAccountMetaWithLamports {
+impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
     fn get_merkle_context(&self) -> &PackedMerkleContext {
         &self.merkle_context
     }
@@ -220,12 +220,12 @@ impl InputAccountMetaTrait for InputAccountMetaWithLamports {
     }
 }
 
-impl InputAccountMetaWithLamports {
+impl CompressedAccountMetaWithLamports {
     pub fn from_compressed_account(
         compressed_account: &CompressedAccountWithMerkleContext,
-        cpi_accounts: &mut CpiAccounts,
+        cpi_accounts: &mut PackedAccounts,
         root_index: Option<u16>,
-        output_merkle_tree: &solana_program::pubkey::Pubkey,
+        output_merkle_tree: &crate::Pubkey,
     ) -> Result<Self, LightSdkError> {
         let mut merkle_context =
             pack_merkle_context(&compressed_account.merkle_context, cpi_accounts);
@@ -239,7 +239,7 @@ impl InputAccountMetaWithLamports {
         if root_index.is_none() {
             merkle_context.prove_by_index = true;
         }
-        Ok(InputAccountMetaWithLamports {
+        Ok(CompressedAccountMetaWithLamports {
             merkle_context,
             lamports: compressed_account.compressed_account.lamports,
             address,
