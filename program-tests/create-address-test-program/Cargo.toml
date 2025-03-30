@@ -21,7 +21,7 @@ default = ["custom-heap"]
 
 [dependencies]
 anchor-lang = { workspace = true }
-light-system-program = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true, features = ["solana"] }
 light-compressed-account = { workspace = true }

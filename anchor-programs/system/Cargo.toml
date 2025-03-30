@@ -1,35 +1,30 @@
 [package]
-name = "light-registry"
+name = "light-system-program-anchor"
 version = "1.2.0"
-description = "Light core protocol logic"
+description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_registry"
-
+name = "light_system_program"
 [features]
 no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
-test-sbf = []
-bench-sbf = []
-sdk = []
+default = ["readonly"]
+idl-build = ["anchor-lang/idl-build"]
+readonly = []
+
 
 [dependencies]
 aligned-sized = { workspace = true }
-anchor-lang = { workspace = true, features = ["init-if-needed"] }
+anchor-lang = { workspace = true }
 account-compression = { workspace = true }
-light-system-program-anchor = { workspace = true, features = ["cpi"] }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 solana-security-txt = "1.1.0"
-light-merkle-tree-metadata = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
-[target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = { workspace = true }
+light-zero-copy = { workspace = true, features = ["solana"] }
+zerocopy = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

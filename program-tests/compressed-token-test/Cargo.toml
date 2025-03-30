@@ -20,7 +20,7 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
-light-system-program = { workspace = true }
+light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
 light-compressed-account = { workspace = true }
 

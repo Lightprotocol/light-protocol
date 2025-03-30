@@ -17,6 +17,7 @@ members = [
     "programs/system",
     "programs/compressed-token",
     "programs/registry",
+    "anchor-programs/system",
     "sdk-libs/client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
@@ -132,7 +133,7 @@ account-compression = { path = "programs/account-compression", version = "1.2.0"
 light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = [
     "cpi",
 ] }
-light-system-program = { path = "programs/system", version = "1.2.0", features = [
+light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
     "cpi",
 ] }
 light-registry = { path = "programs/registry", version = "1.2.0", features = [

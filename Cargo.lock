@@ -1351,7 +1351,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "rand 0.8.5",
@@ -1457,7 +1457,7 @@ dependencies = [
  "anchor-lang",
  "light-compressed-account",
  "light-hasher",
- "light-system-program",
+ "light-system-program-anchor",
 ]
 
 [[package]]
@@ -2110,7 +2110,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "photon-api",
  "prometheus",
@@ -2152,7 +2152,7 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-prover-client",
  "light-registry",
- "light-system-program",
+ "light-system-program-anchor",
  "num-traits",
  "reqwest",
  "solana-sdk",
@@ -3217,7 +3217,7 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-heap",
- "light-system-program",
+ "light-system-program-anchor",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
@@ -3393,7 +3393,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3447,7 +3447,7 @@ dependencies = [
  "anchor-lang",
  "light-batched-merkle-tree",
  "light-merkle-tree-metadata",
- "light-system-program",
+ "light-system-program-anchor",
  "solana-sdk",
  "solana-security-txt",
 ]
@@ -3463,7 +3463,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
- "light-system-program",
+ "light-system-program-anchor",
  "light-verifier",
  "num-bigint 0.4.6",
  "solana-program",
@@ -3509,6 +3509,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-system-program-anchor"
+version = "1.2.0"
+dependencies = [
+ "account-compression",
+ "aligned-sized",
+ "anchor-lang",
+ "light-compressed-account",
+ "light-zero-copy",
+ "solana-security-txt",
+ "zerocopy 0.8.23",
+]
+
+[[package]]
 name = "light-test-utils"
 version = "1.2.1"
 dependencies = [
@@ -3531,7 +3544,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-verifier",
  "log",
  "num-bigint 0.4.6",
@@ -7238,7 +7251,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "serial_test",
@@ -7262,7 +7275,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -7565,7 +7578,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "solana-sdk",

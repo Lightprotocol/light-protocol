@@ -20,7 +20,7 @@ solana-sdk = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true }
 light-compressed-token = { workspace = true }
-light-system-program = { workspace = true }
+light-system-program-anchor = { workspace = true }
 light-registry = { workspace = true }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 light-prover-client = { workspace = true }

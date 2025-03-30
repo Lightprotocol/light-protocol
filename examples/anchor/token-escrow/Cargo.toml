@@ -22,7 +22,7 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 [dependencies]
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 light-compressed-token = { workspace = true }
-light-system-program = { workspace = true }
+light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true, features = ["legacy"] }

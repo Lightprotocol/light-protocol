@@ -16,7 +16,7 @@ light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-hasher = { workspace = true }
 light-registry = { workspace = true }
-light-system-program = { workspace = true }
+light-system-program-anchor = { workspace = true }
 light-compressed-token = { workspace = true }
 light-compressed-account = { workspace = true }
 photon-api = { workspace = true }
