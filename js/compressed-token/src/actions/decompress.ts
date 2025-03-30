@@ -17,7 +17,7 @@ import {
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
-import bs58 from 'bs58';
+
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 

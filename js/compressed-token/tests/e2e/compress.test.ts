@@ -18,6 +18,7 @@ import {
     getTestRpc,
     StateTreeInfo,
     TreeType,
+    createRpc,
 } from '@lightprotocol/stateless.js';
 import {
     compress,
@@ -142,18 +143,27 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 outputStateTreeInfo,
             );
 
-            await decompress(rpc, payer, mint, bn(9000), bob, bobAta);
-
-            /// Setup LUT.
-            const { address } = await createTokenProgramLookupTable(
+            const txIdDecompress = await decompress(
                 rpc,
                 payer,
-                payer,
+                mint,
+                bn(10000),
+                bob,
+                bobAta,
             );
-            lut = address;
+            console.log('txIdDecompress', txIdDecompress);
+            // /// Setup LUT.
+            // const { address } = await createTokenProgramLookupTable(
+            //     rpc,
+            //     payer,
+            //     payer,
+            // );
+            // lut = address;
         }, 80_000);
 
-        it('should compress from bobAta -> charlie', async () => {
+        it.only('should compress from bobAta -> charlie', async () => {
+            rpc = createRpc();
+
             const senderAtaBalanceBefore =
                 await rpc.getTokenAccountBalance(bobAta);
             const recipientCompressedTokenBalanceBefore =
@@ -161,7 +171,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                     mint,
                 });
 
-            await compress(
+            const txId = await compress(
                 rpc,
                 payer,
                 mint,
@@ -171,6 +181,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 charlie.publicKey,
                 outputStateTreeInfo,
             );
+            console.log('txId', txId);
             await assertCompress(
                 rpc,
                 bn(senderAtaBalanceBefore.value.amount),

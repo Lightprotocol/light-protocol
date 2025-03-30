@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use anchor_lang::{prelude::*, Bumps};
+use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units, Bumps};
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -217,6 +217,8 @@ pub fn process<
             &context.hashed_pubkeys,
             "hashed_pubkeys",
         )?;
+        msg!("before tx hash");
+        sol_log_compute_units();
         // 8.1. Create a tx hash
         let current_slot = Clock::get()?.slot;
         cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
@@ -225,6 +227,7 @@ pub fn process<
             current_slot,
         )
         .map_err(ProgramError::from)?;
+        sol_log_compute_units();
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");
@@ -395,6 +398,7 @@ pub fn process<
     // 16. Transfer network, address, and rollover fees ---------------------------------------------------
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
+    sol_log_compute_units();
     context.transfer_fees(ctx.remaining_accounts, ctx.accounts.get_fee_payer())?;
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.

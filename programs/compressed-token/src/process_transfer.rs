@@ -14,6 +14,7 @@ use light_compressed_account::{
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
+use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
     constants::{BUMP_CPI_AUTHORITY, NOT_FROZEN, TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR},
@@ -337,6 +338,8 @@ pub fn cpi_execute_compressed_transaction_transfer<
 ) -> Result<()> {
     bench_sbf_start!("t_cpi_prep");
 
+    sol_log_compute_units();
+
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
 
@@ -376,7 +379,10 @@ pub fn cpi_execute_compressed_transaction_transfer<
     bench_sbf_end!("t_cpi_prep");
 
     bench_sbf_start!("t_invoke_cpi");
+    msg!("CPI to sys now...");
+    sol_log_compute_units();
     light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+
     bench_sbf_end!("t_invoke_cpi");
 
     Ok(())

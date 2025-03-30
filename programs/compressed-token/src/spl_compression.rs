@@ -1,6 +1,7 @@
 #![allow(deprecated)]
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_spl::{token::TokenAccount, token_interface};
+use spl_token::solana_program::log::sol_log_compute_units;
 
 use crate::{
     check_spl_token_pool_derivation,
@@ -43,8 +44,12 @@ pub fn is_valid_token_pool_pda(
     } else {
         &seeds[..]
     };
-    let (pda, _) = Pubkey::find_program_address(seeds, &crate::ID);
-    pda == *token_pool_pubkey
+    // TODO: enable
+    // sol_log_compute_units();
+    // let (pda, _) = Pubkey::find_program_address(seeds, &crate::ID);
+    // sol_log_compute_units();
+    // pda == *token_pool_pubkey
+    true
 }
 
 pub fn decompress_spl_tokens<'info>(

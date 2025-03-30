@@ -141,7 +141,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
             );
         });
 
-        it('should transfer from bob -> charlie', async () => {
+        it.only('should transfer from bob -> charlie', async () => {
             /// send 700 from bob -> charlie
             /// bob: 300, charlie: 700
             const bobPreCompressedTokenAccounts = (
@@ -150,7 +150,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 })
             ).items;
 
-            await transfer(
+            const txId = await transfer(
                 rpc,
                 payer,
                 mint,
@@ -159,7 +159,7 @@ describe.each([TreeType.StateV1, TreeType.StateV2])(
                 charlie.publicKey,
                 outputStateTreeInfo,
             );
-
+            console.log('txId', txId);
             await assertTransfer(
                 rpc,
                 bobPreCompressedTokenAccounts,

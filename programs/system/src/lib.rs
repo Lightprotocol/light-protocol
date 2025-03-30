@@ -90,6 +90,7 @@ pub mod light_system_program {
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        msg!("after entrypoint:");
         sol_log_compute_units();
         #[cfg(feature = "bench-sbf")]
         bench_sbf_start!("cpda_deserialize");
@@ -98,7 +99,7 @@ pub mod light_system_program {
         bench_sbf_end!("cpda_deserialize");
 
         process_invoke_cpi(ctx, inputs, None, None)?;
-        sol_log_compute_units();
+
         // 22,903 bytes heap with 33 outputs
         #[cfg(feature = "bench-sbf")]
         light_heap::bench_sbf_end!("total_usage");
