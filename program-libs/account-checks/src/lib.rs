@@ -23,13 +23,15 @@ use anchor_lang::solana_program::{msg, rent::Rent, sysvar::Sysvar};
     not(feature = "pinocchio")
 ))]
 use anchor_lang::{
-    prelude::Pubkey,
-    solana_program::{
-        account_info::AccountInfo, program_error::ProgramError, rent::Rent, sysvar::Sysvar,
-    },
+    prelude::{ProgramError, Pubkey},
+    solana_program::{account_info::AccountInfo, rent::Rent, sysvar::Sysvar},
 };
 
-#[cfg(feature = "solana")]
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio")
+))]
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 #[cfg(all(feature = "solana", target_os = "solana"))]

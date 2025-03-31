@@ -1,5 +1,6 @@
 use aligned_sized::aligned_sized;
-use anchor_lang::prelude::borsh::{self, BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,
 };
@@ -7,7 +8,6 @@ use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use std::slice;
 use zerocopy::{little_endian::U32, Ref};
-
 /// Collects instruction data without executing a compressed transaction.
 /// Signer checks are performed on instruction data.
 /// Collected instruction data is combined with the instruction data of the executing cpi,
@@ -15,8 +15,7 @@ use zerocopy::{little_endian::U32, Ref};
 /// This enables to use input compressed accounts that are owned by multiple programs,
 /// with one zero-knowledge proof.
 #[aligned_sized(anchor)]
-#[derive(Debug, PartialEq, Default, BorshDeserialize, BorshSerialize)]
-// #[account]
+#[derive(Debug, PartialEq, Default, BorshSerialize, BorshDeserialize, Clone)]
 #[repr(C)]
 pub struct CpiContextAccount {
     pub fee_payer: Pubkey,

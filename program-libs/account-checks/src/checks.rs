@@ -119,7 +119,7 @@ pub fn check_discriminator<T: Discriminator<U>, const U: usize>(
     }
 
     if T::DISCRIMINATOR != bytes[0..U] {
-        #[cfg(target_os = "solana")]
+        #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
         crate::msg!(
             "Expected discriminator: {:?}, actual {:?} ",
             T::DISCRIMINATOR,

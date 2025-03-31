@@ -22,12 +22,12 @@ bench-sbf = ["custom-heap"]
 debug = []
 readonly = []
 
-
 [dependencies]
 bytemuck = { workspace = true }
 thiserror = { workspace = true }
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
+borsh = { workspace = true }
 light-hasher = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
@@ -40,9 +40,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
-# account-compression = { workspace = true, default-features = false, features = [
-#     "system-export",
-# ] }
+
 light-compressed-account = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }

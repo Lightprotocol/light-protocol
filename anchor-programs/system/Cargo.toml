@@ -23,7 +23,7 @@ anchor-lang = { workspace = true }
 account-compression = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 solana-security-txt = "1.1.0"
-light-zero-copy = { workspace = true, features = ["solana"] }
+light-zero-copy = { workspace = true, features = ["anchor"] }
 zerocopy = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

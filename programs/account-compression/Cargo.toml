@@ -24,22 +24,32 @@ test = []
 
 
 [dependencies]
+light-compressed-account = { workspace = true, features = [
+    "anchor",
+], default-features = false }
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
 bytemuck = { workspace = true, features = ["min_const_generics"] }
 light-bounded-vec = { workspace = true, features = ["solana"] }
 light-hash-set = { workspace = true, features = ["solana"] }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["anchor"] }
 light-heap = { workspace = true, optional = true }
 light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
-light-compressed-account = { workspace = true, features = ["anchor"] }
-light-account-checks = { workspace = true }
+light-account-checks = { workspace = true, features = [
+    "anchor",
+], default-features = false }
 num-bigint = { workspace = true }
 solana-security-txt = { workspace = true }
-light-batched-merkle-tree = { workspace = true, features = ["solana"] }
-light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
-light-zero-copy = { workspace = true, features = ["solana"] }
+light-batched-merkle-tree = { workspace = true, features = [
+    "anchor",
+], default-features = false }
+light-merkle-tree-metadata = { workspace = true, features = [
+    "anchor",
+], default-features = false }
+light-zero-copy = { workspace = true, features = [
+    "anchor",
+], default-features = false }
 zerocopy = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

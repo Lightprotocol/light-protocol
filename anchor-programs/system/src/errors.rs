@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use crate::Result;
 
 // TODO: make reexport
 #[error_code]

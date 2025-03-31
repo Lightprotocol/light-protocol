@@ -7,10 +7,15 @@ use crate::{constants::CPI_AUTHORITY_PDA_SEED, Result};
 // };
 
 use light_compressed_account::{
-    constants::ACCOUNT_COMPRESSION_PROGRAM_ID,
+    constants::ACCOUNT_COMPRESSION_PROGRAM_ID, discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES,
     instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut,
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    cpi::{invoke_signed, slice_invoke_signed},
+    instruction::{AccountMeta, Instruction, Seed, Signer},
+    pubkey::Pubkey,
+};
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
@@ -52,7 +57,12 @@ pub fn create_cpi_data_and_context<
         min(remaining_accounts.len() as u8, num_nullifiers),
         min(remaining_accounts.len() as u8, num_new_addresses),
     );
-    let bytes = vec![0u8; bytes_size];
+    // Data size + 8 bytes for discriminator + 4 bytes for length.
+    let byte_len = bytes_size + 8 + 4;
+    let mut bytes = vec![0u8; byte_len];
+    bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
+    // Vec len.
+    bytes[8..12].copy_from_slice(&byte_len.to_le_bytes());
     Ok((
         SystemContext {
             account_indices,
@@ -76,21 +86,15 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
         account_infos,
         ..
     } = cpi_context;
-    // let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
-    unimplemented!();
-    // let data = Vec::<u8>::new();
-    // // let data = instruction_data.data();
-    // let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    // let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
-    // let instruction = anchor_lang::solana_program::instruction::Instruction {
-    //     program_id: ACCOUNT_COMPRESSION_PROGRAM_ID,
-    //     accounts,
-    //     data,
-    // };
-    // pinocchio::instruction::Instruction::::invoke_signed(
-    //     &instruction,
-    //     account_infos.as_slice(),
-    //     seeds,
-    // )?;
-    Ok(())
+
+    let bump = &[CPI_AUTHORITY_PDA_BUMP];
+    let instruction = Instruction {
+        program_id: &ACCOUNT_COMPRESSION_PROGRAM_ID,
+        accounts: accounts.as_slice(),
+        data: bytes.as_slice(),
+    };
+    let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
+    let signer = Signer::from(&seed_array);
+
+    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])
 }

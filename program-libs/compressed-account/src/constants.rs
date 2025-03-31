@@ -6,3 +6,9 @@ pub const SYSTEM_PROGRAM_ID: crate::Pubkey = pubkey!("SySTEM1eSU2p4BGQfQpimFEWWS
 pub const REGISTERED_PROGRAM_PDA: crate::Pubkey =
     pubkey!("35hkDgaAKwMCaxRz2ocSZ6NaUrtKkyNqU6c4RV3tYJRh");
 pub const CREATE_CPI_CONTEXT_ACCOUNT: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
+
+pub const AddressMerkleTreeAccount_DISCRIMINATOR: [u8; 8] = [11, 161, 175, 9, 212, 229, 73, 73];
+pub const StateMerkleTreeAccount_DISCRIMINATOR: [u8; 8] = [172, 43, 172, 186, 29, 73, 219, 84];
+pub const QueueAccount_DISCRIMINATOR: [u8; 8] = [164, 200, 108, 62, 87, 63, 123, 65];
+pub const InsertIntoQueuesInstruction_DISCRIMINATOR: [u8; 8] =
+    [180, 143, 159, 153, 35, 46, 248, 163];

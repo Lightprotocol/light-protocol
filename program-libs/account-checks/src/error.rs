@@ -45,7 +45,8 @@ impl From<AccountError> for u32 {
     }
 }
 
-#[cfg(any(feature = "solana", feature = "anchor_lang", feature = "pinocchio"))]
+// Commenting made account compression program compile.
+// #[cfg(any(feature = "solana", feature = "anchor_lang", feature = "pinocchio"))]
 impl From<AccountError> for crate::ProgramError {
     fn from(e: AccountError) -> Self {
         crate::ProgramError::Custom(e.into())

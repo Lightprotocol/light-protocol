@@ -2040,6 +2040,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "five8_const"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26dec3da8bc3ef08f2c04f61eab298c3ab334523e55f076354d6d6f613799a7b"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
+name = "five8_core"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
+
+[[package]]
 name = "flate2"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3498,6 +3513,8 @@ version = "1.2.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-compressed-account",
@@ -3506,9 +3523,11 @@ dependencies = [
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-metadata",
  "light-verifier",
  "light-zero-copy",
  "pinocchio",
+ "pinocchio-system",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
@@ -4345,6 +4364,26 @@ name = "pinocchio"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "530596fa307103e53257f2cf064815919ee7fbc4c7ab999f6f13cc7067c3aff1"
+
+[[package]]
+name = "pinocchio-pubkey"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c6b20fcebc172c3cd3f54114b0241b48fa8e30893ced2eb4927aaba5e3a0ba5"
+dependencies = [
+ "five8_const",
+ "pinocchio",
+]
+
+[[package]]
+name = "pinocchio-system"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f75423420ae70aa748cf611cab14cfd00af08d0d2d3d258cb0cf5e2880ec19c"
+dependencies = [
+ "pinocchio",
+ "pinocchio-pubkey",
+]
 
 [[package]]
 name = "pkcs8"

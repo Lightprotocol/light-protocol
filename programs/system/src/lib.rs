@@ -1,6 +1,5 @@
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::account::CpiContextAccount;
-// use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_account_checks::{
     checks::check_signer, discriminator::Discriminator as LightDiscriminator,
 };
@@ -33,13 +32,58 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-use anchor_lang::Discriminator;
 use pinocchio::{
     account_info::AccountInfo, entrypoint, log::sol_log_compute_units, msg,
     program_error::ProgramError, syscalls::sol_log_compute_units_, ProgramResult,
 };
 
+use crate::{
+    invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
+};
+use light_compressed_account::{
+    constants::StateMerkleTreeAccount_DISCRIMINATOR,
+    instruction_data::zero_copy::{
+        ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
+    },
+};
+
+use light_zero_copy::borsh::Deserialize;
+
 pub type Result<T> = std::result::Result<T, ProgramError>;
+
+pub enum InstructionDiscriminator {
+    InitializeCpiContextAccount,
+    Invoke,
+    InvokeCpi,
+    InvokeCpiWithReadOnly,
+}
+pub const INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
+pub const INVOKE_INSTRUCTION: [u8; 8] = [26, 16, 169, 7, 21, 202, 242, 25];
+pub const INVOKE_CPI_INSTRUCTION: [u8; 8] = [49, 212, 191, 129, 39, 194, 43, 196];
+pub const INVOKE_CPI_WITH_READ_ONLY_INSTRUCTION: [u8; 8] = [86, 47, 163, 166, 21, 223, 92, 8];
+pub const CPI_CONTEXT_ACCOUNT_DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
+
+impl TryFrom<&[u8]> for InstructionDiscriminator {
+    type Error = crate::errors::SystemProgramError;
+
+    // TODO: throw better errors
+    fn try_from(value: &[u8]) -> std::result::Result<Self, Self::Error> {
+        let array: [u8; 8] = value
+            .try_into()
+            .map_err(|_| crate::errors::SystemProgramError::InvalidArgument)?;
+        match array {
+            INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION => {
+                Ok(InstructionDiscriminator::InitializeCpiContextAccount)
+            }
+            INVOKE_INSTRUCTION => Ok(InstructionDiscriminator::Invoke),
+            INVOKE_CPI_INSTRUCTION => Ok(InstructionDiscriminator::InvokeCpi),
+            INVOKE_CPI_WITH_READ_ONLY_INSTRUCTION => {
+                Ok(InstructionDiscriminator::InvokeCpiWithReadOnly)
+            }
+            _ => Err(SystemProgramError::InvalidArgument),
+        }
+    }
+}
 
 entrypoint!(process_instruction);
 
@@ -51,27 +95,20 @@ pub fn process_instruction(
     if *program_id != ID {
         return Err(ProgramError::IncorrectProgramId);
     }
+    if instruction_data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
     let (discriminator, instruction_data) = instruction_data.split_at(8);
     let discriminator = InstructionDiscriminator::try_from(discriminator).unwrap();
     match discriminator {
         InstructionDiscriminator::InitializeCpiContextAccount => {
             init_cpi_context_account(accounts, instruction_data)
         }
+        InstructionDiscriminator::Invoke => invoke(accounts, instruction_data),
         _ => panic!(""),
     }?;
     Ok(())
 }
-
-// use self::invoke_cpi::processor::process_invoke_cpi;
-use crate::{
-    invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
-};
-use light_compressed_account::instruction_data::zero_copy::{
-    ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
-};
-#[cfg(feature = "bench-sbf")]
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_zero_copy::borsh::Deserialize;
 
 pub fn init_cpi_context_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<()> {
     // Check that Merkle tree is initialized.
@@ -81,17 +118,19 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo], instruction_data: &[u8
     let mut discriminator_bytes = [0u8; 8];
     discriminator_bytes.copy_from_slice(&data[0..8]);
     match discriminator_bytes {
-        // StateMerkleTreeAccount::DISCRIMINATOR => Ok(()),
+        StateMerkleTreeAccount_DISCRIMINATOR => Ok(()),
         BatchedMerkleTreeAccount::DISCRIMINATOR => Ok(()),
         _ => Err(SystemProgramError::AppendStateFailed),
     }
     .map_err(ProgramError::from)?;
     let mut cpi_context_account = CpiContextAccount::default();
     cpi_context_account.init(*ctx.associated_merkle_tree.key());
-    use anchor_lang::prelude::borsh::BorshSerialize;
+    use borsh::BorshSerialize;
     cpi_context_account
-        .serialize(&mut &mut ctx.cpi_context_account.try_borrow_mut_data()?[..])
+        .serialize(&mut &mut ctx.cpi_context_account.try_borrow_mut_data()?[8..])
         .unwrap();
+    ctx.cpi_context_account.try_borrow_mut_data()?[..8]
+        .copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
     Ok(())
 }
 
@@ -175,8 +214,8 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &ctx.authority.key(),
     )?;
-    // process(inputs, None, ctx, 0, None, None)?;
-    // sol_log_compute_units();
+    process(inputs, None, ctx, 0, None, None, remaining_accounts)?;
+    sol_log_compute_units();
     Ok(())
 }
 
@@ -234,36 +273,3 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
 //         )
 //     }
 // }
-
-pub enum InstructionDiscriminator {
-    InitializeCpiContextAccount,
-    Invoke,
-    InvokeCpi,
-    InvokeCpiWithReadOnly,
-}
-pub const INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
-pub const INVOKE_INSTRUCTION: [u8; 8] = [26, 16, 169, 7, 21, 202, 242, 25];
-pub const INVOKE_CPI_INSTRUCTION: [u8; 8] = [49, 212, 191, 129, 39, 194, 43, 196];
-pub const INVOKE_CPI_WITH_READ_ONLY_INSTRUCTION: [u8; 8] = [86, 47, 163, 166, 21, 223, 92, 8];
-
-impl TryFrom<&[u8]> for InstructionDiscriminator {
-    type Error = crate::errors::SystemProgramError;
-
-    // TODO: throw better errors
-    fn try_from(value: &[u8]) -> std::result::Result<Self, Self::Error> {
-        let array: [u8; 8] = value
-            .try_into()
-            .map_err(|_| crate::errors::SystemProgramError::InvalidArgument)?;
-        match array {
-            INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION => {
-                Ok(InstructionDiscriminator::InitializeCpiContextAccount)
-            }
-            INVOKE_INSTRUCTION => Ok(InstructionDiscriminator::Invoke),
-            INVOKE_CPI_INSTRUCTION => Ok(InstructionDiscriminator::InvokeCpi),
-            INVOKE_CPI_WITH_READ_ONLY_INSTRUCTION => {
-                Ok(InstructionDiscriminator::InvokeCpiWithReadOnly)
-            }
-            _ => Err(SystemProgramError::InvalidArgument),
-        }
-    }
-}

@@ -26,8 +26,8 @@ anchor-lang = { workspace = true, features = ["init-if-needed"] }
 account-compression = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
-light-merkle-tree-metadata = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-batched-merkle-tree = { workspace = true, features = ["anchor"] }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 

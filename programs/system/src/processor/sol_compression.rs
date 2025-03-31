@@ -92,14 +92,11 @@ pub fn compress_lamports<
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {
-    // let instruction =
-    //     anchor_lang::solana_program::system_instruction::transfer(from.key(), to.key(), lamports);
     let (_, bump) = pinocchio::pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[SOL_POOL_PDA_SEED, bump][..]];
-    let seed = Seed::from(SOL_POOL_PDA_SEED);
-    let bump_seed = Seed::from(bump);
-    let signer = Signer::from(&[seed, bump_seed]);
+    // Create an owned array that lives for the duration of the function
+    let seed_array = [Seed::from(SOL_POOL_PDA_SEED), Seed::from(bump)];
+    let signer = Signer::from(&seed_array);
 
     let instruction = pinocchio_system::instructions::TransferWithSeed {
         from,

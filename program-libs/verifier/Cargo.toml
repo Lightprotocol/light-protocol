@@ -7,12 +7,12 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
-anchor = ["anchor-lang"]
-pinocchio = ["dep:pinocchio"]
+solana = ["solana-program", "light-compressed-account/solana"]
+anchor = ["anchor-lang", "light-compressed-account/anchor"]
+pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 
 [dependencies]
-groth16-solana = { workspace = true }
+groth16-solana = { workspace = true, default-features = false }
 thiserror = { workspace = true }
 light-compressed-account = { workspace = true, default-features = false }
 

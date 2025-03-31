@@ -39,21 +39,29 @@ impl From<VerifierError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(all(
+    feature = "solana",
+    not(feature = "pinocchio"),
+    not(feature = "anchor")
+))]
 impl From<VerifierError> for solana_program::program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 
-#[cfg(all(feature = "anchor", not(feature = "solana")))]
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio")
+))]
 impl From<VerifierError> for anchor_lang::solana_program::program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
         anchor_lang::solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 
-#[cfg(all(feature = "pinoccio", not(feature = "solana")))]
+#[cfg(all(feature = "pinoccio", not(feature = "solana"), not(feature = "anchor")))]
 impl From<VerifierError> for pinocchio::program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
         pinocchio::program_error::ProgramError::Custom(e.into())

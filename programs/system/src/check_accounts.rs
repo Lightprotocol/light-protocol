@@ -33,7 +33,7 @@ use crate::{
     errors::SystemProgramError,
 };
 
-pub(crate) fn try_from_account_infos<'a, 'info>(
+pub(crate) fn try_from_account_infos<'a, 'info: 'a>(
     account_infos: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
 ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, SystemProgramError> {
@@ -46,7 +46,7 @@ pub(crate) fn try_from_account_infos<'a, 'info>(
 }
 
 #[inline(always)]
-pub(crate) fn try_from_account_info<'a, 'info>(
+pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     account_info: &'info AccountInfo,
     context: &mut SystemContext<'info>,
     index: u8,

@@ -17,15 +17,10 @@ pub fn derive_new_addresses<'info>(
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
     accounts: &[AcpAccount<'_, 'info>],
 ) -> Result<()> {
-    let invoking_program_id_bytes = context
-        .invoking_program_id
-        .as_ref()
-        .map(|invoking_program_id| invoking_program_id);
+    // Get invoking_program_id early and store if available
+    let invoking_program_id_clone = context.invoking_program_id.clone();
     let mut seq_index = 0;
-    // new_address_params
-    //     .iter()
-    //     .enumerate()
-    //     .try_for_each(|
+    
     for (i, new_address_params) in new_address_params.iter().enumerate() {
         let (address, rollover_fee) = match &accounts
             [new_address_params.address_merkle_tree_account_index as usize]
@@ -39,15 +34,7 @@ pub fn derive_new_addresses<'info>(
                     new_address_params.address_merkle_tree_account_index,
                     remaining_accounts,
                 );
-                // msg!(
-                //     "v1 address tree rollover fee {}",
-                //     context
-                //         .get_legacy_merkle_context(
-                //             new_address_params.address_queue_account_index,
-                //         )
-                //         .unwrap()
-                //         .rollover_fee
-                // );
+                
                 (
                     derive_address_legacy(pubkey, &new_address_params.seed)
                         .map_err(ProgramError::from)?,
@@ -58,19 +45,23 @@ pub fn derive_new_addresses<'info>(
                 )
             }
             AcpAccount::BatchedAddressTree(tree) => {
-                let invoking_program_id_bytes = if let Some(bytes) = invoking_program_id_bytes {
+                // Use the cloned reference instead of borrowing context again
+                let invoking_program_id_bytes = if let Some(ref bytes) = invoking_program_id_clone {
                     Ok(bytes)
                 } else {
                     Err(SystemProgramError::DeriveAddressError)
                 }?;
+                
                 cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index,
                     remaining_accounts,
                 );
+                
                 context.set_address_fee(
                     tree.metadata.rollover_metadata.network_fee,
                     new_address_params.address_merkle_tree_account_index,
                 );
+                
                 cpi_ix_data.insert_address_sequence_number(
                     &mut seq_index,
                     tree.pubkey(),
@@ -108,13 +99,6 @@ pub fn derive_new_addresses<'info>(
             )
         })
         .count() as u8;
-    // msg!(
-    //     "cpi_ix_data.num_address_queues: {:?}",
-    //     cpi_ix_data.num_address_queues
-    // );
-    // msg!(
-    //     "start output appends: {:?}",
-    //     cpi_ix_data.start_output_appends
-    // );
+    
     Ok(())
 }

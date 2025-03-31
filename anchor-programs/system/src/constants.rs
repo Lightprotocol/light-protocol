@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use crate::Result;
 
 pub const CPI_AUTHORITY_PDA_BUMP: u8 = 255;
 

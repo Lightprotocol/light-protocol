@@ -411,11 +411,11 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
 
 #[cfg(feature = "debug")]
 #[inline(always)]
-fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
+fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, _vec_name: &str) -> Result<()> {
     if vec.capacity() != expected_capacity {
         // msg!(
         //     "{} exceeded capacity. Used {}, allocated {}.",
-        //     vec_name,
+        //     _vec_name,
         //     vec.capacity(),
         //     expected_capacity
         // );
