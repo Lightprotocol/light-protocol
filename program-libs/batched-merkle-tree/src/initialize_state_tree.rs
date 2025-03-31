@@ -5,7 +5,9 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     queue::QueueMetadata, rollover::RolloverMetadata,
 };
-use solana_program::{account_info::AccountInfo, msg};
+
+// Import feature-gated types from lib.rs
+use crate::{msg, AccountInfo};
 
 use crate::{
     constants::{
@@ -132,9 +134,9 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// 2. Initialize the output queue and state Merkle tree accounts.
 pub fn init_batched_state_merkle_tree_from_account_info<'a>(
     params: InitStateTreeAccountsInstructionData,
-    owner: solana_program::pubkey::Pubkey,
-    merkle_tree_account_info: &AccountInfo<'a>,
-    queue_account_info: &AccountInfo<'a>,
+    owner: crate::Pubkey,
+    merkle_tree_account_info: &AccountInfo,
+    queue_account_info: &AccountInfo,
     additional_bytes_rent: u64,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
@@ -167,10 +169,10 @@ pub fn init_batched_state_merkle_tree_from_account_info<'a>(
         owner.into(),
         params,
         queue_data,
-        (*queue_account_info.key).into(),
+        (*queue_account_info.key()).into(),
         queue_rent,
         mt_data,
-        (*merkle_tree_account_info.key).into(),
+        (*merkle_tree_account_info.key()).into(),
         merkle_tree_rent,
         additional_bytes_rent,
     )?;
@@ -200,6 +202,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             None => 0,
         };
 
+        #[cfg(not(feature = "pinocchio"))]
         msg!(" Output queue rollover_fee: {}", rollover_fee);
         let metadata = QueueMetadata {
             next_queue: Pubkey::default(),

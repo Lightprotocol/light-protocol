@@ -3,7 +3,9 @@ use light_compressed_account::pubkey::Pubkey;
 #[cfg(target_os = "solana")]
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_merkle_tree_metadata::utils::if_equals_none;
-use solana_program::account_info::AccountInfo;
+
+// Import feature-gated types from lib.rs
+use crate::AccountInfo;
 
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -13,9 +15,9 @@ use crate::{
     merkle_tree::BatchedMerkleTreeAccount,
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
-pub fn rollover_batched_address_tree_from_account_info<'a>(
-    old_account: &AccountInfo<'a>,
-    new_account: &AccountInfo<'a>,
+pub fn rollover_batched_address_tree_from_account_info(
+    old_account: &AccountInfo,
+    new_account: &AccountInfo,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
     let new_mt_rent = check_account_balance_is_rent_exempt(new_account, old_account.data_len())?;
@@ -29,7 +31,7 @@ pub fn rollover_batched_address_tree_from_account_info<'a>(
         &mut old_merkle_tree,
         &mut new_mt_data,
         new_mt_rent,
-        (*new_account.key).into(),
+        (*new_account.key()).into(),
         network_fee,
     )?;
     Ok(new_mt_rent)

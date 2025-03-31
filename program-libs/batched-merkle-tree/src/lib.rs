@@ -10,7 +10,64 @@ pub mod queue;
 pub mod queue_batch_metadata;
 pub mod rollover_address_tree;
 pub mod rollover_state_tree;
+
+// Use the appropriate BorshDeserialize and BorshSerialize based on feature
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
+pub(crate) use anchor_lang::{
+    AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize,
+};
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize, BorshSerialize};
+pub(crate) use borsh::{BorshDeserialize, BorshSerialize};
+
+// Solana program imports
+#[cfg(feature = "solana")]
+pub(crate) use solana_program::{
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
+    sysvar::clock::Clock, sysvar::rent::Rent, sysvar::Sysvar,
+};
+
+// Anchor imports when anchor feature is enabled but solana is not
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio")
+))]
+pub(crate) use anchor_lang::{
+    self, declare_id,
+    prelude::msg,
+    prelude::AccountInfo,
+    prelude::ProgramError,
+    prelude::Pubkey,
+    solana_program,
+    solana_program::sysvar::{rent::Rent, Sysvar},
+    system_program,
+};
+
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio"),
+    target_os = "solana"
+))]
+pub(crate) use anchor_lang::prelude::Clock;
+
+// Pinocchio imports when pinocchio feature is enabled but others are not
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+pub(crate) use pinocchio::{
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
+    sysvars::clock::Clock, sysvars::rent::Rent, sysvars::Sysvar,
+};
+
+trait PubkeyTrait {
+    fn key(&self) -> &Self;
+}
+
+impl PubkeyTrait for Pubkey {
+    fn key(&self) -> &Self {
+        &self
+    }
+}

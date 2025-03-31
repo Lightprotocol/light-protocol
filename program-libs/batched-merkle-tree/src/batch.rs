@@ -1,8 +1,10 @@
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::vec::ZeroCopyVecU64;
-use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
+
+// Import msg from lib.rs which has the appropriate feature gates
+use crate::msg;
 
 use crate::{errors::BatchedMerkleTreeError, BorshDeserialize, BorshSerialize};
 
@@ -170,6 +172,7 @@ impl Batch {
             }
             self.num_full_zkp_batches = 0;
         } else {
+            #[cfg(not(feature = "pinocchio"))]
             msg!(
                 "Batch is in incorrect state {} expected BatchState::Inserted 1",
                 self.state
@@ -185,6 +188,7 @@ impl Batch {
         if self.get_state() == BatchState::Full {
             self.state = BatchState::Inserted.into();
         } else {
+            #[cfg(not(feature = "pinocchio"))]
             msg!(
                 "Batch is in incorrect state {} expected BatchState::Full 2",
                 self.state
@@ -200,6 +204,7 @@ impl Batch {
         if self.get_state() == BatchState::Fill {
             self.state = BatchState::Full.into();
         } else {
+            #[cfg(not(feature = "pinocchio"))]
             msg!(
                 "Batch is in incorrect state {} expected BatchState::Fill 0",
                 self.state
