@@ -1,3 +1,4 @@
+use light_verifier::VerifierError;
 // use anchor_lang::error_code;
 use pinocchio::program_error::ProgramError;
 use thiserror::Error;
@@ -86,6 +87,12 @@ pub enum SystemProgramError {
     InvalidArgument,
     #[error("InvalidAccount")]
     InvalidAccount,
+    #[error("AddressMerkleTreeAccountDiscriminatorMismatch")]
+    AddressMerkleTreeAccountDiscriminatorMismatch,
+    #[error("StateMerkleTreeAccountDiscriminatorMismatch")]
+    StateMerkleTreeAccountDiscriminatorMismatch,
+    #[error("Verifier Error")]
+    VerifierError,
 }
 
 impl From<SystemProgramError> for ProgramError {

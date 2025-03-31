@@ -1,5 +1,4 @@
-use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
-use anchor_lang::prelude::*;
+use crate::context::AcpAccount;
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
@@ -17,6 +16,7 @@ use light_verifier::{
     select_verifying_key, verify_create_addresses_and_inclusion_proof,
     verify_create_addresses_proof, verify_inclusion_proof,
 };
+use pinocchio::program_error::ProgramError;
 
 use crate::errors::SystemProgramError;
 
@@ -31,7 +31,7 @@ pub fn read_input_state_roots<'a>(
     input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
     read_only_accounts: &'a [ZPackedReadOnlyCompressedAccount],
     input_roots: &'a mut Vec<[u8; 32]>,
-) -> Result<u8> {
+) -> Result<u8, SystemProgramError> {
     let mut state_tree_height = 0;
     for input_compressed_account_with_context in
         input_compressed_accounts_with_merkle_context.iter()
@@ -52,12 +52,12 @@ pub fn read_input_state_roots<'a>(
         if state_tree_height == 0 {
             state_tree_height = internal_height;
         } else if state_tree_height != internal_height {
-            msg!(
-                "tree height {} != internal height {}",
-                state_tree_height,
-                internal_height
-            );
-            return err!(SystemProgramError::InvalidStateTreeHeight);
+            // msg!(
+            //     "tree height {} != internal height {}",
+            //     state_tree_height,
+            //     internal_height
+            // );
+            return Err(SystemProgramError::InvalidStateTreeHeight);
         }
     }
     for readonly_input_account in read_only_accounts.iter() {
@@ -74,12 +74,12 @@ pub fn read_input_state_roots<'a>(
         if state_tree_height == 0 {
             state_tree_height = internal_height;
         } else if state_tree_height != internal_height {
-            msg!(
-                "tree height {} != internal height {}",
-                state_tree_height,
-                internal_height
-            );
-            return err!(SystemProgramError::InvalidStateTreeHeight);
+            // msg!(
+            //     "tree height {} != internal height {}",
+            //     state_tree_height,
+            //     internal_height
+            // );
+            return Err(SystemProgramError::InvalidStateTreeHeight);
         }
     }
     Ok(state_tree_height)
@@ -91,7 +91,7 @@ pub fn read_address_roots<'a>(
     new_address_params: &'a [ZNewAddressParamsPacked],
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
-) -> Result<u8> {
+) -> Result<u8, SystemProgramError> {
     let mut address_tree_height = 0;
     for new_address_param in new_address_params.iter() {
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
@@ -102,12 +102,12 @@ pub fn read_address_roots<'a>(
         if address_tree_height == 0 {
             address_tree_height = internal_height;
         } else if address_tree_height != internal_height {
-            msg!(
-                "tree height {} != internal height {}",
-                address_tree_height,
-                internal_height
-            );
-            return err!(SystemProgramError::InvalidAddressTreeHeight);
+            // msg!(
+            //     "tree height {} != internal height {}",
+            //     address_tree_height,
+            //     internal_height
+            // );
+            return Err(SystemProgramError::InvalidAddressTreeHeight);
         }
     }
     for read_only_address in read_only_addresses.iter() {
@@ -119,12 +119,12 @@ pub fn read_address_roots<'a>(
         if address_tree_height == 0 {
             address_tree_height = internal_height;
         } else if address_tree_height != internal_height {
-            msg!(
-                "tree height {} != internal height {}",
-                address_tree_height,
-                internal_height
-            );
-            return err!(SystemProgramError::InvalidAddressTreeHeight);
+            // msg!(
+            //     "tree height {} != internal height {}",
+            //     address_tree_height,
+            //     internal_height
+            // );
+            return Err(SystemProgramError::InvalidAddressTreeHeight);
         }
     }
 
@@ -136,15 +136,13 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
     merkle_tree_account: &AcpAccount<'_, '_>,
     root_index: u16,
     roots: &mut Vec<[u8; 32]>,
-) -> Result<u8> {
+) -> Result<u8, SystemProgramError> {
     let height;
     match merkle_tree_account {
         AcpAccount::AddressTree((_, merkle_tree)) => {
             if IS_READ_ONLY {
-                msg!("Read only addresses are only supported for batched address trees.");
-                return err!(
-                    AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch
-                );
+                // msg!("Read only addresses are only supported for batched address trees.");
+                return Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch);
             }
             height = merkle_tree.height as u8;
             (*roots).push(merkle_tree.roots[root_index as usize]);
@@ -159,10 +157,8 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         }
         AcpAccount::StateTree((_, merkle_tree)) => {
             if IS_READ_ONLY {
-                msg!("Read only addresses are only supported for batched address trees.");
-                return err!(
-                    AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                );
+                // msg!("Read only addresses are only supported for batched address trees.");
+                return Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch);
             }
             let fetched_roots = &merkle_tree.roots;
 
@@ -171,9 +167,9 @@ fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
         }
         _ => {
             return if IS_STATE {
-                err!(AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch)
+                Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch)
             } else {
-                err!(AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch)
+                Err(SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch)
             }
         }
     }
@@ -189,7 +185,7 @@ pub fn verify_proof(
     compressed_proof: &CompressedProof,
     address_tree_height: u8,
     state_tree_height: u8,
-) -> anchor_lang::Result<()> {
+) -> crate::Result<()> {
     if state_tree_height as u32 == DEFAULT_BATCH_STATE_TREE_HEIGHT
         || address_tree_height as u32 == DEFAULT_BATCH_ADDRESS_TREE_HEIGHT
     {
@@ -209,9 +205,10 @@ pub fn verify_proof(
             create_two_inputs_hash_chain(address_roots, addresses).map_err(ProgramError::from)?
         };
 
-        let vk = select_verifying_key(leaves.len(), addresses.len()).map_err(ProgramError::from)?;
+        let vk = select_verifying_key(leaves.len(), addresses.len())
+            .map_err(|_| ProgramError::from(SystemProgramError::VerifierError))?;
         light_verifier::verify(&[public_input_hash], compressed_proof, vk)
-            .map_err(ProgramError::from)?;
+            .map_err(|_| ProgramError::from(SystemProgramError::VerifierError))?;
     } else if state_tree_height == 26 && address_tree_height == 26 {
         // legacy combined inclusion & non-inclusion proof
         verify_create_addresses_and_inclusion_proof(
@@ -221,18 +218,19 @@ pub fn verify_proof(
             addresses,
             compressed_proof,
         )
-        .map_err(ProgramError::from)?;
+        .map_err(|_| ProgramError::from(SystemProgramError::VerifierError))?;
     } else if state_tree_height == 26 {
         // legacy inclusion proof
-        verify_inclusion_proof(roots, leaves, compressed_proof).map_err(ProgramError::from)?;
+        verify_inclusion_proof(roots, leaves, compressed_proof)
+            .map_err(|_| ProgramError::from(SystemProgramError::VerifierError))?;
     } else if address_tree_height == 26 {
         // legacy non-inclusion proof
         verify_create_addresses_proof(address_roots, addresses, compressed_proof)
-            .map_err(ProgramError::from)?;
+            .map_err(|_| ProgramError::from(SystemProgramError::VerifierError))?;
     } else {
-        msg!("state tree height: {}", state_tree_height);
-        msg!("address tree height: {}", address_tree_height);
-        return err!(SystemProgramError::InvalidAddressTreeHeight);
+        // msg!("state tree height: {}", state_tree_height);
+        // msg!("address tree height: {}", address_tree_height);
+        return Err(SystemProgramError::InvalidAddressTreeHeight.into());
     }
 
     Ok(())

@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvokeCpi;
 
 use super::account::{deserialize_cpi_context_account, CpiContextAccount};
@@ -30,18 +30,18 @@ pub fn process_cpi_context<'a, 'info>(
     mut inputs: ZInstructionDataInvokeCpi<'a>,
     cpi_context_account: &mut Option<Account<'info, CpiContextAccount>>,
     fee_payer: Pubkey,
-    remaining_accounts: &[AccountInfo<'info>],
+    remaining_accounts: &[AccountInfo],
 ) -> Result<Option<ZInstructionDataInvokeCpi<'a>>> {
     let cpi_context = &inputs.cpi_context;
     if cpi_context_account.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
-        return err!(SystemProgramError::CpiContextMissing);
+        return Err(SystemProgramError::CpiContextMissing);
     }
 
     if let Some(cpi_context) = cpi_context {
         let cpi_context_account = match cpi_context_account {
             Some(cpi_context_account) => cpi_context_account,
-            None => return err!(SystemProgramError::CpiContextAccountUndefined),
+            None => return Err(SystemProgramError::CpiContextAccountUndefined),
         };
         let index = if !inputs
             .input_compressed_accounts_with_merkle_context
@@ -53,7 +53,7 @@ pub fn process_cpi_context<'a, 'info>(
         } else if !inputs.output_compressed_accounts.is_empty() {
             inputs.output_compressed_accounts[0].merkle_tree_index
         } else {
-            return err!(SystemProgramError::NoInputs);
+            return Err(SystemProgramError::NoInputs);
         };
         let first_merkle_tree_pubkey = remaining_accounts[index as usize].key();
         if first_merkle_tree_pubkey != cpi_context_account.associated_merkle_tree {
@@ -62,7 +62,7 @@ pub fn process_cpi_context<'a, 'info>(
                 first_merkle_tree_pubkey,
                 cpi_context_account.associated_merkle_tree
             );
-            return err!(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch);
+            return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch);
         }
         if cpi_context.set_context() {
             set_cpi_context(fee_payer, cpi_context_account, inputs)?;
@@ -72,13 +72,13 @@ pub fn process_cpi_context<'a, 'info>(
                 msg!("cpi context account : {:?}", cpi_context_account);
                 msg!("fee payer : {:?}", fee_payer);
                 msg!("cpi context  : {:?}", cpi_context);
-                return err!(SystemProgramError::CpiContextEmpty);
+                return Err(SystemProgramError::CpiContextEmpty);
             } else if cpi_context_account.fee_payer != fee_payer || cpi_context.first_set_context()
             {
                 msg!("cpi context account : {:?}", cpi_context_account);
                 msg!("fee payer : {:?}", fee_payer);
                 msg!("cpi context  : {:?}", cpi_context);
-                return err!(SystemProgramError::CpiContextFeePayerMismatch);
+                return Err(SystemProgramError::CpiContextFeePayerMismatch);
             }
 
             let z_cpi_context_account =
@@ -125,7 +125,7 @@ pub fn set_cpi_context(
         cpi_context_account.context.push((&inputs).into());
     } else {
         msg!(" {} != {}", fee_payer, cpi_context_account.fee_payer);
-        return err!(SystemProgramError::CpiContextFeePayerMismatch);
+        return Err(SystemProgramError::CpiContextFeePayerMismatch);
     }
     Ok(())
 }
@@ -151,7 +151,6 @@ pub fn set_cpi_context(
 mod tests {
     use std::cell::RefCell;
 
-    use anchor_lang::solana_program::pubkey::Pubkey;
     use light_compressed_account::{
         compressed_account::{
             CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
@@ -162,6 +161,7 @@ mod tests {
         },
     };
     use light_zero_copy::borsh::Deserialize;
+    use pinocchio::pubkey::Pubkey;
 
     use super::*;
 

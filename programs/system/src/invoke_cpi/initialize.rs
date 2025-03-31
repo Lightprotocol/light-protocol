@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use crate::Result;
 
 use super::account::CpiContextAccount;
 pub const CPI_SEED: &[u8] = b"cpi_signature_pda";
@@ -10,5 +10,5 @@ pub struct InitializeCpiContextAccount<'info> {
     #[account(zero)]
     pub cpi_context_account: Account<'info, CpiContextAccount>,
     /// CHECK: manually in instruction
-    pub associated_merkle_tree: AccountInfo<'info>,
+    pub associated_merkle_tree: AccountInfo,
 }

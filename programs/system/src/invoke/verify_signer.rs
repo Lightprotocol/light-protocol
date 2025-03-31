@@ -1,11 +1,8 @@
-use anchor_lang::{
-    err,
-    solana_program::{msg, pubkey::Pubkey},
-    Result,
-};
-use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
-
 use crate::errors::SystemProgramError;
+use crate::Result;
+use anchor_lang::solana_program::msg;
+use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
+use pinocchio::pubkey::Pubkey;
 
 pub fn input_compressed_accounts_signer_check(
     input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
@@ -15,7 +12,7 @@ pub fn input_compressed_accounts_signer_check(
         .iter()
         .try_for_each(
             |compressed_account_with_context: &ZPackedCompressedAccountWithMerkleContext| {
-                if *authority == compressed_account_with_context.compressed_account.owner.into()
+                if light_compressed_account::pubkey::Pubkey::from(*authority) == compressed_account_with_context.compressed_account.owner
                     && compressed_account_with_context
                         .compressed_account
                         .data
@@ -24,12 +21,12 @@ pub fn input_compressed_accounts_signer_check(
                     Ok(())
                 } else {
                     msg!(
-                        "signer check failed compressed account owner {} != authority {} or data is not none {} (only programs can own compressed accounts with data)",
-                        Pubkey::new_from_array(compressed_account_with_context.compressed_account.owner.to_bytes()),
+                        "signer check failed compressed account owner {:?} != authority {:?} or data is not none {} (only programs can own compressed accounts with data)",
+                        compressed_account_with_context.compressed_account.owner.to_bytes(),
                         authority,
                         compressed_account_with_context.compressed_account.data.is_none()
                     );
-                    err!(SystemProgramError::SignerCheckFailed)
+                    Err(SystemProgramError::SignerCheckFailed.into())
                 }
             },
         )

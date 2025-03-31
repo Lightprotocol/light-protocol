@@ -1,8 +1,9 @@
-use account_compression::{context::AcpAccount, insert_into_queues::get_queue_and_tree_accounts};
-use anchor_lang::prelude::*;
-use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
+use crate::Result;
+use crate::{context::AcpAccount, utils::get_queue_and_tree_accounts};
 
 use crate::errors::SystemProgramError;
+use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
+use pinocchio::program_error::ProgramError;
 
 /// For each read-only account
 /// 1. prove inclusion by index in the output queue if leaf index should exist in the output queue.
@@ -27,20 +28,20 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         let output_queue = if let AcpAccount::OutputQueue(queue) = output_queue_account_info {
             queue
         } else {
-            msg!(
-                "Read only account is not an OutputQueue {:?} ",
-                read_only_account
-            );
-            return err!(SystemProgramError::InvalidAccount);
+            // msg!(
+            //     "Read only account is not an OutputQueue {:?} ",
+            //     read_only_account
+            // );
+            return Err(SystemProgramError::InvalidAccount.into());
         };
         let merkle_tree = if let AcpAccount::BatchedStateTree(tree) = merkle_tree_account_info {
             tree
         } else {
-            msg!(
-                "Read only account is not a BatchedStateTree {:?}",
-                read_only_account
-            );
-            return err!(SystemProgramError::InvalidAccount);
+            // msg!(
+            //     "Read only account is not a BatchedStateTree {:?}",
+            //     read_only_account
+            // );
+            return Err(SystemProgramError::InvalidAccount.into());
         };
         output_queue
             .check_is_associated(merkle_tree.pubkey())
@@ -53,7 +54,7 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
                 read_only_account.merkle_context.leaf_index.into(),
                 &read_only_account.account_hash,
             )
-            .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+            .map_err(|_| ProgramError::from(SystemProgramError::ReadOnlyAccountDoesNotExist))?;
         if read_only_account.merkle_context.prove_by_index() {
             num_prove_read_only_accounts_prove_by_index += 1;
         }
@@ -61,8 +62,10 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         // inclusion proof by index has to be successful
         // -> proved_inclusion == true.
         if !proved_inclusion && read_only_account.merkle_context.prove_by_index() {
-            msg!("Expected read-only account in the output queue but account does not exist.");
-            return err!(SystemProgramError::ReadOnlyAccountDoesNotExist);
+            pinocchio::msg!(
+                "Expected read-only account in the output queue but account does not exist."
+            );
+            return Err(SystemProgramError::ReadOnlyAccountDoesNotExist.into());
         }
         // If we prove inclusion by index we do not need to check non-inclusion in bloom filters.
         // Since proving inclusion by index of non-read
@@ -70,7 +73,7 @@ pub fn verify_read_only_account_inclusion_by_index<'a>(
         if !proved_inclusion {
             merkle_tree
                 .check_input_queue_non_inclusion(&read_only_account.account_hash)
-                .map_err(|_| SystemProgramError::ReadOnlyAccountDoesNotExist)?;
+                .map_err(|_| ProgramError::from(SystemProgramError::ReadOnlyAccountDoesNotExist))?;
         }
     }
     Ok(num_prove_read_only_accounts_prove_by_index)

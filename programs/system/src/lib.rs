@@ -1,20 +1,23 @@
+use invoke::instruction::InvokeInstruction;
 use invoke_cpi::account::CpiContextAccount;
 // use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_account_checks::{
     checks::check_signer, discriminator::Discriminator as LightDiscriminator,
 };
+use pinocchio::pubkey::Pubkey;
 
-// mod check_accounts;
+pub mod account_compression_state;
+mod check_accounts;
 pub mod invoke_cpi;
-// pub mod processor;
+pub mod processor;
 // pub use invoke::instruction::*;
 // pub use invoke_cpi::{initialize::*, instruction::*};
-// pub mod account_traits;
-// pub mod constants;
-// pub mod context;
+pub mod account_traits;
+pub mod constants;
+pub mod context;
 pub mod errors;
-// pub mod invoke;
-// pub mod utils;
+pub mod invoke;
+pub mod utils;
 
 use errors::SystemProgramError;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -33,7 +36,7 @@ solana_security_txt::security_txt! {
 use anchor_lang::Discriminator;
 use pinocchio::{
     account_info::AccountInfo, entrypoint, log::sol_log_compute_units, msg,
-    program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+    program_error::ProgramError, syscalls::sol_log_compute_units_, ProgramResult,
 };
 
 pub type Result<T> = std::result::Result<T, ProgramError>;
@@ -59,27 +62,21 @@ pub fn process_instruction(
     Ok(())
 }
 
-// use account_compression::{errors::AccountCompressionErrorCode, StateMerkleTreeAccount};
-
-// use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+// use self::invoke_cpi::processor::process_invoke_cpi;
+use crate::{
+    invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
+};
 use light_compressed_account::instruction_data::zero_copy::{
     ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
 };
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::borsh::Deserialize;
-// use self::invoke_cpi::processor::process_invoke_cpi;
-// use crate::{
-//     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
-// };
 
 pub fn init_cpi_context_account(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<()> {
     // Check that Merkle tree is initialized.
-    let (ctx, _accounts, _instruction_data) = <InitializeCpiContextAccount<'_> as LightContext<
-        '_,
-    >>::from_account_infos(
-        accounts, instruction_data
-    )?;
+    let (ctx, _accounts) =
+        <InitializeCpiContextAccount<'_> as LightContext<'_>>::from_account_infos(accounts)?;
     let data = ctx.associated_merkle_tree.try_borrow_data()?;
     let mut discriminator_bytes = [0u8; 8];
     discriminator_bytes.copy_from_slice(&data[0..8]);
@@ -95,73 +92,93 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo], instruction_data: &[u8
     cpi_context_account
         .serialize(&mut &mut ctx.cpi_context_account.try_borrow_mut_data()?[..])
         .unwrap();
-    // ctx.accounts
-    //     .cpi_context_account
-    //     .init(ctx.accounts.associated_merkle_tree.key());
     Ok(())
 }
 
 pub trait LightContext<'info>: Sized {
-    fn from_account_infos(
-        accounts: &'info [AccountInfo],
-        instruction_data: &'info [u8],
-    ) -> Result<(Self, &'info [AccountInfo], &'info [u8])>;
+    /// Attributes:
+    /// - `#[signer]` - account must be a signer
+    /// - `#[account(zero)]` - account must be empty
+    /// - `#[account(Option<ProgramId>)]` - checks owner is this program
+    /// - `#[unchecked_account]` - account is not checked
+    /// - `#[pda_derivation(seeds, Option<ProgramId)- account is derived from seeds
+    /// - `#[constraint = statement ]` - custom constraint
+    /// - `#[compressed_account(Option<ProgramId>)]` - account is compressed owner is this program by default
+    /// - '#[program]` - account is a program
+    /// Macro rules for this function:
+    /// 1. check that accounts len is sufficient
+    ///     1.1. count number of fields marked with account attribute
+    ///     1.2. throw if a field is not marked
+    /// 2. create a variable for each account
+    ///
+    /// Notes:
+    /// 1. replace instruction_data with optional T to keep instruction data deserialization separate
+    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &'info [AccountInfo])>;
 }
 
 pub struct InitializeCpiContextAccount<'info> {
     // #[signer]
     pub fee_payer: &'info AccountInfo,
-    // TODO: figure out check
     // #[account(zero)]
     pub cpi_context_account: &'info AccountInfo,
     /// CHECK: manually in instruction
     pub associated_merkle_tree: &'info AccountInfo,
 }
 
-impl<'info> LightContext<'info> for InitializeCpiContextAccount<'info> {
-    fn from_account_infos(
-        accounts: &'info [AccountInfo],
-        instruction_data: &'info [u8],
-    ) -> Result<(Self, &'info [AccountInfo], &'info [u8])> {
-        check_signer(&accounts[0]).map_err(ProgramError::from)?;
+pub fn check_is_empty(account_info: &AccountInfo) -> Result<()> {
+    if !account_info.data_is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    Ok(())
+}
 
+impl<'info> LightContext<'info> for InitializeCpiContextAccount<'info> {
+    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &'info [AccountInfo])> {
         if accounts.len() < 3 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
+        let fee_payer = &accounts[0];
+        let cpi_context_account = &accounts[1];
+        let associated_merkle_tree = &accounts[2];
+        check_signer(&accounts[0]).map_err(ProgramError::from)?;
+
+        check_is_empty(cpi_context_account)?;
+
         Ok((
             Self {
-                fee_payer: &accounts[0],
-                cpi_context_account: &accounts[1],
-                associated_merkle_tree: &accounts[2],
+                fee_payer,
+                cpi_context_account,
+                associated_merkle_tree,
             },
             &accounts[3..],
-            instruction_data,
         ))
     }
 }
 
-// pub fn invoke<'a, 'b, 'c: 'info, 'info>(
-//     accounts: &[AccountInfo],
-//     instruction_data: &[u8],
-// ) -> Result<()> {
-//     sol_log_compute_units();
+pub fn invoke<'a, 'b, 'c: 'info, 'info>(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<()> {
+    sol_log_compute_units();
 
-//     #[cfg(feature = "bench-sbf")]
-//     bench_sbf_start!("invoke_deserialize");
-//     msg!("Invoke instruction");
-//     let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(inputs.as_slice()).unwrap();
-//     sol_log_compute_units();
-//     #[cfg(feature = "bench-sbf")]
-//     bench_sbf_end!("invoke_deserialize");
-//     input_compressed_accounts_signer_check(
-//         &inputs.input_compressed_accounts_with_merkle_context,
-//         &ctx.accounts.authority.key(),
-//     )?;
-//     process(inputs, None, ctx, 0, None, None)?;
-//     sol_log_compute_units();
-//     Ok(())
-// }
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_start!("invoke_deserialize");
+    msg!("Invoke instruction");
+    let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data).unwrap();
+    let (ctx, remaining_accounts) =
+        <InvokeInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+    sol_log_compute_units();
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_end!("invoke_deserialize");
+    input_compressed_accounts_signer_check(
+        &inputs.input_compressed_accounts_with_merkle_context,
+        &ctx.authority.key(),
+    )?;
+    // process(inputs, None, ctx, 0, None, None)?;
+    // sol_log_compute_units();
+    Ok(())
+}
 
 // pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
 //     accounts: &[AccountInfo],

@@ -1,11 +1,16 @@
 use std::cmp::min;
 
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{
-    prelude::{AccountMeta, Context, Pubkey},
-    Bumps, InstructionData, Key, Result, ToAccountInfo,
+use crate::{constants::CPI_AUTHORITY_PDA_SEED, Result};
+// use anchor_lang::{
+//     prelude::{AccountMeta, Context, Pubkey},
+//     Bumps, InstructionData, Key, Result, ToAccountInfo,
+// };
+
+use light_compressed_account::{
+    constants::ACCOUNT_COMPRESSION_PROGRAM_ID,
+    instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut,
 };
-use light_compressed_account::instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut;
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
@@ -18,24 +23,23 @@ pub fn create_cpi_data_and_context<
     'b,
     'c: 'info,
     'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+    A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
+    ctx: &'a A,
     num_leaves: u8,
     num_nullifiers: u8,
     num_new_addresses: u8,
     hashed_pubkeys_capacity: usize,
     invoking_program_id: Option<Pubkey>,
+    remaining_accounts: &'info [AccountInfo],
 ) -> Result<(SystemContext<'info>, Vec<u8>)> {
     let account_infos = vec![
-        ctx.accounts
-            .get_account_compression_authority()
-            .to_account_info(),
-        ctx.accounts.get_registered_program_pda().to_account_info(),
+        ctx.get_account_compression_authority(),
+        ctx.get_registered_program_pda(),
     ];
     let accounts = vec![
-        AccountMeta::new_readonly(account_infos[0].key(), true),
-        AccountMeta::new_readonly(account_infos[1].key(), false),
+        AccountMeta::new(account_infos[0].key(), false, true),
+        AccountMeta::readonly(account_infos[1].key()),
     ];
     let account_indices =
         Vec::<u8>::with_capacity((num_nullifiers + num_leaves + num_new_addresses) as usize);
@@ -44,9 +48,9 @@ pub fn create_cpi_data_and_context<
         num_leaves,
         num_nullifiers,
         num_new_addresses,
-        min(ctx.remaining_accounts.len() as u8, num_leaves),
-        min(ctx.remaining_accounts.len() as u8, num_nullifiers),
-        min(ctx.remaining_accounts.len() as u8, num_new_addresses),
+        min(remaining_accounts.len() as u8, num_leaves),
+        min(remaining_accounts.len() as u8, num_nullifiers),
+        min(remaining_accounts.len() as u8, num_new_addresses),
     );
     let bytes = vec![0u8; bytes_size];
     Ok((
@@ -72,20 +76,21 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
         account_infos,
         ..
     } = cpi_context;
-    let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
-
-    let data = instruction_data.data();
-    let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
-    let instruction = anchor_lang::solana_program::instruction::Instruction {
-        program_id: account_compression::ID,
-        accounts,
-        data,
-    };
-    anchor_lang::solana_program::program::invoke_signed(
-        &instruction,
-        account_infos.as_slice(),
-        seeds,
-    )?;
+    // let instruction_data = account_compression::instruction::InsertIntoQueues { bytes };
+    unimplemented!();
+    // let data = Vec::<u8>::new();
+    // // let data = instruction_data.data();
+    // let bump = &[CPI_AUTHORITY_PDA_BUMP];
+    // let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
+    // let instruction = anchor_lang::solana_program::instruction::Instruction {
+    //     program_id: ACCOUNT_COMPRESSION_PROGRAM_ID,
+    //     accounts,
+    //     data,
+    // };
+    // pinocchio::instruction::Instruction::::invoke_signed(
+    //     &instruction,
+    //     account_infos.as_slice(),
+    //     seeds,
+    // )?;
     Ok(())
 }

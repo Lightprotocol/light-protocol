@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use anchor_lang::{prelude::*, Bumps};
+use crate::Result;
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -14,6 +14,9 @@ use light_compressed_account::{
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{slice::ZeroCopySliceBorsh, slice_mut::ZeroCopySliceMut};
+use pinocchio::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, sysvars::clock::Clock,
+};
 
 #[cfg(feature = "readonly")]
 use crate::processor::{
@@ -73,31 +76,26 @@ use crate::{
 ///    `read_only_addresses`
 ///     4.1. Verify non-inclusion in queue
 ///     4.2. Verify inclusion by zkp
-pub fn process<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
->(
+pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     inputs: ZInstructionDataInvoke<'a>,
     invoking_program: Option<Pubkey>,
-    ctx: Context<'a, 'b, 'c, 'info, A>,
+    ctx: A,
     cpi_context_inputs: usize,
     read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
     read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
+    remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_compression");
     let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
     let num_new_addresses = inputs.new_address_params.len();
     let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
-    msg!("num new addresses: {}", num_new_addresses);
+    // msg!("num new addresses: {}", num_new_addresses);
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
     // + number of times cpi context account was filled.
     let hashed_pubkeys_capacity =
-        1 + ctx.remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
+        1 + remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
 
     // 1. Allocate cpi data and initialize context
     let (mut context, mut cpi_ix_bytes) = create_cpi_data_and_context(
@@ -107,6 +105,7 @@ pub fn process<
         num_new_addresses as u8,
         hashed_pubkeys_capacity,
         invoking_program,
+        remaining_accounts,
     )?;
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
@@ -121,16 +120,16 @@ pub fn process<
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
     #[allow(unused_mut)]
-    let mut accounts = try_from_account_infos(ctx.remaining_accounts, &mut context)?;
+    let mut accounts = try_from_account_infos(remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
         &mut cpi_ix_bytes,
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
         num_new_addresses as u8,
-        min(ctx.remaining_accounts.len(), num_output_compressed_accounts) as u8,
-        min(ctx.remaining_accounts.len(), num_input_compressed_accounts) as u8,
-        min(ctx.remaining_accounts.len(), num_new_addresses) as u8,
+        min(remaining_accounts.len(), num_output_compressed_accounts) as u8,
+        min(remaining_accounts.len(), num_input_compressed_accounts) as u8,
+        min(remaining_accounts.len(), num_new_addresses) as u8,
     )
     .map_err(ProgramError::from)?;
     cpi_ix_data.set_invoked_by_program(true);
@@ -155,7 +154,7 @@ pub fn process<
     if num_new_addresses != 0 {
         derive_new_addresses(
             inputs.new_address_params.as_slice(),
-            ctx.remaining_accounts,
+            remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
             &accounts,
@@ -179,7 +178,7 @@ pub fn process<
     //      9.3. Validate order of output queue/ tree accounts
     let output_compressed_account_hashes = create_outputs_cpi_data(
         inputs.output_compressed_accounts.as_slice(),
-        ctx.remaining_accounts,
+        remaining_accounts,
         &mut context,
         &mut cpi_ix_data,
         &accounts,
@@ -201,7 +200,7 @@ pub fn process<
         // currently must be post output accounts since the order of account infos matters
         // for the outputs.
         let input_compressed_account_hashes = create_inputs_cpi_data(
-            ctx.remaining_accounts,
+            remaining_accounts,
             inputs
                 .input_compressed_accounts_with_merkle_context
                 .as_slice(),
@@ -217,6 +216,7 @@ pub fn process<
             "hashed_pubkeys",
         )?;
         // 8.1. Create a tx hash
+        use pinocchio::sysvars::Sysvar;
         let current_slot = Clock::get()?.slot;
         cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
             &input_compressed_account_hashes,
@@ -244,14 +244,14 @@ pub fn process<
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_compression");
     if inputs.compress_or_decompress_lamports.is_some() {
-        if inputs.is_compress && ctx.accounts.get_decompression_recipient().is_some() {
-            return err!(SystemProgramError::DecompressionRecipientDefined);
+        if inputs.is_compress && ctx.get_decompression_recipient().is_some() {
+            return Err(SystemProgramError::DecompressionRecipientDefined.into());
         }
         compress_or_decompress_lamports(&inputs, &ctx)?;
-    } else if ctx.accounts.get_decompression_recipient().is_some() {
-        return err!(SystemProgramError::DecompressionRecipientDefined);
-    } else if ctx.accounts.get_sol_pool_pda().is_some() {
-        return err!(SystemProgramError::SolPoolPdaDefined);
+    } else if ctx.get_decompression_recipient().is_some() {
+        return Err(SystemProgramError::DecompressionRecipientDefined.into());
+    } else if ctx.get_sol_pool_pda().is_some() {
+        return Err(SystemProgramError::SolPoolPdaDefined.into());
     }
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
     let read_only_accounts = read_only_accounts.unwrap_or_else(|| {
@@ -356,30 +356,30 @@ pub fn process<
             ) {
                 Ok(_) => Ok(()),
                 Err(e) => {
-                    msg!("proof  {:?}", proof);
-                    msg!(
-                        "proof_input_compressed_account_hashes {:?}",
-                        proof_input_compressed_account_hashes
-                    );
-                    msg!("input roots {:?}", input_compressed_account_roots);
-                    msg!("read_only_accounts {:?}", read_only_accounts);
-                    msg!(
-                        "input_compressed_accounts_with_merkle_context: {:?}",
-                        inputs.input_compressed_accounts_with_merkle_context
-                    );
-                    msg!("new_address_roots {:?}", new_address_roots);
-                    msg!("new_addresses {:?}", new_addresses);
-                    msg!("read_only_addresses {:?}", read_only_addresses);
+                    // msg!("proof  {:?}", proof);
+                    // msg!(
+                    //     "proof_input_compressed_account_hashes {:?}",
+                    //     proof_input_compressed_account_hashes
+                    // );
+                    // msg!("input roots {:?}", input_compressed_account_roots);
+                    // msg!("read_only_accounts {:?}", read_only_accounts);
+                    // msg!(
+                    //     "input_compressed_accounts_with_merkle_context: {:?}",
+                    //     inputs.input_compressed_accounts_with_merkle_context
+                    // );
+                    // msg!("new_address_roots {:?}", new_address_roots);
+                    // msg!("new_addresses {:?}", new_addresses);
+                    // msg!("read_only_addresses {:?}", read_only_addresses);
                     Err(e)
                 }
             }?;
             #[cfg(feature = "bench-sbf")]
             bench_sbf_end!("cpda_verify_state_proof");
         } else {
-            return err!(SystemProgramError::ProofIsNone);
+            return Err(SystemProgramError::ProofIsNone.into());
         }
     } else if inputs.proof.is_some() {
-        return err!(SystemProgramError::ProofIsSome);
+        return Err(SystemProgramError::ProofIsSome.into());
     } else if inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
@@ -388,13 +388,13 @@ pub fn process<
         && read_only_accounts.is_empty()
         && read_only_addresses.is_empty()
     {
-        return err!(SystemProgramError::EmptyInputs);
+        return Err(SystemProgramError::EmptyInputs.into());
     }
 
     // 16. Transfer network, address, and rollover fees ---------------------------------------------------
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
-    context.transfer_fees(ctx.remaining_accounts, ctx.accounts.get_fee_payer())?;
+    context.transfer_fees(remaining_accounts, ctx.get_fee_payer())?;
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
     if inputs
@@ -413,13 +413,13 @@ pub fn process<
 #[inline(always)]
 fn check_vec_capacity<T>(expected_capacity: usize, vec: &Vec<T>, vec_name: &str) -> Result<()> {
     if vec.capacity() != expected_capacity {
-        msg!(
-            "{} exceeded capacity. Used {}, allocated {}.",
-            vec_name,
-            vec.capacity(),
-            expected_capacity
-        );
-        return err!(SystemProgramError::InvalidCapacity);
+        // msg!(
+        //     "{} exceeded capacity. Used {}, allocated {}.",
+        //     vec_name,
+        //     vec.capacity(),
+        //     expected_capacity
+        // );
+        return Err(SystemProgramError::InvalidCapacity.into());
     }
     Ok(())
 }

@@ -24,6 +24,7 @@ readonly = []
 
 
 [dependencies]
+bytemuck = { workspace = true }
 thiserror = { workspace = true }
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
@@ -36,7 +37,12 @@ light-macros = { workspace = true, features = [
 ], default-features = false }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-# account-compression = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
+# account-compression = { workspace = true, default-features = false, features = [
+#     "system-export",
+# ] }
 light-compressed-account = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
@@ -55,6 +61,7 @@ light-account-checks = { workspace = true, default-features = false, features = 
     "pinocchio",
 ] }
 pinocchio = { workspace = true }
+pinocchio-system = { version = "0.2.3" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

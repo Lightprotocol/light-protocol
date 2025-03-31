@@ -1,4 +1,4 @@
-pub use anchor_lang::prelude::*;
+pub use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::{
     ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
 };
@@ -26,8 +26,8 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(
-        &ctx.accounts.invoking_program.key(),
-        &ctx.accounts.get_authority().key(),
+        &ctx.invoking_program.key(),
+        &ctx.get_authority().key(),
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
     )?;
@@ -36,16 +36,15 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
     #[allow(unused)]
-    let mut cpi_context_inputs_len = if let Some(value) = ctx.accounts.cpi_context_account.as_ref()
-    {
+    let mut cpi_context_inputs_len = if let Some(value) = ctx.cpi_context_account.as_ref() {
         value.context.len()
     } else {
         0
     };
     let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(
         inputs,
-        &mut ctx.accounts.cpi_context_account,
-        ctx.accounts.fee_payer.key(),
+        &mut ctx.cpi_context_account,
+        ctx.fee_payer.key(),
         ctx.remaining_accounts,
     ) {
         Ok(Some(inputs)) => inputs,
@@ -57,7 +56,7 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
 
     process(
         inputs.into(),
-        Some(ctx.accounts.invoking_program.key()),
+        Some(ctx.invoking_program.key()),
         ctx,
         cpi_context_inputs_len,
         read_only_addresses,
