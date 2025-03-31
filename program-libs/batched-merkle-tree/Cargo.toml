@@ -58,21 +58,6 @@ pinocchio = { workspace = true, optional = true, features = ["std"] }
 light-compressed-account = { workspace = true }
 light-macros = { workspace = true }
 
-# [target.'cfg(feature = "solana")'.dependencies]
-# light-compressed-account = { workspace = true, default-features = false, features = [
-#     "solana",
-# ] }
-
-# [target.'cfg(feature = "pinocchio")'.dependencies]
-# light-compressed-account = { workspace = true, default-features = false, features = [
-#     "pinocchio",
-# ] }
-
-# [target.'cfg(feature = "anchor")'.dependencies]
-# light-compressed-account = { workspace = true, default-features = false, features = [
-#     "anchor",
-# ] }
-
 [dev-dependencies]
 rand = { workspace = true }
 light-prover-client = { workspace = true }

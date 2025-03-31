@@ -71,6 +71,7 @@ spl-token = "=4.0.0"
 spl-token-2022 = { version = "3.0.5", no-default-features = true, features = [
     "no-entrypoint",
 ] }
+pinocchio = { version = "0.8.1" }
 
 # Anchor
 anchor-lang = "=0.29.0"

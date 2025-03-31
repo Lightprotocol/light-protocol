@@ -84,11 +84,3 @@ impl From<LightSdkError> for ProgramError {
         ProgramError::Custom(e.into())
     }
 }
-
-#[cfg(feature = "anchor")]
-impl From<LightSdkError> for anchor_lang::error::Error {
-    fn from(e: LightSdkError) -> Self {
-        let prog_e: ProgramError = e.into();
-        prog_e.into()
-    }
-}

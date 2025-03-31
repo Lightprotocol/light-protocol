@@ -6,8 +6,8 @@ use light_merkle_tree_metadata::{
     queue::QueueMetadata, rollover::RolloverMetadata,
 };
 
-// Import feature-gated types from lib.rs
-use crate::{msg, AccountInfo};
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 
 use crate::{
     constants::{
@@ -18,6 +18,7 @@ use crate::{
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size, BatchedQueueAccount, BatchedQueueMetadata},
     queue_batch_metadata::QueueBatches,
+    AccountInfo,
 };
 
 #[repr(C)]
@@ -203,7 +204,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         };
 
         #[cfg(not(feature = "pinocchio"))]
-        msg!(" Output queue rollover_fee: {}", rollover_fee);
+        crate::msg!(" Output queue rollover_fee: {}", rollover_fee);
         let metadata = QueueMetadata {
             next_queue: Pubkey::default(),
             access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),

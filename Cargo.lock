@@ -3096,7 +3096,9 @@ dependencies = [
 name = "light-account-checks"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
  "borsh 0.10.4",
+ "pinocchio",
  "solana-program",
  "thiserror 2.0.12",
 ]
@@ -3118,6 +3120,7 @@ dependencies = [
  "light-prover-client",
  "light-verifier",
  "light-zero-copy",
+ "pinocchio",
  "rand 0.8.5",
  "serial_test",
  "solana-program",
@@ -3130,10 +3133,12 @@ dependencies = [
 name = "light-bloom-filter"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
  "bitvec",
  "fastmurmur3",
  "light-hasher",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -3192,15 +3197,16 @@ name = "light-compressed-account"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anyhow",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
  "bytemuck",
  "light-hasher",
+ "light-macros",
  "light-poseidon 0.3.0",
  "light-zero-copy",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -3273,6 +3279,7 @@ dependencies = [
  "arrayvec",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
@@ -3333,6 +3340,7 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "light-compressed-account",
+ "pinocchio",
  "solana-program",
  "thiserror 2.0.12",
  "zerocopy 0.8.23",
@@ -3488,7 +3496,6 @@ dependencies = [
 name = "light-system-program"
 version = "1.2.0"
 dependencies = [
- "account-compression",
  "aligned-sized",
  "anchor-lang",
  "light-account-checks",
@@ -3499,12 +3506,13 @@ dependencies = [
  "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
- "light-merkle-tree-metadata",
  "light-verifier",
  "light-zero-copy",
+ "pinocchio",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "thiserror 2.0.12",
  "zerocopy 0.8.23",
 ]
 
@@ -3582,6 +3590,7 @@ dependencies = [
  "groth16-solana",
  "light-compressed-account",
  "light-prover-client",
+ "pinocchio",
  "reqwest",
  "serial_test",
  "solana-program",
@@ -3593,6 +3602,8 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -4328,6 +4339,12 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pinocchio"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "530596fa307103e53257f2cf064815919ee7fbc4c7ab999f6f13cc7067c3aff1"
 
 [[package]]
 name = "pkcs8"

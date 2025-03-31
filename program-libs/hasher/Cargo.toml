@@ -22,8 +22,8 @@ num-bigint = { workspace = true }
 solana-program = { workspace = true, optional = true }
 # Optional import for ProgramError conversion
 anchor-lang = { workspace = true, optional = true }
-# Optional import for ProgramError conversion
 pinocchio = { workspace = true, optional = true }
+
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 ark-bn254 = { workspace = true }

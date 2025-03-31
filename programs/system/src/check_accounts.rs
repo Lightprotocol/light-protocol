@@ -12,8 +12,7 @@ use light_account_checks::discriminator::Discriminator;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
-use light_merkle_tree_metadata::{QueueType, TreeType};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, TreeType};
 
 use crate::{
     context::{MerkleTreeContext, SystemContext},

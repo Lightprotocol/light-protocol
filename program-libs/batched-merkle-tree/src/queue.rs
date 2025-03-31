@@ -11,9 +11,11 @@ use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 // Import the feature-gated types from lib.rs
-use crate::{msg, AccountInfo};
-
 use super::batch::BatchState;
+
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
+
 use crate::{
     batch::Batch,
     constants::{
@@ -22,7 +24,7 @@ use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     queue_batch_metadata::QueueBatches,
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 #[repr(C)]
@@ -240,9 +242,9 @@ impl<'a> BatchedQueueAccount<'a> {
                 .queue_account_size(account_metadata.metadata.queue_type)?
         {
             #[cfg(not(feature = "pinocchio"))]
-            msg!("account_data.len() {:?}", account_data_len);
+            crate::msg!("account_data.len() {:?}", account_data_len);
             #[cfg(not(feature = "pinocchio"))]
-            msg!(
+            crate::msg!(
                 "queue_account_size {:?}",
                 account_metadata
                     .batch_metadata
@@ -335,7 +337,7 @@ impl<'a> BatchedQueueAccount<'a> {
                 } else {
                     #[cfg(target_os = "solana")]
                     {
-                        msg!(
+                        crate::msg!(
                             "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
                             leaf_index,
                             hash_chain_value,*element
@@ -366,7 +368,7 @@ impl<'a> BatchedQueueAccount<'a> {
         if prove_by_index {
             #[cfg(target_os = "solana")]
             {
-                msg!(
+                crate::msg!(
                     "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
                     leaf_index,
                     hash_chain_value
@@ -496,9 +498,9 @@ pub(crate) fn insert_into_current_queue_batch(
             current_batch.advance_state_to_fill(current_index)?;
         } else {
             // We expect to insert into the current batch.
+            #[cfg(not(feature = "pinocchio"))]
             for batch in batch_metadata.batches.iter() {
-                #[cfg(not(feature = "pinocchio"))]
-                msg!("batch {:?}", batch);
+                crate::msg!("batch {:?}", batch);
             }
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }

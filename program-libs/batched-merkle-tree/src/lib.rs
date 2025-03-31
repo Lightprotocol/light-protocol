@@ -23,7 +23,7 @@ pub(crate) use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "solana")]
 pub(crate) use solana_program::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
-    sysvar::clock::Clock, sysvar::rent::Rent, sysvar::Sysvar,
+    sysvar::rent::Rent, sysvar::Sysvar,
 };
 
 // Anchor imports when anchor feature is enabled but solana is not
@@ -33,23 +33,13 @@ pub(crate) use solana_program::{
     not(feature = "pinocchio")
 ))]
 pub(crate) use anchor_lang::{
-    self, declare_id,
+    self,
     prelude::msg,
     prelude::AccountInfo,
     prelude::ProgramError,
     prelude::Pubkey,
-    solana_program,
     solana_program::sysvar::{rent::Rent, Sysvar},
-    system_program,
 };
-
-#[cfg(all(
-    feature = "anchor",
-    not(feature = "solana"),
-    not(feature = "pinocchio"),
-    target_os = "solana"
-))]
-pub(crate) use anchor_lang::prelude::Clock;
 
 // Pinocchio imports when pinocchio feature is enabled but others are not
 #[cfg(all(
@@ -59,15 +49,23 @@ pub(crate) use anchor_lang::prelude::Clock;
 ))]
 pub(crate) use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
-    sysvars::clock::Clock, sysvars::rent::Rent, sysvars::Sysvar,
+    sysvars::rent::Rent, sysvars::Sysvar,
 };
 
-trait PubkeyTrait {
-    fn key(&self) -> &Self;
+#[allow(unused)]
+trait AccountInfoTrait {
+    fn key(&self) -> &Pubkey;
 }
 
-impl PubkeyTrait for Pubkey {
-    fn key(&self) -> &Self {
-        &self
+#[cfg(any(feature = "solana", feature = "anchor"))]
+impl AccountInfoTrait for AccountInfo<'_> {
+    fn key(&self) -> &Pubkey {
+        self.key
+    }
+}
+#[cfg(any(feature = "solana", feature = "anchor"))]
+impl AccountInfoTrait for &AccountInfo<'_> {
+    fn key(&self) -> &Pubkey {
+        self.key
     }
 }

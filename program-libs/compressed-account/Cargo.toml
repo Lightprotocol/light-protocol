@@ -7,8 +7,6 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
-
 anchor = [
     "dep:anchor-lang",
     "light-hasher/anchor",

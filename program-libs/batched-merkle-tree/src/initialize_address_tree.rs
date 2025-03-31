@@ -6,7 +6,9 @@ use light_merkle_tree_metadata::{
 };
 
 // Import feature-gated types from lib.rs
-use crate::{msg, AccountInfo};
+use crate::AccountInfo;
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 
 use crate::{
     constants::{
@@ -156,9 +158,9 @@ pub fn init_batched_address_merkle_tree_account(
         None => 0,
     };
     #[cfg(not(feature = "pinocchio"))]
-    msg!("rollover fee {}", rollover_fee);
+    crate::msg!("rollover fee {}", rollover_fee);
     #[cfg(not(feature = "pinocchio"))]
-    msg!("rollover threshold {:?}", params.rollover_threshold);
+    crate::msg!("rollover threshold {:?}", params.rollover_threshold);
 
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),

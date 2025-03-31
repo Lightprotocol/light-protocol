@@ -23,7 +23,7 @@ impl HashToFieldSize for String {
 #[cfg(any(feature = "solana", feature = "anchor"))]
 impl HashToFieldSize for crate::Pubkey {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        Ok(hash_to_bn254_field_size_be(&self.to_bytes()))
+        Ok(hash_to_bn254_field_size_be(self.as_ref()))
     }
 }
 

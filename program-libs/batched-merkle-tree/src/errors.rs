@@ -47,7 +47,7 @@ pub enum BatchedMerkleTreeError {
         any(feature = "solana", feature = "anchor"),
         not(feature = "pinocchio")
     ))]
-    #[error("Program error {0")]
+    #[error("Program error {0}")]
     ProgramError(#[from] ProgramError),
     #[error("Verifier error {0}")]
     VerifierErrorError(#[from] VerifierError),
@@ -65,13 +65,6 @@ pub enum BatchedMerkleTreeError {
     AccountError(#[from] AccountError),
 }
 
-// #[cfg(any(feature = "solana", feature = "anchor"))]
-// impl From<ProgramError> for BatchedMerkleTreeError {
-//     fn from(error: ProgramError) -> Self {
-//         BatchedMerkleTreeError::ProgramError(error)
-//     }
-// }
-
 #[cfg(all(
     feature = "pinocchio",
     not(feature = "solana"),
@@ -79,17 +72,7 @@ pub enum BatchedMerkleTreeError {
 ))]
 impl From<ProgramError> for BatchedMerkleTreeError {
     fn from(error: ProgramError) -> Self {
-        BatchedMerkleTreeError::ProgramError(ProgramError as u64)
-    }
-}
-#[cfg(all(
-    feature = "pinocchio",
-    not(feature = "solana"),
-    not(feature = "anchor")
-))]
-impl From<&ProgramError> for BatchedMerkleTreeError {
-    fn from(error: &ProgramError) -> Self {
-        BatchedMerkleTreeError::ProgramError((*ProgramError) as u64)
+        BatchedMerkleTreeError::ProgramError(u64::from(error))
     }
 }
 

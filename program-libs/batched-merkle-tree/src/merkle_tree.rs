@@ -24,8 +24,8 @@ use light_zero_copy::{
 };
 use zerocopy::Ref;
 
-// Import from lib.rs
-use crate::{msg, AccountInfo};
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 
 use super::batch::Batch;
 use crate::{
@@ -40,7 +40,7 @@ use crate::{
         deserialize_bloom_filter_stores, insert_into_current_queue_batch, BatchedQueueAccount,
     },
     queue_batch_metadata::QueueBatches,
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 /// Public inputs:
@@ -257,11 +257,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_metadata.queue_batches.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
             #[cfg(not(feature = "pinocchio"))]
-            msg!("merkle_tree_metadata: {:?}", account_metadata);
+            crate::msg!("merkle_tree_metadata: {:?}", account_metadata);
             #[cfg(not(feature = "pinocchio"))]
-            msg!("account_data.len(): {}", account_data_len);
+            crate::msg!("account_data.len(): {}", account_data_len);
             #[cfg(not(feature = "pinocchio"))]
-            msg!(
+            crate::msg!(
                 "account.get_account_size(): {}",
                 account_metadata.get_account_size()?
             );

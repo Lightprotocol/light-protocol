@@ -3,6 +3,8 @@ use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
 
 // Import the appropriately feature-gated types from lib.rs
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 use crate::{msg, AccountInfo};
 
 use crate::{

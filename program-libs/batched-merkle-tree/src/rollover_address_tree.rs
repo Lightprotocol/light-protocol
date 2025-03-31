@@ -6,6 +6,8 @@ use light_merkle_tree_metadata::utils::if_equals_none;
 
 // Import feature-gated types from lib.rs
 use crate::AccountInfo;
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 
 use crate::{
     errors::BatchedMerkleTreeError,

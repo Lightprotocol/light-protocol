@@ -15,31 +15,47 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["debug", "readonly", "idl-build"]
+default = ["debug", "readonly"]
 test-sbf = []
 bench-sbf = ["custom-heap"]
-idl-build = ["anchor-lang/idl-build"]
+# idl-build = ["anchor-lang/idl-build"]
 debug = []
 readonly = []
 
 
 [dependencies]
+thiserror = { workspace = true }
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
 light-heap = { workspace = true, optional = true }
-light-macros = { workspace = true }
+light-macros = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
-account-compression = { workspace = true }
-light-compressed-account = { workspace = true, features = ["anchor"] }
-light-verifier = { workspace = true, features = ["solana"] }
+# account-compression = { workspace = true }
+light-compressed-account = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
+light-verifier = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
 solana-security-txt = "1.1.0"
-light-batched-merkle-tree = { workspace = true, features = ["solana"] }
-light-zero-copy = { workspace = true, features = ["solana"] }
+light-batched-merkle-tree = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
+light-zero-copy = { workspace = true, features = [
+    "pinocchio",
+], default-features = false }
 zerocopy = { workspace = true }
-light-merkle-tree-metadata = { workspace = true }
-light-account-checks = { workspace = true }
+light-account-checks = { workspace = true, default-features = false, features = [
+    "pinocchio",
+] }
+pinocchio = { workspace = true }
+
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 

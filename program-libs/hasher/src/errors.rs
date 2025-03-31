@@ -37,16 +37,8 @@ impl From<HasherError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
-impl From<HasherError> for solana_program::program_error::ProgramError {
+impl From<HasherError> for crate::ProgramError {
     fn from(e: HasherError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
-    }
-}
-
-#[cfg(all(feature = "anchor", not(feature = "solana")))]
-impl From<HasherError> for anchor_lang::solana_program::program_error::ProgramError {
-    fn from(e: HasherError) -> Self {
-        anchor_lang::solana_program::program_error::ProgramError::Custom(e.into())
+        crate::ProgramError::Custom(e.into())
     }
 }
