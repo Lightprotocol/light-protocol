@@ -7,42 +7,20 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = ["solana"]
-anchor = ["anchor-lang"]
-solana = ["solana-program", "borsh"]
-pinocchio = ["dep:pinocchio", "borsh"]
+# default = ["solana"]
+anchor = ["anchor-lang", "light-compressed-account/anchor"]
+solana = ["solana-program", "borsh", "light-compressed-account/solana"]
+pinocchio = ["dep:pinocchio", "borsh", "light-compressed-account/pinocchio"]
 
 [dependencies]
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["bytemuck-des"] }
 solana-program = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 borsh = { workspace = true, optional = true }
-
-
-# feature solana dependencies
-[target.'cfg(feature = "solana")'.dependencies]
-light-compressed-account = { workspace = true, features = [
-    "solana",
-    "bytemuck-des",
-] }
-
-# feature anchor dependencies
-[target.'cfg(feature = "anchor")'.dependencies]
-light-compressed-account = { workspace = true, features = [
-    "anchor",
-    "bytemuck-des",
-] }
-
-[target.'cfg(feature = "pinocchio")'.dependencies]
-light-compressed-account = { workspace = true, features = [
-    "pinocchio",
-    "bytemuck-des",
-] }
-
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
