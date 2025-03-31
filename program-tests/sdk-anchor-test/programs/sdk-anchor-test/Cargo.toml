@@ -22,7 +22,7 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["anchor"] }
 light-sdk = { workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

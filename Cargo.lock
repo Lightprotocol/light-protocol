@@ -3251,6 +3251,7 @@ dependencies = [
 name = "light-concurrent-merkle-tree"
 version = "1.1.0"
 dependencies = [
+ "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
@@ -3273,6 +3274,7 @@ dependencies = [
 name = "light-hash-set"
 version = "1.2.0"
 dependencies = [
+ "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "light-heap",
@@ -3324,6 +3326,7 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
+ "anchor-lang",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",

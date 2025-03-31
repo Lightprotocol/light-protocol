@@ -28,18 +28,18 @@ light-prover-client = { workspace = true }
 anchor-lang = { workspace = true }
 light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
-light-hasher = { workspace = true }
-light-compressed-account = { workspace = true }
+light-hasher = { workspace = true, features = ["anchor"] }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 light-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
-light-verifier = { workspace = true }
+light-verifier = { workspace = true, features = ["anchor"] }
 light-registry = { workspace = true }
 solana-cli-output = { workspace = true }
 serde_json = "1.0.137"
 solana-sdk = { workspace = true }
 quote.workspace = true
 serial_test = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
-light-merkle-tree-metadata = { workspace = true }
-light-bloom-filter = { workspace = true }
+light-batched-merkle-tree = { workspace = true, features = ["anchor"] }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-bloom-filter = { workspace = true, features = ["anchor"] }
 light-utils = { workspace = true }

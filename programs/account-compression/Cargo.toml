@@ -31,11 +31,11 @@ aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
 bytemuck = { workspace = true, features = ["min_const_generics"] }
 light-bounded-vec = { workspace = true, features = ["solana"] }
-light-hash-set = { workspace = true, features = ["solana"] }
+light-hash-set = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["anchor"] }
 light-heap = { workspace = true, optional = true }
-light-concurrent-merkle-tree = { workspace = true, features = ["solana"] }
-light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
+light-concurrent-merkle-tree = { workspace = true, features = ["anchor"] }
+light-indexed-merkle-tree = { workspace = true, features = ["anchor"] }
 light-account-checks = { workspace = true, features = [
     "anchor",
 ], default-features = false }

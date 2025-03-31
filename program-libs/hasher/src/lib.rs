@@ -50,5 +50,27 @@ use pinocchio::program_error::ProgramError;
     not(feature = "pinocchio")
 ))]
 use anchor_lang::prelude::{ProgramError, Pubkey};
-#[cfg(feature = "solana")]
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio")
+))]
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+
+const _: () = {
+    #[cfg(any(
+        all(feature = "solana", feature = "anchor"),
+        all(feature = "solana", feature = "pinocchio"),
+        all(feature = "anchor", feature = "pinocchio")
+    ))]
+    {
+        #[cfg(all(feature = "solana", feature = "anchor"))]
+        compile_error!("Only one feature among 'solana', 'anchor'' may be active.");
+        #[cfg(all(feature = "solana", feature = "pinocchio"))]
+        compile_error!("Only one feature among 'solana', 'and 'pinocchio' may be active.");
+        #[cfg(all(feature = "anchor", feature = "pinocchio"))]
+        compile_error!("Only one feature among 'anchor', and 'pinocchio' may be active.");
+    }
+    #[cfg(not(any(feature = "solana", feature = "anchor", feature = "pinocchio")))]
+    compile_error!("Exactly one of 'solana', 'anchor', or 'pinocchio' must be enabled.");
+};

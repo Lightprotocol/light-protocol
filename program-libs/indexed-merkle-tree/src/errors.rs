@@ -35,9 +35,6 @@ pub enum IndexedMerkleTreeError {
     ArrayFull,
 }
 
-// NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
-// doesn't support data-carrying enums.
-#[cfg(feature = "solana")]
 impl From<IndexedMerkleTreeError> for u32 {
     fn from(e: IndexedMerkleTreeError) -> u32 {
         match e {
@@ -62,5 +59,11 @@ impl From<IndexedMerkleTreeError> for u32 {
 impl From<IndexedMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: IndexedMerkleTreeError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+#[cfg(feature = "anchor")]
+impl From<IndexedMerkleTreeError> for anchor_lang::prelude::ProgramError {
+    fn from(e: IndexedMerkleTreeError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
     }
 }

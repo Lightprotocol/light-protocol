@@ -13,12 +13,12 @@ light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-merkle-tree-metadata = { workspace = true }
-light-hasher = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true, features = ["anchor"] }
 light-registry = { workspace = true }
 light-system-program-anchor = { workspace = true }
 light-compressed-token = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 photon-api = { workspace = true }
 account-compression = { workspace = true }
 forester-utils = { workspace = true }

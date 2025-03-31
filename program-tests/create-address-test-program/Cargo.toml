@@ -16,12 +16,11 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 test-sbf = []
-custom-heap = []
-default = ["custom-heap"]
+default = []
 
 [dependencies]
+light-hasher = { workspace = true, features = ["anchor"] }
 anchor-lang = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-hasher = { workspace = true, features = ["solana"] }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }

@@ -1,5 +1,5 @@
-use crate::Result;
 use account_compression::program::AccountCompression;
+use anchor_lang::prelude::*;
 
 pub trait InvokeAccounts<'info> {
     fn get_registered_program_pda(&self) -> &AccountInfo<'info>;

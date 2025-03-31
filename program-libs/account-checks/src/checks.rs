@@ -100,8 +100,8 @@ pub fn set_discriminator<T: Discriminator<U>, const U: usize>(
     bytes: &mut [u8],
 ) -> Result<(), AccountError> {
     if bytes[0..U] != [0; U] {
-        #[cfg(target_os = "solana")]
-        crate::msg!("Discriminator bytes must be zero for initialization.");
+        // #[cfg(target_os = "solana")]
+        // crate::msg!("Discriminator bytes must be zero for initialization.");
         return Err(AccountError::AlreadyInitialized);
     }
     bytes[0..U].copy_from_slice(&T::DISCRIMINATOR);
@@ -119,12 +119,12 @@ pub fn check_discriminator<T: Discriminator<U>, const U: usize>(
     }
 
     if T::DISCRIMINATOR != bytes[0..U] {
-        #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-        crate::msg!(
-            "Expected discriminator: {:?}, actual {:?} ",
-            T::DISCRIMINATOR,
-            bytes[0..U].to_vec()
-        );
+        // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
+        // crate::msg!(
+        //     "Expected discriminator: {:?}, actual {:?} ",
+        //     T::DISCRIMINATOR,
+        //     bytes[0..U].to_vec()
+        // );
         return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
@@ -137,13 +137,13 @@ pub fn check_account_balance_is_rent_exempt(
 ) -> Result<u64, AccountError> {
     let account_size = account_info.data_len();
     if account_size != expected_size {
-        #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-        crate::msg!(
-            "Account {:?} size not equal to expected size. size: {}, expected size {}",
-            account_info.key,
-            account_size,
-            expected_size
-        );
+        // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
+        // crate::msg!(
+        //     "Account {:?} size not equal to expected size. size: {}, expected size {}",
+        //     account_info.key,
+        //     account_size,
+        //     expected_size
+        // );
         return Err(AccountError::InvalidAccountSize);
     }
     let lamports = account_info.lamports();
@@ -154,13 +154,13 @@ pub fn check_account_balance_is_rent_exempt(
             .map_err(|_| AccountError::FailedBorrowRentSysvar))?
         .minimum_balance(expected_size);
         if lamports != rent_exemption {
-            #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-            crate::msg!(
-            "Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
-            account_info.key,
-            lamports,
-            rent_exemption
-        );
+            //     #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
+            //     crate::msg!(
+            //     "Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
+            //     account_info.key,
+            //     lamports,
+            //     rent_exemption
+            // );
             return Err(AccountError::InvalidAccountBalance);
         }
     }

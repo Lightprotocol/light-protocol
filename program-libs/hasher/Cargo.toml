@@ -10,7 +10,7 @@ edition = "2021"
 solana = ["solana-program"]
 anchor = ["anchor-lang"]
 pinocchio = ["dep:pinocchio"]
-default = []
+
 
 [dependencies]
 light-poseidon = { workspace = true }

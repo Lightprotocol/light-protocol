@@ -37,6 +37,23 @@ impl From<HasherError> for u32 {
     }
 }
 
+#[cfg(any(
+    all(
+        feature = "solana",
+        not(feature = "anchor"),
+        not(feature = "pinocchio")
+    ),
+    all(
+        feature = "anchor",
+        not(feature = "solana"),
+        not(feature = "pinocchio")
+    ),
+    all(
+        feature = "pinocchio",
+        not(feature = "solana"),
+        not(feature = "anchor")
+    )
+))]
 impl From<HasherError> for crate::ProgramError {
     fn from(e: HasherError) -> Self {
         crate::ProgramError::Custom(e.into())

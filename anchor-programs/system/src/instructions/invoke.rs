@@ -1,5 +1,5 @@
-use crate::Result;
 use account_compression::program::AccountCompression;
+use anchor_lang::prelude::*;
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},

@@ -36,9 +36,9 @@ thiserror = { workspace = true }
 account-compression = { workspace = true, optional = true }
 light-system-program-anchor = { workspace = true, optional = true }
 
-light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
 
+light-macros = { workspace = true }
 light-compressed-account = { workspace = true }
 light-verifier = { workspace = true }
 light-hasher = { workspace = true }

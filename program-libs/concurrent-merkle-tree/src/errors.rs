@@ -38,9 +38,6 @@ pub enum ConcurrentMerkleTreeError {
     BoundedVec(#[from] BoundedVecError),
 }
 
-// NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
-// doesn't support data-carrying enums.
-#[cfg(feature = "solana")]
 impl From<ConcurrentMerkleTreeError> for u32 {
     fn from(e: ConcurrentMerkleTreeError) -> u32 {
         match e {
@@ -68,5 +65,12 @@ impl From<ConcurrentMerkleTreeError> for u32 {
 impl From<ConcurrentMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: ConcurrentMerkleTreeError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<ConcurrentMerkleTreeError> for anchor_lang::prelude::ProgramError {
+    fn from(e: ConcurrentMerkleTreeError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
     }
 }

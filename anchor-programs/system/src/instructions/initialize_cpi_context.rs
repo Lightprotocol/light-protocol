@@ -1,4 +1,4 @@
-use crate::Result;
+use anchor_lang::prelude::*;
 
 use crate::cpi_context_account::CpiContextAccount;
 

@@ -1,6 +1,5 @@
-use crate::Result;
+use anchor_lang::prelude::*;
 
-// TODO: make reexport
 #[error_code]
 pub enum SystemProgramError {
     #[msg("Sum check failed")]

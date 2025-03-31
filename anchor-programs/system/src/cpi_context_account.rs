@@ -1,7 +1,7 @@
 use std::slice;
 
-use crate::Result;
 use aligned_sized::aligned_sized;
+use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,
 };
