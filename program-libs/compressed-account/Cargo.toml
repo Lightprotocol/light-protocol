@@ -10,13 +10,13 @@ edition = "2021"
 default = ["solana"]
 
 anchor = [
-    "anchor-lang",
+    "dep:anchor-lang",
     "light-hasher/anchor",
     "light-zero-copy/anchor",
     "light-macros/anchor",
 ]
 solana = [
-    "solana-program",
+    "dep:solana-program",
     "light-hasher/solana",
     "light-zero-copy/solana",
     "light-macros/solana",
@@ -36,12 +36,13 @@ light-hasher = { workspace = true }
 light-zero-copy = { workspace = true }
 light-macros = { workspace = true }
 
+# Feature-gated dependencies
+anchor-lang = { workspace = true, optional = true }
+solana-program = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
 borsh = { workspace = true }
-
-solana-program = { workspace = true, optional = true }
-anchor-lang = { workspace = true, optional = true }
-pinocchio = { workspace = true, optional = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }
@@ -50,5 +51,3 @@ solana-program = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
-# TODO: can move to dev-dependencies?
-rand = { workspace = true }

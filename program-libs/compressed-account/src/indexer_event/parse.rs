@@ -519,7 +519,7 @@ fn create_nullifier_queue_indices(
     // 3. increment the sequence number
     internal_input_sequence_numbers.iter_mut().for_each(|seq| {
         for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if *merkle_tree_pubkey == seq.tree_pubkey.into() {
+            if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
                 nullifier_queue_indices[i] = seq.seq.into();
                 seq.seq += 1;
             }

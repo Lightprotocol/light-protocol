@@ -63,26 +63,52 @@ impl<'a> Deserialize<'a> for Pubkey {
         Ok(Ref::<&[u8], Pubkey>::from_prefix(bytes)?)
     }
 }
+impl From<Pubkey> for [u8; 32] {
+    fn from(pubkey: Pubkey) -> Self {
+        pubkey.to_bytes()
+    }
+}
 
+impl From<&Pubkey> for [u8; 32] {
+    fn from(pubkey: &Pubkey) -> Self {
+        pubkey.to_bytes()
+    }
+}
+
+impl From<[u8; 32]> for Pubkey {
+    fn from(pubkey: [u8; 32]) -> Self {
+        Self(pubkey)
+    }
+}
+
+impl From<&[u8; 32]> for Pubkey {
+    fn from(pubkey: &[u8; 32]) -> Self {
+        Self(*pubkey)
+    }
+}
+
+#[cfg(any(feature = "anchor", feature = "solana",))]
 impl From<Pubkey> for crate::Pubkey {
     fn from(pubkey: Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
+#[cfg(any(feature = "anchor", feature = "solana",))]
 impl From<&Pubkey> for crate::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
-// #[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
+
+#[cfg(any(feature = "anchor", feature = "solana",))]
 impl From<crate::Pubkey> for Pubkey {
     fn from(pubkey: crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
 
-// #[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
+#[cfg(any(feature = "anchor", feature = "solana",))]
 impl From<&crate::Pubkey> for Pubkey {
     fn from(pubkey: &crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
@@ -184,11 +210,7 @@ impl From<&crate::Pubkey> for Pubkey {
 //     }
 // }
 impl Pubkey {
-    #[cfg(all(
-        feature = "solana",
-        not(feature = "anchor"),
-        not(feature = "pinocchio")
-    ))]
+    #[cfg(feature = "solana")]
     pub fn new_unique() -> Self {
         Self(solana_program::pubkey::Pubkey::new_unique().to_bytes())
     }
