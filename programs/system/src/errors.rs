@@ -97,6 +97,6 @@ pub enum SystemProgramError {
 
 impl From<SystemProgramError> for ProgramError {
     fn from(e: SystemProgramError) -> ProgramError {
-        ProgramError::Custom(e as u32)
+        ProgramError::Custom(e as u32 + 6000)
     }
 }

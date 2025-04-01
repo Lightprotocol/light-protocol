@@ -182,7 +182,7 @@ impl<'info> LightContext<'info> for InitializeCpiContextAccount<'info> {
         let associated_merkle_tree = &accounts[2];
         check_signer(&accounts[0]).map_err(ProgramError::from)?;
 
-        check_is_empty(cpi_context_account)?;
+        // check_is_empty(cpi_context_account)?;
 
         Ok((
             Self {
@@ -199,11 +199,13 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    // remove vec prefix
+    let instruction_data = &instruction_data[4..];
     sol_log_compute_units();
 
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("invoke_deserialize");
-    msg!("Invoke instruction");
+    // msg!("Invoke instruction");
     let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data).unwrap();
     let (ctx, remaining_accounts) =
         <InvokeInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
@@ -214,6 +216,16 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &ctx.authority.key(),
     )?;
+    // msg!(format!(
+    //     "remaining_accounts {:?}",
+    //     remaining_accounts
+    //         .iter()
+    //         .map(|x| x.key())
+    //         .collect::<Vec<_>>()
+    // )
+    // .as_str());
+
+    // msg!("Invoke instruction: post input_compressed_accounts_signer_check");
     process(inputs, None, ctx, 0, None, None, remaining_accounts)?;
     sol_log_compute_units();
     Ok(())

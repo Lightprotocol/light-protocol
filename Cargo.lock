@@ -3515,7 +3515,6 @@ name = "light-system-program"
 version = "1.2.0"
 dependencies = [
  "aligned-sized",
- "anchor-lang",
  "borsh 0.10.4",
  "bytemuck",
  "light-account-checks",
@@ -3523,7 +3522,6 @@ dependencies = [
  "light-compressed-account",
  "light-concurrent-merkle-tree",
  "light-hasher",
- "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-metadata",
@@ -3532,7 +3530,6 @@ dependencies = [
  "pinocchio",
  "pinocchio-system",
  "rand 0.8.5",
- "solana-sdk",
  "solana-security-txt",
  "thiserror 2.0.12",
  "zerocopy 0.8.23",

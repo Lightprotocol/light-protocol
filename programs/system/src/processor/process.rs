@@ -15,7 +15,8 @@ use light_compressed_account::{
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::{slice::ZeroCopySliceBorsh, slice_mut::ZeroCopySliceMut};
 use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, sysvars::clock::Clock,
+    account_info::AccountInfo, log::sol_log_compute_units, msg, program_error::ProgramError,
+    pubkey::Pubkey, sysvars::clock::Clock,
 };
 
 #[cfg(feature = "readonly")]
@@ -107,6 +108,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
         invoking_program,
         remaining_accounts,
     )?;
+    //     msg!("processor: post create_cpi_data_and_context");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
     inputs
@@ -123,7 +125,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     let mut accounts = try_from_account_infos(remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
     let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
-        &mut cpi_ix_bytes,
+        &mut cpi_ix_bytes[12..],
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
         num_new_addresses as u8,
@@ -149,6 +151,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
         read_only_addresses.as_slice(),
         &mut new_address_roots,
     )?;
+    //     msg!("processor: post  Read address roots");
 
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
@@ -189,6 +192,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
         &context.hashed_pubkeys,
         "hashed_pubkeys",
     )?;
+    //     msg!("processor: post  output_compressed_account_hashes");
 
     // 10. hash input compressed accounts ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
@@ -227,6 +231,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");
+    //     msg!("processor: post  input_compressed_account_hashes");
 
     // 11. Sum check ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
@@ -253,6 +258,8 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     } else if ctx.get_sol_pool_pda().is_some() {
         return Err(SystemProgramError::SolPoolPdaDefined.into());
     }
+    //     msg!("processor: post  compress_or_decompress_lamports");
+
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
     let read_only_accounts = read_only_accounts.unwrap_or_else(|| {
         ZeroCopySliceBorsh::<ZPackedReadOnlyCompressedAccount>::from_bytes(&[0u8, 0u8, 0u8, 0u8])
@@ -292,6 +299,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
         read_only_accounts.as_slice(),
         &mut input_compressed_account_roots,
     )?;
+    //     msg!("processor: post  Read state roots ");
 
     #[cfg(feature = "debug")]
     check_vec_capacity(
@@ -395,6 +403,8 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(remaining_accounts, ctx.get_fee_payer())?;
+    //     msg!("processor: post  transfer_fees ");
+
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
     if inputs
@@ -405,6 +415,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     {
         return Ok(());
     }
+    sol_log_compute_units();
     // 17. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
 }

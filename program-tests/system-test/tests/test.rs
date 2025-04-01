@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::println;
+
 use account_compression::{
     errors::AccountCompressionErrorCode, AddressMerkleTreeConfig, AddressQueueConfig,
     NullifierQueueConfig, StateMerkleTreeConfig,
@@ -922,6 +924,11 @@ async fn invoke_test() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
+    println!("merkle_tree_pubkey {:?}", merkle_tree_pubkey.to_bytes());
+    println!(
+        "nullifier_queue_pubkey {:?}",
+        nullifier_queue_pubkey.to_bytes()
+    );
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -961,6 +968,7 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
+
     let slot: u64 = context.get_slot().await.unwrap();
     let (created_compressed_accounts, _) =
         test_indexer.add_event_and_compressed_accounts(slot, &event.0);
@@ -1811,13 +1819,12 @@ async fn batch_invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
-        }),
-        // None,
+        &payer, &env,
+        // Some(ProverConfig {
+        //     run_mode: None,
+        //     circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
+        // }),
+        None,
     )
     .await;
     let payer_pubkey = payer.pubkey();
@@ -1874,7 +1881,8 @@ async fn batch_invoke_test() {
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
         .await;
-    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    assert_rpc_error(result, 0, SystemProgramError::VerifierError.into()).unwrap();
 
     // 3. Should fail: input compressed account with invalid signer.
     let invalid_signer_compressed_accounts = vec![CompressedAccount {

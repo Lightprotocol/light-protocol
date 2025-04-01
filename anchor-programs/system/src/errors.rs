@@ -75,4 +75,7 @@ pub enum SystemProgramError {
     InvalidStateTreeHeight,
     InvalidArgument,
     InvalidAccount,
+    AddressMerkleTreeAccountDiscriminatorMismatch,
+    StateMerkleTreeAccountDiscriminatorMismatch,
+    VerifierError,
 }

@@ -6,8 +6,9 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+
 [dependencies]
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
 light-indexed-array = { workspace = true }

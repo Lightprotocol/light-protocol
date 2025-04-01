@@ -112,7 +112,9 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 // )
                 // .unwrap();
                 let data = account_info.try_borrow_data().unwrap();
-                let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(&data[8..]);
+                let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(
+                    &data[8..StateMerkleTreeAccount::LEN],
+                );
                 context.set_network_fee(merkle_tree.metadata.rollover_metadata.network_fee, index);
                 context.set_legacy_merkle_context(
                     index,
@@ -152,7 +154,9 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 // .unwrap();
                 let data = account_info.try_borrow_data().unwrap();
 
-                let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(&data[8..]);
+                let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(
+                    &data[8..AddressMerkleTreeAccount::LEN],
+                );
 
                 context.set_address_fee(merkle_tree.metadata.rollover_metadata.network_fee, index);
                 merkle_tree.metadata.access_metadata.program_owner
@@ -172,14 +176,9 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             ))
         }
         QueueAccount_DISCRIMINATOR => {
-            // let queue = AccountLoader::<QueueAccount>::try_from(account_info).unwrap();
             check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-            // let queue = queue.load().unwrap();
-            // let queue =
-            //     QueueAccount::try_from_slice(&mut account_info.try_borrow_mut_data().unwrap())
-            //         .unwrap();
             let data = account_info.try_borrow_data().unwrap();
-            let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..]);
+            let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..QueueAccount::LEN]);
 
             if queue.metadata.queue_type == QueueType::AddressQueue as u64 {
                 context.set_legacy_merkle_context(
@@ -213,7 +212,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     if let AcpAccount::Unknown() = account {
         return Ok(account);
     }
-    if account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
+    if !account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
         // msg!("Invalid owner {:?}", account_info.owner);
         // msg!("Pubkey {:?}", account_info.key());
         return Err(SystemProgramError::InvalidAccount);

@@ -199,7 +199,13 @@ pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), Acc
 
 #[cfg(feature = "pinocchio")]
 pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
-    if account_info.is_owned_by(owner) {
+    if !account_info.is_owned_by(owner) {
+        pinocchio::msg!(format!(
+            "check_owner expected {:?} got: {:?}",
+            owner,
+            account_info.key()
+        )
+        .as_str());
         return Err(AccountError::AccountOwnedByWrongProgram);
     }
     Ok(())

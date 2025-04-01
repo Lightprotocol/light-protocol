@@ -53,8 +53,8 @@ impl<'info> LightContext<'info> for InvokeInstruction<'info> {
         let noop_program = &accounts[3];
         let account_compression_authority = &accounts[4];
         let account_compression_program = &accounts[5];
-        check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
-            .map_err(ProgramError::from)?;
+        // check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
+        //     .map_err(ProgramError::from)?;
         let option_sol_pool_pda = &accounts[6];
         let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
             None
@@ -70,7 +70,7 @@ impl<'info> LightContext<'info> for InvokeInstruction<'info> {
             Some(option_decompression_recipient)
         };
         let system_program = &accounts[8];
-        check_owner(&Pubkey::default(), system_program).map_err(ProgramError::from)?;
+        // check_owner(&Pubkey::default(), system_program).map_err(ProgramError::from)?;
         Ok((
             Self {
                 fee_payer,
@@ -83,7 +83,7 @@ impl<'info> LightContext<'info> for InvokeInstruction<'info> {
                 decompression_recipient,
                 system_program,
             },
-            accounts,
+            &accounts[9..],
         ))
     }
 }

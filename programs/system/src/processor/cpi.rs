@@ -1,6 +1,6 @@
-use std::cmp::min;
-
 use crate::{constants::CPI_AUTHORITY_PDA_SEED, Result};
+use pinocchio::{log::sol_log_compute_units, msg};
+use std::cmp::min;
 // use anchor_lang::{
 //     prelude::{AccountMeta, Context, Pubkey},
 //     Bumps, InstructionData, Key, Result, ToAccountInfo,
@@ -62,7 +62,7 @@ pub fn create_cpi_data_and_context<
     let mut bytes = vec![0u8; byte_len];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
     // Vec len.
-    bytes[8..12].copy_from_slice(&byte_len.to_le_bytes());
+    bytes[8..12].copy_from_slice(&u32::try_from(byte_len - 12).unwrap().to_le_bytes());
     Ok((
         SystemContext {
             account_indices,
@@ -86,7 +86,7 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
         account_infos,
         ..
     } = cpi_context;
-
+    // msg!(format!("cpi bytes {:?}", bytes[..24].to_vec()).as_str());
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let instruction = Instruction {
         program_id: &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -95,6 +95,6 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
     };
     let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
-
+    sol_log_compute_units();
     slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])
 }

@@ -17,6 +17,7 @@ anchor = [
     "light-hasher/anchor",
     "anchor-lang",
 ]
+pinocchio = ["light-concurrent-merkle-tree/pinocchio", "light-hasher/pinocchio"]
 
 [dependencies]
 light-bounded-vec = { workspace = true }

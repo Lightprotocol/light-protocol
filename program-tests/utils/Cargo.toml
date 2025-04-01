@@ -18,10 +18,10 @@ num-traits = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }
 thiserror = { workspace = true }
-account-compression = { workspace = true }
-light-compressed-token = { workspace = true }
-light-system-program-anchor = { workspace = true }
-light-registry = { workspace = true }
+account-compression = { workspace = true, features = ["cpi"] }
+light-compressed-token = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+light-registry = { workspace = true, features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 light-prover-client = { workspace = true }
 light-hasher = { workspace = true, features = ["anchor"] }

@@ -11,16 +11,16 @@ devenv = []
 light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
-light-indexed-merkle-tree = { workspace = true }
+light-indexed-merkle-tree = { workspace = true, features = ["anchor"] }
 light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-hasher = { workspace = true, features = ["anchor"] }
-light-registry = { workspace = true }
-light-system-program-anchor = { workspace = true }
-light-compressed-token = { workspace = true }
+light-registry = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+light-compressed-token = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 photon-api = { workspace = true }
-account-compression = { workspace = true }
+account-compression = { workspace = true, features = ["cpi"] }
 forester-utils = { workspace = true }
 solana-sdk = { workspace = true }
 solana-banks-client = { workspace = true }
@@ -33,6 +33,6 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
+light-batched-merkle-tree = { workspace = true, features = ["anchor"] }
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }

@@ -26,8 +26,8 @@ light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
 anchor-lang = { workspace = true }
-light-system-program-anchor = { workspace = true }
-account-compression = { workspace = true }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true, features = ["anchor"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-client = { workspace = true }
