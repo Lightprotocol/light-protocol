@@ -4,14 +4,10 @@ use aligned_sized::aligned_sized;
 // use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{
-    zero_copy::{IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut},
-    IndexedMerkleTree,
+use light_indexed_merkle_tree::zero_copy::{
+    IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut,
 };
-use light_merkle_tree_metadata::{
-    access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
-};
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
+use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 use crate::Result;
 

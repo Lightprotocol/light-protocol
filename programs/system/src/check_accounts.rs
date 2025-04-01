@@ -14,8 +14,8 @@ use light_batched_merkle_tree::{
 };
 use light_compressed_account::{
     constants::{
-        AddressMerkleTreeAccount_DISCRIMINATOR, QueueAccount_DISCRIMINATOR,
-        StateMerkleTreeAccount_DISCRIMINATOR, ACCOUNT_COMPRESSION_PROGRAM_ID,
+        ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
+        QUEUE_ACCOUNT_DISCRIMINATOR, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
     },
     hash_to_bn254_field_size_be,
     pubkey::Pubkey,
@@ -101,7 +101,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let program_owner = queue.metadata.access_metadata.program_owner;
             Ok((AcpAccount::OutputQueue(queue), program_owner))
         }
-        StateMerkleTreeAccount_DISCRIMINATOR => {
+        STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
                 // let merkle_tree =
                 //     AccountLoader::<StateMerkleTreeAccount>::try_from(account_info).unwrap();
@@ -143,7 +143,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 program_owner,
             ))
         }
-        AddressMerkleTreeAccount_DISCRIMINATOR => {
+        ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
                 // let merkle_tree =
                 //     AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info).unwrap();
@@ -175,7 +175,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 program_owner,
             ))
         }
-        QueueAccount_DISCRIMINATOR => {
+        QUEUE_ACCOUNT_DISCRIMINATOR => {
             check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
             let data = account_info.try_borrow_data().unwrap();
             let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..QueueAccount::LEN]);
