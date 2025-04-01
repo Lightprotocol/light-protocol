@@ -98,7 +98,7 @@ pub fn check_discriminator<T: Discriminator<U>, const U: usize>(
     Ok(())
 }
 
-/// Checks that the account balance is equal to rent exemption.
+/// Checks that the account balance is greater or eqal to rent exemption.
 pub fn check_account_balance_is_rent_exempt(
     account_info: &AccountInfo,
     expected_size: usize,
@@ -119,7 +119,7 @@ pub fn check_account_balance_is_rent_exempt(
     {
         let rent_exemption = (Rent::get().map_err(|_| AccountError::FailedBorrowRentSysvar))?
             .minimum_balance(expected_size);
-        if lamports != rent_exemption {
+        if lamports < rent_exemption {
             solana_program::msg!(
             "Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
             account_info.key,
