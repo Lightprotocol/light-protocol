@@ -24,62 +24,6 @@ import {
     TokenData,
 } from './state';
 import BN from 'bn.js';
-import { COMPRESSED_TOKEN_PROGRAM_ID } from './constants';
-
-export type TokenPoolActivity = {
-    signature: string;
-    amount: BN;
-    action: Action;
-};
-
-export function deriveTokenPoolPdaWithBump(
-    mint: PublicKey,
-    bump: number,
-): PublicKey {
-    let seeds: Buffer[] = [];
-    if (bump === 0) {
-        seeds = [Buffer.from('pool'), mint.toBuffer()];
-    } else {
-        seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
-    }
-    const [address, _] = PublicKey.findProgramAddressSync(
-        seeds,
-        COMPRESSED_TOKEN_PROGRAM_ID,
-    );
-    return address;
-}
-
-export type TokenPoolInfo = {
-    /**
-     * The mint of the token pool
-     */
-    mint: PublicKey;
-    /**
-     * The token pool address
-     */
-    tokenPoolAddress: PublicKey;
-    /**
-     * The token program of the token pool
-     */
-    tokenProgram: PublicKey;
-    /**
-     * count of txs and volume in the past 60 seconds.
-     */
-    activity?: {
-        txs: number;
-        amountAdded: BN;
-        amountRemoved: BN;
-    };
-    /**
-     * The balance of the token pool
-     */
-    balance: BN;
-};
-export enum Action {
-    Compress = 1,
-    Decompress = 2,
-    Transfer = 3,
-}
 
 export interface LatestNonVotingSignatures {
     context: { slot: number };

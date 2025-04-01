@@ -5,6 +5,7 @@ import {
     PackedMerkleContext,
     StateTreeInfo,
 } from '@lightprotocol/stateless.js';
+import { TokenPoolInfo } from './utils/get-token-pool-infos';
 
 export type CompressedCpiContext = {
     setContext: boolean;

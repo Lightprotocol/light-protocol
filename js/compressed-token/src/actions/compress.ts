@@ -64,7 +64,7 @@ export async function compress(
         toAddress,
         amount,
         mint,
-        outputStateTree: merkleTree,
+        outputStateTreeInfo: merkleTree,
         tokenProgramId,
     });
 

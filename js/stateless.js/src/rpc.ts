@@ -44,8 +44,6 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
-    TokenPoolInfo,
-    deriveTokenPoolPdaWithBump,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -64,7 +62,6 @@ import {
     localTestActiveStateTreeInfo,
     isLocalTest,
     defaultStateTreeLookupTables,
-    COMPRESSED_TOKEN_PROGRAM_ID,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -624,31 +621,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     setStateTreeInfo(info: StateTreeInfo[]): void {
         this.activeStateTreeInfo = info;
-    }
-
-    async getTokenPoolInfos(mint: PublicKey): Promise<TokenPoolInfo[]> {
-        const tokenPoolInfos = await Promise.all(
-            Array.from({ length: 6 }, (_, i) => {
-                // TODO:
-                // 1. use getAccounts and parse them myself.
-                // 2. set initialized flag
-                // 3. test suite with local pools setup
-                const tokenPoolPda = deriveTokenPoolPdaWithBump(mint, i);
-                return this.getTokenAccountBalance(tokenPoolPda).then(
-                    balance => ({
-                        tokenPoolPda,
-                        balance,
-                    }),
-                );
-            }),
-        );
-        const infos: TokenPoolInfo[] = tokenPoolInfos.map(tokenPoolInfo => ({
-            mint,
-            tokenPoolAddress: tokenPoolInfo.tokenPoolPda,
-            tokenProgram: COMPRESSED_TOKEN_PROGRAM_ID,
-            activity: undefined,
-        }));
-        return infos;
     }
 
     /**

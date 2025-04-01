@@ -18,6 +18,10 @@ import {
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import { StorageOptions } from '../types';
+import {
+    getTokenPoolInfos,
+    pickTokenPoolInfos,
+} from '../utils/get-token-pool-infos';
 
 /**
  * Mint compressed tokens to a solana address from an external mint authority
@@ -66,8 +70,8 @@ export async function approveAndMintTo(
         storageOptions.stateTreeInfo = info;
     }
     if (!storageOptions.tokenPoolInfos) {
-        const tokenPoolInfos = await rpc.getTokenPoolInfos(mint);
-        storageOptions.tokenPoolInfos = tokenPoolInfos;
+        const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+        storageOptions.tokenPoolInfos = pickTokenPoolInfos(tokenPoolInfos);
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -78,7 +82,7 @@ export async function approveAndMintTo(
         amount,
         toPubkey: destination,
         outputStateTreeInfo: storageOptions.stateTreeInfo,
-        tokenPoolInfos: storageOptions.tokenPoolInfos,
+        tokenPoolInfo: toArray(storageOptions.tokenPoolInfos)[0],
         tokenProgramId,
     });
 
