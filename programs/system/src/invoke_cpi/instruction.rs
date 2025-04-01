@@ -1,11 +1,10 @@
-use account_compression::program::AccountCompression;
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, system_program::System};
-
+// use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, system_program::System};
 use super::account::CpiContextAccount;
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
 };
+use pinocchio::pubkey::Pubkey;
 
 #[derive(Accounts)]
 pub struct InvokeCpiInstruction<'info> {
@@ -14,7 +13,7 @@ pub struct InvokeCpiInstruction<'info> {
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK: in account compression program
-    pub registered_program_pda: AccountInfo<'info>,
+    pub registered_program_pda: AccountInfo,
     /// CHECK: checked in emit_event.rs.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
@@ -27,9 +26,9 @@ pub struct InvokeCpiInstruction<'info> {
         mut,
         seeds = [SOL_POOL_PDA_SEED], bump
     )]
-    pub sol_pool_pda: Option<AccountInfo<'info>>,
+    pub sol_pool_pda: Option<AccountInfo>,
     #[account(mut)]
-    pub decompression_recipient: Option<AccountInfo<'info>>,
+    pub decompression_recipient: Option<AccountInfo>,
     pub system_program: Program<'info, System>,
     #[account(mut)]
     pub cpi_context_account: Option<Account<'info, CpiContextAccount>>,
@@ -46,7 +45,7 @@ impl<'info> SignerAccounts<'info> for InvokeCpiInstruction<'info> {
 }
 
 impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
-    fn get_registered_program_pda(&self) -> &AccountInfo<'info> {
+    fn get_registered_program_pda(&self) -> &AccountInfo {
         &self.registered_program_pda
     }
 
@@ -66,11 +65,11 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.system_program
     }
 
-    fn get_sol_pool_pda(&self) -> Option<&AccountInfo<'info>> {
+    fn get_sol_pool_pda(&self) -> Option<&AccountInfo> {
         self.sol_pool_pda.as_ref()
     }
 
-    fn get_decompression_recipient(&self) -> Option<&AccountInfo<'info>> {
+    fn get_decompression_recipient(&self) -> Option<&AccountInfo> {
         self.decompression_recipient.as_ref()
     }
 }

@@ -1,5 +1,5 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::prelude::*;
+use crate::constants::CPI_AUTHORITY_PDA_SEED;
+use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::{
     ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
@@ -53,7 +53,7 @@ pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result
             derived_signer,
             authority
         );
-        return err!(SystemProgramError::CpiSignerCheckFailed);
+        return Err(SystemProgramError::CpiSignerCheckFailed);
     }
     Ok(())
 }
@@ -76,7 +76,7 @@ pub fn input_compressed_accounts_signer_check(
                         compressed_account_with_context.compressed_account.owner.to_bytes(),
                         invoking_program_id
                     );
-                    err!(SystemProgramError::SignerCheckFailed)
+                    Err(SystemProgramError::SignerCheckFailed)
                 }
             },
         )
@@ -107,7 +107,7 @@ pub fn output_compressed_accounts_write_access_check(
                     invoking_program_id.key()
                 );
             msg!("compressed_account: {:?}", compressed_account);
-            return err!(SystemProgramError::WriteAccessCheckFailed);
+            return Err(SystemProgramError::WriteAccessCheckFailed);
         }
         if compressed_account.compressed_account.data.is_none()
             && invoking_program_id.key()
@@ -119,7 +119,7 @@ pub fn output_compressed_accounts_write_access_check(
         {
             msg!("For program owned compressed accounts the data field needs to be defined.");
             msg!("compressed_account: {:?}", compressed_account);
-            return err!(SystemProgramError::DataFieldUndefined);
+            return Err(SystemProgramError::DataFieldUndefined);
         }
     }
     Ok(())

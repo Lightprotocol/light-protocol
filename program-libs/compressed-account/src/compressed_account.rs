@@ -1,11 +1,6 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
-use solana_program::pubkey::Pubkey;
 
 use crate::{
     address::pack_account,
@@ -13,7 +8,7 @@ use crate::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext, zero_copy::ZCompressedAccount,
     },
-    CompressedAccountError, TreeType,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError, Pubkey, TreeType,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -280,9 +275,9 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes());
+        let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
         self.hash_with_hashed_values(
-            &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
+            &hash_to_bn254_field_size_be(self.owner.as_ref()),
             &hashed_mt,
             leaf_index,
             is_batched,
@@ -314,13 +309,13 @@ impl ZCompressedAccount<'_> {
     }
     pub fn hash(
         &self,
-        &merkle_tree_pubkey: &Pubkey,
+        &merkle_tree_pubkey: &[u8; 32],
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
-            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()),
+            &hash_to_bn254_field_size_be(merkle_tree_pubkey.as_slice()),
             leaf_index,
             is_batched,
         )
@@ -359,7 +354,7 @@ mod tests {
             data: Some(data.clone()),
         };
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
@@ -531,7 +526,7 @@ mod tests {
             0, 0, 0,
         ]);
 
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();

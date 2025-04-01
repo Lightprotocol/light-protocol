@@ -33,7 +33,6 @@ pub enum HashSetError {
     Utils(#[from] UtilsError),
 }
 
-#[cfg(feature = "solana")]
 impl From<HashSetError> for u32 {
     fn from(e: HashSetError) -> u32 {
         match e {
@@ -52,6 +51,13 @@ impl From<HashSetError> for u32 {
 impl From<HashSetError> for solana_program::program_error::ProgramError {
     fn from(e: HashSetError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<HashSetError> for anchor_lang::prelude::ProgramError {
+    fn from(e: HashSetError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
     }
 }
 

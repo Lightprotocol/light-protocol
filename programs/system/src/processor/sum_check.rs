@@ -1,7 +1,8 @@
-use anchor_lang::{solana_program::program_error::ProgramError, Result};
+use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::{
     ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
 };
+use pinocchio::program_error::ProgramError;
 
 use crate::errors::SystemProgramError;
 

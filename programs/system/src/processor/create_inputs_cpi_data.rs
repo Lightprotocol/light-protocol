@@ -1,5 +1,4 @@
-use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
-use anchor_lang::prelude::*;
+use crate::{context::AcpAccount, errors::SystemProgramError};
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -8,15 +7,17 @@ use light_compressed_account::{
     },
 };
 use light_hasher::{Hasher, Poseidon};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::context::SystemContext;
+use crate::Result;
 
 /// Hashes the input compressed accounts and stores the results in the leaves array.
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
 pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
-    remaining_accounts: &'info [AccountInfo<'info>],
+    remaining_accounts: &'info [AccountInfo],
     input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
@@ -88,8 +89,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                 }
                 _ => {
                     return Err(
-                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
-                            .into(),
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );
                 }
             };

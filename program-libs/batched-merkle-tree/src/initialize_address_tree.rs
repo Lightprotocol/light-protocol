@@ -4,7 +4,11 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
-use solana_program::{account_info::AccountInfo, msg};
+
+// Import feature-gated types from lib.rs
+use crate::AccountInfo;
+#[cfg(any(feature = "solana", feature = "anchor"))]
+use crate::AccountInfoTrait;
 
 use crate::{
     constants::{
@@ -112,7 +116,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
 pub fn init_batched_address_merkle_tree_from_account_info(
     params: InitAddressTreeAccountsInstructionData,
     owner: Pubkey,
-    mt_account_info: &AccountInfo<'_>,
+    mt_account_info: &AccountInfo,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let mt_account_size = get_merkle_tree_account_size(
@@ -132,7 +136,7 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params,
         mt_data,
         merkle_tree_rent,
-        (*mt_account_info.key).into(),
+        (*mt_account_info.key()).into(),
     )?;
     Ok(())
 }
@@ -153,8 +157,10 @@ pub fn init_batched_address_merkle_tree_account(
         }
         None => 0,
     };
-    msg!("rollover fee {}", rollover_fee);
-    msg!("rollover threshold {:?}", params.rollover_threshold);
+    #[cfg(not(feature = "pinocchio"))]
+    crate::msg!("rollover fee {}", rollover_fee);
+    #[cfg(not(feature = "pinocchio"))]
+    crate::msg!("rollover threshold {:?}", params.rollover_threshold);
 
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),

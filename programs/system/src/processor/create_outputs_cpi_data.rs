@@ -1,5 +1,5 @@
-use account_compression::{context::AcpAccount, errors::AccountCompressionErrorCode};
-use anchor_lang::prelude::*;
+use crate::context::AcpAccount;
+use crate::Result;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -9,6 +9,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{context::SystemContext, errors::SystemProgramError};
 
@@ -28,7 +29,7 @@ use crate::{context::SystemContext, errors::SystemProgramError};
 #[allow(clippy::type_complexity)]
 pub fn create_outputs_cpi_data<'a, 'info>(
     output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'a>],
-    remaining_accounts: &'info [AccountInfo<'info>],
+    remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
     accounts: &[AcpAccount<'a, 'info>],
@@ -100,14 +101,14 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     (*pubkey).into()
                 }
                 _ => {
-                    return err!(
-                        AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );
                 }
             };
             // check Merkle tree uniqueness
             if merkle_tree_pubkeys.contains(&pubkey) {
-                return err!(SystemProgramError::OutputMerkleTreeNotUnique);
+                return Err(SystemProgramError::OutputMerkleTreeNotUnique.into());
             } else {
                 merkle_tree_pubkeys.push(pubkey);
             }
@@ -122,7 +123,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
             // number of leaves in a Merkle tree to determine the correct leaf
             // index. Since the leaf index is part of the hash this is security
             // critical.
-            return err!(SystemProgramError::OutputMerkleTreeIndicesNotInOrder);
+            return Err(SystemProgramError::OutputMerkleTreeIndicesNotInOrder.into());
         }
 
         // Check 3.
@@ -135,11 +136,11 @@ pub fn create_outputs_cpi_data<'a, 'info>(
             {
                 context.addresses.remove(position);
             } else {
-                msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
-                msg!(
-                    "Remaining compressed_account_addresses: {:?}",
-                    context.addresses
-                );
+                // msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
+                // msg!(
+                //     "Remaining compressed_account_addresses: {:?}",
+                //     context.addresses
+                // );
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
@@ -149,12 +150,12 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         if account.compressed_account.data.is_some() && context.invoking_program_id.is_none() {
             msg!("Invoking program is not provided.");
             msg!("Only program owned compressed accounts can have data.");
-            return err!(SystemProgramError::InvokingProgramNotProvided);
+            return Err(SystemProgramError::InvokingProgramNotProvided.into());
         }
         let hashed_owner = match context
             .hashed_pubkeys
             .iter()
-            .find(|x| x.0 == account.compressed_account.owner.into())
+            .find(|x| x.0 == account.compressed_account.owner.to_bytes())
         {
             Some(hashed_owner) => hashed_owner.1,
             None => {

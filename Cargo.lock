@@ -1351,7 +1351,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "rand 0.8.5",
@@ -1457,7 +1457,7 @@ dependencies = [
  "anchor-lang",
  "light-compressed-account",
  "light-hasher",
- "light-system-program",
+ "light-system-program-anchor",
 ]
 
 [[package]]
@@ -2040,6 +2040,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "five8_const"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26dec3da8bc3ef08f2c04f61eab298c3ab334523e55f076354d6d6f613799a7b"
+dependencies = [
+ "five8_core",
+]
+
+[[package]]
+name = "five8_core"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
+
+[[package]]
 name = "flate2"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2110,7 +2125,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "photon-api",
  "prometheus",
@@ -2152,7 +2167,7 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-prover-client",
  "light-registry",
- "light-system-program",
+ "light-system-program-anchor",
  "num-traits",
  "reqwest",
  "solana-sdk",
@@ -3096,7 +3111,9 @@ dependencies = [
 name = "light-account-checks"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
  "borsh 0.10.4",
+ "pinocchio",
  "solana-program",
  "thiserror 2.0.12",
 ]
@@ -3118,6 +3135,7 @@ dependencies = [
  "light-prover-client",
  "light-verifier",
  "light-zero-copy",
+ "pinocchio",
  "rand 0.8.5",
  "serial_test",
  "solana-program",
@@ -3130,10 +3148,12 @@ dependencies = [
 name = "light-bloom-filter"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
  "bitvec",
  "fastmurmur3",
  "light-hasher",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -3192,15 +3212,16 @@ name = "light-compressed-account"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "anyhow",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
  "bytemuck",
  "light-hasher",
+ "light-macros",
  "light-poseidon 0.3.0",
  "light-zero-copy",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -3217,7 +3238,7 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-heap",
- "light-system-program",
+ "light-system-program-anchor",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "solana-sdk",
@@ -3230,6 +3251,7 @@ dependencies = [
 name = "light-concurrent-merkle-tree"
 version = "1.1.0"
 dependencies = [
+ "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
@@ -3252,6 +3274,7 @@ dependencies = [
 name = "light-hash-set"
 version = "1.2.0"
 dependencies = [
+ "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "light-heap",
@@ -3273,6 +3296,7 @@ dependencies = [
  "arrayvec",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
+ "pinocchio",
  "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
@@ -3302,6 +3326,7 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
+ "anchor-lang",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -3333,6 +3358,7 @@ dependencies = [
  "borsh 0.10.4",
  "bytemuck",
  "light-compressed-account",
+ "pinocchio",
  "solana-program",
  "thiserror 2.0.12",
  "zerocopy 0.8.23",
@@ -3393,7 +3419,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "log",
  "num-bigint 0.4.6",
  "num-traits",
@@ -3447,7 +3473,7 @@ dependencies = [
  "anchor-lang",
  "light-batched-merkle-tree",
  "light-merkle-tree-metadata",
- "light-system-program",
+ "light-system-program-anchor",
  "solana-sdk",
  "solana-security-txt",
 ]
@@ -3463,7 +3489,7 @@ dependencies = [
  "light-hasher",
  "light-macros",
  "light-sdk-macros",
- "light-system-program",
+ "light-system-program-anchor",
  "light-verifier",
  "num-bigint 0.4.6",
  "solana-program",
@@ -3488,22 +3514,36 @@ dependencies = [
 name = "light-system-program"
 version = "1.2.0"
 dependencies = [
- "account-compression",
  "aligned-sized",
- "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-compressed-account",
  "light-concurrent-merkle-tree",
  "light-hasher",
- "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-metadata",
  "light-verifier",
  "light-zero-copy",
+ "pinocchio",
+ "pinocchio-system",
  "rand 0.8.5",
- "solana-sdk",
+ "solana-security-txt",
+ "thiserror 2.0.12",
+ "zerocopy 0.8.23",
+]
+
+[[package]]
+name = "light-system-program-anchor"
+version = "1.2.0"
+dependencies = [
+ "account-compression",
+ "aligned-sized",
+ "anchor-lang",
+ "light-compressed-account",
+ "light-zero-copy",
  "solana-security-txt",
  "zerocopy 0.8.23",
 ]
@@ -3531,7 +3571,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-verifier",
  "log",
  "num-bigint 0.4.6",
@@ -3569,6 +3609,7 @@ dependencies = [
  "groth16-solana",
  "light-compressed-account",
  "light-prover-client",
+ "pinocchio",
  "reqwest",
  "serial_test",
  "solana-program",
@@ -3580,6 +3621,8 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -4315,6 +4358,32 @@ name = "pin-utils"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
+
+[[package]]
+name = "pinocchio"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "530596fa307103e53257f2cf064815919ee7fbc4c7ab999f6f13cc7067c3aff1"
+
+[[package]]
+name = "pinocchio-pubkey"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c6b20fcebc172c3cd3f54114b0241b48fa8e30893ced2eb4927aaba5e3a0ba5"
+dependencies = [
+ "five8_const",
+ "pinocchio",
+]
+
+[[package]]
+name = "pinocchio-system"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f75423420ae70aa748cf611cab14cfd00af08d0d2d3d258cb0cf5e2880ec19c"
+dependencies = [
+ "pinocchio",
+ "pinocchio-pubkey",
+]
 
 [[package]]
 name = "pkcs8"
@@ -7238,7 +7307,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "serial_test",
@@ -7262,7 +7331,7 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -7565,7 +7634,7 @@ dependencies = [
  "light-program-test",
  "light-prover-client",
  "light-sdk",
- "light-system-program",
+ "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
  "solana-sdk",

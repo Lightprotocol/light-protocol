@@ -4,9 +4,9 @@ pub mod concurrent;
 use batch::BatchEvent;
 use concurrent::*;
 
-use crate::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 #[repr(C)]
 pub enum MerkleTreeEvent {
     V1(ChangelogEvent),

@@ -1,12 +1,41 @@
-use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
-use anchor_lang::{prelude::*, Result};
+use crate::utils::transfer_lamports_cpi;
+// use anchor_lang::{prelude::*, Result};
+use crate::Result;
+use light_batched_merkle_tree::{
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+};
 use light_compressed_account::hash_to_bn254_field_size_be;
+use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+
+/// AccountCompressionProgramAccount
+// #[derive(Debug)]
+pub enum AcpAccount<'a, 'info> {
+    Authority(&'a AccountInfo),
+    RegisteredProgramPda(&'a AccountInfo),
+    SystemProgram(&'a AccountInfo),
+    OutputQueue(BatchedQueueAccount<'info>),
+    BatchedStateTree(BatchedMerkleTreeAccount<'info>),
+    BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
+    StateTree((Pubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
+    AddressTree(
+        (
+            Pubkey,
+            IndexedMerkleTreeZeroCopyMut<'info, Poseidon, usize, 26, 16>,
+        ),
+    ),
+    AddressQueue(Pubkey, &'a AccountInfo),
+    V1Queue(&'a AccountInfo),
+    Unknown(),
+}
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
-    pub accounts: Vec<AccountMeta>,
+    pub accounts: Vec<AccountMeta<'info>>,
     // Would be better to store references.
-    pub account_infos: Vec<AccountInfo<'info>>,
+    pub account_infos: Vec<&'info AccountInfo>,
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
     // Addresses for deduplication.
     // Try to find a way without storing the addresses.
@@ -59,7 +88,7 @@ impl SystemContext<'_> {
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,
             None => {
-                let hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes());
+                let hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.as_ref());
                 self.hashed_pubkeys.push((pubkey, hashed_pubkey));
                 hashed_pubkey
             }
@@ -71,7 +100,7 @@ impl<'info> SystemContext<'info> {
     pub fn get_index_or_insert(
         &mut self,
         ix_data_index: u8,
-        remaining_accounts: &[AccountInfo<'info>],
+        remaining_accounts: &'info [AccountInfo],
     ) -> u8 {
         let queue_index = self
             .account_indices
@@ -87,7 +116,7 @@ impl<'info> SystemContext<'info> {
                     is_signer: false,
                     is_writable: true,
                 });
-                self.account_infos.push(account_info.clone());
+                self.account_infos.push(account_info);
                 self.account_indices.len() as u8 - 1
             }
         }
@@ -114,14 +143,10 @@ impl<'info> SystemContext<'info> {
     /// 2. token transfer                 network fee 5,000 lamports
     /// 3. mint token                     network fee 5,000 lamports
     ///     Transfers rollover and network fees.
-    pub fn transfer_fees(
-        &self,
-        accounts: &[AccountInfo<'info>],
-        fee_payer: &AccountInfo<'info>,
-    ) -> Result<()> {
+    pub fn transfer_fees(&self, accounts: &[AccountInfo], fee_payer: &AccountInfo) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
-            msg!("paying fee: {:?}", fee);
-            msg!("to account: {:?}", accounts[*i as usize].key());
+            // msg!("paying fee: {:?}", fee);
+            // msg!("to account: {:?}", accounts[*i as usize].key());
             transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())

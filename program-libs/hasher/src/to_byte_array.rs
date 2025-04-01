@@ -37,7 +37,18 @@ macro_rules! impl_to_byte_array_for_integer_type {
     };
 }
 
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(any(
+    all(
+        feature = "solana",
+        not(feature = "anchor"),
+        not(feature = "pinocchio")
+    ),
+    all(
+        feature = "anchor",
+        not(feature = "solana"),
+        not(feature = "pinocchio")
+    )
+))]
 impl ToByteArray for crate::Pubkey {
     const NUM_FIELDS: usize = 1;
 
@@ -457,7 +468,11 @@ mod test {
         expected[28..32].copy_from_slice(&u32_value.to_be_bytes());
         assert_eq!(arrays[0], expected);
 
-        #[cfg(feature = "solana")]
+        #[cfg(all(
+            feature = "solana",
+            not(feature = "anchor"),
+            not(feature = "pinocchio")
+        ))]
         {
             // Test to_byte_arrays for Pubkey
             let pubkey = crate::Pubkey::new_unique();
@@ -465,7 +480,11 @@ mod test {
             assert_eq!(arrays.len(), 1);
             assert_eq!(arrays[0], pubkey.to_bytes());
         }
-        #[cfg(feature = "anchor")]
+        #[cfg(all(
+            feature = "anchor",
+            not(feature = "solana"),
+            not(feature = "pinocchio")
+        ))]
         {
             // Test to_byte_arrays for Pubkey
             let pubkey = crate::Pubkey::new_unique();

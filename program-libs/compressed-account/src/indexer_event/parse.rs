@@ -1,6 +1,4 @@
-use borsh::BorshDeserialize;
 use light_zero_copy::borsh::Deserialize;
-use solana_program::pubkey::Pubkey;
 
 use super::{
     error::ParseIndexerEventError,
@@ -22,6 +20,7 @@ use crate::{
         invoke_cpi::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
+    AnchorDeserialize, Pubkey,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -421,7 +420,7 @@ fn create_batched_transaction_event(
                 address: x.address,
                 mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
             })
-            .collect(),
+            .collect::<Vec<_>>(),
         address_sequence_numbers: associated_instructions
             .insert_into_queues_instruction
             .address_sequence_numbers
@@ -520,7 +519,7 @@ fn create_nullifier_queue_indices(
     // 3. increment the sequence number
     internal_input_sequence_numbers.iter_mut().for_each(|seq| {
         for (i, merkle_tree_pubkey) in input_merkle_tree_pubkeys.iter().enumerate() {
-            if *merkle_tree_pubkey == seq.tree_pubkey.into() {
+            if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
                 nullifier_queue_indices[i] = seq.seq.into();
                 seq.seq += 1;
             }

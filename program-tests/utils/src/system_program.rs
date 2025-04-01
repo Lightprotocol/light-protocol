@@ -22,7 +22,7 @@ use light_compressed_account::{
 };
 use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::{
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    constants::SOL_POOL_PDA_SEED,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
 };
 use solana_sdk::{

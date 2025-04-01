@@ -181,6 +181,7 @@ impl Deref for ZCompressedAccount<'_> {
     }
 }
 
+#[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
 impl From<&ZCompressedAccount<'_>> for CompressedAccount {
     fn from(compressed_account: &ZCompressedAccount) -> Self {
         let data: Option<CompressedAccountData> =
@@ -193,7 +194,7 @@ impl From<&ZCompressedAccount<'_>> for CompressedAccount {
                     data_hash: *data.data_hash,
                 });
         CompressedAccount {
-            owner: compressed_account.owner.into(),
+            owner: crate::Pubkey::from(compressed_account.owner),
             lamports: compressed_account.lamports.into(),
             address: compressed_account.address.map(|x| *x),
             data,

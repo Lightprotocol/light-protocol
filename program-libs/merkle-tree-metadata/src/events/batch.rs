@@ -1,7 +1,7 @@
-use crate::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[repr(C)]
-#[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Clone, Eq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Eq)]
 pub struct BatchEvent {
     pub merkle_tree_pubkey: [u8; 32],
     pub batch_index: u64,

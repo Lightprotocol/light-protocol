@@ -6,6 +6,11 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+[features]
+solana = ["light-hasher/solana"]
+anchor = ["light-hasher/anchor"]
+pinocchio = ["light-hasher/pinocchio"]
+
 [dependencies]
 light-hasher = { workspace = true }
 num-bigint = { workspace = true }

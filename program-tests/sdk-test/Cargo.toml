@@ -20,7 +20,7 @@ default = []
 
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor"] }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["anchor"] }
 light-compressed-account = { workspace = true }
 solana-program = { workspace = true }
 light-macros = { workspace = true }

@@ -10,7 +10,6 @@ pub enum BloomFilterError {
     InvalidStoreCapacity,
 }
 
-#[cfg(feature = "solana")]
 impl From<BloomFilterError> for u32 {
     fn from(e: BloomFilterError) -> u32 {
         match e {
@@ -24,6 +23,28 @@ impl From<BloomFilterError> for u32 {
 impl From<BloomFilterError> for solana_program::program_error::ProgramError {
     fn from(e: BloomFilterError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "pinocchio"),
+    not(feature = "solana")
+))]
+impl From<BloomFilterError> for anchor_lang::prelude::ProgramError {
+    fn from(e: BloomFilterError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "anchor"),
+    not(feature = "solana")
+))]
+impl From<BloomFilterError> for pinocchio::program_error::ProgramError {
+    fn from(e: BloomFilterError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
 

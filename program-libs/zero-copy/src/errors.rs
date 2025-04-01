@@ -28,7 +28,6 @@ pub enum ZeroCopyError {
     InvalidCapacity,
 }
 
-#[cfg(feature = "solana")]
 impl From<ZeroCopyError> for u32 {
     fn from(e: ZeroCopyError) -> u32 {
         match e {
@@ -47,10 +46,10 @@ impl From<ZeroCopyError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
-impl From<ZeroCopyError> for solana_program::program_error::ProgramError {
+#[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
+impl From<ZeroCopyError> for crate::ProgramError {
     fn from(e: ZeroCopyError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        crate::ProgramError::Custom(e.into())
     }
 }
 

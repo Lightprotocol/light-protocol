@@ -22,7 +22,6 @@ pub enum MerkleTreeMetadataError {
     InvalidHeight,
 }
 
-#[cfg(feature = "solana")]
 impl From<MerkleTreeMetadataError> for u32 {
     fn from(e: MerkleTreeMetadataError) -> u32 {
         match e {
@@ -39,9 +38,8 @@ impl From<MerkleTreeMetadataError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
-impl From<MerkleTreeMetadataError> for solana_program::program_error::ProgramError {
+impl From<MerkleTreeMetadataError> for crate::ProgramError {
     fn from(e: MerkleTreeMetadataError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        crate::ProgramError::Custom(e.into())
     }
 }

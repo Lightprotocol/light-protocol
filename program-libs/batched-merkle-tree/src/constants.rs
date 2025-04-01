@@ -1,5 +1,6 @@
 // This file stores constants which do not have to be configured.
 
+use crate::Pubkey;
 use light_macros::pubkey;
 
 pub const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: u32 = 40;
@@ -23,7 +24,7 @@ pub const ADDRESS_TREE_INIT_ROOT_40: [u8; 32] = [
     25, 95, 124, 248, 129, 44, 109, 229, 146, 106, 76,
 ];
 
-pub const ACCOUNT_COMPRESSION_PROGRAM_ID: solana_program::pubkey::Pubkey =
+pub const ACCOUNT_COMPRESSION_PROGRAM_ID: Pubkey =
     pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
 pub const BATCHED_STATE_TREE_TYPE: u64 = 3;

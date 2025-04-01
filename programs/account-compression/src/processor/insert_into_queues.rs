@@ -12,6 +12,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     bytes: Vec<u8>,
 ) -> Result<()> {
+    // sol_log_compute_units();
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
         .map_err(ProgramError::from)?;
     let authority = ctx.accounts.authority.to_account_info();
@@ -19,6 +20,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     // 1. program ownership
     // 2. discriminator
     // 3. signer eligibility
+    // sol_log_compute_units();
     let mut accounts = AcpAccount::from_account_infos(
         ctx.remaining_accounts,
         &authority,
@@ -29,10 +31,12 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     if inputs.nullifiers.is_empty() && inputs.addresses.is_empty() && inputs.leaves.is_empty() {
         return Err(AccountCompressionErrorCode::InputElementsEmpty.into());
     }
+    // sol_log_compute_units();
+
     let current_slot = Clock::get()?.slot;
-    msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
-    msg!("insert_leaves {:?}", inputs.leaves.len());
-    msg!("insert_addresses {:?}", inputs.addresses.len());
+    // msg!("insert_nullifiers {:?}", inputs.nullifiers.len());
+    // msg!("insert_leaves {:?}", inputs.leaves.len());
+    // msg!("insert_addresses {:?}", inputs.addresses.len());
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_nullifiers");
@@ -43,6 +47,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &mut accounts,
         &current_slot,
     )?;
+    // sol_log_compute_units();
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_nullifiers");
     #[cfg(feature = "bench-sbf")]
@@ -56,6 +61,7 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
     )?;
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("append_leaves");
+    // sol_log_compute_units();
 
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_start!("insert_addresses");
@@ -65,6 +71,8 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
         &mut accounts,
         &current_slot,
     )?;
+    // sol_log_compute_units();
+
     #[cfg(feature = "bench-sbf")]
     light_heap::bench_sbf_end!("insert_addresses");
     Ok(())

@@ -1,7 +1,4 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
