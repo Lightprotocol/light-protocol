@@ -8,7 +8,10 @@ use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
-    constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE},
+    constants::{
+        DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE,
+        TEST_DEFAULT_ZKP_BATCH_SIZE,
+    },
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -60,7 +63,7 @@ impl Default for BatchedMerkleTreeMetadata {
                 num_batches: NUM_BATCHES as u64,
                 batch_size: TEST_DEFAULT_BATCH_SIZE,
                 bloom_filter_capacity: 20_000 * 8,
-                zkp_batch_size: 10,
+                zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 ..Default::default()
             },
             hashed_pubkey: [0u8; 32],

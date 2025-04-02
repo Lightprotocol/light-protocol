@@ -1,16 +1,20 @@
+#![cfg(feature = "test-only")]
 use light_batched_merkle_tree::{
     constants::NUM_BATCHES,
     errors::BatchedMerkleTreeError,
     initialize_address_tree::{
-        init_batched_address_merkle_tree_account, InitAddressTreeAccountsInstructionData,
+        init_batched_address_merkle_tree_account,
+        test_utils::InitAddressTreeAccountsInstructionData,
     },
-    initialize_state_tree::assert_address_mt_zero_copy_initialized,
+    initialize_state_tree::test_utils::assert_address_mt_zero_copy_initialized,
     merkle_tree::{
-        get_merkle_tree_account_size, get_merkle_tree_account_size_default,
+        get_merkle_tree_account_size, test_utils::get_merkle_tree_account_size_default,
         BatchedMerkleTreeAccount,
     },
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
-    rollover_address_tree::{assert_address_mt_roll_over, rollover_batched_address_tree},
+    rollover_address_tree::{
+        rollover_batched_address_tree, test_utils::assert_address_mt_roll_over,
+    },
     rollover_state_tree::batched_tree_is_ready_for_rollover,
 };
 use light_compressed_account::{pubkey::Pubkey, TreeType};

@@ -1,8 +1,9 @@
+#![cfg(feature = "test-only")]
 use light_batched_merkle_tree::{
     batch::Batch,
     constants::NUM_BATCHES,
     errors::BatchedMerkleTreeError,
-    queue::{assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
+    queue::{test_utils::assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata},
     queue_batch_metadata::QueueBatches,
 };
 use light_compressed_account::{pubkey::Pubkey, QueueType};

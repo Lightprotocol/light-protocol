@@ -4,8 +4,11 @@ use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::{
-        assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
-        create_output_queue_account, CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
+        test_utils::{
+            assert_address_mt_zero_copy_initialized, assert_state_mt_zero_copy_initialized,
+            create_output_queue_account, CreateOutputQueueParams,
+        },
+        InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
         get_merkle_tree_account_size, BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
@@ -13,10 +16,10 @@ use light_batched_merkle_tree::{
     },
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
-        assert_queue_zero_copy_inited, get_output_queue_account_size, BatchedQueueAccount,
-        BatchedQueueMetadata,
+        get_output_queue_account_size, test_utils::assert_queue_zero_copy_inited,
+        BatchedQueueAccount, BatchedQueueMetadata,
     },
-    rollover_state_tree::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
+    rollover_state_tree::{test_utils::assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_compressed_account::{
