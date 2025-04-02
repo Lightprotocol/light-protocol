@@ -23,9 +23,7 @@ light-compressed-account = { workspace = true }
 # ark dependencies
 ark-serialize = { workspace = true }
 ark-bn254 = { workspace = true }
-ark-std = { workspace = true, default-features = false, features = [
-    "parallel",
-] }
+ark-std = { workspace = true,  features = ["parallel",] }
 light-batched-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
 # solana

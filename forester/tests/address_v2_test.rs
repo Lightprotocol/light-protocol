@@ -23,8 +23,7 @@ use light_registry::{
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
 };
-use rand::prelude::StdRng;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{prelude::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
@@ -61,7 +60,6 @@ async fn test_create_v2_address() {
     }))
     .await;
 
-
     let env = EnvAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
     config.transaction_config.batch_ixs_per_tx = 1;
@@ -94,8 +92,6 @@ async fn test_create_v2_address() {
 
     let batch_size = get_batch_size(&mut rpc, &env.batch_address_merkle_tree).await;
 
-
-
     for i in 0..batch_size {
         println!("====== Creating v2 address {} ======", i);
         let result = create_v2_address(
@@ -105,7 +101,7 @@ async fn test_create_v2_address() {
             &env.registered_program_pda,
             &batch_payer,
             &env,
-            &mut rng
+            &mut rng,
         )
         .await;
 
@@ -308,7 +304,11 @@ async fn create_v2_address<R: RpcConnection + MerkleTreeExt, I: Indexer<R>>(
     };
 
     let proof = test_rpc_result.proof; // photon_rpc_result.compressed_proof.unwrap();
-    let proof = CompressedProof { a: proof.a, b: proof.b, c: proof.c, };
+    let proof = CompressedProof {
+        a: proof.a,
+        b: proof.b,
+        c: proof.c,
+    };
 
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data,

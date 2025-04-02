@@ -403,7 +403,6 @@ pub fn get_test_batch_address_append_inputs(
 }
 
 mod test {
-    use super::*;
 
     #[test]
     pub fn test_hashchain() {
