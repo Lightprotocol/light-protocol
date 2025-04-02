@@ -121,11 +121,11 @@ pub fn check_account_balance_is_rent_exempt(
             .minimum_balance(expected_size);
         if lamports < rent_exemption {
             solana_program::msg!(
-            "Account {:?} lamports is less than rentexemption: lamports {}, rent exemption {}",
-            account_info.key,
-            lamports,
-            rent_exemption
-        );
+                "Account {:?} lamports is less than rentexemption: lamports {}, rent exemption {}",
+                account_info.key,
+                lamports,
+                rent_exemption
+            );
             return Err(AccountError::InvalidAccountBalance);
         }
     }

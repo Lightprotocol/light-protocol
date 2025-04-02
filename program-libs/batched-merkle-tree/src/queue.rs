@@ -162,7 +162,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, (*account_info.key).into())
+        Self::from_bytes::<QUEUE_TYPE>(account_data, (*account_info.key).into())
     }
 
     /// Deserialize a BatchedQueueAccount from bytes.
