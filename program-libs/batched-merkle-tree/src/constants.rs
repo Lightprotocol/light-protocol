@@ -26,7 +26,4 @@ pub const ADDRESS_TREE_INIT_ROOT_40: [u8; 32] = [
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: solana_program::pubkey::Pubkey =
     pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
 
-pub const BATCHED_STATE_TREE_TYPE: u64 = 3;
-pub const BATCHED_ADDRESS_TREE_TYPE: u64 = 4;
-pub const OUTPUT_QUEUE_TYPE: u64 = 5;
 pub const NUM_BATCHES: usize = 2;

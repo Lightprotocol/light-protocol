@@ -7,8 +7,9 @@ use light_account_checks::{
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
     instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
-    pubkey::Pubkey, QueueType, TreeType, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE,
-    BATCHED_OUTPUT_QUEUE_TYPE,
+    pubkey::Pubkey, QueueType, TreeType, BATCHED_ADDRESS_MERKLE_TREE_TYPE,
+    BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE, BATCHED_OUTPUT_QUEUE_TYPE,
+    BATCHED_STATE_MERKLE_TREE_TYPE,
 };
 use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
@@ -28,10 +29,7 @@ use zerocopy::Ref;
 use super::batch::Batch;
 use crate::{
     batch::BatchState,
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, BATCHED_ADDRESS_TREE_TYPE,
-        BATCHED_STATE_TREE_TYPE, NUM_BATCHES,
-    },
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
@@ -122,7 +120,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     pub fn state_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<BATCHED_STATE_TREE_TYPE>(
+        Self::from_account_info::<BATCHED_STATE_MERKLE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -139,7 +137,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         light_account_checks::checks::check_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(
             account_data,
         )?;
-        Self::from_bytes::<BATCHED_STATE_TREE_TYPE>(account_data, pubkey)
+        Self::from_bytes::<BATCHED_STATE_MERKLE_TREE_TYPE>(account_data, pubkey)
     }
 
     /// Deserialize a batched address Merkle tree from account info.
@@ -151,7 +149,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     pub fn address_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<BATCHED_ADDRESS_TREE_TYPE>(
+        Self::from_account_info::<BATCHED_ADDRESS_MERKLE_TREE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -178,7 +176,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_bytes::<BATCHED_ADDRESS_TREE_TYPE>(account_data, pubkey)
+        Self::from_bytes::<BATCHED_ADDRESS_MERKLE_TREE_TYPE>(account_data, pubkey)
     }
 
     fn from_bytes<const TREE_TYPE: u64>(
@@ -1074,7 +1072,7 @@ mod test {
     #[test]
     fn test_from_bytes_invalid_account_size() {
         let mut account_data = vec![0u8; 200];
-        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(
+        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_MERKLE_TREE_TYPE>(
             &mut account_data,
             &Pubkey::default(),
         );
@@ -1084,7 +1082,7 @@ mod test {
     #[test]
     fn test_init_invalid_account_size() {
         let mut account_data = vec![0u8; 200];
-        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(
+        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_MERKLE_TREE_TYPE>(
             &mut account_data,
             &Pubkey::default(),
         );
