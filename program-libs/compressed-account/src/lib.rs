@@ -83,21 +83,21 @@ impl From<CompressedAccountError> for solana_program::program_error::ProgramErro
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
-#[repr(u8)]
-pub enum QueueType {
-    NullifierQueue = 1,
-    AddressQueue = 2,
-    BatchedInput = 3,
-    BatchedAddress = 4,
-    BatchedOutput = 5,
-}
-
 pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
 pub const ADDRESS_QUEUE_TYPE: u64 = 2;
 pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
 pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
 pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
+
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
+#[repr(u64)]
+pub enum QueueType {
+    NullifierQueue = NULLIFIER_QUEUE_TYPE,
+    AddressQueue = ADDRESS_QUEUE_TYPE,
+    BatchedInput = BATCHED_INPUT_QUEUE_TYPE,
+    BatchedAddress = BATCHED_ADDRESS_QUEUE_TYPE,
+    BatchedOutput = BATCHED_OUTPUT_QUEUE_TYPE,
+}
 
 impl From<u64> for QueueType {
     fn from(value: u64) -> Self {
@@ -112,13 +112,18 @@ impl From<u64> for QueueType {
     }
 }
 
+pub const STATE_MERKLE_TREE_TYPE: u64 = 1;
+pub const ADDRESS_MERKLE_TREE_TYPE: u64 = 2;
+pub const BATCHED_STATE_MERKLE_TREE_TYPE: u64 = 3;
+pub const BATCHED_ADDRESS_MERKLE_TREE_TYPE: u64 = 4;
+
 #[repr(u64)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
 pub enum TreeType {
-    State = 1,
-    Address = 2,
-    BatchedState = 3,
-    BatchedAddress = 4,
+    State = STATE_MERKLE_TREE_TYPE,
+    Address = ADDRESS_MERKLE_TREE_TYPE,
+    BatchedState = BATCHED_STATE_MERKLE_TREE_TYPE,
+    BatchedAddress = BATCHED_ADDRESS_MERKLE_TREE_TYPE,
 }
 
 impl Display for TreeType {

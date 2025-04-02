@@ -5,7 +5,9 @@ use light_account_checks::{
     checks::{check_account_info, set_discriminator},
     discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
 };
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType};
+use light_compressed_account::{
+    hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, BATCHED_OUTPUT_QUEUE_TYPE,
+};
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
@@ -14,9 +16,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 use super::batch::BatchState;
 use crate::{
     batch::Batch,
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES, OUTPUT_QUEUE_TYPE, TEST_DEFAULT_BATCH_SIZE,
-    },
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE},
     errors::BatchedMerkleTreeError,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     queue_batch_metadata::QueueBatches,
@@ -146,7 +146,10 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<OUTPUT_QUEUE_TYPE>(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)
+        Self::from_account_info::<BATCHED_OUTPUT_QUEUE_TYPE>(
+            &ACCOUNT_COMPRESSION_PROGRAM_ID,
+            account_info,
+        )
     }
 
     /// Deserialize a BatchedQueueAccount from account info.
@@ -176,7 +179,7 @@ impl<'a> BatchedQueueAccount<'a> {
             BatchedQueueAccount,
             ANCHOR_DISCRIMINATOR_LEN,
         >(account_data)?;
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
+        Self::from_bytes::<BATCHED_OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
     }
 
     fn from_bytes<const QUEUE_TYPE: u64>(
