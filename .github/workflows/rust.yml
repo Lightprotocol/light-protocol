@@ -106,8 +106,9 @@ jobs:
               echo "${name}"
               echo "${{ matrix.group.name }}"
 
-
-              if [ "${pkg}" == "light-batched-merkle-tree" ]; then
+              if [ "${pkg}" == "light-zero-copy" ]; then
+                cargo test -p "${pkg}" --features std || exit 1
+              elif [ "${pkg}" == "light-batched-merkle-tree" ]; then
                 if [ "${{ matrix.group.name }}" == "sdk-libs" ]; then
                   # execute simulate transactions test
                   cargo test -p "${pkg}" -- --skip test_simulate_transactions --skip test_e2e || exit 1

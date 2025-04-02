@@ -244,6 +244,7 @@ where
         self.as_slice().to_vec()
     }
 
+    #[cfg(feature = "std")]
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
         if self.len() != N {
             return Err(ZeroCopyError::ArraySize(N, self.len()));
