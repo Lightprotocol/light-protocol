@@ -1057,6 +1057,7 @@ pub fn assert_batch_adress_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 #[cfg(test)]
 mod test {
     use rand::{Rng, SeedableRng};

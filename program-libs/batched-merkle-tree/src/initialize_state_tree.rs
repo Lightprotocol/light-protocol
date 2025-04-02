@@ -330,11 +330,9 @@ pub mod test_utils {
     ) {
         let account = BatchedMerkleTreeAccount::state_from_bytes(account_data, pubkey)
             .expect("from_bytes_unchecked_mut failed");
-        _assert_mt_zero_copy_initialized::<{ crate::constants::BATCHED_STATE_TREE_TYPE }>(
-            account,
-            ref_account,
-            TreeType::BatchedState as u64,
-        );
+        _assert_mt_zero_copy_initialized::<
+            { light_compressed_account::BATCHED_STATE_MERKLE_TREE_TYPE },
+        >(account, ref_account, TreeType::BatchedState as u64);
     }
 
     pub fn assert_address_mt_zero_copy_initialized(
@@ -342,15 +340,13 @@ pub mod test_utils {
         ref_account: crate::merkle_tree_metadata::BatchedMerkleTreeMetadata,
         pubkey: &Pubkey,
     ) {
-        use crate::{constants::BATCHED_ADDRESS_TREE_TYPE, merkle_tree::BatchedMerkleTreeAccount};
+        use crate::merkle_tree::BatchedMerkleTreeAccount;
 
         let account = BatchedMerkleTreeAccount::address_from_bytes(account_data, pubkey)
             .expect("from_bytes_unchecked_mut failed");
-        _assert_mt_zero_copy_initialized::<BATCHED_ADDRESS_TREE_TYPE>(
-            account,
-            ref_account,
-            TreeType::Address as u64,
-        );
+        _assert_mt_zero_copy_initialized::<
+            { light_compressed_account::BATCHED_STATE_MERKLE_TREE_TYPE },
+        >(account, ref_account, TreeType::Address as u64);
     }
 
     fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(

@@ -9,8 +9,7 @@ use crate::{
         init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
-    merkle_tree_metadata::BatchedMerkleTreeMetadata,
-    queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    queue::BatchedQueueAccount,
 };
 
 #[derive(Debug)]
@@ -240,33 +239,35 @@ pub fn batched_tree_is_ready_for_rollover(
 }
 
 #[cfg(feature = "test-only")]
-#[repr(C)]
-pub struct StateMtRollOverAssertParams {
-    pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeMetadata,
-    pub new_mt_account_data: Vec<u8>,
-    pub old_mt_pubkey: Pubkey,
-    pub new_mt_pubkey: Pubkey,
-    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
-    pub queue_account_data: Vec<u8>,
-    pub ref_queue_account: BatchedQueueMetadata,
-    pub new_queue_account_data: Vec<u8>,
-    pub new_queue_pubkey: Pubkey,
-    pub ref_rolledover_queue: BatchedQueueMetadata,
-    pub old_queue_pubkey: Pubkey,
-    pub slot: u64,
-}
-
-#[cfg(feature = "test-only")]
 pub mod test_utils {
     use light_compressed_account::pubkey::Pubkey;
 
-    use super::*;
     use crate::{
         initialize_state_tree::test_utils::assert_state_mt_zero_copy_initialized,
         merkle_tree::BatchedMerkleTreeAccount,
-        queue::{test_utils::assert_queue_zero_copy_inited, BatchedQueueAccount},
+        merkle_tree_metadata::BatchedMerkleTreeMetadata,
+        queue::{
+            test_utils::assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata,
+        },
     };
+
+    #[repr(C)]
+    pub struct StateMtRollOverAssertParams {
+        pub mt_account_data: Vec<u8>,
+        pub ref_mt_account: BatchedMerkleTreeMetadata,
+        pub new_mt_account_data: Vec<u8>,
+        pub old_mt_pubkey: Pubkey,
+        pub new_mt_pubkey: Pubkey,
+        pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
+        pub queue_account_data: Vec<u8>,
+        pub ref_queue_account: BatchedQueueMetadata,
+        pub new_queue_account_data: Vec<u8>,
+        pub new_queue_pubkey: Pubkey,
+        pub ref_rolledover_queue: BatchedQueueMetadata,
+        pub old_queue_pubkey: Pubkey,
+        pub slot: u64,
+    }
+
     pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
         let StateMtRollOverAssertParams {
             mt_account_data,

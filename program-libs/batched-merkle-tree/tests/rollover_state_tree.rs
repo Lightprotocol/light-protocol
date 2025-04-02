@@ -20,8 +20,9 @@ use light_batched_merkle_tree::{
         BatchedQueueAccount,
     },
     rollover_state_tree::{
-        rollover_batched_state_tree, test_utils::assert_state_mt_roll_over,
-        RolloverBatchStateTreeParams, StateMtRollOverAssertParams,
+        rollover_batched_state_tree,
+        test_utils::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
+        RolloverBatchStateTreeParams,
     },
 };
 use light_compressed_account::pubkey::Pubkey;

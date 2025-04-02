@@ -16,7 +16,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 use super::batch::BatchState;
 use crate::{
     batch::Batch,
-    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES, OUTPUT_QUEUE_TYPE},
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
     queue_batch_metadata::QueueBatches,
     BorshDeserialize, BorshSerialize,

@@ -19,7 +19,7 @@ use light_batched_merkle_tree::{
         get_output_queue_account_size, test_utils::assert_queue_zero_copy_inited,
         BatchedQueueAccount, BatchedQueueMetadata,
     },
-    rollover_state_tree::{test_utils::assert_state_mt_roll_over, StateMtRollOverAssertParams},
+    rollover_state_tree::test_utils::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
 };
 use light_client::rpc::{RpcConnection, RpcError};
 use light_compressed_account::{

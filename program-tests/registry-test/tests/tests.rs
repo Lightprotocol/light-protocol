@@ -14,7 +14,7 @@ use forester_utils::{
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::{
+    initialize_state_tree::test_utils::{
         assert_address_mt_zero_copy_initialized, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
