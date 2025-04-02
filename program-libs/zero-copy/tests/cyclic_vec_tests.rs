@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use light_zero_copy::{
     cyclic_vec::{ZeroCopyCyclicVec, ZeroCopyCyclicVecU64},
     errors::ZeroCopyError,
