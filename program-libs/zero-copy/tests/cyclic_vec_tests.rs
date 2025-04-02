@@ -730,6 +730,23 @@ fn test_from_bytes_at_failing() {
             metadata_len + data_len,
         ))
     );
+    {
+        let mut cloned_buffer = buffer.clone();
+        // set current_index greater than length
+        let current_index: u64 = 1;
+        cloned_buffer[0..8].copy_from_slice(&current_index.to_le_bytes());
+        let result = ZeroCopyCyclicVecU64::<u32>::from_bytes_at(&mut cloned_buffer);
+        assert_eq!(result, Err(ZeroCopyError::CurrentIndexGreaterThanLength));
+    }
+
+    {
+        let mut cloned_buffer = buffer.clone();
+        // set length greater than capacity
+        let length: u64 = 5;
+        cloned_buffer[8..16].copy_from_slice(&length.to_le_bytes());
+        let result = ZeroCopyCyclicVecU64::<u32>::from_bytes_at(&mut cloned_buffer);
+        assert_eq!(result, Err(ZeroCopyError::LengthGreaterThanCapacity));
+    }
 }
 
 #[test]

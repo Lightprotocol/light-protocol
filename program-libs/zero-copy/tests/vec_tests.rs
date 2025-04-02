@@ -576,7 +576,7 @@ fn test_from_bytes_at_failing() {
     let mut buffer = vec![0u8; buffer_len];
     let length: u64 = 4;
 
-    ZeroCopyVecU64::<u32>::new_at(length, &mut buffer).expect("Failed to create ZeroCopyVeceMut");
+    ZeroCopyVecU64::<u32>::new_at(length, &mut buffer).expect("Failed to create ZeroCopyVecMut");
 
     let result = ZeroCopyVecU64::<u32>::from_bytes_at(&mut buffer[..metadata_len - 1]);
     assert_eq!(
@@ -595,6 +595,14 @@ fn test_from_bytes_at_failing() {
             metadata_len + data_len,
         ))
     );
+
+    {
+        // set length greater than capacity
+        let length: u64 = 5;
+        buffer[0..8].copy_from_slice(&length.to_le_bytes());
+        let result = ZeroCopyVecU64::<u32>::from_bytes_at(&mut buffer);
+        assert_eq!(result, Err(ZeroCopyError::LengthGreaterThanCapacity));
+    }
 }
 
 #[test]
