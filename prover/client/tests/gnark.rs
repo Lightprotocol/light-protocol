@@ -401,7 +401,7 @@ async fn prove_batch_address_append() {
     let mut sparse_merkle_tree = SparseMerkleTree::<
         Poseidon,
         { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-    >::new(subtrees, start_index as usize);
+    >::new(subtrees, start_index);
     // Generate circuit inputs
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
