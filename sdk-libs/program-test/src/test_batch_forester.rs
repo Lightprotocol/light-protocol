@@ -61,16 +61,6 @@ pub async fn perform_batch_append<Rpc: RpcConnection>(
     _is_metadata_forester: bool,
     instruction_data: Option<InstructionDataBatchAppendInputs>,
 ) -> Result<Signature, RpcError> {
-    // let forester_epoch_pda = get_forester_epoch_pda_from_authority(&forester.pubkey(), epoch).0;
-    // let pre_forester_counter = if is_metadata_forester {
-    //     0
-    // } else {
-    //     rpc.get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda)
-    //         .await
-    //         .unwrap()
-    //         .unwrap()
-    //         .work_counter
-    // };
     let merkle_tree_pubkey = bundle.accounts.merkle_tree;
     let output_queue_pubkey = bundle.accounts.nullifier_queue;
 
@@ -868,7 +858,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let mut sparse_merkle_tree =
         SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
             <[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(),
-            start_index as usize,
+            start_index,
         );
 
     let inputs =
