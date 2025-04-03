@@ -646,7 +646,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
-        debug!("get_multiple_new_address_proofs called with merkle_tree_pubkey: {}, addresses count: {}", bs58::encode(&merkle_tree_pubkey).into_string(), addresses.len());
         self.rate_limited_request(|| async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
@@ -655,8 +654,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     tree: bs58::encode(&merkle_tree_pubkey).into_string(),
                 })
                 .collect();
-
-            debug!("Request params: {:?}", params);
 
             let request = photon_api::models::GetMultipleNewAddressProofsV2PostRequest {
                 params,
@@ -678,10 +675,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
             let photon_proofs =
                 match Self::extract_result("get_multiple_new_address_proofs", result.result) {
-                    Ok(proofs) => {
-                        debug!("Successfully extracted proofs: {:?}", proofs);
-                        proofs
-                    }
+                    Ok(proofs) => proofs,
                     Err(e) => {
                         error!("Failed to extract proofs: {:?}", e);
                         return Err(e);
