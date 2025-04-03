@@ -35,7 +35,7 @@ const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
 #[serial]
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
-        enable_indexer: false,
+        enable_indexer: true,
         wait_time: 60,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
