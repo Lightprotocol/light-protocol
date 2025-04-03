@@ -20,10 +20,7 @@ use light_prover_client::{
 use reqwest::Client;
 use tracing::{debug, error, warn};
 
-use crate::{
-    error::ForesterUtilsError,
-    utils::{create_reference_address_tree, wait_for_indexer},
-};
+use crate::{error::ForesterUtilsError, utils::wait_for_indexer};
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
