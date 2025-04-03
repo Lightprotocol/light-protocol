@@ -312,8 +312,8 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         .enumerate()
     {
         let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
-        let mut data = Vec::new();
-        input_token_data[i].serialize(&mut data)?;
+        let data = Vec::new();
+        // input_token_data[i].serialize(&mut data)?;
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes: [u8; 8] = remaining_accounts[compressed_account_with_context

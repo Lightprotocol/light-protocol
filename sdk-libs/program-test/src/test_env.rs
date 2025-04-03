@@ -70,7 +70,11 @@ pub async fn setup_test_programs(
     program_test.add_program("light_registry", light_registry::ID, None);
     program_test.add_program("account_compression", account_compression::ID, None);
     program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
-    program_test.add_program("light_system_program", light_system_program::ID, None);
+    program_test.add_program(
+        "light_system_program_pinocchio",
+        light_system_program::ID,
+        None,
+    );
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     std::env::set_var("SBF_OUT_DIR", sbf_path);
     let registered_program = env_accounts::get_registered_program_pda();

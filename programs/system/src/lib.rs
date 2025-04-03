@@ -1,13 +1,15 @@
 use init_context_account::init_cpi_context_account;
 use invoke::instruction::InvokeInstruction;
-use invoke_cpi::account::CpiContextAccount;
+use invoke_cpi::{
+    account::CpiContextAccount, instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
+};
 use light_account_checks::{
     checks::check_signer, discriminator::Discriminator as LightDiscriminator,
 };
 use pinocchio::pubkey::Pubkey;
 
 pub mod account_compression_state;
-pub mod account_traits;
+mod account_traits;
 mod check_accounts;
 pub mod constants;
 pub mod context;
@@ -101,6 +103,10 @@ pub fn process_instruction(
             init_cpi_context_account(accounts, instruction_data)
         }
         InstructionDiscriminator::Invoke => invoke(accounts, instruction_data),
+        InstructionDiscriminator::InvokeCpi => invoke_cpi(accounts, instruction_data),
+        InstructionDiscriminator::InvokeCpiWithReadOnly => {
+            invoke_cpi_with_read_only(accounts, instruction_data)
+        }
         _ => panic!(""),
     }?;
     Ok(())
@@ -135,14 +141,30 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    let instruction_data = &instruction_data[4..];
+
     sol_log_compute_units();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_deserialize");
-    let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(inputs.as_slice()).unwrap();
+    let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data).unwrap();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_deserialize");
-
-    process_invoke_cpi(ctx, inputs, None, None)?;
+    // msg!(format!(
+    //     "accounts {:?}",
+    //     accounts.iter().map(|x| x.key()).collect::<Vec<_>>()
+    // )
+    // .as_str());
+    let (ctx, remaining_accounts) =
+        <InvokeCpiInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+    // msg!(format!(
+    //     "remaining_accounts {:?}",
+    //     remaining_accounts
+    //         .iter()
+    //         .map(|x| x.key())
+    //         .collect::<Vec<_>>()
+    // )
+    // .as_str());
+    process_invoke_cpi(ctx, inputs, None, None, remaining_accounts)?;
     sol_log_compute_units();
     // 22,903 bytes heap with 33 outputs
     #[cfg(feature = "bench-sbf")]
@@ -150,41 +172,55 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-// #[allow(unused_variables)]
-// pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
-//     accounts: &[AccountInfo],
-//     instruction_data: &[u8],
-// ) -> Result<()> {
-//     #[cfg(not(feature = "readonly"))]
-//     {
-//         msg!("Readonly feature is not enabled.");
+#[allow(unused_variables)]
+pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<()> {
+    #[cfg(not(feature = "readonly"))]
+    {
+        msg!("Readonly feature is not enabled.");
 
-//         return Err(SystemProgramError::InstructionNotCallable.into());
-//     }
-//     #[cfg(feature = "bench-sbf")]
-//     bench_sbf_start!("cpda_deserialize");
-//     #[allow(unreachable_code)]
-//     {
-//         let (inputs, _) =
-//             ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(inputs.as_slice()).unwrap();
-//         #[cfg(feature = "bench-sbf")]
-//         bench_sbf_end!("cpda_deserialize");
-//         // disable set cpi context because cpi context account uses InvokeCpiInstruction
-//         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
-//             if cpi_context.set_context() {
-//                 msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
-//                 msg!("Please use invoke_cpi instead.");
-//                 return Err(SystemProgramError::InstructionNotCallable.into());
-//             }
-//         }
-//         process_invoke_cpi(
-//             ctx,
-//             inputs.invoke_cpi,
-//             inputs.read_only_addresses,
-//             inputs.read_only_accounts,
-//         )
-//     }
-// }
+        return Err(SystemProgramError::InstructionNotCallable.into());
+    }
+    let instruction_data = &instruction_data[4..];
+
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_start!("cpda_deserialize");
+    #[allow(unreachable_code)]
+    {
+        let (inputs, _) =
+            ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data).unwrap();
+        let (ctx, remaining_accounts) =
+            <InvokeCpiInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+
+        #[cfg(feature = "bench-sbf")]
+        bench_sbf_end!("cpda_deserialize");
+        // disable set cpi context because cpi context account uses InvokeCpiInstruction
+        if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
+            if cpi_context.set_context() {
+                msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
+                msg!("Please use invoke_cpi instead.");
+                return Err(SystemProgramError::InstructionNotCallable.into());
+            }
+        }
+        // msg!(format!(
+        //     "remaining_accounts {:?}",
+        //     remaining_accounts
+        //         .iter()
+        //         .map(|x| x.key())
+        //         .collect::<Vec<_>>()
+        // )
+        // .as_str());
+        process_invoke_cpi(
+            ctx,
+            inputs.invoke_cpi,
+            inputs.read_only_addresses,
+            inputs.read_only_accounts,
+            remaining_accounts,
+        )
+    }
+}
 
 // TODO: move to different crate with macro
 pub trait LightContext<'info>: Sized {

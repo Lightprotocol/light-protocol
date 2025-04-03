@@ -44,4 +44,4 @@ use solana_program::{msg, rent::Rent, sysvar::Sysvar};
 ))]
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 #[cfg(all(feature = "pinocchio", target_os = "solana"))]
-use pinocchio::{msg, sysvars::rent::Rent, sysvars::Sysvar};
+use pinocchio::{sysvars::rent::Rent, sysvars::Sysvar};

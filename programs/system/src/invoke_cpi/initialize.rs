@@ -1,3 +1,5 @@
+use pinocchio::account_info::AccountInfo;
+
 use crate::Result;
 
 use super::account::CpiContextAccount;

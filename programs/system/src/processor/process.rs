@@ -417,7 +417,14 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     }
     sol_log_compute_units();
     // 17. CPI account compression program ---------------------------------------------------
-    cpi_account_compression_program(context, cpi_ix_bytes)
+
+    msg!("start_acp_cpi");
+    sol_log_compute_units();
+
+    cpi_account_compression_program(context, cpi_ix_bytes)?;
+    sol_log_compute_units();
+    msg!("end_acp_cpi");
+    Ok(())
 }
 
 #[cfg(feature = "debug")]

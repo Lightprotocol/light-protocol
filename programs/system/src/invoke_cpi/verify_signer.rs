@@ -5,6 +5,11 @@ use light_compressed_account::instruction_data::zero_copy::{
 };
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use pinocchio::{
+    msg,
+    program_error::ProgramError,
+    pubkey::{try_find_program_address, Pubkey},
+};
 
 use crate::errors::SystemProgramError;
 /// Checks:
@@ -44,16 +49,16 @@ pub fn cpi_signer_checks(
 /// is the actual invoking program.
 pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
     let seeds = [CPI_AUTHORITY_PDA_SEED];
-    let derived_signer = Pubkey::try_find_program_address(&seeds, invoking_program)
+    let derived_signer = try_find_program_address(&seeds, invoking_program)
         .ok_or(ProgramError::InvalidSeeds)?
         .0;
     if derived_signer != *authority {
-        msg!(
-            "Cpi signer check failed. Derived cpi signer {} !=  authority {}",
-            derived_signer,
-            authority
-        );
-        return Err(SystemProgramError::CpiSignerCheckFailed);
+        msg!(format!(
+            "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
+            derived_signer, authority
+        )
+        .as_str());
+        return Err(SystemProgramError::CpiSignerCheckFailed.into());
     }
     Ok(())
 }
@@ -67,16 +72,15 @@ pub fn input_compressed_accounts_signer_check(
         .iter()
         .try_for_each(
             |compressed_account_with_context| {
-                let invoking_program_id = invoking_program_id.key();
-                if invoking_program_id == compressed_account_with_context.compressed_account.owner.into() {
+                if *invoking_program_id == compressed_account_with_context.compressed_account.owner.to_bytes() {
                     Ok(())
                 } else {
                     msg!(
-                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {}",
+                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
                         compressed_account_with_context.compressed_account.owner.to_bytes(),
                         invoking_program_id
                     );
-                    Err(SystemProgramError::SignerCheckFailed)
+                    Err(SystemProgramError::SignerCheckFailed.into())
                 }
             },
         )
@@ -94,32 +98,22 @@ pub fn output_compressed_accounts_write_access_check(
 ) -> Result<()> {
     for compressed_account in output_compressed_accounts.iter() {
         if compressed_account.compressed_account.data.is_some()
-            && invoking_program_id.key()
-                != compressed_account
-                    .compressed_account
-                    .owner
-                    .to_bytes()
-                    .into()
+            && *invoking_program_id != compressed_account.compressed_account.owner.to_bytes()
         {
             msg!(
-                    "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {}",
+                 format!(   "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {:?}",
                     compressed_account.compressed_account.owner.to_bytes(),
-                    invoking_program_id.key()
-                );
-            msg!("compressed_account: {:?}", compressed_account);
-            return Err(SystemProgramError::WriteAccessCheckFailed);
+                    invoking_program_id
+                ).as_str());
+            msg!(format!("compressed_account: {:?}", compressed_account).as_str());
+            return Err(SystemProgramError::WriteAccessCheckFailed.into());
         }
         if compressed_account.compressed_account.data.is_none()
-            && invoking_program_id.key()
-                == compressed_account
-                    .compressed_account
-                    .owner
-                    .to_bytes()
-                    .into()
+            && *invoking_program_id == compressed_account.compressed_account.owner.to_bytes()
         {
             msg!("For program owned compressed accounts the data field needs to be defined.");
-            msg!("compressed_account: {:?}", compressed_account);
-            return Err(SystemProgramError::DataFieldUndefined);
+            // msg!("compressed_account: {:?}", compressed_account);
+            return Err(SystemProgramError::DataFieldUndefined.into());
         }
     }
     Ok(())

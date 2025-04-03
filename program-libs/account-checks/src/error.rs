@@ -24,6 +24,10 @@ pub enum AccountError {
     InvalidSigner,
     #[error("Invalid Seeds")]
     InvalidSeeds,
+    #[error("Invalid Program Id")]
+    InvalidProgramId,
+    #[error("Program not executable.")]
+    ProgramNotExecutable,
 }
 
 // TODO: reconfigure error codes
@@ -41,6 +45,8 @@ impl From<AccountError> for u32 {
             AccountError::FailedBorrowRentSysvar => 12014,
             AccountError::InvalidSigner => 12015,
             AccountError::InvalidSeeds => 12016,
+            AccountError::InvalidProgramId => 12017,
+            AccountError::ProgramNotExecutable => 12018,
         }
     }
 }

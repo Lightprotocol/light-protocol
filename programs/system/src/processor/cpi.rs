@@ -95,6 +95,10 @@ pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8
     };
     let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
+    msg!("start_acp_cpi");
     sol_log_compute_units();
-    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])
+    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])?;
+    sol_log_compute_units();
+    msg!("end_acp_cpi");
+    Ok(())
 }

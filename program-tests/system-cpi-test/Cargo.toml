@@ -22,15 +22,15 @@ default = ["custom-heap"]
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-light-compressed-token = { workspace = true }
-light-system-program-anchor = { workspace = true }
-light-registry = { workspace = true }
-account-compression = { workspace = true }
+light-compressed-token = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+light-registry = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true, features = ["anchor"] }
-light-compressed-account = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
-light-merkle-tree-metadata = { workspace = true }
-light-account-checks = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+light-batched-merkle-tree = { workspace = true, features = ["anchor"] }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-account-checks = { workspace = true, features = ["anchor"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -42,10 +42,9 @@ light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
-light-verifier = { workspace = true }
-anchor-spl = { workspace = true }
+light-verifier = { workspace = true, features = ["anchor"] }
 serial_test = { workspace = true }
-create-address-test-program = { workspace = true }
+create-address-test-program = { workspace = true, features = ["cpi"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

@@ -11,6 +11,7 @@ use crate::{
     account_traits::SignerAccounts, invoke_cpi::instruction::InvokeCpiInstruction,
     processor::process::process,
 };
+use pinocchio::account_info::AccountInfo;
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:
@@ -18,10 +19,11 @@ use crate::{
 /// 2. sets or gets cpi context (process_cpi_context)
 #[allow(unused_mut)]
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
-    mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+    mut ctx: InvokeCpiInstruction<'info>,
     inputs: ZInstructionDataInvokeCpi<'a>,
     read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
     read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
+    remaining_accounts: &'b [AccountInfo],
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
@@ -36,30 +38,27 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
     #[allow(unused)]
-    let mut cpi_context_inputs_len = if let Some(value) = ctx.cpi_context_account.as_ref() {
-        value.context.len()
-    } else {
-        0
-    };
-    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(
-        inputs,
-        &mut ctx.cpi_context_account,
-        ctx.fee_payer.key(),
-        ctx.remaining_accounts,
-    ) {
-        Ok(Some(inputs)) => inputs,
-        Ok(None) => return Ok(()),
-        Err(err) => return Err(err),
-    };
+    let (inputs, cpi_context_inputs_len) =
+        match crate::invoke_cpi::process_cpi_context::process_cpi_context(
+            inputs,
+            &mut ctx.cpi_context_account,
+            *ctx.fee_payer.key(),
+            remaining_accounts,
+        ) {
+            Ok(Some(inputs)) => inputs,
+            Ok(None) => return Ok(()),
+            Err(err) => return Err(err),
+        };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
 
     process(
         inputs.into(),
-        Some(ctx.invoking_program.key()),
+        Some(*ctx.invoking_program.key()),
         ctx,
         cpi_context_inputs_len,
         read_only_addresses,
         read_only_accounts,
+        remaining_accounts,
     )
 }

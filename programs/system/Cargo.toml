@@ -1,5 +1,5 @@
 [package]
-name = "light-system-program"
+name = "light-system-program-pinocchio"
 version = "1.2.0"
 description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_system_program"
+name = "light_system_program_pinocchio"
 [features]
 no-entrypoint = []
 no-log-ix-name = []

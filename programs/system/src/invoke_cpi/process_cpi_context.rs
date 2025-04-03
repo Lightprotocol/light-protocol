@@ -1,7 +1,8 @@
 use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvokeCpi;
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 
-use super::account::{deserialize_cpi_context_account, CpiContextAccount};
+use super::account::{deserialize_cpi_context_account, CpiContextAccount, ZCpiContextAccount};
 use crate::errors::SystemProgramError;
 
 /// Cpi context enables the use of input compressed accounts owned by different
@@ -28,21 +29,22 @@ use crate::errors::SystemProgramError;
 ///    other state transition is executed with the combined inputs.
 pub fn process_cpi_context<'a, 'info>(
     mut inputs: ZInstructionDataInvokeCpi<'a>,
-    cpi_context_account: &mut Option<Account<'info, CpiContextAccount>>,
+    cpi_context_account: &mut Option<&'info AccountInfo>,
     fee_payer: Pubkey,
     remaining_accounts: &[AccountInfo],
-) -> Result<Option<ZInstructionDataInvokeCpi<'a>>> {
+) -> Result<Option<(ZInstructionDataInvokeCpi<'a>, usize)>> {
     let cpi_context = &inputs.cpi_context;
     if cpi_context_account.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
-        return Err(SystemProgramError::CpiContextMissing);
+        return Err(SystemProgramError::CpiContextMissing.into());
     }
-
+    let mut num_cpi_contexts = 0;
     if let Some(cpi_context) = cpi_context {
         let cpi_context_account = match cpi_context_account {
             Some(cpi_context_account) => cpi_context_account,
-            None => return Err(SystemProgramError::CpiContextAccountUndefined),
+            None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
+        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account)?;
         let index = if !inputs
             .input_compressed_accounts_with_merkle_context
             .is_empty()
@@ -53,50 +55,51 @@ pub fn process_cpi_context<'a, 'info>(
         } else if !inputs.output_compressed_accounts.is_empty() {
             inputs.output_compressed_accounts[0].merkle_tree_index
         } else {
-            return Err(SystemProgramError::NoInputs);
+            return Err(SystemProgramError::NoInputs.into());
         };
         let first_merkle_tree_pubkey = remaining_accounts[index as usize].key();
-        if first_merkle_tree_pubkey != cpi_context_account.associated_merkle_tree {
+        if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
             msg!(
                 "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
                 first_merkle_tree_pubkey,
                 cpi_context_account.associated_merkle_tree
             );
-            return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch);
+            return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
         }
         if cpi_context.set_context() {
-            set_cpi_context(fee_payer, cpi_context_account, inputs)?;
+            set_cpi_context(fee_payer, &mut cpi_context_account, inputs)?;
             return Ok(None);
         } else {
             if cpi_context_account.context.is_empty() {
                 msg!("cpi context account : {:?}", cpi_context_account);
                 msg!("fee payer : {:?}", fee_payer);
                 msg!("cpi context  : {:?}", cpi_context);
-                return Err(SystemProgramError::CpiContextEmpty);
-            } else if cpi_context_account.fee_payer != fee_payer || cpi_context.first_set_context()
+                return Err(SystemProgramError::CpiContextEmpty.into());
+            } else if *cpi_context_account.fee_payer != fee_payer.into()
+                || cpi_context.first_set_context()
             {
                 msg!("cpi context account : {:?}", cpi_context_account);
                 msg!("fee payer : {:?}", fee_payer);
                 msg!("cpi context  : {:?}", cpi_context);
-                return Err(SystemProgramError::CpiContextFeePayerMismatch);
+                return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
 
-            let z_cpi_context_account =
-                deserialize_cpi_context_account(&cpi_context_account.to_account_info())
-                    .map_err(ProgramError::from)?;
-            inputs.combine(z_cpi_context_account.context);
+            // let z_cpi_context_account =
+            //     deserialize_cpi_context_account(cpi_context_account).map_err(ProgramError::from)?;
+            num_cpi_contexts = cpi_context_account.context.len();
+            inputs.combine(cpi_context_account.context);
             // Reset cpi context account
             cpi_context_account.context = Vec::new();
-            cpi_context_account.fee_payer = Pubkey::default();
+            *cpi_context_account.fee_payer = Pubkey::default().into();
         }
     }
-    Ok(Some(inputs))
+    Ok(Some((inputs, num_cpi_contexts)))
 }
 
-pub fn set_cpi_context(
+pub fn set_cpi_context<'a>(
     fee_payer: Pubkey,
-    cpi_context_account: &mut CpiContextAccount,
-    inputs: ZInstructionDataInvokeCpi,
+    cpi_context_account: &mut ZCpiContextAccount<'a>,
+    inputs: ZInstructionDataInvokeCpi<'a>,
 ) -> Result<()> {
     // SAFETY Assumptions:
     // -  previous data in cpi_context_account
@@ -115,17 +118,18 @@ pub fn set_cpi_context(
         if !inputs.new_address_params.is_empty() {
             unimplemented!("new addresses are not supported with cpi context");
         }
-        cpi_context_account.context = vec![(&inputs).into()];
-        cpi_context_account.fee_payer = fee_payer;
-    } else if fee_payer == cpi_context_account.fee_payer && !cpi_context_account.context.is_empty()
+        cpi_context_account.context = vec![inputs];
+        *cpi_context_account.fee_payer = fee_payer.into();
+    } else if *cpi_context_account.fee_payer == fee_payer.into()
+        && !cpi_context_account.context.is_empty()
     {
         if !inputs.new_address_params.is_empty() {
             unimplemented!("new addresses are not supported with cpi context");
         }
-        cpi_context_account.context.push((&inputs).into());
+        cpi_context_account.context.push(inputs);
     } else {
-        msg!(" {} != {}", fee_payer, cpi_context_account.fee_payer);
-        return Err(SystemProgramError::CpiContextFeePayerMismatch);
+        msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
+        return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
     }
     Ok(())
 }

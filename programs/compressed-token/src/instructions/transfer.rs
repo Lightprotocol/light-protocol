@@ -19,8 +19,8 @@ pub struct TransferInstruction<'info> {
     /// are included in the token data hash, which is a public input to the
     /// validity proof.
     pub authority: Signer<'info>,
-    /// CHECK: (seed constraint).
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
+    /// CHECK: (seed constraint in cpi).
+    // #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).

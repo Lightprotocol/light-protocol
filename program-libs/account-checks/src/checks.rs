@@ -212,6 +212,39 @@ pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), Acc
 }
 
 #[cfg(not(feature = "pinocchio"))]
+pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
+    if *account_info.key != *program_id {
+        // msg!(
+        //     "check_owner expected {:?} got: {:?}",
+        //     program_id,
+        //     account_info.key()
+        // );
+        return Err(AccountError::InvalidProgramId);
+    }
+    if !account_info.executable {
+        return Err(AccountError::ProgramNotExecutable);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pinocchio")]
+pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
+    if *account_info.key() != *program_id {
+        pinocchio::msg!(format!(
+            "check_owner expected {:?} got: {:?}",
+            program_id,
+            account_info.key()
+        )
+        .as_str());
+        return Err(AccountError::InvalidProgramId);
+    }
+    if !account_info.executable() {
+        return Err(AccountError::ProgramNotExecutable);
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "pinocchio"))]
 pub fn check_pda_seeds(
     seeds: &[&[u8]],
     program_id: &Pubkey,
@@ -227,11 +260,7 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
-#[cfg(all(
-    feature = "pinocchio",
-    not(feature = "anchor"),
-    not(feature = "solana")
-))]
+#[cfg(feature = "pinocchio")]
 pub fn check_pda_seeds(
     seeds: &[&[u8]],
     program_id: &Pubkey,

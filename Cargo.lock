@@ -3511,7 +3511,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-system-program"
+name = "light-system-program-anchor"
+version = "1.2.0"
+dependencies = [
+ "account-compression",
+ "aligned-sized",
+ "anchor-lang",
+ "light-compressed-account",
+ "light-zero-copy",
+ "solana-security-txt",
+ "zerocopy 0.8.23",
+]
+
+[[package]]
+name = "light-system-program-pinocchio"
 version = "1.2.0"
 dependencies = [
  "aligned-sized",
@@ -3532,19 +3545,6 @@ dependencies = [
  "rand 0.8.5",
  "solana-security-txt",
  "thiserror 2.0.12",
- "zerocopy 0.8.23",
-]
-
-[[package]]
-name = "light-system-program-anchor"
-version = "1.2.0"
-dependencies = [
- "account-compression",
- "aligned-sized",
- "anchor-lang",
- "light-compressed-account",
- "light-zero-copy",
- "solana-security-txt",
  "zerocopy 0.8.23",
 ]
 

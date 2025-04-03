@@ -31,6 +31,7 @@ impl CpiContextAccount {
     }
 }
 
+#[derive(Debug)]
 pub struct ZCpiContextAccount<'a> {
     pub fee_payer: Ref<&'a mut [u8], light_compressed_account::pubkey::Pubkey>,
     pub associated_merkle_tree: Ref<&'a mut [u8], light_compressed_account::pubkey::Pubkey>,
