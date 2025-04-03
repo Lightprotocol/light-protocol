@@ -1,3 +1,5 @@
+use std::{fmt::Debug, str::FromStr};
+
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -20,7 +22,6 @@ use photon_api::models::{
     TokenAccountList, TokenBalanceList,
 };
 use solana_sdk::pubkey::Pubkey;
-use std::{fmt::Debug, str::FromStr};
 
 use crate::{
     rpc::{types::ProofRpcResult, RpcConnection},
@@ -164,7 +165,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Debug + 'static {
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle>;
 
-    async fn get_batch_address_update_info(
+    async fn get_address_queue_with_proofs(
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
@@ -319,12 +320,15 @@ impl AddressMerkleTreeBundle {
         match &self.merkle_tree {
             IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.get_subtrees(),
             IndexedMerkleTreeVersion::V2(tree) => {
-                println!("get_subtrees v2, rightmost_index: {}", tree.merkle_tree.rightmost_index);
+                println!(
+                    "get_subtrees v2, rightmost_index: {}",
+                    tree.merkle_tree.rightmost_index
+                );
                 for i in 0..tree.merkle_tree.rightmost_index {
                     println!("leaf[{}] = {:?}", i, tree.merkle_tree.get_leaf(i).unwrap());
                 }
                 tree.merkle_tree.get_subtrees()
-            },
+            }
         }
     }
 

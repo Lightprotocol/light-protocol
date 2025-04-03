@@ -21,6 +21,9 @@ pub struct AddressQueueIndex {
 
 impl AddressQueueIndex {
     pub fn new(address: String, queue_index: u64) -> AddressQueueIndex {
-        AddressQueueIndex { address, queue_index }
+        AddressQueueIndex {
+            address,
+            queue_index,
+        }
     }
 }

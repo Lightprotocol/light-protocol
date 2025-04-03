@@ -1,7 +1,7 @@
 use groth16_solana::errors::Groth16Error;
 use light_compressed_account::CompressedAccountError;
-use thiserror::Error;
 use light_hasher::HasherError;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ProverClientError {

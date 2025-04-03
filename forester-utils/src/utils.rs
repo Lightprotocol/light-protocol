@@ -1,18 +1,18 @@
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::system_instruction;
-use num_bigint::BigUint;
-use rand::prelude::StdRng;
-use rand::{Rng, SeedableRng};
 use light_client::{
     indexer::Indexer,
     rpc::{RpcConnection, RpcError},
 };
-use solana_sdk::{signature::Signer, transaction::Transaction};
-use tokio::time::sleep;
-use tracing::{debug, error};
 use light_compressed_account::address::derive_address;
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
+use num_bigint::BigUint;
+use rand::{prelude::StdRng, Rng, SeedableRng};
+use solana_sdk::{signature::Signer, transaction::Transaction};
+use tokio::time::sleep;
+use tracing::{debug, error};
+
 use crate::error::ForesterUtilsError;
 
 pub async fn airdrop_lamports<R: RpcConnection>(
@@ -79,7 +79,11 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
     Ok(())
 }
 
-pub fn create_reference_address_tree(tree_pubkey: &Pubkey, seed: u64, addresses_count: u64) -> IndexedMerkleTree<Poseidon, usize> {
+pub fn create_reference_address_tree(
+    tree_pubkey: &Pubkey,
+    seed: u64,
+    addresses_count: u64,
+) -> IndexedMerkleTree<Poseidon, usize> {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut tree = IndexedMerkleTree::<Poseidon, usize>::new(40, 0).unwrap();
     for _ in 0..addresses_count {

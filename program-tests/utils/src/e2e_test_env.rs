@@ -119,6 +119,7 @@ use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_merkle_tree_metadata::QueueType;
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
@@ -158,7 +159,7 @@ use solana_sdk::{
     signer::{SeedDerivable, Signer},
 };
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
+
 use crate::{
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue,

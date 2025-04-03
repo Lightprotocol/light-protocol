@@ -18,10 +18,10 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{
-        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree,
-        BatchAddressUpdateIndexerResponse, Hash, Indexer, IndexerError, IntoPhotonAccount,
-        LeafIndexInfo, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext,
-        StateMerkleTreeAccounts, StateMerkleTreeBundle,
+        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressQueueIndex,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer, IndexerError,
+        IntoPhotonAccount, LeafIndexInfo, MerkleProof, MerkleProofWithContext,
+        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{
         merkle_tree::MerkleTreeExt,
@@ -70,7 +70,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use light_client::indexer::AddressQueueIndex;
+
 use crate::{
     indexer::{
         utils::create_address_merkle_tree_and_queue_account_with_assert, TestIndexerExtensions,
@@ -728,7 +728,7 @@ where
         &self.address_merkle_trees
     }
 
-    async fn get_batch_address_update_info(
+    async fn get_address_queue_with_proofs(
         &mut self,
         merkle_tree_pubkey: &Pubkey,
         zkp_batch_size: u16,
@@ -756,14 +756,12 @@ where
             .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?;
 
         let addresses: Vec<AddressQueueIndex> = address_proofs
-                .iter()
-                .enumerate()
-                .map(|(i, proof)| {
-                    AddressQueueIndex {
-                        address: proof.account_hash,
-                        queue_index: proof.root_seq + i as u64,
-                    }
-                })
+            .iter()
+            .enumerate()
+            .map(|(i, proof)| AddressQueueIndex {
+                address: proof.account_hash,
+                queue_index: proof.root_seq + i as u64,
+            })
             .collect();
         let non_inclusion_proofs = self
             .get_multiple_new_address_proofs_h40(

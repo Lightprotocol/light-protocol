@@ -7,7 +7,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::AddressMerkleTreeAccounts,
+    indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -24,8 +24,7 @@ use tokio::{
     time::{sleep, timeout},
 };
 use tracing::log::info;
-use light_client::indexer::Indexer;
-use light_client::indexer::photon_indexer::PhotonIndexer;
+
 use crate::test_utils::{forester_config, general_action_config, init, keypair_action_config};
 
 mod test_utils;
@@ -175,20 +174,25 @@ async fn test_address_batched() {
     )
     .unwrap();
 
-    let photon_indexer_update_info = photon_indexer
-        .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+    let photon_address_queue_with_proofs = photon_indexer
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
         .await
         .unwrap();
 
-
-    let test_indexer_update_info = env.indexer
-        .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+    let test_indexer_address_queue_with_proofs = env
+        .indexer
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
         .await
         .unwrap();
 
-    println!("photon_indexer_update_info {}: {:#?}", 0, photon_indexer_update_info);
-    println!("test_indexer_update_info {}: {:#?}", 0, test_indexer_update_info);
-
+    println!(
+        "photon_indexer_update_info {}: {:#?}",
+        0, photon_address_queue_with_proofs
+    );
+    println!(
+        "test_indexer_update_info {}: {:#?}",
+        0, test_indexer_address_queue_with_proofs
+    );
 
     for i in 0..merkle_tree.queue_batches.batch_size {
         println!("===================== tx {} =====================", i);
@@ -204,20 +208,28 @@ async fn test_address_batched() {
 
         sleep(Duration::from_millis(100)).await;
 
-        if (i+1) % 10 == 0 {
-            let photon_indexer_update_info = photon_indexer
-                .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+        if (i + 1) % 10 == 0 {
+            let photon_address_queue_with_proofs = photon_indexer
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
                 .await
                 .unwrap();
 
-
-            let test_indexer_update_info = env.indexer
-                .get_batch_address_update_info(&address_merkle_tree_pubkey, 10)
+            let test_indexer_address_queue_with_proofs = env
+                .indexer
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
                 .await
                 .unwrap();
 
-            println!("photon_indexer_update_info {}: {:#?}", i + 1, photon_indexer_update_info);
-            println!("test_indexer_update_info {}: {:#?}", i + 1, test_indexer_update_info);
+            println!(
+                "photon_indexer_update_info {}: {:#?}",
+                i + 1,
+                photon_address_queue_with_proofs
+            );
+            println!(
+                "test_indexer_update_info {}: {:#?}",
+                i + 1,
+                test_indexer_address_queue_with_proofs
+            );
         }
     }
 

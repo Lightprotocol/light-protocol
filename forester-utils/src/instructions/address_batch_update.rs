@@ -1,13 +1,14 @@
-use crate::error::ForesterUtilsError;
-use crate::utils::{create_reference_address_tree, wait_for_indexer};
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
 };
 use light_client::{indexer::Indexer, rpc::RpcConnection};
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_hasher::bigint::bigint_to_be_bytes_array;
+use light_compressed_account::{
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
+};
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_prover_client::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     gnark::{
@@ -18,9 +19,11 @@ use light_prover_client::{
 };
 use reqwest::Client;
 use tracing::{debug, error, warn};
-use light_compressed_account::hash_chain::create_hash_chain_from_slice;
-use light_hasher::Poseidon;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
+
+use crate::{
+    error::ForesterUtilsError,
+    utils::{create_reference_address_tree, wait_for_indexer},
+};
 
 pub async fn create_batch_update_address_tree_instruction_data<R, I>(
     rpc: &mut R,
@@ -51,7 +54,10 @@ where
         let full_batch_index = merkle_tree.queue_batches.pending_batch_index;
         let batch = &merkle_tree.queue_batches.batches[full_batch_index as usize];
         let zkp_batch_index = batch.get_num_inserted_zkps();
-        println!("full batch index: {}, zkp batch index: {}", full_batch_index, zkp_batch_index);
+        println!(
+            "full batch index: {}, zkp batch index: {}",
+            full_batch_index, zkp_batch_index
+        );
         let leaves_hash_chain =
             merkle_tree.hash_chain_stores[full_batch_index as usize][zkp_batch_index as usize];
         let start_index = merkle_tree.next_index;
@@ -64,13 +70,17 @@ where
     wait_for_indexer(rpc, indexer).await?;
 
     let indexer_update_info = indexer
-        .get_batch_address_update_info(merkle_tree_pubkey, batch_size)
+        .get_address_queue_with_proofs(merkle_tree_pubkey, batch_size)
         .await
         .map_err(|_| {
             ForesterUtilsError::Indexer("Failed to get batch address update info".into())
         })?;
 
-    let indexer_root = indexer_update_info.non_inclusion_proofs.first().unwrap().root;
+    let indexer_root = indexer_update_info
+        .non_inclusion_proofs
+        .first()
+        .unwrap()
+        .root;
     assert_eq!(indexer_root, current_root);
 
     let batch_size = indexer_update_info.addresses.len();
@@ -101,7 +111,10 @@ where
     warn!("addresses hash chain: {:?}", addresses_hashchain);
     warn!("leaves hash chain: {:?}", leaves_hash_chain);
     warn!("start index: {}", start_index);
-    warn!("indexer update info start index: {}", indexer_update_info.batch_start_index);
+    warn!(
+        "indexer update info start index: {}",
+        indexer_update_info.batch_start_index
+    );
     for (i, address) in addresses.iter().enumerate() {
         warn!("address {}: {:?}", i, address);
     }
@@ -114,12 +127,11 @@ where
         .subtrees
         .try_into()
         .map_err(|_| ForesterUtilsError::Prover("Failed to convert subtrees to array".into()))?;
-    let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index as usize);
-    let ref_tree = create_reference_address_tree(
-        merkle_tree_pubkey,
-        0,
-        start_index-1
-    );
+    let mut sparse_merkle_tree = SparseMerkleTree::<
+        Poseidon,
+        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+    >::new(subtrees, start_index as usize);
+    let ref_tree = create_reference_address_tree(merkle_tree_pubkey, 0, start_index - 1);
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index as usize,

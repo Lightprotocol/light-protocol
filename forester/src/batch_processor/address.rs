@@ -26,8 +26,8 @@ pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<
         &mut *context.indexer.lock().await,
         &context.merkle_tree,
     )
-        .await
-        .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
+    .await
+    .map_err(|e| BatchProcessError::InstructionData(e.to_string()))?;
 
     // Create the instruction
     let instruction = create_batch_update_address_tree_instruction(

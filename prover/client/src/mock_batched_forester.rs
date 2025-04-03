@@ -2,10 +2,12 @@ use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
-use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
+use light_merkle_tree_reference::{
+    indexed::IndexedMerkleTree, sparse_merkle_tree::SparseMerkleTree, MerkleTree,
+};
 use num_bigint::BigUint;
 use reqwest::Client;
-use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
+
 use crate::{
     batch_address_append::get_batch_address_append_circuit_inputs,
     batch_append_with_proofs::get_batch_append_with_proofs_inputs,
@@ -286,10 +288,11 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
         }
 
-        let subtrees = self.merkle_tree
-            .merkle_tree
-            .get_subtrees();
-        let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(<[[u8; 32]; HEIGHT]>::try_from(subtrees).unwrap(), start_index);
+        let subtrees = self.merkle_tree.merkle_tree.get_subtrees();
+        let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(
+            <[[u8; 32]; HEIGHT]>::try_from(subtrees).unwrap(),
+            start_index,
+        );
 
         let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
             start_index,

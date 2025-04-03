@@ -1,4 +1,5 @@
-use crate::test_utils::{forester_config, init};
+use std::{sync::Arc, time::Duration};
+
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
 use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
@@ -27,8 +28,9 @@ use rand::{prelude::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Keypair, signer::Signer};
-use std::{sync::Arc, time::Duration};
 use tokio::sync::{mpsc, oneshot, Mutex};
+
+use crate::test_utils::{forester_config, init};
 
 mod test_utils;
 

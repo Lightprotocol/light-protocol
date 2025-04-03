@@ -63,7 +63,10 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 
     // If we found a new low element.
     if let Some((new_low_element_changelog_index, new_low_element)) = new_low_element {
-        println!("new_low_element_changelog_index: {}", new_low_element_changelog_index);
+        println!(
+            "new_low_element_changelog_index: {}",
+            new_low_element_changelog_index
+        );
         println!("new_low_element: {:?}", new_low_element);
         println!("new_element: {:?}", new_element);
         // println!("indexed_changelogs: {:?}", indexed_changelogs);
