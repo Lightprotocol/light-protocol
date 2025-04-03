@@ -44,7 +44,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     low_element_next_indices: Vec<usize>,
     low_element_proofs: Vec<Vec<[u8; 32]>>,
     new_element_values: Vec<[u8; 32]>,
-    // subtrees: [[u8; 32]; HEIGHT],
     sparse_merkle_tree: &mut SparseMerkleTree<Poseidon, HEIGHT>,
     leaves_hashchain: [u8; 32],
     zkp_batch_size: usize,
