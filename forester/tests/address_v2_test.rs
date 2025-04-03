@@ -46,7 +46,7 @@ async fn test_create_v2_address() {
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();
 
     init(Some(LightValidatorConfig {
-        enable_indexer: false,
+        enable_indexer: true,
         wait_time: 10,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
