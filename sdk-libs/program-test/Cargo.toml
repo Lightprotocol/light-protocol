@@ -33,6 +33,6 @@ num-bigint = { workspace = true }
 num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
+light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }

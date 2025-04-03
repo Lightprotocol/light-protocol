@@ -922,9 +922,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 }
 
-pub fn get_merkle_tree_account_size_default() -> usize {
-    let mt_account = BatchedMerkleTreeMetadata::default();
-    mt_account.get_account_size().unwrap()
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    use super::*;
+
+    pub fn get_merkle_tree_account_size_default() -> usize {
+        let mt_account = BatchedMerkleTreeMetadata::default();
+        mt_account.get_account_size().unwrap()
+    }
 }
 
 impl Deref for BatchedMerkleTreeAccount<'_> {
@@ -1052,11 +1057,13 @@ pub fn assert_batch_adress_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 #[cfg(test)]
 mod test {
     use rand::{Rng, SeedableRng};
 
     use super::*;
+    use crate::merkle_tree::test_utils::get_merkle_tree_account_size_default;
 
     #[test]
     fn test_from_bytes_invalid_tree_type() {

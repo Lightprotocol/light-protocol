@@ -1,3 +1,4 @@
+#![cfg(feature = "test-only")]
 #![allow(unused_assignments)]
 use std::cmp::min;
 
@@ -13,17 +14,20 @@ use light_batched_merkle_tree::{
         InitAddressTreeAccountsInstructionData,
     },
     initialize_state_tree::{
-        get_state_merkle_tree_account_size_from_params, init_batched_state_merkle_tree_accounts,
+        init_batched_state_merkle_tree_accounts,
+        test_utils::get_state_merkle_tree_account_size_from_params,
         InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
         assert_batch_adress_event, assert_batch_append_event_event, assert_nullify_event,
-        get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
+        test_utils::get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
-        get_output_queue_account_size_default, get_output_queue_account_size_from_params,
+        test_utils::{
+            get_output_queue_account_size_default, get_output_queue_account_size_from_params,
+        },
         BatchedQueueAccount, BatchedQueueMetadata,
     },
 };

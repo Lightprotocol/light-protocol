@@ -1,15 +1,19 @@
+#![cfg(feature = "test-only")]
 use light_batched_merkle_tree::{
     constants::NUM_BATCHES,
     initialize_state_tree::{
-        assert_state_mt_zero_copy_initialized, create_output_queue_account,
-        init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
-        InitStateTreeAccountsInstructionData,
+        init_batched_state_merkle_tree_accounts,
+        test_utils::{
+            assert_state_mt_zero_copy_initialized, create_output_queue_account,
+            CreateOutputQueueParams, InitStateTreeAccountsInstructionData,
+        },
     },
-    merkle_tree::{get_merkle_tree_account_size, get_merkle_tree_account_size_default},
+    merkle_tree::{get_merkle_tree_account_size, test_utils::get_merkle_tree_account_size_default},
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
-        assert_queue_zero_copy_inited, get_output_queue_account_size,
-        get_output_queue_account_size_default, BatchedQueueMetadata,
+        get_output_queue_account_size,
+        test_utils::{assert_queue_zero_copy_inited, get_output_queue_account_size_default},
+        BatchedQueueMetadata,
     },
 };
 use light_compressed_account::pubkey::Pubkey;

@@ -10,6 +10,7 @@ edition = "2021"
 default = []
 anchor = ["anchor-lang", "solana"]
 solana = []
+test-only = []
 
 [dependencies]
 aligned-sized = { workspace = true }

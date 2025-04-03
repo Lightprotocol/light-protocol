@@ -9,8 +9,7 @@ use crate::{
         init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
-    merkle_tree_metadata::BatchedMerkleTreeMetadata,
-    queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    queue::BatchedQueueAccount,
 };
 
 #[derive(Debug)]
@@ -239,106 +238,120 @@ pub fn batched_tree_is_ready_for_rollover(
     Ok(())
 }
 
-#[repr(C)]
-pub struct StateMtRollOverAssertParams {
-    pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeMetadata,
-    pub new_mt_account_data: Vec<u8>,
-    pub old_mt_pubkey: Pubkey,
-    pub new_mt_pubkey: Pubkey,
-    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
-    pub queue_account_data: Vec<u8>,
-    pub ref_queue_account: BatchedQueueMetadata,
-    pub new_queue_account_data: Vec<u8>,
-    pub new_queue_pubkey: Pubkey,
-    pub ref_rolledover_queue: BatchedQueueMetadata,
-    pub old_queue_pubkey: Pubkey,
-    pub slot: u64,
-}
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    use light_compressed_account::pubkey::Pubkey;
 
-#[cfg(not(target_os = "solana"))]
-pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
-    let StateMtRollOverAssertParams {
-        mt_account_data,
-        ref_mt_account,
-        new_mt_account_data,
-        old_mt_pubkey,
-        new_mt_pubkey,
-
-        ref_rolledover_mt,
-        mut queue_account_data,
-        ref_queue_account,
-        mut new_queue_account_data,
-        new_queue_pubkey,
-        mut ref_rolledover_queue,
-        old_queue_pubkey,
-        slot,
-    } = params;
-
-    ref_rolledover_queue
-        .metadata
-        .rollover(old_mt_pubkey, new_queue_pubkey)
-        .unwrap();
-    ref_rolledover_queue
-        .metadata
-        .rollover_metadata
-        .rolledover_slot = slot;
-
-    crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account);
-
-    let zero_copy_queue = BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
-    assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
-    let params = MtRollOverAssertParams {
-        mt_account_data,
-        ref_mt_account,
-        new_mt_account_data,
-        new_mt_pubkey,
-        ref_rolledover_mt,
-        old_queue_pubkey,
-        slot,
-        old_mt_pubkey,
+    use crate::{
+        initialize_state_tree::test_utils::assert_state_mt_zero_copy_initialized,
+        merkle_tree::BatchedMerkleTreeAccount,
+        merkle_tree_metadata::BatchedMerkleTreeMetadata,
+        queue::{
+            test_utils::assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata,
+        },
     };
 
-    assert_mt_roll_over(params);
-}
+    #[repr(C)]
+    pub struct StateMtRollOverAssertParams {
+        pub mt_account_data: Vec<u8>,
+        pub ref_mt_account: BatchedMerkleTreeMetadata,
+        pub new_mt_account_data: Vec<u8>,
+        pub old_mt_pubkey: Pubkey,
+        pub new_mt_pubkey: Pubkey,
+        pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
+        pub queue_account_data: Vec<u8>,
+        pub ref_queue_account: BatchedQueueMetadata,
+        pub new_queue_account_data: Vec<u8>,
+        pub new_queue_pubkey: Pubkey,
+        pub ref_rolledover_queue: BatchedQueueMetadata,
+        pub old_queue_pubkey: Pubkey,
+        pub slot: u64,
+    }
 
-#[repr(C)]
-pub struct MtRollOverAssertParams {
-    pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeMetadata,
-    pub new_mt_account_data: Vec<u8>,
-    pub new_mt_pubkey: Pubkey,
-    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
-    pub old_queue_pubkey: Pubkey,
-    pub slot: u64,
-    old_mt_pubkey: Pubkey,
-}
+    pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
+        let StateMtRollOverAssertParams {
+            mt_account_data,
+            ref_mt_account,
+            new_mt_account_data,
+            old_mt_pubkey,
+            new_mt_pubkey,
 
-#[cfg(not(target_os = "solana"))]
-pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
-    let MtRollOverAssertParams {
-        mut mt_account_data,
-        ref_mt_account,
-        mut new_mt_account_data,
-        new_mt_pubkey,
-        mut ref_rolledover_mt,
-        old_queue_pubkey,
-        slot,
-        old_mt_pubkey,
-    } = params;
+            ref_rolledover_mt,
+            mut queue_account_data,
+            ref_queue_account,
+            mut new_queue_account_data,
+            new_queue_pubkey,
+            mut ref_rolledover_queue,
+            old_queue_pubkey,
+            slot,
+        } = params;
 
-    ref_rolledover_mt
-        .metadata
-        .rollover(old_queue_pubkey, new_mt_pubkey)
-        .unwrap();
-    ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
-    let zero_copy_mt =
-        BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &old_mt_pubkey).unwrap();
-    assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
+        ref_rolledover_queue
+            .metadata
+            .rollover(old_mt_pubkey, new_queue_pubkey)
+            .unwrap();
+        ref_rolledover_queue
+            .metadata
+            .rollover_metadata
+            .rolledover_slot = slot;
 
-    crate::initialize_state_tree::assert_state_mt_zero_copy_initialized(
-        &mut new_mt_account_data,
-        ref_mt_account,
-        &new_mt_pubkey,
-    );
+        assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account);
+
+        let zero_copy_queue =
+            BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
+        assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
+        let params = MtRollOverAssertParams {
+            mt_account_data,
+            ref_mt_account,
+            new_mt_account_data,
+            new_mt_pubkey,
+            ref_rolledover_mt,
+            old_queue_pubkey,
+            slot,
+            old_mt_pubkey,
+        };
+
+        assert_mt_roll_over(params);
+    }
+
+    #[repr(C)]
+    pub struct MtRollOverAssertParams {
+        pub mt_account_data: Vec<u8>,
+        pub ref_mt_account: BatchedMerkleTreeMetadata,
+        pub new_mt_account_data: Vec<u8>,
+        pub new_mt_pubkey: Pubkey,
+        pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
+        pub old_queue_pubkey: Pubkey,
+        pub slot: u64,
+        old_mt_pubkey: Pubkey,
+    }
+
+    pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
+        let MtRollOverAssertParams {
+            mut mt_account_data,
+            ref_mt_account,
+            mut new_mt_account_data,
+            new_mt_pubkey,
+            mut ref_rolledover_mt,
+            old_queue_pubkey,
+            slot,
+            old_mt_pubkey,
+        } = params;
+
+        ref_rolledover_mt
+            .metadata
+            .rollover(old_queue_pubkey, new_mt_pubkey)
+            .unwrap();
+        ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
+        let zero_copy_mt =
+            BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &old_mt_pubkey)
+                .unwrap();
+        assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
+
+        assert_state_mt_zero_copy_initialized(
+            &mut new_mt_account_data,
+            ref_mt_account,
+            &new_mt_pubkey,
+        );
+    }
 }
