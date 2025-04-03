@@ -131,7 +131,6 @@ where
         Poseidon,
         { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
     >::new(subtrees, start_index as usize);
-    let ref_tree = create_reference_address_tree(merkle_tree_pubkey, 0, start_index - 1);
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index as usize,
