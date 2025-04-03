@@ -119,6 +119,7 @@ use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_merkle_tree_metadata::QueueType;
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
@@ -757,7 +758,7 @@ where
                                 let leaves_hash_chain = merkle_tree.hash_chain_stores
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
-                                let batch_start_index = merkle_tree.next_index as usize;
+                                let _batch_start_index = merkle_tree.next_index as usize;
 
                                 let addresses = self
                                     .indexer
@@ -805,6 +806,13 @@ where
                                     low_element_proofs
                                         .push(non_inclusion_proof.low_address_proof.to_vec());
                                 }
+
+                                let subtrees =   self.indexer
+                                    .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                    .await
+                                    .unwrap();
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index);
+
                                 let inputs = get_batch_address_append_circuit_inputs::<
                                     { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
                                 >(
@@ -816,15 +824,10 @@ where
                                     low_element_next_indices,
                                     low_element_proofs,
                                     addresses,
-                                    self.indexer
-                                        .get_subtrees(merkle_tree_pubkey.to_bytes())
-                                        .await
-                                        .unwrap()
-                                        .try_into()
-                                        .unwrap(),
+                                    &mut sparse_merkle_tree,
                                     leaves_hash_chain,
-                                    batch_start_index,
                                     batch.zkp_batch_size as usize,
+                                    None,
                                 )
                                 .unwrap();
                                 let client = Client::new();

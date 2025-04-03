@@ -18,10 +18,10 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{
-        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressWithTree, Hash,
-        Indexer, IndexerError, IntoPhotonAccount, LeafIndexInfo, MerkleProof,
-        MerkleProofWithContext, NewAddressProofWithContext, StateMerkleTreeAccounts,
-        StateMerkleTreeBundle,
+        Address, AddressMerkleTreeAccounts, AddressMerkleTreeBundle, AddressQueueIndex,
+        AddressWithTree, BatchAddressUpdateIndexerResponse, Hash, Indexer, IndexerError,
+        IntoPhotonAccount, LeafIndexInfo, MerkleProof, MerkleProofWithContext,
+        NewAddressProofWithContext, StateMerkleTreeAccounts, StateMerkleTreeBundle,
     },
     rpc::{
         merkle_tree::MerkleTreeExt,
@@ -348,9 +348,12 @@ where
                         )
                         .await?;
                     let payload_string = if let Some(payload) = payload {
+                        println!("batched payload = {}", payload.to_string());
                         payload.to_string()
                     } else {
-                        payload_legacy.unwrap().to_string()
+                        let payload_string = payload_legacy.unwrap().to_string();
+                        println!("legacy payload = {}", &payload_string);
+                        payload_string
                     };
                     (Vec::<u16>::new(), indices, payload_string)
                 }
@@ -445,38 +448,38 @@ where
                 }
             };
 
-        println!("json_payload {:?}", json_payload);
-        let mut retries = 3;
+        let mut retries = 1000;
         while retries > 0 {
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()
-                .await
-                .expect("Failed to execute request.");
+                .await;
             println!("response_result {:?}", response_result);
-            if response_result.status().is_success() {
-                let body = response_result.text().await.unwrap();
-                println!("body {:?}", body);
-                println!("root_indices {:?}", root_indices);
-                println!("address_root_indices {:?}", address_root_indices);
-                let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-                let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
-                return Ok(ProofRpcResult {
-                    root_indices,
-                    address_root_indices: address_root_indices.clone(),
-                    proof: CompressedProof {
-                        a: proof_a,
-                        b: proof_b,
-                        c: proof_c,
-                    },
-                });
+            if let Ok(response_result) = response_result {
+                if response_result.status().is_success() {
+                    let body = response_result.text().await.unwrap();
+                    println!("body {:?}", body);
+                    println!("root_indices {:?}", root_indices);
+                    println!("address_root_indices {:?}", address_root_indices);
+                    let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                    let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                    let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                    let root_indices = root_indices.iter().map(|x| Some(*x)).collect();
+                    return Ok(ProofRpcResult {
+                        root_indices,
+                        address_root_indices: address_root_indices.clone(),
+                        proof: CompressedProof {
+                            a: proof_a,
+                            b: proof_b,
+                            c: proof_c,
+                        },
+                    });
+                }
             } else {
-                warn!("Error: {}", response_result.text().await.unwrap());
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                warn!("Error: {:#?}", response_result);
+                tokio::time::sleep(Duration::from_secs(5)).await;
                 retries -= 1;
             }
         }
@@ -723,6 +726,64 @@ where
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         &self.address_merkle_trees
+    }
+
+    async fn get_address_queue_with_proofs(
+        &mut self,
+        merkle_tree_pubkey: &Pubkey,
+        zkp_batch_size: u16,
+    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+        let batch_start_index = self
+            .get_address_merkle_trees()
+            .iter()
+            .find(|x| x.accounts.merkle_tree == *merkle_tree_pubkey)
+            .unwrap()
+            .get_v2_indexed_merkle_tree()
+            .ok_or(IndexerError::Unknown(
+                "Failed to get v2 indexed merkle tree".into(),
+            ))?
+            .merkle_tree
+            .rightmost_index;
+
+        let address_proofs = self
+            .get_queue_elements(
+                merkle_tree_pubkey.to_bytes(),
+                QueueType::BatchedAddress,
+                zkp_batch_size,
+                None,
+            )
+            .await
+            .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?;
+
+        let addresses: Vec<AddressQueueIndex> = address_proofs
+            .iter()
+            .enumerate()
+            .map(|(i, proof)| AddressQueueIndex {
+                address: proof.account_hash,
+                queue_index: proof.root_seq + i as u64,
+            })
+            .collect();
+        let non_inclusion_proofs = self
+            .get_multiple_new_address_proofs_h40(
+                merkle_tree_pubkey.to_bytes(),
+                address_proofs.iter().map(|x| x.account_hash).collect(),
+            )
+            .await
+            .map_err(|_| {
+                IndexerError::Unknown("Failed to get get_multiple_new_address_proofs_full".into())
+            })?;
+
+        let subtrees = self
+            .get_subtrees(merkle_tree_pubkey.to_bytes())
+            .await
+            .map_err(|_| IndexerError::Unknown("Failed to get subtrees".into()))?;
+
+        Ok(BatchAddressUpdateIndexerResponse {
+            batch_start_index: batch_start_index as u64,
+            addresses,
+            non_inclusion_proofs,
+            subtrees,
+        })
     }
 }
 

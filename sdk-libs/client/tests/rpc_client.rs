@@ -270,12 +270,15 @@ async fn test_all_endpoints() {
 
     let addresses = vec![hash_to_bn254_field_size_be(&seed)];
     let new_address_proofs = indexer
-        .get_multiple_new_address_proofs(env_accounts.merkle_tree_pubkey.to_bytes(), addresses)
+        .get_multiple_new_address_proofs(
+            env_accounts.address_merkle_tree_pubkey.to_bytes(),
+            addresses,
+        )
         .await
         .unwrap();
     assert!(!new_address_proofs.is_empty());
     assert_eq!(
         new_address_proofs[0].merkle_tree.to_bytes(),
-        env_accounts.merkle_tree_pubkey.to_bytes()
+        env_accounts.address_merkle_tree_pubkey.to_bytes()
     );
 }

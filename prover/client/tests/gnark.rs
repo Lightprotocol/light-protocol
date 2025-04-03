@@ -3,7 +3,7 @@ use light_batched_merkle_tree::constants::{
 };
 use light_compressed_account::hash_chain::create_hash_chain_from_slice;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
-use light_merkle_tree_reference::MerkleTree;
+use light_merkle_tree_reference::{sparse_merkle_tree::SparseMerkleTree, MerkleTree};
 use light_prover_client::{
     batch_address_append::{
         get_batch_address_append_circuit_inputs, get_test_batch_address_append_inputs,
@@ -329,7 +329,7 @@ pub fn print_circuit_test_data_json_formatted() {
     let start_index = 2;
     let tree_height = 4;
 
-    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height);
+    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height, None);
 
     let json_output = to_json(&inputs);
     println!("{}", json_output);
@@ -392,7 +392,16 @@ async fn prove_batch_address_append() {
         .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
         .collect::<Vec<_>>();
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
-    let batch_start_index = start_index;
+
+    let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = relayer_merkle_tree
+        .merkle_tree
+        .get_subtrees()
+        .try_into()
+        .unwrap();
+    let mut sparse_merkle_tree = SparseMerkleTree::<
+        Poseidon,
+        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+    >::new(subtrees, start_index);
     // Generate circuit inputs
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
@@ -404,14 +413,10 @@ async fn prove_batch_address_append() {
             low_element_next_indices,
             low_element_proofs,
             new_element_values,
-            relayer_merkle_tree
-                .merkle_tree
-                .get_subtrees()
-                .try_into()
-                .unwrap(),
+            &mut sparse_merkle_tree,
             hash_chain,
-            batch_start_index,
             zkp_batch_size,
+            None,
         )
         .unwrap();
     // Convert inputs to JSON format

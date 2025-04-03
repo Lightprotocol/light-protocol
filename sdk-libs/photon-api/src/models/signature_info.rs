@@ -14,16 +14,16 @@ use crate::models;
 pub struct SignatureInfo {
     /// An Unix timestamp (seconds)
     #[serde(rename = "blockTime")]
-    pub block_time: i32,
+    pub block_time: u64,
     /// A Solana transaction signature.
     #[serde(rename = "signature")]
     pub signature: String,
     #[serde(rename = "slot")]
-    pub slot: i32,
+    pub slot: u64,
 }
 
 impl SignatureInfo {
-    pub fn new(block_time: i32, signature: String, slot: i32) -> SignatureInfo {
+    pub fn new(block_time: u64, signature: String, slot: u64) -> SignatureInfo {
         SignatureInfo {
             block_time,
             signature,

@@ -12,8 +12,6 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedAccountProofResponseValueV2 {
-    #[serde(rename = "context")]
-    pub tree_context: Box<models::TreeContextInfo>,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
@@ -28,26 +26,28 @@ pub struct GetCompressedAccountProofResponseValueV2 {
     pub root: String,
     #[serde(rename = "rootSeq")]
     pub root_seq: u64,
+    #[serde(rename = "treeContext")]
+    pub tree_context: Box<models::TreeContextInfo>,
 }
 
 impl GetCompressedAccountProofResponseValueV2 {
     pub fn new(
-        tree_context: models::TreeContextInfo,
         hash: String,
         leaf_index: u32,
         proof: Vec<String>,
         prove_by_index: bool,
         root: String,
         root_seq: u64,
+        tree_context: models::TreeContextInfo,
     ) -> GetCompressedAccountProofResponseValueV2 {
         GetCompressedAccountProofResponseValueV2 {
-            tree_context: Box::new(tree_context),
             hash,
             leaf_index,
             proof,
             prove_by_index,
             root,
             root_seq,
+            tree_context: Box::new(tree_context),
         }
     }
 }

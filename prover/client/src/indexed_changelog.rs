@@ -25,7 +25,7 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
         .enumerate()
         .filter_map(|(index, changelog_entry)| {
             if changelog_entry.element.index == low_element.index {
-                Some(indexed_changelog_index + index) // ) % indexed_changelogs.len()
+                Some(indexed_changelog_index + index) //% indexed_changelogs.len())
             } else {
                 None
             }
@@ -63,6 +63,14 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 
     // If we found a new low element.
     if let Some((new_low_element_changelog_index, new_low_element)) = new_low_element {
+        println!(
+            "new_low_element_changelog_index: {}",
+            new_low_element_changelog_index
+        );
+        println!("new_low_element: {:?}", new_low_element);
+        println!("new_element: {:?}", new_element);
+        // println!("indexed_changelogs: {:?}", indexed_changelogs);
+
         let new_low_element_changelog_entry = &indexed_changelogs[new_low_element_changelog_index];
         *changelog_index = new_low_element_changelog_entry.changelog_index + 1;
         *low_element = IndexedElement {

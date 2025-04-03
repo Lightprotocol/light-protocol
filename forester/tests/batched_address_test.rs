@@ -7,7 +7,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::AddressMerkleTreeAccounts,
+    indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
@@ -29,11 +29,13 @@ use crate::test_utils::{forester_config, general_action_config, init, keypair_ac
 
 mod test_utils;
 
+const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
-        enable_indexer: false,
+        enable_indexer: true,
         wait_time: 60,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
@@ -114,6 +116,10 @@ async fn test_address_batched() {
     let indexer: TestIndexer<SolanaRpcConnection> =
         TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
 
+    let mut photon_rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    photon_rpc.payer = forester_keypair.insecure_clone();
+    let mut photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, photon_rpc);
+
     let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,
         indexer,
@@ -168,6 +174,26 @@ async fn test_address_batched() {
     )
     .unwrap();
 
+    let photon_address_queue_with_proofs = photon_indexer
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
+        .await
+        .unwrap();
+
+    let test_indexer_address_queue_with_proofs = env
+        .indexer
+        .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
+        .await
+        .unwrap();
+
+    println!(
+        "photon_indexer_update_info {}: {:#?}",
+        0, photon_address_queue_with_proofs
+    );
+    println!(
+        "test_indexer_update_info {}: {:#?}",
+        0, test_indexer_address_queue_with_proofs
+    );
+
     for i in 0..merkle_tree.queue_batches.batch_size {
         println!("===================== tx {} =====================", i);
 
@@ -181,6 +207,30 @@ async fn test_address_batched() {
         .unwrap();
 
         sleep(Duration::from_millis(100)).await;
+
+        if (i + 1) % 10 == 0 {
+            let photon_address_queue_with_proofs = photon_indexer
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
+                .await
+                .unwrap();
+
+            let test_indexer_address_queue_with_proofs = env
+                .indexer
+                .get_address_queue_with_proofs(&address_merkle_tree_pubkey, 10)
+                .await
+                .unwrap();
+
+            println!(
+                "photon_indexer_update_info {}: {:#?}",
+                i + 1,
+                photon_address_queue_with_proofs
+            );
+            println!(
+                "test_indexer_update_info {}: {:#?}",
+                i + 1,
+                test_indexer_address_queue_with_proofs
+            );
+        }
     }
 
     let zkp_batches = tree_params.input_queue_batch_size / tree_params.input_queue_zkp_batch_size;
