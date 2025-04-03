@@ -145,7 +145,7 @@ where
             &mut sparse_merkle_tree,
             leaves_hash_chain,
             batch_size,
-            Some(ref_tree),
+            None,
         )
         .map_err(|e| {
             error!(
