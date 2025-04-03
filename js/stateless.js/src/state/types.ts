@@ -39,13 +39,13 @@ export enum TreeType {
  *
  * Onchain Accounts are subject to Solana's write-lock limits.
  *
- * To load balance transactions, use {@link pickStateTreeInfo} to
+ * To load balance transactions, use {@link selectStateTreeInfo} to
  * select a random tree from active Trees.
  *
  * Example:
  * ```typescript
  * const infos = await getCachedActiveStateTreeInfos();
- * const info = pickStateTreeInfo(infos);
+ * const info = selectStateTreeInfo(infos);
  * const ix = CompressedTokenProgram.compress({
  *     ... // other params
  *     outputStateTree: info
@@ -90,7 +90,6 @@ export interface QueueIndex {
     queueId: number; // u8
     index: number; // u16
 }
-
 
 /**
  * Describe the generic compressed account details applicable to every

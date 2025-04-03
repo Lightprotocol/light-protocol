@@ -7,7 +7,11 @@ import {
 } from '@solana/web3.js';
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
-import { buildAndSignTx, pickStateTreeInfo, sendAndConfirmTx } from '../utils';
+import {
+    buildAndSignTx,
+    selectStateTreeInfo,
+    sendAndConfirmTx,
+} from '../utils';
 import BN from 'bn.js';
 import {
     CompressedAccountWithMerkleContext,
@@ -38,7 +42,7 @@ export async function decompress(
 ): Promise<TransactionSignature> {
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
         (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;

@@ -18,7 +18,11 @@ import {
     CompressedAccountWithMerkleContext,
     StateTreeInfo,
 } from '../state';
-import { buildAndSignTx, pickStateTreeInfo, sendAndConfirmTx } from '../utils';
+import {
+    buildAndSignTx,
+    selectStateTreeInfo,
+    sendAndConfirmTx,
+} from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
 /**
@@ -53,7 +57,7 @@ export async function transfer(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 
     while (accumulatedLamports.lt(lamports)) {

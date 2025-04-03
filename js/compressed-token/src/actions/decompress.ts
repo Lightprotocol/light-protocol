@@ -11,12 +11,15 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
+import { selectTokenPoolInfosForDecompression } from '../utils/get-token-pool-infos';
+import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
  * Decompress compressed tokens
@@ -60,7 +63,6 @@ export async function decompress(
         },
     );
 
-    /// TODO: consider using a different selection algorithm
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
         compressedTokenAccounts.items,
         amount,
@@ -70,12 +72,22 @@ export async function decompress(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
+    const stateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
+    const selectedStateTreeInfo = selectStateTreeInfo(stateTreeInfos);
+
+    const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+    const selectedTokenPoolInfos = selectTokenPoolInfosForDecompression(
+        tokenPoolInfos,
+        amount,
+    );
+
     const ix = await CompressedTokenProgram.decompress({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
-        toAddress, // TODO: add explicit check that it is a token account
+        toAddress,
         amount,
-        outputStateTree: merkleTree,
+        outputStateTreeInfo: selectedStateTreeInfo,
+        tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
         tokenProgramId,

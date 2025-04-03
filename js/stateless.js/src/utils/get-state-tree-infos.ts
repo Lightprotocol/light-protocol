@@ -11,7 +11,7 @@ import { StateTreeInfo, TreeType } from '../state/types';
 import { Rpc } from '../rpc';
 
 /**
- * @deprecated use {@link pickStateTreeInfo} instead. Get a random tree and
+ * @deprecated use {@link selectStateTreeInfo} instead. Get a random tree and
  * queue from the active state tree addresses.
  *
  * Prevents write lock contention on state trees.
@@ -44,7 +44,7 @@ export function pickRandomTreeAndQueue(info: StateTreeInfo[]): {
  * @param treeType  The type of tree. Defaults to TreeType.StateV2
  * @returns A random tree and queue
  */
-export function pickStateTreeInfo(
+export function selectStateTreeInfo(
     info: StateTreeInfo[],
     treeType: TreeType = TreeType.StateV1,
 ): StateTreeInfo {

@@ -134,33 +134,46 @@ export enum Action {
     Decompress = 2,
     Transfer = 3,
 }
+
+const shuffleArray = <T>(array: T[]): T[] => {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+};
+
 /**
- * Get a random token pool info from the token pool infos. Filters out token
- * pool infos that are not initialized. Filters out token pools with
- * insufficient balance. Returns multiple token pool infos if multiple will be
- * required for the required amount.
+ * Select a random token pool info from the token pool infos.
+ *
+ * @param infos The token pool infos
+ *
+ * @returns A random token pool info
+ */
+export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
+    infos = shuffleArray(infos);
+
+    // Return a single random token pool info
+    return infos[0];
+}
+
+/**
+ * Select one or multiple token pool infos from the token pool infos.
  *
  * @param infos             The token pool infos
  * @param decompressAmount  The amount of tokens to withdraw. Only provide if
  *                          you want to withdraw a specific amount.
  *
- * @returns A random token pool info
+ * @returns One or multiple token pool infos
  */
-export function pickTokenPoolInfos(
+export function selectTokenPoolInfosForDecompression(
     infos: TokenPoolInfo[],
-    decompressAmount?: number,
-): TokenPoolInfo[] {
-    // Shuffle the infos array
-    for (let i = infos.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [infos[i], infos[j]] = [infos[j], infos[i]];
-    }
-
+    decompressAmount: number | BN,
+): TokenPoolInfo | TokenPoolInfo[] {
+    infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>
-        decompressAmount
-            ? info.balance.gte(new BN(decompressAmount).mul(new BN(10)))
-            : true,
+        info.balance.gte(new BN(decompressAmount).mul(new BN(10))),
     );
 
     // If none found, return all infos

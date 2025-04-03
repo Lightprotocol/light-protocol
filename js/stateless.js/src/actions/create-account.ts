@@ -15,7 +15,7 @@ import {
     buildAndSignTx,
     deriveAddress,
     deriveAddressSeed,
-    pickStateTreeInfo,
+    selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
 import { defaultTestStateTreeAccounts } from '../constants';
@@ -59,7 +59,7 @@ export async function createAccount(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 
     const proof = await rpc.getValidityProofV0(undefined, [
@@ -141,7 +141,7 @@ export async function createAccountWithLamports(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 
     const { blockhash } = await rpc.getLatestBlockhash();

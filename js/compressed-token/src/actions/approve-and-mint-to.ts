@@ -13,15 +13,38 @@ import {
     dedupeSigner,
     pickRandomTreeAndQueue,
     StateTreeInfo,
-    pickStateTreeInfo,
+    selectStateTreeInfo,
+    toArray,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
-import { StorageOptions } from '../types';
+import { isSingleTokenPoolInfo, StorageOptions } from '../types';
 import {
     getTokenPoolInfos,
-    pickTokenPoolInfos,
+    selectTokenPoolInfo,
+    selectTokenPoolInfosForDecompression,
+    TokenPoolInfo,
 } from '../utils/get-token-pool-infos';
+
+async function getStorageOptions(
+    rpc: Rpc,
+    mint: PublicKey,
+    decompressAmount?: number | BN,
+): Promise<StorageOptions> {
+    const res = await Promise.all([
+        rpc.getCachedActiveStateTreeInfos(),
+        getTokenPoolInfos(rpc, mint),
+    ]);
+
+    return {
+        stateTreeInfo: selectStateTreeInfo(res[0]),
+        tokenPoolInfos: decompressAmount
+            ? selectTokenPoolInfosForDecompression(res[1], decompressAmount)
+            : selectTokenPoolInfo(res[1]),
+    };
+}
+
+
 
 /**
  * Mint compressed tokens to a solana address from an external mint authority
@@ -63,15 +86,17 @@ export async function approveAndMintTo(
         tokenProgramId,
     );
 
-    if (!storageOptions) storageOptions = {};
-    if (!storageOptions.stateTreeInfo) {
+    let selectedStateTreeInfo: StateTreeInfo;
+    let selectedTokenPoolInfo: TokenPoolInfo;
+    if (!storageOptions) {
         const stateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
-        const info = pickStateTreeInfo(stateTreeInfos);
-        storageOptions.stateTreeInfo = info;
-    }
-    if (!storageOptions.tokenPoolInfos) {
+        selectedStateTreeInfo = selectStateTreeInfo(stateTreeInfos);
+
         const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        storageOptions.tokenPoolInfos = pickTokenPoolInfos(tokenPoolInfos);
+        selectedTokenPoolInfo = selectTokenPoolInfos(tokenPoolInfos);
+    } else {
+        selectedStateTreeInfo = storageOptions.stateTreeInfo;
+        selectedTokenPoolInfo = toArray(storageOptions.tokenPoolInfos)[0];
     }
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -81,8 +106,8 @@ export async function approveAndMintTo(
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
         toPubkey: destination,
-        outputStateTreeInfo: storageOptions.stateTreeInfo,
-        tokenPoolInfo: toArray(storageOptions.tokenPoolInfos)[0],
+        outputStateTreeInfo: selectedStateTreeInfo,
+        tokenPoolInfo: selectedTokenPoolInfo,
         tokenProgramId,
     });
 

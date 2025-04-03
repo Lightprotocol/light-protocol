@@ -8,7 +8,11 @@ import {
 
 import { LightSystemProgram } from '../programs';
 import { Rpc } from '../rpc';
-import { buildAndSignTx, pickStateTreeInfo, sendAndConfirmTx } from '../utils';
+import {
+    buildAndSignTx,
+    selectStateTreeInfo,
+    sendAndConfirmTx,
+} from '../utils';
 import BN from 'bn.js';
 import { StateTreeInfo } from '../state';
 
@@ -38,7 +42,7 @@ export async function compress(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = pickStateTreeInfo(stateTreeInfo);
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 
     const ix = await LightSystemProgram.compress({

@@ -81,15 +81,15 @@ export type CompressSplTokenAccountInstructionData = {
 };
 
 export type StorageOptions = {
-    /**
-     * State tree info
-     */
-    stateTreeInfo?: StateTreeInfo;
-    /**
-     * Whether to store the token pool info in the state tree
-     */
-    tokenPoolInfos?: TokenPoolInfo | TokenPoolInfo[];
+    stateTreeInfo: StateTreeInfo;
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
 };
+
+export function isSingleTokenPoolInfo(
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
+): tokenPoolInfos is TokenPoolInfo {
+    return !Array.isArray(tokenPoolInfos);
+}
 
 export type CompressedTokenInstructionDataTransfer = {
     /**
