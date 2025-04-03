@@ -1,4 +1,3 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{
@@ -14,7 +13,13 @@ use light_compressed_token::process_transfer::{
     PackedTokenTransferOutputData,
 };
 use light_hasher::{DataHasher, Poseidon};
-use light_sdk::verify::verify;
+use light_sdk::{
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_borsh,
+    },
+    legacy::*,
+};
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithCompressedPda,
@@ -131,10 +136,6 @@ fn cpi_compressed_pda_withdrawal<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    // Create CPI signer seed
-    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
-    let bump = [bump];
-    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
 
     // Create CPI inputs
@@ -148,8 +149,32 @@ fn cpi_compressed_pda_withdrawal<'info>(
         is_compress: false,
         cpi_context: Some(cpi_context),
     };
-
-    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
+    let mut system_accounts = vec![
+        ctx.accounts.get_light_system_program().clone(),
+        ctx.accounts.get_authority().clone(),
+        ctx.accounts.get_registered_program_pda().clone(),
+        ctx.accounts.get_noop_program().clone(),
+        ctx.accounts.get_account_compression_authority().clone(),
+        ctx.accounts.get_account_compression_program().clone(),
+        ctx.accounts.self_program.to_account_info(),
+        ctx.accounts.get_system_program().clone(),
+        ctx.accounts
+            .get_cpi_context_account()
+            .unwrap_or(&ctx.accounts.get_light_system_program())
+            .clone(),
+    ];
+    system_accounts.extend_from_slice(ctx.remaining_accounts);
+    let light_accounts = CompressionCpiAccounts::new_with_config(
+        ctx.accounts.signer.as_ref(),
+        &system_accounts,
+        CompressionCpiAccountsConfig {
+            self_program: crate::ID,
+            cpi_context: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 
     Ok(())
 }

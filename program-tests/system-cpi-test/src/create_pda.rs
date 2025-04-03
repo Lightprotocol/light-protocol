@@ -522,10 +522,7 @@ pub struct RegisteredUser {
 
 impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
-            .unwrap()
-            .0;
-
+        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes());
         H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }
 }

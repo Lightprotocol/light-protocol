@@ -5,11 +5,10 @@ use light_account_checks::{
     checks::{check_account_info, set_discriminator},
     discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
 };
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
-use light_merkle_tree_metadata::{
-    errors::MerkleTreeMetadataError,
-    queue::{QueueMetadata, QueueType},
+use light_compressed_account::{
+    hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, BATCHED_OUTPUT_QUEUE_TYPE,
 };
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
 use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
@@ -17,11 +16,8 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 use super::batch::BatchState;
 use crate::{
     batch::Batch,
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES, OUTPUT_QUEUE_TYPE, TEST_DEFAULT_BATCH_SIZE,
-    },
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
-    initialize_state_tree::InitStateTreeAccountsInstructionData,
     queue_batch_metadata::QueueBatches,
     BorshDeserialize, BorshSerialize,
 };
@@ -80,12 +76,8 @@ impl BatchedQueueMetadata {
         // To map 256bit pubkeys to < 254bit field size, we hash Pubkeys
         // and truncate the hash to 31 bytes/248 bits.
         self.hashed_merkle_tree_pubkey =
-            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes())
-                .unwrap()
-                .0;
-        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())
-            .unwrap()
-            .0;
+            hash_to_bn254_field_size_be(&meta_data.associated_merkle_tree.to_bytes());
+        self.hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
         Ok(())
     }
 }
@@ -153,7 +145,10 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_account_info(
         account_info: &AccountInfo<'a>,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<OUTPUT_QUEUE_TYPE>(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info)
+        Self::from_account_info::<BATCHED_OUTPUT_QUEUE_TYPE>(
+            &ACCOUNT_COMPRESSION_PROGRAM_ID,
+            account_info,
+        )
     }
 
     /// Deserialize a BatchedQueueAccount from account info.
@@ -169,7 +164,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, (*account_info.key).into())
+        Self::from_bytes::<QUEUE_TYPE>(account_data, (*account_info.key).into())
     }
 
     /// Deserialize a BatchedQueueAccount from bytes.
@@ -183,7 +178,7 @@ impl<'a> BatchedQueueAccount<'a> {
             BatchedQueueAccount,
             ANCHOR_DISCRIMINATOR_LEN,
         >(account_data)?;
-        Self::from_bytes::<OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
+        Self::from_bytes::<BATCHED_OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
     }
 
     fn from_bytes<const QUEUE_TYPE: u64>(
@@ -336,6 +331,14 @@ impl<'a> BatchedQueueAccount<'a> {
                     }
                     return Ok(true);
                 } else {
+                    #[cfg(target_os = "solana")]
+                    {
+                        solana_program::msg!(
+                            "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
+                            leaf_index,
+                            hash_chain_value,*element
+                        );
+                    }
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
             }
@@ -359,6 +362,14 @@ impl<'a> BatchedQueueAccount<'a> {
         }
         // If no value is found and a check is not enforced return ok.
         if prove_by_index {
+            #[cfg(target_os = "solana")]
+            {
+                solana_program::msg!(
+                    "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
+                    leaf_index,
+                    hash_chain_value
+                );
+            }
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {
             Ok(())
@@ -377,7 +388,11 @@ impl<'a> BatchedQueueAccount<'a> {
     /// If current batch state is inserted, returns 0.
     pub fn get_num_inserted_in_current_batch(&self) -> u64 {
         let current_batch = self.batch_metadata.currently_processing_batch_index as usize;
-        self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        if self.batch_metadata.batches[current_batch].get_state() == BatchState::Inserted {
+            0
+        } else {
+            self.batch_metadata.batches[current_batch].get_num_inserted_elements()
+        }
     }
 
     /// Returns true if the pubkey is the associated Merkle tree of the queue.
@@ -522,42 +537,6 @@ pub(crate) fn deserialize_bloom_filter_stores(
     ([slice_1, slice_2], account_data)
 }
 
-pub fn get_output_queue_account_size_default() -> usize {
-    let batch_metadata = BatchedQueueMetadata {
-        metadata: QueueMetadata::default(),
-        batch_metadata: QueueBatches {
-            num_batches: NUM_BATCHES as u64,
-            batch_size: TEST_DEFAULT_BATCH_SIZE,
-            zkp_batch_size: 10,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    batch_metadata
-        .batch_metadata
-        .queue_account_size(QueueType::BatchedOutput as u64)
-        .unwrap()
-}
-
-pub fn get_output_queue_account_size_from_params(
-    ix_data: InitStateTreeAccountsInstructionData,
-) -> usize {
-    let metadata = BatchedQueueMetadata {
-        metadata: QueueMetadata::default(),
-        batch_metadata: QueueBatches {
-            num_batches: NUM_BATCHES as u64,
-            batch_size: ix_data.output_queue_batch_size,
-            zkp_batch_size: ix_data.output_queue_zkp_batch_size,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    metadata
-        .batch_metadata
-        .queue_account_size(QueueType::BatchedOutput as u64)
-        .unwrap()
-}
-
 pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> usize {
     let metadata = BatchedQueueMetadata {
         metadata: QueueMetadata::default(),
@@ -575,54 +554,100 @@ pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> us
         .unwrap()
 }
 
-#[cfg(not(target_os = "solana"))]
-#[allow(clippy::too_many_arguments)]
-pub fn assert_queue_inited(
-    batch_metadata: QueueBatches,
-    ref_batch_metadata: QueueBatches,
-    queue_type: u64,
-    value_vecs: &mut [ZeroCopyVecU64<'_, [u8; 32]>],
-) {
-    assert_eq!(
-        batch_metadata, ref_batch_metadata,
-        "batch_metadata mismatch"
-    );
-
-    if queue_type == QueueType::BatchedOutput as u64 {
-        assert_eq!(value_vecs.len(), NUM_BATCHES, "value_vecs mismatch");
-    } else {
-        assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    use super::*;
+    use crate::{
+        constants::{NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE},
+        initialize_state_tree::InitStateTreeAccountsInstructionData,
+    };
+    pub fn get_output_queue_account_size_default() -> usize {
+        let batch_metadata = BatchedQueueMetadata {
+            metadata: QueueMetadata::default(),
+            batch_metadata: QueueBatches {
+                num_batches: NUM_BATCHES as u64,
+                batch_size: TEST_DEFAULT_BATCH_SIZE,
+                zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        batch_metadata
+            .batch_metadata
+            .queue_account_size(QueueType::BatchedOutput as u64)
+            .unwrap()
     }
-    for vec in value_vecs.iter() {
+
+    pub fn get_output_queue_account_size_from_params(
+        ix_data: InitStateTreeAccountsInstructionData,
+    ) -> usize {
+        let metadata = BatchedQueueMetadata {
+            metadata: QueueMetadata::default(),
+            batch_metadata: QueueBatches {
+                num_batches: NUM_BATCHES as u64,
+                batch_size: ix_data.output_queue_batch_size,
+                zkp_batch_size: ix_data.output_queue_zkp_batch_size,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        metadata
+            .batch_metadata
+            .queue_account_size(QueueType::BatchedOutput as u64)
+            .unwrap()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn assert_queue_inited(
+        batch_metadata: QueueBatches,
+        ref_batch_metadata: QueueBatches,
+        queue_type: u64,
+        value_vecs: &mut [ZeroCopyVecU64<'_, [u8; 32]>],
+    ) {
         assert_eq!(
-            vec.capacity(),
-            batch_metadata.batch_size as usize,
-            "batch_size mismatch"
+            batch_metadata, ref_batch_metadata,
+            "batch_metadata mismatch"
         );
-        assert_eq!(vec.len(), 0, "batch_size mismatch");
+
+        if queue_type == QueueType::BatchedOutput as u64 {
+            assert_eq!(value_vecs.len(), NUM_BATCHES, "value_vecs mismatch");
+        } else {
+            assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
+        }
+        for vec in value_vecs.iter() {
+            assert_eq!(
+                vec.capacity(),
+                batch_metadata.batch_size as usize,
+                "batch_size mismatch"
+            );
+            assert_eq!(vec.len(), 0, "batch_size mismatch");
+        }
+    }
+    pub fn assert_queue_zero_copy_inited(
+        account_data: &mut [u8],
+        ref_account: BatchedQueueMetadata,
+    ) {
+        let mut account = BatchedQueueAccount::output_from_bytes(account_data)
+            .expect("from_bytes_unchecked_mut failed");
+        let batch_metadata = account.batch_metadata;
+        let queue_type = account.metadata.metadata.queue_type;
+        assert_eq!(
+            account.metadata.metadata, ref_account.metadata,
+            "metadata mismatch"
+        );
+        assert_queue_inited(
+            batch_metadata,
+            ref_account.batch_metadata,
+            queue_type,
+            &mut account.value_vecs,
+        );
     }
 }
 
-#[cfg(not(target_os = "solana"))]
-pub fn assert_queue_zero_copy_inited(account_data: &mut [u8], ref_account: BatchedQueueMetadata) {
-    let mut account = BatchedQueueAccount::output_from_bytes(account_data)
-        .expect("from_bytes_unchecked_mut failed");
-    let batch_metadata = account.batch_metadata;
-    let queue_type = account.metadata.metadata.queue_type;
-    assert_eq!(
-        account.metadata.metadata, ref_account.metadata,
-        "metadata mismatch"
-    );
-    assert_queue_inited(
-        batch_metadata,
-        ref_account.batch_metadata,
-        queue_type,
-        &mut account.value_vecs,
-    );
-}
-
+#[cfg(feature = "test-only")]
 #[test]
 fn test_from_bytes_invalid_tree_type() {
+    use crate::queue::test_utils::get_output_queue_account_size_default;
     let mut account_data = vec![0u8; get_output_queue_account_size_default()];
     let account = BatchedQueueAccount::from_bytes::<6>(&mut account_data, Pubkey::default());
     assert_eq!(
@@ -667,12 +692,8 @@ fn test_batched_queue_metadata_init() {
         assert_eq!(batch.zkp_batch_size, zkp_batch_size);
         assert_eq!(batch.start_index, batch_size * (i as u64));
     }
-    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes())
-        .unwrap()
-        .0;
-    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes())
-        .unwrap()
-        .0;
+    let hashed_merkle_tree_pubkey = hash_to_bn254_field_size_be(&mt_pubkey.to_bytes());
+    let hashed_queue_pubkey = hash_to_bn254_field_size_be(&queue_pubkey.to_bytes());
     assert_eq!(
         metadata.hashed_merkle_tree_pubkey,
         hashed_merkle_tree_pubkey

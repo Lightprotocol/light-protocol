@@ -3,6 +3,7 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
     },
+    time::Duration,
     vec,
 };
 
@@ -11,12 +12,13 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection, RpcError},
     rpc_pool::SolanaRpcPool,
 };
+use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::{
         create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -144,7 +146,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         return Ok(0);
     }
 
-    // Get priority fee and blockhash
     let (recent_blockhash, current_block_height) = {
         let mut rpc = pool.get_connection().await?;
         (
@@ -202,7 +203,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         }
     });
 
-    // Process work items in chunks of `config.build_transaction_batch_config.batch_size`
     let work_items: Vec<WorkItem> = queue_item_data
         .into_iter()
         .map(|data| WorkItem {
@@ -211,10 +211,16 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         })
         .collect();
 
+    let buffer_duration = Duration::from_secs(2);
+    let adjusted_timeout = if config.retry_config.timeout > buffer_duration {
+        config.retry_config.timeout - buffer_duration
+    } else {
+        return Ok(0);
+    };
+    let timeout_deadline = start_time + adjusted_timeout;
+
     for work_chunk in work_items.chunks(config.build_transaction_batch_config.batch_size as usize) {
-        if cancel_signal.load(Ordering::SeqCst)
-            || start_time.elapsed() >= config.retry_config.timeout
-        {
+        if cancel_signal.load(Ordering::SeqCst) || Instant::now() >= timeout_deadline {
             break;
         }
 
@@ -230,9 +236,19 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
             )
             .await?;
 
-        // Spawn transaction senders
+        let now = Instant::now();
+        if now >= timeout_deadline {
+            break;
+        }
+
         for tx in transactions {
             if cancel_signal.load(Ordering::SeqCst) {
+                break;
+            }
+
+            let now = Instant::now();
+            if now >= timeout_deadline {
+                warn!("Reached timeout deadline, stopping batch processing");
                 break;
             }
 
@@ -245,21 +261,25 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 ..Default::default()
             };
 
+            let cancel_signal_clone = cancel_signal.clone();
+            let deadline = timeout_deadline;
+
             tokio::spawn(async move {
+                if cancel_signal_clone.load(Ordering::SeqCst) || Instant::now() >= deadline {
+                    return;
+                }
+
                 if let Ok(mut rpc) = pool_clone.get_connection().await {
                     let result = rpc.process_transaction_with_config(tx, config).await;
-                    let _ = tx_sender.send(result).await;
+                    if !cancel_signal_clone.load(Ordering::SeqCst) {
+                        let _ = tx_sender.send(result).await;
+                    }
                 }
             });
         }
     }
-
-    // Drop sender to allow processor to complete
     drop(tx_sender);
-
-    // Wait for processor to complete
     processor_handle.await?;
-
     Ok(num_sent_transactions.load(Ordering::SeqCst))
 }
 

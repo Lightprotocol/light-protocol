@@ -25,7 +25,6 @@ pub enum VerifierError {
     InvalidBatchSize,
 }
 
-#[cfg(feature = "solana")]
 impl From<VerifierError> for u32 {
     fn from(e: VerifierError) -> u32 {
         match e {
@@ -44,6 +43,13 @@ impl From<VerifierError> for u32 {
 impl From<VerifierError> for solana_program::program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(feature = "anchor", not(feature = "solana")))]
+impl From<VerifierError> for anchor_lang::solana_program::program_error::ProgramError {
+    fn from(e: VerifierError) -> Self {
+        anchor_lang::solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 
@@ -267,7 +273,7 @@ pub fn verify<const N: usize>(
     let proof_c = decompress_g1(&proof.c).map_err(|_| crate::DecompressG1Failed)?;
     let mut verifier = Groth16Verifier::new(&proof_a, &proof_b, &proof_c, public_inputs, vk)
         .map_err(|_| {
-            #[cfg(target_os = "solana")]
+            #[cfg(all(target_os = "solana", feature = "solana"))]
             {
                 use solana_program::msg;
                 msg!("Proof verification failed");
@@ -279,7 +285,7 @@ pub fn verify<const N: usize>(
             CreateGroth16VerifierFailed
         })?;
     verifier.verify().map_err(|_| {
-        #[cfg(target_os = "solana")]
+        #[cfg(all(target_os = "solana", feature = "solana"))]
         {
             use solana_program::msg;
             msg!("Proof verification failed");

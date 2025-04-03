@@ -7,7 +7,7 @@ use crate::{
     errors::ProverClientError,
     gnark::helpers::{big_int_to_string, create_json_from_struct},
     helpers::bigint_to_u8_32,
-    init_merkle_tree::non_inclusion_merkle_tree_inputs,
+    init_merkle_tree::opt_non_inclusion_merkle_tree_inputs,
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
     prove_utils::CircuitType,
 };
@@ -40,16 +40,13 @@ pub struct NonInclusionJsonStruct {
 
     #[serde(rename(serialize = "leafHigherRangeValue"))]
     pub leaf_higher_range_value: String,
-
-    #[serde(rename(serialize = "nextIndex"))]
-    pub next_index: u32,
 }
 
 impl BatchNonInclusionJsonStruct {
     pub fn new_with_public_inputs(
         number_of_utxos: usize,
     ) -> Result<(BatchNonInclusionJsonStruct, [u8; 32]), ProverClientError> {
-        let merkle_inputs = non_inclusion_merkle_tree_inputs(40);
+        let merkle_inputs = opt_non_inclusion_merkle_tree_inputs(40);
 
         let input = NonInclusionJsonStruct {
             root: big_int_to_string(&merkle_inputs.root),
@@ -63,7 +60,6 @@ impl BatchNonInclusionJsonStruct {
                 .index_hashed_indexed_element_leaf
                 .to_u32()
                 .unwrap(),
-            next_index: merkle_inputs.next_index.to_u32().unwrap(),
             leaf_lower_range_value: big_int_to_string(&merkle_inputs.leaf_lower_range_value),
             leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),
         };
@@ -104,7 +100,6 @@ impl BatchNonInclusionJsonStruct {
                     .iter()
                     .map(big_int_to_string)
                     .collect(),
-                next_index: input.next_index.to_u32().unwrap(),
                 leaf_lower_range_value: big_int_to_string(&input.leaf_lower_range_value),
                 leaf_higher_range_value: big_int_to_string(&input.leaf_higher_range_value),
             };

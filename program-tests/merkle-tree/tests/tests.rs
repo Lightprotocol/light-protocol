@@ -1,4 +1,3 @@
-use light_bounded_vec::BoundedVec;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::MerkleTree;
 
@@ -389,13 +388,13 @@ where
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L1, H1, H2, H3]
-    let expected_path = BoundedVec::from_array(&[leaf1, h1, h2, h3]);
-    let expected_proof = BoundedVec::from_array(&[
+    let expected_path = vec![leaf1, h1, h2, h3];
+    let expected_proof = vec![
         H::zero_bytes()[0],
         H::zero_bytes()[1],
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ]);
+    ];
 
     merkle_tree.append(&leaf1).unwrap();
 
@@ -433,13 +432,13 @@ where
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L2, H1, H2, H3]
-    let expected_path = BoundedVec::from_array(&[leaf2, h1, h2, h3]);
-    let expected_proof = BoundedVec::from_array(&[
+    let expected_path = vec![leaf2, h1, h2, h3];
+    let expected_proof = vec![
         leaf1,
         H::zero_bytes()[1],
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ]);
+    ];
 
     merkle_tree.append(&leaf2).unwrap();
 
@@ -477,13 +476,13 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L3, H2, H3, H4]
-    let expected_path = BoundedVec::from_array(&[leaf3, h2, h3, h4]);
-    let expected_proof = BoundedVec::from_array(&[
+    let expected_path = vec![leaf3, h2, h3, h4];
+    let expected_proof = vec![
         H::zero_bytes()[0],
         h1,
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ]);
+    ];
 
     merkle_tree.append(&leaf3).unwrap();
 
@@ -521,9 +520,8 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L4, H2, H3, H4]
-    let expected_path = BoundedVec::from_array(&[leaf4, h2, h3, h4]);
-    let expected_proof =
-        BoundedVec::from_array(&[leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
+    let expected_path = vec![leaf4, h2, h3, h4];
+    let expected_proof = vec![leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     merkle_tree.append(&leaf4).unwrap();
 
@@ -567,9 +565,8 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L1, H1, H3, H4]
-    let expected_path = BoundedVec::from_array(&[new_leaf1, h1, h3, h4]);
-    let expected_proof =
-        BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
+    let expected_path = vec![new_leaf1, h1, h3, h4];
+    let expected_proof = vec![leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
@@ -607,9 +604,8 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L2, H1, H3, H4]
-    let expected_path = BoundedVec::from_array(&[new_leaf2, h1, h3, h4]);
-    let expected_proof =
-        BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
+    let expected_path = vec![new_leaf2, h1, h3, h4];
+    let expected_proof = vec![new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
@@ -647,9 +643,8 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L3, H2, H3, H4]
-    let expected_path = BoundedVec::from_array(&[new_leaf3, h2, h3, h4]);
-    let expected_proof =
-        BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
+    let expected_path = vec![new_leaf3, h2, h3, h4];
+    let expected_proof = vec![leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
@@ -687,9 +682,8 @@ where
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     // The Merkle path is:
     // [L4, H2, H3, H4]
-    let expected_path = BoundedVec::from_array(&[new_leaf4, h2, h3, h4]);
-    let expected_proof =
-        BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
+    let expected_path = vec![new_leaf4, h2, h3, h4];
+    let expected_proof = vec![new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
 
     assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(

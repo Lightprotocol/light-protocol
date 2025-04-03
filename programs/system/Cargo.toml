@@ -26,7 +26,7 @@ readonly = []
 [dependencies]
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["anchor"] }
 light-heap = { workspace = true, optional = true }
 light-macros = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }

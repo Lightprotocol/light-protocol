@@ -1,10 +1,8 @@
 use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
-    instruction_data::compressed_proof::CompressedProof,
+    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
-use light_hasher::{Hasher, Poseidon};
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_merkle_tree_reference::MerkleTree;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
+use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use num_bigint::BigUint;
 use reqwest::Client;
 
@@ -100,7 +98,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 self.merkle_tree.update(leaf, index).unwrap();
             }
         }
-        let circuit_inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (circuit_inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
             old_root,
             account_next_index as u32,
             leaves,
@@ -108,6 +106,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             old_leaves,
             merkle_proofs,
             batch_size,
+            &[],
         )?;
         assert_eq!(
             bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap(),
@@ -184,7 +183,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
         // local_leaves_hashchain is only used for a test assertion.
         let local_nullifier_hashchain = create_hash_chain_from_slice(&nullifiers)?;
         assert_eq!(leaves_hashchain, local_nullifier_hashchain);
-        let inputs = get_batch_update_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_update_inputs::<HEIGHT>(
             old_root,
             tx_hashes,
             leaves.iter().map(|(leaf, _)| *leaf).collect(),
@@ -193,6 +192,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
             merkle_proofs,
             path_indices,
             batch_size,
+            &[],
         )?;
         let client = Client::new();
         let circuit_inputs_new_root =
@@ -231,19 +231,15 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
 pub struct MockBatchedAddressForester<const HEIGHT: usize> {
     pub merkle_tree: IndexedMerkleTree<Poseidon, u16>,
     pub queue_leaves: Vec<[u8; 32]>,
-    pub indexed_array: IndexedArray<Poseidon, u16>,
 }
+
 impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
     fn default() -> Self {
-        let mut merkle_tree = IndexedMerkleTree::<Poseidon, u16>::new(HEIGHT, 0).unwrap();
-        merkle_tree.init().unwrap();
+        let merkle_tree = IndexedMerkleTree::<Poseidon, u16>::new(HEIGHT, 0).unwrap();
         let queue_leaves = vec![];
-        let mut indexed_array = IndexedArray::<Poseidon, u16>::default();
-        indexed_array.init().unwrap();
         Self {
             merkle_tree,
             queue_leaves,
-            indexed_array,
         }
     }
 }
@@ -265,7 +261,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             batch_start_index
         );
         assert!(
-            batch_start_index >= 2,
+            batch_start_index >= 1,
             "start index should be greater than 2 else tree is not inited"
         );
 
@@ -279,10 +275,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             println!("new element value {:?}", new_element_value);
             let non_inclusion_proof = self
                 .merkle_tree
-                .get_non_inclusion_proof(
-                    &BigUint::from_bytes_be(new_element_value.as_slice()),
-                    &self.indexed_array,
-                )
+                .get_non_inclusion_proof(&BigUint::from_bytes_be(new_element_value.as_slice()))
                 .unwrap();
 
             low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
@@ -311,7 +304,6 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             batch_start_index,
             zkp_batch_size as usize,
         )?;
-        println!("inputs {:?}", inputs);
         let client = Client::new();
         let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
         let inputs = to_json(&inputs);
@@ -338,7 +330,10 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
                 circuit_inputs_new_root,
             ));
         }
-        println!("response result {:?}", response_result);
+        println!(
+            "response result {:?}",
+            response_result.text().await.unwrap()
+        );
         Err(ProverClientError::RpcError)
     }
 
@@ -352,10 +347,7 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
         println!("new queue length {}", self.queue_leaves.len());
         for new_element_value in &new_element_values {
             self.merkle_tree
-                .append(
-                    &BigUint::from_bytes_be(new_element_value),
-                    &mut self.indexed_array,
-                )
+                .append(&BigUint::from_bytes_be(new_element_value))
                 .unwrap();
         }
         println!(

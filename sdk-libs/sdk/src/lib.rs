@@ -3,20 +3,40 @@ pub use light_sdk_macros::*;
 
 pub mod account;
 pub mod account_info;
-pub mod account_meta;
 pub mod address;
 pub mod constants;
 pub use constants::*;
-pub mod context;
+pub mod cpi;
 pub mod error;
-pub mod instruction_data;
+pub mod instruction;
 pub mod legacy;
-pub mod merkle_context;
-pub mod program_merkle_context;
-pub mod proof;
-pub mod state;
 pub mod token;
-pub mod traits;
 pub mod transfer;
 pub mod utils;
-pub mod verify;
+
+#[cfg(feature = "anchor")]
+use anchor_lang::{
+    prelude::Pubkey,
+    solana_program::{
+        account_info::AccountInfo,
+        instruction::{AccountMeta, Instruction},
+        msg,
+        program::invoke_signed,
+        program_error::ProgramError,
+    },
+    AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize,
+};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize, BorshSerialize};
+pub use light_compressed_account::instruction_data::data::*;
+pub use light_hasher as hasher;
+pub use light_verifier as verifier;
+#[cfg(all(feature = "solana", not(feature = "anchor")))]
+use solana_program::{
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};

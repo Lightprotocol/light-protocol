@@ -13,6 +13,7 @@ pub mod counter {
     use light_sdk::{
         address::derive_address, error::LightSdkError,
         program_merkle_context::unpack_address_merkle_context,
+        system_accounts::CompressionCpiAccounts,
     };
 
     use super::*;
@@ -48,8 +49,20 @@ pub mod counter {
 
         counter.owner = ctx.accounts.signer.key();
         counter.value = 0;
-
-        verify_light_accounts(&ctx, inputs.proof, &[counter], None, false, None)?;
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[counter],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
 
         Ok(())
     }
@@ -70,8 +83,20 @@ pub mod counter {
             return err!(CustomError::Unauthorized);
         }
         counter.value = counter.value.checked_add(1).ok_or(CustomError::Overflow)?;
-        verify_light_accounts(&ctx, inputs.proof, &[counter], None, false, None)?;
-
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[counter],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
         Ok(())
     }
     pub fn decrement_counter<'info>(
@@ -93,8 +118,20 @@ pub mod counter {
 
         counter.value = counter.value.checked_sub(1).ok_or(CustomError::Underflow)?;
 
-        verify_light_accounts(&ctx, inputs.proof, &[counter], None, false, None)?;
-
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[counter],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
         Ok(())
     }
 
@@ -116,8 +153,20 @@ pub mod counter {
         }
 
         counter.value = 0;
-        verify_light_accounts(&ctx, inputs.proof, &[counter], None, false, None)?;
-
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[counter],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
         Ok(())
     }
 }
@@ -126,7 +175,7 @@ pub mod counter {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct CounterAccount {
-    #[truncate]
+    #[hash]
     pub owner: Pubkey,
     pub value: u64,
 }

@@ -4,9 +4,9 @@ use ark_std::Zero;
 use light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
-use log::info;
 use num_bigint::{BigInt, Sign, ToBigUint};
 use once_cell::{self, sync::Lazy};
+use tracing::info;
 
 use crate::{
     inclusion::{
@@ -81,6 +81,39 @@ pub fn non_inclusion_merkle_tree_inputs(height: usize) -> NonInclusionMerkleProo
     let non_inclusion_proof = indexed_tree
         .get_non_inclusion_proof(&value, &indexing_array)
         .unwrap();
+
+    NonInclusionMerkleProofInputs {
+        root: BigInt::from_bytes_be(Sign::Plus, non_inclusion_proof.root.as_slice()),
+        value: BigInt::from_bytes_be(Sign::Plus, &non_inclusion_proof.value),
+        leaf_lower_range_value: BigInt::from_bytes_be(
+            Sign::Plus,
+            &non_inclusion_proof.leaf_lower_range_value,
+        ),
+        leaf_higher_range_value: BigInt::from_bytes_be(
+            Sign::Plus,
+            &non_inclusion_proof.leaf_higher_range_value,
+        ),
+        next_index: BigInt::from(non_inclusion_proof.next_index),
+        merkle_proof_hashed_indexed_element_leaf: non_inclusion_proof
+            .merkle_proof
+            .iter()
+            .map(|x| BigInt::from_bytes_be(Sign::Plus, x))
+            .collect(),
+        index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
+    }
+}
+
+pub fn opt_non_inclusion_merkle_tree_inputs(height: usize) -> NonInclusionMerkleProofInputs {
+    const CANOPY: usize = 0;
+    let indexed_tree =
+        light_merkle_tree_reference::indexed::IndexedMerkleTree::<Poseidon, usize>::new(
+            height, CANOPY,
+        )
+        .unwrap();
+
+    let value = 1_u32.to_biguint().unwrap();
+
+    let non_inclusion_proof = indexed_tree.get_non_inclusion_proof(&value).unwrap();
 
     NonInclusionMerkleProofInputs {
         root: BigInt::from_bytes_be(Sign::Plus, non_inclusion_proof.root.as_slice()),

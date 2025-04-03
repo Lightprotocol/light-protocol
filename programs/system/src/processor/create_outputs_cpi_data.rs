@@ -6,6 +6,7 @@ use light_compressed_account::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
         zero_copy::ZOutputCompressedAccountWithPackedContext,
     },
+    TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
 
@@ -48,6 +49,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
     let mut rollover_fee = 0;
+    let mut is_batched = true;
 
     for (j, account) in output_compressed_accounts.iter().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
@@ -69,16 +71,20 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            pubkey: *output_queue.pubkey(),
+                            tree_pubkey: output_queue.metadata.associated_merkle_tree,
+                            queue_pubkey: *output_queue.pubkey(),
+                            tree_type: (TreeType::BatchedState as u64).into(),
                             seq: output_queue.batch_metadata.next_index.into(),
                         };
-
+                    is_batched = true;
                     *output_queue.pubkey()
                 }
                 AcpAccount::StateTree((pubkey, tree)) => {
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            pubkey: (*pubkey).into(),
+                            tree_pubkey: (*pubkey).into(),
+                            queue_pubkey: (*pubkey).into(),
+                            tree_type: (TreeType::State as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
                     hashed_merkle_tree = context
@@ -90,6 +96,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                         .unwrap()
                         .rollover_fee;
                     mt_next_index = tree.next_index() as u32;
+                    is_batched = false;
                     (*pubkey).into()
                 }
                 _ => {
@@ -152,9 +159,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
             Some(hashed_owner) => hashed_owner.1,
             None => {
                 let hashed_owner =
-                    hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
-                        .unwrap()
-                        .0;
+                    hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes());
                 context
                     .hashed_pubkeys
                     .push((account.compressed_account.owner.into(), hashed_owner));
@@ -164,10 +169,11 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         // Compute output compressed account hash.
         cpi_ix_data.leaves[j].leaf = account
             .compressed_account
-            .hash_with_hashed_values::<Poseidon>(
+            .hash_with_hashed_values(
                 &hashed_owner,
                 &hashed_merkle_tree,
                 &cpi_ix_data.output_leaf_indices[j].into(),
+                is_batched,
             )
             .map_err(ProgramError::from)?;
         cpi_ix_data.leaves[j].account_index = index_merkle_tree_account_account - 1;

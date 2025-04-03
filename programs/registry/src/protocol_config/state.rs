@@ -70,6 +70,29 @@ impl Default for ProtocolConfig {
     }
 }
 
+impl ProtocolConfig {
+    pub fn testnet_default() -> Self {
+        Self {
+            genesis_slot: 0,
+            min_weight: 1,
+            slot_length: 60,
+            registration_phase_length: 100,
+            active_phase_length: 1000,
+            report_work_phase_length: 100,
+            network_fee: 5000,
+            cpi_context_size: 20 * 1024 + 8,
+            finalize_counter_limit: 100,
+            place_holder: Pubkey::default(),
+            place_holder_a: 0,
+            place_holder_b: 0,
+            place_holder_c: 0,
+            place_holder_d: 0,
+            place_holder_e: 0,
+            place_holder_f: 0,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum EpochState {
     Registration,

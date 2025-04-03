@@ -14,17 +14,21 @@ use crate::models;
 pub struct GetQueueElementsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
+    #[serde(rename = "firstValueQueueIndex")]
+    pub first_value_queue_index: u16,
     #[serde(rename = "value")]
-    pub value: Vec<models::MerkleProofWithContextV2>,
+    pub value: Vec<models::GetQueueElementsResponseValue>,
 }
 
 impl GetQueueElementsPost200ResponseResult {
     pub fn new(
         context: models::Context,
-        value: Vec<models::MerkleProofWithContextV2>,
+        first_value_queue_index: u16,
+        value: Vec<models::GetQueueElementsResponseValue>,
     ) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {
             context: Box::new(context),
+            first_value_queue_index,
             value,
         }
     }

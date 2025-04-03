@@ -11,10 +11,12 @@ use anchor_spl::{
     token::{Mint, TokenAccount},
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
+use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
 use light_client::indexer::Indexer;
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
@@ -42,9 +44,8 @@ use light_prover_client::gnark::helpers::{
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
+    assert_custom_error_or_program_error, assert_rpc_error,
     conversions::sdk_to_program_token_data,
-    create_account_instruction,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
         compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
@@ -3416,7 +3417,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -5287,7 +5288,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -5329,6 +5330,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
                 nullifier_queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 prove_by_index: false,
+                tree_type: TreeType::State,
             })
             .collect::<Vec<MerkleContext>>(),
         &[
@@ -5437,6 +5439,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
         wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],
+        limit_ledger_size: None,
     })
     .await;
 

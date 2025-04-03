@@ -25,7 +25,7 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 bytemuck = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
-light-zero-copy = { workspace = true }
+light-zero-copy = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 light-poseidon = { workspace = true }

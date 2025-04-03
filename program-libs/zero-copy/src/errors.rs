@@ -26,6 +26,10 @@ pub enum ZeroCopyError {
     InvalidOptionByte(u8),
     #[error("Invalid capacity. Capacity must be greater than 0.")]
     InvalidCapacity,
+    #[error("Length is greater than capacity.")]
+    LengthGreaterThanCapacity,
+    #[error("Current index is greater than length.")]
+    CurrentIndexGreaterThanLength,
 }
 
 #[cfg(feature = "solana")]
@@ -43,6 +47,8 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::Size => 15010,
             ZeroCopyError::InvalidOptionByte(_) => 15011,
             ZeroCopyError::InvalidCapacity => 15012,
+            ZeroCopyError::LengthGreaterThanCapacity => 15013,
+            ZeroCopyError::CurrentIndexGreaterThanLength => 15014,
         }
     }
 }

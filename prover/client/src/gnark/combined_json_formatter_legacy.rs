@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use super::{
     helpers::create_json_from_struct, inclusion_json_formatter::InclusionJsonStruct,
-    non_inclusion_json_formatter::NonInclusionJsonStruct,
+    non_inclusion_json_formatter_legacy::LegacyNonInclusionJsonStruct,
 };
 use crate::{
     combined_legacy::merkle_combined_proof_inputs::CombinedProofInputs,
@@ -24,7 +24,7 @@ pub struct CombinedJsonStruct {
     #[serde(rename(serialize = "inputCompressedAccounts"))]
     pub inclusion: Vec<InclusionJsonStruct>,
     #[serde(rename(serialize = "newAddresses"))]
-    pub non_inclusion: Vec<NonInclusionJsonStruct>,
+    pub non_inclusion: Vec<LegacyNonInclusionJsonStruct>,
 }
 
 impl CombinedJsonStruct {

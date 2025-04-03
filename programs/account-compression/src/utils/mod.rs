@@ -1,4 +1,3 @@
-pub mod check_account;
 pub mod check_discriminator;
 pub mod check_signer_is_registered_or_authority;
 pub mod constants;

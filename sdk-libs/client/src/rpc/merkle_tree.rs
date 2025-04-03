@@ -5,11 +5,10 @@ use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError, light_hasher::Poseidon,
 };
 use light_indexed_merkle_tree::{copy::IndexedMerkleTreeCopy, errors::IndexedMerkleTreeError};
-use light_sdk::state::MerkleTreeMetadata;
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 
-use super::{RpcConnection, RpcError};
+use super::{state::MerkleTreeMetadata, RpcConnection, RpcError};
 
 #[derive(Error, Debug)]
 pub enum MerkleTreeExtError {
