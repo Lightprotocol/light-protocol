@@ -15,28 +15,15 @@ theorem AssertIsLess_248_semantics {A B : F} : LightProver.AssertIsLess_248 A B 
   simp [LightProver.AssertIsLess_248, Gates_base.add]
   apply Iff.intro
   . rintro ⟨_, hp⟩
-    have hp := Gates.to_binary_rangecheck hp
-    zify at hp
-    simp at hp
-    zify
-    exact hp
+    cases hp
+    assumption
   . intro hp
-    zify at hp
-    simp at hp
-    simp [Gates, GatesGnark8]
-    simp_rw [Gates.to_binary_iff_eq_Fin_ofBitsLE]
-    rw [exists_swap]
-    let x := (A + (2^248 - B)).val
-    have : x < 2^248 := by
-      unfold x
-      zify
-      simp [hp]
-    apply Exists.intro (Fin.toBitsLE (Fin.mk x this))
-    simp [x, GatesDef.add]
+    simp [Gates, GatesGnark12, GatesDef.to_binary_12, GatesGnark9, GatesGnark8, GatesDef.add, hp]
 
 example : LightProver.AssertIsLess_248 (Order - 20) 10 ∧ (Order - 20 : F).val > 10 := by
-  rw [AssertIsLess_248_semantics]; decide
+  rw [AssertIsLess_248_semantics]; native_decide
 
+set_option maxRecDepth 10000
 theorem AssertIsLess_bounds { A B : F} (A_range : A.val ≤ 2 ^ 249): LightProver.AssertIsLess_248 A B → A.val < B.val ∧ B.val ≤ A.val + 2^248 := by
   rw [AssertIsLess_248_semantics];
   zify; simp;
