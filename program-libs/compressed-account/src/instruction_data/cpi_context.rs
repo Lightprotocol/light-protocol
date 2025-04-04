@@ -2,8 +2,20 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(
+    AnchorSerialize,
+    AnchorDeserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    ZeroCopy,
+    ZeroCopyEq,
+)]
 pub struct CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
     /// set the cpi context.

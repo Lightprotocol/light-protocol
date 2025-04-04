@@ -100,7 +100,7 @@ pub fn pack_new_address_params(
 
 pub fn pack_read_only_address_params(
     new_address_params: &[ReadOnlyAddress],
-    remaining_accounts: &mut HashMap<Pubkey, usize>,
+    remaining_accounts: &mut HashMap<solana_program::pubkey::Pubkey, usize>,
 ) -> Vec<PackedReadOnlyAddress> {
     new_address_params
         .iter()
@@ -115,7 +115,10 @@ pub fn pack_read_only_address_params(
         .collect::<Vec<PackedReadOnlyAddress>>()
 }
 
-pub fn pack_account(pubkey: &Pubkey, remaining_accounts: &mut HashMap<Pubkey, usize>) -> u8 {
+pub fn pack_account(
+    pubkey: &solana_program::pubkey::Pubkey,
+    remaining_accounts: &mut HashMap<solana_program::pubkey::Pubkey, usize>,
+) -> u8 {
     match remaining_accounts.get(pubkey) {
         Some(index) => *index as u8,
         None => {

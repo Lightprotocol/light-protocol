@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
+use light_zero_copy::{borsh::Deserialize, borsh_mut::DeserializeMut, errors::ZeroCopyError};
 use solana_program::pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 #[cfg(feature = "bytemuck-des")]
@@ -20,6 +20,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
     BorshSerialize,
     Default,
     Unaligned,
+    Eq,
 )]
 #[repr(C)]
 pub struct Pubkey(pub(crate) [u8; 32]);
@@ -54,12 +55,32 @@ impl Pubkey {
     }
 }
 
-impl<'a> Deserialize<'a> for Pubkey {
-    type Output = Ref<&'a [u8], Pubkey>;
+impl Deserialize for Pubkey {
+    type Output<'a> = Ref<&'a [u8], Pubkey>;
 
     #[inline]
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Ref<&'a [u8], Pubkey>, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         Ok(Ref::<&[u8], Pubkey>::from_prefix(bytes)?)
+    }
+}
+
+impl DeserializeMut for Pubkey {
+    type Output<'a> = Ref<&'a mut [u8], Pubkey>;
+
+    #[inline]
+    fn zero_copy_at_mut<'a>(
+        bytes: &'a mut [u8],
+    ) -> Result<(Self::Output<'a>, &'a mut [u8]), ZeroCopyError> {
+        Ok(Ref::<&'a mut [u8], Pubkey>::from_prefix(bytes)?)
+    }
+
+    fn byte_len(&self) -> usize {
+        32
+    }
+}
+impl PartialEq<<Pubkey as Deserialize>::Output<'_>> for Pubkey {
+    fn eq(&self, other: &<Pubkey as Deserialize>::Output<'_>) -> bool {
+        self.0 == other.0
     }
 }
 

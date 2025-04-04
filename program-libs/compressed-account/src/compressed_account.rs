@@ -1,22 +1,19 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{Hasher, Poseidon};
+use light_zero_copy::{ZeroCopy, ZeroCopyEq};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    address::pack_account,
-    hash_to_bn254_field_size_be,
-    instruction_data::{
-        data::OutputCompressedAccountWithPackedContext, zero_copy::ZCompressedAccount,
-    },
-    CompressedAccountError, TreeType,
+    address::pack_account, hash_to_bn254_field_size_be,
+    instruction_data::data::OutputCompressedAccountWithPackedContext, CompressedAccountError,
+    TreeType,
 };
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopyEq, ZeroCopy,
+)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -26,7 +23,7 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub read_only: bool,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize)]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: MerkleContext,
@@ -35,7 +32,7 @@ pub struct CompressedAccountWithMerkleContext {
 impl CompressedAccountWithMerkleContext {
     pub fn hash(&self) -> Result<[u8; 32], CompressedAccountError> {
         self.compressed_account.hash(
-            &self.merkle_context.merkle_tree_pubkey,
+            &self.merkle_context.merkle_tree_pubkey.into(),
             &self.merkle_context.leaf_index,
             self.merkle_context.tree_type == TreeType::BatchedState,
         )
@@ -65,7 +62,7 @@ impl CompressedAccountWithMerkleContext {
     pub fn pack(
         &self,
         root_index: Option<u16>,
-        remaining_accounts: &mut HashMap<Pubkey, usize>,
+        remaining_accounts: &mut HashMap<solana_program::pubkey::Pubkey, usize>,
     ) -> Result<PackedCompressedAccountWithMerkleContext, CompressedAccountError> {
         Ok(PackedCompressedAccountWithMerkleContext {
             compressed_account: self.compressed_account.clone(),
@@ -86,30 +83,34 @@ impl CompressedAccountWithMerkleContext {
         })
     }
 }
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize)]
 pub struct ReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: MerkleContext,
     pub root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(
+    Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq,
+)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
-    pub merkle_tree_pubkey: Pubkey,
-    pub nullifier_queue_pubkey: Pubkey,
+    pub merkle_tree_pubkey: solana_program::pubkey::Pubkey,
+    pub nullifier_queue_pubkey: solana_program::pubkey::Pubkey,
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub tree_type: TreeType,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[derive(
+    Debug, Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Default, ZeroCopyEq, ZeroCopy,
+)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
@@ -180,15 +181,113 @@ pub fn pack_merkle_context(
         .collect::<Vec<_>>()
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct CompressedAccount {
-    pub owner: Pubkey,
+    pub owner: crate::pubkey::Pubkey,
     pub lamports: u64,
     pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
 }
+// TODO: fix meta struct generation it looks like the meta struct is not being generated correctly
+impl<'a> From<ZCompressedAccount<'a>> for CompressedAccount {
+    fn from(value: ZCompressedAccount<'a>) -> Self {
+        Self {
+            owner: value.owner,
+            lamports: u64::from(value.lamports),
+            address: value.address.map(|x| *x),
+            data: value.data.as_ref().map(|x| x.into()),
+        }
+    }
+}
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+impl<'a> From<&ZCompressedAccount<'a>> for CompressedAccount {
+    fn from(value: &ZCompressedAccount<'a>) -> Self {
+        Self {
+            owner: *value.owner,
+            lamports: u64::from(*value.lamports),
+            address: value.address.as_ref().map(|x| **x),
+            data: value.data.as_ref().map(|x| x.into()),
+        }
+    }
+}
+
+impl PartialEq<CompressedAccount> for ZCompressedAccount<'_> {
+    fn eq(&self, other: &CompressedAccount) -> bool {
+        if self.address.is_some()
+            && other.address.is_some()
+            && *self.address.unwrap() != other.address.unwrap()
+        {
+            return false;
+        }
+        if self.address.is_some() || other.address.is_some() {
+            return false;
+        }
+        if self.data.is_some()
+            && other.data.is_some()
+            && self.data.as_ref().unwrap() != other.data.as_ref().unwrap()
+        {
+            return false;
+        }
+        if self.data.is_some() || other.data.is_some() {
+            return false;
+        }
+
+        *self.owner == other.owner && *self.lamports == other.lamports
+    }
+}
+
+impl PartialEq<CompressedAccount> for ZCompressedAccountMut<'_> {
+    fn eq(&self, other: &CompressedAccount) -> bool {
+        if self.address.is_some()
+            && other.address.is_some()
+            && **self.address.as_ref().unwrap() != *other.address.as_ref().unwrap()
+        {
+            return false;
+        }
+        if self.address.is_some() || other.address.is_some() {
+            return false;
+        }
+        if self.data.is_some()
+            && other.data.is_some()
+            && self.data.as_ref().unwrap() != other.data.as_ref().unwrap()
+        {
+            return false;
+        }
+        if self.data.is_some() || other.data.is_some() {
+            return false;
+        }
+
+        self.owner == other.owner && self.lamports == other.lamports
+    }
+}
+impl PartialEq<ZCompressedAccount<'_>> for CompressedAccount {
+    fn eq(&self, other: &ZCompressedAccount) -> bool {
+        if self.address.is_some()
+            && other.address.is_some()
+            && self.address.unwrap() != *other.address.unwrap()
+        {
+            return false;
+        }
+        if self.address.is_some() || other.address.is_some() {
+            return false;
+        }
+        if self.data.is_some()
+            && other.data.is_some()
+            && other.data.as_ref().unwrap() != self.data.as_ref().unwrap()
+        {
+            return false;
+        }
+        if self.data.is_some() || other.data.is_some() {
+            return false;
+        }
+
+        self.owner == other.owner && self.lamports == u64::from(other.lamports)
+    }
+}
+
+#[derive(
+    Debug, PartialEq, Default, Clone, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq,
+)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -535,7 +634,7 @@ mod tests {
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
-        let (z_account, _) = ZCompressedAccount::zero_copy_at(&bytes).unwrap();
+        let (z_account, _) = CompressedAccount::zero_copy_at(&bytes).unwrap();
         let z_hash = z_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
@@ -717,7 +816,7 @@ mod tests {
                 .hash(&merkle_tree_pubkey, &leaf_index, false)
                 .unwrap();
             let bytes: Vec<u8> = account.try_to_vec().unwrap();
-            let (z_account, _) = ZCompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
+            let (z_account, _) = CompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
             let z_hash = z_account
                 .hash(&merkle_tree_pubkey, &leaf_index, false)
                 .unwrap();
