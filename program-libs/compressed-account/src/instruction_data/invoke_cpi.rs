@@ -2,13 +2,13 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_zero_copy::ZeroCopy;
 
 use super::{
     cpi_context::CompressedCpiContext,
     data::{
         NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
     },
-    zero_copy::ZInstructionDataInvokeCpi,
 };
 use crate::{
     compressed_account::{
@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopy)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
@@ -31,8 +31,8 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
-impl<'a, 'info: 'a> ZInstructionDataInvokeCpi<'a> {
-    pub fn combine(&mut self, other: Vec<ZInstructionDataInvokeCpi<'info>>) {
+impl<'a> ZInstructionDataInvokeCpi<'a> {
+    pub fn combine(&mut self, other: Vec<ZInstructionDataInvokeCpi<'a>>) {
         for other in other {
             // TODO: support address creation with cpi context
             // issue is that we deserialize address creation params as zero copy slice we cannot push into it
@@ -69,7 +69,6 @@ mod tests {
         instruction_data::{
             data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
             invoke_cpi::InstructionDataInvokeCpi,
-            zero_copy::ZInstructionDataInvokeCpi,
         },
     };
 
@@ -117,8 +116,8 @@ mod tests {
         let mut other_vec = Vec::new();
         other.serialize(&mut other_vec).unwrap();
         let (mut instruction_data_transfer, _) =
-            ZInstructionDataInvokeCpi::zero_copy_at(&vec).unwrap();
-        let (other, _) = ZInstructionDataInvokeCpi::zero_copy_at(&other_vec).unwrap();
+            InstructionDataInvokeCpi::zero_copy_at(&vec).unwrap();
+        let (other, _) = InstructionDataInvokeCpi::zero_copy_at(&other_vec).unwrap();
         instruction_data_transfer.combine(vec![other]);
         assert_eq!(instruction_data_transfer.new_address_params.len(), 1);
         assert_eq!(

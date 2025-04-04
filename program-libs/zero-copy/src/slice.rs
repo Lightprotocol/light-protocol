@@ -4,7 +4,7 @@ use std::vec::Vec;
 
 use zerocopy::{little_endian::U32, Ref};
 
-use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
+use crate::{add_padding, borsh::Deserialize, errors::ZeroCopyError, ZeroCopyTraits};
 
 pub type ZeroCopySliceU64<'a, T> = ZeroCopySlice<'a, u64, T>;
 pub type ZeroCopySliceU32<'a, T> = ZeroCopySlice<'a, u32, T>;
@@ -59,7 +59,6 @@ where
         Ok((ZeroCopySlice { length, bytes }, remaining_bytes))
     }
 
-    #[cfg(feature = "std")]
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
         if self.len() != N {
             return Err(ZeroCopyError::ArraySize(N, self.len()));
@@ -195,13 +194,10 @@ where
     }
 }
 
-#[cfg(feature = "std")]
-impl<'a, T: ZeroCopyTraits + crate::borsh::Deserialize<'a>> crate::borsh::Deserialize<'a>
-    for ZeroCopySliceBorsh<'a, T>
-{
-    type Output = Self;
+impl<T: ZeroCopyTraits + Deserialize> Deserialize for ZeroCopySliceBorsh<'_, T> {
+    type Output<'a> = ZeroCopySliceBorsh<'a, T>;
 
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
+    fn zero_copy_at<'a>(bytes: &'a [u8]) -> Result<(Self::Output<'a>, &'a [u8]), ZeroCopyError> {
         ZeroCopySliceBorsh::from_bytes_at(bytes)
     }
 }

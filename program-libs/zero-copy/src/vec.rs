@@ -83,13 +83,7 @@ where
 
         let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
         let (metadata, _padding) = Ref::<&mut [u8], [L; 2]>::from_prefix(meta_data)?;
-        let usize_capacity: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
-        let usize_len: usize = u64::from(metadata[LENGTH_INDEX]) as usize;
-
-        if usize_len > usize_capacity {
-            return Err(ZeroCopyError::LengthGreaterThanCapacity);
-        }
-
+        let usize_len: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
         let full_vector_size = Self::data_size(metadata[CAPACITY_INDEX]);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
@@ -98,7 +92,7 @@ where
             ));
         }
         let (slice, remaining_bytes) =
-            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_capacity)?;
+            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
@@ -244,7 +238,6 @@ where
         self.as_slice().to_vec()
     }
 
-    #[cfg(feature = "std")]
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
         if self.len() != N {
             return Err(ZeroCopyError::ArraySize(N, self.len()));
