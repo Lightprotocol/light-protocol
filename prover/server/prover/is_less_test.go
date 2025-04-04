@@ -73,13 +73,13 @@ func TestAssertIsLess(t *testing.T) {
 			assert.ProverSucceeded(&circuit, &IsLessCircuit{
 				A: tc.a,
 				B: tc.b,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else {
 			assert := test.NewAssert(t)
 			assert.ProverFailed(&circuit, &IsLessCircuit{
 				A: tc.a,
 				B: tc.b,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		}
 	}
 }
