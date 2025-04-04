@@ -76,7 +76,7 @@ theorem inputHash_deterministic:
     NonInclusionCircuit h₂ trees leaves lo₂ hi₂ i₂ p₂ →
     h₁ = h₂ := by
   unfold NonInclusionCircuit
-  simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8]
+  simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8, GatesGnark12, GatesGnark9]
 
 theorem inputHash_injective:
     NonInclusionCircuit h trees₁ leaves₁ lo₁ hi₁ i₁ p₁ →
@@ -112,14 +112,14 @@ theorem inputHash_deterministic:
     CombinedCircuit h₂ inclusionTrees inclusionLeaves q₁ q₂ nonInclusionTrees nonInclusionLeaves q₃ q₄ q₅ q₆ →
     h₁ = h₂ := by
   unfold CombinedCircuit
-  simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8]
+  simp_all [TwoInputsHashChain_rw, LightProver.Gates, GatesGnark8, GatesGnark12, GatesGnark9]
 
 theorem inputHash_injective:
     CombinedCircuit h inclusionTrees₁ inclusionLeaves₁ p₁ p₂ nonInclusionTrees₁ nonInclusionLeaves₁ p₃ p₄ p₅ p₆ →
     CombinedCircuit h inclusionTrees₂ inclusionLeaves₂ q₁ q₂ nonInclusionTrees₂ nonInclusionLeaves₂ q₃ q₄ q₅ q₆ →
     inclusionTrees₁ = inclusionTrees₂ ∧ inclusionLeaves₁ = inclusionLeaves₂ ∧ nonInclusionTrees₁ = nonInclusionTrees₂ ∧ nonInclusionLeaves₁ = nonInclusionLeaves₂ := by
   unfold CombinedCircuit
-  simp only [TwoInputsHashChain_rw, Poseidon2_iff_uniqueAssignment, LightProver.Gates, GatesGnark8, GatesDef.eq]
+  simp only [TwoInputsHashChain_rw, Poseidon2_iff_uniqueAssignment, LightProver.Gates, GatesGnark8, GatesGnark12, GatesGnark9, GatesDef.eq]
   rintro ⟨h₁, _⟩ ⟨h₂, _⟩
   rw [h₁] at h₂
   simp only [CollisionResistant_def, List.Vector.eq_cons, inputHash_correct] at h₂
@@ -235,7 +235,7 @@ theorem inputHash_deterministic:
   intro ⟨hp₁, hp₂⟩
   have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
   have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
-  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw] at h₁ h₂
+  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, GatesGnark12, GatesGnark9, HashChain_4_rw] at h₁ h₂
   simp_all
 
 theorem inputHash_injective:
@@ -245,7 +245,7 @@ theorem inputHash_injective:
   intro ⟨hp₁, hp₂⟩
   have h₁ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₁)
   have h₂ := BatchAddressLoop_skip_tree (BatchAddressLoop_rw1.mp hp₂)
-  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, HashChain_4_rw, hashChain_injective] at h₁ h₂
+  simp [HashChain_B_rw, LightProver.Gates, GatesGnark8, GatesGnark12, GatesGnark9, HashChain_4_rw, hashChain_injective] at h₁ h₂
   rcases h₁ with ⟨rfl, h₁⟩
   rcases h₂ with ⟨rfl, h₂⟩
   rw [h₁] at h₂
