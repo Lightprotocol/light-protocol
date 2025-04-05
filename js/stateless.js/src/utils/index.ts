@@ -7,4 +7,4 @@ export * from './send-and-confirm';
 export * from './sleep';
 export * from './validation';
 export * from './calculate-compute-unit-price';
-export * from './get-light-state-tree-info';
+export * from './get-state-tree-infos';

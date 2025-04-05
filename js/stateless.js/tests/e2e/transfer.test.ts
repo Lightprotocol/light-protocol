@@ -23,7 +23,7 @@ describe('transfer', () => {
             payer,
             1e9,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            // defaultTestStateTreeAccounts().merkleTree,
         );
     });
 

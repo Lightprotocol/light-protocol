@@ -13,23 +13,30 @@ import {
 } from '../programs';
 import { Rpc } from '../rpc';
 
-import { bn, CompressedAccountWithMerkleContext } from '../state';
-import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import {
+    bn,
+    CompressedAccountWithMerkleContext,
+    StateTreeInfo,
+} from '../state';
+import {
+    buildAndSignTx,
+    selectStateTreeInfo,
+    sendAndConfirmTx,
+} from '../utils';
 import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
 
 /**
  * Transfer compressed lamports from one owner to another
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of transaction fees
- * @param lamports       Number of lamports to transfer
- * @param owner          Owner of the compressed lamports
- * @param toAddress      Destination address of the recipient
- * @param merkleTree     State tree account that the compressed lamports should be
- *                       inserted into. Defaults to the default state tree account.
- * @param confirmOptions Options for confirming the transaction
- * @param config         Configuration for fetching compressed accounts
- *
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of transaction fees
+ * @param lamports              Number of lamports to transfer
+ * @param owner                 Owner of the compressed lamports
+ * @param toAddress             Destination address of the recipient
+ * @param outputStateTreeInfo   State tree account that the compressed lamports
+ *                              should be inserted into. Defaults to the default
+ *                              state tree account.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -39,7 +46,7 @@ export async function transfer(
     lamports: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     let accumulatedLamports = bn(0);
@@ -47,6 +54,11 @@ export async function transfer(
     let cursor: string | undefined;
     const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
+
+    if (!outputStateTreeInfo) {
+        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
+    }
 
     while (accumulatedLamports.lt(lamports)) {
         const batchConfig: GetCompressedAccountsByOwnerConfig = {
@@ -95,7 +107,7 @@ export async function transfer(
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTrees: merkleTree,
+        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

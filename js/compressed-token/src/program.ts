@@ -18,6 +18,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
     defaultTestStateTreeAccounts,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -44,6 +45,10 @@ import {
     CompressedTokenInstructionDataTransfer,
     TokenTransferOutputData,
 } from './types';
+import {
+    checkTokenPoolInfo,
+    TokenPoolInfo,
+} from './utils/get-token-pool-infos';
 
 export type CompressParams = {
     /**
@@ -75,7 +80,11 @@ export type CompressParams = {
      * The state tree that the tx output should be inserted into. Defaults to a
      * public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
+    /**
+     * Tokenpool.
+     */
+    tokenPoolInfo: TokenPoolInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -106,7 +115,11 @@ export type CompressSplTokenAccountParams = {
     /**
      * The state tree that the compressed token account should be inserted into.
      */
-    outputStateTree: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
+    /**
+     * The token pool info.
+     */
+    tokenPoolInfo: TokenPoolInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -144,7 +157,11 @@ export type DecompressParams = {
      * The state tree that the change tx output should be inserted into.
      * Defaults to a public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
+    /**
+     * Tokenpool addresses. One or more token pools can be provided.
+     */
+    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -184,7 +201,7 @@ export type TransferParams = {
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
      * of input state.
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -248,7 +265,7 @@ export type MergeTokenAccountsParams = {
     /**
      * Optional: Public key of the state tree to merge into
      */
-    outputStateTree: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: Recent validity proof for state inclusion
      */
@@ -284,10 +301,13 @@ export type MintToParams = {
      */
     amount: BN | BN[] | number | number[];
     /**
-     * Public key of the state tree to mint into. Defaults to a public state
-     * tree if unspecified.
+     * The state tree to mint into.
      */
-    merkleTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
+    /**
+     * Tokenpool addresses. One or more token pools can be provided.
+     */
+    tokenPoolInfo: TokenPoolInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -338,10 +358,14 @@ export type ApproveAndMintToParams = {
      */
     amount: BN | number;
     /**
-     * Public key of the state tree to mint into. Defaults to a public state
+     * The state tree to mint into. Defaults to a public state
      * tree if unspecified.
      */
-    merkleTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
+    /**
+     * Tokenpool addresses. One or more token pools can be provided.
+     */
+    tokenPoolInfo: TokenPoolInfo;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
      */
@@ -539,6 +563,18 @@ export class CompressedTokenProgram {
         );
         return address;
     }
+    /** @internal */
+    static deriveTokenPoolPdaWithBump(
+        mint: PublicKey,
+        bump: number,
+    ): PublicKey {
+        const seeds = [POOL_SEED, mint.toBuffer(), Buffer.from([bump])];
+        const [address, _] = PublicKey.findProgramAddressSync(
+            seeds,
+            this.programId,
+        );
+        return address;
+    }
 
     /** @internal */
     static get deriveCpiAuthorityPda(): PublicKey {
@@ -638,14 +674,15 @@ export class CompressedTokenProgram {
             mint,
             feePayer,
             authority,
-            merkleTree,
+            outputStateTreeInfo,
             toPubkey,
             amount,
             tokenProgramId,
+            tokenPoolInfo,
         } = params;
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        checkTokenPoolInfo(tokenPoolInfo, mint);
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
@@ -663,13 +700,13 @@ export class CompressedTokenProgram {
             authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             tokenProgram,
-            tokenPoolPda,
+            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: systemKeys.registeredProgramPda,
             noopProgram: systemKeys.noopProgram,
             accountCompressionAuthority: systemKeys.accountCompressionAuthority,
             accountCompressionProgram: systemKeys.accountCompressionProgram,
-            merkleTree: merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
+            merkleTree: outputStateTreeInfo.tree,
             selfProgram: this.programId,
             systemProgram: SystemProgram.programId,
             solPoolPda: null, // TODO: add lamports support
@@ -697,9 +734,10 @@ export class CompressedTokenProgram {
             feePayer,
             authorityTokenAccount,
             authority,
-            merkleTree,
+            outputStateTreeInfo,
             toPubkey,
             tokenProgramId,
+            tokenPoolInfo,
         } = params;
 
         const amount: bigint = BigInt(params.amount.toString());
@@ -722,12 +760,14 @@ export class CompressedTokenProgram {
             toAddress: toPubkey,
             mint,
             amount: params.amount,
-            outputStateTree: merkleTree,
+            outputStateTreeInfo,
+            tokenPoolInfo,
             tokenProgramId,
         });
 
         return [splMintToInstruction, compressInstruction];
     }
+
     /**
      * Construct transfer instruction for compressed tokens
      */
@@ -740,7 +780,7 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
             recentValidityProof,
             amount,
-            outputStateTrees,
+            outputStateTreeInfo,
             toAddress,
         } = params;
 
@@ -756,7 +796,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTrees,
+            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
@@ -876,8 +916,9 @@ export class CompressedTokenProgram {
             source,
             toAddress,
             mint,
-            outputStateTree,
+            outputStateTreeInfo,
             tokenProgramId,
+            tokenPoolInfo,
         } = params;
 
         if (Array.isArray(params.amount) !== Array.isArray(params.toAddress)) {
@@ -920,7 +961,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts: [],
-            outputStateTrees: outputStateTree,
+            outputStateTreeInfo,
             rootIndices: [],
             tokenTransferOutputs,
         });
@@ -944,6 +985,8 @@ export class CompressedTokenProgram {
 
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
+        checkTokenPoolInfo(tokenPoolInfo, mint);
+
         const keys = transferAccountsLayout({
             ...defaultStaticAccountsStruct(),
             feePayer: payer,
@@ -952,7 +995,7 @@ export class CompressedTokenProgram {
             lightSystemProgram: LightSystemProgram.programId,
             selfProgram: this.programId,
             systemProgram: SystemProgram.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             compressOrDecompressTokenAccount: source,
             tokenProgram,
         });
@@ -976,12 +1019,13 @@ export class CompressedTokenProgram {
             payer,
             inputCompressedTokenAccounts,
             toAddress,
-            outputStateTree,
+            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
             tokenProgramId,
         } = params;
         const amount = bn(params.amount);
+        const tokenPoolInfos = toArray(params.tokenPoolInfos);
 
         const tokenTransferOutputs = createDecompressOutputState(
             inputCompressedTokenAccounts,
@@ -995,7 +1039,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTrees: outputStateTree,
+            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
         });
@@ -1034,13 +1078,20 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenPoolPda: tokenPoolInfos.splice(0, 1)[0].tokenPoolPda,
             compressOrDecompressTokenAccount: toAddress,
             tokenProgram,
             systemProgram: SystemProgram.programId,
         });
 
         keys.push(...remainingAccountMetas);
+        keys.push(
+            ...tokenPoolInfos.map(info => ({
+                pubkey: info.tokenPoolPda,
+                isSigner: false,
+                isWritable: true,
+            })),
+        );
 
         return new TransactionInstruction({
             programId: this.programId,
@@ -1056,7 +1107,7 @@ export class CompressedTokenProgram {
             payer,
             owner,
             inputCompressedTokenAccounts,
-            outputStateTree,
+            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1073,7 +1124,7 @@ export class CompressedTokenProgram {
                 (sum, account) => sum.add(account.parsed.amount),
                 new BN(0),
             ),
-            outputStateTrees: outputStateTree,
+            outputStateTreeInfo,
             recentInputStateRootIndices,
             recentValidityProof,
         });
@@ -1090,14 +1141,16 @@ export class CompressedTokenProgram {
             tokenAccount,
             mint,
             remainingAmount,
-            outputStateTree,
+            outputStateTreeInfo,
+            tokenPoolInfo,
             tokenProgramId,
         } = params;
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
+        checkTokenPoolInfo(tokenPoolInfo, mint);
         const remainingAccountMetas: AccountMeta[] = [
             {
-                pubkey: outputStateTree,
+                pubkey: outputStateTreeInfo.tree,
                 isSigner: false,
                 isWritable: true,
             },
@@ -1124,7 +1177,7 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: this.deriveTokenPoolPda(mint),
+            tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             compressOrDecompressTokenAccount: tokenAccount,
             tokenProgram,
             systemProgram: SystemProgram.programId,

@@ -10,6 +10,7 @@ import {
     CompressedAccountWithMerkleContext,
     CompressedProof,
     InstructionDataInvoke,
+    StateTreeInfo,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -31,6 +32,13 @@ export const sumUpLamports = (
     );
 };
 
+type StorageOptions = {
+    /**
+     * The state tree info that the tx output should be inserted into. Defaults to a
+     * public state tree if unspecified.
+     */
+    stateTreeInfo: StateTreeInfo;
+};
 /**
  * Create compressed account system transaction params
  */
@@ -52,7 +60,7 @@ type CreateAccountWithSeedParams = {
     /**
      * State tree pubkey. Defaults to a public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
     /**
      * Public key of the program to assign as the owner of the created account
      */
@@ -110,7 +118,7 @@ type TransferParams = {
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
      * of input state.
      */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /// TODO:
@@ -136,7 +144,7 @@ type CompressParams = {
      * The state tree that the tx output should be inserted into. Defaults to a
      * public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -176,7 +184,7 @@ type DecompressParams = {
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
      * of input state.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
@@ -305,7 +313,7 @@ export class LightSystemProgram {
         newAddressParams,
         newAddress,
         recentValidityProof,
-        outputStateTree,
+        outputStateTreeInfo,
         inputCompressedAccounts,
         inputStateRootIndices,
         lamports,
@@ -326,7 +334,7 @@ export class LightSystemProgram {
             inputCompressedAccounts ?? [],
             inputStateRootIndices ?? [],
             outputCompressedAccounts,
-            outputStateTree,
+            outputStateTreeInfo,
         );
 
         const { newAddressParamsPacked, remainingAccounts } =
@@ -372,7 +380,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTrees,
+        outputStateTreeInfo,
     }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
@@ -390,7 +398,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTrees,
+            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -434,7 +442,7 @@ export class LightSystemProgram {
         payer,
         toAddress,
         lamports,
-        outputStateTree,
+        outputStateTreeInfo,
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -453,7 +461,7 @@ export class LightSystemProgram {
             [],
             [],
             [outputCompressedAccount],
-            outputStateTree,
+            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -499,7 +507,7 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTree,
+        outputStateTreeInfo,
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -518,7 +526,7 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTree,
+            outputStateTreeInfo,
         );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {

@@ -24,9 +24,9 @@ import {
     bn,
     buildTx,
     confirmTx,
-    defaultTestStateTreeAccounts,
     selectMinCompressedSolAccountsForTransfer,
     createRpc,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 // Default styles that can be overridden by your app
@@ -36,7 +36,10 @@ const SendButton: FC = () => {
     const { publicKey, sendTransaction } = useWallet();
 
     const onClick = useCallback(async () => {
-        const connection = await createRpc();
+        const connection = createRpc();
+        const stateTreeInfo = selectStateTreeInfo(
+            await connection.getCachedActiveStateTreeInfos(),
+        );
 
         if (!publicKey) throw new WalletNotConnectedError();
 
@@ -51,7 +54,7 @@ const SendButton: FC = () => {
             payer: publicKey,
             toAddress: publicKey,
             lamports: 1e8,
-            outputStateTree: defaultTestStateTreeAccounts().merkleTree,
+            outputStateTreeInfo: stateTreeInfo,
         });
         const compressInstructions = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
@@ -109,7 +112,7 @@ const SendButton: FC = () => {
             toAddress: recipient,
             lamports: 1e7,
             inputCompressedAccounts: selectedAccounts,
-            outputStateTrees: [defaultTestStateTreeAccounts().merkleTree],
+            outputStateTreeInfo: stateTreeInfo,
             recentValidityProof: compressedProof,
             recentInputStateRootIndices: rootIndices,
         });

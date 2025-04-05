@@ -3,6 +3,8 @@ import {
     CompressedAccount,
     OutputCompressedAccountWithPackedContext,
     PackedCompressedAccountWithMerkleContext,
+    StateTreeInfo,
+    TreeType,
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
@@ -98,11 +100,9 @@ export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
  *                                          input state. The expiry is tied to
  *                                          the proof.
  * @param outputCompressedAccounts          Ix output state to be created
- * @param outputStateMerkleTrees            Optional output state trees to be
- *                                          inserted into the output state.
- *                                          Defaults to the 0th state tree of
- *                                          the input state. Gets padded to the
- *                                          length of outputCompressedAccounts.
+ * @param outputStateTreeInfo               The output state tree info. Gets
+ *                                          padded to the length of
+ *                                          outputCompressedAccounts.
  *
  * @param remainingAccounts                 Optional existing array of accounts
  *                                          to append to.
@@ -111,7 +111,7 @@ export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateMerkleTrees?: PublicKey[] | PublicKey,
+    outputStateTreeInfo: StateTreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -156,17 +156,16 @@ export function packCompressedAccounts(
         });
     });
 
-    if (
-        outputStateMerkleTrees === undefined &&
-        inputCompressedAccounts.length === 0
-    ) {
-        throw new Error(
-            'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
-        );
+    if (outputStateTreeInfo.treeType === TreeType.StateV2) {
+        throw new Error('V2 trees are not supported yet');
     }
+    // internal. v2 trees require the output queue account instead of directly
+    // appending to the merkle tree.
+    const outputTreeOrQueue = outputStateTreeInfo.tree;
+
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateMerkleTrees,
+        outputTreeOrQueue,
         outputCompressedAccounts.length,
         inputCompressedAccounts,
     );

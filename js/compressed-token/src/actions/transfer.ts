@@ -11,6 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
@@ -21,17 +23,16 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 /**
  * Transfer compressed tokens from one owner to another
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint of the compressed token
- * @param amount         Number of tokens to transfer
- * @param owner          Owner of the compressed tokens
- * @param toAddress      Destination address of the recipient
- * @param merkleTree     State tree account that the compressed tokens should be
- *                       inserted into. Defaults to the default state tree
- *                       account.
- * @param confirmOptions Options for confirming the transaction
- *
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint of the compressed token
+ * @param amount                Number of tokens to transfer
+ * @param owner                 Owner of the compressed tokens
+ * @param toAddress             Destination address of the recipient
+ * @param outputStateTreeInfo   State tree account that the compressed tokens
+ *                              should be inserted into. Defaults to the default
+ *                              state tree account.
+ * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
  */
@@ -42,7 +43,7 @@ export async function transfer(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
@@ -58,6 +59,10 @@ export async function transfer(
         amount,
     );
 
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
@@ -69,18 +74,17 @@ export async function transfer(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
-        outputStateTrees: merkleTree,
+        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         additionalSigners,
     );
 
-    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
-    return txId;
+    return sendAndConfirmTx(rpc, signedTx, confirmOptions);
 }
