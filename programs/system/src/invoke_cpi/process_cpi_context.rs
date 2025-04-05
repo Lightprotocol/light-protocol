@@ -5,6 +5,9 @@ use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pub
 use super::account::{deserialize_cpi_context_account, CpiContextAccount, ZCpiContextAccount};
 use crate::errors::SystemProgramError;
 
+/// Diff:
+/// 1. return Cpi context instead of combined data.
+///
 /// Cpi context enables the use of input compressed accounts owned by different
 /// programs.
 ///
@@ -84,8 +87,6 @@ pub fn process_cpi_context<'a, 'info>(
                 return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
 
-            // let z_cpi_context_account =
-            //     deserialize_cpi_context_account(cpi_context_account).map_err(ProgramError::from)?;
             num_cpi_contexts = cpi_context_account.context.len();
             inputs.combine(cpi_context_account.context);
             // Reset cpi context account

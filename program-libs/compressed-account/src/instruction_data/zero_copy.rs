@@ -388,9 +388,17 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
         self.compress_or_decompress_lamports.map(|x| (*x).into())
     }
     fn owner(&self) -> Pubkey {
-        self.input_compressed_accounts_with_merkle_context[0]
-            .compressed_account
-            .owner
+        // TODO: investigate why this is called if there are no inputs when using mint_to.
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
     }
 
     fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {

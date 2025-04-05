@@ -1,3 +1,5 @@
+use std::iter::{Repeat, Zip};
+
 use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
 // use anchor_lang::{prelude::*, Result};
 use crate::Result;
@@ -159,7 +161,7 @@ impl<'info> SystemContext<'info> {
 
 /// TODO: refactor cpi context account so that everything is just combined into the first context,
 ///     the vector must never have more than 1 element.
-pub struct WrappedInstructionData<'a, 'b, T: InstructionDataTrait<'b>> {
+pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
     instruction_data: T,
     cpi_context: Option<ZCpiContextAccount<'a>>,
     address_len: usize,
@@ -167,18 +169,20 @@ pub struct WrappedInstructionData<'a, 'b, T: InstructionDataTrait<'b>> {
     outputs_len: usize,
 }
 
-impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
+impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     pub fn new(instruction_data: T, cpi_context: Option<ZCpiContextAccount<'a>>) -> Self {
         let (mut address_len, mut input_len, mut outputs_len) =
-            if let Some(cpi_context) = cpi_context {
+            if let Some(cpi_context) = cpi_context.as_ref() {
                 if cpi_context.context.len() > 1 {
                     unimplemented!();
                 }
 
                 (
-                    cpi_context.context[0].new_addresses().len(),
-                    cpi_context.context[0].input_accounts().len(),
-                    cpi_context.context[0].output_accounts().len(),
+                    cpi_context.context[0].new_address_params.len(),
+                    cpi_context.context[0]
+                        .input_compressed_accounts_with_merkle_context
+                        .len(),
+                    cpi_context.context[0].output_compressed_accounts.len(),
                 )
             } else {
                 (0, 0, 0)
@@ -208,9 +212,21 @@ impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
     pub fn output_len(&self) -> usize {
         self.outputs_len
     }
+
+    pub fn inputs_empty(&self) -> bool {
+        self.input_len == 0
+    }
+
+    pub fn outputs_empty(&self) -> bool {
+        self.outputs_len == 0
+    }
+
+    pub fn address_empty(&self) -> bool {
+        self.address_len == 0
+    }
 }
 
-impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
+impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     pub fn owner(&self) -> light_compressed_account::pubkey::Pubkey {
         self.instruction_data.owner()
     }
@@ -218,7 +234,7 @@ impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
         &self,
     ) -> Option<
         zerocopy::Ref<
-            &'b [u8],
+            &'a [u8],
             light_compressed_account::instruction_data::compressed_proof::CompressedProof,
         >,
     > {
@@ -242,7 +258,7 @@ impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
         // }
     }
 
-    pub fn output_accounts(&self) -> impl Iterator<Item = &'b impl OutputAccountTrait<'b>> {
+    pub fn output_accounts<'b>(&'b self) -> std::slice::Iter<'b, impl OutputAccountTrait<'a> + 'b> {
         // if let Some(cpi_context) = &self.cpi_context {
         //     self.instruction_data
         //         .output_accounts()
@@ -253,7 +269,12 @@ impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
         // }
     }
 
-    pub fn input_accounts(&self) -> Zip<Iter<'b, impl InputAccountTrait<'b>>, Repeat<Pubkey>> {
+    pub fn input_accounts<'b>(
+        &'b self,
+    ) -> Zip<
+        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
+        Repeat<light_compressed_account::pubkey::Pubkey>,
+    > {
         // if let Some(cpi_context) = &self.cpi_context {
         //     self.instruction_data
         //         .input_accounts()

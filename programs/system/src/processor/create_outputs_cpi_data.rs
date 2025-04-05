@@ -1,10 +1,10 @@
-use crate::context::AcpAccount;
+use crate::context::{AcpAccount, WrappedInstructionData};
 use crate::Result;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::OutputAccountTrait,
+        traits::{InstructionDataTrait, OutputAccountTrait},
         zero_copy::ZOutputCompressedAccountWithPackedContext,
     },
     TreeType,
@@ -28,14 +28,14 @@ use crate::{context::SystemContext, errors::SystemProgramError};
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-pub fn create_outputs_cpi_data<'a, 'info>(
-    output_compressed_accounts: impl Iterator<Item = &'a impl OutputAccountTrait<'a> + 'a>,
+pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
     accounts: &[AcpAccount<'info>],
 ) -> Result<[u8; 32]> {
-    if output_compressed_accounts.is_empty() {
+    if inputs.output_len() == 0 {
         return Ok([0u8; 32]);
     }
     let mut current_index: i16 = -1;
@@ -45,18 +45,15 @@ pub fn create_outputs_cpi_data<'a, 'info>(
     cpi_ix_data.start_output_appends = context.account_indices.len() as u8;
     let mut index_merkle_tree_account_account = cpi_ix_data.start_output_appends;
     let mut index_merkle_tree_account = 0;
-    let number_of_merkle_trees = output_compressed_accounts
-        .last()
-        .unwrap()
-        .merkle_tree_index() as usize
-        + 1;
+    let number_of_merkle_trees =
+        inputs.output_accounts().last().unwrap().merkle_tree_index() as usize + 1;
     let mut merkle_tree_pubkeys =
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
     let mut rollover_fee = 0;
     let mut is_batched = true;
 
-    for (j, account) in output_compressed_accounts.enumerate() {
+    for (j, account) in inputs.output_accounts().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]

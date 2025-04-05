@@ -20,18 +20,18 @@ use crate::Result;
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
-pub fn create_inputs_cpi_data<'a, 'b, 'info, T: InstructionDataTrait<'a>>(
+pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
     remaining_accounts: &'info [AccountInfo],
-    instruction_data: &WrappedInstructionData<'b, 'a, T>,
+    instruction_data: &WrappedInstructionData<'a, T>,
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'b>,
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
     accounts: &[AcpAccount<'info>],
 ) -> Result<[u8; 32]> {
-    if instruction_data.input_len() == 0 {
+    if instruction_data.inputs_empty() {
         return Ok([0u8; 32]);
     }
     let mut owner_pubkey = instruction_data.owner();
-    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey);
+    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes());
     context
         .hashed_pubkeys
         .push((owner_pubkey.into(), hashed_owner));
@@ -42,7 +42,8 @@ pub fn create_inputs_cpi_data<'a, 'b, 'info, T: InstructionDataTrait<'a>>(
     let mut is_first_iter = true;
     let mut seq_index = 0;
     let mut is_batched = true;
-    for (j, input_compressed_account_with_context) in instruction_data.input_accounts().enumerate()
+    for (j, (input_compressed_account_with_context, owner)) in
+        instruction_data.input_accounts().enumerate()
     {
         context
             .addresses
@@ -85,12 +86,12 @@ pub fn create_inputs_cpi_data<'a, 'b, 'info, T: InstructionDataTrait<'a>>(
             };
         }
         // TODO: call function repeatedly for every owner
-        // // Without cpi context all input compressed accounts have the same owner.
-        // // With cpi context the owners will be different.
-        // if owner_pubkey != input_compressed_account_with_context.owner() {
-        //     owner_pubkey = input_compressed_account_with_context.owner();
-        //     hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
-        // }
+        // Without cpi context all input compressed accounts have the same owner.
+        // With cpi context the owners will be different.
+        if owner_pubkey != owner.into() {
+            owner_pubkey = owner.into();
+            hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
+        }
         let merkle_context = input_compressed_account_with_context.merkle_context();
         let queue_index = context.get_index_or_insert(
             merkle_context.nullifier_queue_pubkey_index,
@@ -123,12 +124,12 @@ pub fn create_inputs_cpi_data<'a, 'b, 'info, T: InstructionDataTrait<'a>>(
     cpi_ix_data.num_queues = instruction_data
         .input_accounts()
         .enumerate()
-        .filter(|(i, x)| {
+        .filter(|(i, (x, _))| {
             let candidate = x.merkle_context().nullifier_queue_pubkey_index;
             !instruction_data
                 .input_accounts()
                 .take(*i)
-                .any(|y| y.merkle_context().nullifier_queue_pubkey_index == candidate)
+                .any(|(y, _)| y.merkle_context().nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
 

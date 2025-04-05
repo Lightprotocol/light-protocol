@@ -1,15 +1,9 @@
-use std::u8::MAX;
-
-use account_traits::SignerAccounts;
 use init_context_account::init_cpi_context_account;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
-    account::CpiContextAccount, instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
+    instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
 };
-use invoke_with_read_only_cpi::instruction::OptionsConfig;
-use light_account_checks::{
-    checks::check_signer, context::LightContext, discriminator::Discriminator as LightDiscriminator,
-};
+use light_account_checks::context::LightContext;
 use pinocchio::pubkey::Pubkey;
 
 pub mod account_compression_state;
@@ -39,15 +33,14 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, log::sol_log_compute_units, msg,
-    program_error::ProgramError, syscalls::sol_log_compute_units_, ProgramResult,
+    account_info::AccountInfo, entrypoint, log::sol_log_compute_units,
+    program_error::ProgramError, ProgramResult,
 };
 
 use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
 use light_compressed_account::instruction_data::{
-    with_readonly::InstructionDataInvokeCpiWithReadOnly,
     zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
 };
 
@@ -137,7 +130,16 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &ctx.authority.key(),
     )?;
-    process(inputs, None, ctx, 0, None, None, remaining_accounts)?;
+    let wrapped_inputs = context::WrappedInstructionData::new(inputs, None);
+    process(
+        wrapped_inputs,
+        None,
+        &ctx,
+        0,
+        None,
+        None,
+        remaining_accounts,
+    )?;
     sol_log_compute_units();
     Ok(())
 }

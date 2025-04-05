@@ -1,3 +1,5 @@
+use std::iter::{Repeat, Zip};
+
 use crate::context::AcpAccount;
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
@@ -27,15 +29,17 @@ const IS_STATE: bool = true;
 const IS_NOT_STATE: bool = false;
 
 #[inline(always)]
-pub fn read_input_state_roots<'a>(
+pub fn read_input_state_roots<'a, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
-    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
+    input_compressed_accounts_with_merkle_context: Zip<
+        std::slice::Iter<'a, impl InputAccountTrait<'b> + 'a>,
+        Repeat<light_compressed_account::pubkey::Pubkey>,
+    >,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut state_tree_height = 0;
-    for input_compressed_account_with_context in
-        input_compressed_accounts_with_merkle_context.iter()
+    for (input_compressed_account_with_context, _) in input_compressed_accounts_with_merkle_context
     {
         if input_compressed_account_with_context
             .merkle_context()
@@ -88,7 +92,7 @@ pub fn read_input_state_roots<'a>(
 
 #[inline(always)]
 pub fn read_address_roots<'a>(
-    remaining_accounts: &'a [AcpAccount<'_>],
+    remaining_accounts: &[AcpAccount<'_>],
     new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>,
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,

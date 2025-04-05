@@ -108,8 +108,10 @@ use light_compressed_account::{
     },
     instruction_data::{
         compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
         data::{NewAddressParams, ReadOnlyAddress},
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     TreeType,
 };
@@ -141,7 +143,10 @@ use light_registry::{
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+use light_sdk::{
+    token::{AccountState, TokenDataWithMerkleContext},
+    CPI_AUTHORITY_PDA_SEED,
+};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -2718,36 +2723,41 @@ where
             is_compress: false,
             cpi_context: None,
         };
-        let read_only_accounts = if read_only_accounts.is_empty() {
-            None
-        } else {
-            Some(pack_read_only_accounts(
-                read_only_accounts.as_slice(),
-                &mut remaining_accounts,
-            ))
-        };
-        let read_only_addresses = if read_only_addresses.is_empty() {
-            None
-        } else {
-            Some(pack_read_only_address_params(
-                read_only_addresses.as_slice(),
-                &mut remaining_accounts,
-            ))
-        };
+        let read_only_accounts =
+            pack_read_only_accounts(read_only_accounts.as_slice(), &mut remaining_accounts);
+        let read_only_addresses =
+            pack_read_only_address_params(read_only_addresses.as_slice(), &mut remaining_accounts);
+        let (_, bump) = Pubkey::find_program_address(
+            &[CPI_AUTHORITY_PDA_SEED],
+            &create_address_test_program::ID,
+        );
 
         let ix_data: InstructionDataInvokeCpiWithReadOnly = InstructionDataInvokeCpiWithReadOnly {
-            invoke_cpi,
+            mode: 0,
+            bump,
+            invoking_program_id: create_address_test_program::ID.into(),
+            proof: invoke_cpi.proof,
+            new_address_params: invoke_cpi.new_address_params,
+            with_cpi_context: false,
+            cpi_context: CompressedCpiContext::default(),
+            input_compressed_accounts: invoke_cpi
+                .input_compressed_accounts_with_merkle_context
+                .iter()
+                .map(|x| (*x).clone().into())
+                .collect::<Vec<_>>(),
+            is_decompress: !invoke_cpi.is_compress,
+            compress_or_decompress_lamports: invoke_cpi
+                .compress_or_decompress_lamports
+                .unwrap_or_default(),
+            output_compressed_accounts: invoke_cpi.output_compressed_accounts,
             read_only_accounts,
             read_only_addresses,
         };
         println!("ix_data: {:?}", ix_data);
-        if ix_data.read_only_accounts.is_none()
-            && ix_data.read_only_addresses.is_none()
-            && ix_data
-                .invoke_cpi
-                .input_compressed_accounts_with_merkle_context
-                .is_empty()
-            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
+        if ix_data.read_only_accounts.is_empty()
+            && ix_data.read_only_addresses.is_empty()
+            && ix_data.input_compressed_accounts.is_empty()
+            && ix_data.output_compressed_accounts.is_empty()
         {
             return Ok(());
         }
@@ -2774,13 +2784,10 @@ where
         // In case that only read only accounts exist in a transaction
         // the account compression program is not invoked -> there is no event and it is ok.
         let tx_has_read_only =
-            ix_data.read_only_accounts.is_some() || ix_data.read_only_addresses.is_some();
-        let tx_has_no_writable = ix_data
-            .invoke_cpi
-            .input_compressed_accounts_with_merkle_context
-            .is_empty()
-            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
-            && ix_data.invoke_cpi.new_address_params.is_empty();
+            !ix_data.read_only_accounts.is_empty() || !ix_data.read_only_addresses.is_empty();
+        let tx_has_no_writable = ix_data.input_compressed_accounts.is_empty()
+            && ix_data.output_compressed_accounts.is_empty()
+            && ix_data.new_address_params.is_empty();
         let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
         if !tx_is_read_only {
             let (event, _, slot) = res.ok_or(RpcError::CustomError(

@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
 
 use crate::{
@@ -212,7 +211,7 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, PartialEq, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct CAccountInfo {
     pub discriminator: [u8; 8], // 1
     /// Address.

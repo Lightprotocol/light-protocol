@@ -22,7 +22,7 @@ use super::{
         ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
     },
 };
-use std::ops::Deref;
+use std::{env::var, ops::Deref};
 use zerocopy::{
     little_endian::{U16, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -40,6 +40,29 @@ pub struct InAccount {
     /// Lamports.
     pub lamports: u64,
     pub address: Option<[u8; 32]>,
+}
+
+impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
+    fn from(value: PackedCompressedAccountWithMerkleContext) -> Self {
+        Self {
+            discriminator: value
+                .compressed_account
+                .data
+                .as_ref()
+                .expect("Into InAccount expected data to exist.")
+                .discriminator,
+            merkle_context: value.merkle_context,
+            data_hash: value
+                .compressed_account
+                .data
+                .as_ref()
+                .expect("Into InAccount expected data to exist.")
+                .data_hash,
+            root_index: value.root_index,
+            lamports: value.compressed_account.lamports,
+            address: value.compressed_account.address,
+        }
+    }
 }
 
 impl<'a> InputAccountTrait<'a> for ZInAccount<'a> {

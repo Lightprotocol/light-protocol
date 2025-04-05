@@ -80,14 +80,13 @@ use crate::{
 ///     4.2. Verify inclusion by zkp
 pub fn process<
     'a,
-    'b,
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
     T: InstructionDataTrait<'a>,
 >(
-    inputs: WrappedInstructionData<'b, 'a, T>,
+    inputs: WrappedInstructionData<'a, T>,
     invoking_program: Option<Pubkey>,
-    ctx: A,
+    ctx: &A,
     cpi_context_inputs: usize,
     read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
     read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
@@ -107,7 +106,7 @@ pub fn process<
 
     // 1. Allocate cpi data and initialize context
     let (mut context, mut cpi_ix_bytes) = create_cpi_data_and_context(
-        &ctx,
+        ctx,
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
         num_new_addresses as u8,
@@ -118,7 +117,7 @@ pub fn process<
     //     msg!("processor: post create_cpi_data_and_context");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
-    inputs.input_accounts().for_each(|account| {
+    inputs.input_accounts().for_each(|(account, _)| {
         context.addresses.push(account.address());
     });
 
@@ -181,17 +180,13 @@ pub fn process<
     //      9.1. Compute output compressed hashes
     //      9.2. Collect accounts
     //      9.3. Validate order of output queue/ tree accounts
-    let output_compressed_account_hashes = if inputs.output_len() == 0 {
-        [0u8; 32]
-    } else {
-        create_outputs_cpi_data(
-            inputs.output_accounts(),
-            remaining_accounts,
-            &mut context,
-            &mut cpi_ix_data,
-            &accounts,
-        )?
-    };
+    let output_compressed_account_hashes = create_outputs_cpi_data::<T>(
+        &inputs,
+        remaining_accounts,
+        &mut context,
+        &mut cpi_ix_data,
+        &accounts,
+    )?;
     #[cfg(feature = "debug")]
     check_vec_capacity(
         hashed_pubkeys_capacity,
@@ -203,7 +198,7 @@ pub fn process<
     // 10. hash input compressed accounts ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_nullifiers");
-    if !inputs.input_accounts().is_empty() {
+    if !inputs.inputs_empty() {
         // currently must be post output accounts since the order of account infos matters
         // for the outputs.
         let input_compressed_account_hashes = create_inputs_cpi_data(
@@ -237,13 +232,7 @@ pub fn process<
     // 11. Sum check ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_sum_check");
-    let num_prove_by_index_input_accounts = sum_check(
-        &inputs.input_accounts(),
-        &inputs.output_accounts(),
-        &None,
-        &inputs.compress_or_decompress_lamports().map(|x| x),
-        &inputs.is_compress(),
-    )?;
+    let num_prove_by_index_input_accounts = sum_check(&inputs, &None, &inputs.is_compress())?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_sum_check");
     // 12. Compress or decompress lamports ---------------------------------------------------
@@ -256,7 +245,7 @@ pub fn process<
         compress_or_decompress_lamports(
             inputs.is_compress(),
             inputs.compress_or_decompress_lamports(),
-            &ctx,
+            ctx,
         )?;
     } else if ctx.get_decompression_recipient().is_some() {
         return Err(SystemProgramError::DecompressionRecipientDefined.into());
@@ -391,9 +380,9 @@ pub fn process<
         }
     } else if inputs.proof().is_some() {
         return Err(SystemProgramError::ProofIsSome.into());
-    } else if inputs.input_len() == 0
-        && inputs.address_len() == 0
-        && inputs.output_len() == 0
+    } else if inputs.inputs_empty()
+        && inputs.address_empty()
+        && inputs.outputs_empty()
         && read_only_accounts.is_empty()
         && read_only_addresses.is_empty()
     {
@@ -408,7 +397,7 @@ pub fn process<
 
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
-    if inputs.input_len() == 0 && inputs.address_len() == 0 && inputs.output_len() == 0 {
+    if inputs.inputs_empty() && inputs.address_empty() && inputs.outputs_empty() {
         return Ok(());
     }
     sol_log_compute_units();
