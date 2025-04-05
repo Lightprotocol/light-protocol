@@ -29,7 +29,7 @@ use crate::{context::SystemContext, errors::SystemProgramError};
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn create_outputs_cpi_data<'a, 'info>(
-    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
+    output_compressed_accounts: impl Iterator<Item = &'a impl OutputAccountTrait<'a> + 'a>,
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
@@ -56,7 +56,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
     let mut rollover_fee = 0;
     let mut is_batched = true;
 
-    for (j, account) in output_compressed_accounts.iter().enumerate() {
+    for (j, account) in output_compressed_accounts.enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]

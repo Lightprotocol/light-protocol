@@ -10,8 +10,8 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{context::SystemContext, errors::SystemProgramError};
 
-pub fn derive_new_addresses<'info>(
-    new_address_params: &[ZNewAddressParamsPacked],
+pub fn derive_new_addresses<'info, 'a>(
+    new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>, //&[ZNewAddressParamsPacked],
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
@@ -21,7 +21,7 @@ pub fn derive_new_addresses<'info>(
     let invoking_program_id_clone = context.invoking_program_id.clone();
     let mut seq_index = 0;
 
-    for (i, new_address_params) in new_address_params.iter().enumerate() {
+    for (i, new_address_params) in new_address_params.enumerate() {
         let (address, rollover_fee) = match &accounts
             [new_address_params.address_merkle_tree_account_index as usize]
         {

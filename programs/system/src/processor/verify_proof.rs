@@ -89,12 +89,12 @@ pub fn read_input_state_roots<'a>(
 #[inline(always)]
 pub fn read_address_roots<'a>(
     remaining_accounts: &'a [AcpAccount<'_>],
-    new_address_params: &'a [ZNewAddressParamsPacked],
+    new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>,
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut address_tree_height = 0;
-    for new_address_param in new_address_params.iter() {
+    for new_address_param in new_address_params {
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
             &remaining_accounts[new_address_param.address_merkle_tree_account_index as usize],
             new_address_param.address_merkle_tree_root_index.into(),

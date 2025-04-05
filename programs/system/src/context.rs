@@ -1,10 +1,14 @@
-use crate::utils::transfer_lamports_cpi;
+use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
 // use anchor_lang::{prelude::*, Result};
 use crate::Result;
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
+use light_compressed_account::instruction_data::traits::{
+    InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
+};
+use light_compressed_account::instruction_data::zero_copy::ZNewAddressParamsPacked;
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
@@ -150,5 +154,122 @@ impl<'info> SystemContext<'info> {
             transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())
+    }
+}
+
+/// TODO: refactor cpi context account so that everything is just combined into the first context,
+///     the vector must never have more than 1 element.
+pub struct WrappedInstructionData<'a, 'b, T: InstructionDataTrait<'b>> {
+    instruction_data: T,
+    cpi_context: Option<ZCpiContextAccount<'a>>,
+    address_len: usize,
+    input_len: usize,
+    outputs_len: usize,
+}
+
+impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
+    pub fn new(instruction_data: T, cpi_context: Option<ZCpiContextAccount<'a>>) -> Self {
+        let (mut address_len, mut input_len, mut outputs_len) =
+            if let Some(cpi_context) = cpi_context {
+                if cpi_context.context.len() > 1 {
+                    unimplemented!();
+                }
+
+                (
+                    cpi_context.context[0].new_addresses().len(),
+                    cpi_context.context[0].input_accounts().len(),
+                    cpi_context.context[0].output_accounts().len(),
+                )
+            } else {
+                (0, 0, 0)
+            };
+
+        address_len += instruction_data.new_addresses().len();
+        input_len += instruction_data.input_accounts().len();
+        outputs_len += instruction_data.output_accounts().len();
+
+        Self {
+            instruction_data,
+            input_len,
+            outputs_len,
+            address_len,
+            cpi_context,
+        }
+    }
+
+    pub fn address_len(&self) -> usize {
+        self.address_len
+    }
+
+    pub fn input_len(&self) -> usize {
+        self.input_len
+    }
+
+    pub fn output_len(&self) -> usize {
+        self.outputs_len
+    }
+}
+
+impl<'a, 'b, T: InstructionDataTrait<'b>> WrappedInstructionData<'a, 'b, T> {
+    pub fn owner(&self) -> light_compressed_account::pubkey::Pubkey {
+        self.instruction_data.owner()
+    }
+    pub fn proof(
+        &self,
+    ) -> Option<
+        zerocopy::Ref<
+            &'b [u8],
+            light_compressed_account::instruction_data::compressed_proof::CompressedProof,
+        >,
+    > {
+        self.instruction_data.proof()
+    }
+    pub fn is_compress(&self) -> bool {
+        self.instruction_data.is_compress()
+    }
+    pub fn compress_or_decompress_lamports(&self) -> Option<u64> {
+        self.instruction_data.compress_or_decompress_lamports()
+    }
+
+    pub fn new_addresses(&self) -> impl Iterator<Item = &ZNewAddressParamsPacked> {
+        // if let Some(cpi_context) = &self.cpi_context {
+        //     self.instruction_data
+        //         .new_addresses()
+        //         .iter()
+        //         .chain(cpi_context.context[0].new_addresses().iter())
+        // } else {
+        self.instruction_data.new_addresses().iter()
+        // }
+    }
+
+    pub fn output_accounts(&self) -> impl Iterator<Item = &'b impl OutputAccountTrait<'b>> {
+        // if let Some(cpi_context) = &self.cpi_context {
+        //     self.instruction_data
+        //         .output_accounts()
+        //         .iter()
+        //         .chain(cpi_context.context[0].output_accounts().iter())
+        // } else {
+        self.instruction_data.output_accounts().iter()
+        // }
+    }
+
+    pub fn input_accounts(&self) -> Zip<Iter<'b, impl InputAccountTrait<'b>>, Repeat<Pubkey>> {
+        // if let Some(cpi_context) = &self.cpi_context {
+        //     self.instruction_data
+        //         .input_accounts()
+        //         .iter()
+        //         .zip(std::iter::repeat(self.instruction_data.owner()))
+        //         .chain(
+        //             cpi_context.context[0]
+        //                 .input_accounts()
+        //                 .iter()
+        //                 .zip(std::iter::repeat(cpi_context.context[0].owner())),
+        //         )
+        // } else {
+        self.instruction_data
+            .input_accounts()
+            .iter()
+            .zip(std::iter::repeat(self.instruction_data.owner()))
+        // }
     }
 }

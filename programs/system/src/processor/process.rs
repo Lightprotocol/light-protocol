@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use crate::Result;
+use crate::{context::WrappedInstructionData, Result};
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -78,8 +78,14 @@ use crate::{
 ///    `read_only_addresses`
 ///     4.1. Verify non-inclusion in queue
 ///     4.2. Verify inclusion by zkp
-pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
-    inputs: impl InstructionDataTrait<'a>,
+pub fn process<
+    'a,
+    'b,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info>,
+    T: InstructionDataTrait<'a>,
+>(
+    inputs: WrappedInstructionData<'b, 'a, T>,
     invoking_program: Option<Pubkey>,
     ctx: A,
     cpi_context_inputs: usize,
@@ -89,9 +95,9 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_compression");
-    let num_input_compressed_accounts = inputs.input_accounts().len();
-    let num_new_addresses = inputs.new_addresses().len();
-    let num_output_compressed_accounts = inputs.input_accounts().len();
+    let num_input_compressed_accounts = inputs.input_len();
+    let num_new_addresses = inputs.address_len();
+    let num_output_compressed_accounts = inputs.output_len();
     // msg!("num new addresses: {}", num_new_addresses);
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
@@ -112,7 +118,7 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     //     msg!("processor: post create_cpi_data_and_context");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
-    inputs.input_accounts().iter().for_each(|account| {
+    inputs.input_accounts().for_each(|account| {
         context.addresses.push(account.address());
     });
 
@@ -175,13 +181,17 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     //      9.1. Compute output compressed hashes
     //      9.2. Collect accounts
     //      9.3. Validate order of output queue/ tree accounts
-    let output_compressed_account_hashes = create_outputs_cpi_data(
-        inputs.output_accounts(),
-        remaining_accounts,
-        &mut context,
-        &mut cpi_ix_data,
-        &accounts,
-    )?;
+    let output_compressed_account_hashes = if inputs.output_len() == 0 {
+        [0u8; 32]
+    } else {
+        create_outputs_cpi_data(
+            inputs.output_accounts(),
+            remaining_accounts,
+            &mut context,
+            &mut cpi_ix_data,
+            &accounts,
+        )?
+    };
     #[cfg(feature = "debug")]
     check_vec_capacity(
         hashed_pubkeys_capacity,
@@ -198,11 +208,10 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
         // for the outputs.
         let input_compressed_account_hashes = create_inputs_cpi_data(
             remaining_accounts,
-            inputs.input_accounts(),
+            &inputs,
             &mut context,
             &mut cpi_ix_data,
             &accounts,
-            inputs.owner().into(),
         )?;
 
         #[cfg(feature = "debug")]
@@ -382,9 +391,9 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
         }
     } else if inputs.proof().is_some() {
         return Err(SystemProgramError::ProofIsSome.into());
-    } else if inputs.input_accounts().is_empty()
-        && inputs.new_addresses().is_empty()
-        && inputs.output_accounts().is_empty()
+    } else if inputs.input_len() == 0
+        && inputs.address_len() == 0
+        && inputs.output_len() == 0
         && read_only_accounts.is_empty()
         && read_only_addresses.is_empty()
     {
@@ -399,10 +408,7 @@ pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
 
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
-    if inputs.input_accounts().is_empty()
-        && inputs.new_addresses().is_empty()
-        && inputs.output_accounts().is_empty()
-    {
+    if inputs.input_len() == 0 && inputs.address_len() == 0 && inputs.output_len() == 0 {
         return Ok(());
     }
     sol_log_compute_units();

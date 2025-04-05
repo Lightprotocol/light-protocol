@@ -11,15 +11,15 @@ use crate::errors::SystemProgramError;
 
 #[inline(always)]
 pub fn sum_check<'a>(
-    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
-    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
+    input_compressed_accounts_with_merkle_context: impl Iterator<Item = &'a impl InputAccountTrait<'a>>,
+    output_compressed_accounts: impl Iterator<Item = &'a impl OutputAccountTrait<'a>>,
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
 ) -> Result<usize> {
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
-    for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
+    for compressed_account_with_context in input_compressed_accounts_with_merkle_context {
         if compressed_account_with_context
             .merkle_context()
             .prove_by_index()
@@ -47,7 +47,7 @@ pub fn sum_check<'a>(
         }
     }
 
-    for compressed_account in output_compressed_accounts.iter() {
+    for compressed_account in output_compressed_accounts {
         sum = sum
             .checked_sub(u64::from(compressed_account.lamports()))
             .ok_or(ProgramError::ArithmeticOverflow)

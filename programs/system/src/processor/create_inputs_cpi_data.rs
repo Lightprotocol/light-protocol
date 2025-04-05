@@ -1,9 +1,12 @@
-use crate::{context::AcpAccount, errors::SystemProgramError};
+use crate::{
+    context::{AcpAccount, WrappedInstructionData},
+    errors::SystemProgramError,
+};
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-        traits::InputAccountTrait,
+        traits::{InputAccountTrait, InstructionDataTrait},
         zero_copy::ZPackedCompressedAccountWithMerkleContext,
     },
 };
@@ -17,20 +20,17 @@ use crate::Result;
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
-pub fn create_inputs_cpi_data<'a, 'b, 'info>(
+pub fn create_inputs_cpi_data<'a, 'b, 'info, T: InstructionDataTrait<'a>>(
     remaining_accounts: &'info [AccountInfo],
-    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
+    instruction_data: &WrappedInstructionData<'b, 'a, T>,
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'b>,
     accounts: &[AcpAccount<'info>],
-    mut owner_pubkey: Pubkey,
 ) -> Result<[u8; 32]> {
-    if input_compressed_accounts_with_merkle_context.is_empty() {
+    if instruction_data.input_len() == 0 {
         return Ok([0u8; 32]);
     }
-    // let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
-    //     .compressed_account
-    //     .owner;
+    let mut owner_pubkey = instruction_data.owner();
     let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey);
     context
         .hashed_pubkeys
@@ -42,9 +42,7 @@ pub fn create_inputs_cpi_data<'a, 'b, 'info>(
     let mut is_first_iter = true;
     let mut seq_index = 0;
     let mut is_batched = true;
-    for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
-        .iter()
-        .enumerate()
+    for (j, input_compressed_account_with_context) in instruction_data.input_accounts().enumerate()
     {
         context
             .addresses
@@ -121,13 +119,15 @@ pub fn create_inputs_cpi_data<'a, 'b, 'info>(
                 .map_err(ProgramError::from)?;
         }
     }
-    cpi_ix_data.num_queues = input_compressed_accounts_with_merkle_context
-        .iter()
+    // TODO: benchmark the chaining.
+    cpi_ix_data.num_queues = instruction_data
+        .input_accounts()
         .enumerate()
         .filter(|(i, x)| {
             let candidate = x.merkle_context().nullifier_queue_pubkey_index;
-            !input_compressed_accounts_with_merkle_context[..*i]
-                .iter()
+            !instruction_data
+                .input_accounts()
+                .take(*i)
                 .any(|y| y.merkle_context().nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
