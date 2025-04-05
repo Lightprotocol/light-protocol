@@ -11,9 +11,15 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../utils/get-token-pool-infos';
 
 /**
  * Mint compressed tokens to a solana address
@@ -26,7 +32,7 @@ import { CompressedTokenProgram } from '../program';
  * @param authority      Minting authority
  * @param amount         Amount to mint. Can be an array of amounts if the
  *                       destination is an array of addresses.
- * @param merkleTree     State tree account that the compressed tokens should be
+ * @param outputStateTreeInfo     State tree account that the compressed tokens should be
  *                       part of. Defaults to the default state tree account.
  * @param confirmOptions Options for confirming the transaction
  *
@@ -39,7 +45,8 @@ export async function mintTo(
     destination: PublicKey | PublicKey[],
     authority: Signer,
     amount: number | BN | number[] | BN[],
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -47,25 +54,27 @@ export async function mintTo(
         ? tokenProgramId
         : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
 
-    const additionalSigners = dedupeSigner(payer, [authority]);
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
 
-    if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
-    }
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
     const ix = await CompressedTokenProgram.mintTo({
         feePayer: payer.publicKey,
         mint,
         authority: authority.publicKey,
-        amount: amount,
+        amount,
         toPubkey: destination,
-        merkleTree,
+        outputStateTreeInfo,
+        tokenPoolInfo,
         tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
+    const additionalSigners = dedupeSigner(payer, [authority]);
 
     const tx = buildAndSignTx(
         [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
@@ -74,7 +83,5 @@ export async function mintTo(
         additionalSigners,
     );
 
-    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-
-    return txId;
+    return sendAndConfirmTx(rpc, tx, confirmOptions);
 }

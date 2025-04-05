@@ -12,30 +12,36 @@ import {
     Rpc,
     dedupeSigner,
     selectStateTreeInfo,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
-import { selectTokenPoolInfosForDecompression } from '../utils/get-token-pool-infos';
+import {
+    selectTokenPoolInfosForDecompression,
+    TokenPoolInfo,
+} from '../utils/get-token-pool-infos';
 import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
  * Decompress compressed tokens
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint of the compressed token
- * @param amount         Number of tokens to transfer
- * @param owner          Owner of the compressed tokens
- * @param toAddress      Destination **uncompressed** (associated) token account
- *                       address.
- * @param merkleTree     State tree account that any change compressed tokens should be
- *                       inserted into. Defaults to a default state tree
- *                       account.
- * @param confirmOptions Options for confirming the transaction
- *
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint of the compressed token
+ * @param amount                Number of tokens to transfer
+ * @param owner                 Owner of the compressed tokens
+ * @param toAddress             Destination **uncompressed** (associated) token
+ *                              account address.
+ * @param outputStateTreeInfo   State tree account that any change compressed
+ *                              tokens should be inserted into. Defaults to a
+ *                              default state tree account.
+ * @param tokenPoolInfos        Token pool infos
+ * @param confirmOptions        Options for confirming the transaction
+ * @param tokenProgramId        Optional: token program id. Default: SPL Token
+ *                              Program ID
  *
  * @return Signature of the confirmed transaction
  */
@@ -46,7 +52,8 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfos?: TokenPoolInfo[],
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
@@ -72,10 +79,11 @@ export async function decompress(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
-    const stateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
-    const selectedStateTreeInfo = selectStateTreeInfo(stateTreeInfos);
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
 
-    const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+    tokenPoolInfos = tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
     const selectedTokenPoolInfos = selectTokenPoolInfosForDecompression(
         tokenPoolInfos,
         amount,
@@ -86,7 +94,7 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
         amount,
-        outputStateTreeInfo: selectedStateTreeInfo,
+        outputStateTreeInfo,
         tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,

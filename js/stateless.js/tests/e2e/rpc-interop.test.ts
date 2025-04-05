@@ -34,13 +34,7 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey);
         executedTxs++;
     });
 
@@ -172,7 +166,6 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
 
@@ -185,7 +178,6 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
     });
@@ -316,7 +308,6 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            defaultTestStateTreeAccounts().merkleTree,
         );
         executedTxs++;
     });
@@ -535,13 +526,7 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
@@ -659,15 +644,7 @@ describe('rpc-interop', () => {
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const address = deriveAddress(seed, addressTree);
 
-        await createAccount(
-            rpc,
-            payer,
-            seeds,
-            LightSystemProgram.programId,
-            undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await createAccount(rpc, payer, seeds, LightSystemProgram.programId);
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
@@ -700,7 +677,6 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             addressTree,
             addressQueue,
-            defaultTestStateTreeAccounts().merkleTree,
         );
 
         // fetch the owners latest account

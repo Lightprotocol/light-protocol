@@ -42,7 +42,9 @@ export async function compress(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        console.log('stateTreeInfo', stateTreeInfo);
         outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
+        console.log('selected outputStateTreeInfo', outputStateTreeInfo);
     }
 
     const ix = await LightSystemProgram.compress({

@@ -61,7 +61,7 @@ export type StateTreeInfo = {
     /**
      * The state nullfier queue belonging to merkleTree.
      */
-    queue: PublicKey | null;
+    queue: PublicKey;
     /**
      * The compressed cpi context account.
      */

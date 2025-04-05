@@ -44,19 +44,19 @@ async function getStorageOptions(
     };
 }
 
-
-
 /**
  * Mint compressed tokens to a solana address from an external mint authority
  *
- * @param rpc            Rpc to use
- * @param payer          Payer of the transaction fees
- * @param mint           Mint for the account
- * @param destination    Address of the account to mint to
- * @param authority      Minting authority
- * @param amount         Amount to mint
- * @param storageOptions Options for storing the tokens accounts
- * @param confirmOptions Options for confirming the transaction
+ * @param rpc                   Rpc to use
+ * @param payer                 Payer of the transaction fees
+ * @param mint                  Mint for the account
+ * @param toPubkey              Address of the account to mint to
+ * @param authority             Minting authority
+ * @param amount                Amount to mint
+ * @param outputStateTreeInfo   State tree info
+ * @param tokenPoolInfo         Token pool info
+ * @param confirmOptions        Options for confirming the transaction
+ * @param tokenProgramId        Token program id
  *
  * @return Signature of the confirmed transaction
  */
@@ -64,16 +64,23 @@ export async function approveAndMintTo(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
-    destination: PublicKey,
+    toPubkey: PublicKey,
     authority: Signer,
     amount: number | BN,
-    storageOptions?: StorageOptions,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+    tokenProgramId =
+        tokenProgramId ??
+        (await CompressedTokenProgram.get_mint_program_id(mint, rpc));
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
     const authorityTokenAccount = await getOrCreateAssociatedTokenAccount(
         rpc,
@@ -86,28 +93,15 @@ export async function approveAndMintTo(
         tokenProgramId,
     );
 
-    let selectedStateTreeInfo: StateTreeInfo;
-    let selectedTokenPoolInfo: TokenPoolInfo;
-    if (!storageOptions) {
-        const stateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
-        selectedStateTreeInfo = selectStateTreeInfo(stateTreeInfos);
-
-        const tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
-        selectedTokenPoolInfo = selectTokenPoolInfos(tokenPoolInfos);
-    } else {
-        selectedStateTreeInfo = storageOptions.stateTreeInfo;
-        selectedTokenPoolInfo = toArray(storageOptions.tokenPoolInfos)[0];
-    }
-
     const ixs = await CompressedTokenProgram.approveAndMintTo({
         feePayer: payer.publicKey,
         mint,
         authority: authority.publicKey,
         authorityTokenAccount: authorityTokenAccount.address,
         amount,
-        toPubkey: destination,
-        outputStateTreeInfo: selectedStateTreeInfo,
-        tokenPoolInfo: selectedTokenPoolInfo,
+        toPubkey,
+        outputStateTreeInfo,
+        tokenPoolInfo,
         tokenProgramId,
     });
 
@@ -115,16 +109,11 @@ export async function approveAndMintTo(
     const additionalSigners = dedupeSigner(payer, [authority]);
 
     const tx = buildAndSignTx(
-        [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            ...ixs,
-        ],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ...ixs],
         payer,
         blockhash,
         additionalSigners,
     );
 
-    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
-
-    return txId;
+    return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }

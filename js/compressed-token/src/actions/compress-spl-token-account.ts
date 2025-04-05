@@ -10,10 +10,17 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
 
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../utils/get-token-pool-infos';
 import { CompressedTokenProgram } from '../program';
 
 /**
@@ -23,10 +30,15 @@ import { CompressedTokenProgram } from '../program';
  * @param payer                 Payer of the transaction fees
  * @param mint                  Mint of the token to compress
  * @param owner                 Owner of the token account
- * @param tokenAccount         Token account to compress
- * @param outputStateTree       State tree to insert the compressed token account into
- * @param remainingAmount      Optional: amount to leave in token account. Default: 0
- * @param confirmOptions       Options for confirming the transaction
+ * @param tokenAccount          Token account to compress
+ * @param remainingAmount       Optional: amount to leave in token account.
+ *                              Default: 0
+ * @param outputStateTreeInfo   State tree to insert the compressed token
+ *                              account into
+ * @param tokenPoolInfo         Token pool info
+ * @param confirmOptions        Options for confirming the transaction
+ * @param tokenProgramId        Optional: token program id. Default: SPL Token
+ *                              Program ID
  *
  * @return Signature of the confirmed transaction
  */
@@ -36,14 +48,21 @@ export async function compressSplTokenAccount(
     mint: PublicKey,
     owner: Signer,
     tokenAccount: PublicKey,
-    outputStateTree: PublicKey,
     remainingAmount?: BN,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+    tokenProgramId =
+        tokenProgramId ??
+        (await CompressedTokenProgram.get_mint_program_id(mint, rpc));
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
     const compressIx = await CompressedTokenProgram.compressSplTokenAccount({
         feePayer: payer.publicKey,
@@ -51,12 +70,14 @@ export async function compressSplTokenAccount(
         tokenAccount,
         mint,
         remainingAmount,
-        outputStateTree,
+        outputStateTreeInfo,
+        tokenPoolInfo,
         tokenProgramId,
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
+
     const signedTx = buildAndSignTx(
         [
             ComputeBudgetProgram.setComputeUnitLimit({
@@ -68,11 +89,6 @@ export async function compressSplTokenAccount(
         blockhashCtx.blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(
-        rpc,
-        signedTx,
-        confirmOptions,
-        blockhashCtx,
-    );
-    return txId;
+
+    return await sendAndConfirmTx(rpc, signedTx, confirmOptions, blockhashCtx);
 }

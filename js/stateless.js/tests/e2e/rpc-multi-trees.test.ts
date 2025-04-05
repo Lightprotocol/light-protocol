@@ -1,9 +1,10 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
-import { Rpc, createRpc, pickRandomTreeAndQueue } from '../../src/rpc';
+import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
+    StateTreeInfo,
     bn,
     compress,
     createAccount,
@@ -11,6 +12,8 @@ import {
     defaultTestStateTreeAccounts2,
     deriveAddress,
     deriveAddressSeed,
+    pickRandomTreeAndQueue,
+    selectStateTreeInfo,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
@@ -26,26 +29,23 @@ describe('rpc-multi-trees', () => {
 
     const randTrees: PublicKey[] = [];
     const randQueues: PublicKey[] = [];
-
+    let stateTreeInfo2: StateTreeInfo;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
 
         testRpc = await getTestRpc(lightWasm);
 
+        const stateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
+        stateTreeInfo2 = (await rpc.getCachedActiveStateTreeInfos())[1];
+
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts2().merkleTree2,
-        );
-        randTrees.push(defaultTestStateTreeAccounts2().merkleTree2);
-        randQueues.push(defaultTestStateTreeAccounts2().nullifierQueue2);
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
+        randTrees.push(stateTreeInfo.tree);
+        randQueues.push(stateTreeInfo.queue);
         executedTxs++;
     });
 
@@ -77,7 +77,7 @@ describe('rpc-multi-trees', () => {
 
     let address: PublicKey;
     it('must create account with random output tree (pickRandomTreeAndQueue)', async () => {
-        const tree = pickRandomTreeAndQueue(
+        const tree = selectStateTreeInfo(
             await rpc.getCachedActiveStateTreeInfos(),
         );
 
@@ -95,7 +95,7 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            tree.tree, // output state tree
+            tree, // output state tree
         );
 
         randTrees.push(tree.tree);
@@ -120,18 +120,18 @@ describe('rpc-multi-trees', () => {
         expect(validityProof.nullifierQueues[0]).toEqual(randQueues[pos]);
 
         /// Executes transfers using random output trees
-        const tree1 = pickRandomTreeAndQueue(
+        const tree1 = selectStateTreeInfo(
             await rpc.getCachedActiveStateTreeInfos(),
         );
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1.tree);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1);
         executedTxs++;
         randTrees.push(tree1.tree);
         randQueues.push(tree1.queue);
 
-        const tree2 = pickRandomTreeAndQueue(
+        const tree2 = selectStateTreeInfo(
             await rpc.getCachedActiveStateTreeInfos(),
         );
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2.tree);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2);
         executedTxs++;
         randTrees.push(tree2.tree);
         randQueues.push(tree2.queue);
@@ -195,7 +195,7 @@ describe('rpc-multi-trees', () => {
 
         /// Creates a compressed account with address and lamports using a
         /// (combined) 'validityProof' from Photon
-        const tree = pickRandomTreeAndQueue(
+        const tree = selectStateTreeInfo(
             await rpc.getCachedActiveStateTreeInfos(),
         );
         await createAccountWithLamports(
@@ -206,7 +206,7 @@ describe('rpc-multi-trees', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
-            tree.tree,
+            tree,
         );
         executedTxs++;
         randTrees.push(tree.tree);
@@ -238,7 +238,7 @@ describe('rpc-multi-trees', () => {
                 );
             });
 
-            const tree = pickRandomTreeAndQueue(
+            const tree = selectStateTreeInfo(
                 await rpc.getCachedActiveStateTreeInfos(),
             );
             await transfer(
@@ -247,20 +247,14 @@ describe('rpc-multi-trees', () => {
                 transferAmount,
                 payer,
                 bob.publicKey,
-                tree.tree,
+                tree,
             );
             executedTxs++;
         }
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            defaultTestStateTreeAccounts2().merkleTree2,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo2);
         executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(

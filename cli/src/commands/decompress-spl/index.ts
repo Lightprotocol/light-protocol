@@ -77,6 +77,7 @@ class DecompressSplCommand extends Command {
         recipientAta.address,
         undefined,
         undefined,
+        undefined,
         tokenProgramId,
       );
 

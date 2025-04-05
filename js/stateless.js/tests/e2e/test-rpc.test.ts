@@ -10,7 +10,6 @@ import { compress, decompress, transfer } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createRpc } from '../../src';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
@@ -33,25 +32,13 @@ describe('test-rpc', () => {
         payer = await newAccountWithLamports(rpc, 1e9, 148);
 
         /// compress refPayer
-        await compress(
-            rpc,
-            refPayer,
-            refCompressLamports,
-            refPayer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, refPayer, refCompressLamports, refPayer.publicKey);
 
         /// compress
         compressLamportsAmount = 1e7;
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
     });
 
     it('getCompressedAccountsByOwner', async () => {
@@ -107,7 +94,7 @@ describe('test-rpc', () => {
             compressLamportsAmount,
             payer,
             payer.publicKey,
-            merkleTree,
+            // merkleTree,
         );
         const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -127,7 +114,7 @@ describe('test-rpc', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            // defaultTestStateTreeAccounts().merkleTree,
         );
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,

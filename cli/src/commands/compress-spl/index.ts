@@ -75,6 +75,7 @@ class CompressSplCommand extends Command {
         toPublicKey,
         undefined,
         undefined,
+        undefined,
         tokenProgramId,
       );
 
