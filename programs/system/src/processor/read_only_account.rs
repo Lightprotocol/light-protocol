@@ -12,9 +12,9 @@ use pinocchio::program_error::ProgramError;
 ///    2.1. skip cleared batches.
 ///    2.2. prove non-inclusion in the bloom filters for each batch.
 #[inline(always)]
-pub fn verify_read_only_account_inclusion_by_index<'a>(
-    accounts: &mut [AcpAccount<'a, '_>],
-    read_only_accounts: &'a [ZPackedReadOnlyCompressedAccount],
+pub fn verify_read_only_account_inclusion_by_index(
+    accounts: &mut [AcpAccount<'_>],
+    read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
 ) -> Result<usize> {
     let mut num_prove_read_only_accounts_prove_by_index = 0;
     for read_only_account in read_only_accounts.iter() {

@@ -12,10 +12,10 @@ use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pub
 
 /// AccountCompressionProgramAccount
 // #[derive(Debug)]
-pub enum AcpAccount<'a, 'info> {
-    Authority(&'a AccountInfo),
-    RegisteredProgramPda(&'a AccountInfo),
-    SystemProgram(&'a AccountInfo),
+pub enum AcpAccount<'info> {
+    Authority(&'info AccountInfo),
+    RegisteredProgramPda(&'info AccountInfo),
+    SystemProgram(&'info AccountInfo),
     OutputQueue(BatchedQueueAccount<'info>),
     BatchedStateTree(BatchedMerkleTreeAccount<'info>),
     BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
@@ -26,8 +26,8 @@ pub enum AcpAccount<'a, 'info> {
             IndexedMerkleTreeZeroCopyMut<'info, Poseidon, usize, 26, 16>,
         ),
     ),
-    AddressQueue(Pubkey, &'a AccountInfo),
-    V1Queue(&'a AccountInfo),
+    AddressQueue(Pubkey, &'info AccountInfo),
+    V1Queue(&'info AccountInfo),
     Unknown(),
 }
 

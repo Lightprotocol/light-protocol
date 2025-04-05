@@ -17,7 +17,7 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
-        invoke_cpi::InstructionDataInvokeCpiWithReadOnly,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
     AnchorDeserialize, Pubkey,
@@ -310,16 +310,27 @@ fn deserialize_instruction<'a>(
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
             let accounts = accounts.split_at(11).1;
-            let data = InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])?;
+            let data: InstructionDataInvokeCpiWithReadOnly =
+                InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])?;
             Ok(ExecutingSystemInstruction {
-                output_compressed_accounts: data.invoke_cpi.output_compressed_accounts,
+                output_compressed_accounts: data.output_compressed_accounts,
                 input_compressed_accounts: data
-                    .invoke_cpi
-                    .input_compressed_accounts_with_merkle_context,
-                is_compress: data.invoke_cpi.is_compress,
-                relay_fee: data.invoke_cpi.relay_fee,
-                compress_or_decompress_lamports: data.invoke_cpi.compress_or_decompress_lamports,
-                execute_cpi_context: data.invoke_cpi.cpi_context.is_some(),
+                    .input_compressed_accounts
+                    .iter()
+                    .map(|x| {
+                        x.into_packed_compressed_account_with_merkle_context(
+                            data.invoking_program_id,
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                is_compress: !data.is_decompress,
+                relay_fee: None,
+                compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
+                    None
+                } else {
+                    Some(data.compress_or_decompress_lamports)
+                },
+                execute_cpi_context: data.with_cpi_context,
                 accounts,
             })
         }

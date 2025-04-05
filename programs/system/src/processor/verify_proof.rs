@@ -6,6 +6,7 @@ use light_compressed_account::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     instruction_data::{
         compressed_proof::CompressedProof,
+        traits::InputAccountTrait,
         zero_copy::{
             ZNewAddressParamsPacked, ZPackedCompressedAccountWithMerkleContext,
             ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
@@ -27,26 +28,26 @@ const IS_NOT_STATE: bool = false;
 
 #[inline(always)]
 pub fn read_input_state_roots<'a>(
-    remaining_accounts: &'a [AcpAccount<'a, '_>],
-    input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
-    read_only_accounts: &'a [ZPackedReadOnlyCompressedAccount],
-    input_roots: &'a mut Vec<[u8; 32]>,
+    remaining_accounts: &[AcpAccount<'_>],
+    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
+    read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
+    input_roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut state_tree_height = 0;
     for input_compressed_account_with_context in
         input_compressed_accounts_with_merkle_context.iter()
     {
         if input_compressed_account_with_context
-            .merkle_context
+            .merkle_context()
             .prove_by_index()
         {
             continue;
         }
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_STATE>(
             &remaining_accounts[input_compressed_account_with_context
-                .merkle_context
+                .merkle_context()
                 .merkle_tree_pubkey_index as usize],
-            u16::from(input_compressed_account_with_context.root_index),
+            input_compressed_account_with_context.root_index(),
             input_roots,
         )?;
         if state_tree_height == 0 {
@@ -87,7 +88,7 @@ pub fn read_input_state_roots<'a>(
 
 #[inline(always)]
 pub fn read_address_roots<'a>(
-    remaining_accounts: &'a [AcpAccount<'a, '_>],
+    remaining_accounts: &'a [AcpAccount<'_>],
     new_address_params: &'a [ZNewAddressParamsPacked],
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
@@ -133,7 +134,7 @@ pub fn read_address_roots<'a>(
 
 #[inline(always)]
 fn read_root<const IS_READ_ONLY: bool, const IS_STATE: bool>(
-    merkle_tree_account: &AcpAccount<'_, '_>,
+    merkle_tree_account: &AcpAccount<'_>,
     root_index: u16,
     roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {

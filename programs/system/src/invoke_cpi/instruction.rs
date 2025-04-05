@@ -1,15 +1,21 @@
-// use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, system_program::System};
 use super::account::CpiContextAccount;
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
-    LightContext, Result,
+    Result,
 };
+use light_account_checks::{
+    checks::{
+        check_account_info_non_mut, check_discriminator, check_owner, check_pda_seeds,
+        check_program, check_signer,
+    },
+    context::LightContext,
+};
+use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 pub struct InvokeCpiInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
-    // #[account(mut)]
     pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
     /// CHECK: in account compression program
@@ -22,25 +28,17 @@ pub struct InvokeCpiInstruction<'info> {
     pub account_compression_program: &'info AccountInfo,
     /// CHECK: checked in cpi_signer_check.
     pub invoking_program: &'info AccountInfo,
-    // #[account(
-    //     mut,
-    //     seeds = [SOL_POOL_PDA_SEED], bump
-    // )]
     pub sol_pool_pda: Option<&'info AccountInfo>,
     /// CHECK: unchecked is user provided recipient.
-    // #[account(mut)]
     pub decompression_recipient: Option<&'info AccountInfo>,
     pub system_program: &'info AccountInfo,
-    // #[account(mut)]
     pub cpi_context_account: Option<&'info AccountInfo>,
 }
-use light_account_checks::checks::{
-    check_discriminator, check_owner, check_pda_seeds, check_program, check_signer,
-};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 
-impl<'info> LightContext<'info> for InvokeCpiInstruction<'info> {
-    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &[AccountInfo])> {
+impl<'info> InvokeCpiInstruction<'info> {
+    pub fn from_account_infos(
+        accounts: &'info [AccountInfo],
+    ) -> Result<(Self, &'info [AccountInfo])> {
         let fee_payer = &accounts[0];
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
@@ -56,9 +54,8 @@ impl<'info> LightContext<'info> for InvokeCpiInstruction<'info> {
         let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
             None
         } else {
-            // check_owner(&crate::ID, option_sol_pool_pda).map_err(ProgramError::from)?;
-            // check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
-            //     .map_err(ProgramError::from)?;
+            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
+                .map_err(ProgramError::from)?;
             Some(option_sol_pool_pda)
         };
         let option_decompression_recipient = &accounts[8];
@@ -75,11 +72,10 @@ impl<'info> LightContext<'info> for InvokeCpiInstruction<'info> {
             None
         } else {
             check_owner(&crate::ID, option_cpi_context_account).map_err(ProgramError::from)?;
-            // TODO: implement light discriminator with previous anchor discriminator
-            // check_discriminator::<CpiContextAccount, 8>(
-            //     option_cpi_context_account.try_borrow_data()?.as_ref(),
-            // )
-            // .map_err(ProgramError::from)?;
+            check_discriminator::<CpiContextAccount, 8>(
+                option_cpi_context_account.try_borrow_data()?.as_ref(),
+            )
+            .map_err(ProgramError::from)?;
             Some(option_cpi_context_account)
         };
         Ok((
@@ -116,20 +112,8 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         self.registered_program_pda
     }
 
-    fn get_noop_program(&self) -> &'info AccountInfo {
-        self.noop_program
-    }
-
     fn get_account_compression_authority(&self) -> &'info AccountInfo {
         self.account_compression_authority
-    }
-
-    fn get_account_compression_program(&self) -> &'info AccountInfo {
-        self.account_compression_program
-    }
-
-    fn get_system_program(&self) -> &'info AccountInfo {
-        self.system_program
     }
 
     fn get_sol_pool_pda(&self) -> Option<&'info AccountInfo> {

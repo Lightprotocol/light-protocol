@@ -4,6 +4,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
+        traits::OutputAccountTrait,
         zero_copy::ZOutputCompressedAccountWithPackedContext,
     },
     TreeType,
@@ -28,11 +29,11 @@ use crate::{context::SystemContext, errors::SystemProgramError};
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn create_outputs_cpi_data<'a, 'info>(
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'a>],
+    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
-    accounts: &[AcpAccount<'a, 'info>],
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
+    accounts: &[AcpAccount<'info>],
 ) -> Result<[u8; 32]> {
     if output_compressed_accounts.is_empty() {
         return Ok([0u8; 32]);
@@ -44,8 +45,11 @@ pub fn create_outputs_cpi_data<'a, 'info>(
     cpi_ix_data.start_output_appends = context.account_indices.len() as u8;
     let mut index_merkle_tree_account_account = cpi_ix_data.start_output_appends;
     let mut index_merkle_tree_account = 0;
-    let number_of_merkle_trees =
-        output_compressed_accounts.last().unwrap().merkle_tree_index as usize + 1;
+    let number_of_merkle_trees = output_compressed_accounts
+        .last()
+        .unwrap()
+        .merkle_tree_index() as usize
+        + 1;
     let mut merkle_tree_pubkeys =
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
@@ -56,10 +60,10 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
-        if account.merkle_tree_index as i16 == current_index {
+        if account.merkle_tree_index() as i16 == current_index {
             // Do nothing, but it is the most common case.
-        } else if account.merkle_tree_index as i16 > current_index {
-            current_index = account.merkle_tree_index.into();
+        } else if account.merkle_tree_index() as i16 > current_index {
+            current_index = account.merkle_tree_index().into();
 
             let pubkey = match &accounts[current_index as usize] {
                 AcpAccount::OutputQueue(output_queue) => {
@@ -113,7 +117,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
                 merkle_tree_pubkeys.push(pubkey);
             }
 
-            context.get_index_or_insert(account.merkle_tree_index, remaining_accounts);
+            context.get_index_or_insert(account.merkle_tree_index(), remaining_accounts);
             num_leaves_in_tree = 0;
             index_merkle_tree_account += 1;
             index_merkle_tree_account_account += 1;
@@ -127,12 +131,12 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         }
 
         // Check 3.
-        if let Some(address) = account.compressed_account.address {
+        if let Some(address) = account.address() {
             if let Some(position) = context
                 .addresses
                 .iter()
                 .filter(|x| x.is_some())
-                .position(|&x| x.unwrap() == *address)
+                .position(|&x| x.unwrap() == address)
             {
                 context.addresses.remove(position);
             } else {
@@ -147,7 +151,7 @@ pub fn create_outputs_cpi_data<'a, 'info>(
 
         cpi_ix_data.output_leaf_indices[j] = (mt_next_index + num_leaves_in_tree).into();
         num_leaves_in_tree += 1;
-        if account.compressed_account.data.is_some() && context.invoking_program_id.is_none() {
+        if account.has_data() && context.invoking_program_id.is_none() {
             msg!("Invoking program is not provided.");
             msg!("Only program owned compressed accounts can have data.");
             return Err(SystemProgramError::InvokingProgramNotProvided.into());
@@ -155,21 +159,19 @@ pub fn create_outputs_cpi_data<'a, 'info>(
         let hashed_owner = match context
             .hashed_pubkeys
             .iter()
-            .find(|x| x.0 == account.compressed_account.owner.to_bytes())
+            .find(|x| x.0 == account.owner().to_bytes())
         {
             Some(hashed_owner) => hashed_owner.1,
             None => {
-                let hashed_owner =
-                    hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes());
+                let hashed_owner = hash_to_bn254_field_size_be(&account.owner().to_bytes());
                 context
                     .hashed_pubkeys
-                    .push((account.compressed_account.owner.into(), hashed_owner));
+                    .push((account.owner().into(), hashed_owner));
                 hashed_owner
             }
         };
         // Compute output compressed account hash.
         cpi_ix_data.leaves[j].leaf = account
-            .compressed_account
             .hash_with_hashed_values(
                 &hashed_owner,
                 &hashed_merkle_tree,

@@ -1,17 +1,18 @@
 use crate::Result;
-use light_compressed_account::instruction_data::zero_copy::{
-    ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
+use light_compressed_account::instruction_data::{
+    traits::{InputAccountTrait, OutputAccountTrait},
+    zero_copy::{
+        ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
+    },
 };
 use pinocchio::program_error::ProgramError;
 
 use crate::errors::SystemProgramError;
 
 #[inline(always)]
-pub fn sum_check(
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext<
-        '_,
-    >],
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'_>],
+pub fn sum_check<'a>(
+    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
+    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
@@ -20,16 +21,14 @@ pub fn sum_check(
     let mut num_prove_by_index_accounts = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         if compressed_account_with_context
-            .merkle_context
+            .merkle_context()
             .prove_by_index()
         {
             num_prove_by_index_accounts += 1;
         }
 
         sum = sum
-            .checked_add(u64::from(
-                compressed_account_with_context.compressed_account.lamports,
-            ))
+            .checked_add(u64::from(compressed_account_with_context.lamports()))
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
@@ -50,7 +49,7 @@ pub fn sum_check(
 
     for compressed_account in output_compressed_accounts.iter() {
         sum = sum
-            .checked_sub(u64::from(compressed_account.compressed_account.lamports))
+            .checked_sub(u64::from(compressed_account.lamports()))
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
     }

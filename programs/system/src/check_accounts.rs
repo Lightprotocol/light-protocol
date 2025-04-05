@@ -33,10 +33,10 @@ use crate::{
     errors::SystemProgramError,
 };
 
-pub(crate) fn try_from_account_infos<'a, 'info: 'a>(
+pub(crate) fn try_from_account_infos<'info>(
     account_infos: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
-) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, SystemProgramError> {
+) -> std::result::Result<Vec<AcpAccount<'info>>, SystemProgramError> {
     let mut accounts = Vec::with_capacity(account_infos.len());
     for (index, account_info) in (0u8..).zip(account_infos.iter()) {
         let account = try_from_account_info(account_info, context, index)?;
@@ -50,7 +50,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     account_info: &'info AccountInfo,
     context: &mut SystemContext<'info>,
     index: u8,
-) -> std::result::Result<AcpAccount<'a, 'info>, SystemProgramError> {
+) -> std::result::Result<AcpAccount<'info>, SystemProgramError> {
     let mut discriminator = [0u8; 8];
     {
         let data = account_info

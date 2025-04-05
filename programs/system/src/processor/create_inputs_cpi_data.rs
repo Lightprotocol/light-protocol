@@ -3,11 +3,12 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
+        traits::InputAccountTrait,
         zero_copy::ZPackedCompressedAccountWithMerkleContext,
     },
 };
 use light_hasher::{Hasher, Poseidon};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::context::SystemContext;
 use crate::Result;
@@ -16,20 +17,21 @@ use crate::Result;
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
-pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
+pub fn create_inputs_cpi_data<'a, 'b, 'info>(
     remaining_accounts: &'info [AccountInfo],
-    input_compressed_accounts_with_merkle_context: &'a [ZPackedCompressedAccountWithMerkleContext<'a>],
+    input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
     context: &mut SystemContext<'info>,
-    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'a>,
-    accounts: &[AcpAccount<'a, 'info>],
+    cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'b>,
+    accounts: &[AcpAccount<'info>],
+    mut owner_pubkey: Pubkey,
 ) -> Result<[u8; 32]> {
     if input_compressed_accounts_with_merkle_context.is_empty() {
         return Ok([0u8; 32]);
     }
-    let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
-        .compressed_account
-        .owner;
-    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes());
+    // let mut owner_pubkey = input_compressed_accounts_with_merkle_context[0]
+    //     .compressed_account
+    //     .owner;
+    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey);
     context
         .hashed_pubkeys
         .push((owner_pubkey.into(), hashed_owner));
@@ -44,25 +46,15 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .enumerate()
     {
-        // For heap neutrality we cannot allocate new heap memory in this function.
-        if let Some(address) = &input_compressed_account_with_context
-            .compressed_account
-            .address
-        {
-            context.addresses.push(Some(**address));
-        }
+        context
+            .addresses
+            .push(input_compressed_account_with_context.address());
 
+        let merkle_context = input_compressed_account_with_context.merkle_context();
         #[allow(clippy::comparison_chain)]
-        if current_mt_index
-            != input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index
-            || is_first_iter
-        {
+        if current_mt_index != merkle_context.merkle_tree_pubkey_index || is_first_iter {
             is_first_iter = false;
-            current_mt_index = input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index;
+            current_mt_index = merkle_context.merkle_tree_pubkey_index;
             current_hashed_mt = match &accounts[current_mt_index as usize] {
                 AcpAccount::BatchedStateTree(tree) => {
                     context.set_network_fee(
@@ -94,49 +86,31 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
                 }
             };
         }
-        // Without cpi context all input compressed accounts have the same owner.
-        // With cpi context the owners will be different.
-        if owner_pubkey
-            != input_compressed_account_with_context
-                .compressed_account
-                .owner
-        {
-            owner_pubkey = input_compressed_account_with_context
-                .compressed_account
-                .owner;
-            hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
-        }
+        // TODO: call function repeatedly for every owner
+        // // Without cpi context all input compressed accounts have the same owner.
+        // // With cpi context the owners will be different.
+        // if owner_pubkey != input_compressed_account_with_context.owner() {
+        //     owner_pubkey = input_compressed_account_with_context.owner();
+        //     hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
+        // }
+        let merkle_context = input_compressed_account_with_context.merkle_context();
         let queue_index = context.get_index_or_insert(
-            input_compressed_account_with_context
-                .merkle_context
-                .nullifier_queue_pubkey_index,
+            merkle_context.nullifier_queue_pubkey_index,
             remaining_accounts,
         );
-        let tree_index = context.get_index_or_insert(
-            input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index,
-            remaining_accounts,
-        );
+        let tree_index = context
+            .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context
-                .compressed_account
                 .hash_with_hashed_values(
                     &hashed_owner,
                     &current_hashed_mt,
-                    &input_compressed_account_with_context
-                        .merkle_context
-                        .leaf_index
-                        .into(),
+                    &merkle_context.leaf_index.into(),
                     is_batched,
                 )
                 .map_err(ProgramError::from)?,
-            leaf_index: input_compressed_account_with_context
-                .merkle_context
-                .leaf_index,
-            prove_by_index: input_compressed_account_with_context
-                .merkle_context
-                .prove_by_index() as u8,
+            leaf_index: merkle_context.leaf_index,
+            prove_by_index: merkle_context.prove_by_index() as u8,
             queue_index,
             tree_index,
         };
@@ -151,10 +125,10 @@ pub fn create_inputs_cpi_data<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .enumerate()
         .filter(|(i, x)| {
-            let candidate = x.merkle_context.nullifier_queue_pubkey_index;
+            let candidate = x.merkle_context().nullifier_queue_pubkey_index;
             !input_compressed_accounts_with_merkle_context[..*i]
                 .iter()
-                .any(|y| y.merkle_context.nullifier_queue_pubkey_index == candidate)
+                .any(|y| y.merkle_context().nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
 

@@ -5,7 +5,9 @@ use aligned_sized::*;
 //     Bumps,
 // };
 use crate::utils::transfer_lamports_cpi;
-use light_compressed_account::instruction_data::zero_copy::ZInstructionDataInvoke;
+use light_compressed_account::instruction_data::{
+    traits::InstructionDataTrait, zero_copy::ZInstructionDataInvoke,
+};
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -31,13 +33,14 @@ pub fn compress_or_decompress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
+    is_compress: bool,
+    decompression_lamports: Option<u64>,
     ctx: &'a A,
 ) -> crate::Result<()> {
-    if inputs.is_compress {
-        compress_lamports(inputs, ctx)
+    if is_compress {
+        compress_lamports(decompression_lamports, ctx)
     } else {
-        decompress_lamports(inputs, ctx)
+        decompress_lamports(decompression_lamports, ctx)
     }
 }
 
@@ -48,7 +51,7 @@ pub fn decompress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
+    decompression_lamports: Option<u64>,
     ctx: &'a A,
 ) -> crate::Result<()> {
     let recipient = match ctx.get_decompression_recipient() {
@@ -61,12 +64,12 @@ pub fn decompress_lamports<
         Some(sol_pool_pda) => sol_pool_pda,
         None => return Err(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol.into()),
     };
-    let lamports = match inputs.compress_or_decompress_lamports {
+    let lamports = match decompression_lamports {
         Some(lamports) => lamports,
         None => return Err(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol.into()),
     };
 
-    transfer_lamports(&sol_pool_pda, &recipient, (*lamports).into())
+    transfer_lamports(&sol_pool_pda, &recipient, lamports)
 }
 
 pub fn compress_lamports<
@@ -76,19 +79,19 @@ pub fn compress_lamports<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
-    inputs: &'a ZInstructionDataInvoke<'a>,
+    decompression_lamports: Option<u64>,
     ctx: &'a A,
 ) -> crate::Result<()> {
     let recipient = match ctx.get_sol_pool_pda() {
         Some(sol_pool_pda) => sol_pool_pda,
         None => return Err(SystemProgramError::CompressedSolPdaUndefinedForCompressSol.into()),
     };
-    let lamports = match inputs.compress_or_decompress_lamports {
+    let lamports = match decompression_lamports {
         Some(lamports) => lamports,
         None => return Err(SystemProgramError::DeCompressLamportsUndefinedForCompressSol.into()),
     };
 
-    transfer_lamports_cpi(ctx.get_fee_payer(), &recipient, (*lamports).into())
+    transfer_lamports_cpi(ctx.get_fee_payer(), &recipient, lamports)
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {

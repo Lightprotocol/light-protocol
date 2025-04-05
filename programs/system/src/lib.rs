@@ -1,10 +1,14 @@
+use std::u8::MAX;
+
+use account_traits::SignerAccounts;
 use init_context_account::init_cpi_context_account;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
     account::CpiContextAccount, instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
 };
+use invoke_with_read_only_cpi::instruction::OptionsConfig;
 use light_account_checks::{
-    checks::check_signer, discriminator::Discriminator as LightDiscriminator,
+    checks::check_signer, context::LightContext, discriminator::Discriminator as LightDiscriminator,
 };
 use pinocchio::pubkey::Pubkey;
 
@@ -17,6 +21,7 @@ pub mod errors;
 pub mod init_context_account;
 pub mod invoke;
 pub mod invoke_cpi;
+pub mod invoke_with_read_only_cpi;
 pub mod processor;
 pub mod utils;
 
@@ -41,8 +46,9 @@ use pinocchio::{
 use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
-use light_compressed_account::instruction_data::zero_copy::{
-    ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZInstructionDataInvokeCpiWithReadOnly,
+use light_compressed_account::instruction_data::{
+    with_readonly::InstructionDataInvokeCpiWithReadOnly,
+    zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
 };
 
 use light_zero_copy::borsh::Deserialize;
@@ -104,9 +110,9 @@ pub fn process_instruction(
         }
         InstructionDiscriminator::Invoke => invoke(accounts, instruction_data),
         InstructionDiscriminator::InvokeCpi => invoke_cpi(accounts, instruction_data),
-        InstructionDiscriminator::InvokeCpiWithReadOnly => {
-            invoke_cpi_with_read_only(accounts, instruction_data)
-        }
+        // InstructionDiscriminator::InvokeCpiWithReadOnly => {
+        //     invoke_cpi_with_read_only(accounts, instruction_data)
+        // }
         _ => panic!(""),
     }?;
     Ok(())
@@ -123,8 +129,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("invoke_deserialize");
     let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data).unwrap();
-    let (ctx, remaining_accounts) =
-        <InvokeInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+    let (ctx, remaining_accounts) = InvokeInstruction::from_account_infos(accounts)?;
     sol_log_compute_units();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("invoke_deserialize");
@@ -154,8 +159,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     //     accounts.iter().map(|x| x.key()).collect::<Vec<_>>()
     // )
     // .as_str());
-    let (ctx, remaining_accounts) =
-        <InvokeCpiInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+    let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
     // msg!(format!(
     //     "remaining_accounts {:?}",
     //     remaining_accounts
@@ -172,74 +176,64 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[allow(unused_variables)]
-pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> Result<()> {
-    #[cfg(not(feature = "readonly"))]
-    {
-        msg!("Readonly feature is not enabled.");
+// #[allow(unused_variables)]
+// pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
+//     accounts: &[AccountInfo],
+//     instruction_data: &[u8],
+// ) -> Result<()> {
+//     #[cfg(not(feature = "readonly"))]
+//     {
+//         msg!("Readonly feature is not enabled.");
 
-        return Err(SystemProgramError::InstructionNotCallable.into());
-    }
-    let instruction_data = &instruction_data[4..];
+//         return Err(SystemProgramError::InstructionNotCallable.into());
+//     }
+//     let instruction_data = &instruction_data[4..];
 
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_deserialize");
-    #[allow(unreachable_code)]
-    {
-        let (inputs, _) =
-            ZInstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data).unwrap();
-        let (ctx, remaining_accounts) =
-            <InvokeCpiInstruction<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+//     #[cfg(feature = "bench-sbf")]
+//     bench_sbf_start!("cpda_deserialize");
+//     #[allow(unreachable_code)]
+//     {
+//         let (inputs, _) =
+//             InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data).unwrap();
+//         let account_options = OptionsConfig {
+//             sol_pool_pda: inputs.is_compress,
+//             decompression_recipient: inputs.decompression_amount > 0 && !inputs.is_compress,
+//             cpi_context_account: inputs.with_cpi_context(),
+//         };
+//         let (ctx, remaining_accounts): (impl InvokeAccounts + SignerAccounts, &[AccountInfo]) =
+//             if inputs.mode == 0 {
+//                 <InvokeCpiInstruction<'_> as LightContext<'_>>::from_account_infos(accounts, None)?
+//             } else {
+//                 <InvokeCpiWithReadOnlyInstructionSmall<'_> as LightContext<'_>>::from_account_infos(
+//                     accounts,
+//                     Some(account_options),
+//                 )?
+//             };
 
-        #[cfg(feature = "bench-sbf")]
-        bench_sbf_end!("cpda_deserialize");
-        // disable set cpi context because cpi context account uses InvokeCpiInstruction
-        if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
-            if cpi_context.set_context() {
-                msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
-                msg!("Please use invoke_cpi instead.");
-                return Err(SystemProgramError::InstructionNotCallable.into());
-            }
-        }
-        // msg!(format!(
-        //     "remaining_accounts {:?}",
-        //     remaining_accounts
-        //         .iter()
-        //         .map(|x| x.key())
-        //         .collect::<Vec<_>>()
-        // )
-        // .as_str());
-        process_invoke_cpi(
-            ctx,
-            inputs.invoke_cpi,
-            inputs.read_only_addresses,
-            inputs.read_only_accounts,
-            remaining_accounts,
-        )
-    }
-}
-
-// TODO: move to different crate with macro
-pub trait LightContext<'info>: Sized {
-    /// Attributes:
-    /// - `#[signer]` - account must be a signer
-    /// - `#[account(zero)]` - account must be empty
-    /// - `#[account(Option<ProgramId>)]` - checks owner is this program
-    /// - `#[unchecked_account]` - account is not checked
-    /// - `#[pda_derivation(seeds, Option<ProgramId)- account is derived from seeds
-    /// - `#[constraint = statement ]` - custom constraint
-    /// - `#[compressed_account(Option<ProgramId>)]` - account is compressed owner is this program by default
-    /// - '#[program]` - account is a program
-    /// Macro rules for this function:
-    /// 1. check that accounts len is sufficient
-    ///     1.1. count number of fields marked with account attribute
-    ///     1.2. throw if a field is not marked
-    /// 2. create a variable for each account
-    ///
-    /// Notes:
-    /// 1. replace instruction_data with optional T to keep instruction data deserialization separate
-    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &'info [AccountInfo])>;
-}
+//         #[cfg(feature = "bench-sbf")]
+//         bench_sbf_end!("cpda_deserialize");
+//         // disable set cpi context because cpi context account uses InvokeCpiInstruction
+//         if let Some(cpi_context) = inputs.invoke_cpi.cpi_context {
+//             if cpi_context.set_context() {
+//                 msg!("Cannot set cpi context in invoke_cpi_with_read_only.");
+//                 msg!("Please use invoke_cpi instead.");
+//                 return Err(SystemProgramError::InstructionNotCallable.into());
+//             }
+//         }
+//         // msg!(format!(
+//         //     "remaining_accounts {:?}",
+//         //     remaining_accounts
+//         //         .iter()
+//         //         .map(|x| x.key())
+//         //         .collect::<Vec<_>>()
+//         // )
+//         // .as_str());
+//         process_invoke_cpi(
+//             ctx,
+//             inputs.invoke_cpi,
+//             Some(inputs.read_only_addresses),
+//             Some(inputs.read_only_accounts),
+//             remaining_accounts,
+//         )
+//     }
+// }

@@ -18,8 +18,10 @@ pub struct InitializeCpiContextAccount<'info> {
     pub associated_merkle_tree: &'info AccountInfo,
 }
 
-impl<'info> LightContext<'info> for InitializeCpiContextAccount<'info> {
-    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &'info [AccountInfo])> {
+impl<'info> InitializeCpiContextAccount<'info> {
+    pub fn from_account_infos(
+        accounts: &'info [AccountInfo],
+    ) -> Result<(Self, &'info [AccountInfo])> {
         if accounts.len() < 3 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
@@ -45,8 +47,7 @@ impl<'info> LightContext<'info> for InitializeCpiContextAccount<'info> {
 
 pub fn init_cpi_context_account(accounts: &[AccountInfo], _instruction_data: &[u8]) -> Result<()> {
     // Check that Merkle tree is initialized.
-    let (ctx, _accounts) =
-        <InitializeCpiContextAccount<'_> as LightContext<'_>>::from_account_infos(accounts)?;
+    let (ctx, _accounts) = InitializeCpiContextAccount::from_account_infos(accounts)?;
     let data = ctx.associated_merkle_tree.try_borrow_data()?;
     let mut discriminator_bytes = [0u8; 8];
     discriminator_bytes.copy_from_slice(&data[0..8]);

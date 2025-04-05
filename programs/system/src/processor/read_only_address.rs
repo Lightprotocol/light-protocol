@@ -6,9 +6,9 @@ use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddres
 use pinocchio::program_error::ProgramError;
 
 #[inline(always)]
-pub fn verify_read_only_address_queue_non_inclusion<'a>(
-    remaining_accounts: &mut [AcpAccount<'a, '_>],
-    read_only_addresses: &'a [ZPackedReadOnlyAddress],
+pub fn verify_read_only_address_queue_non_inclusion(
+    remaining_accounts: &mut [AcpAccount<'_>],
+    read_only_addresses: &[ZPackedReadOnlyAddress],
 ) -> Result<()> {
     if read_only_addresses.is_empty() {
         return Ok(());

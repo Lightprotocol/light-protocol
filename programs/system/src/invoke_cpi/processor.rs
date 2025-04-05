@@ -1,6 +1,7 @@
 pub use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::{
-    ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+    ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress,
+    ZPackedReadOnlyCompressedAccount,
 };
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -51,9 +52,9 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
-
+    let inputs: ZInstructionDataInvoke = inputs.into();
     process(
-        inputs.into(),
+        inputs,
         Some(*ctx.invoking_program.key()),
         ctx,
         cpi_context_inputs_len,

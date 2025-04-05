@@ -15,12 +15,12 @@ pub fn derive_new_addresses<'info>(
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,
-    accounts: &[AcpAccount<'_, 'info>],
+    accounts: &[AcpAccount<'info>],
 ) -> Result<()> {
     // Get invoking_program_id early and store if available
     let invoking_program_id_clone = context.invoking_program_id.clone();
     let mut seq_index = 0;
-    
+
     for (i, new_address_params) in new_address_params.iter().enumerate() {
         let (address, rollover_fee) = match &accounts
             [new_address_params.address_merkle_tree_account_index as usize]
@@ -34,7 +34,7 @@ pub fn derive_new_addresses<'info>(
                     new_address_params.address_merkle_tree_account_index,
                     remaining_accounts,
                 );
-                
+
                 (
                     derive_address_legacy(pubkey, &new_address_params.seed)
                         .map_err(ProgramError::from)?,
@@ -51,17 +51,17 @@ pub fn derive_new_addresses<'info>(
                 } else {
                     Err(SystemProgramError::DeriveAddressError)
                 }?;
-                
+
                 cpi_ix_data.addresses[i].tree_index = context.get_index_or_insert(
                     new_address_params.address_merkle_tree_account_index,
                     remaining_accounts,
                 );
-                
+
                 context.set_address_fee(
                     tree.metadata.rollover_metadata.network_fee,
                     new_address_params.address_merkle_tree_account_index,
                 );
-                
+
                 cpi_ix_data.insert_address_sequence_number(
                     &mut seq_index,
                     tree.pubkey(),
@@ -99,6 +99,6 @@ pub fn derive_new_addresses<'info>(
             )
         })
         .count() as u8;
-    
+
     Ok(())
 }

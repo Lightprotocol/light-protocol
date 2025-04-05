@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, env::var};
 
 use light_hasher::{Hasher, Poseidon};
 
@@ -17,8 +17,53 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub merkle_context: PackedMerkleContext,
     /// Index of root used in inclusion validity proof.
     pub root_index: u16,
-    /// Placeholder to mark accounts read-only unimplemented set to false.
     pub read_only: bool,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InCompressedAccountWithMerkleContext {
+    pub compressed_account: InCompressedAccount,
+    pub merkle_context: MerkleContext,
+}
+
+impl From<CompressedAccount> for InCompressedAccount {
+    fn from(value: CompressedAccount) -> Self {
+        let data = value.data.unwrap_or_default();
+        InCompressedAccount {
+            owner: value.owner,
+            lamports: value.lamports,
+            address: value.address,
+            discriminator: data.discriminator,
+            data_hash: data.data_hash,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedInCompressedAccountWithMerkleContext {
+    pub compressed_account: InCompressedAccount,
+    pub merkle_context: PackedMerkleContext,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
+}
+
+impl From<PackedCompressedAccountWithMerkleContext> for PackedInCompressedAccountWithMerkleContext {
+    fn from(value: PackedCompressedAccountWithMerkleContext) -> Self {
+        Self {
+            compressed_account: value.compressed_account.into(),
+            merkle_context: value.merkle_context,
+            root_index: value.root_index,
+        }
+    }
+}
+
+impl From<CompressedAccountWithMerkleContext> for InCompressedAccountWithMerkleContext {
+    fn from(value: CompressedAccountWithMerkleContext) -> Self {
+        Self {
+            compressed_account: value.compressed_account.into(),
+            merkle_context: value.merkle_context,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -184,6 +229,15 @@ pub struct CompressedAccount {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InCompressedAccount {
+    pub owner: Pubkey,
+    pub lamports: u64,
+    pub discriminator: [u8; 8],
+    pub data_hash: [u8; 32],
+    pub address: Option<[u8; 32]>,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -199,6 +253,7 @@ pub fn hash_with_hashed_values(
     leaf_index: &u32,
     is_batched: bool,
 ) -> Result<[u8; 32], CompressedAccountError> {
+    // TODO: replace with array
     let capacity = 3
         + std::cmp::min(*lamports, 1) as usize
         + address.is_some() as usize
@@ -246,6 +301,7 @@ pub fn hash_with_hashed_values(
 
     Ok(Poseidon::hashv(&vec)?)
 }
+
 /// Hashing scheme:
 /// H(owner || leaf_index || merkle_tree_pubkey || lamports || address || data.discriminator || data.data_hash)
 impl CompressedAccount {

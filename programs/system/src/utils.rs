@@ -19,14 +19,12 @@ pub fn get_sol_pool_pda() -> Pubkey {
     find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
 
-pub fn get_queue_and_tree_accounts<'a, 'b, 'info>(
-    accounts: &'b mut [AcpAccount<'a, 'info>],
+pub fn get_queue_and_tree_accounts<'b, 'info>(
+    accounts: &'b mut [AcpAccount<'info>],
     queue_index: usize,
     tree_index: usize,
-) -> std::result::Result<
-    (&'b mut AcpAccount<'a, 'info>, &'b mut AcpAccount<'a, 'info>),
-    SystemProgramError,
-> {
+) -> std::result::Result<(&'b mut AcpAccount<'info>, &'b mut AcpAccount<'info>), SystemProgramError>
+{
     let (smaller, bigger) = if queue_index < tree_index {
         (queue_index, tree_index)
     } else {

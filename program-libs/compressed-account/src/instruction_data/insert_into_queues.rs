@@ -138,18 +138,18 @@ pub struct InsertIntoQueuesInstructionDataMeta {
 }
 
 #[derive(Debug)]
-pub struct InsertIntoQueuesInstructionDataMut<'a> {
-    meta: Ref<&'a mut [u8], InsertIntoQueuesInstructionDataMeta>,
-    pub leaves: ZeroCopySliceMut<'a, u8, AppendLeavesInput, false>,
-    pub nullifiers: ZeroCopySliceMut<'a, u8, InsertNullifierInput, false>,
-    pub addresses: ZeroCopySliceMut<'a, u8, InsertAddressInput, false>,
-    pub output_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
-    pub input_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
-    pub address_sequence_numbers: ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
-    pub output_leaf_indices: ZeroCopySliceMut<'a, u8, U32, false>,
+pub struct InsertIntoQueuesInstructionDataMut<'b> {
+    meta: Ref<&'b mut [u8], InsertIntoQueuesInstructionDataMeta>,
+    pub leaves: ZeroCopySliceMut<'b, u8, AppendLeavesInput, false>,
+    pub nullifiers: ZeroCopySliceMut<'b, u8, InsertNullifierInput, false>,
+    pub addresses: ZeroCopySliceMut<'b, u8, InsertAddressInput, false>,
+    pub output_sequence_numbers: ZeroCopySliceMut<'b, u8, MerkleTreeSequenceNumber, false>,
+    pub input_sequence_numbers: ZeroCopySliceMut<'b, u8, MerkleTreeSequenceNumber, false>,
+    pub address_sequence_numbers: ZeroCopySliceMut<'b, u8, MerkleTreeSequenceNumber, false>,
+    pub output_leaf_indices: ZeroCopySliceMut<'b, u8, U32, false>,
 }
 
-impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
+impl<'b> InsertIntoQueuesInstructionDataMut<'b> {
     pub fn is_invoked_by_program(&self) -> bool {
         self.meta.is_invoked_by_program == 1
     }
@@ -193,7 +193,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
     }
 
     fn insert_sequence_number(
-        sequence_numbers: &mut ZeroCopySliceMut<'a, u8, MerkleTreeSequenceNumber, false>,
+        sequence_numbers: &mut ZeroCopySliceMut<'b, u8, MerkleTreeSequenceNumber, false>,
         index: &mut usize,
         tree_pubkey: &Pubkey,
         queue_pubkey: Option<&Pubkey>,
@@ -245,7 +245,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
     }
 
     pub fn new(
-        bytes: &'a mut [u8],
+        bytes: &'b mut [u8],
         leaves_capacity: u8,
         nullifiers_capacity: u8,
         addresses_capacity: u8,

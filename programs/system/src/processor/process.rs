@@ -5,6 +5,7 @@ use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
+        traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
         zero_copy::{
             ZInstructionDataInvoke, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
@@ -77,8 +78,8 @@ use crate::{
 ///    `read_only_addresses`
 ///     4.1. Verify non-inclusion in queue
 ///     4.2. Verify inclusion by zkp
-pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
-    inputs: ZInstructionDataInvoke<'a>,
+pub fn process<'a, 'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
+    inputs: impl InstructionDataTrait<'a>,
     invoking_program: Option<Pubkey>,
     ctx: A,
     cpi_context_inputs: usize,
@@ -88,9 +89,9 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_compression");
-    let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
-    let num_new_addresses = inputs.new_address_params.len();
-    let num_output_compressed_accounts = inputs.output_compressed_accounts.len();
+    let num_input_compressed_accounts = inputs.input_accounts().len();
+    let num_new_addresses = inputs.new_addresses().len();
+    let num_output_compressed_accounts = inputs.input_accounts().len();
     // msg!("num new addresses: {}", num_new_addresses);
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
@@ -111,14 +112,9 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     //     msg!("processor: post create_cpi_data_and_context");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
-    inputs
-        .input_compressed_accounts_with_merkle_context
-        .iter()
-        .for_each(|account| {
-            if let Some(address) = account.compressed_account.address {
-                context.addresses.push(Some(*address));
-            }
-        });
+    inputs.input_accounts().iter().for_each(|account| {
+        context.addresses.push(account.address());
+    });
 
     // 2. Deserialize and check all Merkle tree and queue accounts.
     #[allow(unused_mut)]
@@ -147,7 +143,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     // 5. Read address roots ---------------------------------------------------
     let address_tree_height = read_address_roots(
         &accounts,
-        inputs.new_address_params.as_slice(),
+        inputs.new_addresses(),
         read_only_addresses.as_slice(),
         &mut new_address_roots,
     )?;
@@ -156,7 +152,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
         derive_new_addresses(
-            inputs.new_address_params.as_slice(),
+            inputs.new_addresses(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
@@ -180,7 +176,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     //      9.2. Collect accounts
     //      9.3. Validate order of output queue/ tree accounts
     let output_compressed_account_hashes = create_outputs_cpi_data(
-        inputs.output_compressed_accounts.as_slice(),
+        inputs.output_accounts(),
         remaining_accounts,
         &mut context,
         &mut cpi_ix_data,
@@ -197,20 +193,16 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     // 10. hash input compressed accounts ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_nullifiers");
-    if !inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-    {
+    if !inputs.input_accounts().is_empty() {
         // currently must be post output accounts since the order of account infos matters
         // for the outputs.
         let input_compressed_account_hashes = create_inputs_cpi_data(
             remaining_accounts,
-            inputs
-                .input_compressed_accounts_with_merkle_context
-                .as_slice(),
+            inputs.input_accounts(),
             &mut context,
             &mut cpi_ix_data,
             &accounts,
+            inputs.owner().into(),
         )?;
 
         #[cfg(feature = "debug")]
@@ -237,22 +229,26 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_sum_check");
     let num_prove_by_index_input_accounts = sum_check(
-        &inputs.input_compressed_accounts_with_merkle_context,
-        &inputs.output_compressed_accounts,
-        &inputs.relay_fee.map(|x| (*x).into()),
-        &inputs.compress_or_decompress_lamports.map(|x| (*x).into()),
-        &inputs.is_compress,
+        &inputs.input_accounts(),
+        &inputs.output_accounts(),
+        &None,
+        &inputs.compress_or_decompress_lamports().map(|x| x),
+        &inputs.is_compress(),
     )?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_sum_check");
     // 12. Compress or decompress lamports ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_compression");
-    if inputs.compress_or_decompress_lamports.is_some() {
-        if inputs.is_compress && ctx.get_decompression_recipient().is_some() {
+    if inputs.compress_or_decompress_lamports().is_some() {
+        if inputs.is_compress() && ctx.get_decompression_recipient().is_some() {
             return Err(SystemProgramError::DecompressionRecipientDefined.into());
         }
-        compress_or_decompress_lamports(&inputs, &ctx)?;
+        compress_or_decompress_lamports(
+            inputs.is_compress(),
+            inputs.compress_or_decompress_lamports(),
+            &ctx,
+        )?;
     } else if ctx.get_decompression_recipient().is_some() {
         return Err(SystemProgramError::DecompressionRecipientDefined.into());
     } else if ctx.get_sol_pool_pda().is_some() {
@@ -293,9 +289,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
     let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = read_input_state_roots(
         &accounts,
-        inputs
-            .input_compressed_accounts_with_merkle_context
-            .as_slice(),
+        inputs.input_accounts(),
         read_only_accounts.as_slice(),
         &mut input_compressed_account_roots,
     )?;
@@ -310,7 +304,7 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
 
     // 15. Verify Inclusion & Non-inclusion Proof ---------------------------------------------------
     if num_inclusion_proof_inputs != 0 || num_non_inclusion_proof_inputs != 0 {
-        if let Some(proof) = inputs.proof.as_ref() {
+        if let Some(proof) = inputs.proof().as_ref() {
             #[cfg(feature = "bench-sbf")]
             bench_sbf_start!("cpda_verify_state_proof");
             let mut new_addresses = Vec::with_capacity(num_non_inclusion_proof_inputs);
@@ -386,13 +380,11 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
         } else {
             return Err(SystemProgramError::ProofIsNone.into());
         }
-    } else if inputs.proof.is_some() {
+    } else if inputs.proof().is_some() {
         return Err(SystemProgramError::ProofIsSome.into());
-    } else if inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-        && inputs.new_address_params.is_empty()
-        && inputs.output_compressed_accounts.is_empty()
+    } else if inputs.input_accounts().is_empty()
+        && inputs.new_addresses().is_empty()
+        && inputs.output_accounts().is_empty()
         && read_only_accounts.is_empty()
         && read_only_addresses.is_empty()
     {
@@ -407,11 +399,9 @@ pub fn process<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + SignerAccoun
 
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
-    if inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-        && inputs.new_address_params.is_empty()
-        && inputs.output_compressed_accounts.is_empty()
+    if inputs.input_accounts().is_empty()
+        && inputs.new_addresses().is_empty()
+        && inputs.output_accounts().is_empty()
     {
         return Ok(());
     }

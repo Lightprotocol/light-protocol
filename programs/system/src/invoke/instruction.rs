@@ -1,9 +1,13 @@
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
-    // processor::sol_compression::SOL_POOL_PDA_SEED,
-    LightContext,
+    processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
+use light_account_checks::{
+    checks::{check_owner, check_pda_seeds, check_program, check_signer},
+    context::LightContext,
+};
+use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
@@ -40,11 +44,9 @@ pub struct InvokeInstruction<'info> {
     pub decompression_recipient: Option<&'info AccountInfo>,
     pub system_program: &'info AccountInfo,
 }
-use light_account_checks::checks::{check_owner, check_program, check_signer};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 
-impl<'info> LightContext<'info> for InvokeInstruction<'info> {
-    fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &[AccountInfo])> {
+impl<'info> InvokeInstruction<'info> {
+    pub fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &[AccountInfo])> {
         let fee_payer = &accounts[0];
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
@@ -59,14 +61,14 @@ impl<'info> LightContext<'info> for InvokeInstruction<'info> {
         let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
             None
         } else {
-            // TODO: add checks
+            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
+                .map_err(ProgramError::from)?;
             Some(option_sol_pool_pda)
         };
         let option_decompression_recipient = &accounts[7];
         let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
             None
         } else {
-            // TODO: add checks
             Some(option_decompression_recipient)
         };
         let system_program = &accounts[8];
@@ -103,20 +105,8 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
         &self.registered_program_pda
     }
 
-    fn get_noop_program(&self) -> &'info AccountInfo {
-        &self.noop_program
-    }
-
     fn get_account_compression_authority(&self) -> &'info AccountInfo {
         &self.account_compression_authority
-    }
-
-    fn get_account_compression_program(&self) -> &'info AccountInfo {
-        &self.account_compression_program
-    }
-
-    fn get_system_program(&self) -> &'info AccountInfo {
-        &self.system_program
     }
 
     fn get_sol_pool_pda(&self) -> Option<&'info AccountInfo> {

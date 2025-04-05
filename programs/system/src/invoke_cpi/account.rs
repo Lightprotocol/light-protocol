@@ -1,6 +1,7 @@
 use aligned_sized::aligned_sized;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
+use light_account_checks::discriminator::Discriminator;
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,
 };
@@ -22,6 +23,10 @@ pub struct CpiContextAccount {
     pub associated_merkle_tree: Pubkey,
     // Offset 72
     pub context: Vec<InstructionDataInvokeCpi>,
+}
+
+impl Discriminator<8> for CpiContextAccount {
+    const DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
 }
 
 impl CpiContextAccount {

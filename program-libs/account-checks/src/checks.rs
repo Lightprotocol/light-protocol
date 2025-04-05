@@ -250,8 +250,8 @@ pub fn check_pda_seeds(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
-    if !Pubkey::create_program_address(seeds, program_id)
-        .map_err(|_| AccountError::InvalidSeeds)?
+    if !Pubkey::find_program_address(seeds, program_id)
+        .0
         .eq(account_info.key)
     {
         return Err(AccountError::InvalidSeeds);
@@ -260,14 +260,15 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
+// TODO: add with provided bump
 #[cfg(feature = "pinocchio")]
 pub fn check_pda_seeds(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
-    if !pinocchio::pubkey::create_program_address(seeds, program_id)
-        .map_err(|_| AccountError::InvalidSeeds)?
+    if !pinocchio::pubkey::find_program_address(seeds, program_id)
+        .0
         .eq(account_info.key())
     {
         return Err(AccountError::InvalidSeeds);

@@ -23,14 +23,8 @@ use crate::{
     context::SystemContext,
 };
 
-pub fn create_cpi_data_and_context<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + SignerAccounts<'info>,
->(
-    ctx: &'a A,
+pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
+    ctx: &A,
     num_leaves: u8,
     num_nullifiers: u8,
     num_new_addresses: u8,
@@ -80,7 +74,10 @@ pub fn create_cpi_data_and_context<
     ))
 }
 
-pub fn cpi_account_compression_program(cpi_context: SystemContext, bytes: Vec<u8>) -> Result<()> {
+pub fn cpi_account_compression_program<'a>(
+    cpi_context: SystemContext<'a>,
+    bytes: Vec<u8>,
+) -> Result<()> {
     let SystemContext {
         accounts,
         account_infos,
