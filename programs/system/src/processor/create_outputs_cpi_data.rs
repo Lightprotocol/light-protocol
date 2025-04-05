@@ -5,7 +5,6 @@ use light_compressed_account::{
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
         traits::{InstructionDataTrait, OutputAccountTrait},
-        zero_copy::ZOutputCompressedAccountWithPackedContext,
     },
     TreeType,
 };

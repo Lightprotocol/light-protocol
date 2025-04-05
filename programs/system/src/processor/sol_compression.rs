@@ -5,19 +5,14 @@ use aligned_sized::*;
 //     Bumps,
 // };
 use crate::utils::transfer_lamports_cpi;
-use light_compressed_account::instruction_data::{
-    traits::InstructionDataTrait, zero_copy::ZInstructionDataInvoke,
-};
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
-    pubkey::Pubkey,
 };
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
-    LightContext,
 };
 
 // #[account]

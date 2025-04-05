@@ -12,7 +12,7 @@ use light_compressed_account::{
 };
 use pinocchio::{
     account_info::AccountInfo,
-    cpi::{invoke_signed, slice_invoke_signed},
+    cpi::slice_invoke_signed,
     instruction::{AccountMeta, Instruction, Seed, Signer},
     pubkey::Pubkey,
 };

@@ -7,11 +7,10 @@ use light_compressed_account::{
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
         traits::{InputAccountTrait, InstructionDataTrait},
-        zero_copy::ZPackedCompressedAccountWithMerkleContext,
     },
 };
 use light_hasher::{Hasher, Poseidon};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::context::SystemContext;
 use crate::Result;

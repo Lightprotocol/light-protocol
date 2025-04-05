@@ -1,6 +1,5 @@
 use aligned_sized::aligned_sized;
 use borsh::{BorshDeserialize, BorshSerialize};
-use bytemuck::{Pod, Zeroable};
 use light_account_checks::discriminator::Discriminator;
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, zero_copy::ZInstructionDataInvokeCpi,

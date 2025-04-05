@@ -4,15 +4,10 @@ use crate::{
     processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
-use light_account_checks::{
-    checks::{
-        check_account_info_non_mut, check_discriminator, check_owner, check_pda_seeds,
-        check_program, check_signer,
-    },
-    context::LightContext,
-};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use light_account_checks::checks::{
+        check_discriminator, check_owner, check_pda_seeds, check_signer,
+    };
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 pub struct OptionsConfig {
     pub sol_pool_pda: bool,

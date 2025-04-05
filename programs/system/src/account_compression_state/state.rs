@@ -11,7 +11,7 @@ use light_hasher::Poseidon;
 use light_merkle_tree_metadata::{
     access::AccessMetadata, merkle_tree::MerkleTreeMetadata, rollover::RolloverMetadata,
 };
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::pubkey::Pubkey;
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 // #[account(zero_copy)]

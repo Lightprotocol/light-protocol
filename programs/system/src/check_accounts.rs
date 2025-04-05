@@ -21,7 +21,7 @@ use light_compressed_account::{
     pubkey::Pubkey,
     QueueType, TreeType,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::account_info::AccountInfo;
 
 use crate::{
     account_compression_state::{

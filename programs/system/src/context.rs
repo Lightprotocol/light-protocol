@@ -248,25 +248,25 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     }
 
     pub fn new_addresses(&self) -> impl Iterator<Item = &ZNewAddressParamsPacked> {
-        // if let Some(cpi_context) = &self.cpi_context {
-        //     self.instruction_data
-        //         .new_addresses()
-        //         .iter()
-        //         .chain(cpi_context.context[0].new_addresses().iter())
-        // } else {
-        self.instruction_data.new_addresses().iter()
-        // }
+        if let Some(cpi_context) = &self.cpi_context {
+            self.instruction_data
+                .new_addresses()
+                .iter()
+                .chain(cpi_context.context[0].new_addresses().iter())
+        } else {
+            self.instruction_data.new_addresses().iter()
+        }
     }
 
     pub fn output_accounts<'b>(&'b self) -> std::slice::Iter<'b, impl OutputAccountTrait<'a> + 'b> {
-        // if let Some(cpi_context) = &self.cpi_context {
-        //     self.instruction_data
-        //         .output_accounts()
-        //         .iter()
-        //         .chain(cpi_context.context[0].output_accounts().iter())
-        // } else {
-        self.instruction_data.output_accounts().iter()
-        // }
+        if let Some(cpi_context) = &self.cpi_context {
+            self.instruction_data
+                .output_accounts()
+                .iter()
+                .chain(cpi_context.context[0].output_accounts().iter())
+        } else {
+            self.instruction_data.output_accounts().iter()
+        }
     }
 
     pub fn input_accounts<'b>(
@@ -275,22 +275,21 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
         Repeat<light_compressed_account::pubkey::Pubkey>,
     > {
-        // if let Some(cpi_context) = &self.cpi_context {
-        //     self.instruction_data
-        //         .input_accounts()
-        //         .iter()
-        //         .zip(std::iter::repeat(self.instruction_data.owner()))
-        //         .chain(
-        //             cpi_context.context[0]
-        //                 .input_accounts()
-        //                 .iter()
-        //                 .zip(std::iter::repeat(cpi_context.context[0].owner())),
-        //         )
-        // } else {
-        self.instruction_data
-            .input_accounts()
-            .iter()
-            .zip(std::iter::repeat(self.instruction_data.owner()))
-        // }
+        if let Some(cpi_context) = &self.cpi_context {
+            self.instruction_data
+                .input_accounts()
+                .iter()
+                .zip(std::iter::repeat(self.instruction_data.owner()))
+                .chain(cpi_context.context.iter().flat_map(|ctx| {
+                    ctx.input_accounts()
+                        .iter()
+                        .zip(std::iter::repeat(ctx.owner()))
+                }))
+        } else {
+            self.instruction_data
+                .input_accounts()
+                .iter()
+                .zip(std::iter::repeat(self.instruction_data.owner()))
+        }
     }
 }

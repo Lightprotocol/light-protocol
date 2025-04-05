@@ -7,7 +7,7 @@ use light_compressed_account::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
         traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
         zero_copy::{
-            ZInstructionDataInvoke, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+            ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
     },
     tx_hash::create_tx_hash_from_hash_chains,

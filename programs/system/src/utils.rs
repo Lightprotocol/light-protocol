@@ -2,7 +2,6 @@ use crate::{constants::CPI_AUTHORITY_PDA_SEED, context::AcpAccount, errors::Syst
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{
     account_info::AccountInfo,
-    cpi::invoke,
     pubkey::{find_program_address, Pubkey},
 };
 
