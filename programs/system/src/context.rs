@@ -14,6 +14,7 @@ use light_compressed_account::instruction_data::traits::{
 };
 use light_compressed_account::instruction_data::zero_copy::{
     ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
+    ZPackedCompressedAccountWithMerkleContext,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
@@ -283,33 +284,34 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     /// Can introduce wrapper struct.
     pub fn input_accounts<'b>(
         &'b self,
-    ) -> Zip<
-        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
-        Repeat<light_compressed_account::pubkey::Pubkey>,
+    ) -> impl Iterator<
+        Item = (
+            &'b (dyn InputAccountTrait<'a> + 'b),
+            light_compressed_account::pubkey::Pubkey,
+        ),
     > {
         if let Some(cpi_context) = &self.cpi_context {
-            // self.instruction_data
-            //     .input_accounts()
-            //     .iter()
-            //     .zip(std::iter::repeat(self.instruction_data.owner()))
-            //     .chain(
-            //         cpi_context.context[0]
-            //             .input_accounts()
-            //             .iter()
-            //             .zip(std::iter::repeat(self.instruction_data.owner())),
-            //     );
-            unimplemented!()
+            chain_inputs(
+                self.instruction_data
+                    .input_accounts()
+                    .iter()
+                    .zip(std::iter::repeat(self.instruction_data.owner())),
+                cpi_context.context[0]
+                    .input_accounts()
+                    .iter()
+                    .zip(std::iter::repeat(cpi_context.context[0].owner())),
+            )
         } else {
-            // let empty_slice = &[];
-            self.instruction_data
-                .input_accounts()
-                .iter()
-                .zip(std::iter::repeat(self.instruction_data.owner()))
-            // .chain(
-            //     empty_slice
-            //         .iter()
-            //         .zip(std::iter::repeat(self.instruction_data.owner())),
-            // )
+            let empty_slice = &[];
+            chain_inputs(
+                self.instruction_data
+                    .input_accounts()
+                    .iter()
+                    .zip(std::iter::repeat(self.instruction_data.owner())),
+                empty_slice
+                    .iter()
+                    .zip(std::iter::repeat(self.instruction_data.owner())),
+            )
         }
     }
 }
@@ -326,4 +328,24 @@ pub fn chain_outputs<'a, 'b: 'a>(
                 .iter()
                 .map(|item| item as &dyn OutputAccountTrait<'b>),
         )
+}
+
+pub fn chain_inputs<'a: 'b, 'b>(
+    slice1: Zip<
+        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
+        Repeat<light_compressed_account::pubkey::Pubkey>,
+    >,
+    slice2: Zip<
+        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
+        Repeat<light_compressed_account::pubkey::Pubkey>,
+    >,
+) -> impl Iterator<
+    Item = (
+        &'b (dyn InputAccountTrait<'a> + 'b),
+        light_compressed_account::pubkey::Pubkey,
+    ),
+> {
+    slice1
+        .map(|(item, b)| (item as &dyn InputAccountTrait<'a>, b))
+        .chain(slice2.map(|(item, b)| (item as &dyn InputAccountTrait<'a>, b)))
 }

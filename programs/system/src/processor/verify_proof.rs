@@ -28,11 +28,13 @@ const IS_STATE: bool = true;
 const IS_NOT_STATE: bool = false;
 
 #[inline(always)]
-pub fn read_input_state_roots<'a, 'b>(
+pub fn read_input_state_roots<'a: 'b, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
-    input_compressed_accounts_with_merkle_context: Zip<
-        std::slice::Iter<'a, impl InputAccountTrait<'b> + 'a>,
-        Repeat<light_compressed_account::pubkey::Pubkey>,
+    input_compressed_accounts_with_merkle_context: impl Iterator<
+        Item = (
+            &'b (dyn InputAccountTrait<'a> + 'b),
+            light_compressed_account::pubkey::Pubkey,
+        ),
     >,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_roots: &mut Vec<[u8; 32]>,
