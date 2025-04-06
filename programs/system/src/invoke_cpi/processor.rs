@@ -40,62 +40,28 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     bench_sbf_end!("cpda_cpi_signer_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
-    let (cpi_context_account, cpi_context_inputs_len) =
-        if let Some(cpi_context) = inputs.cpi_context.as_ref() {
-            if cpi_context.first_set_context() || cpi_context.set_context() {
-                match crate::invoke_cpi::process_cpi_context::process_cpi_context(
-                    inputs,
-                    &mut ctx.cpi_context_account,
-                    *ctx.fee_payer.key(),
-                    remaining_accounts,
-                ) {
-                    Ok(Some(inputs)) => inputs,
-                    Ok(None) => return Ok(()),
-                    Err(err) => return Err(err),
-                };
-                unimplemented!()
-            } else {
-                let cpi_context_account =
-                    deserialize_cpi_context_account(ctx.cpi_context_account.unwrap())?;
-
-                if cpi_context_account.context.is_empty() {
-                    // msg!("cpi context account : {:?}", cpi_context_account);
-                    // msg!("fee payer : {:?}", fee_payer);
-                    // msg!("cpi context  : {:?}", cpi_context);
-                    return Err(SystemProgramError::CpiContextEmpty.into());
-                } else if *cpi_context_account.fee_payer != ctx.fee_payer.key().into()
-                    || cpi_context.first_set_context()
-                {
-                    // msg!("cpi context account : {:?}", cpi_context_account);
-                    // msg!("fee payer : {:?}", fee_payer);
-                    // msg!("cpi context  : {:?}", cpi_context);
-                    return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-                }
-
-                // num_cpi_contexts = cpi_context_account.context.len();
-                // Reset cpi context account
-                let len = cpi_context_account.context.len();
-                (Some(cpi_context_account), len)
-            }
-        } else {
-            (None, 0)
+    /// Issue:
+    /// 1. we don't have an owner in optimized account info structs.
+    ///    - solution deserialize them into a struct with an owner that implements the trait with owner
+    /// 2. we cannot push into the address vec, but we can chain it.
+    ///     - store a vector of addresses in the wrapped Instruction
+    /// 3. continue to use combine for the in and out accounts
+    #[allow(unused)]
+    let (inputs, cpi_context_inputs_len) =
+        match crate::invoke_cpi::process_cpi_context::process_cpi_context(
+            inputs,
+            &mut ctx.cpi_context_account,
+            *ctx.fee_payer.key(),
+            remaining_accounts,
+        ) {
+            Ok(Some(inputs)) => inputs,
+            Ok(None) => return Ok(()),
+            Err(err) => return Err(err),
         };
-    // #[allow(unused)]
-    // let (inputs, cpi_context_inputs_len) =
-    //     match crate::invoke_cpi::process_cpi_context::process_cpi_context(
-    //         inputs,
-    //         &mut ctx.cpi_context_account,
-    //         *ctx.fee_payer.key(),
-    //         remaining_accounts,
-    //     ) {
-    //         Ok(Some(inputs)) => inputs,
-    //         Ok(None) => return Ok(()),
-    //         Err(err) => return Err(err),
-    //     };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
     let inputs: ZInstructionDataInvoke = inputs.into();
-    let wrapped_inputs = crate::context::WrappedInstructionData::new(inputs, cpi_context_account);
+    let wrapped_inputs = crate::context::WrappedInstructionData::new(inputs, None);
     process(
         wrapped_inputs,
         Some(*ctx.invoking_program.key()),
@@ -104,15 +70,5 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         read_only_addresses,
         read_only_accounts,
         remaining_accounts,
-    )?;
-
-    // Reset cpi context account.
-    if cpi_context_inputs_len > 0 {
-        let mut cpi_context_account =
-            deserialize_cpi_context_account(ctx.cpi_context_account.unwrap())?;
-        cpi_context_account.context = Vec::new();
-        *cpi_context_account.fee_payer = light_compressed_account::pubkey::Pubkey::default();
-    }
-
-    Ok(())
+    )
 }

@@ -10,8 +10,7 @@ use light_compressed_account::{
         compressed_proof::CompressedProof,
         traits::InputAccountTrait,
         zero_copy::{
-            ZNewAddressParamsPacked,
-            ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+            ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
         },
     },
 };

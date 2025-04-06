@@ -1,4 +1,5 @@
-use std::iter::{Repeat, Zip};
+use std::iter::{Chain, Repeat, Zip};
+use std::slice::Iter;
 
 use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
 // use anchor_lang::{prelude::*, Result};
@@ -7,6 +8,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
+use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
 use light_compressed_account::instruction_data::traits::{
     InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
 };
@@ -17,7 +19,6 @@ use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 /// AccountCompressionProgramAccount
-// #[derive(Debug)]
 pub enum AcpAccount<'info> {
     Authority(&'info AccountInfo),
     RegisteredProgramPda(&'info AccountInfo),
@@ -247,32 +248,45 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.compress_or_decompress_lamports()
     }
 
-    pub fn new_addresses(&self) -> impl Iterator<Item = &ZNewAddressParamsPacked> {
+    pub fn new_addresses<'b>(
+        &'b self,
+    ) -> Chain<Iter<'b, ZNewAddressParamsPacked>, Iter<'b, ZNewAddressParamsPacked>> {
         if let Some(cpi_context) = &self.cpi_context {
             self.instruction_data
                 .new_addresses()
                 .iter()
                 .chain(cpi_context.context[0].new_addresses().iter())
         } else {
-            self.instruction_data.new_addresses().iter()
+            let empty_slice: &'b [ZNewAddressParamsPacked] = &[];
+            self.instruction_data
+                .new_addresses()
+                .iter()
+                .chain(empty_slice.iter())
         }
     }
 
-    pub fn output_accounts<'b>(&'b self) -> std::slice::Iter<'b, impl OutputAccountTrait<'a> + 'b> {
+    pub fn output_accounts<'b>(
+        &'b self,
+    ) -> impl Iterator<Item = &'b (dyn OutputAccountTrait<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
             self.instruction_data
                 .output_accounts()
                 .iter()
                 .chain(cpi_context.context[0].output_accounts().iter())
         } else {
-            self.instruction_data.output_accounts().iter()
+            let empty_slice = &[];
+            self.instruction_data
+                .output_accounts()
+                .iter()
+                .chain(empty_slice.iter())
         }
     }
 
+    /// Can introduce wrapper struct.
     pub fn input_accounts<'b>(
         &'b self,
     ) -> Zip<
-        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
+        std::slice::Iter<'a, impl InputAccountTrait<'b> + 'a>,
         Repeat<light_compressed_account::pubkey::Pubkey>,
     > {
         if let Some(cpi_context) = &self.cpi_context {
@@ -280,16 +294,25 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
                 .input_accounts()
                 .iter()
                 .zip(std::iter::repeat(self.instruction_data.owner()))
-                .chain(cpi_context.context.iter().flat_map(|ctx| {
-                    ctx.input_accounts()
+                .chain(
+                    cpi_context.context[0]
+                        .input_accounts()
                         .iter()
-                        .zip(std::iter::repeat(ctx.owner()))
-                }))
+                        .zip(std::iter::repeat(self.instruction_data.owner())),
+                );
+            unimplemented!()
         } else {
+            let empty_slice = &[];
             self.instruction_data
                 .input_accounts()
                 .iter()
                 .zip(std::iter::repeat(self.instruction_data.owner()))
+                .chain(
+                    empty_slice
+                        .iter()
+                        .zip(std::iter::repeat(self.instruction_data.owner())),
+                );
+            unimplemented!()
         }
     }
 }
