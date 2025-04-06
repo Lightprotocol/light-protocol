@@ -459,6 +459,61 @@ pub struct ZInstructionDataInvokeCpi<'a> {
     pub cpi_context: Option<Ref<&'a [u8], ZCompressedCpiContext>>,
 }
 
+impl ZInstructionDataInvokeCpi<'_> {
+    pub fn owner(&self) -> Pubkey {
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
+    }
+}
+
+impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
+    fn owner(&self) -> Pubkey {
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
+    }
+
+    fn is_compress(&self) -> bool {
+        self.is_compress
+    }
+
+    fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
+        self.proof
+    }
+
+    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+        self.new_address_params.as_slice()
+    }
+
+    fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>] {
+        self.output_compressed_accounts.as_slice()
+    }
+
+    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+        self.input_compressed_accounts_with_merkle_context
+            .as_slice()
+    }
+
+    fn compress_or_decompress_lamports(&self) -> Option<u64> {
+        self.compress_or_decompress_lamports.map(|x| (*x).into())
+    }
+}
+
 #[repr(C)]
 #[derive(
     Debug,

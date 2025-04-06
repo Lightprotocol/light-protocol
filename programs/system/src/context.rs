@@ -12,7 +12,9 @@ use light_compressed_account::instruction_data::data::OutputCompressedAccountWit
 use light_compressed_account::instruction_data::traits::{
     InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
 };
-use light_compressed_account::instruction_data::zero_copy::ZNewAddressParamsPacked;
+use light_compressed_account::instruction_data::zero_copy::{
+    ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
+};
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
@@ -269,16 +271,12 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         &'b self,
     ) -> impl Iterator<Item = &'b (dyn OutputAccountTrait<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
-            self.instruction_data
-                .output_accounts()
-                .iter()
-                .chain(cpi_context.context[0].output_accounts().iter())
+            chain_outputs(
+                self.instruction_data.output_accounts(),
+                cpi_context.context[0].output_accounts(),
+            )
         } else {
-            let empty_slice = &[];
-            self.instruction_data
-                .output_accounts()
-                .iter()
-                .chain(empty_slice.iter())
+            chain_outputs(self.instruction_data.output_accounts(), &[])
         }
     }
 
@@ -286,33 +284,46 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     pub fn input_accounts<'b>(
         &'b self,
     ) -> Zip<
-        std::slice::Iter<'a, impl InputAccountTrait<'b> + 'a>,
+        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
         Repeat<light_compressed_account::pubkey::Pubkey>,
     > {
         if let Some(cpi_context) = &self.cpi_context {
-            self.instruction_data
-                .input_accounts()
-                .iter()
-                .zip(std::iter::repeat(self.instruction_data.owner()))
-                .chain(
-                    cpi_context.context[0]
-                        .input_accounts()
-                        .iter()
-                        .zip(std::iter::repeat(self.instruction_data.owner())),
-                );
+            // self.instruction_data
+            //     .input_accounts()
+            //     .iter()
+            //     .zip(std::iter::repeat(self.instruction_data.owner()))
+            //     .chain(
+            //         cpi_context.context[0]
+            //             .input_accounts()
+            //             .iter()
+            //             .zip(std::iter::repeat(self.instruction_data.owner())),
+            //     );
             unimplemented!()
         } else {
-            let empty_slice = &[];
+            // let empty_slice = &[];
             self.instruction_data
                 .input_accounts()
                 .iter()
                 .zip(std::iter::repeat(self.instruction_data.owner()))
-                .chain(
-                    empty_slice
-                        .iter()
-                        .zip(std::iter::repeat(self.instruction_data.owner())),
-                );
-            unimplemented!()
+            // .chain(
+            //     empty_slice
+            //         .iter()
+            //         .zip(std::iter::repeat(self.instruction_data.owner())),
+            // )
         }
     }
+}
+
+pub fn chain_outputs<'a, 'b: 'a>(
+    slice1: &'a [impl OutputAccountTrait<'b>],
+    slice2: &'a [impl OutputAccountTrait<'b>],
+) -> impl Iterator<Item = &'a (dyn OutputAccountTrait<'b> + 'a)> {
+    slice1
+        .iter()
+        .map(|item| item as &dyn OutputAccountTrait<'b>)
+        .chain(
+            slice2
+                .iter()
+                .map(|item| item as &dyn OutputAccountTrait<'b>),
+        )
 }
