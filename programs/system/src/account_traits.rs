@@ -7,6 +7,10 @@ pub trait InvokeAccounts<'info> {
     fn get_decompression_recipient(&self) -> Option<&'info AccountInfo>;
 }
 
+pub trait CpiContextAccountTrait<'info> {
+    fn get_cpi_context_account(&self) -> Option<&'info AccountInfo>;
+}
+
 pub trait SignerAccounts<'info> {
     fn get_fee_payer(&self) -> &'info AccountInfo;
     fn get_authority(&self) -> &'info AccountInfo;

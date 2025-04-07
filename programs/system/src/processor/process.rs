@@ -5,16 +5,14 @@ use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-        traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
-        zero_copy::{
-            ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
-        },
+        traits::InstructionDataTrait,
+        zero_copy::ZPackedReadOnlyCompressedAccount,
     },
     tx_hash::create_tx_hash_from_hash_chains,
 };
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_zero_copy::{slice::ZeroCopySliceBorsh, slice_mut::ZeroCopySliceMut};
+use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
     account_info::AccountInfo, log::sol_log_compute_units, msg, program_error::ProgramError,
     pubkey::Pubkey, sysvars::clock::Clock,
@@ -88,8 +86,6 @@ pub fn process<
     invoking_program: Option<Pubkey>,
     ctx: &A,
     cpi_context_inputs: usize,
-    read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
-    read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
@@ -139,8 +135,7 @@ pub fn process<
     cpi_ix_data.bump = CPI_AUTHORITY_PDA_BUMP;
 
     // 4. Create new & verify read-only addresses ---------------------------------------------------
-    let read_only_addresses =
-        read_only_addresses.unwrap_or(ZeroCopySliceBorsh::from_bytes(&[0, 0, 0, 0]).unwrap());
+    let read_only_addresses = inputs.read_only_addresses().unwrap_or_default();
     let num_of_read_only_addresses = read_only_addresses.len();
     let num_non_inclusion_proof_inputs = num_new_addresses + num_of_read_only_addresses;
 
@@ -149,7 +144,7 @@ pub fn process<
     let address_tree_height = read_address_roots(
         &accounts,
         inputs.new_addresses(),
-        read_only_addresses.as_slice(),
+        read_only_addresses,
         &mut new_address_roots,
     )?;
     //     msg!("processor: post  Read address roots");
@@ -167,7 +162,10 @@ pub fn process<
 
     // 7. Verify read only address non-inclusion in bloom filters
     #[cfg(feature = "readonly")]
-    verify_read_only_address_queue_non_inclusion(&mut accounts, read_only_addresses.as_slice())?;
+    verify_read_only_address_queue_non_inclusion(
+        &mut accounts,
+        inputs.read_only_addresses().unwrap_or_default(),
+    )?;
     #[cfg(not(feature = "readonly"))]
     if !read_only_addresses.is_empty() {
         unimplemented!("Read only addresses are not supported in this build.")
@@ -255,14 +253,11 @@ pub fn process<
     //     msg!("processor: post  compress_or_decompress_lamports");
 
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
-    let read_only_accounts = read_only_accounts.unwrap_or_else(|| {
-        ZeroCopySliceBorsh::<ZPackedReadOnlyCompressedAccount>::from_bytes(&[0u8, 0u8, 0u8, 0u8])
-            .unwrap()
-    });
+    let read_only_accounts = inputs.read_only_accounts().unwrap_or_default();
 
     #[cfg(feature = "readonly")]
     let num_prove_read_only_accounts_prove_by_index =
-        verify_read_only_account_inclusion_by_index(&mut accounts, read_only_accounts.as_slice())?;
+        verify_read_only_account_inclusion_by_index(&mut accounts, read_only_accounts)?;
     #[cfg(not(feature = "readonly"))]
     let num_prove_read_only_accounts_prove_by_index = 0;
     #[cfg(not(feature = "readonly"))]
@@ -288,7 +283,7 @@ pub fn process<
     let state_tree_height = read_input_state_roots(
         &accounts,
         inputs.input_accounts(),
-        read_only_accounts.as_slice(),
+        read_only_accounts,
         &mut input_compressed_account_roots,
     )?;
     //     msg!("processor: post  Read state roots ");
@@ -323,7 +318,7 @@ pub fn process<
             let mut proof_input_compressed_account_hashes =
                 Vec::with_capacity(num_inclusion_proof_inputs);
             filter_for_accounts_not_proven_by_index(
-                read_only_accounts.as_slice(),
+                read_only_accounts,
                 &cpi_ix_data.nullifiers,
                 &mut proof_input_compressed_account_hashes,
             );

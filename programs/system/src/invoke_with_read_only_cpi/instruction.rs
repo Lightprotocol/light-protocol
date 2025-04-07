@@ -1,12 +1,12 @@
 use crate::{
-    account_traits::{InvokeAccounts, SignerAccounts},
+    account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     invoke_cpi::account::CpiContextAccount,
     processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
 use light_account_checks::checks::{
-        check_discriminator, check_owner, check_pda_seeds, check_signer,
-    };
+    check_discriminator, check_owner, check_pda_seeds, check_signer,
+};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 pub struct OptionsConfig {
@@ -30,7 +30,7 @@ pub struct InvokeCpiWithReadOnlyInstructionSmall<'info> {
 }
 
 impl<'info> InvokeCpiWithReadOnlyInstructionSmall<'info> {
-    fn from_account_infos(
+    pub fn from_account_infos(
         accounts: &'info [AccountInfo],
         options_config: OptionsConfig,
     ) -> Result<(Self, &[AccountInfo])> {
@@ -92,6 +92,11 @@ impl<'info> SignerAccounts<'info> for InvokeCpiWithReadOnlyInstructionSmall<'inf
     }
 }
 
+impl<'info> CpiContextAccountTrait<'info> for InvokeCpiWithReadOnlyInstructionSmall<'info> {
+    fn get_cpi_context_account(&self) -> Option<&'info AccountInfo> {
+        self.cpi_context_account
+    }
+}
 impl<'info> InvokeAccounts<'info> for InvokeCpiWithReadOnlyInstructionSmall<'info> {
     fn get_registered_program_pda(&self) -> &'info AccountInfo {
         self.registered_program_pda

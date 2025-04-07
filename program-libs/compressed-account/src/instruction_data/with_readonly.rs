@@ -16,13 +16,13 @@ use super::{
     data::{
         NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
     },
-    traits::InputAccountTrait,
+    traits::{InputAccountTrait, InstructionDataTrait},
     zero_copy::{
         ZCompressedCpiContext, ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
         ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
     },
 };
-use std::{env::var, ops::Deref};
+use std::ops::Deref;
 use zerocopy::{
     little_endian::{U16, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -213,12 +213,76 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMeta {
 
 pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
-    pub proof: Ref<&'a [u8], Option<CompressedProof>>,
+    pub proof: Option<Ref<&'a [u8], CompressedProof>>,
     pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsPacked>,
     pub input_compressed_accounts: Vec<ZInAccount<'a>>,
     pub output_compressed_accounts: Vec<ZOutputCompressedAccountWithPackedContext<'a>>,
     pub read_only_addresses: ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>,
     pub read_only_accounts: ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>,
+}
+
+impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        Some(self.read_only_accounts.as_slice())
+    }
+
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        Some(self.read_only_addresses.as_slice())
+    }
+
+    fn owner(&self) -> Pubkey {
+        self.meta.invoking_program_id
+    }
+
+    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+        self.new_address_params.as_slice()
+    }
+
+    fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
+        self.proof
+        // if let Some(proof) = self.proof {
+        //     Some(proof)
+        // } else {
+        //     None
+        // }
+    }
+
+    fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        if self.meta.with_cpi_context() {
+            Some(CompressedCpiContext {
+                set_context: self.cpi_context.set_context(),
+                first_set_context: self.cpi_context.first_set_context(),
+                cpi_context_account_index: self.cpi_context.cpi_context_account_index,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn is_compress(&self) -> bool {
+        !self.meta.is_decompress()
+    }
+
+    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+        self.input_compressed_accounts.as_slice()
+    }
+
+    fn output_accounts(&self) -> &[impl super::traits::OutputAccountTrait<'a>] {
+        self.output_compressed_accounts.as_slice()
+    }
+
+    fn compress_or_decompress_lamports(&self) -> Option<u64> {
+        if self.meta.is_decompress() || self.is_compress() {
+            Some(self.meta.compress_or_decompress_lamports.into())
+        } else {
+            None
+        }
+    }
+
+    /// TODO: implement
+    fn into_instruction_data_invoke_cpi(self) -> super::zero_copy::ZInstructionDataInvokeCpi<'a> {
+        todo!()
+    }
 }
 
 impl<'a> Deref for ZInstructionDataInvokeCpiWithReadOnly<'a> {
@@ -234,7 +298,7 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) =
             Ref::<&[u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>::from_prefix(bytes)?;
-        let (proof, bytes) = Ref::<&[u8], Option<CompressedProof>>::from_prefix(bytes)?;
+        let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
             ZeroCopySliceBorsh::<'a, ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
         let (input_compressed_accounts, bytes) = Vec::<InAccount>::zero_copy_at(bytes)?;

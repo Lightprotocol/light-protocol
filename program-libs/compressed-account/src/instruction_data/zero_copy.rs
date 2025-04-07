@@ -378,6 +378,12 @@ pub struct ZInstructionDataInvoke<'a> {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        None
+    }
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        None
+    }
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
         self.proof
     }
@@ -412,6 +418,14 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
 
     fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>] {
         self.output_compressed_accounts.as_slice()
+    }
+
+    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
+        unimplemented!()
+    }
+
+    fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        unimplemented!()
     }
 }
 impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
@@ -475,6 +489,13 @@ impl ZInstructionDataInvokeCpi<'_> {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        None
+    }
+
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        None
+    }
     fn owner(&self) -> Pubkey {
         if self
             .input_compressed_accounts_with_merkle_context
@@ -509,8 +530,23 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
             .as_slice()
     }
 
+    fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        if let Some(cpi_context) = self.cpi_context {
+            Some(CompressedCpiContext {
+                set_context: cpi_context.set_context(),
+                first_set_context: cpi_context.first_set_context(),
+                cpi_context_account_index: cpi_context.cpi_context_account_index,
+            })
+        } else {
+            None
+        }
+    }
+
     fn compress_or_decompress_lamports(&self) -> Option<u64> {
         self.compress_or_decompress_lamports.map(|x| (*x).into())
+    }
+    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
+        self
     }
 }
 

@@ -1,6 +1,10 @@
 use super::{
     compressed_proof::CompressedProof,
-    zero_copy::{ZNewAddressParamsPacked, ZPackedMerkleContext},
+    cpi_context::CompressedCpiContext,
+    zero_copy::{
+        ZInstructionDataInvokeCpi, ZNewAddressParamsPacked, ZPackedMerkleContext,
+        ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+    },
 };
 use crate::{pubkey::Pubkey, CompressedAccountError};
 use zerocopy::Ref;
@@ -10,9 +14,13 @@ pub trait InstructionDataTrait<'a> {
     fn new_addresses(&self) -> &[ZNewAddressParamsPacked];
     fn input_accounts(&self) -> &[impl InputAccountTrait<'a>];
     fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>];
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]>;
     fn is_compress(&self) -> bool;
     fn compress_or_decompress_lamports(&self) -> Option<u64>;
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>>;
+    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a>;
+    fn cpi_context(&self) -> Option<CompressedCpiContext>;
 }
 
 pub trait InputAccountTrait<'a> {

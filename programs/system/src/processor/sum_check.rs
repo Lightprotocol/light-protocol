@@ -1,6 +1,6 @@
 use crate::context::WrappedInstructionData;
 use crate::Result;
-use light_compressed_account::instruction_data::traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait};
+use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 use pinocchio::program_error::ProgramError;
 
 use crate::errors::SystemProgramError;

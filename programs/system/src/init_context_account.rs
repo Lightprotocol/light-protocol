@@ -1,7 +1,5 @@
 use crate::errors::SystemProgramError;
-use crate::{
-    invoke_cpi::account::CpiContextAccount, LightContext, Result, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR,
-};
+use crate::{invoke_cpi::account::CpiContextAccount, Result, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR};
 use borsh::BorshSerialize;
 use light_account_checks::checks::check_signer;
 use light_account_checks::discriminator::Discriminator;

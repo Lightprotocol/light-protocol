@@ -1,57 +1,42 @@
 pub use crate::Result;
-use light_compressed_account::instruction_data::zero_copy::{
-    ZInstructionDataInvoke, ZInstructionDataInvokeCpi, ZPackedReadOnlyAddress,
-    ZPackedReadOnlyCompressedAccount,
-};
+use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_zero_copy::slice::ZeroCopySliceBorsh;
 
-use super::verify_signer::cpi_signer_checks;
 use crate::{
-    account_traits::SignerAccounts,
+    account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    context::WrappedInstructionData,
     errors::SystemProgramError,
-    invoke_cpi::{account::deserialize_cpi_context_account, instruction::InvokeCpiInstruction},
+    invoke_cpi::account::deserialize_cpi_context_account,
     processor::process::process,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:
 /// 1. signer checks (inputs), write access (outputs) (cpi_signer_checks)
 /// 2. sets or gets cpi context (process_cpi_context)
 #[allow(unused_mut)]
-pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
-    mut ctx: InvokeCpiInstruction<'info>,
-    inputs: ZInstructionDataInvokeCpi<'a>,
-    read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
-    read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
-    remaining_accounts: &'b [AccountInfo],
+pub fn process_invoke_cpi<
+    'a,
+    'info,
+    T: InstructionDataTrait<'a>,
+    A: SignerAccounts<'info> + InvokeAccounts<'info> + CpiContextAccountTrait<'info>,
+>(
+    invoking_program: Pubkey,
+    ctx: A,
+    inputs: WrappedInstructionData<'a, T>,
+    remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_cpi_signer_checks");
-    cpi_signer_checks(
-        &ctx.invoking_program.key(),
-        &ctx.get_authority().key(),
-        &inputs.input_compressed_accounts_with_merkle_context,
-        &inputs.output_compressed_accounts,
-    )?;
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpda_cpi_signer_checks");
-    #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
-    /// Issue:
-    /// 1. we don't have an owner in optimized account info structs.
-    ///    - solution deserialize them into a struct with an owner that implements the trait with owner
-    /// 2. we cannot push into the address vec, but we can chain it.
-    ///     - store a vector of addresses in the wrapped Instruction
-    /// 3. continue to use combine for the in and out accounts
+
     #[allow(unused)]
-    let (inputs, cpi_context_inputs_len) =
+    let (cpi_context_inputs_len, inputs) =
         match crate::invoke_cpi::process_cpi_context::process_cpi_context(
             inputs,
-            &mut ctx.cpi_context_account,
-            *ctx.fee_payer.key(),
+            ctx.get_cpi_context_account(),
+            *ctx.get_fee_payer().key(),
             remaining_accounts,
         ) {
             Ok(Some(inputs)) => inputs,
@@ -60,15 +45,36 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
-    let inputs: ZInstructionDataInvoke = inputs.into();
-    let wrapped_inputs = crate::context::WrappedInstructionData::new(inputs, None);
+
     process(
-        wrapped_inputs,
-        Some(*ctx.invoking_program.key()),
+        inputs,
+        Some(invoking_program),
         &ctx,
         cpi_context_inputs_len,
-        read_only_addresses,
-        read_only_accounts,
         remaining_accounts,
-    )
+    )?;
+
+    // clear cpi context account
+    if cpi_context_inputs_len > 0 {
+        let mut cpi_context_account =
+            deserialize_cpi_context_account(&ctx.get_cpi_context_account().unwrap())?;
+
+        if cpi_context_account.context.is_empty() {
+            // msg!("cpi context account : {:?}", cpi_context_account);
+            // msg!("fee payer : {:?}", fee_payer);
+            return Err(SystemProgramError::CpiContextEmpty.into());
+        }
+        // else if *cpi_context_account.fee_payer != fee_payer.into()
+        //     || cpi_context.first_set_context()
+        // {
+        //     msg!("cpi context account : {:?}", cpi_context_account);
+        //     msg!("fee payer : {:?}", fee_payer);
+        //     msg!("cpi context  : {:?}", cpi_context);
+        //     return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
+        // }
+        // Reset cpi context account
+        cpi_context_account.context.clear();
+        *cpi_context_account.fee_payer = Pubkey::default().into();
+    }
+    Ok(())
 }

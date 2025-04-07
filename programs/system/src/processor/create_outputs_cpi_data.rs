@@ -4,7 +4,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::{InstructionDataTrait, OutputAccountTrait},
+        traits::InstructionDataTrait,
     },
     TreeType,
 };

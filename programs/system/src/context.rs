@@ -1,20 +1,19 @@
 use std::iter::{Chain, Repeat, Zip};
 use std::slice::Iter;
 
-use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
-// use anchor_lang::{prelude::*, Result};
 use crate::Result;
+use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_account::instruction_data::traits::{
     InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
 };
 use light_compressed_account::instruction_data::zero_copy::{
-    ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
-    ZPackedCompressedAccountWithMerkleContext,
+    ZInstructionDataInvokeCpi, ZNewAddressParamsPacked, ZPackedReadOnlyAddress,
+    ZPackedReadOnlyCompressedAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
@@ -205,6 +204,14 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
+    pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) {
+        if self.cpi_context.is_none() {
+            self.cpi_context = Some(cpi_context);
+        } else {
+            panic!("Cpi context is already set.");
+        }
+    }
+
     pub fn address_len(&self) -> usize {
         self.address_len
     }
@@ -272,6 +279,9 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         &'b self,
     ) -> impl Iterator<Item = &'b (dyn OutputAccountTrait<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
+            if cpi_context.context.len() > 1 {
+                panic!("Cpi context len > 1");
+            }
             chain_outputs(
                 self.instruction_data.output_accounts(),
                 cpi_context.context[0].output_accounts(),
@@ -281,7 +291,6 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    /// Can introduce wrapper struct.
     pub fn input_accounts<'b>(
         &'b self,
     ) -> impl Iterator<
@@ -291,6 +300,9 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         ),
     > {
         if let Some(cpi_context) = &self.cpi_context {
+            if cpi_context.context.len() > 1 {
+                panic!("Cpi context len > 1");
+            }
             chain_inputs(
                 self.instruction_data
                     .input_accounts()
@@ -313,6 +325,22 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
                     .zip(std::iter::repeat(self.instruction_data.owner())),
             )
         }
+    }
+
+    pub fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
+        self.instruction_data.into_instruction_data_invoke_cpi()
+    }
+
+    pub fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        self.instruction_data.cpi_context()
+    }
+
+    pub fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        self.instruction_data.read_only_addresses()
+    }
+
+    pub fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        self.instruction_data.read_only_accounts()
     }
 }
 

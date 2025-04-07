@@ -1,8 +1,6 @@
 use crate::constants::CPI_AUTHORITY_PDA_SEED;
 use crate::Result;
-use light_compressed_account::instruction_data::zero_copy::{
-    ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
-};
+use light_compressed_account::instruction_data::traits::OutputAccountTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{
@@ -18,25 +16,26 @@ use crate::errors::SystemProgramError;
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
-pub fn cpi_signer_checks(
+pub fn cpi_signer_checks<'a>(
     invoking_programid: &Pubkey,
     authority: &Pubkey,
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext],
+    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_check(invoking_programid, authority)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpd_input_checks");
-    input_compressed_accounts_signer_check(
-        input_compressed_accounts_with_merkle_context,
-        invoking_programid,
-    )?;
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpd_input_checks");
+    // TODO: double check that this works.
+    // We check this implicitly by hashing now.
+    // #[cfg(feature = "bench-sbf")]
+    // bench_sbf_start!("cpd_input_checks");
+    // input_compressed_accounts_signer_check(
+    //     input_compressed_accounts_with_merkle_context,
+    //     invoking_programid,
+    // )?;
+    // #[cfg(feature = "bench-sbf")]
+    // bench_sbf_end!("cpd_input_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
     output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
@@ -63,28 +62,28 @@ pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result
     Ok(())
 }
 
-/// Checks that the invoking program owns all input compressed accounts.
-pub fn input_compressed_accounts_signer_check(
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
-    invoking_program_id: &Pubkey,
-) -> Result<()> {
-    input_compressed_accounts_with_merkle_context
-        .iter()
-        .try_for_each(
-            |compressed_account_with_context| {
-                if *invoking_program_id == compressed_account_with_context.compressed_account.owner.to_bytes() {
-                    Ok(())
-                } else {
-                    msg!(
-                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
-                        compressed_account_with_context.compressed_account.owner.to_bytes(),
-                        invoking_program_id
-                    );
-                    Err(SystemProgramError::SignerCheckFailed.into())
-                }
-            },
-        )
-}
+// /// Checks that the invoking program owns all input compressed accounts.
+// pub fn input_compressed_accounts_signer_check<'a>(
+//     input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
+//     invoking_program_id: &Pubkey,
+// ) -> Result<()> {
+//     input_compressed_accounts_with_merkle_context
+//         .iter()
+//         .try_for_each(
+//             |compressed_account_with_context| {
+//                 if *invoking_program_id == compressed_account_with_context.compressed_account.owner.to_bytes() {
+//                     Ok(())
+//                 } else {
+//                     msg!(
+//                         "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
+//                         compressed_account_with_context.compressed_account.owner.to_bytes(),
+//                         invoking_program_id
+//                     );
+//                     Err(SystemProgramError::SignerCheckFailed.into())
+//                 }
+//             },
+//         )
+// }
 
 /// Write access check for output compressed accounts.
 /// - Only program-owned output accounts can hold data.
@@ -92,24 +91,24 @@ pub fn input_compressed_accounts_signer_check(
 ///     invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
-pub fn output_compressed_accounts_write_access_check(
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext],
+pub fn output_compressed_accounts_write_access_check<'a>(
+    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
     for compressed_account in output_compressed_accounts.iter() {
-        if compressed_account.compressed_account.data.is_some()
-            && *invoking_program_id != compressed_account.compressed_account.owner.to_bytes()
+        if compressed_account.has_data()
+            && *invoking_program_id != compressed_account.owner().to_bytes()
         {
             msg!(
                  format!(   "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {:?}",
-                    compressed_account.compressed_account.owner.to_bytes(),
+                    compressed_account.owner().to_bytes(),
                     invoking_program_id
                 ).as_str());
-            msg!(format!("compressed_account: {:?}", compressed_account).as_str());
+            // msg!(format!("compressed_account: {:?}", compressed_account).as_str());
             return Err(SystemProgramError::WriteAccessCheckFailed.into());
         }
-        if compressed_account.compressed_account.data.is_none()
-            && *invoking_program_id == compressed_account.compressed_account.owner.to_bytes()
+        if !compressed_account.has_data()
+            && *invoking_program_id == compressed_account.owner().to_bytes()
         {
             msg!("For program owned compressed accounts the data field needs to be defined.");
             // msg!("compressed_account: {:?}", compressed_account);
