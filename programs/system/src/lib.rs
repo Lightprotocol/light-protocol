@@ -201,7 +201,6 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[allow(unused_variables)]
 pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -221,7 +220,24 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     )
 }
 
-pub fn shared_invoke<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> Result<()> {
+    let instruction_data = &instruction_data[4..];
+
+    let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
+        .map_err(ProgramError::from)?;
+
+    shared_invoke(
+        accounts,
+        inputs.invoking_program_id.into(),
+        inputs.mode,
+        inputs,
+    )
+}
+
+fn shared_invoke<'a, 'info, T: InstructionDataTrait<'a>>(
     accounts: &[AccountInfo],
     invoking_program: Pubkey,
     mode: u8,
@@ -281,22 +297,4 @@ pub fn shared_invoke<'a, 'info, T: InstructionDataTrait<'a>>(
             remaining_accounts,
         )
     }
-}
-
-#[allow(unused_variables)]
-pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> Result<()> {
-    let instruction_data = &instruction_data[4..];
-
-    let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
-        .map_err(ProgramError::from)?;
-
-    shared_invoke(
-        accounts,
-        inputs.invoking_program_id.into(),
-        inputs.mode,
-        inputs,
-    )
 }
