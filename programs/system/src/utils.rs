@@ -5,8 +5,8 @@ use pinocchio::{
 };
 
 use crate::{
-    constants::CPI_AUTHORITY_PDA_SEED, context::AcpAccount, errors::SystemProgramError,
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    accounts::check_accounts::AcpAccount, constants::CPI_AUTHORITY_PDA_SEED,
+    errors::SystemProgramError, processor::sol_compression::SOL_POOL_PDA_SEED,
 };
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
     find_program_address(&[program_id.as_ref()], &ACCOUNT_COMPRESSION_PROGRAM_ID).0

@@ -1,8 +1,6 @@
 use std::{iter::Chain, slice::Iter};
 
-use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
-};
+use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi, Result};
 use light_compressed_account::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     hash_to_bn254_field_size_be,
@@ -16,32 +14,7 @@ use light_compressed_account::{
         },
     },
 };
-use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
-
-use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi, Result};
-
-/// AccountCompressionProgramAccount
-pub enum AcpAccount<'info> {
-    Authority(&'info AccountInfo),
-    RegisteredProgramPda(&'info AccountInfo),
-    SystemProgram(&'info AccountInfo),
-    OutputQueue(BatchedQueueAccount<'info>),
-    BatchedStateTree(BatchedMerkleTreeAccount<'info>),
-    BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
-    StateTree((Pubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
-    AddressTree(
-        (
-            Pubkey,
-            IndexedMerkleTreeZeroCopyMut<'info, Poseidon, usize, 26, 16>,
-        ),
-    ),
-    AddressQueue(Pubkey, &'info AccountInfo),
-    V1Queue(&'info AccountInfo),
-    Unknown(),
-}
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
@@ -174,39 +147,29 @@ pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
 }
 
 impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
-    pub fn new(instruction_data: T, cpi_context: Option<ZCpiContextAccount<'a>>) -> Self {
-        let (mut address_len, mut input_len, mut outputs_len) =
-            if let Some(cpi_context) = cpi_context.as_ref() {
-                if cpi_context.context.len() > 1 {
-                    unimplemented!();
-                }
-
-                (
-                    cpi_context.context[0].new_address_params.len(),
-                    cpi_context.context[0]
-                        .input_compressed_accounts_with_merkle_context
-                        .len(),
-                    cpi_context.context[0].output_compressed_accounts.len(),
-                )
-            } else {
-                (0, 0, 0)
-            };
-
-        address_len += instruction_data.new_addresses().len();
-        input_len += instruction_data.input_accounts().len();
-        outputs_len += instruction_data.output_accounts().len();
-
+    pub fn new(instruction_data: T) -> Self {
         Self {
+            input_len: instruction_data.input_accounts().len(),
+            outputs_len: instruction_data.output_accounts().len(),
+            address_len: instruction_data.new_addresses().len(),
+            cpi_context: None,
             instruction_data,
-            input_len,
-            outputs_len,
-            address_len,
-            cpi_context,
         }
     }
 
     pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) {
+        if cpi_context.context.len() != 1 {
+            unimplemented!(
+                "Cpi context account must be 1, is: {}",
+                cpi_context.context.len()
+            );
+        }
         if self.cpi_context.is_none() {
+            self.address_len += cpi_context.context[0].new_address_params.len();
+            self.outputs_len += cpi_context.context[0].output_compressed_accounts.len();
+            self.input_len += cpi_context.context[0]
+                .input_compressed_accounts_with_merkle_context
+                .len();
             self.cpi_context = Some(cpi_context);
         } else {
             panic!("Cpi context is already set.");
@@ -235,6 +198,9 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
 
     pub fn address_empty(&self) -> bool {
         self.address_len == 0
+    }
+    pub fn bump(&self) -> Option<u8> {
+        self.instruction_data.bump()
     }
 }
 

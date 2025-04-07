@@ -1,12 +1,13 @@
-use light_account_checks::checks::{
-    check_discriminator, check_owner, check_pda_seeds, check_program, check_signer,
+use light_account_checks::{
+    checks::{check_discriminator, check_owner, check_pda_seeds, check_program, check_signer},
+    error::AccountError,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use super::account::CpiContextAccount;
 use crate::{
-    account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
@@ -40,6 +41,10 @@ impl<'info> InvokeCpiInstruction<'info> {
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
         check_signer(authority).map_err(ProgramError::from)?;
+        if authority.is_writable() {
+            msg!("Authority must not be writable.");
+            return Err(AccountError::AccountMutable.into());
+        }
         let registered_program_pda = &accounts[2];
         let noop_program = &accounts[3];
         let account_compression_authority = &accounts[4];

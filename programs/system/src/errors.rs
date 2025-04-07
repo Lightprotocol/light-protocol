@@ -92,6 +92,10 @@ pub enum SystemProgramError {
     StateMerkleTreeAccountDiscriminatorMismatch,
     #[error("Verifier Error")]
     VerifierError,
+    #[error("Invalid account mode.")]
+    InvalidAccountMode,
+    #[error("InvalidInstructionDataDiscriminator")]
+    InvalidInstructionDataDiscriminator,
 }
 
 impl From<SystemProgramError> for ProgramError {

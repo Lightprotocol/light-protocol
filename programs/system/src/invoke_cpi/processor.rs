@@ -5,10 +5,10 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 pub use crate::Result;
 use crate::{
-    account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     context::WrappedInstructionData,
     errors::SystemProgramError,
-    invoke_cpi::account::deserialize_cpi_context_account,
+    invoke_cpi::{account::deserialize_cpi_context_account, verify_signer::cpi_signer_checks},
     processor::process::process,
 };
 
@@ -30,6 +30,12 @@ pub fn process_invoke_cpi<
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
+
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_start!("cpda_cpi_signer_checks");
+    cpi_signer_checks::<T>(&invoking_program, &ctx.get_authority().key(), &inputs)?;
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_end!("cpda_cpi_signer_checks");
 
     #[allow(unused)]
     let (cpi_context_inputs_len, inputs) =

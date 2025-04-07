@@ -10,7 +10,8 @@ use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
-    context::{AcpAccount, SystemContext, WrappedInstructionData},
+    accounts::check_accounts::AcpAccount,
+    context::{SystemContext, WrappedInstructionData},
     errors::SystemProgramError,
     Result,
 };

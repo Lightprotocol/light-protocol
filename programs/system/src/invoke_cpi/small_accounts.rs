@@ -1,22 +1,18 @@
-use light_account_checks::checks::{
-    check_discriminator, check_owner, check_pda_seeds, check_signer,
+use light_account_checks::{
+    checks::{check_discriminator, check_owner, check_pda_seeds, check_signer},
+    error::AccountError,
 };
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use light_compressed_account::instruction_data::traits::AccountOptions;
+use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
-    account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     invoke_cpi::account::CpiContextAccount,
     processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
 
-pub struct OptionsConfig {
-    pub sol_pool_pda: bool,
-    pub decompression_recipient: bool,
-    pub cpi_context_account: bool,
-}
-
-pub struct InvokeCpiWithReadOnlyInstructionSmall<'info> {
+pub struct InvokeCpiInstructionSmall<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
@@ -30,15 +26,19 @@ pub struct InvokeCpiWithReadOnlyInstructionSmall<'info> {
     pub cpi_context_account: Option<&'info AccountInfo>,
 }
 
-impl<'info> InvokeCpiWithReadOnlyInstructionSmall<'info> {
+impl<'info> InvokeCpiInstructionSmall<'info> {
     pub fn from_account_infos(
         accounts: &'info [AccountInfo],
-        options_config: OptionsConfig,
+        options_config: AccountOptions,
     ) -> Result<(Self, &[AccountInfo])> {
         let fee_payer = &accounts[0];
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
         check_signer(authority).map_err(ProgramError::from)?;
+        if authority.is_writable() {
+            msg!("Authority must not be writable.");
+            return Err(AccountError::AccountMutable.into());
+        }
         let registered_program_pda = &accounts[2];
         let account_compression_authority = &accounts[3];
         let mut account_counter = 4;
@@ -84,7 +84,7 @@ impl<'info> InvokeCpiWithReadOnlyInstructionSmall<'info> {
     }
 }
 
-impl<'info> SignerAccounts<'info> for InvokeCpiWithReadOnlyInstructionSmall<'info> {
+impl<'info> SignerAccounts<'info> for InvokeCpiInstructionSmall<'info> {
     fn get_fee_payer(&self) -> &'info AccountInfo {
         self.fee_payer
     }
@@ -94,12 +94,12 @@ impl<'info> SignerAccounts<'info> for InvokeCpiWithReadOnlyInstructionSmall<'inf
     }
 }
 
-impl<'info> CpiContextAccountTrait<'info> for InvokeCpiWithReadOnlyInstructionSmall<'info> {
+impl<'info> CpiContextAccountTrait<'info> for InvokeCpiInstructionSmall<'info> {
     fn get_cpi_context_account(&self) -> Option<&'info AccountInfo> {
         self.cpi_context_account
     }
 }
-impl<'info> InvokeAccounts<'info> for InvokeCpiWithReadOnlyInstructionSmall<'info> {
+impl<'info> InvokeAccounts<'info> for InvokeCpiInstructionSmall<'info> {
     fn get_registered_program_pda(&self) -> &'info AccountInfo {
         self.registered_program_pda
     }

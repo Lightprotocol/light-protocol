@@ -13,7 +13,7 @@ use light_compressed_account::{
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
-    account_info::AccountInfo, log::sol_log_compute_units, msg, program_error::ProgramError,
+    account_info::AccountInfo, log::sol_log_compute_units, program_error::ProgramError,
     pubkey::Pubkey, sysvars::clock::Clock,
 };
 
@@ -23,8 +23,8 @@ use crate::processor::{
     read_only_address::verify_read_only_address_queue_non_inclusion,
 };
 use crate::{
-    account_traits::{InvokeAccounts, SignerAccounts},
-    check_accounts::try_from_account_infos,
+    accounts::account_traits::{InvokeAccounts, SignerAccounts},
+    accounts::check_accounts::try_from_account_infos,
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
     errors::SystemProgramError,
@@ -143,7 +143,7 @@ pub fn process<
     let mut new_address_roots = Vec::with_capacity(num_non_inclusion_proof_inputs);
     // 5. Read address roots ---------------------------------------------------
     let address_tree_height = read_address_roots(
-        &accounts,
+        accounts.as_slice(),
         inputs.new_addresses(),
         read_only_addresses,
         &mut new_address_roots,
@@ -157,14 +157,14 @@ pub fn process<
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
-            &accounts,
+            accounts.as_slice(),
         )?
     }
 
     // 7. Verify read only address non-inclusion in bloom filters
     #[cfg(feature = "readonly")]
     verify_read_only_address_queue_non_inclusion(
-        &mut accounts,
+        accounts.as_mut_slice(),
         inputs.read_only_addresses().unwrap_or_default(),
     )?;
     #[cfg(not(feature = "readonly"))]
@@ -184,7 +184,7 @@ pub fn process<
         remaining_accounts,
         &mut context,
         &mut cpi_ix_data,
-        &accounts,
+        accounts.as_slice(),
     )?;
     #[cfg(feature = "debug")]
     check_vec_capacity(
@@ -205,7 +205,7 @@ pub fn process<
             &inputs,
             &mut context,
             &mut cpi_ix_data,
-            &accounts,
+            accounts.as_slice(),
         )?;
 
         #[cfg(feature = "debug")]
@@ -258,7 +258,7 @@ pub fn process<
 
     #[cfg(feature = "readonly")]
     let num_prove_read_only_accounts_prove_by_index =
-        verify_read_only_account_inclusion_by_index(&mut accounts, read_only_accounts)?;
+        verify_read_only_account_inclusion_by_index(accounts.as_mut_slice(), read_only_accounts)?;
     #[cfg(not(feature = "readonly"))]
     let num_prove_read_only_accounts_prove_by_index = 0;
     #[cfg(not(feature = "readonly"))]
@@ -282,7 +282,7 @@ pub fn process<
     // 14. Read state roots ---------------------------------------------------
     let mut input_compressed_account_roots = Vec::with_capacity(num_inclusion_proof_inputs);
     let state_tree_height = read_input_state_roots(
-        &accounts,
+        accounts.as_slice(),
         inputs.input_accounts(),
         read_only_accounts,
         &mut input_compressed_account_roots,

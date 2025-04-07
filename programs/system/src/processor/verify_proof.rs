@@ -17,7 +17,7 @@ use light_verifier::{
 };
 use pinocchio::program_error::ProgramError;
 
-use crate::{context::AcpAccount, errors::SystemProgramError};
+use crate::{accounts::check_accounts::AcpAccount, errors::SystemProgramError};
 
 const IS_READ_ONLY: bool = true;
 const IS_NOT_READ_ONLY: bool = false;

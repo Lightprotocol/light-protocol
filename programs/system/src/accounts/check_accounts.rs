@@ -11,6 +11,9 @@ use light_compressed_account::{
     pubkey::Pubkey,
     QueueType, TreeType,
 };
+use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use pinocchio::account_info::AccountInfo;
 
 use crate::{
@@ -19,9 +22,29 @@ use crate::{
         queue::QueueAccount,
         state::{state_merkle_tree_from_bytes_zero_copy_mut, StateMerkleTreeAccount},
     },
-    context::{AcpAccount, MerkleTreeContext, SystemContext},
+    context::{MerkleTreeContext, SystemContext},
     errors::SystemProgramError,
 };
+
+/// AccountCompressionProgramAccount
+pub enum AcpAccount<'info> {
+    Authority(&'info AccountInfo),
+    RegisteredProgramPda(&'info AccountInfo),
+    SystemProgram(&'info AccountInfo),
+    OutputQueue(BatchedQueueAccount<'info>),
+    BatchedStateTree(BatchedMerkleTreeAccount<'info>),
+    BatchedAddressTree(BatchedMerkleTreeAccount<'info>),
+    StateTree((Pubkey, ConcurrentMerkleTreeZeroCopyMut<'info, Poseidon, 26>)),
+    AddressTree(
+        (
+            Pubkey,
+            IndexedMerkleTreeZeroCopyMut<'info, Poseidon, usize, 26, 16>,
+        ),
+    ),
+    AddressQueue(Pubkey, &'info AccountInfo),
+    V1Queue(&'info AccountInfo),
+    Unknown(),
+}
 
 pub(crate) fn try_from_account_infos<'info>(
     account_infos: &'info [AccountInfo],
@@ -120,7 +143,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             };
             Ok((
                 AcpAccount::StateTree((
-                    *account_info.key(),
+                    (*account_info.key()).into(),
                     state_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
                 )),
                 program_owner,
@@ -146,7 +169,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             };
             Ok((
                 AcpAccount::AddressTree((
-                    *account_info.key(),
+                    (*account_info.key()).into(),
                     address_merkle_tree_from_bytes_zero_copy_mut(data_slice).unwrap(),
                 )),
                 program_owner,
@@ -168,7 +191,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
 
                 let program_owner = queue.metadata.access_metadata.program_owner;
                 Ok((
-                    AcpAccount::AddressQueue(*account_info.key(), account_info),
+                    AcpAccount::AddressQueue((*account_info.key()).into(), account_info),
                     program_owner,
                 ))
             } else if queue.metadata.queue_type == QueueType::NullifierQueue as u64 {

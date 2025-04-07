@@ -2,7 +2,8 @@ use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompre
 use pinocchio::program_error::ProgramError;
 
 use crate::{
-    context::AcpAccount, errors::SystemProgramError, utils::get_queue_and_tree_accounts, Result,
+    accounts::check_accounts::AcpAccount, errors::SystemProgramError,
+    utils::get_queue_and_tree_accounts, Result,
 };
 
 /// For each read-only account

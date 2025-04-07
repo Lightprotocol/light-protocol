@@ -5,7 +5,7 @@ use pinocchio::{
 };
 
 use crate::{
-    account_traits::{InvokeAccounts, SignerAccounts},
+    accounts::account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
     utils::transfer_lamports_cpi,
 };

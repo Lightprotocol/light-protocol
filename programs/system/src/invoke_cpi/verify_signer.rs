@@ -1,27 +1,30 @@
-use light_compressed_account::instruction_data::traits::OutputAccountTrait;
+use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{
     msg,
     program_error::ProgramError,
-    pubkey::{try_find_program_address, Pubkey},
+    pubkey::{create_program_address, try_find_program_address, Pubkey},
 };
 
-use crate::{constants::CPI_AUTHORITY_PDA_SEED, errors::SystemProgramError, Result};
+use crate::{
+    constants::CPI_AUTHORITY_PDA_SEED, context::WrappedInstructionData, errors::SystemProgramError,
+    Result,
+};
 /// Checks:
 /// 1. Invoking program is signer (cpi_signer_check)
 /// 2. Input compressed accounts with data are owned by the invoking program
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
-pub fn cpi_signer_checks<'a>(
-    invoking_programid: &Pubkey,
+pub fn cpi_signer_checks<'a, T: InstructionDataTrait<'a>>(
+    invoking_program_id: &Pubkey,
     authority: &Pubkey,
-    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
+    inputs: &WrappedInstructionData<'a, T>,
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
-    cpi_signer_check(invoking_programid, authority)?;
+    cpi_signer_check(invoking_program_id, authority, inputs.bump())?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
     // TODO: double check that this works.
@@ -36,7 +39,7 @@ pub fn cpi_signer_checks<'a>(
     // bench_sbf_end!("cpd_input_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
-    output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
+    output_compressed_accounts_write_access_check(inputs, invoking_program_id)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_write_checks");
     Ok(())
@@ -44,11 +47,20 @@ pub fn cpi_signer_checks<'a>(
 
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
-pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
-    let seeds = [CPI_AUTHORITY_PDA_SEED];
-    let derived_signer = try_find_program_address(&seeds, invoking_program)
-        .ok_or(ProgramError::InvalidSeeds)?
-        .0;
+pub fn cpi_signer_check(
+    invoking_program: &Pubkey,
+    authority: &Pubkey,
+    bump: Option<u8>,
+) -> Result<()> {
+    let derived_signer = if let Some(bump) = bump {
+        let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
+        create_program_address(&seeds, invoking_program)?
+    } else {
+        let seeds = [CPI_AUTHORITY_PDA_SEED];
+        try_find_program_address(&seeds, invoking_program)
+            .ok_or(ProgramError::InvalidSeeds)?
+            .0
+    };
     if derived_signer != *authority {
         msg!(format!(
             "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
@@ -89,11 +101,11 @@ pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result
 ///     invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
-pub fn output_compressed_accounts_write_access_check<'a>(
-    output_compressed_accounts: &[impl OutputAccountTrait<'a>],
+pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    for compressed_account in output_compressed_accounts.iter() {
+    for compressed_account in inputs.output_accounts() {
         if compressed_account.has_data()
             && *invoking_program_id != compressed_account.owner().to_bytes()
         {

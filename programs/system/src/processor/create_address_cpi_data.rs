@@ -7,8 +7,7 @@ use light_compressed_account::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    context::{AcpAccount, SystemContext},
-    errors::SystemProgramError,
+    accounts::check_accounts::AcpAccount, context::SystemContext, errors::SystemProgramError,
     Result,
 };
 
@@ -38,7 +37,7 @@ pub fn derive_new_addresses<'info, 'a>(
                 );
 
                 (
-                    derive_address_legacy(pubkey, &new_address_params.seed)
+                    derive_address_legacy(&pubkey.into(), &new_address_params.seed)
                         .map_err(ProgramError::from)?,
                     context
                         .get_legacy_merkle_context(new_address_params.address_queue_account_index)
