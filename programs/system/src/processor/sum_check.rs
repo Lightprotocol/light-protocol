@@ -16,7 +16,7 @@ pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
     let output_compressed_accounts = inputs.output_accounts();
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
-    for (compressed_account_with_context, _) in input_compressed_accounts_with_merkle_context {
+    for compressed_account_with_context in input_compressed_accounts_with_merkle_context {
         if compressed_account_with_context
             .merkle_context()
             .prove_by_index()

@@ -41,8 +41,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
     let mut is_first_iter = true;
     let mut seq_index = 0;
     let mut is_batched = true;
-    for (j, (input_compressed_account_with_context, owner)) in
-        instruction_data.input_accounts().enumerate()
+    for (j, input_compressed_account_with_context) in instruction_data.input_accounts().enumerate()
     {
         context
             .addresses
@@ -84,11 +83,10 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
                 }
             };
         }
-        // TODO: call function repeatedly for every owner
         // Without cpi context all input compressed accounts have the same owner.
         // With cpi context the owners will be different.
-        if owner_pubkey != owner.into() {
-            owner_pubkey = owner.into();
+        if owner_pubkey != *input_compressed_account_with_context.owner() {
+            owner_pubkey = *input_compressed_account_with_context.owner();
             hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
         }
         let merkle_context = input_compressed_account_with_context.merkle_context();
@@ -123,12 +121,12 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
     cpi_ix_data.num_queues = instruction_data
         .input_accounts()
         .enumerate()
-        .filter(|(i, (x, _))| {
+        .filter(|(i, x)| {
             let candidate = x.merkle_context().nullifier_queue_pubkey_index;
             !instruction_data
                 .input_accounts()
                 .take(*i)
-                .any(|(y, _)| y.merkle_context().nullifier_queue_pubkey_index == candidate)
+                .any(|y| y.merkle_context().nullifier_queue_pubkey_index == candidate)
         })
         .count() as u8;
 

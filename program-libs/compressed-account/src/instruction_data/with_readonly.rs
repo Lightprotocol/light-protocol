@@ -24,7 +24,7 @@ use super::{
 };
 use std::ops::Deref;
 use zerocopy::{
-    little_endian::{U16, U64},
+    little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
@@ -66,6 +66,9 @@ impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
 }
 
 impl<'a> InputAccountTrait<'a> for ZInAccount<'a> {
+    fn owner(&self) -> &Pubkey {
+        &self.owner
+    }
     fn lamports(&self) -> u64 {
         self.lamports.into()
     }
@@ -141,17 +144,26 @@ pub struct ZInAccountMeta {
 #[repr(C)]
 #[derive(Debug, PartialEq)]
 pub struct ZInAccount<'a> {
+    pub owner: Pubkey,
     meta: Ref<&'a [u8], ZInAccountMeta>,
     pub address: Option<Ref<&'a [u8], [u8; 32]>>,
 }
 
-impl<'a> Deserialize<'a> for InAccount {
-    type Output = ZInAccount<'a>;
-
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl<'a> InAccount {
+    fn zero_copy_at_with_owner(
+        bytes: &'a [u8],
+        owner: Pubkey,
+    ) -> Result<(ZInAccount<'a>, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) = Ref::<&[u8], ZInAccountMeta>::from_prefix(bytes)?;
         let (address, bytes) = Option::<Ref<&[u8], [u8; 32]>>::zero_copy_at(bytes)?;
-        Ok((Self::Output { meta, address }, bytes))
+        Ok((
+            ZInAccount {
+                owner,
+                meta,
+                address,
+            },
+            bytes,
+        ))
     }
 }
 
@@ -301,7 +313,20 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
             ZeroCopySliceBorsh::<'a, ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
-        let (input_compressed_accounts, bytes) = Vec::<InAccount>::zero_copy_at(bytes)?;
+        let (input_compressed_accounts, bytes) = {
+            let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
+            let num_slices = u32::from(*num_slices) as usize;
+            // TODO: add check that remaining data is enough to read num_slices
+            // This prevents agains invalid data allocating a lot of heap memory
+            let mut slices = Vec::with_capacity(num_slices);
+            for _ in 0..num_slices {
+                let (slice, _bytes) =
+                    InAccount::zero_copy_at_with_owner(bytes, meta.invoking_program_id)?;
+                bytes = _bytes;
+                slices.push(slice);
+            }
+            (slices, bytes)
+        };
         let (output_compressed_accounts, bytes) =
             <Vec<ZOutputCompressedAccountWithPackedContext<'a>> as Deserialize<'a>>::zero_copy_at(
                 bytes,

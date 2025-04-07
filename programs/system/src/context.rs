@@ -1,4 +1,4 @@
-use std::iter::{Chain, Repeat, Zip};
+use std::iter::Chain;
 use std::slice::Iter;
 
 use crate::Result;
@@ -293,37 +293,18 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
 
     pub fn input_accounts<'b>(
         &'b self,
-    ) -> impl Iterator<
-        Item = (
-            &'b (dyn InputAccountTrait<'a> + 'b),
-            light_compressed_account::pubkey::Pubkey,
-        ),
-    > {
+    ) -> impl Iterator<Item = &'b (dyn InputAccountTrait<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
             if cpi_context.context.len() > 1 {
                 panic!("Cpi context len > 1");
             }
             chain_inputs(
-                self.instruction_data
-                    .input_accounts()
-                    .iter()
-                    .zip(std::iter::repeat(self.instruction_data.owner())),
-                cpi_context.context[0]
-                    .input_accounts()
-                    .iter()
-                    .zip(std::iter::repeat(cpi_context.context[0].owner())),
+                self.instruction_data.input_accounts(),
+                cpi_context.context[0].input_accounts(),
             )
         } else {
             let empty_slice = &[];
-            chain_inputs(
-                self.instruction_data
-                    .input_accounts()
-                    .iter()
-                    .zip(std::iter::repeat(self.instruction_data.owner())),
-                empty_slice
-                    .iter()
-                    .zip(std::iter::repeat(self.instruction_data.owner())),
-            )
+            chain_inputs(self.instruction_data.input_accounts(), empty_slice)
         }
     }
 
@@ -358,22 +339,12 @@ pub fn chain_outputs<'a, 'b: 'a>(
         )
 }
 
-pub fn chain_inputs<'a: 'b, 'b>(
-    slice1: Zip<
-        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
-        Repeat<light_compressed_account::pubkey::Pubkey>,
-    >,
-    slice2: Zip<
-        std::slice::Iter<'b, impl InputAccountTrait<'a> + 'b>,
-        Repeat<light_compressed_account::pubkey::Pubkey>,
-    >,
-) -> impl Iterator<
-    Item = (
-        &'b (dyn InputAccountTrait<'a> + 'b),
-        light_compressed_account::pubkey::Pubkey,
-    ),
-> {
+pub fn chain_inputs<'a, 'b: 'a>(
+    slice1: &'a [impl InputAccountTrait<'b>],
+    slice2: &'a [impl InputAccountTrait<'b>],
+) -> impl Iterator<Item = &'a (dyn InputAccountTrait<'b> + 'a)> {
     slice1
-        .map(|(item, b)| (item as &dyn InputAccountTrait<'a>, b))
-        .chain(slice2.map(|(item, b)| (item as &dyn InputAccountTrait<'a>, b)))
+        .iter()
+        .map(|item| item as &dyn InputAccountTrait<'b>)
+        .chain(slice2.iter().map(|item| item as &dyn InputAccountTrait<'b>))
 }

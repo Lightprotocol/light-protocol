@@ -293,6 +293,9 @@ pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
 }
 
 impl<'a> InputAccountTrait<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
+    fn owner(&self) -> &crate::pubkey::Pubkey {
+        &self.compressed_account.owner
+    }
     fn lamports(&self) -> u64 {
         self.compressed_account.lamports.into()
     }

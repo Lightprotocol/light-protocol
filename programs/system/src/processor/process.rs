@@ -113,7 +113,7 @@ pub fn process<
     //     msg!("processor: post create_cpi_data_and_context");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
-    inputs.input_accounts().for_each(|(account, _)| {
+    inputs.input_accounts().for_each(|account| {
         context.addresses.push(account.address());
     });
 

@@ -24,6 +24,7 @@ pub trait InstructionDataTrait<'a> {
 }
 
 pub trait InputAccountTrait<'a> {
+    fn owner(&self) -> &crate::pubkey::Pubkey;
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
     fn merkle_context(&self) -> ZPackedMerkleContext;

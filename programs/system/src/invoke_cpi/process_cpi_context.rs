@@ -52,7 +52,6 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
                 .input_accounts()
                 .next()
                 .unwrap()
-                .0
                 .merkle_context()
                 .merkle_tree_pubkey_index
         } else if !inputs.outputs_empty() {

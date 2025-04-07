@@ -29,17 +29,13 @@ const IS_NOT_STATE: bool = false;
 pub fn read_input_state_roots<'a: 'b, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
     input_compressed_accounts_with_merkle_context: impl Iterator<
-        Item = (
-            &'b (dyn InputAccountTrait<'a> + 'b),
-            light_compressed_account::pubkey::Pubkey,
-        ),
+        Item = &'b (dyn InputAccountTrait<'a> + 'b),
     >,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut state_tree_height = 0;
-    for (input_compressed_account_with_context, _) in input_compressed_accounts_with_merkle_context
-    {
+    for input_compressed_account_with_context in input_compressed_accounts_with_merkle_context {
         if input_compressed_account_with_context
             .merkle_context()
             .prove_by_index()

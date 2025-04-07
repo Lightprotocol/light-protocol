@@ -73,6 +73,10 @@ pub struct OutAccountInfo {
 }
 
 impl<'a> InputAccountTrait<'a> for ZCAccountInfo<'a> {
+    fn owner(&self) -> &Pubkey {
+        &self.owner
+    }
+
     fn lamports(&self) -> u64 {
         self.input.as_ref().unwrap().lamports.into()
     }
@@ -119,7 +123,7 @@ impl<'a> OutputAccountTrait<'a> for ZCAccountInfo<'a> {
     }
 
     fn owner(&self) -> Pubkey {
-        unimplemented!("Need to find a solution for this.");
+        self.owner
     }
 
     fn merkle_tree_index(&self) -> u8 {
@@ -223,6 +227,7 @@ pub struct CAccountInfo {
 }
 
 pub struct ZCAccountInfo<'a> {
+    pub owner: Pubkey,
     pub discriminator: Ref<&'a [u8], [u8; 8]>, // 1
     /// Address.
     pub address: Option<Ref<&'a [u8], [u8; 32]>>, // 2
@@ -232,16 +237,18 @@ pub struct ZCAccountInfo<'a> {
     pub output: Option<ZOutAccountInfo<'a>>, // 5
 }
 
-impl<'a> Deserialize<'a> for CAccountInfo {
-    type Output = ZCAccountInfo<'a>;
-
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
+impl<'a> CAccountInfo {
+    pub fn zero_copy_at_with_owner(
+        bytes: &'a [u8],
+        owner: Pubkey,
+    ) -> Result<(ZCAccountInfo<'a>, &'a [u8]), ZeroCopyError> {
         let (discriminator, bytes) = Ref::<&[u8], [u8; 8]>::from_prefix(bytes)?;
         let (address, bytes) = Option::<Ref<&[u8], [u8; 32]>>::zero_copy_at(bytes)?;
         let (input, bytes) = Option::<Ref<&[u8], ZInAccountInfo>>::zero_copy_at(bytes)?;
         let (output, bytes) = Option::<ZOutAccountInfo<'a>>::zero_copy_at(bytes)?;
         Ok((
-            Self::Output {
+            ZCAccountInfo {
+                owner,
                 discriminator,
                 address,
                 input,
@@ -383,7 +390,20 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
             ZeroCopySliceBorsh::<'a, ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
-        let (account_infos, bytes) = Vec::<CAccountInfo>::zero_copy_at(bytes)?;
+        let (account_infos, bytes) = {
+            let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
+            let num_slices = u32::from(*num_slices) as usize;
+            // TODO: add check that remaining data is enough to read num_slices
+            // This prevents agains invalid data allocating a lot of heap memory
+            let mut slices = Vec::with_capacity(num_slices);
+            for _ in 0..num_slices {
+                let (slice, _bytes) =
+                    CAccountInfo::zero_copy_at_with_owner(bytes, meta.invoking_program_id)?;
+                bytes = _bytes;
+                slices.push(slice);
+            }
+            (slices, bytes)
+        };
         let (read_only_addresses, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyAddress>::from_bytes_at(bytes)?;
         let (read_only_accounts, bytes) =
