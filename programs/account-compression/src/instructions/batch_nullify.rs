@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
-use light_batched_merkle_tree::merkle_tree::{
-    BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
+use light_batched_merkle_tree::{
+    changelog::ChangelogInstructionData,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 
 use crate::{
@@ -43,7 +44,7 @@ impl<'info> GroupAccounts<'info> for BatchNullify<'info> {
 /// 4. Emit indexer event.
 pub fn process_batch_nullify<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchNullify<'info>>,
-    instruction_data: InstructionDataBatchNullifyInputs,
+    instruction_data: ChangelogInstructionData,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let merkle_tree =

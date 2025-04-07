@@ -213,6 +213,12 @@ fn test_rnd_account_init() {
             let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
                 params.root_history_capacity as u64,
             );
+            // Add changelog size calculation
+            let changelog_capacity = 8; // Same as we set in the actual implementation
+            let changelog_size = ZeroCopyCyclicVecU64::<light_batched_merkle_tree::changelog::BatchChangelog>::required_size_for_capacity(
+                changelog_capacity,
+            );
+            
             // Output queue
             let ref_account_size =
                     // metadata
@@ -220,7 +226,9 @@ fn test_rnd_account_init() {
                     + root_history_size
                     + bloom_filter_size
                     // 2 hash chain stores
-                    + hash_chain_store_size;
+                    + hash_chain_store_size
+                    // Changelog size
+                    + changelog_size;
             assert_eq!(mt_account_size, ref_account_size);
         }
         let mut mt_account_data = vec![0; mt_account_size];

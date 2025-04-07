@@ -50,6 +50,12 @@ pub enum BatchedMerkleTreeError {
     BloomFilterNotZeroed,
     #[error("Account error {0}")]
     AccountError(#[from] AccountError),
+    #[error("Old root doesn't match current root")]
+    OldRootMismatch,
+    #[error("Invalid hash chain index")]
+    InvalidHashChainIndex,
+    #[error("Invalid leaves hash chain")]
+    InvalidLeavesHashChain,
 }
 
 #[cfg(feature = "solana")]
@@ -68,6 +74,9 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::TreeIsFull => 14310,
             BatchedMerkleTreeError::NonInclusionCheckFailed => 14311,
             BatchedMerkleTreeError::BloomFilterNotZeroed => 14312,
+            BatchedMerkleTreeError::OldRootMismatch => 14313,
+            BatchedMerkleTreeError::InvalidHashChainIndex => 14314,
+            BatchedMerkleTreeError::InvalidLeavesHashChain => 14315,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),

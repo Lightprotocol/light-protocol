@@ -67,12 +67,15 @@ fn address_from_account_info() {
     account.lamports = merkle_tree_rent;
     // Test 1 functional init_batched_address_merkle_tree_from_account_info
     {
+        // Before initializing, set the data to a known state
+        account.data.fill(0);
+        
         let result = init_batched_address_merkle_tree_from_account_info(
             params,
             owner.into(),
             &account.get_account_info(),
         );
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to init address tree: {:?}", result.err());
     }
     // Test 2 already initialized
     {
@@ -146,7 +149,7 @@ fn state_from_account_info() {
             &output_queue_account_info,
             additional_rent,
         );
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to init state tree: {:?}", result.err());
     }
     // Test 2 failing already initialized
     {
@@ -243,7 +246,7 @@ fn test_get_state_root_by_index() {
             &output_queue_account_info,
             additional_rent,
         );
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to init state tree: {:?}", result.err());
     }
 
     // Test 2 functional get_state_root_by_index
@@ -280,7 +283,7 @@ fn test_get_address_root_by_index() {
             owner.into(),
             &merkle_tree_account_info,
         );
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to init address tree: {:?}", result.err());
     }
 
     // Test 2 functional get_address_root_by_index
@@ -317,7 +320,7 @@ fn test_merkle_tree_getters() {
             owner.into(),
             &merkle_tree_account_info,
         );
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Failed to init address tree: {:?}", result.err());
     }
 
     // Test 2 functional get_address_root_by_index

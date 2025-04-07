@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
-use light_batched_merkle_tree::merkle_tree::{
-    BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
+use light_batched_merkle_tree::{
+    changelog::ChangelogInstructionData,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 
 use crate::{
@@ -40,7 +41,7 @@ impl<'info> GroupAccounts<'info> for BatchUpdateAddressTree<'info> {
 /// 4. Emit indexer event.
 pub fn process_batch_update_address_tree<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchUpdateAddressTree<'info>>,
-    instruction_data: InstructionDataBatchNullifyInputs,
+    instruction_data: ChangelogInstructionData,
 ) -> Result<()> {
     // 1. Check tree account discriminator, tree type, and program ownership.
     let merkle_tree =
