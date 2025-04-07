@@ -83,6 +83,18 @@ impl<'a> InputAccountTrait<'a> for ZInAccount<'a> {
         self.root_index.into()
     }
 
+    fn has_data(&self) -> bool {
+        true
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        Some(CompressedAccountData {
+            discriminator: self.discriminator,
+            data: Vec::new(),
+            data_hash: self.data_hash,
+        })
+    }
+
     fn hash_with_hashed_values(
         &self,
         owner_hashed: &[u8; 32],
@@ -289,11 +301,6 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
         } else {
             None
         }
-    }
-
-    /// TODO: implement
-    fn into_instruction_data_invoke_cpi(self) -> super::zero_copy::ZInstructionDataInvokeCpi<'a> {
-        todo!()
     }
 }
 

@@ -7,6 +7,7 @@ use zerocopy::{
 };
 
 use super::{
+    data::NewAddressParamsPacked,
     invoke_cpi::InstructionDataInvokeCpi,
     traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
 };
@@ -61,6 +62,28 @@ pub struct ZNewAddressParamsPacked {
     pub address_merkle_tree_root_index: U16,
 }
 
+impl From<ZNewAddressParamsPacked> for NewAddressParamsPacked {
+    fn from(value: ZNewAddressParamsPacked) -> Self {
+        NewAddressParamsPacked {
+            address_queue_account_index: value.address_queue_account_index,
+            address_merkle_tree_root_index: value.address_merkle_tree_root_index.into(),
+            seed: value.seed,
+            address_merkle_tree_account_index: value.address_merkle_tree_account_index,
+        }
+    }
+}
+
+impl From<&ZNewAddressParamsPacked> for NewAddressParamsPacked {
+    fn from(value: &ZNewAddressParamsPacked) -> Self {
+        NewAddressParamsPacked {
+            address_queue_account_index: value.address_queue_account_index,
+            address_merkle_tree_root_index: value.address_merkle_tree_root_index.into(),
+            seed: value.seed,
+            address_merkle_tree_account_index: value.address_merkle_tree_account_index,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(
     Debug, Default, PartialEq, Clone, Copy, KnownLayout, Immutable, FromBytes, IntoBytes, Unaligned,
@@ -111,6 +134,13 @@ impl<'a> OutputAccountTrait<'a> for ZOutputCompressedAccountWithPackedContext<'a
 
     fn has_data(&self) -> bool {
         self.compressed_account.data.is_some()
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        self.compressed_account
+            .data
+            .as_ref()
+            .map(|data| data.into())
     }
 
     fn hash_with_hashed_values(
@@ -166,6 +196,16 @@ pub struct ZCompressedAccountData<'a> {
 
 impl From<ZCompressedAccountData<'_>> for CompressedAccountData {
     fn from(compressed_account_data: ZCompressedAccountData) -> Self {
+        CompressedAccountData {
+            discriminator: *compressed_account_data.discriminator,
+            data: compressed_account_data.data.to_vec(),
+            data_hash: *compressed_account_data.data_hash,
+        }
+    }
+}
+
+impl From<&ZCompressedAccountData<'_>> for CompressedAccountData {
+    fn from(compressed_account_data: &ZCompressedAccountData) -> Self {
         CompressedAccountData {
             discriminator: *compressed_account_data.discriminator,
             data: compressed_account_data.data.to_vec(),
@@ -311,6 +351,14 @@ impl<'a> InputAccountTrait<'a> for ZPackedCompressedAccountWithMerkleContext<'a>
         self.meta.root_index.into()
     }
 
+    fn has_data(&self) -> bool {
+        self.compressed_account.data.is_some()
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        self.compressed_account.data.as_ref().map(|x| x.into())
+    }
+
     fn hash_with_hashed_values(
         &self,
         owner_hashed: &[u8; 32],
@@ -421,10 +469,6 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
 
     fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>] {
         self.output_compressed_accounts.as_slice()
-    }
-
-    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
-        unimplemented!()
     }
 
     fn cpi_context(&self) -> Option<CompressedCpiContext> {
@@ -547,9 +591,6 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
 
     fn compress_or_decompress_lamports(&self) -> Option<u64> {
         self.compress_or_decompress_lamports.map(|x| (*x).into())
-    }
-    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
-        self
     }
 }
 

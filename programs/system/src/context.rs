@@ -6,14 +6,18 @@ use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cp
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
+use light_compressed_account::compressed_account::{
+    CompressedAccount, PackedCompressedAccountWithMerkleContext,
+};
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
+use light_compressed_account::instruction_data::invoke_cpi::InstructionDataInvokeCpi;
 use light_compressed_account::instruction_data::traits::{
     InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
 };
 use light_compressed_account::instruction_data::zero_copy::{
-    ZInstructionDataInvokeCpi, ZNewAddressParamsPacked, ZPackedReadOnlyAddress,
-    ZPackedReadOnlyCompressedAccount,
+    ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
@@ -308,8 +312,46 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    pub fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a> {
-        self.instruction_data.into_instruction_data_invoke_cpi()
+    pub fn into_instruction_data_invoke_cpi(
+        &self,
+        cpi_account_data: &mut InstructionDataInvokeCpi,
+    ) {
+        for input in self.instruction_data.input_accounts() {
+            let input_account = PackedCompressedAccountWithMerkleContext {
+                compressed_account: CompressedAccount {
+                    owner: input.owner().into(),
+                    lamports: input.lamports(),
+                    address: input.address(),
+                    data: input.data(),
+                },
+                merkle_context: input.merkle_context().into(),
+                read_only: false,
+                root_index: input.root_index(),
+            };
+            cpi_account_data
+                .input_compressed_accounts_with_merkle_context
+                .push(input_account);
+        }
+        for output in self.instruction_data.output_accounts() {
+            let output_account = OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: output.owner().into(),
+                    lamports: output.lamports(),
+                    address: output.address(),
+                    data: output.data(),
+                },
+                merkle_tree_index: output.merkle_tree_index(),
+            };
+            cpi_account_data
+                .output_compressed_accounts
+                .push(output_account);
+        }
+
+        for new_address_params in self.instruction_data.new_addresses() {
+            cpi_account_data
+                .new_address_params
+                .push(new_address_params.into());
+        }
     }
 
     pub fn cpi_context(&self) -> Option<CompressedCpiContext> {

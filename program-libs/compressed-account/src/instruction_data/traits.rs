@@ -2,11 +2,11 @@ use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
     zero_copy::{
-        ZInstructionDataInvokeCpi, ZNewAddressParamsPacked, ZPackedMerkleContext,
-        ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+        ZNewAddressParamsPacked, ZPackedMerkleContext, ZPackedReadOnlyAddress,
+        ZPackedReadOnlyCompressedAccount,
     },
 };
-use crate::{pubkey::Pubkey, CompressedAccountError};
+use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
 use zerocopy::Ref;
 
 pub trait InstructionDataTrait<'a> {
@@ -19,7 +19,6 @@ pub trait InstructionDataTrait<'a> {
     fn is_compress(&self) -> bool;
     fn compress_or_decompress_lamports(&self) -> Option<u64>;
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>>;
-    fn into_instruction_data_invoke_cpi(self) -> ZInstructionDataInvokeCpi<'a>;
     fn cpi_context(&self) -> Option<CompressedCpiContext>;
 }
 
@@ -28,6 +27,8 @@ pub trait InputAccountTrait<'a> {
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
     fn merkle_context(&self) -> ZPackedMerkleContext;
+    fn has_data(&self) -> bool;
+    fn data(&self) -> Option<CompressedAccountData>;
     fn hash_with_hashed_values(
         &self,
         owner_hashed: &[u8; 32],
@@ -43,6 +44,7 @@ pub trait OutputAccountTrait<'a> {
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
     fn has_data(&self) -> bool;
+    fn data(&self) -> Option<CompressedAccountData>;
     /// TODO: find solution for account infos
     fn owner(&self) -> Pubkey;
     fn merkle_tree_index(&self) -> u8;

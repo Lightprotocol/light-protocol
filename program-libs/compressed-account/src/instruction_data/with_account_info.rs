@@ -4,7 +4,8 @@ use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopy
 
 use crate::{
     compressed_account::{
-        hash_with_hashed_values, PackedMerkleContext, PackedReadOnlyCompressedAccount,
+        hash_with_hashed_values, CompressedAccountData, PackedMerkleContext,
+        PackedReadOnlyCompressedAccount,
     },
     pubkey::Pubkey,
     AnchorDeserialize, AnchorSerialize, CompressedAccountError,
@@ -92,6 +93,18 @@ impl<'a> InputAccountTrait<'a> for ZCAccountInfo<'a> {
         self.input.as_ref().unwrap().root_index.into()
     }
 
+    fn has_data(&self) -> bool {
+        true
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        Some(CompressedAccountData {
+            data_hash: self.input.unwrap().data_hash,
+            discriminator: *self.discriminator,
+            data: Vec::new(),
+        })
+    }
+
     fn hash_with_hashed_values(
         &self,
         owner_hashed: &[u8; 32],
@@ -132,6 +145,14 @@ impl<'a> OutputAccountTrait<'a> for ZCAccountInfo<'a> {
 
     fn has_data(&self) -> bool {
         true
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        Some(CompressedAccountData {
+            discriminator: *self.discriminator,
+            data_hash: self.output.as_ref().unwrap().data_hash,
+            data: self.output.as_ref().unwrap().data.to_vec(),
+        })
     }
 
     fn hash_with_hashed_values(
@@ -330,11 +351,6 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
         } else {
             None
         }
-    }
-
-    /// TODO: implement
-    fn into_instruction_data_invoke_cpi(self) -> super::zero_copy::ZInstructionDataInvokeCpi<'a> {
-        todo!()
     }
 }
 

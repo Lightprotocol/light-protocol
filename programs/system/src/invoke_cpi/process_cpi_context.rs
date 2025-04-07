@@ -1,8 +1,10 @@
 use crate::{context::WrappedInstructionData, Result};
-use light_compressed_account::instruction_data::traits::InstructionDataTrait;
+use light_compressed_account::instruction_data::{
+    invoke_cpi::InstructionDataInvokeCpi, traits::InstructionDataTrait,
+};
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
-use super::account::{deserialize_cpi_context_account, ZCpiContextAccount};
+use super::account::{deserialize_cpi_context_account, CpiContextAccount};
 use crate::errors::SystemProgramError;
 
 /// Diff:
@@ -32,21 +34,21 @@ use crate::errors::SystemProgramError;
 ///    other state transition is executed with the combined inputs.
 pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
     mut inputs: WrappedInstructionData<'a, T>,
-    cpi_context_account: Option<&'info AccountInfo>,
+    cpi_context_account_info: Option<&'info AccountInfo>,
     fee_payer: Pubkey,
     remaining_accounts: &[AccountInfo],
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
     let cpi_context = &inputs.cpi_context();
-    if cpi_context_account.is_some() && cpi_context.is_none() {
+    if cpi_context_account_info.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
     }
     if let Some(cpi_context) = cpi_context {
-        let cpi_context_account = match cpi_context_account {
-            Some(cpi_context_account) => cpi_context_account,
+        let cpi_context_account_info = match cpi_context_account_info {
+            Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
-        let mut cpi_context_account = deserialize_cpi_context_account(cpi_context_account)?;
+        let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
         let index = if !inputs.inputs_empty() {
             inputs
                 .input_accounts()
@@ -69,39 +71,19 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
             return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
         }
         if cpi_context.set_context {
-            set_cpi_context(fee_payer, &mut cpi_context_account, inputs)?;
+            set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
             return Ok(None);
         } else {
             inputs.set_cpi_context(cpi_context_account);
             return Ok(Some((1, inputs)));
-            // if cpi_context_account.context.is_empty() {
-            //     msg!("cpi context account : {:?}", cpi_context_account);
-            //     msg!("fee payer : {:?}", fee_payer);
-            //     msg!("cpi context  : {:?}", cpi_context);
-            //     return Err(SystemProgramError::CpiContextEmpty.into());
-            // } else if *cpi_context_account.fee_payer != fee_payer.into()
-            //     || cpi_context.first_set_context()
-            // {
-            //     msg!("cpi context account : {:?}", cpi_context_account);
-            //     msg!("fee payer : {:?}", fee_payer);
-            //     msg!("cpi context  : {:?}", cpi_context);
-            //     return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-            // }
-
-            // num_cpi_contexts = cpi_context_account.context.len();
-            // inputs.combine(cpi_context_account.context);
-            // // Reset cpi context account
-            // cpi_context_account.context = Vec::new();
-            // *cpi_context_account.fee_payer = Pubkey::default().into();
         }
     }
     Ok(Some((0, inputs)))
-    // Ok(Some((inputs, num_cpi_contexts)))
 }
 
-pub fn set_cpi_context<'a, T: InstructionDataTrait<'a>>(
+pub fn set_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
     fee_payer: Pubkey,
-    cpi_context_account: &mut ZCpiContextAccount<'a>,
+    cpi_context_account_info: &'info AccountInfo,
     inputs: WrappedInstructionData<'a, T>,
 ) -> Result<()> {
     // SAFETY Assumptions:
@@ -117,26 +99,23 @@ pub fn set_cpi_context<'a, T: InstructionDataTrait<'a>>(
     // cpi context, compress_or_decompress_lamports,
     // relay_fee
     // 2. Subsequent invocations check the proof and fee payer
+    use borsh::{BorshDeserialize, BorshSerialize};
+    let data = cpi_context_account_info.try_borrow_data()?;
+    let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
     if inputs.cpi_context().unwrap().first_set_context {
-        if !inputs.address_empty() {
-            unimplemented!("new addresses are not supported with cpi context");
-        }
-        cpi_context_account.context = vec![inputs.into_instruction_data_invoke_cpi()];
-        *cpi_context_account.fee_payer = fee_payer.into();
-    } else if *cpi_context_account.fee_payer == fee_payer.into()
-        && !cpi_context_account.context.is_empty()
+        cpi_context_account.fee_payer = fee_payer.into();
+        let mut instruction_data = InstructionDataInvokeCpi::default();
+        inputs.into_instruction_data_invoke_cpi(&mut instruction_data);
+        cpi_context_account.context.push(instruction_data);
+    } else if cpi_context_account.fee_payer == fee_payer && !cpi_context_account.context.is_empty()
     {
-        // TODO: copy into the first index instead of copying the complete struct.
-        if !inputs.address_empty() {
-            unimplemented!("new addresses are not supported with cpi context");
-        }
-        cpi_context_account
-            .context
-            .push(inputs.into_instruction_data_invoke_cpi());
+        inputs.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
     } else {
         msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
         return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
     }
+    let mut data = cpi_context_account_info.try_borrow_mut_data()?;
+    cpi_context_account.serialize(&mut &mut data[8..]).unwrap();
     Ok(())
 }
 
