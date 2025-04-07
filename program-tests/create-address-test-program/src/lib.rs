@@ -11,6 +11,7 @@ pub mod create_pda;
 pub use create_pda::*;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
+    with_readonly::InstructionDataInvokeCpiWithReadOnly,
 };
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
@@ -35,7 +36,7 @@ pub mod system_cpi_test {
     /// inspiration to build a program with compressed accounts.
     pub fn invoke_cpi<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
-        inputs: Vec<u8>,
+        inputs: InstructionDataInvokeCpiWithReadOnly,
         bump: u8,
     ) -> Result<()> {
         process_invoke_cpi(&ctx, inputs, bump)
@@ -43,13 +44,13 @@ pub mod system_cpi_test {
 
     pub fn invoke_cpi_multiple<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
-        inputs: Vec<u8>,
+        inputs: InstructionDataInvokeCpiWithReadOnly,
         bump: u8,
         num_invocations: u8,
     ) -> Result<()> {
         for i in 0..num_invocations {
             msg!("invoke_cpi_multiple cpi {}", i);
-            process_invoke_cpi(&ctx, inputs.to_vec(), bump)?;
+            process_invoke_cpi(&ctx, inputs.clone(), bump)?;
         }
         Ok(())
     }
@@ -57,7 +58,7 @@ pub mod system_cpi_test {
 
 pub fn process_invoke_cpi<'info>(
     ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
-    inputs: Vec<u8>,
+    inputs: InstructionDataInvokeCpiWithReadOnly,
     bump: u8,
 ) -> Result<()> {
     anchor_lang::solana_program::log::sol_log_compute_units();
@@ -91,7 +92,7 @@ pub fn process_invoke_cpi<'info>(
 
 pub fn create_invoke_cpi_instruction(
     signer: Pubkey,
-    inputs: Vec<u8>,
+    inputs: InstructionDataInvokeCpiWithReadOnly,
     remaining_accounts: Vec<AccountMeta>,
     num_invocations: Option<u8>,
 ) -> Instruction {

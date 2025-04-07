@@ -21,6 +21,8 @@ pub trait InstructionDataTrait<'a> {
     fn compress_or_decompress_lamports(&self) -> Option<u64>;
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>>;
     fn cpi_context(&self) -> Option<CompressedCpiContext>;
+    fn bump(&self) -> Option<u8>;
+    fn account_option_config(&self) -> AccountOptions;
 }
 
 pub trait InputAccountTrait<'a> {
@@ -55,4 +57,10 @@ pub trait OutputAccountTrait<'a> {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError>;
+}
+
+pub struct AccountOptions {
+    pub sol_pool_pda: bool,
+    pub decompression_recipient: bool,
+    pub cpi_context_account: bool,
 }

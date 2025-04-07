@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::{prelude::*, Discriminator};
 
 pub mod account_traits;
 pub mod constants;
@@ -7,17 +7,14 @@ pub mod instructions;
 pub mod utils;
 pub use instructions::*;
 pub mod cpi_context_account;
-
+use light_compressed_account::{
+    instruction_data::{
+        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
+    },
+    pubkey,
+};
 declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
-
-#[cfg(not(feature = "no-entrypoint"))]
-solana_security_txt::security_txt! {
-    name: "light_system_program",
-    project_url: "lightprotocol.com",
-    contacts: "email:security@lightprotocol.com",
-    policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
-    source_code: "https://github.com/Lightprotocol/light-protocol"
-}
 
 #[program]
 pub mod light_system_program {
@@ -46,7 +43,15 @@ pub mod light_system_program {
     #[allow(unused_variables)]
     pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
-        inputs: Vec<u8>,
+        inputs: InstructionDataInvokeCpiWithReadOnly,
+    ) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    #[allow(unused_variables)]
+    pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+        inputs: InstructionDataInvokeCpiWithAccountInfo,
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
@@ -63,4 +68,27 @@ pub mod light_system_program {
     // ) -> Result<()> {
     //     Err(SystemProgramError::InstructionNotCallable.into())
     // }
+}
+
+#[test]
+fn test_borsh_equivalence() {
+    use anchor_lang::prelude::borsh::BorshSerialize;
+    let struct_a = InstructionDataInvokeCpiWithAccountInfo {
+        mode: 1,
+        bump: 255,
+        invoking_program_id: pubkey::Pubkey::new_unique(),
+        ..Default::default()
+    };
+    #[derive(BorshSerialize)]
+    pub struct AnchorWrapped {
+        inputs: InstructionDataInvokeCpiWithAccountInfo,
+    }
+
+    let struct_b = AnchorWrapped {
+        inputs: struct_a.clone(),
+    };
+
+    let struct_a_bytes: Vec<u8> = struct_a.try_to_vec().unwrap();
+    let struct_b_bytes: Vec<u8> = struct_b.try_to_vec().unwrap();
+    assert_eq!(struct_a_bytes, struct_b_bytes);
 }

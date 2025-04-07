@@ -10,7 +10,7 @@ use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
     data::{NewAddressParamsPacked, PackedReadOnlyAddress},
-    traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
+    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
     zero_copy::{
         ZCompressedCpiContext, ZNewAddressParamsPacked, ZPackedMerkleContext,
         ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
@@ -294,6 +294,19 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
+    fn bump(&self) -> Option<u8> {
+        Some(self.bump)
+    }
+
+    fn account_option_config(&self) -> super::traits::AccountOptions {
+        AccountOptions {
+            sol_pool_pda: self.is_compress(),
+            decompression_recipient: self.compress_or_decompress_lamports().is_some()
+                && !self.is_compress(),
+            cpi_context_account: self.cpi_context().is_some(),
+        }
+    }
+
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
         Some(self.read_only_accounts.as_slice())
     }

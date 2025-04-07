@@ -12,7 +12,7 @@ use super::{
     data::{
         NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
     },
-    traits::{InputAccountTrait, InstructionDataTrait},
+    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait},
     zero_copy::{
         ZCompressedCpiContext, ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
         ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
@@ -247,6 +247,18 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
+    fn account_option_config(&self) -> AccountOptions {
+        AccountOptions {
+            sol_pool_pda: self.is_compress(),
+            decompression_recipient: self.compress_or_decompress_lamports().is_some()
+                && !self.is_compress(),
+            cpi_context_account: self.cpi_context().is_some(),
+        }
+    }
+
+    fn bump(&self) -> Option<u8> {
+        Some(self.bump)
+    }
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
         Some(self.read_only_accounts.as_slice())
     }

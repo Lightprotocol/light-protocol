@@ -9,7 +9,7 @@ use zerocopy::{
 use super::{
     data::NewAddressParamsPacked,
     invoke_cpi::InstructionDataInvokeCpi,
-    traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
+    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
 };
 use crate::{
     compressed_account::{
@@ -429,6 +429,12 @@ pub struct ZInstructionDataInvoke<'a> {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
+    fn bump(&self) -> Option<u8> {
+        None
+    }
+    fn account_option_config(&self) -> AccountOptions {
+        unimplemented!()
+    }
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
         None
     }
@@ -536,6 +542,18 @@ impl ZInstructionDataInvokeCpi<'_> {
 }
 
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
+    fn bump(&self) -> Option<u8> {
+        None
+    }
+
+    fn account_option_config(&self) -> AccountOptions {
+        AccountOptions {
+            sol_pool_pda: self.is_compress(),
+            decompression_recipient: self.compress_or_decompress_lamports().is_some()
+                && !self.is_compress(),
+            cpi_context_account: self.cpi_context().is_some(),
+        }
+    }
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
         None
     }

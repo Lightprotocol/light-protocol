@@ -3519,7 +3519,6 @@ dependencies = [
  "anchor-lang",
  "light-compressed-account",
  "light-zero-copy",
- "solana-security-txt",
  "zerocopy 0.8.23",
 ]
 
