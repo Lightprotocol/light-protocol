@@ -18,6 +18,25 @@ import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { randomBytes } from 'tweetnacl';
 
+const log = async (
+    rpc: Rpc | TestRpc,
+    payer: Signer,
+    prefix: string = 'rpc',
+) => {
+    const accounts = await rpc.getCompressedAccountsByOwner(payer.publicKey);
+    console.log(`${prefix} - indexed: `, accounts.items.length);
+};
+
+const logIndexed = async (
+    rpc: Rpc,
+    testRpc: TestRpc,
+    payer: Signer,
+    prefix: string = '',
+) => {
+    await log(testRpc, payer, `${prefix} test-rpc `);
+    await log(rpc, payer, `${prefix} rpc`);
+};
+
 describe('rpc-interop', () => {
     let payer: Signer;
     let bob: Signer;
@@ -448,6 +467,8 @@ describe('rpc-interop', () => {
     });
 
     it('getCompressedAccountsByOwner should match', async () => {
+        await logIndexed(rpc, testRpc, payer, 'payer');
+
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -471,6 +492,7 @@ describe('rpc-interop', () => {
             );
         });
 
+        await logIndexed(rpc, testRpc, bob, 'bob');
         const receiverAccounts = await rpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );
@@ -526,9 +548,11 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
+        await logIndexed(rpc, testRpc, payer, 'before compress');
         await compress(rpc, payer, 1e9, payer.publicKey);
         executedTxs++;
 
+        await logIndexed(rpc, testRpc, payer, 'after compress');
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -644,12 +668,14 @@ describe('rpc-interop', () => {
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const address = deriveAddress(seed, addressTree);
 
+        await logIndexed(rpc, testRpc, payer, 'before create account1');
         await createAccount(rpc, payer, seeds, LightSystemProgram.programId);
-
-        // fetch the owners latest account
+        await logIndexed(rpc, testRpc, payer, 'after create account1');
+        await sleep(3000);
         const accounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
+            LightSystemProgram.programId,
         );
+
         const latestAccount = accounts.items[0];
 
         // assert the address was indexed
@@ -663,13 +689,16 @@ describe('rpc-interop', () => {
         assert.equal(signaturesUnspent.items.length, 1);
     });
 
-    it('getCompressedAccount with address param should work ', async () => {
+    it('[test-rpc missing] getCompressedAccount with address param should work ', async () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
+
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const addressQueue = defaultTestStateTreeAccounts().addressQueue;
         const address = deriveAddress(seed, addressTree);
+        console.log('expected address base58', address.toBase58());
 
+        await logIndexed(rpc, testRpc, payer, 'before create account2');
         await createAccount(
             rpc,
             payer,
@@ -679,10 +708,13 @@ describe('rpc-interop', () => {
             addressQueue,
         );
 
+        await logIndexed(rpc, testRpc, payer, 'after create account2');
+
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+
         const latestAccount = accounts.items[0];
 
         assert.isTrue(new PublicKey(latestAccount.address!).equals(address));

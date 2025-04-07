@@ -55,6 +55,7 @@ import {
     createMerkleContext,
     TokenData,
     CompressedProof,
+    TreeType,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -74,6 +75,7 @@ import { LightWasm } from './test-helpers';
 import { getActiveStateTreeInfos } from './utils/get-state-tree-infos';
 import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
+import { getQueueForTree } from './test-helpers/test-rpc/get-compressed-accounts';
 
 /** @internal */
 export function parseAccountData({
@@ -132,7 +134,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         const _account = item.account;
         const _tokenData = item.tokenData;
 
-        const associatedQueue = getQueueForTree(
+        const { queue, treeType, tree } = getQueueForTree(
             activeStateTreeInfo,
             _account.tree!,
         );
@@ -141,7 +143,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             createCompressedAccountWithMerkleContext(
                 createMerkleContext(
                     _account.tree!,
-                    associatedQueue,
+                    queue,
                     _account.hash.toArray('be', 32),
                     _account.leafIndex,
                 ),
@@ -197,7 +199,7 @@ function buildCompressedAccountWithMaybeTokenData(
     const tokenDataResult =
         accountStructWithOptionalTokenData.optionalTokenData;
 
-    const associatedQueue = getQueueForTree(
+    const { queue, treeType, tree } = getQueueForTree(
         activeStateTreeInfo,
         compressedAccountResult.tree!,
     );
@@ -205,7 +207,7 @@ function buildCompressedAccountWithMaybeTokenData(
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
                 compressedAccountResult.merkleTree,
-                associatedQueue,
+                queue,
                 compressedAccountResult.hash.toArray('be', 32),
                 compressedAccountResult.leafIndex,
             ),
@@ -552,29 +554,6 @@ export function getPublicInputHash(
 }
 
 /**
- * Get the queue for a given tree
- *
- * @param info - The active state tree addresses
- * @param tree - The tree to get the queue for
- * @returns The queue for the given tree, or undefined if not found
- */
-export function getQueueForTree(
-    info: StateTreeInfo[],
-    tree: PublicKey,
-): PublicKey {
-    const index = info.findIndex(t => t.tree.equals(tree));
-    if (index === -1) {
-        throw new Error(
-            'No associated queue found for tree. Please set activeStateTreeInfo with latest Tree accounts. If you use custom state trees, set manually.',
-        );
-    }
-    if (!info[index].queue) {
-        throw new Error('Queue must not be null for state tree');
-    }
-    return info[index].queue;
-}
-
-/**
  * Get the tree for a given queue
  *
  * @param info - The active state tree addresses
@@ -708,7 +687,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
-        const associatedQueue = getQueueForTree(
+        const { queue, treeType, tree } = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.tree!,
         );
@@ -716,7 +695,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const account = createCompressedAccountWithMerkleContext(
             createMerkleContext(
                 item.tree!,
-                associatedQueue,
+                queue,
                 item.hash.toArray('be', 32),
                 item.leafIndex,
             ),
@@ -817,7 +796,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
-        const associatedQueue = getQueueForTree(
+        const { queue, treeType, tree } = getQueueForTree(
             activeStateTreeInfo,
             res.result.value.merkleTree,
         );
@@ -827,7 +806,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof,
-            nullifierQueue: associatedQueue, // TODO(photon): support nullifierQueue in response.
+            nullifierQueue: queue, // TODO(photon): support nullifierQueue in response.
             rootIndex: res.result.value.rootSeq % 2400,
             root: res.result.value.root,
         };
@@ -864,14 +843,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map(item => {
-            const associatedQueue = getQueueForTree(
+            const { queue, treeType, tree } = getQueueForTree(
                 activeStateTreeInfo,
-                item.tree!,
+                item.tree,
             );
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    item.tree!,
-                    associatedQueue,
+                    tree,
+                    queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),
@@ -919,7 +898,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         for (const proof of res.result.value) {
-            const associatedQueue = getQueueForTree(
+            const { queue, treeType, tree } = getQueueForTree(
                 activeStateTreeInfo,
                 proof.merkleTree,
             );
@@ -928,7 +907,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                nullifierQueue: associatedQueue,
+                nullifierQueue: queue,
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
             };
@@ -978,14 +957,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.value.items.map(item => {
-            const associatedQueue = getQueueForTree(
+            const { queue, tree } = getQueueForTree(
                 activeStateTreeInfo,
-                item.tree!,
+                item.tree,
             );
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    item.tree!,
-                    associatedQueue,
+                    tree,
+                    queue,
                     item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),

@@ -13,6 +13,7 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
+
 import BN from 'bn.js';
 import { StateTreeInfo } from '../state';
 
@@ -43,8 +44,8 @@ export async function compress(
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
         console.log('stateTreeInfo', stateTreeInfo);
+        console.log('selectStateTreeInfo()', selectStateTreeInfo);
         outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
-        console.log('selected outputStateTreeInfo', outputStateTreeInfo);
     }
 
     const ix = await LightSystemProgram.compress({

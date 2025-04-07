@@ -8,3 +8,5 @@ export * from './sleep';
 export * from './validation';
 export * from './calculate-compute-unit-price';
 export * from './get-state-tree-infos';
+export * from './state-tree-lookup-table';
+export * from './dedupe-signer';

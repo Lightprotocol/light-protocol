@@ -4,6 +4,7 @@ import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
     getMultipleCompressedAccountsByHashTest,
+    getQueueForTree,
 } from './get-compressed-accounts';
 import {
     getCompressedTokenAccountByHashTest,
@@ -43,6 +44,7 @@ import {
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
+    TreeType,
     bn,
 } from '../../state';
 import { IndexedArray } from '../merkle-tree';
@@ -111,13 +113,9 @@ export async function getTestRpc(
     endpoint: string = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://127.0.0.1:8784',
     proverEndpoint: string = 'http://127.0.0.1:3001',
-    merkleTreeAddress?: PublicKey,
-    nullifierQueueAddress?: PublicKey,
     depth?: number,
     log = false,
 ) {
-    const defaultAccounts = defaultTestStateTreeAccounts();
-
     return new TestRpc(
         endpoint,
         lightWasm,
@@ -125,10 +123,7 @@ export async function getTestRpc(
         proverEndpoint,
         undefined,
         {
-            merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
-            nullifierQueueAddress:
-                nullifierQueueAddress || defaultAccounts.nullifierQueue,
-            depth: depth || defaultAccounts.merkleTreeHeight,
+            depth: depth || defaultTestStateTreeAccounts().merkleTreeHeight,
             log,
         },
     );
@@ -145,10 +140,6 @@ export async function getTestRpc(
 export class TestRpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
-    merkleTreeAddress: PublicKey;
-    nullifierQueueAddress: PublicKey;
-    addressTreeAddress: PublicKey;
-    addressQueueAddress: PublicKey;
     lightWasm: LightWasm;
     depth: number;
     log = false;
@@ -179,28 +170,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 
-        const {
-            merkleTreeAddress,
-            nullifierQueueAddress,
-            depth,
-            log,
-            addressTreeAddress,
-            addressQueueAddress,
-        } = testRpcConfig ?? {};
-
-        const {
-            merkleTree,
-            nullifierQueue,
-            merkleTreeHeight,
-            addressQueue,
-            addressTree,
-        } = defaultTestStateTreeAccounts();
+        const { depth, log } = testRpcConfig ?? {};
+        const { merkleTreeHeight } = defaultTestStateTreeAccounts();
 
         this.lightWasm = hasher;
-        this.merkleTreeAddress = merkleTreeAddress ?? merkleTree;
-        this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
-        this.addressTreeAddress = addressTreeAddress ?? addressTree;
-        this.addressQueueAddress = addressQueueAddress ?? addressQueue;
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
     }
@@ -299,6 +272,72 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async confirmTransactionIndexed(_slot: number): Promise<boolean> {
         return true;
     }
+    // /**
+    //  * Fetch the latest merkle proofs for multiple compressed accounts specified
+    //  * by an array account hashes
+    //  */
+    // async getMultipleCompressedAccountProofs(
+    //     hashes: BN254[],
+    // ): Promise<MerkleContextWithMerkleProof[]> {
+    //     /// Build tree
+    //     const events: PublicTransactionEvent[] = await getParsedEvents(
+    //         this,
+    //     ).then(events => events.reverse());
+    //     const allLeaves: number[][] = [];
+    //     const allLeafIndices: number[] = [];
+    //     for (const event of events) {
+    //         for (
+    //             let index = 0;
+    //             index < event.outputCompressedAccounts.length;
+    //             index++
+    //         ) {
+    //             const hash = event.outputCompressedAccountHashes[index];
+
+    //             allLeaves.push(hash);
+    //             allLeafIndices.push(event.outputLeafIndices[index]);
+    //         }
+    //     }
+    //     const tree = new MerkleTree(
+    //         this.depth,
+    //         this.lightWasm,
+    //         allLeaves.map(leaf => bn(leaf).toString()),
+    //     );
+
+    //     /// create merkle proofs and assemble return type
+    //     const merkleProofs: MerkleContextWithMerkleProof[] = [];
+
+    //     for (let i = 0; i < hashes.length; i++) {
+    //         const leafIndex = tree.indexOf(hashes[i].toString());
+    //         const pathElements = tree.path(leafIndex).pathElements;
+    //         const bnPathElements = pathElements.map(value => bn(value));
+    //         const root = bn(tree.root());
+    //         const merkleProof: MerkleContextWithMerkleProof = {
+    //             hash: hashes[i].toArray('be', 32),
+    //             merkleTree: this.merkleTreeAddress,
+    //             leafIndex: leafIndex,
+    //             merkleProof: bnPathElements,
+    //             nullifierQueue: this.nullifierQueueAddress,
+    //             rootIndex: allLeaves.length,
+    //             root: root,
+    //         };
+    //         merkleProofs.push(merkleProof);
+    //     }
+
+    //     /// Validate
+    //     merkleProofs.forEach((proof, index) => {
+    //         const leafIndex = proof.leafIndex;
+    //         const computedHash = tree.elements()[leafIndex];
+    //         const hashArr = bn(computedHash).toArray('be', 32);
+    //         if (!hashArr.every((val, index) => val === proof.hash[index])) {
+    //             throw new Error(
+    //                 `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
+    //             );
+    //         }
+    //     });
+
+    //     return merkleProofs;
+    // }
+
     /**
      * Fetch the latest merkle proofs for multiple compressed accounts specified
      * by an array account hashes
@@ -306,12 +345,23 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
-        /// Build tree
+        // Parse events and organize leaves by their respective merkle trees
         const events: PublicTransactionEvent[] = await getParsedEvents(
             this,
         ).then(events => events.reverse());
-        const allLeaves: number[][] = [];
-        const allLeafIndices: number[] = [];
+        const leavesByTree: Map<
+            string,
+            {
+                leaves: number[][];
+                leafIndices: number[];
+                treeType: TreeType;
+                queue: PublicKey;
+            }
+        > = new Map();
+
+        const cachedStateTreeInfos = await this.getCachedActiveStateTreeInfos();
+
+        /// Assign leaves to their respective trees
         for (const event of events) {
             for (
                 let index = 0;
@@ -319,52 +369,172 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 index++
             ) {
                 const hash = event.outputCompressedAccountHashes[index];
+                const treeOrQueue =
+                    event.pubkeyArray[
+                        event.outputCompressedAccounts[index].merkleTreeIndex
+                    ];
 
-                allLeaves.push(hash);
-                allLeafIndices.push(event.outputLeafIndices[index]);
+                const { treeType, tree, queue } = getQueueForTree(
+                    cachedStateTreeInfos,
+                    treeOrQueue,
+                );
+
+                if (!leavesByTree.has(tree.toBase58())) {
+                    leavesByTree.set(tree.toBase58(), {
+                        leaves: [],
+                        leafIndices: [],
+                        treeType: treeType,
+                        queue: queue,
+                    });
+                }
+
+                const treeData = leavesByTree.get(tree.toBase58())!;
+                treeData.leaves.push(hash);
+                treeData.leafIndices.push(event.outputLeafIndices[index]);
             }
         }
-        const tree = new MerkleTree(
-            this.depth,
-            this.lightWasm,
-            allLeaves.map(leaf => bn(leaf).toString()),
-        );
 
-        /// create merkle proofs and assemble return type
-        const merkleProofs: MerkleContextWithMerkleProof[] = [];
+        const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
+            new Map();
 
-        for (let i = 0; i < hashes.length; i++) {
-            const leafIndex = tree.indexOf(hashes[i].toString());
-            const pathElements = tree.path(leafIndex).pathElements;
-            const bnPathElements = pathElements.map(value => bn(value));
-            const root = bn(tree.root());
-            const merkleProof: MerkleContextWithMerkleProof = {
-                hash: hashes[i].toArray('be', 32),
-                merkleTree: this.merkleTreeAddress,
-                leafIndex: leafIndex,
-                merkleProof: bnPathElements,
-                nullifierQueue: this.nullifierQueueAddress,
-                rootIndex: allLeaves.length,
-                root: root,
-            };
-            merkleProofs.push(merkleProof);
+        for (const [
+            treeKey,
+            { leaves, treeType, queue },
+        ] of leavesByTree.entries()) {
+            const tree = new PublicKey(treeKey);
+
+            let merkleTree: MerkleTree | undefined;
+            if (treeType === TreeType.StateV1) {
+                merkleTree = new MerkleTree(
+                    this.depth,
+                    this.lightWasm,
+                    leaves.map(leaf => bn(leaf).toString()),
+                );
+            } else if (treeType === TreeType.StateV2) {
+                /// In V2 State trees, The Merkle tree stays empty until the
+                /// first forester transaction. And since test-rpc is only used
+                /// for non-forested tests, we must return a tree with
+                /// zerovalues.
+                merkleTree = new MerkleTree(32, this.lightWasm, []);
+            } else {
+                throw new Error(
+                    `Invalid tree type: ${treeType} in test-rpc.ts`,
+                );
+            }
+
+            for (let i = 0; i < hashes.length; i++) {
+                // const hashStr = hashes[i].toString();
+                const leafIndex = leaves.findIndex(leaf =>
+                    bn(leaf).eq(hashes[i]),
+                );
+
+                /// If leaf is part of current tree, return proof
+                if (leafIndex !== -1) {
+                    if (treeType === TreeType.StateV1) {
+                        const pathElements =
+                            merkleTree.path(leafIndex).pathElements;
+                        const bnPathElements = pathElements.map(value =>
+                            bn(value),
+                        );
+                        const root = bn(merkleTree.root());
+
+                        const merkleProof: MerkleContextWithMerkleProof = {
+                            hash: hashes[i].toArray('be', 32),
+                            merkleTree: tree,
+                            leafIndex: leafIndex,
+                            merkleProof: bnPathElements,
+                            nullifierQueue: getQueueForTree(
+                                cachedStateTreeInfos,
+                                tree,
+                            ).queue,
+                            rootIndex: leaves.length,
+                            root: root,
+                            // treeType: treeType,
+                            // proveByIndex: true,
+                        };
+
+                        merkleProofsMap.set(hashes[i].toString(), merkleProof);
+                    } else if (treeType === TreeType.StateV2) {
+                        const pathElements = merkleTree._zeros.slice(0, -1);
+                        const bnPathElements = pathElements.map(value =>
+                            bn(value),
+                        );
+                        const root = bn(merkleTree.root());
+
+                        const { tree: treeV2 } = getQueueForTree(
+                            cachedStateTreeInfos,
+                            tree,
+                        );
+
+                        /// get leafIndex from leavesByTree for the given hash
+                        const leafIndex = leavesByTree
+                            .get(treeV2.toBase58())!
+                            .leafIndices.findIndex(index =>
+                                hashes[i].eq(
+                                    bn(
+                                        leavesByTree.get(treeV2.toBase58())!
+                                            .leaves[index],
+                                    ),
+                                ),
+                            );
+
+                        const merkleProof: MerkleContextWithMerkleProof = {
+                            hash: new Array(32).fill(0),
+                            merkleTree: treeV2,
+                            leafIndex: leafIndex,
+                            merkleProof: bnPathElements,
+                            nullifierQueue: queue,
+                            rootIndex: 0,
+                            root,
+                            // treeType: 0, // TODO: consider switching in photon
+                            // proveByIndex: true,
+                        };
+
+                        merkleProofsMap.set(hashes[i].toString(), merkleProof);
+                    }
+                }
+            }
         }
 
-        /// Validate
-        merkleProofs.forEach((proof, index) => {
+        // Validate proofs
+        merkleProofsMap.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
-            const computedHash = tree.elements()[leafIndex];
+            const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
+                .leaves[leafIndex];
             const hashArr = bn(computedHash).toArray('be', 32);
-            if (!hashArr.every((val, index) => val === proof.hash[index])) {
+            if (
+                !hashArr.every((val, index) => val === proof.hash[index]) &&
+                // proof.treeType === TreeType.StateV1 &&
+                !proof.nullifierQueue.equals(PublicKey.default)
+            ) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
                 );
             }
         });
 
-        return merkleProofs;
-    }
+        // Ensure all requested hashes belong to the same tree type
+        // const uniqueTreeTypes = new Set(
+        //     hashes.map(hash => {
+        //         const proof = merkleProofsMap.get(hash.toString());
+        //         if (!proof) {
+        //             throw new Error(
+        //                 `Proof not found for hash: ${hash.toString()}`,
+        //             );
+        //         }
+        //         return proof.treeType;
+        //     }),
+        // );
 
+        // if (uniqueTreeTypes.size > 1) {
+        //     throw new Error(
+        //         'Requested hashes belong to different tree types (V1/V2)',
+        //     );
+        // }
+
+        // Return proofs in the order of requested hashes
+        return hashes.map(hash => merkleProofsMap.get(hash.toString())!);
+    }
     /**
      * Fetch all the compressed accounts owned by the specified public key.
      * Owner can be a program or user account
@@ -625,8 +795,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 nextIndex: bn(lowElement.nextIndex),
                 merkleProofHashedIndexedElementLeaf: bnPathElements,
                 indexHashedIndexedElementLeaf: bn(lowElement.index),
-                merkleTree: this.addressTreeAddress,
-                nullifierQueue: this.addressQueueAddress,
+                merkleTree: defaultTestStateTreeAccounts().addressTree,
+                nullifierQueue: defaultTestStateTreeAccounts().addressQueue,
             };
             newAddressProofs.push(proof);
         }

@@ -109,6 +109,5 @@ export async function decompress(
         blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
-    return txId;
+    return await sendAndConfirmTx(rpc, signedTx, confirmOptions);
 }
