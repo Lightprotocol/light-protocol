@@ -1,10 +1,4 @@
-use crate::{constants::CPI_AUTHORITY_PDA_SEED, Result};
-use pinocchio::{log::sol_log_compute_units, msg};
 use std::cmp::min;
-// use anchor_lang::{
-//     prelude::{AccountMeta, Context, Pubkey},
-//     Bumps, InstructionData, Key, Result, ToAccountInfo,
-// };
 
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES,
@@ -14,13 +8,16 @@ use pinocchio::{
     account_info::AccountInfo,
     cpi::slice_invoke_signed,
     instruction::{AccountMeta, Instruction, Seed, Signer},
+    log::sol_log_compute_units,
+    msg,
     pubkey::Pubkey,
 };
 
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
-    constants::CPI_AUTHORITY_PDA_BUMP,
+    constants::{CPI_AUTHORITY_PDA_BUMP, CPI_AUTHORITY_PDA_SEED},
     context::SystemContext,
+    Result,
 };
 
 pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
@@ -92,10 +89,10 @@ pub fn cpi_account_compression_program<'a>(
     };
     let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
-    msg!("start_acp_cpi");
-    sol_log_compute_units();
+    // msg!("start_acp_cpi");
+    // sol_log_compute_units();
     slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])?;
-    sol_log_compute_units();
-    msg!("end_acp_cpi");
+    // sol_log_compute_units();
+    // msg!("end_acp_cpi");
     Ok(())
 }

@@ -1,5 +1,3 @@
-use crate::constants::CPI_AUTHORITY_PDA_SEED;
-use crate::Result;
 use light_compressed_account::instruction_data::traits::OutputAccountTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
@@ -9,7 +7,7 @@ use pinocchio::{
     pubkey::{try_find_program_address, Pubkey},
 };
 
-use crate::errors::SystemProgramError;
+use crate::{constants::CPI_AUTHORITY_PDA_SEED, errors::SystemProgramError, Result};
 /// Checks:
 /// 1. Invoking program is signer (cpi_signer_check)
 /// 2. Input compressed accounts with data are owned by the invoking program

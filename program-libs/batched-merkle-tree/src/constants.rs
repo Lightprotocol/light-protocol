@@ -1,7 +1,8 @@
 // This file stores constants which do not have to be configured.
 
-use crate::Pubkey;
 use light_macros::pubkey;
+
+use crate::Pubkey;
 
 pub const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: u32 = 40;
 

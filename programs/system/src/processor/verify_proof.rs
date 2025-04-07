@@ -1,4 +1,3 @@
-use crate::context::AcpAccount;
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
@@ -18,7 +17,7 @@ use light_verifier::{
 };
 use pinocchio::program_error::ProgramError;
 
-use crate::errors::SystemProgramError;
+use crate::{context::AcpAccount, errors::SystemProgramError};
 
 const IS_READ_ONLY: bool = true;
 const IS_NOT_READ_ONLY: bool = false;

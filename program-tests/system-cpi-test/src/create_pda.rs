@@ -17,7 +17,8 @@ use light_compressed_account::{
         data::{
             NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
         },
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
 };
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
@@ -378,9 +379,35 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         msg!("read_only_address {:?}", read_only_address);
         let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
-            invoke_cpi: inputs_struct,
-            read_only_addresses: read_only_address,
-            read_only_accounts,
+            mode: 0,
+            bump,
+            with_cpi_context: inputs_struct.cpi_context.is_some(),
+            invoking_program_id: crate::ID.into(),
+            proof: inputs_struct.proof,
+            new_address_params: inputs_struct.new_address_params,
+            cpi_context: inputs_struct
+                .cpi_context
+                .clone()
+                .unwrap_or(CompressedCpiContext::default()),
+            is_decompress: !inputs_struct.is_compress,
+            compress_or_decompress_lamports: inputs_struct
+                .compress_or_decompress_lamports
+                .unwrap_or_default(),
+            output_compressed_accounts: inputs_struct.output_compressed_accounts,
+            input_compressed_accounts: inputs_struct
+                .input_compressed_accounts_with_merkle_context
+                .iter()
+                .map(|x| InAccount {
+                    address: x.compressed_account.address,
+                    merkle_context: x.merkle_context,
+                    lamports: x.compressed_account.lamports,
+                    discriminator: x.compressed_account.data.as_ref().unwrap().discriminator,
+                    data_hash: x.compressed_account.data.as_ref().unwrap().data_hash,
+                    root_index: x.root_index,
+                })
+                .collect::<Vec<_>>(),
+            read_only_addresses: read_only_address.unwrap_or_default(),
+            read_only_accounts: read_only_accounts.unwrap_or_default(),
         };
         let mut inputs = Vec::new();
         InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs).unwrap();

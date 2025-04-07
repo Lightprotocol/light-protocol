@@ -5,8 +5,6 @@ use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equa
 // Import the appropriately feature-gated types from lib.rs
 #[cfg(any(feature = "solana", feature = "anchor"))]
 use crate::AccountInfoTrait;
-use crate::{msg, AccountInfo};
-
 use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
@@ -14,7 +12,9 @@ use crate::{
     },
     merkle_tree::BatchedMerkleTreeAccount,
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
+    msg,
     queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    AccountInfo,
 };
 
 #[derive(Debug)]

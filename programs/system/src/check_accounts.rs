@@ -1,13 +1,3 @@
-// use account_compression::{
-//     address_merkle_tree_from_bytes_zero_copy_mut, state_merkle_tree_from_bytes_zero_copy_mut,
-//     AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount,
-// };
-// use anchor_lang::{prelude::AccountLoader, AnchorDeserialize};
-// use anchor_lang::{
-//     prelude::{AccountInfo, AccountLoader},
-//     solana_program::msg,
-//     Discriminator as AnchorDiscriminator, Key, ToAccountInfo,
-// };
 use light_account_checks::{checks::check_owner, discriminator::Discriminator};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -103,14 +93,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
         }
         STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
-                // let merkle_tree =
-                //     AccountLoader::<StateMerkleTreeAccount>::try_from(account_info).unwrap();
-                // let merkle_tree = merkle_tree.load().unwrap();
                 check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-                // let merkle_tree = StateMerkleTreeAccount::try_from_slice(
-                //     &mut account_info.try_borrow_mut_data().unwrap(),
-                // )
-                // .unwrap();
                 let data = account_info.try_borrow_data().unwrap();
                 let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(
                     &data[8..StateMerkleTreeAccount::LEN],
@@ -145,13 +128,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
         }
         ADDRESS_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => {
             let program_owner = {
-                // let merkle_tree =
-                //     AccountLoader::<AddressMerkleTreeAccount>::try_from(account_info).unwrap();
                 check_owner(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_info).unwrap();
-                // let merkle_tree = AddressMerkleTreeAccount::try_from_slice(
-                //     &mut account_info.try_borrow_mut_data().unwrap(),
-                // )
-                // .unwrap();
                 let data = account_info.try_borrow_data().unwrap();
 
                 let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(

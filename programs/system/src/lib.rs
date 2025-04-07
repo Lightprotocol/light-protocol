@@ -8,7 +8,6 @@ use invoke_cpi::{
 use invoke_with_read_only_cpi::instruction::{
     InvokeCpiWithReadOnlyInstructionSmall, OptionsConfig,
 };
-
 use pinocchio::pubkey::Pubkey;
 
 pub mod account_compression_state;
@@ -24,9 +23,10 @@ pub mod invoke_with_read_only_cpi;
 pub mod processor;
 pub mod utils;
 
-use crate::account_traits::SignerAccounts;
 use errors::SystemProgramError;
 use light_macros::pubkey;
+
+use crate::account_traits::SignerAccounts;
 
 pub const ID: Pubkey = pubkey!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 
@@ -38,6 +38,13 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
+use light_compressed_account::instruction_data::{
+    traits::InstructionDataTrait,
+    with_account_info::InstructionDataInvokeCpiWithAccountInfo,
+    with_readonly::InstructionDataInvokeCpiWithReadOnly,
+    zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
+};
+use light_zero_copy::borsh::Deserialize;
 use pinocchio::{
     account_info::AccountInfo, entrypoint, log::sol_log_compute_units, msg,
     program_error::ProgramError, ProgramResult,
@@ -46,14 +53,6 @@ use pinocchio::{
 use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
-use light_compressed_account::instruction_data::{
-    traits::InstructionDataTrait,
-    with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-    with_readonly::InstructionDataInvokeCpiWithReadOnly,
-    zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
-};
-
-use light_zero_copy::borsh::Deserialize;
 
 pub type Result<T> = std::result::Result<T, ProgramError>;
 
@@ -206,13 +205,15 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     instruction_data: &[u8],
 ) -> Result<()> {
     let instruction_data = &instruction_data[4..];
-
+    msg!("invoke_cpi_with_read_only");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_deserialize");
     #[allow(unreachable_code)]
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
-    shared_invoke(
+    msg!(format!("inputs {:?}", inputs).as_str());
+
+    shared_invoke_cpi(
         accounts,
         inputs.invoking_program_id.into(),
         inputs.mode,
@@ -229,7 +230,7 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
-    shared_invoke(
+    shared_invoke_cpi(
         accounts,
         inputs.invoking_program_id.into(),
         inputs.mode,
@@ -237,7 +238,7 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     )
 }
 
-fn shared_invoke<'a, 'info, T: InstructionDataTrait<'a>>(
+fn shared_invoke_cpi<'a, 'info, T: InstructionDataTrait<'a>>(
     accounts: &[AccountInfo],
     invoking_program: Pubkey,
     mode: u8,

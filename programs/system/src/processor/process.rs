@@ -1,6 +1,5 @@
 use std::cmp::min;
 
-use crate::{context::WrappedInstructionData, Result};
 use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
@@ -27,6 +26,7 @@ use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     check_accounts::try_from_account_infos,
     constants::CPI_AUTHORITY_PDA_BUMP,
+    context::WrappedInstructionData,
     errors::SystemProgramError,
     processor::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
@@ -37,6 +37,7 @@ use crate::{
         sum_check::sum_check,
         verify_proof::{read_address_roots, read_input_state_roots, verify_proof},
     },
+    Result,
 };
 
 /// Inputs:
@@ -398,12 +399,12 @@ pub fn process<
     sol_log_compute_units();
     // 17. CPI account compression program ---------------------------------------------------
 
-    msg!("start_acp_cpi");
-    sol_log_compute_units();
+    // msg!("start_acp_cpi");
+    // sol_log_compute_units();
 
     cpi_account_compression_program(context, cpi_ix_bytes)?;
-    sol_log_compute_units();
-    msg!("end_acp_cpi");
+    // sol_log_compute_units();
+    // msg!("end_acp_cpi");
     Ok(())
 }
 

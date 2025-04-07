@@ -1,14 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
-
-use crate::{
-    compressed_account::{
-        hash_with_hashed_values, CompressedAccountData, PackedMerkleContext,
-        PackedReadOnlyCompressedAccount,
-    },
-    pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
+use zerocopy::{
+    little_endian::{U16, U32, U64},
+    FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
 use super::{
@@ -21,17 +16,15 @@ use super::{
         ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
     },
 };
-use zerocopy::{
-    little_endian::{U16, U32, U64},
-    FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
+use crate::{
+    compressed_account::{
+        hash_with_hashed_values, CompressedAccountData, PackedMerkleContext,
+        PackedReadOnlyCompressedAccount,
+    },
+    pubkey::Pubkey,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
-/// Issues:
-/// 1. we don't have access to owner -> need to pass in as function parameter
-/// 2. we have a different struct -> need trait
-/// 3. we have cpi context that has to be passed seperately so that we can iterate over the cpi context independently.
-///    -> we get rid of the ugly combine method and easily add support for addresses again.
-///    -> we need to handle
 #[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InAccountInfo {
     pub discriminator: [u8; 8],

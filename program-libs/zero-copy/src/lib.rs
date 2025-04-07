@@ -22,19 +22,17 @@ pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes
 
 impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
 
-#[cfg(feature = "solana")]
-use solana_program::program_error::ProgramError;
-
 #[cfg(all(
     feature = "anchor",
     not(feature = "solana"),
     not(feature = "pinocchio")
 ))]
 use anchor_lang::solana_program::program_error::ProgramError;
-
 #[cfg(all(
     feature = "pinocchio",
     not(feature = "solana"),
     not(feature = "solana")
 ))]
 use pinocchio::program_error::ProgramError;
+#[cfg(feature = "solana")]
+use solana_program::program_error::ProgramError;

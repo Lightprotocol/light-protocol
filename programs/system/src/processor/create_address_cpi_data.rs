@@ -1,5 +1,3 @@
-use crate::context::AcpAccount;
-use crate::Result;
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     instruction_data::{
@@ -8,10 +6,14 @@ use light_compressed_account::{
 };
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
-use crate::{context::SystemContext, errors::SystemProgramError};
+use crate::{
+    context::{AcpAccount, SystemContext},
+    errors::SystemProgramError,
+    Result,
+};
 
 pub fn derive_new_addresses<'info, 'a>(
-    new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>, //&[ZNewAddressParamsPacked],
+    new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>,
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,

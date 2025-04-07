@@ -1,8 +1,7 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::errors::MerkleTreeMetadataError;
+use crate::{errors::MerkleTreeMetadataError, AnchorDeserialize, AnchorSerialize};
 
 #[repr(C)]
 #[derive(

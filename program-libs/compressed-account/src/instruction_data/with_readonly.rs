@@ -1,13 +1,9 @@
-use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use std::ops::Deref;
 
-use crate::{
-    compressed_account::{
-        hash_with_hashed_values, CompressedAccount, CompressedAccountData,
-        PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
-        PackedReadOnlyCompressedAccount,
-    },
-    pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
+use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
+use zerocopy::{
+    little_endian::{U16, U32, U64},
+    FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
 use super::{
@@ -22,10 +18,14 @@ use super::{
         ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
     },
 };
-use std::ops::Deref;
-use zerocopy::{
-    little_endian::{U16, U32, U64},
-    FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
+use crate::{
+    compressed_account::{
+        hash_with_hashed_values, CompressedAccount, CompressedAccountData,
+        PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
+        PackedReadOnlyCompressedAccount,
+    },
+    pubkey::Pubkey,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
 #[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -235,6 +235,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMeta {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
@@ -264,11 +265,6 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
 
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
         self.proof
-        // if let Some(proof) = self.proof {
-        //     Some(proof)
-        // } else {
-        //     None
-        // }
     }
 
     fn cpi_context(&self) -> Option<CompressedCpiContext> {

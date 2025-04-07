@@ -1,19 +1,18 @@
+use light_account_checks::checks::{check_pda_seeds, check_program, check_signer};
+use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     processor::sol_compression::SOL_POOL_PDA_SEED,
     Result,
 };
-use light_account_checks::checks::{check_pda_seeds, check_program, check_signer};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
-// #[derive(Accounts)]
 pub struct InvokeInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
-    // #[account(mut)]
     pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
     /// CHECK: this account
@@ -29,15 +28,10 @@ pub struct InvokeInstruction<'info> {
     pub account_compression_program: &'info AccountInfo,
     /// Sol pool pda is used to store the native sol that has been compressed.
     /// It's only required when compressing or decompressing sol.
-    // #[account(
-    //     mut,
-    //     seeds = [SOL_POOL_PDA_SEED], bump
-    // )]
     pub sol_pool_pda: Option<&'info AccountInfo>,
     /// Only needs to be provided for decompression as a recipient for the
     /// decompressed sol.
     /// Compressed sol originate from authority.
-    // #[account(mut)]
     pub decompression_recipient: Option<&'info AccountInfo>,
     pub system_program: &'info AccountInfo,
 }

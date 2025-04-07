@@ -1,8 +1,9 @@
-pub use crate::Result;
 use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
+pub use crate::Result;
 use crate::{
     account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
     context::WrappedInstructionData,
@@ -10,7 +11,6 @@ use crate::{
     invoke_cpi::account::deserialize_cpi_context_account,
     processor::process::process,
 };
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:

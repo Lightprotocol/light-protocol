@@ -20,7 +20,7 @@ pub struct TransferInstruction<'info> {
     /// validity proof.
     pub authority: Signer<'info>,
     /// CHECK: (seed constraint in cpi).
-    // #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).

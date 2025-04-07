@@ -1,6 +1,5 @@
 use std::mem;
 
-use crate::Result;
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
 use light_concurrent_merkle_tree::{
@@ -13,8 +12,9 @@ use light_merkle_tree_metadata::{
 };
 use pinocchio::pubkey::Pubkey;
 
+use crate::Result;
+
 /// Concurrent state Merkle tree used for public compressed transactions.
-// #[account(zero_copy)]
 #[repr(C)]
 #[aligned_sized(anchor)]
 #[derive(Pod, Debug, Default, Zeroable, Clone, Copy)]

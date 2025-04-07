@@ -8,7 +8,6 @@ use light_merkle_tree_metadata::utils::if_equals_none;
 use crate::AccountInfo;
 #[cfg(any(feature = "solana", feature = "anchor"))]
 use crate::AccountInfoTrait;
-
 use crate::{
     errors::BatchedMerkleTreeError,
     initialize_address_tree::{

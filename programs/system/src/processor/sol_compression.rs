@@ -1,10 +1,4 @@
 use aligned_sized::*;
-// use anchor_lang::{
-//     prelude::*,
-//     solana_program::{account_info::AccountInfo, pubkey::Pubkey},
-//     Bumps,
-// };
-use crate::utils::transfer_lamports_cpi;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -13,9 +7,9 @@ use pinocchio::{
 use crate::{
     account_traits::{InvokeAccounts, SignerAccounts},
     errors::SystemProgramError,
+    utils::transfer_lamports_cpi,
 };
 
-// #[account]
 #[aligned_sized(anchor)]
 pub struct CompressedSolPda {}
 

@@ -21,7 +21,8 @@ use light_compressed_account::{
             NewAddressParams, OutputCompressedAccountWithContext,
             OutputCompressedAccountWithPackedContext,
         },
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
     nullifier::create_nullifier,
     tx_hash::create_tx_hash,
@@ -52,7 +53,7 @@ async fn parse_batched_event_functional() {
     )]))
     .await;
     spawn_prover(
-        true,
+        false,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
@@ -674,7 +675,7 @@ async fn perform_test_transaction<R: RpcConnection>(
             .as_slice(),
         &mut remaining_accounts,
     );
-    let invoke_cpi = InstructionDataInvokeCpi {
+    let inputs_struct = InstructionDataInvokeCpi {
         proof,
         new_address_params: packed_new_address_params,
         input_compressed_accounts_with_merkle_context: packed_inputs.clone(),
@@ -684,10 +685,32 @@ async fn perform_test_transaction<R: RpcConnection>(
         is_compress: false,
         cpi_context: None,
     };
+
     let ix_data = InstructionDataInvokeCpiWithReadOnly {
-        invoke_cpi,
-        read_only_accounts: None,
-        read_only_addresses: None,
+        mode: 0,
+        bump: 255, // TODO: correct
+        with_cpi_context: inputs_struct.cpi_context.is_some(),
+        invoking_program_id: create_address_test_program::ID.into(),
+        proof: inputs_struct.proof,
+        new_address_params: inputs_struct.new_address_params,
+        is_decompress: false,
+        compress_or_decompress_lamports: inputs_struct
+            .compress_or_decompress_lamports
+            .unwrap_or_default(),
+        output_compressed_accounts: inputs_struct.output_compressed_accounts,
+        input_compressed_accounts: inputs_struct
+            .input_compressed_accounts_with_merkle_context
+            .iter()
+            .map(|x| InAccount {
+                address: x.compressed_account.address,
+                merkle_context: x.merkle_context,
+                lamports: x.compressed_account.lamports,
+                discriminator: x.compressed_account.data.as_ref().unwrap().discriminator,
+                data_hash: x.compressed_account.data.as_ref().unwrap().data_hash,
+                root_index: x.root_index,
+            })
+            .collect::<Vec<_>>(),
+        ..Default::default()
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
     let instruction = create_invoke_cpi_instruction(

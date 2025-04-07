@@ -15,9 +15,7 @@
 //         not(feature = "pinocchio")
 //     )
 // ))]
-use crate::{AccountInfo, Pubkey};
-
-use crate::{discriminator::Discriminator, error::AccountError};
+use crate::{discriminator::Discriminator, error::AccountError, AccountInfo, Pubkey};
 
 /// Sets discriminator in account data.
 pub fn account_info_init<T: Discriminator<U>, const U: usize>(

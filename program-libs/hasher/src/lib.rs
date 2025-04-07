@@ -38,18 +38,17 @@ pub trait Discriminator {
 }
 
 #[cfg(all(
-    feature = "pinocchio",
-    not(feature = "solana"),
-    not(feature = "anchor")
-))]
-use pinocchio::program_error::ProgramError;
-
-#[cfg(all(
     feature = "anchor",
     not(feature = "solana"),
     not(feature = "pinocchio")
 ))]
 use anchor_lang::prelude::{ProgramError, Pubkey};
+#[cfg(all(
+    feature = "pinocchio",
+    not(feature = "solana"),
+    not(feature = "anchor")
+))]
+use pinocchio::program_error::ProgramError;
 #[cfg(all(
     feature = "solana",
     not(feature = "anchor"),

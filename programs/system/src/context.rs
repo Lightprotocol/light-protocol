@@ -1,28 +1,27 @@
-use std::iter::Chain;
-use std::slice::Iter;
+use std::{iter::Chain, slice::Iter};
 
-use crate::Result;
-use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi};
 use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_compressed_account::compressed_account::{
-    CompressedAccount, PackedCompressedAccountWithMerkleContext,
-};
-use light_compressed_account::hash_to_bn254_field_size_be;
-use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext;
-use light_compressed_account::instruction_data::invoke_cpi::InstructionDataInvokeCpi;
-use light_compressed_account::instruction_data::traits::{
-    InputAccountTrait, InstructionDataTrait, OutputAccountTrait,
-};
-use light_compressed_account::instruction_data::zero_copy::{
-    ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+use light_compressed_account::{
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    hash_to_bn254_field_size_be,
+    instruction_data::{
+        cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+        invoke_cpi::InstructionDataInvokeCpi,
+        traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
+        zero_copy::{
+            ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+        },
+    },
 };
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+
+use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi, Result};
 
 /// AccountCompressionProgramAccount
 pub enum AcpAccount<'info> {
@@ -166,8 +165,6 @@ impl<'info> SystemContext<'info> {
     }
 }
 
-/// TODO: refactor cpi context account so that everything is just combined into the first context,
-///     the vector must never have more than 1 element.
 pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
     instruction_data: T,
     cpi_context: Option<ZCpiContextAccount<'a>>,

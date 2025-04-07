@@ -1,7 +1,7 @@
-use crate::errors::SystemProgramError;
-use crate::Result;
 use light_compressed_account::instruction_data::zero_copy::ZPackedCompressedAccountWithMerkleContext;
 use pinocchio::{msg, pubkey::Pubkey};
+
+use crate::{errors::SystemProgramError, Result};
 
 pub fn input_compressed_accounts_signer_check(
     input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],

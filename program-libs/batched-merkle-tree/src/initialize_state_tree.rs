@@ -8,7 +8,6 @@ use light_merkle_tree_metadata::{
 
 #[cfg(any(feature = "solana", feature = "anchor"))]
 use crate::AccountInfoTrait;
-
 use crate::{
     constants::{
         DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,

@@ -1,5 +1,4 @@
 pub mod checks;
-pub mod context;
 pub mod discriminator;
 pub mod error;
 
@@ -27,17 +26,6 @@ use anchor_lang::{
     prelude::{ProgramError, Pubkey},
     solana_program::{account_info::AccountInfo, rent::Rent, sysvar::Sysvar},
 };
-
-#[cfg(all(
-    feature = "solana",
-    not(feature = "anchor"),
-    not(feature = "pinocchio")
-))]
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-
-#[cfg(all(feature = "solana", target_os = "solana"))]
-use solana_program::{msg, rent::Rent, sysvar::Sysvar};
-
 #[cfg(all(
     feature = "pinocchio",
     not(feature = "solana"),
@@ -46,3 +34,11 @@ use solana_program::{msg, rent::Rent, sysvar::Sysvar};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 #[cfg(all(feature = "pinocchio", target_os = "solana"))]
 use pinocchio::{sysvars::rent::Rent, sysvars::Sysvar};
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio")
+))]
+use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+#[cfg(all(feature = "solana", target_os = "solana"))]
+use solana_program::{msg, rent::Rent, sysvar::Sysvar};

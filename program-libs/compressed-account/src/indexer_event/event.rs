@@ -1,3 +1,5 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use crate::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
@@ -5,7 +7,6 @@ use crate::{
     },
     Pubkey,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct BatchPublicTransactionEvent {

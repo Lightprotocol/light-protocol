@@ -1,5 +1,3 @@
-use crate::context::{AcpAccount, WrappedInstructionData};
-use crate::Result;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -11,7 +9,11 @@ use light_compressed_account::{
 use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
-use crate::{context::SystemContext, errors::SystemProgramError};
+use crate::{
+    context::{AcpAccount, SystemContext, WrappedInstructionData},
+    errors::SystemProgramError,
+    Result,
+};
 
 /// Creates CPI accounts, instruction data, and performs checks.
 /// - Merkle tree indices must be in order.

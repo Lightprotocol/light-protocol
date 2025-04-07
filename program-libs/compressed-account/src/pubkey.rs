@@ -1,8 +1,9 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
+
+use crate::{AnchorDeserialize, AnchorSerialize};
 #[cfg(feature = "bytemuck-des")]
 #[derive(
     Pod,
@@ -114,101 +115,7 @@ impl From<&crate::Pubkey> for Pubkey {
         Self(pubkey.to_bytes())
     }
 }
-// #[cfg(all(
-//     feature = "anchor",
-//     not(feature = "solana"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<anchor_lang::prelude::Pubkey> for Pubkey {
-//     fn from(pubkey: anchor_lang::prelude::Pubkey) -> Self {
-//         Self(pubkey.to_bytes())
-//     }
-// }
 
-// #[cfg(all(
-//     feature = "anchor",
-//     not(feature = "solana"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
-//     fn from(pubkey: &anchor_lang::prelude::Pubkey) -> Self {
-//         Self(pubkey.to_bytes())
-//     }
-// }
-
-// // Removed pinocchio conversions - we don't want to depend on pinocchio Pubkey
-// // implementation details
-
-// #[cfg(all(
-//     feature = "solana",
-//     not(feature = "anchor"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<Pubkey> for solana_program::pubkey::Pubkey {
-//     fn from(pubkey: Pubkey) -> Self {
-//         solana_program::pubkey::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-
-// #[cfg(all(
-//     feature = "solana",
-//     not(feature = "anchor"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<&Pubkey> for solana_program::pubkey::Pubkey {
-//     fn from(pubkey: &Pubkey) -> Self {
-//         solana_program::pubkey::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-
-// #[cfg(all(
-//     feature = "anchor",
-//     not(feature = "solana"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<Pubkey> for anchor_lang::prelude::Pubkey {
-//     fn from(pubkey: Pubkey) -> Self {
-//         anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-
-// #[cfg(all(
-//     feature = "anchor",
-//     not(feature = "solana"),
-//     not(feature = "pinocchio")
-// ))]
-// impl From<&Pubkey> for anchor_lang::prelude::Pubkey {
-//     fn from(pubkey: &Pubkey) -> Self {
-//         anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-
-// Removed pinocchio conversions - we don't want to depend on pinocchio Pubkey
-// implementation details
-// #[cfg(feature = "anchor")]
-// impl From<anchor_lang::prelude::Pubkey> for Pubkey {
-//     fn from(pubkey: pubkey::Pubkey) -> Self {
-//         Self(pubkey.to_bytes())
-//     }
-// }
-// #[cfg(feature = "anchor")]
-// impl From<crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
-//     fn from(pubkey: crate::pubkey::Pubkey) -> Self {
-//         anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-// #[cfg(feature = "anchor")]
-// impl From<&crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
-//     fn from(pubkey: &crate::pubkey::Pubkey) -> Self {
-//         anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-//     }
-// }
-// #[cfg(feature = "anchor")]
-// impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
-//     fn from(pubkey: &pubkey::Pubkey) -> Self {
-//         Self(pubkey.to_bytes())
-//     }
-// }
 impl Pubkey {
     #[cfg(feature = "solana")]
     pub fn new_unique() -> Self {

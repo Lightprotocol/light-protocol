@@ -4,7 +4,6 @@ use light_zero_copy::vec::ZeroCopyVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 // Import crate::msg from lib.rs which has the appropriate feature gates
-
 use crate::{errors::BatchedMerkleTreeError, BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]

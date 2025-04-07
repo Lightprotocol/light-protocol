@@ -1,12 +1,13 @@
-use crate::errors::SystemProgramError;
-use crate::{invoke_cpi::account::CpiContextAccount, Result, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR};
 use borsh::BorshSerialize;
-use light_account_checks::checks::check_signer;
-use light_account_checks::discriminator::Discriminator;
+use light_account_checks::{checks::check_signer, discriminator::Discriminator};
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_compressed_account::constants;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+
+use crate::{
+    errors::SystemProgramError, invoke_cpi::account::CpiContextAccount, Result,
+    CPI_CONTEXT_ACCOUNT_DISCRIMINATOR,
+};
 pub struct InitializeCpiContextAccount<'info> {
     // #[signer]
     pub fee_payer: &'info AccountInfo,

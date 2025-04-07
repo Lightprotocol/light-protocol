@@ -1,3 +1,5 @@
+use std::slice;
+
 use aligned_sized::aligned_sized;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::discriminator::Discriminator;
@@ -6,7 +8,6 @@ use light_compressed_account::instruction_data::{
 };
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-use std::slice;
 use zerocopy::{little_endian::U32, Ref};
 /// Collects instruction data without executing a compressed transaction.
 /// Signer checks are performed on instruction data.

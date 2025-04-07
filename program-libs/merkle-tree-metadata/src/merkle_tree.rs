@@ -1,10 +1,11 @@
-use crate::{AnchorDeserialize, AnchorSerialize};
-
 use bytemuck::{Pod, Zeroable};
 use light_compressed_account::pubkey::Pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
+use crate::{
+    access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata,
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(C)]
 #[derive(

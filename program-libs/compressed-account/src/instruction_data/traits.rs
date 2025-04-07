@@ -1,3 +1,5 @@
+use zerocopy::Ref;
+
 use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
@@ -7,7 +9,6 @@ use super::{
     },
 };
 use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
-use zerocopy::Ref;
 
 pub trait InstructionDataTrait<'a> {
     fn owner(&self) -> Pubkey;
@@ -45,7 +46,6 @@ pub trait OutputAccountTrait<'a> {
     fn address(&self) -> Option<[u8; 32]>;
     fn has_data(&self) -> bool;
     fn data(&self) -> Option<CompressedAccountData>;
-    /// TODO: find solution for account infos
     fn owner(&self) -> Pubkey;
     fn merkle_tree_index(&self) -> u8;
     fn hash_with_hashed_values(
