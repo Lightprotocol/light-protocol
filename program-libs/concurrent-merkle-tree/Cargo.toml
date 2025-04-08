@@ -7,10 +7,11 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 
 [features]
+default = ["solana"]
 heavy-tests = []
 solana = ["light-bounded-vec/solana", "light-hasher/solana", "solana-program"]
-anchor = ["light-bounded-vec/solana", "light-hasher/anchor", "anchor-lang"]
-pinocchio = ["light-bounded-vec/solana", "light-hasher/pinocchio"]
+anchor = ["solana"]  # For backward compatibility, alias to solana
+pinocchio = ["dep:pinocchio", "light-bounded-vec/solana", "light-hasher/pinocchio"]
 
 [dependencies]
 borsh = { workspace = true }
@@ -19,8 +20,8 @@ light-hasher = { workspace = true }
 light-utils = { workspace = true }
 memoffset = "0.9"
 solana-program = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
-anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
 ark-bn254 = { workspace = true }

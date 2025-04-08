@@ -11,7 +11,7 @@ proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
 
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 ark-bn254 = { workspace = true }
 light-poseidon = { workspace = true }
 

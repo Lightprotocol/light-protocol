@@ -20,18 +20,7 @@ impl HashToFieldSize for String {
     }
 }
 
-#[cfg(any(
-    all(
-        feature = "solana",
-        not(feature = "anchor"),
-        not(feature = "pinocchio")
-    ),
-    all(
-        feature = "anchor",
-        not(feature = "solana"),
-        not(feature = "pinocchio")
-    )
-))]
+#[cfg(not(feature = "pinocchio"))]
 impl HashToFieldSize for crate::Pubkey {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
         Ok(hash_to_bn254_field_size_be(self.as_ref()))
@@ -154,18 +143,7 @@ mod tests {
         assert!(!is_smaller_than_bn254_field_size_be(&bigint_bytes));
     }
 
-    #[cfg(any(
-        all(
-            feature = "solana",
-            not(feature = "anchor"),
-            not(feature = "pinocchio")
-        ),
-        all(
-            feature = "anchor",
-            not(feature = "solana"),
-            not(feature = "pinocchio")
-        )
-    ))]
+    #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
         use crate::Pubkey;
@@ -186,18 +164,7 @@ mod tests {
         );
     }
 
-    #[cfg(any(
-        all(
-            feature = "solana",
-            not(feature = "anchor"),
-            not(feature = "pinocchio")
-        ),
-        all(
-            feature = "anchor",
-            not(feature = "solana"),
-            not(feature = "pinocchio")
-        )
-    ))]
+    #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
         use crate::Pubkey;

@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::pubkey::Pubkey;
 use light_hasher::{DataHasher, Discriminator, Poseidon};
 
@@ -8,19 +7,20 @@ use crate::{
     account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
     error::LightSdkError,
     instruction::account_meta::CompressedAccountMetaTrait,
+    AnchorDeserialize, AnchorSerialize,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct CBorshAccount<
     'a,
-    A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default,
+    A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default,
 > {
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
 }
 
-impl<'a, A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default>
+impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default>
     CBorshAccount<'a, A>
 {
     pub fn new_init(
@@ -161,7 +161,7 @@ impl<'a, A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Def
     }
 }
 
-impl<A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default> Deref
+impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> Deref
     for CBorshAccount<'_, A>
 {
     type Target = A;
@@ -171,7 +171,7 @@ impl<A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default
     }
 }
 
-impl<A: BorshSerialize + BorshDeserialize + Discriminator + DataHasher + Default> DerefMut
+impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> DerefMut
     for CBorshAccount<'_, A>
 {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {

@@ -36,17 +36,10 @@ pub enum BatchedMerkleTreeError {
     MerkleTreeMetadata(#[from] MerkleTreeMetadataError),
     #[error("Bloom filter error {0}")]
     BloomFilter(#[from] BloomFilterError),
-    #[cfg(all(
-        feature = "pinocchio",
-        not(feature = "solana"),
-        not(feature = "anchor")
-    ))]
+    #[cfg(feature = "pinocchio")]
     #[error("Program error {0}")]
     ProgramError(u64),
-    #[cfg(all(
-        any(feature = "solana", feature = "anchor"),
-        not(feature = "pinocchio")
-    ))]
+    #[cfg(not(feature = "pinocchio"))]
     #[error("Program error {0}")]
     ProgramError(#[from] ProgramError),
     #[error("Verifier error {0}")]
@@ -65,11 +58,7 @@ pub enum BatchedMerkleTreeError {
     AccountError(#[from] AccountError),
 }
 
-#[cfg(all(
-    feature = "pinocchio",
-    not(feature = "solana"),
-    not(feature = "anchor")
-))]
+#[cfg(feature = "pinocchio")]
 impl From<ProgramError> for BatchedMerkleTreeError {
     fn from(error: ProgramError) -> Self {
         BatchedMerkleTreeError::ProgramError(u64::from(error))
@@ -97,7 +86,7 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::BloomFilter(e) => e.into(),
             BatchedMerkleTreeError::VerifierErrorError(e) => e.into(),
             BatchedMerkleTreeError::CompressedAccountError(e) => e.into(),
-            BatchedMerkleTreeError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
+            BatchedMerkleTreeError::ProgramError(e) => u32::try_from(e).unwrap(),
             BatchedMerkleTreeError::AccountError(e) => e.into(),
         }
     }

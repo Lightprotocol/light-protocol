@@ -260,7 +260,6 @@ impl Deref for ZCompressedAccount<'_> {
     }
 }
 
-#[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
 impl From<&ZCompressedAccount<'_>> for CompressedAccount {
     fn from(compressed_account: &ZCompressedAccount) -> Self {
         let data: Option<CompressedAccountData> =

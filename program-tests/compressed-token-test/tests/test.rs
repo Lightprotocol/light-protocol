@@ -58,7 +58,6 @@ use light_test_utils::{
     },
     RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
 };
-
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::{

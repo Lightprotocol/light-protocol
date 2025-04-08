@@ -12,9 +12,8 @@ name = "light_system_program"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
-default = ["readonly", "idl-build"]
+default = ["idl-build"]
 idl-build = ["anchor-lang/idl-build"]
-readonly = []
 test-sbf = []
 
 
@@ -22,8 +21,8 @@ test-sbf = []
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true }
 account-compression = { workspace = true }
-light-compressed-account = { workspace = true, features = ["anchor"] }
-light-zero-copy = { workspace = true, features = ["anchor"] }
+light-compressed-account = { workspace = true }
+light-zero-copy = { workspace = true }
 zerocopy = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

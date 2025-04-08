@@ -15,7 +15,7 @@ devenv = []
 
 # light local deps
 light-merkle-tree-reference = { workspace = true }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-bounded-vec = { workspace = true }

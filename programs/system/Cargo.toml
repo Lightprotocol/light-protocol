@@ -20,9 +20,7 @@ debug = []
 readonly = []
 
 [dependencies]
-light-concurrent-merkle-tree = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-concurrent-merkle-tree = { workspace = true, features = ["pinocchio"] }
 light-indexed-merkle-tree = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
@@ -43,16 +41,12 @@ light-merkle-tree-metadata = { workspace = true, features = [
 light-compressed-account = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
-light-verifier = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-verifier = { workspace = true, features = ["pinocchio"] }
 solana-security-txt = "1.1.0"
 light-batched-merkle-tree = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
-light-zero-copy = { workspace = true, features = [
-    "pinocchio",
-], default-features = false }
+light-zero-copy = { workspace = true, features = ["pinocchio"] }
 zerocopy = { workspace = true }
 light-account-checks = { workspace = true, default-features = false, features = [
     "pinocchio",

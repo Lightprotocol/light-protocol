@@ -7,17 +7,9 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-# default = ["solana"]
-solana = [
-    "solana-program",
-    "light-zero-copy/solana",
-    "light-hasher/solana",
-    "light-account-checks/solana",
-    "light-bloom-filter/solana",
-    "light-macros/solana",
-    "light-compressed-account/solana",
-    "light-merkle-tree-metadata/solana",
-]
+default = ["solana"]
+solana = ["solana-program"]
+anchor = ["solana"] # For backward compatibility, alias to solana
 pinocchio = [
     "dep:pinocchio",
     "light-zero-copy/pinocchio",
@@ -28,21 +20,10 @@ pinocchio = [
     "light-compressed-account/pinocchio",
     "light-merkle-tree-metadata/pinocchio",
 ]
-anchor = [
-    "anchor-lang",
-    "light-zero-copy/anchor",
-    "light-hasher/anchor",
-    "light-account-checks/anchor",
-    "light-bloom-filter/anchor",
-    "light-macros/anchor",
-    "light-compressed-account/anchor",
-    "light-merkle-tree-metadata/anchor",
-]
 
 [dependencies]
 aligned-sized = { workspace = true }
 solana-program = { workspace = true, optional = true }
-anchor-lang = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, default-features = false, features = [
     "std",
 ] }

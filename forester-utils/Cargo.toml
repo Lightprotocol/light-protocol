@@ -11,7 +11,7 @@ description = "Utility library for Light's Forester node implementation"
 # Light Protocol
 account-compression = { workspace = true }
 light-hash-set = { workspace = true }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-prover-client = { workspace = true }

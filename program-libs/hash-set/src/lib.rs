@@ -54,13 +54,6 @@ impl From<HashSetError> for solana_program::program_error::ProgramError {
     }
 }
 
-#[cfg(feature = "anchor")]
-impl From<HashSetError> for anchor_lang::prelude::ProgramError {
-    fn from(e: HashSetError) -> Self {
-        anchor_lang::prelude::ProgramError::Custom(e.into())
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct HashSetCell {
     pub value: [u8; 32],

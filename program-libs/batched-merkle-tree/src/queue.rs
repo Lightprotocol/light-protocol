@@ -12,7 +12,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
 // Import the feature-gated types from lib.rs
 use super::batch::BatchState;
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
     batch::Batch,

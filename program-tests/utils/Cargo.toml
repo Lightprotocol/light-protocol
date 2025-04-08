@@ -24,7 +24,7 @@ light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 light-prover-client = { workspace = true }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }

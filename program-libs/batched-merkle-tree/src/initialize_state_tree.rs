@@ -6,7 +6,7 @@ use light_merkle_tree_metadata::{
     queue::QueueMetadata, rollover::RolloverMetadata,
 };
 
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
     constants::{
@@ -132,7 +132,7 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// Initializes the state Merkle tree and output queue accounts.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialize the output queue and state Merkle tree accounts.
-pub fn init_batched_state_merkle_tree_from_account_info<'a>(
+pub fn init_batched_state_merkle_tree_from_account_info(
     params: InitStateTreeAccountsInstructionData,
     owner: crate::Pubkey,
     merkle_tree_account_info: &AccountInfo,

@@ -23,8 +23,10 @@ use crate::processor::{
     read_only_address::verify_read_only_address_queue_non_inclusion,
 };
 use crate::{
-    accounts::account_traits::{InvokeAccounts, SignerAccounts},
-    accounts::check_accounts::try_from_account_infos,
+    accounts::{
+        account_traits::{InvokeAccounts, SignerAccounts},
+        check_accounts::try_from_account_infos,
+    },
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
     errors::SystemProgramError,

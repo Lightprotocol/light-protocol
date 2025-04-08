@@ -55,15 +55,15 @@ impl From<IndexedMerkleTreeError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(feature = "pinocchio")]
+impl From<IndexedMerkleTreeError> for pinocchio::program_error::ProgramError {
+    fn from(e: IndexedMerkleTreeError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}
+#[cfg(not(feature = "pinocchio"))]
 impl From<IndexedMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: IndexedMerkleTreeError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
-    }
-}
-#[cfg(feature = "anchor")]
-impl From<IndexedMerkleTreeError> for anchor_lang::prelude::ProgramError {
-    fn from(e: IndexedMerkleTreeError) -> Self {
-        anchor_lang::prelude::ProgramError::Custom(e.into())
     }
 }

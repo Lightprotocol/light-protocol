@@ -3111,7 +3111,6 @@ dependencies = [
 name = "light-account-checks"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
  "borsh 0.10.4",
  "pinocchio",
  "solana-program",
@@ -3123,7 +3122,6 @@ name = "light-batched-merkle-tree"
 version = "0.1.0"
 dependencies = [
  "aligned-sized",
- "anchor-lang",
  "borsh 0.10.4",
  "light-account-checks",
  "light-bloom-filter",
@@ -3148,7 +3146,6 @@ dependencies = [
 name = "light-bloom-filter"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
  "bitvec",
  "fastmurmur3",
  "light-hasher",
@@ -3251,7 +3248,6 @@ dependencies = [
 name = "light-concurrent-merkle-tree"
 version = "1.1.0"
 dependencies = [
- "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
@@ -3263,6 +3259,7 @@ dependencies = [
  "memoffset 0.9.1",
  "num-bigint 0.4.6",
  "num-traits",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "spl-concurrent-merkle-tree",
@@ -3274,7 +3271,6 @@ dependencies = [
 name = "light-hash-set"
 version = "1.2.0"
 dependencies = [
- "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "light-heap",
@@ -3290,7 +3286,6 @@ dependencies = [
 name = "light-hasher"
 version = "1.1.0"
 dependencies = [
- "anchor-lang",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "arrayvec",
@@ -3326,7 +3321,6 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "1.1.0"
 dependencies = [
- "anchor-lang",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
  "light-hash-set",
@@ -3335,6 +3329,7 @@ dependencies = [
  "light-utils",
  "num-bigint 0.4.6",
  "num-traits",
+ "pinocchio",
  "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
@@ -3604,7 +3599,6 @@ dependencies = [
 name = "light-verifier"
 version = "1.1.0"
 dependencies = [
- "anchor-lang",
  "groth16-solana",
  "light-compressed-account",
  "light-prover-client",
@@ -3620,7 +3614,6 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
  "pinocchio",
  "rand 0.8.5",
  "solana-program",

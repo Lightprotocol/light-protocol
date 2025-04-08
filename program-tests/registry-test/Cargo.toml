@@ -29,7 +29,7 @@ anchor-lang = { workspace = true }
 forester-utils = { workspace = true }
 light-registry = { workspace = true }
 account-compression = { workspace = true }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 solana-sdk = { workspace = true }
 serial_test = { workspace = true }

@@ -7,7 +7,7 @@ use light_merkle_tree_metadata::{
 
 // Import feature-gated types from lib.rs
 use crate::AccountInfo;
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
     constants::{

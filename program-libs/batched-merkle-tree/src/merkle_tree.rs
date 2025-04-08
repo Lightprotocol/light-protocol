@@ -25,7 +25,7 @@ use light_zero_copy::{
 use zerocopy::Ref;
 
 use super::batch::Batch;
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
     batch::BatchState,

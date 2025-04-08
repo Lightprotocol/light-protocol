@@ -26,11 +26,11 @@ light-compressed-token = { workspace = true, features = ["cpi"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-light-batched-merkle-tree = { workspace = true, features = ["anchor"] }
+light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
-light-account-checks = { workspace = true, features = ["anchor"] }
+light-account-checks = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -42,7 +42,7 @@ light-program-test = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
-light-verifier = { workspace = true, features = ["anchor"] }
+light-verifier = { workspace = true }
 serial_test = { workspace = true }
 create-address-test-program = { workspace = true, features = ["cpi"] }
 

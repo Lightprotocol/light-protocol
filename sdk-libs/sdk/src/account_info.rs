@@ -1,4 +1,3 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -15,9 +14,12 @@ use light_compressed_account::{
     CompressedAccountError,
 };
 
-use crate::{error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, msg};
+use crate::{
+    error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, msg,
+    AnchorDeserialize, AnchorSerialize,
+};
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize)]
 pub struct SystemInfoInstructionData {
     pub bump: u8,
     pub invoking_program_id: Pubkey,
@@ -31,7 +33,7 @@ pub struct SystemInfoInstructionData {
     pub light_account_infos: Vec<CompressedAccountInfo>,
 }
 
-#[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct InAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
@@ -43,7 +45,7 @@ pub struct InAccountInfo {
     pub lamports: u64,
 }
 
-#[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct OutAccountInfo {
     /// Data hash
     pub data_hash: [u8; 32],
@@ -54,7 +56,7 @@ pub struct OutAccountInfo {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Default, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Default, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountInfo {
     // TODO: optimize parsing by manually implementing ZeroCopy and using the bitmask.
     // bitmask: u8,

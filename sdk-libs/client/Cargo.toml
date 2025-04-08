@@ -22,7 +22,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
-light-hasher = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-indexed-array = { workspace = true }
 photon-api = { workspace = true }

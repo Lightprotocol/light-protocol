@@ -7,8 +7,8 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
+default = ["solana"]
 solana = ["light-hasher/solana"]
-anchor = ["light-hasher/anchor"]
 pinocchio = ["light-hasher/pinocchio"]
 
 [dependencies]
@@ -19,3 +19,4 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }

@@ -46,7 +46,7 @@ impl From<ZeroCopyError> for u32 {
     }
 }
 
-#[cfg(any(feature = "solana", feature = "anchor", feature = "pinocchio"))]
+#[cfg(any(feature = "solana", feature = "pinocchio"))]
 impl From<ZeroCopyError> for crate::ProgramError {
     fn from(e: ZeroCopyError) -> Self {
         crate::ProgramError::Custom(e.into())

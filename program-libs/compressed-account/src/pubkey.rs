@@ -88,28 +88,28 @@ impl From<&[u8; 32]> for Pubkey {
     }
 }
 
-#[cfg(any(feature = "anchor", feature = "solana",))]
+#[cfg(not(feature = "pinocchio"))]
 impl From<Pubkey> for crate::Pubkey {
     fn from(pubkey: Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
-#[cfg(any(feature = "anchor", feature = "solana",))]
+#[cfg(not(feature = "pinocchio"))]
 impl From<&Pubkey> for crate::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
-#[cfg(any(feature = "anchor", feature = "solana",))]
+#[cfg(not(feature = "pinocchio"))]
 impl From<crate::Pubkey> for Pubkey {
     fn from(pubkey: crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
 
-#[cfg(any(feature = "anchor", feature = "solana",))]
+#[cfg(not(feature = "pinocchio"))]
 impl From<&crate::Pubkey> for Pubkey {
     fn from(pubkey: &crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
@@ -117,25 +117,12 @@ impl From<&crate::Pubkey> for Pubkey {
 }
 
 impl Pubkey {
-    #[cfg(feature = "solana")]
+    #[cfg(not(feature = "pinocchio"))]
     pub fn new_unique() -> Self {
         Self(solana_program::pubkey::Pubkey::new_unique().to_bytes())
     }
 
-    #[cfg(all(
-        feature = "anchor",
-        not(feature = "solana"),
-        not(feature = "pinocchio")
-    ))]
-    pub fn new_unique() -> Self {
-        Self(anchor_lang::prelude::Pubkey::new_unique().to_bytes())
-    }
-
-    #[cfg(all(
-        feature = "pinocchio",
-        not(feature = "solana"),
-        not(feature = "anchor")
-    ))]
+    #[cfg(feature = "pinocchio")]
     pub fn new_unique() -> Self {
         // Just generate a random pubkey
         use rand::Rng;

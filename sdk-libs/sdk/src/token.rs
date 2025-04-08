@@ -1,16 +1,15 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 
-use crate::Pubkey;
+use crate::{AnchorDeserialize, AnchorSerialize, Pubkey};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
 #[repr(u8)]
 pub enum AccountState {
     Initialized,
     Frozen,
 }
 // TODO: extract token data from program into into a separate crate, import it and remove this file.
-#[derive(Debug, PartialEq, Eq, BorshDeserialize, BorshSerialize, Clone)]
+#[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,

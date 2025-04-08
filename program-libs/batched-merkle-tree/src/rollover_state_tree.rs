@@ -3,7 +3,7 @@ use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
 
 // Import the appropriately feature-gated types from lib.rs
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 use crate::AccountInfoTrait;
 use crate::{
     errors::BatchedMerkleTreeError,
@@ -51,7 +51,7 @@ pub struct RolloverBatchStateTreeParams<'a> {
 /// additional bytes since those are the basis for the old trees rollover fee.
 /// If new additional_bytes is greater than old additional_bytes additional
 /// rent reimbursements need to be calculated outside of this function.
-pub fn rollover_batched_state_tree_from_account_info<'a>(
+pub fn rollover_batched_state_tree_from_account_info(
     old_state_merkle_tree: &AccountInfo,
     new_state_merkle_tree: &AccountInfo,
     old_output_queue: &AccountInfo,
