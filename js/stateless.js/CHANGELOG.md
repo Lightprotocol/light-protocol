@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.0] - 2025-04-08
+
+This release has several breaking changes which are necessary for protocol
+scalability. Please reach out to the [team](https://t.me/swen_light) if you need help migrating.
+
+### Breaking changes
+
+TBD.
+
 ## [0.20.5-0.20.9] - 2025-02-24
 
 ### Bumped to latest compressed-token sdk
@@ -21,7 +30,9 @@ Fixed a bug where we lose precision on token amounts if compressed token account
 
 ### Changed
 
--   `createRpc` can now also be called with only the `rpcEndpoint` parameter. In this case, `compressionApiEndpoint` and `proverEndpoint` will default to the same value. If no parameters are provided, default localnet values are used.
+-   `createRpc` can now also be called with only the `rpcEndpoint` parameter. In
+    this case, `compressionApiEndpoint` and `proverEndpoint` will default to the
+    same value. If no parameters are provided, default localnet values are used.
 
 ## [0.19.0] - 2025-01-20
 

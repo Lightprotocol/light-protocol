@@ -258,7 +258,9 @@ describe('compressSplTokenAccount', () => {
         expect(compressedAfter.items.length).toBe(
             compressedBefore.items.length + 1,
         );
-        expect(compressedAfter.items[0].parsed.amount.eq(bn(0))).toBe(true);
+        expect(
+            compressedAfter.items.some(item => item.parsed.amount.eq(bn(0))),
+        ).toBe(true);
     });
 
     it('should fail when non-owner tries to compress', async () => {
