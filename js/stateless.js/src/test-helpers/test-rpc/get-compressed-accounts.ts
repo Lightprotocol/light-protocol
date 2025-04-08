@@ -41,22 +41,22 @@ export function getQueueForTree(
         return { queue, treeType, tree: info[index].tree };
     }
 
-    // test-rpc indexes queue as tree.
-    const indexV2 = info.findIndex(
-        t => t.queue && t.queue.equals(tree) && t.treeType === TreeType.StateV2,
-    );
-    if (indexV2 !== -1) {
-        const {
-            queue: actualQueue,
-            treeType,
-            tree: actualTree,
-        } = info[indexV2];
-        if (!actualQueue) {
-            throw new Error('Queue must not be null for state tree');
-        }
+    // // test-rpc indexes queue as tree.
+    // const indexV2 = info.findIndex(
+    //     t => t.queue && t.queue.equals(tree) && t.treeType === TreeType.StateV2,
+    // );
+    // if (indexV2 !== -1) {
+    //     const {
+    //         queue: actualQueue,
+    //         treeType,
+    //         tree: actualTree,
+    //     } = info[indexV2];
+    //     if (!actualQueue) {
+    //         throw new Error('Queue must not be null for state tree');
+    //     }
 
-        return { queue: actualQueue, treeType, tree: actualTree };
-    }
+    //     return { queue: actualQueue, treeType, tree: actualTree };
+    // }
 
     throw new Error(
         `No associated queue found for tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,

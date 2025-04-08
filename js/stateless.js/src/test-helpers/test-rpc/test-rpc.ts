@@ -388,7 +388,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     });
                 }
 
-                const treeData = leavesByTree.get(tree.toBase58())!;
+                const treeData = leavesByTree.get(tree.toBase58());
+                if (!treeData) {
+                    throw new Error(`Tree not found: ${tree.toBase58()}`);
+                }
                 treeData.leaves.push(hash);
                 treeData.leafIndices.push(event.outputLeafIndices[index]);
             }
@@ -410,15 +413,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     this.lightWasm,
                     leaves.map(leaf => bn(leaf).toString()),
                 );
-            } else if (treeType === TreeType.StateV2) {
-                /// In V2 State trees, The Merkle tree stays empty until the
-                /// first forester transaction. And since test-rpc is only used
-                /// for non-forested tests, we must return a tree with
-                /// zerovalues.
-                merkleTree = new MerkleTree(32, this.lightWasm, []);
             } else {
                 throw new Error(
-                    `Invalid tree type: ${treeType} in test-rpc.ts`,
+                    `Unsupported tree type: ${treeType} in test-rpc.ts`,
                 );
             }
 
@@ -449,45 +446,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                             ).queue,
                             rootIndex: leaves.length,
                             root: root,
-                            // treeType: treeType,
-                            // proveByIndex: true,
-                        };
-
-                        merkleProofsMap.set(hashes[i].toString(), merkleProof);
-                    } else if (treeType === TreeType.StateV2) {
-                        const pathElements = merkleTree._zeros.slice(0, -1);
-                        const bnPathElements = pathElements.map(value =>
-                            bn(value),
-                        );
-                        const root = bn(merkleTree.root());
-
-                        const { tree: treeV2 } = getQueueForTree(
-                            cachedStateTreeInfos,
-                            tree,
-                        );
-
-                        /// get leafIndex from leavesByTree for the given hash
-                        const leafIndex = leavesByTree
-                            .get(treeV2.toBase58())!
-                            .leafIndices.findIndex(index =>
-                                hashes[i].eq(
-                                    bn(
-                                        leavesByTree.get(treeV2.toBase58())!
-                                            .leaves[index],
-                                    ),
-                                ),
-                            );
-
-                        const merkleProof: MerkleContextWithMerkleProof = {
-                            hash: new Array(32).fill(0),
-                            merkleTree: treeV2,
-                            leafIndex: leafIndex,
-                            merkleProof: bnPathElements,
-                            nullifierQueue: queue,
-                            rootIndex: 0,
-                            root,
-                            // treeType: 0, // TODO: consider switching in photon
-                            // proveByIndex: true,
                         };
 
                         merkleProofsMap.set(hashes[i].toString(), merkleProof);
@@ -503,9 +461,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 .leaves[leafIndex];
             const hashArr = bn(computedHash).toArray('be', 32);
             if (
-                !hashArr.every((val, index) => val === proof.hash[index]) &&
-                // proof.treeType === TreeType.StateV1 &&
-                !proof.nullifierQueue.equals(PublicKey.default)
+                !hashArr.every((val, index) => val === proof.hash[index])
+                // !proof.nullifierQueue.equals(PublicKey.default)
             ) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
@@ -513,27 +470,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
         });
 
-        // Ensure all requested hashes belong to the same tree type
-        // const uniqueTreeTypes = new Set(
-        //     hashes.map(hash => {
-        //         const proof = merkleProofsMap.get(hash.toString());
-        //         if (!proof) {
-        //             throw new Error(
-        //                 `Proof not found for hash: ${hash.toString()}`,
-        //             );
-        //         }
-        //         return proof.treeType;
-        //     }),
-        // );
-
-        // if (uniqueTreeTypes.size > 1) {
-        //     throw new Error(
-        //         'Requested hashes belong to different tree types (V1/V2)',
-        //     );
-        // }
-
         // Return proofs in the order of requested hashes
-        return hashes.map(hash => merkleProofsMap.get(hash.toString())!);
+        return hashes.map(hash => {
+            const proof = merkleProofsMap.get(hash.toString());
+            if (!proof) {
+                throw new Error(`No proof found for hash: ${hash.toString()}`);
+            }
+            return proof;
+        });
     }
     /**
      * Fetch all the compressed accounts owned by the specified public key.

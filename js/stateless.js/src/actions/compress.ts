@@ -43,8 +43,6 @@ export async function compress(
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        console.log('stateTreeInfo', stateTreeInfo);
-        console.log('selectStateTreeInfo()', selectStateTreeInfo);
         outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 

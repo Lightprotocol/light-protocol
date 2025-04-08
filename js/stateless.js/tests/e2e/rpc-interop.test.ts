@@ -4,6 +4,7 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
     LightSystemProgram,
+    StateTreeInfo,
     bn,
     compress,
     createAccount,
@@ -11,6 +12,7 @@ import {
     defaultTestStateTreeAccounts,
     deriveAddress,
     deriveAddressSeed,
+    selectStateTreeInfo,
     sleep,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -43,6 +45,7 @@ describe('rpc-interop', () => {
     let rpc: Rpc;
     let testRpc: TestRpc;
     let executedTxs = 0;
+    let stateTreeInfo: StateTreeInfo;
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
@@ -53,7 +56,10 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        const stateTreeInfos = await rpc.getActiveStateTreeInfos();
+        stateTreeInfo = selectStateTreeInfo(stateTreeInfos);
+
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
         executedTxs++;
     });
 
@@ -119,11 +125,18 @@ describe('rpc-interop', () => {
         });
 
         /// Executes a transfer using a 'validityProof' from Photon
-        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey, stateTreeInfo);
         executedTxs++;
 
         /// Executes a transfer using a 'validityProof' directly from a prover.
-        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
+        await transfer(
+            testRpc,
+            payer,
+            1e5,
+            payer,
+            bob.publicKey,
+            stateTreeInfo,
+        );
         executedTxs++;
     });
 
@@ -185,6 +198,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
+            stateTreeInfo,
         );
         executedTxs++;
 
@@ -197,6 +211,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             undefined,
             undefined,
+            stateTreeInfo,
         );
         executedTxs++;
     });
@@ -435,7 +450,14 @@ describe('rpc-interop', () => {
 
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
 
-            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
+            await transfer(
+                rpc,
+                payer,
+                transferAmount,
+                payer,
+                bob.publicKey,
+                stateTreeInfo,
+            );
             executedTxs++;
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -549,7 +571,7 @@ describe('rpc-interop', () => {
 
     it('getMultipleCompressedAccounts should match', async () => {
         await logIndexed(rpc, testRpc, payer, 'before compress');
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
         executedTxs++;
 
         await logIndexed(rpc, testRpc, payer, 'after compress');
@@ -596,7 +618,7 @@ describe('rpc-interop', () => {
             account.lamports.gt(acc.lamports) ? account : acc,
         );
 
-        await transfer(rpc, payer, 1, payer, bob.publicKey);
+        await transfer(rpc, payer, 1, payer, bob.publicKey, stateTreeInfo);
         executedTxs++;
 
         const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
@@ -666,16 +688,41 @@ describe('rpc-interop', () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
         const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const addressQueue = defaultTestStateTreeAccounts().addressQueue;
         const address = deriveAddress(seed, addressTree);
 
         await logIndexed(rpc, testRpc, payer, 'before create account1');
-        await createAccount(rpc, payer, seeds, LightSystemProgram.programId);
+        await createAccount(
+            rpc,
+            payer,
+            seeds,
+            LightSystemProgram.programId,
+            addressTree,
+            addressQueue,
+            stateTreeInfo,
+        );
         await logIndexed(rpc, testRpc, payer, 'after create account1');
+
         await sleep(3000);
         const accounts = await rpc.getCompressedAccountsByOwner(
-            LightSystemProgram.programId,
+            payer.publicKey,
         );
 
+        const allAccountsTestRpc = await testRpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const allAccountsRpc = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+
+        console.log(
+            'All accounts from testRpc:',
+            allAccountsTestRpc.items.map(i => i.hash),
+        );
+        console.log(
+            'All accounts from rpc:',
+            allAccountsRpc.items.map(i => i.hash),
+        );
         const latestAccount = accounts.items[0];
 
         // assert the address was indexed
@@ -706,6 +753,7 @@ describe('rpc-interop', () => {
             LightSystemProgram.programId,
             addressTree,
             addressQueue,
+            stateTreeInfo,
         );
 
         await logIndexed(rpc, testRpc, payer, 'after create account2');
