@@ -30,6 +30,7 @@ const log = async (
     console.log(`${prefix} - indexed: `, accounts.items.length);
 };
 
+// debug helper.
 const logIndexed = async (
     rpc: Rpc,
     testRpc: TestRpc,
@@ -488,8 +489,6 @@ describe('rpc-interop', () => {
     });
 
     it('getCompressedAccountsByOwner should match', async () => {
-        await logIndexed(rpc, testRpc, payer, 'payer');
-
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -513,7 +512,6 @@ describe('rpc-interop', () => {
             );
         });
 
-        await logIndexed(rpc, testRpc, bob, 'bob');
         const receiverAccounts = await rpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );
@@ -569,11 +567,9 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        await logIndexed(rpc, testRpc, payer, 'before compress');
         await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
         executedTxs++;
 
-        await logIndexed(rpc, testRpc, payer, 'after compress');
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -689,7 +685,6 @@ describe('rpc-interop', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const address = deriveAddress(seed, addressTreeInfo.tree);
 
-        await logIndexed(rpc, testRpc, payer, 'before create account1');
         await createAccount(
             rpc,
             payer,
@@ -698,9 +693,7 @@ describe('rpc-interop', () => {
             addressTreeInfo,
             stateTreeInfo,
         );
-        await logIndexed(rpc, testRpc, payer, 'after create account1');
 
-        await sleep(3000);
         const accounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -712,14 +705,6 @@ describe('rpc-interop', () => {
             payer.publicKey,
         );
 
-        console.log(
-            'All accounts from testRpc:',
-            allAccountsTestRpc.items.map(i => i.hash),
-        );
-        console.log(
-            'All accounts from rpc:',
-            allAccountsRpc.items.map(i => i.hash),
-        );
         const latestAccount = accounts.items[0];
 
         // assert the address was indexed
@@ -739,9 +724,7 @@ describe('rpc-interop', () => {
 
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const address = deriveAddress(seed, addressTreeInfo.tree);
-        console.log('expected address base58', address.toBase58());
 
-        await logIndexed(rpc, testRpc, payer, 'before create account2');
         await createAccount(
             rpc,
             payer,
@@ -750,8 +733,6 @@ describe('rpc-interop', () => {
             addressTreeInfo,
             stateTreeInfo,
         );
-
-        await logIndexed(rpc, testRpc, payer, 'after create account2');
 
         // fetch the owners latest account
         const accounts = await rpc.getCompressedAccountsByOwner(
