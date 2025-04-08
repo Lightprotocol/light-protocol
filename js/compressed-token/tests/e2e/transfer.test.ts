@@ -76,13 +76,6 @@ async function assertTransfer(
         );
     }
 
-    console.log(
-        'recipient compressed token accounts',
-        recipientCompressedTokenAccounts.map(acc =>
-            acc.parsed.amount.toString(),
-        ),
-    );
-
     /// recipient should have received the amount
 
     expect(
@@ -236,57 +229,8 @@ describe('transfer', () => {
                 mint,
             });
 
-        console.log(
-            'charlie pre compressed token accounts 4',
-            charliePreCompressedTokenAccounts4.items.map(acc =>
-                acc.parsed.amount.toString(),
-            ),
-        );
+        await transfer(rpc, payer, mint, bn(700), charlie, bob.publicKey);
 
-        const bobPreCompressedTokenAccounts5 =
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint,
-            });
-
-        console.log(
-            'bob pre compressed token accounts 5',
-            bobPreCompressedTokenAccounts5.items.map(acc =>
-                acc.parsed.amount.toString(),
-            ),
-        );
-
-        const txId = await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            charlie,
-            bob.publicKey,
-        );
-
-        const bobPostCompressedTokenAccounts6 =
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint,
-            });
-
-        console.log(
-            'bob post compressed token accounts 6',
-            bobPostCompressedTokenAccounts6.items.map(acc =>
-                acc.parsed.amount.toString(),
-            ),
-        );
-
-        const charliePostCompressedTokenAccounts7 =
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint,
-            });
-
-        console.log(
-            'charlie post compressed token accounts 7',
-            charliePostCompressedTokenAccounts7.items.map(acc =>
-                acc.parsed.amount.toString(),
-            ),
-        );
         await assertTransfer(
             rpc,
             charliePreCompressedTokenAccounts4.items,

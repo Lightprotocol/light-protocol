@@ -335,6 +335,23 @@ describe('compress', () => {
             TOKEN_2022_PROGRAM_ID,
         );
 
+        const tokenPoolInfoT22 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, token22Mint),
+        );
+
+        await expect(
+            mintTo(
+                rpc,
+                payer,
+                token22Mint,
+                bob.publicKey,
+                mintAuthority,
+                bn(10000),
+                stateTreeInfo,
+                tokenPoolInfo,
+            ),
+        ).rejects.toThrow();
+
         await mintTo(
             rpc,
             payer,
@@ -343,9 +360,8 @@ describe('compress', () => {
             mintAuthority,
             bn(10000),
             stateTreeInfo,
-            tokenPoolInfo,
+            tokenPoolInfoT22,
         );
-
         await decompress(
             rpc,
             payer,
@@ -370,7 +386,7 @@ describe('compress', () => {
             bobToken2022Ata,
             charlie.publicKey,
             stateTreeInfo,
-            tokenPoolInfo,
+            tokenPoolInfoT22,
         );
         await assertCompress(
             rpc,

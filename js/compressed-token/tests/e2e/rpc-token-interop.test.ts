@@ -33,7 +33,7 @@ describe('rpc-interop token', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = createRpc();
         testRpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = await newAccountWithLamports(rpc);
@@ -265,6 +265,10 @@ describe('rpc-interop token', () => {
             )
         ).mint;
 
+        const tokenPoolInfo2 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, mint2),
+        );
+
         await mintTo(
             rpc,
             payer,
@@ -273,7 +277,7 @@ describe('rpc-interop token', () => {
             mintAuthority,
             bn(1000),
             stateTreeInfo,
-            tokenPoolInfo,
+            tokenPoolInfo2,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(

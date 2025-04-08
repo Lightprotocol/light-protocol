@@ -31,10 +31,6 @@ describe('rpc-multi-trees', () => {
     beforeAll(async () => {
         rpc = createRpc();
 
-        stateTreeInfo = await rpc.getCachedActiveStateTreeInfos()[0];
-
-        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
-
         payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -48,6 +44,9 @@ describe('rpc-multi-trees', () => {
                 mintKeypair,
             )
         ).mint;
+
+        stateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         bob = await newAccountWithLamports(rpc, 1e9, 256);
         charlie = await newAccountWithLamports(rpc, 1e9, 256);

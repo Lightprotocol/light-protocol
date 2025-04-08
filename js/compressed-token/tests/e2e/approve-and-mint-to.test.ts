@@ -83,16 +83,15 @@ describe('approveAndMintTo', () => {
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
 
-        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
-
         /// Create external SPL mint
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
         /// Register mint
         await createTokenPool(rpc, payer, mint);
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+        stateTreeInfo = selectStateTreeInfo(
+            await rpc.getCachedActiveStateTreeInfos(),
+        );
     });
 
     it('should mintTo compressed account with external spl mint', async () => {
@@ -133,6 +132,10 @@ describe('approveAndMintTo', () => {
         await createTokenPool(rpc, payer, token22Mint);
         assert(token22Mint.equals(token22MintKeypair.publicKey));
 
+        const tokenPoolInfoT22 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, token22Mint),
+        );
+
         await approveAndMintTo(
             rpc,
             payer,
@@ -141,7 +144,7 @@ describe('approveAndMintTo', () => {
             token22MintAuthority,
             1000000000,
             stateTreeInfo,
-            tokenPoolInfo,
+            tokenPoolInfoT22,
         );
 
         await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);

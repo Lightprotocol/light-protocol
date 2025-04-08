@@ -26,6 +26,7 @@ import { Connection } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
 import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultStaticAccountsStruct,
     LightSystemProgram,
 } from '@lightprotocol/stateless.js';

@@ -178,7 +178,8 @@ export function selectTokenPoolInfosForDecompression(
     const sufficientBalanceInfo = infos.find(info =>
         info.balance.gte(new BN(decompressAmount).mul(new BN(10))),
     );
-
+    // filter only infos that are initialized
+    infos = infos.filter(info => info.isInitialized);
     // If none found, return all infos
     return sufficientBalanceInfo ? [sufficientBalanceInfo] : infos;
 }

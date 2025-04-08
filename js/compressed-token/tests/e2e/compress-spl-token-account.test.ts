@@ -334,6 +334,10 @@ describe('compressSplTokenAccount', () => {
                 true,
             )
         ).mint;
+
+        const tokenPoolInfoT22 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, mint),
+        );
         const mintAccountInfo = await rpc.getAccountInfo(mint);
         assert.equal(
             mintAccountInfo!.owner.toBase58(),
@@ -379,7 +383,7 @@ describe('compressSplTokenAccount', () => {
             aliceAta,
             undefined,
             stateTreeInfo,
-            tokenPoolInfo,
+            tokenPoolInfoT22,
         );
 
         // Get final balances

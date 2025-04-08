@@ -78,14 +78,9 @@ describe('test-rpc', () => {
         const compressedAccountProof = await rpc.getCompressedAccountProof(
             bn(refHash),
         );
-        console.log(
-            'compressedAccounts',
-            compressedAccounts.items.map(x => x),
-        );
-        console.log('compressedAccountProof', compressedAccountProof);
+
         const proof = compressedAccountProof.merkleProof.map(x => x.toString());
 
-        console.log('proof', proof);
         expect(proof.length).toStrictEqual(26);
         expect(compressedAccountProof.hash).toStrictEqual(refHash);
         expect(compressedAccountProof.leafIndex).toStrictEqual(
