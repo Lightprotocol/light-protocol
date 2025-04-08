@@ -7,6 +7,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::test_utils::assert_address_mt_zero_copy_initialized,
     merkle_tree::{get_merkle_tree_account_size, test_utils::get_merkle_tree_account_size_default},
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
+    changelog::BatchChangelog,
 };
 use light_compressed_account::pubkey::Pubkey;
 use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU64, vec::ZeroCopyVecU64};
@@ -90,12 +91,21 @@ fn test_rnd_account_init() {
             let root_history_size = ZeroCopyCyclicVecU64::<[u8; 32]>::required_size_for_capacity(
                 params.root_history_capacity as u64,
             );
+            
+            // Add changelog size calculation
+            let changelog_capacity = 8; // Same as we set in the actual implementation
+            let changelog_size = ZeroCopyCyclicVecU64::<BatchChangelog>::required_size_for_capacity(
+                changelog_capacity,
+            );
+            
             // Output queue
             let ref_account_size = BatchedMerkleTreeMetadata::LEN
                     + root_history_size
                     + bloom_filter_size
                     // 2 hash chain stores
-                    + hash_chain_store_size;
+                    + hash_chain_store_size
+                    // Changelog size
+                    + changelog_size;
             assert_eq!(mt_account_size, ref_account_size);
         }
         let mut mt_account_data = vec![0; mt_account_size];

@@ -4,6 +4,7 @@ use std::cmp::min;
 
 use light_batched_merkle_tree::{
     batch::BatchState,
+    changelog::ChangelogInstructionData,
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
         DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES,
@@ -21,7 +22,7 @@ use light_batched_merkle_tree::{
     merkle_tree::{
         assert_batch_adress_event, assert_batch_append_event_event, assert_nullify_event,
         test_utils::get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+        InstructionDataBatchAppendInputs,
     },
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
@@ -739,8 +740,10 @@ async fn test_simulate_transactions() {
                     )
                     .await
                     .unwrap();
-                let instruction_data = InstructionDataBatchNullifyInputs {
+                let instruction_data = ChangelogInstructionData {
                     new_root,
+                    old_root: [0u8; 32],  // Using zeroed old_root for test
+                    hash_chain_index: 0,  // Using 0 for hash_chain_index in test
                     compressed_proof: CompressedProof {
                         a: proof.a,
                         b: proof.b,
@@ -1235,8 +1238,10 @@ pub async fn perform_input_update(
             )
             .await
             .unwrap();
-        let instruction_data = InstructionDataBatchNullifyInputs {
+        let instruction_data = ChangelogInstructionData {
             new_root,
+            old_root: [0u8; 32],  // Using zeroed old_root for test
+            hash_chain_index: 0,  // Using 0 for hash_chain_index in test
             compressed_proof: CompressedProof {
                 a: proof.a,
                 b: proof.b,
@@ -1313,8 +1318,10 @@ pub async fn perform_address_update(
 
         mock_indexer.finalize_batch_address_update(10);
         assert_eq!(mock_indexer.merkle_tree.root(), new_root);
-        let instruction_data = InstructionDataBatchNullifyInputs {
+        let instruction_data = ChangelogInstructionData {
             new_root,
+            old_root: [0u8; 32],  // Using zeroed old_root for test
+            hash_chain_index: 0,  // Using 0 for hash_chain_index in test
             compressed_proof: CompressedProof {
                 a: proof.a,
                 b: proof.b,

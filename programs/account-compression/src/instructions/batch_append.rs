@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
-use light_batched_merkle_tree::merkle_tree::{
-    BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
+use light_batched_merkle_tree::{
+    changelog::ChangelogInstructionData,
+    merkle_tree::BatchedMerkleTreeAccount,
 };
 
 use crate::{
@@ -46,7 +47,7 @@ impl<'info> GroupAccounts<'info> for BatchAppend<'info> {
 /// 4. Emit indexer event.
 pub fn process_batch_append_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, BatchAppend<'info>>,
-    instruction_data: InstructionDataBatchAppendInputs,
+    instruction_data: ChangelogInstructionData,
 ) -> Result<()> {
     // 1. Check Merkle tree account discriminator, tree type, and program ownership.
     let merkle_tree =

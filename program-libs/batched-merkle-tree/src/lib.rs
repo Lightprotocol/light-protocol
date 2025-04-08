@@ -10,6 +10,7 @@ pub mod queue;
 pub mod queue_batch_metadata;
 pub mod rollover_address_tree;
 pub mod rollover_state_tree;
+pub mod changelog;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize};
 #[cfg(not(feature = "anchor"))]

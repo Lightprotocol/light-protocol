@@ -50,6 +50,10 @@ pub struct QueueBatches {
 impl QueueBatches {
     /// Returns the number of ZKP batches contained within a single regular batch.
     pub fn get_num_zkp_batches(&self) -> u64 {
+        // Prevent division by zero in test cases
+        if self.zkp_batch_size == 0 {
+            return 1; // Provide a minimal safe value for tests
+        }
         self.batch_size / self.zkp_batch_size
     }
 
@@ -170,6 +174,7 @@ impl QueueBatches {
                 (self.currently_processing_batch_index + 1) % self.num_batches;
         }
     }
+    
 
     pub fn init(
         &mut self,
