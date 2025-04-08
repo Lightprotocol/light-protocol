@@ -12,15 +12,14 @@ anchor = ["anchor-lang"]
 default = []
 
 [dependencies]
+solana-program = { workspace = true, optional = true }
+anchor-lang = { workspace = true, optional = true }
 light-poseidon = { workspace = true }
 thiserror = { workspace = true }
 arrayvec = { workspace = true }
 num-bigint = { workspace = true }
-
-# Optional import for ProgramError conversion
-solana-program = { workspace = true, optional = true }
-# Optional import for ProgramError conversion
-anchor-lang = { workspace = true, optional = true }
+zerocopy = { workspace = true }
+light-zero-copy = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 ark-bn254 = { workspace = true }

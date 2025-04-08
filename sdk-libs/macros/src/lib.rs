@@ -10,7 +10,7 @@ mod discriminator;
 mod hasher;
 mod program;
 mod traits;
-
+// TODO: remove
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
 ///
@@ -49,7 +49,7 @@ pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream 
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
-
+// TODO: remove
 #[proc_macro_attribute]
 pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -59,7 +59,7 @@ pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
 }
-
+// TODO: remove
 #[proc_macro_derive(LightAccounts, attributes(light_account))]
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -68,6 +68,7 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
         .into()
 }
 
+// TODO: remove
 /// Implements traits on the given struct required for invoking The Light system
 /// program via CPI.
 ///
@@ -129,7 +130,7 @@ pub fn light_traits_derive(input: TokenStream) -> TokenStream {
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
 }
-
+// TODO: refactor to use light_account_checks::Discriminator
 #[proc_macro_derive(LightDiscriminator)]
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -253,7 +254,7 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
-
+// TODO: remove
 #[proc_macro_attribute]
 pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
@@ -261,7 +262,7 @@ pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
-
+// TODO: remove
 #[proc_macro_attribute]
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemMod);

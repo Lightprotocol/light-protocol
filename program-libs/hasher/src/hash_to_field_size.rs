@@ -1,4 +1,5 @@
 use arrayvec::ArrayVec;
+use light_zero_copy::ZeroCopyTraits;
 
 use crate::{keccak::Keccak, to_byte_array::ToByteArray, Hasher, HasherError};
 
@@ -41,12 +42,79 @@ where
         arrays.iter().for_each(|x| slices.push(x.as_slice()));
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
         slices.push(bump_seed.as_slice());
+        let mut hash = Keccak::hashv(slices.as_slice())?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+}
+
+impl HashToFieldSize for &mut [u8] {
+    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
+        let mut slices: [&[u8]; 2] = [&[]; 2];
+        slices[0] = self;
+        let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
+        slices[1] = bump_seed.as_slice();
         // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
-        let mut hashed_value = Keccak::hashv(slices.as_slice()).unwrap();
-        // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-        // field size.
-        hashed_value[0] = 0;
-        Ok(hashed_value)
+        let mut hash = Keccak::hashv(slices.as_slice())?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+}
+
+impl HashToFieldSize for &[u8] {
+    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
+        let mut slices: [&[u8]; 2] = [&[]; 2];
+        slices[0] = self;
+        let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
+        slices[1] = bump_seed.as_slice();
+        let mut hash = Keccak::hashv(slices.as_slice())?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+}
+
+impl<T, const PAD: bool, L> HashToFieldSize for light_zero_copy::slice::ZeroCopySlice<'_, L, T, PAD>
+where
+    T: ToByteArray + ZeroCopyTraits,
+    L: ZeroCopyTraits,
+    u64: From<L>,
+{
+    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
+        let mut arrays = Vec::with_capacity(self.len());
+        for item in self.iter() {
+            let byte_array = item.to_byte_array()?;
+            arrays.push(byte_array);
+        }
+        let mut slices = Vec::with_capacity(self.len() + 1);
+        arrays.iter().for_each(|x| slices.push(x.as_slice()));
+        let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
+        slices.push(bump_seed.as_slice());
+        let mut hash = Keccak::hashv(slices.as_slice())?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+}
+
+impl<T, const PAD: bool, L> HashToFieldSize
+    for light_zero_copy::slice_mut::ZeroCopySliceMut<'_, L, T, PAD>
+where
+    T: ToByteArray + ZeroCopyTraits,
+    L: ZeroCopyTraits,
+    u64: From<L>,
+{
+    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
+        let mut arrays = Vec::with_capacity(self.len());
+        for item in self.iter() {
+            let byte_array = item.to_byte_array()?;
+            arrays.push(byte_array);
+        }
+        let mut slices = Vec::with_capacity(self.len() + 1);
+        arrays.iter().for_each(|x| slices.push(x.as_slice()));
+        let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
+        slices.push(bump_seed.as_slice());
+        let mut hash = Keccak::hashv(slices.as_slice())?;
+        hash[0] = 0;
+        Ok(hash)
     }
 }
 
@@ -55,7 +123,6 @@ pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
     bytes.iter().for_each(|x| slices.push(*x));
     let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
     slices.push(bump_seed.as_slice());
-    // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
     let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
     // Truncates to 31 bytes so that value is less than bn254 Fr modulo
     // field size.

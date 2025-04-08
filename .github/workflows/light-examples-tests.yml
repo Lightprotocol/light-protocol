@@ -5,13 +5,14 @@ on:
     paths:
       - "examples/**"
       - "macros/light-sdk-macros/**"
+      - "sdk-libs/**"
   pull_request:
     branches:
       - "*"
     paths:
       - "examples/**"
       - "macros/light-sdk-macros/**"
-      - "sdk/**"
+      - "sdk-libs/**"
     types:
       - opened
       - synchronize
@@ -49,6 +50,8 @@ jobs:
             sub-tests: '[
              "cargo test-sbf -p memo -- --test-threads=1"
             ]'
+          - program: sdk-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-test"]'
 
 
     steps:
