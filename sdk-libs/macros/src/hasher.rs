@@ -2,17 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::{parse_str, Error, Fields, ItemStruct, Result, Type};
 
-/// Problem:
-/// - We need to derive DataHasher for ZStructs if a struct derives ZeroCopy
-/// - Possible implementations:
-///     1. Shared function
-///         - generate a function with 1 input for each field
-///         - needs to allow clippy too many inputs
-///     2. Shared function with trait
-///         - generate a trait with a function for each field
-///         - implement the trait for the struct
-///         - keep hasher derivation as is and just call the trait functions
-///
 /// - ToByteArray:
 ///     1. ToByteArray -> [u8;32]
 ///     2. ToByteArrays -> [[u8;32]; NUM_FIELDS]
@@ -321,14 +310,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         quote! { #field_count }
     };
     let hasher_impl = if flatten_field_exists {
-        // code.insert(
-        //     0,
-        //     quote! {
-        //             let mut num_flattned_fields = 0;
-        //             // let mut field_array = [[0u8; 32]; NUM_FIELDS];
-        //             let mut field_array = [[0u8; 32];  #total_field_count];
-        //     },
-        // );
         quote! {
         impl #impl_gen ::light_hasher::DataHasher for #struct_name #type_gen #where_clause {
             fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
@@ -339,12 +320,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 use ::light_hasher::Hasher;
                 use ::light_hasher::to_byte_array::ToByteArray;
 
-                // let field_array = self.to_byte_arrays::<3>()?;
-                // // let mut slices: [&[u8]; Self::NUM_FIELDS as usize] = [&[];  Self::NUM_FIELDS as usize];
-                // for i in 0..Self::NUM_FIELDS as usize {
-                //     slices[i] = field_array[i].as_slice();
-                //     // slices.push(field_array[i].as_slice());
-                // }
                 #(#truncate_code)*
                  let mut num_flattned_fields = 0;
                  let mut field_array = [[0u8; 32];  #total_field_count];
@@ -353,8 +328,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 for (i,element) in field_array.iter().enumerate() {
                     slices[i] = element.as_slice();
                 }
-               println!("slices: {:?}", slices);
-               println!("field_array: {:?}", field_array);
                 H::hashv(slices.as_slice())
             }
         }}
@@ -372,7 +345,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 let vec: Vec<[u8;32]> =vec![
                     #(#field_assignments,)*
                 ];
-                println!("slices: {:?}", vec);
                 H::hashv(&[
                     #(#field_assignments.as_slice(),)*
                 ])
@@ -414,7 +386,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 let mut field_array = [[0u8; 32]; NUM_FIELDS];
                 #(#truncate_code)*
                 #(#code)*
-                println!("field_array: {:?}", field_array);
                 Ok(field_array)
             }
         }
