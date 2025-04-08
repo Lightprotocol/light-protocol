@@ -498,6 +498,15 @@ mod test {
             assert_eq!(arrays[0], pubkey.to_bytes());
         }
 
+        #[cfg(feature = "anchor")]
+        {
+            // Test to_byte_arrays for Pubkey
+            let pubkey = crate::Pubkey::new_unique();
+            let arrays = pubkey.to_byte_arrays::<1>().unwrap();
+            assert_eq!(arrays.len(), 1);
+            assert_eq!(arrays[0], pubkey.to_bytes());
+        }
+
         // Test to_byte_arrays for bool
         let bool_value = true;
         let arrays = bool_value.to_byte_arrays::<1>().unwrap();

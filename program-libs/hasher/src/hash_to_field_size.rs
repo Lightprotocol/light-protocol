@@ -54,6 +54,7 @@ impl HashToFieldSize for &mut [u8] {
         slices[0] = self;
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
         slices[1] = bump_seed.as_slice();
+        // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
         let mut hash = Keccak::hashv(slices.as_slice())?;
         hash[0] = 0;
         Ok(hash)
@@ -230,7 +231,6 @@ mod tests {
         );
     }
 
-    #[cfg(any(feature = "solana", feature = "anchor"))]
     #[cfg(any(feature = "solana", feature = "anchor"))]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
