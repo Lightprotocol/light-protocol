@@ -1,7 +1,6 @@
 use std::mem;
 
 use aligned_sized::aligned_sized;
-// use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::{

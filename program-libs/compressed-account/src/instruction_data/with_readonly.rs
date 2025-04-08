@@ -374,9 +374,7 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
     }
 }
 
-impl<'a> PartialEq<InstructionDataInvokeCpiWithReadOnly>
-    for ZInstructionDataInvokeCpiWithReadOnly<'a>
-{
+impl PartialEq<InstructionDataInvokeCpiWithReadOnly> for ZInstructionDataInvokeCpiWithReadOnly<'_> {
     fn eq(&self, other: &InstructionDataInvokeCpiWithReadOnly) -> bool {
         // Compare basic fields
         if self.mode != other.mode

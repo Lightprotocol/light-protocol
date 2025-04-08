@@ -227,7 +227,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 
     bench_sbf_end!("tm_cpi");
     bench_sbf_start!("tm_invoke");
-    anchor_lang::solana_program::log::sol_log_compute_units();
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),

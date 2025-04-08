@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use zerocopy::Ref;
 
 use super::{
@@ -25,7 +27,10 @@ pub trait InstructionDataTrait<'a> {
     fn account_option_config(&self) -> AccountOptions;
 }
 
-pub trait InputAccountTrait<'a> {
+pub trait InputAccountTrait<'a>
+where
+    Self: Debug,
+{
     fn owner(&self) -> &crate::pubkey::Pubkey;
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
@@ -43,7 +48,10 @@ pub trait InputAccountTrait<'a> {
     fn root_index(&self) -> u16;
 }
 
-pub trait OutputAccountTrait<'a> {
+pub trait OutputAccountTrait<'a>
+where
+    Self: Debug,
+{
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
     fn has_data(&self) -> bool;

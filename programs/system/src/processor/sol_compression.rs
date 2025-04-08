@@ -2,6 +2,7 @@ use aligned_sized::*;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
+    msg,
 };
 
 use crate::{
@@ -27,8 +28,10 @@ pub fn compress_or_decompress_lamports<
     ctx: &'a A,
 ) -> crate::Result<()> {
     if is_compress {
+        msg!("is compress");
         compress_lamports(decompression_lamports, ctx)
     } else {
+        msg!("is decompress");
         decompress_lamports(decompression_lamports, ctx)
     }
 }
@@ -84,20 +87,9 @@ pub fn compress_lamports<
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {
-    let (_, bump) = pinocchio::pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID);
-    let bump = &[bump];
-    // Create an owned array that lives for the duration of the function
+    let bump = &[255];
     let seed_array = [Seed::from(SOL_POOL_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
-
-    let instruction = pinocchio_system::instructions::TransferWithSeed {
-        from,
-        base: from,
-        to,
-        lamports,
-        seed: "sol_pool_pda",
-        owner: &crate::ID,
-    };
-    instruction.invoke_signed(&[signer])?;
-    Ok(())
+    let instruction = pinocchio_system::instructions::Transfer { from, to, lamports };
+    instruction.invoke_signed(&[signer])
 }

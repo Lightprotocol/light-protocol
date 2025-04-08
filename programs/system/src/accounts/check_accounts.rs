@@ -100,11 +100,12 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                     Ok((AcpAccount::BatchedStateTree(tree), program_owner))
                 }
                 _ => {
-                    // msg!(
-                    //     "Invalid batched tree type. {:?} pubkey: {}",
-                    //     tree_type,
-                    //     account_info.key()
-                    // );
+                    msg!(format!(
+                        "Invalid batched tree type. {:?} pubkey: {:?}",
+                        tree_type,
+                        account_info.key()
+                    )
+                    .as_str());
                     Err(SystemProgramError::InvalidAccount)
                 }
             }
@@ -134,7 +135,6 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             };
             let merkle_tree = account_info.try_borrow_mut_data();
             if merkle_tree.is_err() {
-                // msg!("merkle_tree.is_err() {:?}", merkle_tree);
                 return Err(SystemProgramError::InvalidAccount);
             }
             let merkle_tree = &mut merkle_tree.map_err(|_| SystemProgramError::InvalidAccount)?;
@@ -197,11 +197,12 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             } else if queue.metadata.queue_type == QueueType::NullifierQueue as u64 {
                 Ok((AcpAccount::V1Queue(account_info), Pubkey::default()))
             } else {
-                // msg!(
-                //     "Invalid queue account {:?} type {}",
-                //     account_info.key,
-                //     queue.metadata.queue_type
-                // );
+                msg!(format!(
+                    "Invalid queue account {:?} type {}",
+                    account_info.key(),
+                    queue.metadata.queue_type
+                )
+                .as_str());
                 Err(SystemProgramError::InvalidAccount)
             }
         }
@@ -213,8 +214,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
         return Ok(account);
     }
     if !account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
-        // msg!("Invalid owner {:?}", account_info.owner);
-        // msg!("Pubkey {:?}", account_info.key());
+        msg!(format!("Pubkey {:?}", account_info.key()).as_str());
         return Err(SystemProgramError::InvalidAccount);
     }
 

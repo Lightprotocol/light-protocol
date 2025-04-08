@@ -13,12 +13,9 @@ name = "light_system_program_pinocchio"
 no-entrypoint = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-# custom-heap = ["light-heap"]
 mem-profiling = []
 default = ["debug", "readonly"]
 test-sbf = []
-# bench-sbf = ["custom-heap"]
-# idl-build = ["anchor-lang/idl-build"]
 debug = []
 readonly = []
 
@@ -32,12 +29,10 @@ light-indexed-merkle-tree = { workspace = true, features = [
 bytemuck = { workspace = true }
 thiserror = { workspace = true }
 aligned-sized = { workspace = true }
-# anchor-lang = { workspace = true }
 borsh = { workspace = true }
 light-hasher = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
-# light-heap = { workspace = true, optional = true }
 light-macros = { workspace = true, features = [
     "pinocchio",
 ], default-features = false }
@@ -64,9 +59,6 @@ light-account-checks = { workspace = true, default-features = false, features = 
 ] }
 pinocchio = { workspace = true }
 pinocchio-system = { version = "0.2.3" }
-
-# [target.'cfg(not(target_os = "solana"))'.dependencies]
-# solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

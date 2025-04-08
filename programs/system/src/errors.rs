@@ -90,8 +90,8 @@ pub enum SystemProgramError {
     AddressMerkleTreeAccountDiscriminatorMismatch,
     #[error("StateMerkleTreeAccountDiscriminatorMismatch")]
     StateMerkleTreeAccountDiscriminatorMismatch,
-    #[error("Verifier Error")]
-    VerifierError,
+    #[error("Proof verification failed.")]
+    ProofVerificationFailed,
     #[error("Invalid account mode.")]
     InvalidAccountMode,
     #[error("InvalidInstructionDataDiscriminator")]

@@ -15,16 +15,21 @@ const _: () = {
     compile_error!("Exactly one of 'solana', 'anchor', or 'pinocchio' must be enabled.");
 };
 
-#[cfg(all(feature = "anchor_lang", target_os = "solana"))]
-use anchor_lang::solana_program::{msg, rent::Rent, sysvar::Sysvar};
 #[cfg(all(
     feature = "anchor",
     not(feature = "solana"),
-    not(feature = "pinocchio")
+    not(feature = "pinocchio"),
+    target_os = "solana"
+))]
+use anchor_lang::solana_program::{rent::Rent, sysvar::Sysvar};
+#[cfg(all(
+    feature = "anchor",
+    not(feature = "solana"),
+    not(feature = "pinocchio"),
 ))]
 use anchor_lang::{
-    prelude::{ProgramError, Pubkey},
-    solana_program::{account_info::AccountInfo, rent::Rent, sysvar::Sysvar},
+    prelude::{ProgramError, ProgramError, Pubkey},
+    solana_program::account_info::AccountInfo,
 };
 #[cfg(all(
     feature = "pinocchio",
@@ -40,5 +45,10 @@ use pinocchio::{sysvars::rent::Rent, sysvars::Sysvar};
     not(feature = "pinocchio")
 ))]
 use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
-#[cfg(all(feature = "solana", target_os = "solana"))]
+#[cfg(all(
+    feature = "solana",
+    not(feature = "anchor"),
+    not(feature = "pinocchio"),
+    target_os = "solana"
+))]
 use solana_program::{msg, rent::Rent, sysvar::Sysvar};

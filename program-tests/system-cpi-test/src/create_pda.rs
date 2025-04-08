@@ -385,10 +385,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             invoking_program_id: crate::ID.into(),
             proof: inputs_struct.proof,
             new_address_params: inputs_struct.new_address_params,
-            cpi_context: inputs_struct
-                .cpi_context
-                .clone()
-                .unwrap_or(CompressedCpiContext::default()),
+            cpi_context: inputs_struct.cpi_context.unwrap_or_default(),
             is_decompress: !inputs_struct.is_compress,
             compress_or_decompress_lamports: inputs_struct
                 .compress_or_decompress_lamports

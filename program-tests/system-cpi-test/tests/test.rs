@@ -720,11 +720,12 @@ async fn only_test_create_pda() {
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
-        &payer, &env,
-        None, // Some(ProverConfig {
-             //     run_mode: Some(ProverMode::Rpc),
-             //     circuits: vec![],
-             // }),
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        }),
     )
     .await;
     {
@@ -745,7 +746,12 @@ async fn only_test_create_pda() {
         )
         .await;
         // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
-        assert_rpc_error(result, 0, SystemProgramError::VerifierError.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
         let result = perform_create_pda_with_event(
             &mut test_indexer,
             &mut rpc,
@@ -780,7 +786,12 @@ async fn only_test_create_pda() {
         )
         .await;
         // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
-        assert_rpc_error(result, 0, SystemProgramError::VerifierError.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,

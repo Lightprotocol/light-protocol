@@ -52,7 +52,6 @@ use light_test_utils::{
     },
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_verifier::VerifierError;
 use quote::format_ident;
 use serial_test::serial;
 use solana_cli_output::CliAccount;
@@ -367,7 +366,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -382,7 +381,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -404,7 +403,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
     //         payer,
     //         inputs_struct,
     //         remaining_accounts.clone(),
-    //         VerifierError::ProofVerificationFailed.into(),
+    //         SystemProgramError::ProofVerificationFailed.into(),
     //     )
     //     .await
     //     .unwrap();
@@ -423,7 +422,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
                 .lamports += 1;
-            VerifierError::ProofVerificationFailed.into()
+            SystemProgramError::ProofVerificationFailed.into()
         } else {
             SystemProgramError::SumCheckFailed.into()
         };
@@ -449,7 +448,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -509,7 +508,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -622,7 +621,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -636,7 +635,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -650,7 +649,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            SystemProgramError::ProofVerificationFailed.into(),
         )
         .await
         .unwrap();
@@ -714,7 +713,7 @@ pub async fn failing_transaction_address<R: RpcConnection>(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -802,7 +801,7 @@ pub async fn failing_transaction_output<R: RpcConnection>(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .await
         .unwrap();
@@ -1819,12 +1818,12 @@ async fn batch_invoke_test() {
 
     let payer = context.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer, &env,
-        // Some(ProverConfig {
-        //     run_mode: None,
-        //     circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
-        // }),
-        None,
+        &payer,
+        &env,
+        Some(ProverConfig {
+            run_mode: None,
+            circuits: vec![ProofType::Inclusion, ProofType::BatchAppendWithProofsTest],
+        }),
     )
     .await;
     let payer_pubkey = payer.pubkey();
@@ -1881,8 +1880,13 @@ async fn batch_invoke_test() {
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
         .await;
-    // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
-    assert_rpc_error(result, 0, SystemProgramError::VerifierError.into()).unwrap();
+    // assert_rpc_error(result, 0, SystemProgramError::ProofVerificationFailed.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        SystemProgramError::ProofVerificationFailed.into(),
+    )
+    .unwrap();
 
     // 3. Should fail: input compressed account with invalid signer.
     let invalid_signer_compressed_accounts = vec![CompressedAccount {

@@ -240,6 +240,7 @@ pub struct CAccountInfo {
     pub output: Option<OutAccountInfo>, // 5
 }
 
+#[derive(Debug, PartialEq)]
 pub struct ZCAccountInfo<'a> {
     pub owner: Pubkey,
     pub discriminator: Ref<&'a [u8], [u8; 8]>, // 1

@@ -68,19 +68,10 @@ pub fn process_invoke_cpi<
         msg!("cpi_context_inputs_len1");
 
         if cpi_context_account.context.is_empty() {
-            // msg!("cpi context account : {:?}", cpi_context_account);
-            // msg!("fee payer : {:?}", fee_payer);
+            msg!(format!("cpi context account : {:?}", cpi_context_account).as_str());
             return Err(SystemProgramError::CpiContextEmpty.into());
         }
         msg!("cpi_context_inputs_len2");
-        // else if *cpi_context_account.fee_payer != fee_payer.into()
-        //     || cpi_context.first_set_context()
-        // {
-        //     msg!("cpi context account : {:?}", cpi_context_account);
-        //     msg!("fee payer : {:?}", fee_payer);
-        //     msg!("cpi context  : {:?}", cpi_context);
-        //     return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-        // }
         // Reset cpi context account
         cpi_context_account.context.clear();
         msg!("cpi_context_inputs_len3");

@@ -78,7 +78,6 @@ pub fn cpi_account_compression_program<'a>(
         account_infos,
         ..
     } = cpi_context;
-    // msg!(format!("cpi bytes {:?}", bytes[..24].to_vec()).as_str());
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let instruction = Instruction {
         program_id: &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -87,10 +86,6 @@ pub fn cpi_account_compression_program<'a>(
     };
     let seed_array = [Seed::from(CPI_AUTHORITY_PDA_SEED), Seed::from(bump)];
     let signer = Signer::from(&seed_array);
-    // msg!("start_acp_cpi");
-    // sol_log_compute_units();
-    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])?;
-    // sol_log_compute_units();
-    // msg!("end_acp_cpi");
-    Ok(())
+
+    slice_invoke_signed(&instruction, account_infos.as_slice(), &[signer])
 }

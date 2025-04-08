@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
-use pinocchio::program_error::ProgramError;
+use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{
     accounts::check_accounts::AcpAccount, errors::SystemProgramError,
@@ -29,19 +29,21 @@ pub fn verify_read_only_account_inclusion_by_index(
         let output_queue = if let AcpAccount::OutputQueue(queue) = output_queue_account_info {
             queue
         } else {
-            // msg!(
-            //     "Read only account is not an OutputQueue {:?} ",
-            //     read_only_account
-            // );
+            msg!(format!(
+                "Read only account is not an OutputQueue {:?} ",
+                read_only_account
+            )
+            .as_str());
             return Err(SystemProgramError::InvalidAccount.into());
         };
         let merkle_tree = if let AcpAccount::BatchedStateTree(tree) = merkle_tree_account_info {
             tree
         } else {
-            // msg!(
-            //     "Read only account is not a BatchedStateTree {:?}",
-            //     read_only_account
-            // );
+            msg!(format!(
+                "Read only account is not a BatchedStateTree {:?}",
+                read_only_account
+            )
+            .as_str());
             return Err(SystemProgramError::InvalidAccount.into());
         };
         output_queue

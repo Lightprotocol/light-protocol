@@ -108,14 +108,12 @@ pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDa
                     compressed_account.owner().to_bytes(),
                     invoking_program_id
                 ).as_str());
-            // msg!(format!("compressed_account: {:?}", compressed_account).as_str());
             return Err(SystemProgramError::WriteAccessCheckFailed.into());
         }
         if !compressed_account.has_data()
             && *invoking_program_id == compressed_account.owner().to_bytes()
         {
             msg!("For program owned compressed accounts the data field needs to be defined.");
-            // msg!("compressed_account: {:?}", compressed_account);
             return Err(SystemProgramError::DataFieldUndefined.into());
         }
     }

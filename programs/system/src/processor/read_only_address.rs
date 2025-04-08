@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
-use pinocchio::program_error::ProgramError;
+use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{accounts::check_accounts::AcpAccount, errors::SystemProgramError, Result};
 
@@ -17,10 +17,11 @@ pub fn verify_read_only_address_queue_non_inclusion(
         {
             tree
         } else {
-            // msg!(
-            //     "Read only address account is not a BatchedAddressTree {:?}",
-            //     read_only_address
-            // );
+            msg!(format!(
+                "Read only address account is not a BatchedAddressTree {:?}",
+                read_only_address
+            )
+            .as_str());
             return Err(SystemProgramError::InvalidAccount.into());
         };
         merkle_tree

@@ -288,25 +288,3 @@ pub mod account_compression {
         process_migrate_state(&ctx, input)
     }
 }
-
-#[test]
-fn test_log_discriminators() {
-    use anchor_lang::Discriminator;
-    println!(
-        "AddressMerkleTreeAccount::DISCRIMINATOR: {:?}",
-        AddressMerkleTreeAccount::DISCRIMINATOR
-    );
-    println!(
-        "StateMerkleTreeAccount::DISCRIMINATOR: {:?}",
-        StateMerkleTreeAccount::DISCRIMINATOR
-    );
-    println!(
-        "QueueAccount::DISCRIMINATOR: {:?}",
-        QueueAccount::DISCRIMINATOR
-    );
-    // insert into queues instruction discriminator
-    println!(
-        "InsertIntoQueuesInstruction::DISCRIMINATOR: {:?}",
-        crate::instruction::InsertIntoQueues::DISCRIMINATOR
-    );
-}

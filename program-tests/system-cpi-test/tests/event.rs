@@ -53,7 +53,7 @@ async fn parse_batched_event_functional() {
     )]))
     .await;
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],

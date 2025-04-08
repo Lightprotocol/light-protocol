@@ -77,5 +77,7 @@ pub enum SystemProgramError {
     InvalidAccount,
     AddressMerkleTreeAccountDiscriminatorMismatch,
     StateMerkleTreeAccountDiscriminatorMismatch,
-    VerifierError,
+    ProofVerificationFailed,
+    InvalidAccountMode,
+    InvalidInstructionDataDiscriminator,
 }

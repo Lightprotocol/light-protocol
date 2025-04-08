@@ -123,20 +123,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data).unwrap();
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_deserialize");
-    // msg!(format!(
-    //     "accounts {:?}",
-    //     accounts.iter().map(|x| x.key()).collect::<Vec<_>>()
-    // )
-    // .as_str());
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
-    // msg!(format!(
-    //     "remaining_accounts {:?}",
-    //     remaining_accounts
-    //         .iter()
-    //         .map(|x| x.key())
-    //         .collect::<Vec<_>>()
-    // )
-    // .as_str());
 
     let wrapped_inputs = WrappedInstructionData::new(inputs);
     process_invoke_cpi(
@@ -163,8 +150,6 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     #[allow(unreachable_code)]
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
-    msg!("here");
-    // msg!(format!("inputs {:?}", inputs).as_str());
 
     shared_invoke_cpi(
         accounts,

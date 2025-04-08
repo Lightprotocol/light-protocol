@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, Discriminator};
+use anchor_lang::prelude::*;
 
 pub mod account_traits;
 pub mod constants;
@@ -7,13 +7,7 @@ pub mod instructions;
 pub mod utils;
 pub use instructions::*;
 pub mod cpi_context_account;
-use light_compressed_account::{
-    instruction_data::{
-        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
-        with_readonly::InstructionDataInvokeCpiWithReadOnly,
-    },
-    pubkey,
-};
+use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
 declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 
 #[program]
@@ -77,7 +71,7 @@ fn test_borsh_equivalence() {
     let struct_a = InstructionDataInvokeCpiWithAccountInfo {
         mode: 1,
         bump: 255,
-        invoking_program_id: pubkey::Pubkey::new_unique(),
+        invoking_program_id: light_compressed_account::pubkey::Pubkey::new_unique(),
         ..Default::default()
     };
     #[derive(BorshSerialize)]
