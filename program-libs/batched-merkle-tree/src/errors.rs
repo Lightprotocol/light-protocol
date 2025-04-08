@@ -58,13 +58,6 @@ pub enum BatchedMerkleTreeError {
     AccountError(#[from] AccountError),
 }
 
-#[cfg(feature = "pinocchio")]
-impl From<ProgramError> for BatchedMerkleTreeError {
-    fn from(error: ProgramError) -> Self {
-        BatchedMerkleTreeError::ProgramError(u64::from(error))
-    }
-}
-
 impl From<BatchedMerkleTreeError> for u32 {
     fn from(e: BatchedMerkleTreeError) -> u32 {
         match e {
@@ -86,14 +79,23 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::BloomFilter(e) => e.into(),
             BatchedMerkleTreeError::VerifierErrorError(e) => e.into(),
             BatchedMerkleTreeError::CompressedAccountError(e) => e.into(),
-            BatchedMerkleTreeError::ProgramError(e) => u32::try_from(e).unwrap(),
+            #[allow(clippy::useless_conversion)]
+            BatchedMerkleTreeError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
             BatchedMerkleTreeError::AccountError(e) => e.into(),
         }
     }
 }
 
+#[cfg(not(feature = "pinocchio"))]
 impl From<BatchedMerkleTreeError> for ProgramError {
     fn from(e: BatchedMerkleTreeError) -> Self {
         ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "pinocchio")]
+impl From<ProgramError> for BatchedMerkleTreeError {
+    fn from(error: ProgramError) -> Self {
+        BatchedMerkleTreeError::ProgramError(u64::from(error))
     }
 }
