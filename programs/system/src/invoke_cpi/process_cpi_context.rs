@@ -43,6 +43,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
         return Err(SystemProgramError::CpiContextMissing.into());
     }
     if let Some(cpi_context) = cpi_context {
+        msg!("cpi context is some");
         let cpi_context_account_info = match cpi_context_account_info {
             Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
@@ -69,13 +70,23 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
             );
             return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
         }
+        msg!(format!("cpi_context {:?}", cpi_context).as_str());
         if cpi_context.set_context {
             set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
             return Ok(None);
         } else {
+            if cpi_context_account.context.is_empty() {
+                return Err(SystemProgramError::CpiContextEmpty.into());
+            }
+            if (*cpi_context_account.fee_payer).to_bytes() != fee_payer {
+                msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
+                return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
+            }
             inputs.set_cpi_context(cpi_context_account);
             return Ok(Some((1, inputs)));
         }
+    } else {
+        msg!("cpi context is none");
     }
     Ok(Some((0, inputs)))
 }
@@ -99,20 +110,33 @@ pub fn set_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
     // relay_fee
     // 2. Subsequent invocations check the proof and fee payer
     use borsh::{BorshDeserialize, BorshSerialize};
-    let data = cpi_context_account_info.try_borrow_data()?;
-    let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
-    if inputs.cpi_context().unwrap().first_set_context {
-        cpi_context_account.fee_payer = fee_payer.into();
-        let mut instruction_data = InstructionDataInvokeCpi::default();
-        inputs.into_instruction_data_invoke_cpi(&mut instruction_data);
-        cpi_context_account.context.push(instruction_data);
-    } else if cpi_context_account.fee_payer == fee_payer && !cpi_context_account.context.is_empty()
-    {
-        inputs.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
-    } else {
-        msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
-        return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-    }
+    let cpi_context_account = {
+        let data = cpi_context_account_info.try_borrow_data()?;
+        let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
+        if inputs.cpi_context().unwrap().first_set_context {
+            cpi_context_account.fee_payer = fee_payer.into();
+            cpi_context_account.context.clear();
+
+            let mut instruction_data = InstructionDataInvokeCpi::default();
+            inputs.into_instruction_data_invoke_cpi(&mut instruction_data);
+            cpi_context_account.context.push(instruction_data);
+        } else if cpi_context_account.fee_payer == fee_payer
+            && !cpi_context_account.context.is_empty()
+        {
+            msg!(format!(
+                " cpi context fee payer {:?} != {:?}, is empty {}",
+                fee_payer,
+                cpi_context_account.fee_payer,
+                cpi_context_account.context.is_empty()
+            )
+            .as_str());
+            inputs.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
+        } else {
+            msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
+            return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
+        }
+        cpi_context_account
+    };
     let mut data = cpi_context_account_info.try_borrow_mut_data()?;
     cpi_context_account.serialize(&mut &mut data[8..]).unwrap();
     Ok(())

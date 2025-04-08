@@ -14,7 +14,7 @@ use light_compressed_account::{
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, msg};
 
 use crate::{
     account_compression_state::{
@@ -221,11 +221,11 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
     if program_owner != Pubkey::default() {
         if let Some(invoking_program) = context.invoking_program_id {
             if invoking_program != program_owner.to_bytes() {
-                // msg!(
-                //     "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
-                //     invoking_program,
-                //     program_owner
-                // );
+                msg!(format!(
+                    "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
+                    invoking_program, program_owner
+                )
+                .as_str());
                 return Err(SystemProgramError::InvalidMerkleTreeOwner);
             }
         } else {

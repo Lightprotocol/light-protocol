@@ -14,7 +14,7 @@ use light_compressed_account::{
         },
     },
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey};
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
@@ -170,6 +170,7 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
             self.input_len += cpi_context.context[0]
                 .input_compressed_accounts_with_merkle_context
                 .len();
+            msg!(format!("setting cpi context {:?}", cpi_context).as_str());
             self.cpi_context = Some(cpi_context);
         } else {
             panic!("Cpi context is already set.");

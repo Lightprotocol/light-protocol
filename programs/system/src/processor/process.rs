@@ -13,7 +13,7 @@ use light_compressed_account::{
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
-    account_info::AccountInfo, log::sol_log_compute_units, program_error::ProgramError,
+    account_info::AccountInfo, log::sol_log_compute_units, msg, program_error::ProgramError,
     pubkey::Pubkey, sysvars::clock::Clock,
 };
 
@@ -238,6 +238,13 @@ pub fn process<
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_compression");
     if inputs.compress_or_decompress_lamports().is_some() {
+        msg!(format!(
+            "inputs.is_compress() {:?} \n,  ctx.get_decompression_recipient().is_some()  {:?}, \n inputs.compress_or_decompress_lamports() {:?}",
+            inputs.is_compress(),
+            ctx.get_decompression_recipient().is_some(),
+            inputs.compress_or_decompress_lamports()
+        )
+        .as_str());
         if inputs.is_compress() && ctx.get_decompression_recipient().is_some() {
             return Err(SystemProgramError::DecompressionRecipientDefined.into());
         }

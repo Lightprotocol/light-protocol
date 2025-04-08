@@ -43,7 +43,8 @@ pub mod light_system_program {
     #[allow(unused_variables)]
     pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
-        inputs: InstructionDataInvokeCpiWithReadOnly,
+        // TODO: revert once parse_batched_event_functional is migrated to manual cpi
+        inputs: Vec<u8>, // inputs: InstructionDataInvokeCpiWithReadOnly,
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }

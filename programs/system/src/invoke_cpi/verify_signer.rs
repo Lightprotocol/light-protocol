@@ -27,16 +27,11 @@ pub fn cpi_signer_checks<'a, T: InstructionDataTrait<'a>>(
     cpi_signer_check(invoking_program_id, authority, inputs.bump())?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
-    // TODO: double check that this works.
-    // We check this implicitly by hashing now.
-    // #[cfg(feature = "bench-sbf")]
-    // bench_sbf_start!("cpd_input_checks");
-    // input_compressed_accounts_signer_check(
-    //     input_compressed_accounts_with_merkle_context,
-    //     invoking_programid,
-    // )?;
-    // #[cfg(feature = "bench-sbf")]
-    // bench_sbf_end!("cpd_input_checks");
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_start!("cpd_input_checks");
+    input_compressed_accounts_signer_check(inputs, invoking_program_id)?;
+    #[cfg(feature = "bench-sbf")]
+    bench_sbf_end!("cpd_input_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
     output_compressed_accounts_write_access_check(inputs, invoking_program_id)?;
@@ -72,28 +67,27 @@ pub fn cpi_signer_check(
     Ok(())
 }
 
-// /// Checks that the invoking program owns all input compressed accounts.
-// pub fn input_compressed_accounts_signer_check<'a>(
-//     input_compressed_accounts_with_merkle_context: &[impl InputAccountTrait<'a>],
-//     invoking_program_id: &Pubkey,
-// ) -> Result<()> {
-//     input_compressed_accounts_with_merkle_context
-//         .iter()
-//         .try_for_each(
-//             |compressed_account_with_context| {
-//                 if *invoking_program_id == compressed_account_with_context.compressed_account.owner.to_bytes() {
-//                     Ok(())
-//                 } else {
-//                     msg!(
-//                         "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
-//                         compressed_account_with_context.compressed_account.owner.to_bytes(),
-//                         invoking_program_id
-//                     );
-//                     Err(SystemProgramError::SignerCheckFailed.into())
-//                 }
-//             },
-//         )
-// }
+/// Checks that the invoking program owns all input compressed accounts.
+pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
+    invoking_program_id: &Pubkey,
+) -> Result<()> {
+    inputs.input_accounts()
+        .try_for_each(
+            |compressed_account_with_context| {
+                if *invoking_program_id == compressed_account_with_context.owner().to_bytes() {
+                    Ok(())
+                } else {
+                    msg!(
+                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
+                        compressed_account_with_context.owner().to_bytes(),
+                        invoking_program_id
+                    );
+                    Err(SystemProgramError::SignerCheckFailed.into())
+                }
+            },
+        )
+}
 
 /// Write access check for output compressed accounts.
 /// - Only program-owned output accounts can hold data.

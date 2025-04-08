@@ -409,8 +409,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             read_only_addresses: read_only_address.unwrap_or_default(),
             read_only_accounts: read_only_accounts.unwrap_or_default(),
         };
-        let mut inputs = Vec::new();
-        InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -439,11 +437,11 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = remaining_accounts;
 
-        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi_with_read_only(
+            cpi_ctx,
+            inputs_struct.try_to_vec().unwrap(),
+        )?;
     } else {
-        let mut inputs = Vec::new();
-        InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
-
         let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
             fee_payer: ctx.accounts.signer.to_account_info(),
             authority: ctx.accounts.cpi_signer.to_account_info(),
@@ -471,7 +469,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-        light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi(cpi_ctx, inputs_struct.try_to_vec().unwrap())?;
     }
     Ok(())
 }

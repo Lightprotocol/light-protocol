@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
 pub use crate::Result;
 use crate::{
@@ -62,14 +62,17 @@ pub fn process_invoke_cpi<
 
     // clear cpi context account
     if cpi_context_inputs_len > 0 {
+        msg!("cpi_context_inputs_len");
         let mut cpi_context_account =
             deserialize_cpi_context_account(&ctx.get_cpi_context_account().unwrap())?;
+        msg!("cpi_context_inputs_len1");
 
         if cpi_context_account.context.is_empty() {
             // msg!("cpi context account : {:?}", cpi_context_account);
             // msg!("fee payer : {:?}", fee_payer);
             return Err(SystemProgramError::CpiContextEmpty.into());
         }
+        msg!("cpi_context_inputs_len2");
         // else if *cpi_context_account.fee_payer != fee_payer.into()
         //     || cpi_context.first_set_context()
         // {
@@ -80,7 +83,9 @@ pub fn process_invoke_cpi<
         // }
         // Reset cpi context account
         cpi_context_account.context.clear();
+        msg!("cpi_context_inputs_len3");
         *cpi_context_account.fee_payer = Pubkey::default().into();
+        msg!("cpi_context_inputs_len4");
     }
     Ok(())
 }

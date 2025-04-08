@@ -2765,8 +2765,12 @@ where
         let user = &self.users[user_index].keypair;
         let remaining_accounts = to_account_metas(remaining_accounts);
 
-        let instruction =
-            create_invoke_cpi_instruction(user.pubkey(), ix_data.clone(), remaining_accounts, None);
+        let instruction = create_invoke_cpi_instruction(
+            user.pubkey(),
+            ix_data.try_to_vec().unwrap(),
+            remaining_accounts,
+            None,
+        );
 
         let res = self
             .rpc

@@ -323,7 +323,7 @@ fn deserialize_instruction<'a>(
                         )
                     })
                     .collect::<Vec<_>>(),
-                is_compress: !data.is_decompress,
+                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
                 relay_fee: None,
                 compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
                     None

@@ -554,6 +554,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
             cpi_context_account: self.cpi_context().is_some(),
         }
     }
+
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
         None
     }
@@ -561,6 +562,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
     fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
         None
     }
+
     fn owner(&self) -> Pubkey {
         if self
             .input_compressed_accounts_with_merkle_context
@@ -596,15 +598,13 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
     }
 
     fn cpi_context(&self) -> Option<CompressedCpiContext> {
-        if let Some(cpi_context) = self.cpi_context {
-            Some(CompressedCpiContext {
+        self.cpi_context
+            .as_ref()
+            .map(|cpi_context| CompressedCpiContext {
                 set_context: cpi_context.set_context(),
                 first_set_context: cpi_context.first_set_context(),
                 cpi_context_account_index: cpi_context.cpi_context_account_index,
             })
-        } else {
-            None
-        }
     }
 
     fn compress_or_decompress_lamports(&self) -> Option<u64> {
@@ -1006,7 +1006,7 @@ mod test {
 
     fn get_test_account() -> CompressedAccount {
         CompressedAccount {
-            owner: solana_program::pubkey::Pubkey::new_unique(),
+            owner: crate::Pubkey::new_unique(),
             lamports: 100,
             address: Some(Pubkey::new_unique().to_bytes()),
             data: Some(get_test_account_data()),
@@ -1015,7 +1015,7 @@ mod test {
 
     fn get_rnd_test_account(rng: &mut StdRng) -> CompressedAccount {
         CompressedAccount {
-            owner: solana_program::pubkey::Pubkey::new_unique(),
+            owner: crate::Pubkey::new_unique(),
             lamports: rng.gen(),
             address: Some(Pubkey::new_unique().to_bytes()),
             data: Some(get_rnd_test_account_data(rng)),
@@ -1062,7 +1062,7 @@ mod test {
     fn get_test_input_account() -> PackedCompressedAccountWithMerkleContext {
         PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
-                owner: solana_program::pubkey::Pubkey::new_unique(),
+                owner: crate::Pubkey::new_unique(),
                 lamports: 100,
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(CompressedAccountData {
@@ -1085,7 +1085,7 @@ mod test {
     fn get_rnd_test_input_account(rng: &mut StdRng) -> PackedCompressedAccountWithMerkleContext {
         PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
-                owner: solana_program::pubkey::Pubkey::new_unique(),
+                owner: crate::Pubkey::new_unique(),
                 lamports: 100,
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(get_rnd_test_account_data(rng)),

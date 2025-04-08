@@ -588,7 +588,7 @@ mod tests {
             .unwrap();
         let (z_account, _) = ZCompressedAccount::zero_copy_at(&bytes).unwrap();
         let z_hash = z_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
+            .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
             .unwrap();
         let manual_hash = {
             let mut hasher = light_poseidon::Poseidon::<Fr>::new_circom(7).unwrap();
@@ -654,7 +654,7 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, true)
             .unwrap();
         let z_hash = z_account
-            .hash(&merkle_tree_pubkey, &leaf_index, true)
+            .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, true)
             .unwrap();
         assert_ne!(hash.to_vec(), manual_hash);
         assert_eq!(hash.to_vec(), manual_hash_new);
@@ -770,7 +770,7 @@ mod tests {
             let bytes: Vec<u8> = account.try_to_vec().unwrap();
             let (z_account, _) = ZCompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
             let z_hash = z_account
-                .hash(&merkle_tree_pubkey, &leaf_index, false)
+                .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
                 .unwrap();
             assert_eq!(hash_legacy, hash);
             assert_eq!(hash, z_hash);

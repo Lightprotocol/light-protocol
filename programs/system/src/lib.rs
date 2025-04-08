@@ -156,13 +156,15 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    let instruction_data = &instruction_data[4..];
     msg!("invoke_cpi_with_read_only");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_deserialize");
     #[allow(unreachable_code)]
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
-    msg!(format!("inputs {:?}", inputs).as_str());
+    msg!("here");
+    // msg!(format!("inputs {:?}", inputs).as_str());
 
     shared_invoke_cpi(
         accounts,
@@ -176,6 +178,8 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    let instruction_data = &instruction_data[4..];
+
     let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 
@@ -193,6 +197,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionDataTrait<'a>>(
     mode: AccountMode,
     inputs: T,
 ) -> Result<()> {
+    msg!(format!("mode {:?}", mode).as_str());
     match mode {
         AccountMode::Anchor => {
             let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;

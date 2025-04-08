@@ -150,21 +150,21 @@ mod tests {
 
     #[test]
     fn test_derive_address_with_valid_input() {
-        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey = crate::Pubkey::new_unique();
         let seeds = [1u8; 32];
-        let result = derive_address_legacy(&merkle_tree_pubkey.to_bytes(), &seeds);
-        let result_2 = derive_address_legacy(&merkle_tree_pubkey.to_bytes(), &seeds);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seeds);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey, &seeds);
         assert_eq!(result, result_2);
     }
 
     #[test]
     fn test_derive_address_no_collision_same_seeds_diff_pubkey() {
-        let merkle_tree_pubkey = Pubkey::new_unique();
-        let merkle_tree_pubkey_2 = Pubkey::new_unique();
+        let merkle_tree_pubkey = crate::Pubkey::new_unique();
+        let merkle_tree_pubkey_2 = crate::Pubkey::new_unique();
         let seed = [2u8; 32];
 
-        let result = derive_address_legacy(&merkle_tree_pubkey.to_bytes(), &seed);
-        let result_2 = derive_address_legacy(&merkle_tree_pubkey_2.to_bytes(), &seed);
+        let result = derive_address_legacy(&merkle_tree_pubkey, &seed);
+        let result_2 = derive_address_legacy(&merkle_tree_pubkey_2, &seed);
         assert_ne!(result, result_2);
     }
 
