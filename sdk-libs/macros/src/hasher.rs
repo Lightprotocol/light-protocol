@@ -1,7 +1,18 @@
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_str, Error, Fields, ItemStruct, Result};
+use syn::{parse_str, Error, Fields, ItemStruct, Result, Type};
 
+/// Problem:
+/// - We need to derive DataHasher for ZStructs if a struct derives ZeroCopy
+/// - Possible implementations:
+///     1. Shared function
+///         - generate a function with 1 input for each field
+///         - needs to allow clippy too many inputs
+///     2. Shared function with trait
+///         - generate a trait with a function for each field
+///         - implement the trait for the struct
+///         - keep hasher derivation as is and just call the trait functions
+///
 /// - ToByteArray:
 ///     1. ToByteArray -> [u8;32]
 ///     2. ToByteArrays -> [[u8;32]; NUM_FIELDS]
@@ -43,7 +54,6 @@ use syn::{parse_str, Error, Fields, ItemStruct, Result};
 ///     - Not supported
 pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
-
     let (impl_gen, type_gen, where_clause) = input.generics.split_for_impl();
 
     let fields = match input.fields {
@@ -61,7 +71,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         unimplemented!("Structs with more than 13 fields are not supported.");
     }
     let mut code = Vec::new();
-    let mut added_flattned_field = false;
     let mut to_byte_arrays_fields = Vec::new();
     let mut truncate_set = false;
     let flatten_field_exists = fields.named.iter().any(|field| {
@@ -71,7 +80,7 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             .any(|attr| attr.path().is_ident("flatten"))
     });
 
-    let mut flattned_fields_added = Vec::new();
+    let mut flattned_fields_added = vec![quote! { 0usize }];
     let mut truncate_code = Vec::new();
 
     // Process each field
@@ -104,9 +113,9 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     arrays[#i ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice());
                 });
                 if flatten_field_exists {
-                    field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
-                        slices[#i + num_flattned_fields ] = field_array[#i +  num_flattned_fields].as_slice();
+                    code.push(quote! {
+                        field_array[num_flattned_fields ] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice()).as_slice();
+                        num_flattned_fields +=1;
                     });
                 } else {
                     field_assignments.push(quote! {
@@ -123,19 +132,19 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     };
                 });
                 if flatten_field_exists {
-                    field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = &self.#field_name {
+                    code.push(quote! {
+                        field_array[num_flattned_fields ] = &self.#field_name {
                             ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_slice())
                         } else {
                             [0u8;32]
                         };
-                        slices[#i + num_flattned_fields ] = field_array[#i +  num_flattned_fields].as_slice();
+                        num_flattned_fields +=1;
                     });
                 } else {
                     field_assignments.push(quote! {
                         {
                             if let Some(#field_name) = &self.#field_name {
-                                    ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(#field_name.as_slice())
+                                    ::light_hasher::hash_to_field_size::hashv_to_bn254_field_size_le(#field_name.as_slice()).as_slice()
                             } else {
                                     [0u8;32]
                             }
@@ -153,13 +162,13 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     };
                 });
                 if flatten_field_exists {
-                    field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = if let Some(#field_name) = &self.#field_name {
+                    code.push(quote! {
+                        field_array[num_flattned_fields ] = if let Some(#field_name) = &self.#field_name {
                             #field_name.hash_to_field_size()?
                         } else {
                             [0u8;32]
                         };
-                        slices[#i + num_flattned_fields ] = field_array[#i +  num_flattned_fields].as_slice();
+                        num_flattned_fields +=1;
                     });
                 } else {
                     field_assignments.push(quote! {
@@ -177,8 +186,9 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                     arrays[#i ] = self.#field_name.hash_to_field_size()?;
                 });
                 if flatten_field_exists {
-                    field_assignments.push(quote! {
-                        field_array[#i + num_flattned_fields ] = self.#field_name.hash_to_field_size()?;
+                    code.push(quote! {
+                        field_array[num_flattned_fields ] = self.#field_name.hash_to_field_size()?;
+                        num_flattned_fields +=1;
                     });
                 } else {
                     field_assignments.push(quote! {
@@ -189,32 +199,67 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         } else if skip {
         }
         else if flatten {
-            let field_type = &field.ty;
-            if !added_flattned_field {
-                added_flattned_field = true;
-                flattned_fields_added.push(quote! {
-                    #field_type::NUM_FIELDS as usize
-                });
-            }else {
-                flattned_fields_added.push(quote! {
-                    + #field_type::NUM_FIELDS as usize
-                });
-            }
+            let org_field_type = &field.ty;
+            let inner_struct = {
+                // Convert the tokens to a string.
+                let s = org_field_type.to_token_stream().to_string();
+                // Assume s looks like:
+                s.split('<')
+                    .nth(1)
+                    .and_then(|inner| {
+                        inner.split(',').last() // take the last comma-separated part
+                    })
+                    .and_then(|part| {
+                        part.split('>') // remove any trailing '>' characters
+                            .next()
+                    })
+                    .unwrap_or("")
+                    .trim() // remove extra whitespace
+                    .to_string()
+            };
+            let field_type: Result<Type> = parse_str(&inner_struct);
+
+            let field_type:&Type =  match field_type.as_ref() {
+                Ok(t) => t,
+                Err(e) => {
+                    println!("error {}", e);
+                    org_field_type},
+            };
+
+            flattned_fields_added.push(quote! {
+                + #field_type::NUM_FIELDS as usize
+            });
+
+            // For flattened fields, we need to use their individual byte arrays directly
+            // rather than hashing the whole struct first
             code.push(quote! {
                 {
-                    for (j, element) in <#field_type as ::light_hasher::to_byte_array::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?.iter().enumerate() {
-                        field_array[#i + j + num_flattned_fields ] = *element;
-                        num_flattned_fields +=1;
+                    // Get individual byte arrays from the flattened field
+                    let flattened_arrays = <#field_type as ::light_hasher::to_byte_array::ToByteArray>::to_byte_arrays::<{#field_type::NUM_FIELDS}>(&self.#field_name)?;
+                    // Add each element individually to the field_array
+                    for element in flattened_arrays.iter() {
+                        field_array[num_flattned_fields] = *element;
+                        num_flattned_fields += 1;
                     }
                 }
             });
         } else {
+            if flatten_field_exists {
+                flattned_fields_added.push(quote! {
+                    + 1
+                });
+            }
             to_byte_arrays_fields.push(quote! {
                 arrays[#i ] =  self.#field_name.to_byte_array()?;
             });
             if flatten_field_exists {
+                // Store field index in the field_assignments for later non-flattened field processing
                 field_assignments.push(quote! {
-                    field_array[#i + num_flattned_fields ] = self.#field_name.to_byte_array()?;
+                    #i
+                });
+                code.push(quote! {
+                    field_array[num_flattned_fields] = self.#field_name.to_byte_array()?;
+                    num_flattned_fields += 1;
                 });
             } else {
                 field_assignments.push(quote! {
@@ -223,23 +268,67 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             }
         }
     });
+    let total_field_count = if flatten_field_exists {
+        // When there are flattened fields, we need to adjust the total field count
+        let mut sum = quote! { 0usize };
 
-    let hasher_impl = if flatten_field_exists {
-        // Insert in front of all other flattening code
-        // Do it here so that we have collected all flattned_fields_added.
-        code.insert(
-            0,
-            quote! {
-                    let mut num_flattned_fields = 0;
-                    let mut field_array = [[0u8; 32];  #(#flattned_fields_added)*];
-                    let mut slices: [&[u8]; #(#flattned_fields_added)*] = [&[];  #(#flattned_fields_added)*];
-            },
-        );
-        code.push(quote! {
-            for element in field_array.iter() {
-                slices[num_flattned_fields] = element.as_slice();
+        for field in fields.named.iter() {
+            let flatten = field
+                .attrs
+                .iter()
+                .any(|attr| attr.path().is_ident("flatten"));
+
+            if flatten {
+                // Use the field type's NUM_FIELDS instead of counting as one field
+                let org_field_type = &field.ty;
+
+                let inner_struct = {
+                    // Convert the tokens to a string.
+                    let s = org_field_type.to_token_stream().to_string();
+                    // Assume s looks like:
+                    // "light_zero_copy :: Ref < & 'a mut [u8], ZStruct1DerivedMetaMut >"
+                    s.split('<')
+                        .nth(1) // take the part after '<'
+                        .and_then(|inner| {
+                            inner.split(',').last() // take the last comma-separated part
+                        })
+                        .and_then(|part| {
+                            part.split('>') // remove any trailing '>' characters
+                                .next()
+                        })
+                        .unwrap_or("")
+                        .trim() // remove extra whitespace
+                        .to_string()
+                };
+                let field_type: Result<Type> = parse_str(&inner_struct);
+
+                let field_type: &Type = match field_type.as_ref() {
+                    Ok(t) => t,
+                    Err(e) => {
+                        println!("error {}", e);
+                        org_field_type
+                    }
+                };
+                sum = quote! { #sum + #field_type::NUM_FIELDS };
+            } else {
+                // Regular fields count as one
+                sum = quote! { #sum + 1 };
             }
-        });
+        }
+        sum
+    } else {
+        // Without flattened fields, just use the regular field count
+        quote! { #field_count }
+    };
+    let hasher_impl = if flatten_field_exists {
+        // code.insert(
+        //     0,
+        //     quote! {
+        //             let mut num_flattned_fields = 0;
+        //             // let mut field_array = [[0u8; 32]; NUM_FIELDS];
+        //             let mut field_array = [[0u8; 32];  #total_field_count];
+        //     },
+        // );
         quote! {
         impl #impl_gen ::light_hasher::DataHasher for #struct_name #type_gen #where_clause {
             fn hash<H>(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError>
@@ -250,8 +339,22 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 use ::light_hasher::Hasher;
                 use ::light_hasher::to_byte_array::ToByteArray;
 
+                // let field_array = self.to_byte_arrays::<3>()?;
+                // // let mut slices: [&[u8]; Self::NUM_FIELDS as usize] = [&[];  Self::NUM_FIELDS as usize];
+                // for i in 0..Self::NUM_FIELDS as usize {
+                //     slices[i] = field_array[i].as_slice();
+                //     // slices.push(field_array[i].as_slice());
+                // }
                 #(#truncate_code)*
+                 let mut num_flattned_fields = 0;
+                 let mut field_array = [[0u8; 32];  #total_field_count];
+                let mut slices: [&[u8]; #total_field_count] = [&[];  #total_field_count];
                 #(#code)*
+                for (i,element) in field_array.iter().enumerate() {
+                    slices[i] = element.as_slice();
+                }
+               println!("slices: {:?}", slices);
+               println!("field_array: {:?}", field_array);
                 H::hashv(slices.as_slice())
             }
         }}
@@ -266,6 +369,10 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
                 use ::light_hasher::to_byte_array::ToByteArray;
                 #(#truncate_code)*
                 #(#code)*
+                let vec: Vec<[u8;32]> =vec![
+                    #(#field_assignments,)*
+                ];
+                println!("slices: {:?}", vec);
                 H::hashv(&[
                     #(#field_assignments.as_slice(),)*
                 ])
@@ -282,7 +389,6 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
             None => &alt_res,
         };
         let field_assingment: TokenStream = parse_str(str).unwrap();
-        // let first_field_name = first_field_name.expect("Expected first field name");
         quote! {
             #(#truncate_code)*
             #field_assingment
@@ -293,24 +399,49 @@ pub(crate) fn hasher(input: ItemStruct) -> Result<TokenStream> {
         }
     };
 
-    Ok(quote! {
-        impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
-            const NUM_FIELDS: usize = #field_count;
+    // Calculate the total number of fields, accounting for flattened fields
 
-            fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
-                #to_byte_array
+    let to_byte_arrays_code = if flatten_field_exists {
+        // Insert in front of all other flattening code
+        // Do it here so that we have collected all flattned_fields_added.
+
+        quote! {
+            fn to_byte_arrays<const NUM_FIELDS: usize>(&self) -> ::std::result::Result<[[u8; 32]; NUM_FIELDS], ::light_hasher::HasherError> {
+                if Self::NUM_FIELDS != NUM_FIELDS {
+                    return Err(::light_hasher::HasherError::InvalidNumFields);
+                }
+                let mut num_flattned_fields = 0;
+                let mut field_array = [[0u8; 32]; NUM_FIELDS];
+                #(#truncate_code)*
+                #(#code)*
+                println!("field_array: {:?}", field_array);
+                Ok(field_array)
             }
-
+        }
+    } else {
+        quote! {
             fn to_byte_arrays<const NUM_FIELDS: usize>(&self) -> ::std::result::Result<[[u8; 32]; NUM_FIELDS], ::light_hasher::HasherError> {
                 if Self::NUM_FIELDS != NUM_FIELDS {
                     return Err(::light_hasher::HasherError::InvalidNumFields);
                 }
                 #(#truncate_code)*
-                let mut arrays = [[0u8; 32]; NUM_FIELDS];
+                let mut arrays = [[0u8; 32]; NUM_FIELDS ];
 
                 #(#to_byte_arrays_fields)*
                 Ok(arrays)
             }
+        }
+    };
+    Ok(quote! {
+        impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
+            const NUM_FIELDS: usize = #total_field_count;
+
+            fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+                #to_byte_array
+            }
+
+            #to_byte_arrays_code
+
         }
 
         #hasher_impl
@@ -404,7 +535,7 @@ mod tests {
         assert!(formatted_output.contains("const NUM_FIELDS: usize"));
         assert!(formatted_output.contains("3usize"));
         assert!(formatted_output.contains("arrays[0usize] = self.a.to_byte_array()?"));
-        assert!(formatted_output.contains("arrays[1usize] = self.b.hash_to_field_size()"));
+        assert!(formatted_output.contains("arrays[1usize] = self.b.hash_to_field_size()?"));
         assert!(formatted_output.contains("arrays[2usize]"));
     }
 
@@ -445,5 +576,51 @@ mod tests {
             }
         };
         assert!(hasher(input).is_ok());
+    }
+
+    #[test]
+    fn test_remove_lifetime_annotation() {
+        let input = "Ref < & 'a [u8], ZStruct1DerivedMeta >";
+        let output = input
+            .split(" & '")
+            .enumerate()
+            .map(|(i, part)| {
+                if i == 0 {
+                    part.to_string()
+                } else {
+                    // Split the part on the first space; discard the lifetime token.
+                    part.split_once(' ')
+                        .map(|(_, rest)| rest)
+                        .unwrap_or("")
+                        .to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" & ");
+        let expected = "Ref < & [u8], ZStruct1DerivedMeta >";
+        assert_eq!(output, expected);
+    }
+
+    #[test]
+    fn test_remove_multiple_lifetime_annotations() {
+        // Test a string with more than one lifetime annotation.
+        let input = "Ref < & 'static [u8], & 'abc Foo, & 'x Bar >";
+        let output = input
+            .split(" & '")
+            .enumerate()
+            .map(|(i, part)| {
+                if i == 0 {
+                    part.to_string()
+                } else {
+                    part.split_once(' ')
+                        .map(|(_, rest)| rest)
+                        .unwrap_or("")
+                        .to_string()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" & ");
+        let expected = "Ref < & [u8], & Foo, & Bar >";
+        assert_eq!(output, expected);
     }
 }

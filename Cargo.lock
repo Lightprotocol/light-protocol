@@ -3272,12 +3272,14 @@ dependencies = [
  "ark-ff 0.5.0",
  "arrayvec",
  "light-poseidon 0.3.0",
+ "light-zero-copy",
  "num-bigint 0.4.6",
  "rand 0.8.5",
  "sha2 0.10.8",
  "sha3 0.10.8",
  "solana-program",
  "thiserror 2.0.12",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]
@@ -3475,13 +3477,16 @@ name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
  "ark-bn254 0.5.0",
+ "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
  "light-poseidon 0.3.0",
+ "light-zero-copy",
  "prettyplease",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
+ "zerocopy 0.8.23",
 ]
 
 [[package]]

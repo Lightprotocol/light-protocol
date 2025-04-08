@@ -18,6 +18,9 @@ light-poseidon = { workspace = true }
 [dev-dependencies]
 light-compressed-account = { workspace = true }
 prettyplease = "0.2.29"
+borsh = { workspace = true }
+light-zero-copy = { workspace = true }
+zerocopy = { workspace = true }
 
 [lib]
 proc-macro = true
