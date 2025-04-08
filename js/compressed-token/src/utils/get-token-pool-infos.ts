@@ -153,6 +153,9 @@ const shuffleArray = <T>(array: T[]): T[] => {
 export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
     infos = shuffleArray(infos);
 
+    // filter only infos that are initialized
+    infos = infos.filter(info => info.isInitialized);
+
     // Return a single random token pool info
     return infos[0];
 }

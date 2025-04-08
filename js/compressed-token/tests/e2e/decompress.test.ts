@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { PublicKey, Keypair, Signer } from '@solana/web3.js';
+import { describe, it, expect, beforeAll, assert } from 'vitest';
+import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     ParsedTokenAccount,
@@ -13,8 +13,13 @@ import {
     StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMint, decompress, mintTo } from '../../src/actions';
+import { createMint, mintTo, decompress } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -64,19 +69,19 @@ describe('decompress', () => {
     let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
-
     let charlie: Signer;
     let charlieAta: PublicKey;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let merkleTree: StateTreeInfo;
+    let stateTreeInfo: StateTreeInfo;
+    let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
-        const stateTreeInfos = await getActiveStateTreeInfos(rpc);
-        merkleTree = selectStateTreeInfo(stateTreeInfos);
         payer = await newAccountWithLamports(rpc, 1e9);
+        bob = await newAccountWithLamports(rpc, 1e9);
+        charlie = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
@@ -90,8 +95,10 @@ describe('decompress', () => {
             )
         ).mint;
 
-        bob = await newAccountWithLamports(rpc, 1e9);
-        charlie = await newAccountWithLamports(rpc, 1e9);
+        stateTreeInfo = selectStateTreeInfo(
+            await rpc.getCachedActiveStateTreeInfos(),
+        );
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 
         charlieAta = await createAssociatedTokenAccount(
             rpc,
@@ -107,7 +114,8 @@ describe('decompress', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            selectTokenPoolInfo(tokenPoolInfos),
         );
     });
 
@@ -130,7 +138,8 @@ describe('decompress', () => {
                 bn(5),
                 bob,
                 charlieAta,
-                merkleTree,
+                stateTreeInfo,
+                tokenPoolInfos,
             );
 
             await assertDecompress(

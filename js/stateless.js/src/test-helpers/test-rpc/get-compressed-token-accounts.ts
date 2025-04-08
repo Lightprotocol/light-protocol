@@ -1,10 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
-import {
-    COMPRESSED_TOKEN_PROGRAM_ID,
-    defaultTestStateTreeAccounts,
-} from '../../constants';
+import { COMPRESSED_TOKEN_PROGRAM_ID } from '../../constants';
 import { Rpc } from '../../rpc';
 import { getQueueForTree } from './get-compressed-accounts';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
@@ -73,7 +70,6 @@ export function parseTokenLayoutWithIdl(
 /**
  * parse compressed accounts of an event with token layout
  * @internal
- * TODO: refactor
  */
 async function parseEventWithTokenTlvData(
     event: PublicTransactionEvent,
@@ -89,14 +85,19 @@ async function parseEventWithTokenTlvData(
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
 
             const { queue, treeType, tree } = getQueueForTree(ctxs, maybeTree);
-            const merkleContext: MerkleContext = {
-                merkleTree:
+
+            if (
+                !tree.equals(
                     pubkeyArray[
                         event.outputCompressedAccounts[i].merkleTreeIndex
                     ],
-                nullifierQueue:
-                    // FIXME: fix make dynamic
-                    defaultTestStateTreeAccounts().nullifierQueue,
+                )
+            ) {
+                throw new Error('Invalid tree');
+            }
+            const merkleContext: MerkleContext = {
+                merkleTree: tree,
+                nullifierQueue: queue,
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
             };
@@ -187,7 +188,7 @@ export async function getCompressedTokenAccountsByOwnerTest(
     return {
         items: accounts.sort(
             (a, b) =>
-                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+                a.compressedAccount.leafIndex - b.compressedAccount.leafIndex,
         ),
         cursor: null,
     };

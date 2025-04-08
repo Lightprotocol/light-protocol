@@ -18,13 +18,7 @@ describe('transfer', () => {
         payer = await newAccountWithLamports(rpc, 2e9, 256);
         bob = await newAccountWithLamports(rpc, 2e9, 256);
 
-        await compress(
-            rpc,
-            payer,
-            1e9,
-            payer.publicKey,
-            // defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, 1e9, payer.publicKey);
     });
 
     const numberOfTransfers = 10;

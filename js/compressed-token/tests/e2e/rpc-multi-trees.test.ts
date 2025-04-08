@@ -1,17 +1,18 @@
-import { describe, it, assert, beforeAll, expect } from 'vitest';
+import { describe, it, beforeAll, expect } from 'vitest';
 import { Keypair, PublicKey, Signer } from '@solana/web3.js';
 import {
     Rpc,
     newAccountWithLamports,
     bn,
     createRpc,
-    getTestRpc,
-    pickRandomTreeAndQueue,
-    defaultTestStateTreeAccounts,
-    defaultTestStateTreeAccounts2,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 const TEST_TOKEN_DECIMALS = 2;
 
@@ -23,14 +24,16 @@ describe('rpc-multi-trees', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    let treeAndQueue: { tree: PublicKey; queue: PublicKey };
+
+    let stateTreeInfo: StateTreeInfo;
+    let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
         rpc = createRpc();
 
-        treeAndQueue = pickRandomTreeAndQueue(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        stateTreeInfo = await rpc.getCachedActiveStateTreeInfos()[0];
+
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         payer = await newAccountWithLamports(rpc, 1e9, 252);
         mintAuthority = Keypair.generate();
@@ -56,7 +59,8 @@ describe('rpc-multi-trees', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            treeAndQueue.tree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         // should auto land in same tree
@@ -77,11 +81,11 @@ describe('rpc-multi-trees', () => {
         expect(senderAccounts.length).toBe(1);
         expect(receiverAccounts.length).toBe(1);
         expect(senderAccounts[0].compressedAccount.merkleTree.toBase58()).toBe(
-            treeAndQueue.tree.toBase58(),
+            stateTreeInfo.tree.toBase58(),
         );
         expect(
             receiverAccounts[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
+        ).toBe(stateTreeInfo.tree.toBase58());
     });
 
     it('getCompressedTokenAccountBalance should return consistent tree and queue ', async () => {
@@ -91,39 +95,22 @@ describe('rpc-multi-trees', () => {
         );
         expect(
             senderAccounts.items[0].compressedAccount.merkleTree.toBase58(),
-        ).toBe(treeAndQueue.tree.toBase58());
+        ).toBe(stateTreeInfo.tree.toBase58());
         expect(
             senderAccounts.items[0].compressedAccount.nullifierQueue.toBase58(),
-        ).toBe(treeAndQueue.queue.toBase58());
+        ).toBe(stateTreeInfo.queue.toBase58());
     });
 
     it('should return both compressed token accounts in different trees', async () => {
-        const tree1 = defaultTestStateTreeAccounts().merkleTree;
-        const tree2 = defaultTestStateTreeAccounts2().merkleTree2;
-        const queue1 = defaultTestStateTreeAccounts().nullifierQueue;
-        const queue2 = defaultTestStateTreeAccounts2().nullifierQueue2;
+        const info2 = await rpc.getCachedActiveStateTreeInfos()[1];
+        const previousTree = stateTreeInfo.tree;
 
-        const previousTree = treeAndQueue.tree;
-
-        let otherTree: PublicKey;
-        let otherQueue: PublicKey;
-        if (previousTree.toBase58() === tree1.toBase58()) {
-            otherTree = tree2;
-            otherQueue = queue2;
-        } else {
-            otherTree = tree1;
-            otherQueue = queue1;
+        let otherInfo = info2;
+        if (previousTree.toBase58() === stateTreeInfo.tree.toBase58()) {
+            otherInfo = stateTreeInfo;
         }
 
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1042),
-            otherTree,
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1042));
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
@@ -138,7 +125,7 @@ describe('rpc-multi-trees', () => {
         const newlyMintedAccount = senderAccounts.items.find(
             account =>
                 account.compressedAccount.merkleTree.toBase58() ===
-                otherTree.toBase58(),
+                otherInfo.tree.toBase58(),
         );
 
         expect(previousAccount).toBeDefined();

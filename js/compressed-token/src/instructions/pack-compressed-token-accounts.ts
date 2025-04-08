@@ -61,8 +61,7 @@ export function packCompressedTokenAccounts(
             inputCompressedTokenAccounts[0].parsed.delegate,
         );
     }
-    /// TODO: move pubkeyArray to remainingAccounts
-    /// Currently just packs 'delegate' to pubkeyArray
+
     const packedInputTokenData: InputTokenDataWithContext[] = [];
     /// pack inputs
     inputCompressedTokenAccounts.forEach(

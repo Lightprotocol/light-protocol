@@ -1,5 +1,9 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { StateTreeInfo, TreeType } from '../state/types';
+import { AddressTreeInfo, StateTreeInfo, TreeType } from '../state/types';
+import {
+    defaultTestStateTreeAccounts,
+    getDefaultAddressTreeInfo,
+} from '../constants';
 
 /**
  * @deprecated use {@link selectStateTreeInfo} instead. Get a random tree and

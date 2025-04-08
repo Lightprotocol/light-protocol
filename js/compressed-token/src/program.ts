@@ -784,6 +784,19 @@ export class CompressedTokenProgram {
             toAddress,
         } = params;
 
+        console.log(
+            'input token accounts queues',
+            inputCompressedTokenAccounts.map(
+                acc => acc.compressedAccount.nullifierQueue,
+            ),
+        );
+        console.log(
+            'input token accounts trees',
+            inputCompressedTokenAccounts.map(
+                acc => acc.compressedAccount.merkleTree,
+            ),
+        );
+        console.log('output state tree info', outputStateTreeInfo);
         const tokenTransferOutputs: TokenTransferOutputData[] =
             createTransferOutputState(
                 inputCompressedTokenAccounts,
@@ -800,6 +813,27 @@ export class CompressedTokenProgram {
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
+
+        console.log(
+            'packed remaining account metas',
+            remainingAccountMetas.map(meta => meta.pubkey.toBase58()),
+        );
+        console.log(
+            'packed input - tree indices',
+            inputTokenDataWithContext.map(
+                data => data.merkleContext.merkleTreePubkeyIndex,
+            ),
+        );
+        console.log(
+            'packed input - queue indices',
+            inputTokenDataWithContext.map(
+                data => data.merkleContext.nullifierQueuePubkeyIndex,
+            ),
+        );
+        console.log(
+            'packed output - tree indices',
+            packedOutputTokenData.map(data => data.merkleTreeIndex),
+        );
 
         const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,

@@ -121,7 +121,17 @@ export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
     ];
 };
 
+export const getDefaultAddressTreeInfo = () => {
+    return {
+        tree: new PublicKey(addressTree),
+        queue: new PublicKey(addressQueue),
+        cpiContext: null,
+        treeType: TreeType.AddressV1,
+    };
+};
 /**
+ * @deprecated use {@link rpc.getCachedActiveStateTreeInfos} and {@link selectStateTreeInfo} instead.
+ * for address trees, use {@link getDefaultAddressTreeInfo} instead.
  * Use only with Localnet testing.
  * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getActiveStateTreeInfos}.
  */

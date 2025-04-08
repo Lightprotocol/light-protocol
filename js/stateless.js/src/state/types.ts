@@ -71,6 +71,9 @@ export type StateTreeInfo = {
      */
     treeType: TreeType;
 };
+export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {
+    cpiContext: null;
+};
 
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;

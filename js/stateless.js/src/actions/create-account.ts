@@ -18,8 +18,13 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
-import { defaultTestStateTreeAccounts } from '../constants';
-import { bn, StateTreeInfo } from '../state';
+import {
+    addressQueue,
+    addressTree,
+    defaultTestStateTreeAccounts,
+    getDefaultAddressTreeInfo,
+} from '../constants';
+import { AddressTreeInfo, bn, StateTreeInfo } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -29,10 +34,8 @@ import BN from 'bn.js';
  * @param payer                 Payer of the transaction and initialization fees
  * @param seeds                 Seeds to derive the new account address
  * @param programId             Owner of the new account
- * @param addressTree           Optional address tree. Defaults to a current
+ * @param addressTreeInfo       Optional address tree info. Defaults to a current
  *                              shared address tree.
- * @param addressQueue          Optional address queue. Defaults to a current
- *                              shared address queue.
  * @param outputStateTreeInfo   Optional output state tree. Defaults to fetching
  *                              a current shared state tree.
  * @param confirmOptions        Options for confirming the transaction
@@ -44,18 +47,15 @@ export async function createAccount(
     payer: Signer,
     seeds: Uint8Array[],
     programId: PublicKey,
-    addressTree?: PublicKey,
-    addressQueue?: PublicKey,
+    addressTreeInfo?: AddressTreeInfo,
     outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
-
-    addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
-    addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
+    const { tree, queue } = addressTreeInfo ?? getDefaultAddressTreeInfo();
 
     const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, addressTree);
+    const address = deriveAddress(seed, tree);
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
@@ -65,8 +65,8 @@ export async function createAccount(
     const proof = await rpc.getValidityProofV0(undefined, [
         {
             address: bn(address.toBytes()),
-            tree: addressTree,
-            queue: addressQueue,
+            tree,
+            queue,
         },
     ]);
 
@@ -107,10 +107,8 @@ export async function createAccount(
  * @param lamports              Number of compressed lamports to initialize the
  *                              account with
  * @param programId             Owner of the new account
- * @param addressTree           Optional address tree. Defaults to a current
- *                              shared address tree.
- * @param addressQueue          Optional address queue. Defaults to a current
- *                              shared address queue.
+ * @param addressTreeInfo       Optional address tree info. Defaults to a
+ *                              current shared address tree.
  * @param outputStateTreeInfo   Optional output state tree. Defaults to a
  *                              current shared state tree.
  * @param confirmOptions        Options for confirming the transaction
@@ -123,8 +121,7 @@ export async function createAccountWithLamports(
     seeds: Uint8Array[],
     lamports: number | BN,
     programId: PublicKey,
-    addressTree?: PublicKey,
-    addressQueue?: PublicKey,
+    addressTreeInfo?: AddressTreeInfo,
     outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
@@ -146,20 +143,16 @@ export async function createAccountWithLamports(
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    addressTree = addressTree ?? defaultTestStateTreeAccounts().addressTree;
-    addressQueue = addressQueue ?? defaultTestStateTreeAccounts().addressQueue;
+    const { tree } = addressTreeInfo ?? getDefaultAddressTreeInfo();
 
     const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, addressTree);
+    const address = deriveAddress(seed, tree);
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
         [bn(address.toBytes())],
     );
 
-    /// TODO(crank): Adapt before supporting addresses in rpc / cranked address trees.
-    /// Currently expects address roots to be consistent with one another and
-    /// static. See test-rpc.ts for more details.
     const params: NewAddressParams = {
         seed: seed,
         addressMerkleTreeRootIndex:
@@ -177,7 +170,6 @@ export async function createAccountWithLamports(
         recentValidityProof: proof.compressedProof,
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
-        programId,
         outputStateTreeInfo,
     });
 

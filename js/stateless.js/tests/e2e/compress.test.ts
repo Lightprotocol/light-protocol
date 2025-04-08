@@ -92,7 +92,6 @@ describe('compress', () => {
             ],
             LightSystemProgram.programId,
             undefined,
-            undefined,
             stateTreeInfo,
         );
 
@@ -107,7 +106,7 @@ describe('compress', () => {
             ],
             0,
             LightSystemProgram.programId,
-            undefined,
+
             undefined,
             stateTreeInfo,
         );
@@ -123,7 +122,6 @@ describe('compress', () => {
             ],
             LightSystemProgram.programId,
             undefined,
-            undefined,
             stateTreeInfo,
         );
 
@@ -137,7 +135,6 @@ describe('compress', () => {
                 ]),
             ],
             LightSystemProgram.programId,
-            undefined,
             undefined,
             stateTreeInfo,
         );
@@ -153,7 +150,6 @@ describe('compress', () => {
                     ]),
                 ],
                 LightSystemProgram.programId,
-                undefined,
                 undefined,
                 stateTreeInfo,
             ),
@@ -215,7 +211,6 @@ describe('compress', () => {
             ],
             100,
             LightSystemProgram.programId,
-            undefined,
             undefined,
             stateTreeInfo,
         );

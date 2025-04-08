@@ -12,6 +12,7 @@ import {
     defaultTestStateTreeAccounts,
     deriveAddress,
     deriveAddressSeed,
+    getDefaultAddressTreeInfo,
     selectStateTreeInfo,
     sleep,
 } from '../../src';
@@ -197,7 +198,6 @@ describe('rpc-interop', () => {
             newAddressSeedsTest,
             LightSystemProgram.programId,
             undefined,
-            undefined,
             stateTreeInfo,
         );
         executedTxs++;
@@ -209,7 +209,6 @@ describe('rpc-interop', () => {
             payer,
             newAddressSeeds,
             LightSystemProgram.programId,
-            undefined,
             undefined,
             stateTreeInfo,
         );
@@ -687,9 +686,8 @@ describe('rpc-interop', () => {
     it('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
-        const addressTree = defaultTestStateTreeAccounts().addressTree;
-        const addressQueue = defaultTestStateTreeAccounts().addressQueue;
-        const address = deriveAddress(seed, addressTree);
+        const addressTreeInfo = getDefaultAddressTreeInfo();
+        const address = deriveAddress(seed, addressTreeInfo.tree);
 
         await logIndexed(rpc, testRpc, payer, 'before create account1');
         await createAccount(
@@ -697,8 +695,7 @@ describe('rpc-interop', () => {
             payer,
             seeds,
             LightSystemProgram.programId,
-            addressTree,
-            addressQueue,
+            addressTreeInfo,
             stateTreeInfo,
         );
         await logIndexed(rpc, testRpc, payer, 'after create account1');
@@ -740,9 +737,8 @@ describe('rpc-interop', () => {
         const seeds = [new Uint8Array(randomBytes(32))];
         const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
 
-        const addressTree = defaultTestStateTreeAccounts().addressTree;
-        const addressQueue = defaultTestStateTreeAccounts().addressQueue;
-        const address = deriveAddress(seed, addressTree);
+        const addressTreeInfo = getDefaultAddressTreeInfo();
+        const address = deriveAddress(seed, addressTreeInfo.tree);
         console.log('expected address base58', address.toBase58());
 
         await logIndexed(rpc, testRpc, payer, 'before create account2');
@@ -751,8 +747,7 @@ describe('rpc-interop', () => {
             payer,
             seeds,
             LightSystemProgram.programId,
-            addressTree,
-            addressQueue,
+            addressTreeInfo,
             stateTreeInfo,
         );
 

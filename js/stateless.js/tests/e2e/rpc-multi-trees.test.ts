@@ -94,7 +94,6 @@ describe('rpc-multi-trees', () => {
             [seed],
             LightSystemProgram.programId,
             undefined,
-            undefined,
             tree, // output state tree
         );
 
@@ -204,7 +203,6 @@ describe('rpc-multi-trees', () => {
             [new Uint8Array(randomBytes(32))],
             0,
             LightSystemProgram.programId,
-            undefined,
             undefined,
             tree,
         );
