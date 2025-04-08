@@ -757,6 +757,7 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
 
 // TODO: add randomized tests
 // TODO: add unit test ZInstructionDataInvokeCpiWithReadOnly
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;

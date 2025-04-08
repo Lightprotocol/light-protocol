@@ -88,15 +88,29 @@ impl From<&[u8; 32]> for Pubkey {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-impl From<Pubkey> for crate::Pubkey {
+#[cfg(not(feature = "anchor"))]
+impl From<Pubkey> for solana_program::pubkey::Pubkey {
     fn from(pubkey: Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-impl From<&Pubkey> for crate::Pubkey {
+#[cfg(not(feature = "anchor"))]
+impl From<&Pubkey> for solana_program::pubkey::Pubkey {
+    fn from(pubkey: &Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<Pubkey> for anchor_lang::prelude::Pubkey {
+    fn from(pubkey: Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<&Pubkey> for anchor_lang::prelude::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }

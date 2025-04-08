@@ -9,7 +9,6 @@ edition = "2021"
 [features]
 default = ["solana"]
 solana = ["solana-program"]
-anchor = ["solana-program"]   # For backward compatibility, alias to solana
 pinocchio = ["dep:pinocchio"]
 
 [dependencies]

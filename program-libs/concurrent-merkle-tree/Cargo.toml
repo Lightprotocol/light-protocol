@@ -7,11 +7,13 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 
 [features]
-default = ["solana"]
 heavy-tests = []
-solana = ["light-bounded-vec/solana", "light-hasher/solana", "solana-program"]
-anchor = ["solana"]  # For backward compatibility, alias to solana
-pinocchio = ["dep:pinocchio", "light-bounded-vec/solana", "light-hasher/pinocchio"]
+solana = ["solana-program", "light-bounded-vec/solana", "light-hasher/solana"]
+pinocchio = [
+    "dep:pinocchio",
+    "light-bounded-vec/solana",
+    "light-hasher/pinocchio",
+]
 
 [dependencies]
 borsh = { workspace = true }

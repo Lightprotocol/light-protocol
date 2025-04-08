@@ -378,6 +378,7 @@ impl ZCompressedAccount<'_> {
     }
 }
 
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod tests {
     use light_hasher::Poseidon;

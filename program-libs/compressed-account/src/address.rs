@@ -143,6 +143,7 @@ pub fn pack_read_only_accounts(
         .collect::<Vec<PackedReadOnlyCompressedAccount>>()
 }
 
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod tests {
 

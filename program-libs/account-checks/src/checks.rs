@@ -245,9 +245,9 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod check_account_tests {
-    #[cfg(not(feature = "pinocchio"))]
     use std::{cell::RefCell, rc::Rc};
 
     use borsh::{BorshDeserialize, BorshSerialize};

@@ -8,7 +8,6 @@ edition = "2021"
 
 [features]
 solana = ["solana-program"]
-anchor = []
 
 [dependencies]
 light-utils = { workspace = true }
