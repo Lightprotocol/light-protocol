@@ -41,7 +41,7 @@ impl PackedAccounts {
     }
 
     pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
-        self.system_accounts = get_light_system_account_metas(config);
+        self.system_accounts.extend(get_light_system_account_metas(config));
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
