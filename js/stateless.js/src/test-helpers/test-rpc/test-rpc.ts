@@ -355,7 +355,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
 
             for (let i = 0; i < hashes.length; i++) {
-                // const hashStr = hashes[i].toString();
                 const leafIndex = leaves.findIndex(leaf =>
                     bn(leaf).eq(hashes[i]),
                 );
@@ -395,10 +394,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
                 .leaves[leafIndex];
             const hashArr = bn(computedHash).toArray('be', 32);
-            if (
-                !hashArr.every((val, index) => val === proof.hash[index])
-                // !proof.nullifierQueue.equals(PublicKey.default)
-            ) {
+            if (!hashArr.every((val, index) => val === proof.hash[index])) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
                 );

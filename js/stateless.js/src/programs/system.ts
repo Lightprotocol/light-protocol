@@ -32,13 +32,6 @@ export const sumUpLamports = (
     );
 };
 
-type StorageOptions = {
-    /**
-     * The state tree info that the tx output should be inserted into. Defaults to a
-     * public state tree if unspecified.
-     */
-    stateTreeInfo: StateTreeInfo;
-};
 /**
  * Create compressed account system transaction params
  */

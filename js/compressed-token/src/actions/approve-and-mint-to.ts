@@ -11,38 +11,18 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    pickRandomTreeAndQueue,
     StateTreeInfo,
     selectStateTreeInfo,
-    toArray,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
-import { isSingleTokenPoolInfo, StorageOptions } from '../types';
+
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
     selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../utils/get-token-pool-infos';
-
-async function getStorageOptions(
-    rpc: Rpc,
-    mint: PublicKey,
-    decompressAmount?: number | BN,
-): Promise<StorageOptions> {
-    const res = await Promise.all([
-        rpc.getCachedActiveStateTreeInfos(),
-        getTokenPoolInfos(rpc, mint),
-    ]);
-
-    return {
-        stateTreeInfo: selectStateTreeInfo(res[0]),
-        tokenPoolInfos: decompressAmount
-            ? selectTokenPoolInfosForDecompression(res[1], decompressAmount)
-            : selectTokenPoolInfo(res[1]),
-    };
-}
 
 /**
  * Mint compressed tokens to a solana address from an external mint authority

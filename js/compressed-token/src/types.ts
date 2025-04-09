@@ -80,11 +80,6 @@ export type CompressSplTokenAccountInstructionData = {
     cpiContext: CompressedCpiContext | null;
 };
 
-export type StorageOptions = {
-    stateTreeInfo: StateTreeInfo;
-    tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
-};
-
 export function isSingleTokenPoolInfo(
     tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[],
 ): tokenPoolInfos is TokenPoolInfo {
