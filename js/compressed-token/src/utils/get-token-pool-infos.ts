@@ -1,5 +1,5 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, unpackAccount } from '@solana/spl-token';
+import { unpackAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../program';
 import { Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
@@ -42,6 +42,7 @@ export async function getTokenPoolInfos(
     const addresses = Array.from({ length: 5 }, (_, i) =>
         deriveTokenPoolPdaWithBump(mint, i),
     );
+
     const accountInfos = await rpc.getMultipleAccountsInfo(
         addresses,
         commitment,
@@ -59,8 +60,7 @@ export async function getTokenPoolInfos(
             : null,
     );
 
-    const tokenProgram = parsedInfos[0]!.owner;
-
+    const tokenProgram = accountInfos[0]!.owner;
     return parsedInfos.map((parsedInfo, i) => {
         if (!parsedInfo) {
             return {
