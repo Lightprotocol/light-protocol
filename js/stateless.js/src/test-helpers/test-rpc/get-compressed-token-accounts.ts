@@ -76,7 +76,7 @@ async function parseEventWithTokenTlvData(
     rpc: Rpc,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-    const ctxs = await rpc.getCachedActiveStateTreeInfos();
+    const infos = await rpc.getCachedActiveStateTreeInfos();
 
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
@@ -84,7 +84,7 @@ async function parseEventWithTokenTlvData(
             const maybeTree =
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
 
-            const { queue, treeType, tree } = getQueueForTree(ctxs, maybeTree);
+            const { queue, treeType, tree } = getQueueForTree(infos, maybeTree);
 
             if (
                 !tree.equals(

@@ -39,8 +39,6 @@ import {
  *                              state tree account.
  * @param tokenPoolInfo         Token pool info
  * @param confirmOptions        Options for confirming the transaction
- * @param tokenProgramId        Optional: token program id. Default: SPL Token
- *                              Program ID
  *
  * @return Signature of the confirmed transaction
  */
@@ -55,11 +53,7 @@ export async function compress(
     outputStateTreeInfo?: StateTreeInfo,
     tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
-    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
     outputStateTreeInfo =
         outputStateTreeInfo ??
         selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
@@ -76,7 +70,6 @@ export async function compress(
         mint,
         outputStateTreeInfo,
         tokenPoolInfo,
-        tokenProgramId,
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();

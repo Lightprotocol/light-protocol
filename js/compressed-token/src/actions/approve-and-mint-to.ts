@@ -56,7 +56,6 @@ async function getStorageOptions(
  * @param outputStateTreeInfo   State tree info
  * @param tokenPoolInfo         Token pool info
  * @param confirmOptions        Options for confirming the transaction
- * @param tokenProgramId        Token program id
  *
  * @return Signature of the confirmed transaction
  */
@@ -70,11 +69,7 @@ export async function approveAndMintTo(
     outputStateTreeInfo?: StateTreeInfo,
     tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
-    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId =
-        tokenProgramId ??
-        (await CompressedTokenProgram.get_mint_program_id(mint, rpc));
     outputStateTreeInfo =
         outputStateTreeInfo ??
         selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
@@ -90,7 +85,6 @@ export async function approveAndMintTo(
         undefined,
         undefined,
         confirmOptions,
-        tokenProgramId,
     );
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({
@@ -102,7 +96,6 @@ export async function approveAndMintTo(
         toPubkey,
         outputStateTreeInfo,
         tokenPoolInfo,
-        tokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

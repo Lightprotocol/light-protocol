@@ -162,10 +162,6 @@ export type DecompressParams = {
      * Tokenpool addresses. One or more token pools can be provided.
      */
     tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
 };
 
 export type TransferParams = {
@@ -308,10 +304,6 @@ export type MintToParams = {
      * Tokenpool addresses. One or more token pools can be provided.
      */
     tokenPoolInfo: TokenPoolInfo;
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
 };
 
 /**
@@ -366,10 +358,6 @@ export type ApproveAndMintToParams = {
      * Tokenpool addresses. One or more token pools can be provided.
      */
     tokenPoolInfo: TokenPoolInfo;
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
 };
 
 export type CreateTokenProgramLookupTableParams = {
@@ -677,11 +665,10 @@ export class CompressedTokenProgram {
             outputStateTreeInfo,
             toPubkey,
             amount,
-            tokenProgramId,
             tokenPoolInfo,
         } = params;
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
+        const tokenProgram = tokenPoolInfo.tokenProgram;
         checkTokenPoolInfo(tokenPoolInfo, mint);
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
@@ -736,7 +723,7 @@ export class CompressedTokenProgram {
             authority,
             outputStateTreeInfo,
             toPubkey,
-            tokenProgramId,
+
             tokenPoolInfo,
         } = params;
 
@@ -749,7 +736,7 @@ export class CompressedTokenProgram {
             authority,
             amount,
             [],
-            tokenProgramId,
+            tokenPoolInfo.tokenProgram,
         );
 
         /// 2. Compress from mint authority ATA to recipient compressed account
@@ -762,7 +749,6 @@ export class CompressedTokenProgram {
             amount: params.amount,
             outputStateTreeInfo,
             tokenPoolInfo,
-            tokenProgramId,
         });
 
         return [splMintToInstruction, compressInstruction];
@@ -1022,7 +1008,6 @@ export class CompressedTokenProgram {
             outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
-            tokenProgramId,
         } = params;
         const amount = bn(params.amount);
         const tokenPoolInfos = toArray(params.tokenPoolInfos);
@@ -1060,7 +1045,8 @@ export class CompressedTokenProgram {
             lamportsChangeAccountMerkleTreeIndex: null,
         };
         const data = encodeTransferInstructionData(rawData);
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+        const tokenProgram = tokenPoolInfos[0].tokenProgram;
+
         const {
             accountCompressionAuthority,
             noopProgram,
@@ -1192,7 +1178,7 @@ export class CompressedTokenProgram {
         });
     }
 
-    static async get_mint_program_id(
+    static async getMintProgramId(
         mint: PublicKey,
         connection: Connection,
     ): Promise<PublicKey | undefined> {

@@ -95,7 +95,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
-    const ctxs = await rpc.getCachedActiveStateTreeInfos();
+    const infos = await rpc.getCachedActiveStateTreeInfos();
 
     for (const event of events) {
         for (
@@ -110,7 +110,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
 
             // In test-rpc we can do this with a static set of trees because it's local-only.
             const { queue, treeType, tree } = getQueueForTree(
-                ctxs,
+                infos,
                 new PublicKey(smt),
             );
 

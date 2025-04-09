@@ -7,7 +7,13 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 
 ### Breaking changes
 
-TBD.
+- ActiveTreeBundle renamed to StateTreeInfo
+- outputStateTree ()
+
+
+
+
+
 
 ## [0.20.5-0.20.9] - 2025-02-24
 

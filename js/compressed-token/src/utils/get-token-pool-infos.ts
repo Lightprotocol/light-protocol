@@ -26,6 +26,14 @@ export function checkTokenPoolInfo(
     return true;
 }
 
+/**
+ * Get the token pool infos for a given mint.
+ * @param rpc         The RPC client
+ * @param mint        The mint of the token pool
+ * @param commitment  The commitment to use
+ *
+ * @returns The token pool infos
+ */
 export async function getTokenPoolInfos(
     rpc: Rpc,
     mint: PublicKey,
