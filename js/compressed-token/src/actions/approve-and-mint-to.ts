@@ -65,6 +65,7 @@ export async function approveAndMintTo(
         undefined,
         undefined,
         confirmOptions,
+        tokenPoolInfo.tokenProgram,
     );
 
     const ixs = await CompressedTokenProgram.approveAndMintTo({

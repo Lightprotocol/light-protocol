@@ -338,6 +338,7 @@ describe('compress', () => {
         const tokenPoolInfoT22 = selectTokenPoolInfo(
             await getTokenPoolInfos(rpc, token22Mint),
         );
+        console.log('tokenPoolInfoT22', tokenPoolInfoT22);
 
         await expect(
             mintTo(

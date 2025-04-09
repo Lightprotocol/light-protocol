@@ -85,10 +85,6 @@ export type CompressParams = {
      * Tokenpool.
      */
     tokenPoolInfo: TokenPoolInfo;
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
 };
 
 export type CompressSplTokenAccountParams = {
@@ -120,10 +116,6 @@ export type CompressSplTokenAccountParams = {
      * The token pool info.
      */
     tokenPoolInfo: TokenPoolInfo;
-    /**
-     * Optional: The token program ID. Default: SPL Token Program ID
-     */
-    tokenProgramId?: PublicKey;
 };
 
 export type DecompressParams = {
@@ -723,7 +715,6 @@ export class CompressedTokenProgram {
             authority,
             outputStateTreeInfo,
             toPubkey,
-
             tokenPoolInfo,
         } = params;
 
@@ -903,7 +894,6 @@ export class CompressedTokenProgram {
             toAddress,
             mint,
             outputStateTreeInfo,
-            tokenProgramId,
             tokenPoolInfo,
         } = params;
 
@@ -969,8 +959,6 @@ export class CompressedTokenProgram {
         };
         const data = encodeTransferInstructionData(rawData);
 
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
-
         checkTokenPoolInfo(tokenPoolInfo, mint);
 
         const keys = transferAccountsLayout({
@@ -983,7 +971,7 @@ export class CompressedTokenProgram {
             systemProgram: SystemProgram.programId,
             tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             compressOrDecompressTokenAccount: source,
-            tokenProgram,
+            tokenProgram: tokenPoolInfo.tokenProgram,
         });
 
         keys.push(...remainingAccountMetas);
@@ -1129,9 +1117,7 @@ export class CompressedTokenProgram {
             remainingAmount,
             outputStateTreeInfo,
             tokenPoolInfo,
-            tokenProgramId,
         } = params;
-        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
         checkTokenPoolInfo(tokenPoolInfo, mint);
         const remainingAccountMetas: AccountMeta[] = [
@@ -1165,7 +1151,7 @@ export class CompressedTokenProgram {
             selfProgram: this.programId,
             tokenPoolPda: tokenPoolInfo.tokenPoolPda,
             compressOrDecompressTokenAccount: tokenAccount,
-            tokenProgram,
+            tokenProgram: tokenPoolInfo.tokenProgram,
             systemProgram: SystemProgram.programId,
         });
 
