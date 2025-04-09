@@ -79,9 +79,9 @@ pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionDataTrait
                     Ok(())
                 } else {
                     msg!(
-                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
+                       format!("Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
                         compressed_account_with_context.owner().to_bytes(),
-                        invoking_program_id
+                        invoking_program_id).as_str()
                     );
                     Err(SystemProgramError::SignerCheckFailed.into())
                 }
@@ -122,22 +122,37 @@ pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDa
 
 #[cfg(test)]
 mod test {
+    use pinocchio::pubkey::find_program_address;
+
     use super::*;
 
     #[test]
     fn test_cpi_signer_check() {
         for _ in 0..1000 {
             let seeds = [CPI_AUTHORITY_PDA_SEED];
-            let invoking_program = Pubkey::new_unique();
-            let (derived_signer, _) = Pubkey::find_program_address(&seeds[..], &invoking_program);
-            assert_eq!(cpi_signer_check(&invoking_program, &derived_signer), Ok(()));
+            let invoking_program = Pubkey::default();
+            let (derived_signer, bump) = find_program_address(&seeds[..], &invoking_program);
+            assert_eq!(
+                cpi_signer_check(&invoking_program, &derived_signer, None),
+                Ok(())
+            );
+            assert_eq!(
+                cpi_signer_check(&invoking_program, &derived_signer, Some(bump)),
+                Ok(())
+            );
 
-            let authority = Pubkey::new_unique();
-            let invoking_program = Pubkey::new_unique();
+            let authority = crate::ID;
+            let invoking_program = Pubkey::default();
             assert!(
-                cpi_signer_check(&invoking_program, &authority)
+                cpi_signer_check(&invoking_program, &authority, None)
                     == Err(ProgramError::InvalidSeeds.into())
-                    || cpi_signer_check(&invoking_program, &authority)
+                    || cpi_signer_check(&invoking_program, &authority, None)
+                        == Err(SystemProgramError::CpiSignerCheckFailed.into())
+            );
+            assert!(
+                cpi_signer_check(&invoking_program, &authority, Some(255))
+                    == Err(ProgramError::InvalidSeeds.into())
+                    || cpi_signer_check(&invoking_program, &authority, Some(255))
                         == Err(SystemProgramError::CpiSignerCheckFailed.into())
             );
         }

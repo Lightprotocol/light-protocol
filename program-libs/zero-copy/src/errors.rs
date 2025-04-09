@@ -46,10 +46,17 @@ impl From<ZeroCopyError> for u32 {
     }
 }
 
-#[cfg(any(feature = "solana", feature = "pinocchio"))]
-impl From<ZeroCopyError> for crate::ProgramError {
+#[cfg(feature = "pinocchio")]
+impl From<ZeroCopyError> for pinocchio::program_error::ProgramError {
     fn from(e: ZeroCopyError) -> Self {
-        crate::ProgramError::Custom(e.into())
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<ZeroCopyError> for solana_program::program_error::ProgramError {
+    fn from(e: ZeroCopyError) -> Self {
+        solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 

@@ -21,8 +21,3 @@ pub fn add_padding<LEN, T>(offset: &mut usize) {
 pub trait ZeroCopyTraits: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
 
 impl<T> ZeroCopyTraits for T where T: Copy + KnownLayout + Immutable + FromBytes + IntoBytes {}
-
-#[cfg(not(feature = "solana"))]
-use pinocchio::program_error::ProgramError;
-#[cfg(feature = "solana")]
-use solana_program::program_error::ProgramError;

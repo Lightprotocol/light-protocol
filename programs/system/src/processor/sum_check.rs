@@ -23,7 +23,7 @@ pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
         }
 
         sum = sum
-            .checked_add(u64::from(compressed_account_with_context.lamports()))
+            .checked_add(compressed_account_with_context.lamports())
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
@@ -44,7 +44,7 @@ pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
 
     for compressed_account in output_compressed_accounts {
         sum = sum
-            .checked_sub(u64::from(compressed_account.lamports()))
+            .checked_sub(compressed_account.lamports())
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
     }
@@ -65,12 +65,18 @@ pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
 
 #[cfg(test)]
 mod test {
-    use anchor_lang::AnchorSerialize;
+    use borsh::BorshSerialize;
     use light_compressed_account::{
         compressed_account::{
             CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         },
-        instruction_data::data::OutputCompressedAccountWithPackedContext,
+        instruction_data::{
+            data::OutputCompressedAccountWithPackedContext,
+            zero_copy::{
+                ZOutputCompressedAccountWithPackedContext,
+                ZPackedCompressedAccountWithMerkleContext,
+            },
+        },
         pubkey::Pubkey,
     };
     use light_zero_copy::borsh::Deserialize;

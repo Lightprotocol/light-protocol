@@ -20,11 +20,11 @@ pub fn input_compressed_accounts_signer_check(
                     Ok(())
                 } else {
                     msg!(
-                        "signer check failed compressed account owner {:?} != authority {:?} or data is not none {} (only programs can own compressed accounts with data)",
+                        format!("signer check failed compressed account owner {:?} != authority {:?} or data is not none {} (only programs can own compressed accounts with data)",
                         compressed_account_with_context.compressed_account.owner.to_bytes(),
                         authority,
                         compressed_account_with_context.compressed_account.data.is_none()
-                    );
+                    ).as_str());
                     Err(SystemProgramError::SignerCheckFailed.into())
                 }
             },

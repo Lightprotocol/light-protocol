@@ -19,7 +19,7 @@ pub fn derive_new_addresses<'info, 'a>(
     accounts: &[AcpAccount<'info>],
 ) -> Result<()> {
     // Get invoking_program_id early and store if available
-    let invoking_program_id_clone = context.invoking_program_id.clone();
+    let invoking_program_id_clone = context.invoking_program_id;
     let mut seq_index = 0;
 
     for (i, new_address_params) in new_address_params.enumerate() {

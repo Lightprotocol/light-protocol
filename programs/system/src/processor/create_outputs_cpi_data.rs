@@ -86,8 +86,8 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
                 AcpAccount::StateTree((pubkey, tree)) => {
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            tree_pubkey: (*pubkey).into(),
-                            queue_pubkey: (*pubkey).into(),
+                            tree_pubkey: *pubkey,
+                            queue_pubkey: *pubkey,
                             tree_type: (TreeType::State as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
@@ -101,7 +101,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
                         .rollover_fee;
                     mt_next_index = tree.next_index() as u32;
                     is_batched = false;
-                    (*pubkey).into()
+                    *pubkey
                 }
                 _ => {
                     return Err(

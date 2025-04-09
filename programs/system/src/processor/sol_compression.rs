@@ -61,7 +61,7 @@ pub fn decompress_lamports<
         None => return Err(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol.into()),
     };
 
-    transfer_lamports(&sol_pool_pda, &recipient, lamports)
+    transfer_lamports(sol_pool_pda, recipient, lamports)
 }
 
 pub fn compress_lamports<
@@ -83,7 +83,7 @@ pub fn compress_lamports<
         None => return Err(SystemProgramError::DeCompressLamportsUndefinedForCompressSol.into()),
     };
 
-    transfer_lamports_cpi(ctx.get_fee_payer(), &recipient, lamports)
+    transfer_lamports_cpi(ctx.get_fee_payer(), recipient, lamports)
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {

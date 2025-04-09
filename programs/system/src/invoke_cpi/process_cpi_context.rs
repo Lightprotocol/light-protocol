@@ -63,11 +63,11 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
         };
         let first_merkle_tree_pubkey = remaining_accounts[index as usize].key();
         if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
-            msg!(
+            msg!(format!(
                 "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
-                first_merkle_tree_pubkey,
-                cpi_context_account.associated_merkle_tree
-            );
+                first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree
+            )
+            .as_str());
             return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
         }
         msg!(format!("cpi_context {:?}", cpi_context).as_str());
@@ -114,7 +114,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
         let data = cpi_context_account_info.try_borrow_data()?;
         let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
         if inputs.cpi_context().unwrap().first_set_context {
-            cpi_context_account.fee_payer = fee_payer.into();
+            cpi_context_account.fee_payer = fee_payer;
             cpi_context_account.context.clear();
 
             let mut instruction_data = InstructionDataInvokeCpi::default();

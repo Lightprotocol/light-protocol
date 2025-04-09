@@ -7,9 +7,6 @@ use light_verifier::VerifierError;
 use light_zero_copy::errors::ZeroCopyError;
 use thiserror::Error;
 
-// Import ProgramError from lib.rs which has the appropriate feature gates
-use crate::ProgramError;
-
 #[derive(Debug, Error, PartialEq)]
 pub enum BatchedMerkleTreeError {
     #[error("Batch is not ready to be inserted")]
@@ -41,7 +38,7 @@ pub enum BatchedMerkleTreeError {
     ProgramError(u64),
     #[cfg(not(feature = "pinocchio"))]
     #[error("Program error {0}")]
-    ProgramError(#[from] ProgramError),
+    ProgramError(#[from] solana_program::program_error::ProgramError),
     #[error("Verifier error {0}")]
     VerifierErrorError(#[from] VerifierError),
     #[error("Invalid batch index")]
@@ -86,16 +83,23 @@ impl From<BatchedMerkleTreeError> for u32 {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-impl From<BatchedMerkleTreeError> for ProgramError {
+#[cfg(feature = "solana")]
+impl From<BatchedMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: BatchedMerkleTreeError) -> Self {
-        ProgramError::Custom(e.into())
+        solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 
 #[cfg(feature = "pinocchio")]
-impl From<ProgramError> for BatchedMerkleTreeError {
-    fn from(error: ProgramError) -> Self {
+impl From<BatchedMerkleTreeError> for pinocchio::program_error::ProgramError {
+    fn from(e: BatchedMerkleTreeError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(feature = "pinocchio")]
+impl From<pinocchio::program_error::ProgramError> for BatchedMerkleTreeError {
+    fn from(error: pinocchio::program_error::ProgramError) -> Self {
         BatchedMerkleTreeError::ProgramError(u64::from(error))
     }
 }

@@ -30,7 +30,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
     pub fn from_account_infos(
         accounts: &'info [AccountInfo],
         options_config: AccountOptions,
-    ) -> Result<(Self, &[AccountInfo])> {
+    ) -> Result<(Self, &'info [AccountInfo])> {
         let fee_payer = &accounts[0];
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];

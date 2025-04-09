@@ -69,8 +69,8 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     ))
 }
 
-pub fn cpi_account_compression_program<'a>(
-    cpi_context: SystemContext<'a>,
+pub fn cpi_account_compression_program(
+    cpi_context: SystemContext<'_>,
     bytes: Vec<u8>,
 ) -> Result<()> {
     let SystemContext {

@@ -74,7 +74,7 @@ impl SystemContext<'_> {
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,
             None => {
-                let hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.as_ref());
+                let hashed_pubkey = hash_to_bn254_field_size_be(pubkey.as_ref());
                 self.hashed_pubkeys.push((pubkey, hashed_pubkey));
                 hashed_pubkey
             }

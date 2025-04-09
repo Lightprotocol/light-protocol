@@ -336,10 +336,10 @@ impl<'a> BatchedQueueAccount<'a> {
                     #[cfg(target_os = "solana")]
                     {
                         crate::msg!(
-                            "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
+                            format!("Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
                             leaf_index,
                             hash_chain_value,*element
-                        );
+                        ).as_str());
                     }
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
@@ -367,10 +367,10 @@ impl<'a> BatchedQueueAccount<'a> {
             #[cfg(target_os = "solana")]
             {
                 crate::msg!(
-                    "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
+                   format!("leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
                     leaf_index,
                     hash_chain_value
-                );
+                ).as_str());
             }
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {

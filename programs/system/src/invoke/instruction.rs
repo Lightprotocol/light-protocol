@@ -37,7 +37,9 @@ pub struct InvokeInstruction<'info> {
 }
 
 impl<'info> InvokeInstruction<'info> {
-    pub fn from_account_infos(accounts: &'info [AccountInfo]) -> Result<(Self, &[AccountInfo])> {
+    pub fn from_account_infos(
+        accounts: &'info [AccountInfo],
+    ) -> Result<(Self, &'info [AccountInfo])> {
         let fee_payer = &accounts[0];
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
@@ -83,21 +85,21 @@ impl<'info> InvokeInstruction<'info> {
 
 impl<'info> SignerAccounts<'info> for InvokeInstruction<'info> {
     fn get_fee_payer(&self) -> &'info AccountInfo {
-        &self.fee_payer
+        self.fee_payer
     }
 
     fn get_authority(&self) -> &'info AccountInfo {
-        &self.authority
+        self.authority
     }
 }
 
 impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     fn get_registered_program_pda(&self) -> &'info AccountInfo {
-        &self.registered_program_pda
+        self.registered_program_pda
     }
 
     fn get_account_compression_authority(&self) -> &'info AccountInfo {
-        &self.account_compression_authority
+        self.account_compression_authority
     }
 
     fn get_sol_pool_pda(&self) -> Option<&'info AccountInfo> {

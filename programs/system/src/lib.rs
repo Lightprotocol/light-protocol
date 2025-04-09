@@ -102,7 +102,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
     bench_sbf_end!("invoke_deserialize");
     input_compressed_accounts_signer_check(
         &inputs.input_compressed_accounts_with_merkle_context,
-        &ctx.authority.key(),
+        ctx.authority.key(),
     )?;
     let wrapped_inputs = context::WrappedInstructionData::new(inputs);
     process(wrapped_inputs, None, &ctx, 0, remaining_accounts)?;

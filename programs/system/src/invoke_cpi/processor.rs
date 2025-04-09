@@ -33,7 +33,7 @@ pub fn process_invoke_cpi<
 
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
-    cpi_signer_checks::<T>(&invoking_program, &ctx.get_authority().key(), &inputs)?;
+    cpi_signer_checks::<T>(&invoking_program, ctx.get_authority().key(), &inputs)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
 
@@ -64,7 +64,7 @@ pub fn process_invoke_cpi<
     if cpi_context_inputs_len > 0 {
         msg!("cpi_context_inputs_len");
         let mut cpi_context_account =
-            deserialize_cpi_context_account(&ctx.get_cpi_context_account().unwrap())?;
+            deserialize_cpi_context_account(ctx.get_cpi_context_account().unwrap())?;
         msg!("cpi_context_inputs_len1");
 
         if cpi_context_account.context.is_empty() {
