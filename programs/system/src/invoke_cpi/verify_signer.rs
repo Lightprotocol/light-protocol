@@ -1,10 +1,11 @@
+#![allow(unused_imports)]
 use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{
     msg,
     program_error::ProgramError,
-    pubkey::{create_program_address, try_find_program_address, Pubkey},
+    pubkey::{checked_create_program_address, try_find_program_address, Pubkey},
 };
 
 use crate::{
@@ -40,6 +41,7 @@ pub fn cpi_signer_checks<'a, T: InstructionDataTrait<'a>>(
     Ok(())
 }
 
+#[allow(unused_variables)]
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
 pub fn cpi_signer_check(
@@ -48,14 +50,53 @@ pub fn cpi_signer_check(
     bump: Option<u8>,
 ) -> Result<()> {
     let derived_signer = if let Some(bump) = bump {
+        #[allow(unused)]
         let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
-        create_program_address(&seeds, invoking_program)?
+        #[cfg(target_os = "solana")]
+        {
+            checked_create_program_address(&seeds, invoking_program)?
+        }
+        #[cfg(all(test, not(target_os = "solana")))]
+        {
+            solana_pubkey::Pubkey::create_program_address(
+                &seeds,
+                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+            )
+            .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
+            .to_bytes()
+        }
+        #[cfg(all(not(target_os = "solana"), not(test)))]
+        {
+            unimplemented!("cpi signer check is only implemented for target os solana and test");
+            #[allow(unused)]
+            crate::ID
+        }
     } else {
         let seeds = [CPI_AUTHORITY_PDA_SEED];
-        try_find_program_address(&seeds, invoking_program)
+        #[cfg(target_os = "solana")]
+        {
+            try_find_program_address(&seeds, invoking_program)
+                .ok_or(ProgramError::InvalidSeeds)?
+                .0
+        }
+        #[cfg(all(test, not(target_os = "solana")))]
+        {
+            solana_pubkey::Pubkey::try_find_program_address(
+                &seeds,
+                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+            )
             .ok_or(ProgramError::InvalidSeeds)?
             .0
+            .to_bytes()
+        }
+        #[cfg(all(not(target_os = "solana"), not(test)))]
+        {
+            unimplemented!("cpi signer check is only implemented for target os solana and test");
+            #[allow(unused)]
+            crate::ID
+        }
     };
+    #[allow(unreachable_code)]
     if derived_signer != *authority {
         msg!(format!(
             "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
@@ -122,7 +163,7 @@ pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDa
 
 #[cfg(test)]
 mod test {
-    use pinocchio::pubkey::find_program_address;
+    use solana_pubkey::Pubkey;
 
     use super::*;
 
@@ -130,28 +171,30 @@ mod test {
     fn test_cpi_signer_check() {
         for _ in 0..1000 {
             let seeds = [CPI_AUTHORITY_PDA_SEED];
-            let invoking_program = Pubkey::default();
-            let (derived_signer, bump) = find_program_address(&seeds[..], &invoking_program);
+            let invoking_program = Pubkey::new_unique();
+            let (derived_signer, bump) =
+                Pubkey::find_program_address(&seeds[..], &invoking_program);
+            let derived_signer = derived_signer.to_bytes();
             assert_eq!(
-                cpi_signer_check(&invoking_program, &derived_signer, None),
+                cpi_signer_check(&invoking_program.to_bytes(), &derived_signer, Some(bump)),
                 Ok(())
             );
             assert_eq!(
-                cpi_signer_check(&invoking_program, &derived_signer, Some(bump)),
+                cpi_signer_check(&invoking_program.to_bytes(), &derived_signer, None),
                 Ok(())
             );
 
-            let authority = crate::ID;
-            let invoking_program = Pubkey::default();
+            let authority = Pubkey::new_unique().to_bytes();
+            let invoking_program = Pubkey::new_unique().to_bytes();
             assert!(
                 cpi_signer_check(&invoking_program, &authority, None)
-                    == Err(ProgramError::InvalidSeeds.into())
+                    == Err(ProgramError::InvalidSeeds)
                     || cpi_signer_check(&invoking_program, &authority, None)
                         == Err(SystemProgramError::CpiSignerCheckFailed.into())
             );
             assert!(
                 cpi_signer_check(&invoking_program, &authority, Some(255))
-                    == Err(ProgramError::InvalidSeeds.into())
+                    == Err(ProgramError::InvalidSeeds)
                     || cpi_signer_check(&invoking_program, &authority, Some(255))
                         == Err(SystemProgramError::CpiSignerCheckFailed.into())
             );

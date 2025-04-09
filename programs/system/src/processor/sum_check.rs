@@ -73,13 +73,14 @@ mod test {
         instruction_data::{
             data::OutputCompressedAccountWithPackedContext,
             zero_copy::{
-                ZOutputCompressedAccountWithPackedContext,
+                ZInstructionDataInvokeCpi, ZOutputCompressedAccountWithPackedContext,
                 ZPackedCompressedAccountWithMerkleContext,
             },
         },
         pubkey::Pubkey,
     };
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::{borsh::Deserialize, slice::ZeroCopySliceBorsh};
+    use zerocopy::{little_endian::U64, Ref};
 
     use super::*;
 
@@ -222,14 +223,24 @@ mod test {
             slice = _bytes;
             outputs.push(output);
         }
+        let lamports_bytes = compress_or_decompress_lamports.map(|x| x.to_le_bytes());
+        let compress_or_decompress_lamports = lamports_bytes
+            .as_ref()
+            .map(|x| Ref::<&[u8], U64>::from_bytes(&x[..]).unwrap());
 
-        let calc_num_prove_by_index_accounts = sum_check(
-            inputs.as_slice(),
-            outputs.as_slice(),
-            &relay_fee,
-            &compress_or_decompress_lamports,
-            &is_compress,
-        )?;
+        let ix_data = ZInstructionDataInvokeCpi {
+            input_compressed_accounts_with_merkle_context: inputs,
+            output_compressed_accounts: outputs,
+            is_compress,
+            compress_or_decompress_lamports,
+            proof: None,
+            new_address_params: ZeroCopySliceBorsh::from_bytes(&[0, 0, 0, 0]).unwrap(),
+            relay_fee: None,
+            cpi_context: None,
+        };
+        let wrapped_inputs = WrappedInstructionData::new(ix_data);
+        let calc_num_prove_by_index_accounts =
+            sum_check(&wrapped_inputs, &relay_fee, &is_compress)?;
 
         assert_eq!(num_by_index, calc_num_prove_by_index_accounts);
         Ok(())
