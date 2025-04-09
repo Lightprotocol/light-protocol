@@ -20,9 +20,20 @@ default = ["solana"]
 test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
-legacy = ["account-compression", "light-system-program-anchor", "anchor-lang"]
-anchor = ["anchor-lang", "light-compressed-account/anchor" ]
-solana = ["solana-program", "borsh"]
+legacy = ["account-compression", "light-system-program", "anchor-lang"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-account/anchor",
+    "light-verifier/anchor",
+    "light-hasher/anchor",
+]
+solana = [
+  "solana-program",
+  "borsh",
+  "light_verifier/solana",
+  "light_compressed_account/solana",
+  "light_hasher/solana"
+]
 defautl  = ["solana"]
 
 [dependencies]
