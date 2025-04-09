@@ -5,9 +5,10 @@ use crate::{
     AccountMeta, Pubkey,
 };
 
-/// Collection of remaining accounts which are sent to the program.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PackedAccounts {
+    pre_accounts: Vec<AccountMeta>,
+    system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
 }
@@ -19,10 +20,28 @@ impl PackedAccounts {
         remaining_accounts
     }
 
+    pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
+        self.pre_accounts.push(AccountMeta {
+            pubkey,
+            is_signer: true,
+            is_writable: false,
+        });
+    }
+
+    pub fn add_pre_accounts_signer_mut(&mut self, pubkey: Pubkey) {
+        self.pre_accounts.push(AccountMeta {
+            pubkey,
+            is_signer: true,
+            is_writable: true,
+        });
+    }
+
+    pub fn add_pre_accounts_meta(&mut self, account_meta: AccountMeta) {
+        self.pre_accounts.push(account_meta);
+    }
+
     pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
-        for account in get_light_system_account_metas(config) {
-            self.insert_or_get_config(account.pubkey, account.is_signer, account.is_writable);
-        }
+        self.system_accounts = get_light_system_account_metas(config);
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
@@ -36,12 +55,8 @@ impl PackedAccounts {
         self.insert_or_get_config(pubkey, false, true)
     }
 
-    pub fn insert_or_get_signer(&mut self, pubkey: Pubkey) -> u8 {
-        self.insert_or_get_config(pubkey, true, false)
-    }
-
-    pub fn insert_or_get_signer_mut(&mut self, pubkey: Pubkey) -> u8 {
-        self.insert_or_get_config(pubkey, true, true)
+    pub fn insert_or_get_read_only(&mut self, pubkey: Pubkey) -> u8 {
+        self.insert_or_get_config(pubkey, false, false)
     }
 
     pub fn insert_or_get_config(
@@ -70,7 +85,7 @@ impl PackedAccounts {
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
-    pub fn to_account_metas(&self) -> Vec<AccountMeta> {
+    pub fn to_remaining_accounts(&self) -> Vec<AccountMeta> {
         let mut remaining_accounts = self.map.iter().collect::<Vec<_>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
         remaining_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
@@ -79,6 +94,14 @@ impl PackedAccounts {
             .map(|(_, (_, k))| k.clone())
             .collect::<Vec<AccountMeta>>();
         remaining_accounts
+    }
+
+    /// Converts the collection of accounts to a vector of
+    /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
+    /// as remaining accounts in instructions or CPI calls.
+    pub fn to_account_metas(self) -> Vec<AccountMeta> {
+        let packed_accounts = self.to_remaining_accounts();
+        [self.pre_accounts, self.system_accounts, packed_accounts].concat()
     }
 }
 
@@ -101,7 +124,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_remaining_accounts().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -127,7 +150,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_remaining_accounts().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,

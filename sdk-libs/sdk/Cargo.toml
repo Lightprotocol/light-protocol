@@ -21,7 +21,12 @@ test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
 legacy = ["account-compression", "light-system-program", "anchor-lang"]
-anchor = ["anchor-lang"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-account/anchor",
+    "light-verifier/anchor",
+    "light-hasher/anchor",
+]
 solana = ["solana-program", "borsh"]
 
 [dependencies]
@@ -49,11 +54,6 @@ light-verifier = { workspace = true, features = ["solana"] }
 light-compressed-account = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["solana"] }
 
-# feature anchor dependencies
-[target.'cfg(feature = "anchor")'.dependencies]
-light-verifier = { workspace = true, features = ["anchor"] }
-light-compressed-account = { workspace = true, features = ["anchor"] }
-light-hasher = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
