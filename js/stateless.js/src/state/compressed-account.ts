@@ -1,33 +1,106 @@
-import BN from 'bn.js';
 import { PublicKey } from '@solana/web3.js';
-import { CompressedAccount, CompressedAccountData } from './types';
-import { BN254, bn } from './BN254';
+import {
+    CompressedAccount,
+    CompressedAccountData,
+    CompressedAccountLegacy,
+    TreeInfo,
+} from './types';
+import BN from 'bn.js';
+import { BN254 } from './BN254';
+import { bn } from './bn';
 
-export type CompressedAccountWithMerkleContext = CompressedAccount &
-    MerkleContext & {
-        readOnly: boolean;
-    };
+// @deprecated use {@link CompressedAccount} instead
+// export type CompressedAccountWithMerkleContext = CompressedAccount &
+//     MerkleContext & {
+//         readOnly: boolean;
+//     };
+
+export type CompressedAccountWithMerkleContext = MerkleContext & {
+    /**
+     * Public key of program or user owning the account.
+     */
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
+} & {
+    readOnly: boolean;
+};
+
+// @deprecated use {@link CompressedAccount} instead
+// export type CompressedAccountWithMerkleContextLegacy = CompressedAccount &
+//     MerkleContextLegacy;
 
 /**
- * Context for compressed account inserted into a state Merkle tree
- * */
-export type MerkleContext = {
-    /** State Merkle tree */
+ * @deprecated use {@link MerkleContext} instead.
+ *
+ * Legacy MerkleContext
+ */
+export type MerkleContextLegacy = {
+    /**
+     * State tree
+     */
     merkleTree: PublicKey;
-    /** The state nullfier queue belonging to merkleTree */
+    /**
+     * Nullifier queue
+     */
     nullifierQueue: PublicKey;
-    /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
-    hash: number[]; // TODO: BN254;
-    /** 'hash' position within the Merkle tree */
+    /**
+     * Poseidon hash of the account. Stored as leaf in state tree
+     */
+    hash: number[];
+    /**
+     * Position of `hash` in the State tree
+     */
     leafIndex: number;
 };
 
+/**
+ * Context for compressed account stored in a state tree
+ */
+export type MerkleContext = {
+    /**
+     * Tree info
+     */
+    treeInfo: TreeInfo;
+    /**
+     * Poseidon hash of the account. Stored as leaf in state tree
+     */
+    hash: BN;
+    /**
+     * Position of `hash` in the State tree
+     */
+    leafIndex: number;
+    /**
+     * Whether the account can be proven by index or by merkle proof
+     */
+    proveByIndex: boolean;
+};
+
+/**
+ * MerkleContext with merkle proof
+ */
 export type MerkleContextWithMerkleProof = MerkleContext & {
-    /** Recent valid 'hash' proof path, expires after n slots */
+    /**
+     * Recent valid 'hash' proof path, expires after n slots
+     */
     merkleProof: BN254[];
-    /** Index of state root the merkleproof is valid for, expires after n slots */
+    /**
+     * Index of state root the merkleproof is valid for, expires after n slots
+     */
     rootIndex: number;
-    /** Current root */
+    /**
+     * Current root
+     */
     root: BN254;
 };
 
@@ -56,13 +129,13 @@ export const createCompressedAccountWithMerkleContext = (
 });
 
 export const createMerkleContext = (
-    merkleTree: PublicKey,
-    nullifierQueue: PublicKey,
-    hash: number[], // TODO: BN254,
+    treeInfo: TreeInfo,
+    hash: BN254,
     leafIndex: number,
+    proveByIndex: boolean = false,
 ): MerkleContext => ({
-    merkleTree,
-    nullifierQueue,
+    treeInfo,
     hash,
     leafIndex,
+    proveByIndex,
 });

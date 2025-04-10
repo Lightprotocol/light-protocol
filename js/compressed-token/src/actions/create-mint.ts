@@ -15,35 +15,34 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    dedupeSigner,
 } from '@lightprotocol/stateless.js';
 
 /**
  * Create and initialize a new compressed token mint
  *
- * @param rpc             RPC to use
- * @param payer           Payer of the transaction and initialization fees
- * @param mintAuthority   Account or multisig that will control minting
- * @param decimals        Location of the decimal place
- * @param keypair         Optional keypair, defaulting to a new random one
- * @param confirmOptions  Options for confirming the transaction
- * @param tokenProgramId  Program ID for the token. Defaults to
- *                        TOKEN_PROGRAM_ID. You can pass in a boolean to
- *                        automatically resolve to TOKEN_2022_PROGRAM_ID if
- *                        true, or TOKEN_PROGRAM_ID if false.
- * @param freezeAuthority Account that will control freeze and thaw. Defaults to null.
+ * @param rpc               RPC connection to use
+ * @param payer             Fee payer
+ * @param mintAuthority     Account that will control minting
+ * @param decimals          Location of the decimal place
+ * @param keypair           Optional: Mint keypair. Defaults to a random
+ *                          keypair.
+ * @param confirmOptions    Options for confirming the transaction
+ * @param tokenProgramId    Optional: Program ID for the token. Defaults to
+ *                          TOKEN_PROGRAM_ID.
+ * @param freezeAuthority   Optional: Account that will control freeze and thaw.
+ *                          Defaults to none.
  *
- * @return Address of the new mint and the transaction signature
+ * @return Object with mint address and transaction signature
  */
 export async function createMint(
     rpc: Rpc,
     payer: Signer,
-    mintAuthority: PublicKey,
+    mintAuthority: PublicKey | Signer,
     decimals: number,
     keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey | boolean,
-    freezeAuthority?: PublicKey,
+    freezeAuthority?: PublicKey | Signer,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -60,19 +59,32 @@ export async function createMint(
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,
-        authority: mintAuthority,
-        freezeAuthority: freezeAuthority || null,
+        authority: getPublicKey(mintAuthority)!,
+        freezeAuthority: getPublicKey(freezeAuthority),
         rentExemptBalance,
         tokenProgramId: resolvedTokenProgramId,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const additionalSigners = dedupeSigner(payer, [keypair]);
+    // Get required additional signers that are Keypairs, not the payer.
+    const additionalSigners = [mintAuthority, freezeAuthority].filter(
+        (signer): signer is Signer =>
+            signer instanceof Keypair &&
+            !signer.publicKey.equals(payer.publicKey) &&
+            !additionalSigners?.some(s => s.publicKey.equals(signer.publicKey)),
+    );
 
-    const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-
+    const tx = buildAndSignTx(ixs, payer, blockhash, [
+        ...additionalSigners,
+        keypair,
+    ]);
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
     return { mint: keypair.publicKey, transactionSignature: txId };
 }
+
+const getPublicKey = (
+    signer: PublicKey | Signer | undefined,
+): PublicKey | null =>
+    signer instanceof PublicKey ? signer : signer?.publicKey || null;
