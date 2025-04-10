@@ -4,9 +4,11 @@ All URIs are relative to *https://devnet.helius-rpc.com?api-key=<api_key>*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
+[**get_batch_address_update_info_post**](DefaultApi.md#get_batch_address_update_info_post) | **POST** /getBatchAddressUpdateInfo | 
 [**get_compressed_account_balance_post**](DefaultApi.md#get_compressed_account_balance_post) | **POST** /getCompressedAccountBalance | 
 [**get_compressed_account_post**](DefaultApi.md#get_compressed_account_post) | **POST** /getCompressedAccount | 
 [**get_compressed_account_proof_post**](DefaultApi.md#get_compressed_account_proof_post) | **POST** /getCompressedAccountProof | 
+[**get_compressed_account_proof_v2_post**](DefaultApi.md#get_compressed_account_proof_v2_post) | **POST** /getCompressedAccountProofV2 | 
 [**get_compressed_account_v2_post**](DefaultApi.md#get_compressed_account_v2_post) | **POST** /getCompressedAccountV2 | 
 [**get_compressed_accounts_by_owner_post**](DefaultApi.md#get_compressed_accounts_by_owner_post) | **POST** /getCompressedAccountsByOwner | 
 [**get_compressed_accounts_by_owner_v2_post**](DefaultApi.md#get_compressed_accounts_by_owner_v2_post) | **POST** /getCompressedAccountsByOwnerV2 | 
@@ -28,6 +30,7 @@ Method | HTTP request | Description
 [**get_latest_compression_signatures_post**](DefaultApi.md#get_latest_compression_signatures_post) | **POST** /getLatestCompressionSignatures | 
 [**get_latest_non_voting_signatures_post**](DefaultApi.md#get_latest_non_voting_signatures_post) | **POST** /getLatestNonVotingSignatures | 
 [**get_multiple_compressed_account_proofs_post**](DefaultApi.md#get_multiple_compressed_account_proofs_post) | **POST** /getMultipleCompressedAccountProofs | 
+[**get_multiple_compressed_account_proofs_v2_post**](DefaultApi.md#get_multiple_compressed_account_proofs_v2_post) | **POST** /getMultipleCompressedAccountProofsV2 | 
 [**get_multiple_compressed_accounts_post**](DefaultApi.md#get_multiple_compressed_accounts_post) | **POST** /getMultipleCompressedAccounts | 
 [**get_multiple_compressed_accounts_v2_post**](DefaultApi.md#get_multiple_compressed_accounts_v2_post) | **POST** /getMultipleCompressedAccountsV2 | 
 [**get_multiple_new_address_proofs_post**](DefaultApi.md#get_multiple_new_address_proofs_post) | **POST** /getMultipleNewAddressProofs | 
@@ -38,6 +41,34 @@ Method | HTTP request | Description
 [**get_validity_proof_post**](DefaultApi.md#get_validity_proof_post) | **POST** /getValidityProof | 
 [**get_validity_proof_v2_post**](DefaultApi.md#get_validity_proof_v2_post) | **POST** /getValidityProofV2 | 
 
+
+
+## get_batch_address_update_info_post
+
+> models::GetBatchAddressUpdateInfoPost200Response get_batch_address_update_info_post(get_batch_address_update_info_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_batch_address_update_info_post_request** | [**GetBatchAddressUpdateInfoPostRequest**](GetBatchAddressUpdateInfoPostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetBatchAddressUpdateInfoPost200Response**](_getBatchAddressUpdateInfo_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 
 ## get_compressed_account_balance_post
@@ -111,6 +142,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetCompressedAccountProofPost200Response**](_getCompressedAccountProof_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_compressed_account_proof_v2_post
+
+> models::GetCompressedAccountProofV2Post200Response get_compressed_account_proof_v2_post(get_compressed_account_proof_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_compressed_account_proof_v2_post_request** | [**GetCompressedAccountProofV2PostRequest**](GetCompressedAccountProofV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetCompressedAccountProofV2Post200Response**](_getCompressedAccountProofV2_post_200_response.md)
 
 ### Authorization
 
@@ -699,6 +758,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetMultipleCompressedAccountProofsPost200Response**](_getMultipleCompressedAccountProofs_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_multiple_compressed_account_proofs_v2_post
+
+> models::GetMultipleCompressedAccountProofsV2Post200Response get_multiple_compressed_account_proofs_v2_post(get_multiple_compressed_account_proofs_v2_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_multiple_compressed_account_proofs_v2_post_request** | [**GetMultipleCompressedAccountProofsV2PostRequest**](GetMultipleCompressedAccountProofsV2PostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetMultipleCompressedAccountProofsV2Post200Response**](_getMultipleCompressedAccountProofsV2_post_200_response.md)
 
 ### Authorization
 

@@ -1,5 +1,6 @@
 use groth16_solana::errors::Groth16Error;
 use light_compressed_account::CompressedAccountError;
+use light_hasher::HasherError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -33,5 +34,11 @@ pub enum ProverClientError {
 impl From<Groth16Error> for ProverClientError {
     fn from(error: Groth16Error) -> Self {
         ProverClientError::Groth16SolanaError(error)
+    }
+}
+
+impl From<HasherError> for ProverClientError {
+    fn from(error: HasherError) -> Self {
+        ProverClientError::GenericError(format!("Hasher error: {:?}", error))
     }
 }

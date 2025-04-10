@@ -1,8 +1,12 @@
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
-use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
+use light_indexed_array::changelog::IndexedChangelogEntry;
+use light_merkle_tree_reference::{
+    indexed::IndexedMerkleTree, sparse_merkle_tree::SparseMerkleTree, MerkleTree,
+};
 use num_bigint::BigUint;
 use reqwest::Client;
 
@@ -229,13 +233,13 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
 
 #[derive(Clone, Debug)]
 pub struct MockBatchedAddressForester<const HEIGHT: usize> {
-    pub merkle_tree: IndexedMerkleTree<Poseidon, u16>,
+    pub merkle_tree: IndexedMerkleTree<Poseidon, usize>,
     pub queue_leaves: Vec<[u8; 32]>,
 }
 
 impl<const HEIGHT: usize> Default for MockBatchedAddressForester<HEIGHT> {
     fn default() -> Self {
-        let merkle_tree = IndexedMerkleTree::<Poseidon, u16>::new(HEIGHT, 0).unwrap();
+        let merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, 0).unwrap();
         let queue_leaves = vec![];
         Self {
             merkle_tree,
@@ -286,6 +290,15 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             low_element_proofs.push(non_inclusion_proof.merkle_proof.as_slice().to_vec());
         }
 
+        let subtrees = self.merkle_tree.merkle_tree.get_subtrees();
+        let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(
+            <[[u8; 32]; HEIGHT]>::try_from(subtrees).unwrap(),
+            start_index,
+        );
+
+        let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
+        let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, HEIGHT>> = Vec::new();
+
         let inputs = get_batch_address_append_circuit_inputs::<HEIGHT>(
             start_index,
             current_root,
@@ -295,14 +308,11 @@ impl<const HEIGHT: usize> MockBatchedAddressForester<HEIGHT> {
             low_element_next_indices,
             low_element_proofs,
             new_element_values.clone(),
-            self.merkle_tree
-                .merkle_tree
-                .get_subtrees()
-                .try_into()
-                .unwrap(),
+            &mut merkle_tree,
             leaves_hashchain,
-            batch_start_index,
             zkp_batch_size as usize,
+            &mut changelog,
+            &mut indexed_changelog,
         )?;
         let client = Client::new();
         let circuit_inputs_new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();

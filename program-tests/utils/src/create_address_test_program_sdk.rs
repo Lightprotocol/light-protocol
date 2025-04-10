@@ -81,6 +81,7 @@ pub async fn perform_create_pda_with_event_rnd<
     let data = rand::random();
     perform_create_pda_with_event(test_indexer, rpc, env, payer, seed, &data).await
 }
+
 pub async fn perform_create_pda_with_event<
     R: RpcConnection,
     I: Indexer<R> + TestIndexerExtensions<R>,

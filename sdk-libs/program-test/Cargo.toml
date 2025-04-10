@@ -12,8 +12,10 @@ light-client = { workspace = true }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
+light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-concurrent-merkle-tree = { workspace = true }
 light-hasher = { workspace = true }
 light-registry = { workspace = true, features = ["cpi"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
