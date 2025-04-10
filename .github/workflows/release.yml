@@ -113,7 +113,7 @@ jobs:
         run: |
           source ./scripts/devenv.sh
 
-          anchor build
+          npx nx build @lightprotocol/programs
           cp -r ./target/deploy/*.so .
 
           PACKAGES=("aligned-sized" "light-heap" "light-utils" "light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")

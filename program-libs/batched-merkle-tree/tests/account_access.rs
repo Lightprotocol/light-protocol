@@ -1,4 +1,4 @@
-#![cfg(feature = "test-only")]
+#![cfg(all(feature = "test-only", feature = "solana"))]
 use std::{cell::RefCell, rc::Rc};
 
 use light_batched_merkle_tree::{

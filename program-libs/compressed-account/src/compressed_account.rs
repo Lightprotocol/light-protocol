@@ -1,11 +1,6 @@
 use std::collections::HashMap;
 
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_hasher::{Hasher, Poseidon};
-use solana_program::pubkey::Pubkey;
 
 use crate::{
     address::pack_account,
@@ -13,7 +8,7 @@ use crate::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext, zero_copy::ZCompressedAccount,
     },
-    CompressedAccountError, TreeType,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError, Pubkey, TreeType,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -22,8 +17,53 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub merkle_context: PackedMerkleContext,
     /// Index of root used in inclusion validity proof.
     pub root_index: u16,
-    /// Placeholder to mark accounts read-only unimplemented set to false.
     pub read_only: bool,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InCompressedAccountWithMerkleContext {
+    pub compressed_account: InCompressedAccount,
+    pub merkle_context: MerkleContext,
+}
+
+impl From<CompressedAccount> for InCompressedAccount {
+    fn from(value: CompressedAccount) -> Self {
+        let data = value.data.unwrap_or_default();
+        InCompressedAccount {
+            owner: value.owner,
+            lamports: value.lamports,
+            address: value.address,
+            discriminator: data.discriminator,
+            data_hash: data.data_hash,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedInCompressedAccountWithMerkleContext {
+    pub compressed_account: InCompressedAccount,
+    pub merkle_context: PackedMerkleContext,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
+}
+
+impl From<PackedCompressedAccountWithMerkleContext> for PackedInCompressedAccountWithMerkleContext {
+    fn from(value: PackedCompressedAccountWithMerkleContext) -> Self {
+        Self {
+            compressed_account: value.compressed_account.into(),
+            merkle_context: value.merkle_context,
+            root_index: value.root_index,
+        }
+    }
+}
+
+impl From<CompressedAccountWithMerkleContext> for InCompressedAccountWithMerkleContext {
+    fn from(value: CompressedAccountWithMerkleContext) -> Self {
+        Self {
+            compressed_account: value.compressed_account.into(),
+            merkle_context: value.merkle_context,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -189,6 +229,15 @@ pub struct CompressedAccount {
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InCompressedAccount {
+    pub owner: Pubkey,
+    pub lamports: u64,
+    pub discriminator: [u8; 8],
+    pub data_hash: [u8; 32],
+    pub address: Option<[u8; 32]>,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -204,6 +253,7 @@ pub fn hash_with_hashed_values(
     leaf_index: &u32,
     is_batched: bool,
 ) -> Result<[u8; 32], CompressedAccountError> {
+    // TODO: replace with array
     let capacity = 3
         + std::cmp::min(*lamports, 1) as usize
         + address.is_some() as usize
@@ -251,6 +301,7 @@ pub fn hash_with_hashed_values(
 
     Ok(Poseidon::hashv(&vec)?)
 }
+
 /// Hashing scheme:
 /// H(owner || leaf_index || merkle_tree_pubkey || lamports || address || data.discriminator || data.data_hash)
 impl CompressedAccount {
@@ -280,9 +331,9 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
-        let hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes());
+        let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
         self.hash_with_hashed_values(
-            &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
+            &hash_to_bn254_field_size_be(self.owner.as_ref()),
             &hashed_mt,
             leaf_index,
             is_batched,
@@ -314,19 +365,20 @@ impl ZCompressedAccount<'_> {
     }
     pub fn hash(
         &self,
-        &merkle_tree_pubkey: &Pubkey,
+        &merkle_tree_pubkey: &[u8; 32],
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
-            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes()),
+            &hash_to_bn254_field_size_be(merkle_tree_pubkey.as_slice()),
             leaf_index,
             is_batched,
         )
     }
 }
 
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod tests {
     use light_hasher::Poseidon;
@@ -359,7 +411,7 @@ mod tests {
             data: Some(data.clone()),
         };
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
@@ -531,13 +583,13 @@ mod tests {
             0, 0, 0,
         ]);
 
-        let leaf_index = 1;
+        let leaf_index: u32 = 1;
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index, false)
             .unwrap();
         let (z_account, _) = ZCompressedAccount::zero_copy_at(&bytes).unwrap();
         let z_hash = z_account
-            .hash(&merkle_tree_pubkey, &leaf_index, false)
+            .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
             .unwrap();
         let manual_hash = {
             let mut hasher = light_poseidon::Poseidon::<Fr>::new_circom(7).unwrap();
@@ -603,7 +655,7 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index, true)
             .unwrap();
         let z_hash = z_account
-            .hash(&merkle_tree_pubkey, &leaf_index, true)
+            .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, true)
             .unwrap();
         assert_ne!(hash.to_vec(), manual_hash);
         assert_eq!(hash.to_vec(), manual_hash_new);
@@ -719,7 +771,7 @@ mod tests {
             let bytes: Vec<u8> = account.try_to_vec().unwrap();
             let (z_account, _) = ZCompressedAccount::zero_copy_at(bytes.as_slice()).unwrap();
             let z_hash = z_account
-                .hash(&merkle_tree_pubkey, &leaf_index, false)
+                .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
                 .unwrap();
             assert_eq!(hash_legacy, hash);
             assert_eq!(hash, z_hash);

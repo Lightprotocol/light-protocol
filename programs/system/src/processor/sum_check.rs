@@ -1,34 +1,29 @@
-use anchor_lang::{solana_program::program_error::ProgramError, Result};
-use light_compressed_account::instruction_data::zero_copy::{
-    ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
-};
+use light_compressed_account::instruction_data::traits::InstructionDataTrait;
+use pinocchio::program_error::ProgramError;
 
-use crate::errors::SystemProgramError;
+use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
 
 #[inline(always)]
-pub fn sum_check(
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext<
-        '_,
-    >],
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext<'_>],
+pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
     relay_fee: &Option<u64>,
-    compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
 ) -> Result<usize> {
+    let compress_or_decompress_lamports = &inputs.compress_or_decompress_lamports();
+    let input_compressed_accounts_with_merkle_context = inputs.input_accounts();
+    let output_compressed_accounts = inputs.output_accounts();
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
-    for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
+    for compressed_account_with_context in input_compressed_accounts_with_merkle_context {
         if compressed_account_with_context
-            .merkle_context
+            .merkle_context()
             .prove_by_index()
         {
             num_prove_by_index_accounts += 1;
         }
 
         sum = sum
-            .checked_add(u64::from(
-                compressed_account_with_context.compressed_account.lamports,
-            ))
+            .checked_add(compressed_account_with_context.lamports())
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
@@ -47,9 +42,9 @@ pub fn sum_check(
         }
     }
 
-    for compressed_account in output_compressed_accounts.iter() {
+    for compressed_account in output_compressed_accounts {
         sum = sum
-            .checked_sub(u64::from(compressed_account.compressed_account.lamports))
+            .checked_sub(compressed_account.lamports())
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
     }
@@ -70,15 +65,22 @@ pub fn sum_check(
 
 #[cfg(test)]
 mod test {
-    use anchor_lang::AnchorSerialize;
+    use borsh::BorshSerialize;
     use light_compressed_account::{
         compressed_account::{
             CompressedAccount, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         },
-        instruction_data::data::OutputCompressedAccountWithPackedContext,
+        instruction_data::{
+            data::OutputCompressedAccountWithPackedContext,
+            zero_copy::{
+                ZInstructionDataInvokeCpi, ZOutputCompressedAccountWithPackedContext,
+                ZPackedCompressedAccountWithMerkleContext,
+            },
+        },
         pubkey::Pubkey,
     };
-    use light_zero_copy::borsh::Deserialize;
+    use light_zero_copy::{borsh::Deserialize, slice::ZeroCopySliceBorsh};
+    use zerocopy::{little_endian::U64, Ref};
 
     use super::*;
 
@@ -221,14 +223,24 @@ mod test {
             slice = _bytes;
             outputs.push(output);
         }
+        let lamports_bytes = compress_or_decompress_lamports.map(|x| x.to_le_bytes());
+        let compress_or_decompress_lamports = lamports_bytes
+            .as_ref()
+            .map(|x| Ref::<&[u8], U64>::from_bytes(&x[..]).unwrap());
 
-        let calc_num_prove_by_index_accounts = sum_check(
-            inputs.as_slice(),
-            outputs.as_slice(),
-            &relay_fee,
-            &compress_or_decompress_lamports,
-            &is_compress,
-        )?;
+        let ix_data = ZInstructionDataInvokeCpi {
+            input_compressed_accounts_with_merkle_context: inputs,
+            output_compressed_accounts: outputs,
+            is_compress,
+            compress_or_decompress_lamports,
+            proof: None,
+            new_address_params: ZeroCopySliceBorsh::from_bytes(&[0, 0, 0, 0]).unwrap(),
+            relay_fee: None,
+            cpi_context: None,
+        };
+        let wrapped_inputs = WrappedInstructionData::new(ix_data);
+        let calc_num_prove_by_index_accounts =
+            sum_check(&wrapped_inputs, &relay_fee, &is_compress)?;
 
         assert_eq!(num_by_index, calc_num_prove_by_index_accounts);
         Ok(())

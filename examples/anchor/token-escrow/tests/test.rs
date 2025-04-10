@@ -17,13 +17,13 @@ use light_program_test::{
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
+use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error,
     conversions::sdk_to_program_token_data,
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_verifier::VerifierError;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
@@ -188,7 +188,12 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        SystemProgramError::ProofVerificationFailed.into(),
+    )
+    .unwrap();
 
     perform_withdrawal_with_event(
         &mut rpc,

@@ -32,7 +32,6 @@ pub enum ZeroCopyError {
     CurrentIndexGreaterThanLength,
 }
 
-#[cfg(feature = "solana")]
 impl From<ZeroCopyError> for u32 {
     fn from(e: ZeroCopyError) -> u32 {
         match e {
@@ -50,6 +49,13 @@ impl From<ZeroCopyError> for u32 {
             ZeroCopyError::LengthGreaterThanCapacity => 15013,
             ZeroCopyError::CurrentIndexGreaterThanLength => 15014,
         }
+    }
+}
+
+#[cfg(feature = "pinocchio")]
+impl From<ZeroCopyError> for pinocchio::program_error::ProgramError {
+    fn from(e: ZeroCopyError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
 

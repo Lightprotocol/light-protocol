@@ -1,9 +1,9 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "bytemuck-des")]
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError};
-use solana_program::pubkey;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
+
+use crate::{AnchorDeserialize, AnchorSerialize};
 #[cfg(feature = "bytemuck-des")]
 #[derive(
     Pod,
@@ -16,8 +16,8 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
     FromBytes,
     IntoBytes,
     KnownLayout,
-    BorshDeserialize,
-    BorshSerialize,
+    AnchorDeserialize,
+    AnchorSerialize,
     Default,
     Unaligned,
 )]
@@ -29,13 +29,15 @@ pub struct Pubkey(pub(crate) [u8; 32]);
     Debug,
     Copy,
     PartialEq,
+    Eq,
+    Hash,
     Clone,
     Immutable,
     FromBytes,
     IntoBytes,
     KnownLayout,
-    BorshDeserialize,
-    BorshSerialize,
+    AnchorDeserialize,
+    AnchorSerialize,
     Default,
     Unaligned,
 )]
@@ -62,60 +64,86 @@ impl<'a> Deserialize<'a> for Pubkey {
         Ok(Ref::<&[u8], Pubkey>::from_prefix(bytes)?)
     }
 }
-
-#[cfg(not(feature = "anchor"))]
-impl From<pubkey::Pubkey> for Pubkey {
-    fn from(pubkey: pubkey::Pubkey) -> Self {
-        Self(pubkey.to_bytes())
-    }
-}
-#[cfg(not(feature = "anchor"))]
-impl From<&pubkey::Pubkey> for Pubkey {
-    fn from(pubkey: &pubkey::Pubkey) -> Self {
-        Self(pubkey.to_bytes())
-    }
-}
-
-#[cfg(not(feature = "anchor"))]
-impl From<Pubkey> for pubkey::Pubkey {
+impl From<Pubkey> for [u8; 32] {
     fn from(pubkey: Pubkey) -> Self {
-        pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+        pubkey.to_bytes()
+    }
+}
+
+impl From<&Pubkey> for [u8; 32] {
+    fn from(pubkey: &Pubkey) -> Self {
+        pubkey.to_bytes()
+    }
+}
+
+impl From<[u8; 32]> for Pubkey {
+    fn from(pubkey: [u8; 32]) -> Self {
+        Self(pubkey)
+    }
+}
+
+impl From<&[u8; 32]> for Pubkey {
+    fn from(pubkey: &[u8; 32]) -> Self {
+        Self(*pubkey)
     }
 }
 
 #[cfg(not(feature = "anchor"))]
-impl From<&Pubkey> for pubkey::Pubkey {
+impl From<Pubkey> for solana_program::pubkey::Pubkey {
+    fn from(pubkey: Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl From<&Pubkey> for solana_program::pubkey::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {
-        pubkey::Pubkey::new_from_array(pubkey.to_bytes())
+        Self::new_from_array(pubkey.to_bytes())
     }
 }
+
 #[cfg(feature = "anchor")]
-impl From<anchor_lang::prelude::Pubkey> for Pubkey {
-    fn from(pubkey: pubkey::Pubkey) -> Self {
+impl From<Pubkey> for anchor_lang::prelude::Pubkey {
+    fn from(pubkey: Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl From<&Pubkey> for anchor_lang::prelude::Pubkey {
+    fn from(pubkey: &Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(not(feature = "pinocchio"))]
+impl From<crate::Pubkey> for Pubkey {
+    fn from(pubkey: crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
-#[cfg(feature = "anchor")]
-impl From<crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
-    fn from(pubkey: crate::pubkey::Pubkey) -> Self {
-        anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-    }
-}
-#[cfg(feature = "anchor")]
-impl From<&crate::pubkey::Pubkey> for anchor_lang::prelude::Pubkey {
-    fn from(pubkey: &crate::pubkey::Pubkey) -> Self {
-        anchor_lang::prelude::Pubkey::new_from_array(pubkey.to_bytes())
-    }
-}
-#[cfg(feature = "anchor")]
-impl From<&anchor_lang::prelude::Pubkey> for Pubkey {
-    fn from(pubkey: &pubkey::Pubkey) -> Self {
+
+#[cfg(not(feature = "pinocchio"))]
+impl From<&crate::Pubkey> for Pubkey {
+    fn from(pubkey: &crate::Pubkey) -> Self {
         Self(pubkey.to_bytes())
     }
 }
+
 impl Pubkey {
+    #[cfg(not(feature = "pinocchio"))]
     pub fn new_unique() -> Self {
-        Self(pubkey::Pubkey::new_unique().to_bytes())
+        Self(solana_program::pubkey::Pubkey::new_unique().to_bytes())
+    }
+
+    #[cfg(feature = "pinocchio")]
+    pub fn new_unique() -> Self {
+        // Just generate a random pubkey
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        let mut bytes = [0u8; 32];
+        rng.fill(&mut bytes);
+        Self(bytes)
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {

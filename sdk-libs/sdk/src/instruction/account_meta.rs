@@ -5,7 +5,7 @@ use light_compressed_account::compressed_account::{
 use crate::{
     error::LightSdkError,
     instruction::{merkle_context::pack_merkle_context, pack_accounts::PackedAccounts},
-    BorshDeserialize, BorshSerialize,
+    AnchorDeserialize, AnchorSerialize,
 };
 
 /// CompressedAccountMeta (context, address, root_index, output_merkle_tree_index)
@@ -20,7 +20,7 @@ pub trait CompressedAccountMetaTrait {
     fn get_output_merkle_tree_index(&self) -> u8;
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoLamportsNoAddress {
     pub merkle_context: PackedMerkleContext,
     pub output_merkle_tree_index: u8,
@@ -70,7 +70,7 @@ impl CompressedAccountMetaNoLamportsNoAddress {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaNoAddress {
     pub merkle_context: PackedMerkleContext,
     pub output_merkle_tree_index: u8,
@@ -123,7 +123,7 @@ impl CompressedAccountMetaNoAddress {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMeta {
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,
@@ -185,7 +185,7 @@ impl CompressedAccountMeta {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaWithLamports {
     /// Merkle tree context.
     pub merkle_context: PackedMerkleContext,

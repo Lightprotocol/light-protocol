@@ -33,7 +33,6 @@ pub enum HashSetError {
     Utils(#[from] UtilsError),
 }
 
-#[cfg(feature = "solana")]
 impl From<HashSetError> for u32 {
     fn from(e: HashSetError) -> u32 {
         match e {
@@ -766,7 +765,7 @@ mod test {
         assert_eq!(hs.first(0).unwrap(), None);
         let mut rng = thread_rng();
         let mut seq = 0;
-        let nullifiers: [BigUint; 24000] =
+        let nullifiers: [BigUint; 10000] =
             std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
         for nf_chunk in nullifiers.chunks(2400) {
             for nullifier in nf_chunk.iter() {

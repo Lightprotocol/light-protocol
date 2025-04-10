@@ -20,9 +20,10 @@ default = ["solana"]
 test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
-legacy = ["account-compression", "light-system-program", "anchor-lang"]
-anchor = ["anchor-lang"]
+legacy = ["account-compression", "light-system-program-anchor", "anchor-lang"]
+anchor = ["anchor-lang", "light-compressed-account/anchor" ]
 solana = ["solana-program", "borsh"]
+defautl  = ["solana"]
 
 [dependencies]
 solana-program = { workspace = true, optional = true }
@@ -34,26 +35,14 @@ thiserror = { workspace = true }
 
 # anchor programs
 account-compression = { workspace = true, optional = true }
-light-system-program = { workspace = true, optional = true }
+light-system-program-anchor = { workspace = true, optional = true }
 
-light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
 
-light-compressed-account = { workspace = true }
+light-macros = { workspace = true }
+light-compressed-account = { workspace = true}
 light-verifier = { workspace = true }
 light-hasher = { workspace = true }
-
-# feature solana dependencies
-[target.'cfg(feature = "solana")'.dependencies]
-light-verifier = { workspace = true, features = ["solana"] }
-light-compressed-account = { workspace = true, features = ["solana"] }
-light-hasher = { workspace = true, features = ["solana"] }
-
-# feature anchor dependencies
-[target.'cfg(feature = "anchor")'.dependencies]
-light-verifier = { workspace = true, features = ["anchor"] }
-light-compressed-account = { workspace = true, features = ["anchor"] }
-light-hasher = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 num-bigint = { workspace = true }

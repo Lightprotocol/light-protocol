@@ -5,8 +5,9 @@ use light_merkle_tree_metadata::{
     access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     queue::QueueMetadata, rollover::RolloverMetadata,
 };
-use solana_program::{account_info::AccountInfo, msg};
 
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     constants::{
         DEFAULT_BATCH_SIZE, DEFAULT_BATCH_STATE_TREE_HEIGHT, DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE,
@@ -15,6 +16,7 @@ use crate::{
     errors::BatchedMerkleTreeError,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
     queue::{get_output_queue_account_size, BatchedQueueAccount},
+    AccountInfo,
 };
 
 #[repr(C)]
@@ -67,11 +69,11 @@ impl Default for InitStateTreeAccountsInstructionData {
 /// Initializes the state Merkle tree and output queue accounts.
 /// 1. Check rent exemption and that accounts are initialized with the correct size.
 /// 2. Initialize the output queue and state Merkle tree accounts.
-pub fn init_batched_state_merkle_tree_from_account_info<'a>(
+pub fn init_batched_state_merkle_tree_from_account_info(
     params: InitStateTreeAccountsInstructionData,
-    owner: solana_program::pubkey::Pubkey,
-    merkle_tree_account_info: &AccountInfo<'a>,
-    queue_account_info: &AccountInfo<'a>,
+    owner: crate::Pubkey,
+    merkle_tree_account_info: &AccountInfo,
+    queue_account_info: &AccountInfo,
     additional_bytes_rent: u64,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
@@ -104,10 +106,10 @@ pub fn init_batched_state_merkle_tree_from_account_info<'a>(
         owner.into(),
         params,
         queue_data,
-        (*queue_account_info.key).into(),
+        (*queue_account_info.key()).into(),
         queue_rent,
         mt_data,
-        (*merkle_tree_account_info.key).into(),
+        (*merkle_tree_account_info.key()).into(),
         merkle_tree_rent,
         additional_bytes_rent,
     )?;
@@ -137,7 +139,8 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
             None => 0,
         };
 
-        msg!(" Output queue rollover_fee: {}", rollover_fee);
+        #[cfg(not(feature = "pinocchio"))]
+        crate::msg!(" Output queue rollover_fee: {}", rollover_fee);
         let metadata = QueueMetadata {
             next_queue: Pubkey::default(),
             access_metadata: AccessMetadata::new(owner, params.program_owner, params.forester),

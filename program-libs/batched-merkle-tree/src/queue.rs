@@ -10,16 +10,18 @@ use light_compressed_account::{
 };
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
-use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
 
+// Import the feature-gated types from lib.rs
 use super::batch::BatchState;
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     batch::Batch,
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
     queue_batch_metadata::QueueBatches,
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 #[repr(C)]
@@ -143,7 +145,7 @@ impl<'a> BatchedQueueAccount<'a> {
     /// 2. discriminator,
     /// 3. queue type is output queue type.
     pub fn output_from_account_info(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         Self::from_account_info::<BATCHED_OUTPUT_QUEUE_TYPE>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
@@ -155,8 +157,8 @@ impl<'a> BatchedQueueAccount<'a> {
     /// Should be used in solana programs.
     /// Checks the program owner, discriminator and queue type.
     fn from_account_info<const QUEUE_TYPE: u64>(
-        program_id: &solana_program::pubkey::Pubkey,
-        account_info: &AccountInfo<'a>,
+        program_id: &crate::Pubkey,
+        account_info: &AccountInfo,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         check_account_info::<Self, ANCHOR_DISCRIMINATOR_LEN>(program_id, account_info)?;
         let account_data = &mut account_info.try_borrow_mut_data()?;
@@ -164,7 +166,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let account_data: &'a mut [u8] = unsafe {
             std::slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len())
         };
-        Self::from_bytes::<QUEUE_TYPE>(account_data, (*account_info.key).into())
+        Self::from_bytes::<QUEUE_TYPE>(account_data, (*account_info.key()).into())
     }
 
     /// Deserialize a BatchedQueueAccount from bytes.
@@ -239,8 +241,10 @@ impl<'a> BatchedQueueAccount<'a> {
                 .batch_metadata
                 .queue_account_size(account_metadata.metadata.queue_type)?
         {
-            msg!("account_data.len() {:?}", account_data_len);
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!("account_data.len() {:?}", account_data_len);
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "queue_account_size {:?}",
                 account_metadata
                     .batch_metadata
@@ -333,11 +337,11 @@ impl<'a> BatchedQueueAccount<'a> {
                 } else {
                     #[cfg(target_os = "solana")]
                     {
-                        solana_program::msg!(
-                            "Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
+                        crate::msg!(
+                            format!("Index found but value doesn't match leaf_index {} compressed account hash: {:?} expected compressed account hash {:?}. (If the expected element is [0u8;32] it was already spent. Other possibly causes, data hash, discriminator, leaf index, or Merkle tree mismatch.)",
                             leaf_index,
                             hash_chain_value,*element
-                        );
+                        ).as_str());
                     }
                     return Err(BatchedMerkleTreeError::InclusionProofByIndexFailed);
                 }
@@ -364,11 +368,11 @@ impl<'a> BatchedQueueAccount<'a> {
         if prove_by_index {
             #[cfg(target_os = "solana")]
             {
-                solana_program::msg!(
-                    "leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
+                crate::msg!(
+                   format!("leaf_index {} compressed account hash: {:?}. Possibly causes, leaf index, or Merkle tree mismatch.)",
                     leaf_index,
                     hash_chain_value
-                );
+                ).as_str());
             }
             Err(BatchedMerkleTreeError::InclusionProofByIndexFailed)
         } else {
@@ -494,8 +498,9 @@ pub(crate) fn insert_into_current_queue_batch(
             current_batch.advance_state_to_fill(current_index)?;
         } else {
             // We expect to insert into the current batch.
+            #[cfg(not(feature = "pinocchio"))]
             for batch in batch_metadata.batches.iter() {
-                msg!("batch {:?}", batch);
+                crate::msg!("batch {:?}", batch);
             }
             return Err(BatchedMerkleTreeError::BatchNotReady);
         }

@@ -745,8 +745,13 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyAddress,
         )
         .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
-
+        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
         let result = perform_create_pda_with_event(
             &mut test_indexer,
             &mut rpc,
@@ -763,7 +768,7 @@ async fn only_test_create_pda() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
 
@@ -780,7 +785,13 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyRootIndex,
         )
         .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,

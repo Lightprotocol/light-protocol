@@ -37,7 +37,7 @@ pub trait Discriminator {
     }
 }
 
-#[cfg(all(feature = "anchor", not(feature = "solana")))]
-use anchor_lang::prelude::Pubkey;
-#[cfg(feature = "solana")]
-use solana_program::pubkey::Pubkey;
+#[cfg(feature = "pinocchio")]
+use pinocchio::program_error::ProgramError;
+#[cfg(not(feature = "pinocchio"))]
+use solana_program::{program_error::ProgramError, pubkey::Pubkey};

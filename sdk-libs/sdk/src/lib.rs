@@ -15,23 +15,12 @@ pub mod transfer;
 pub mod utils;
 
 #[cfg(feature = "anchor")]
-use anchor_lang::{
-    prelude::Pubkey,
-    solana_program::{
-        account_info::AccountInfo,
-        instruction::{AccountMeta, Instruction},
-        msg,
-        program::invoke_signed,
-        program_error::ProgramError,
-    },
-    AnchorDeserialize as BorshDeserialize, AnchorSerialize as BorshSerialize,
-};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_compressed_account::instruction_data::data::*;
 pub use light_hasher as hasher;
 pub use light_verifier as verifier;
-#[cfg(all(feature = "solana", not(feature = "anchor")))]
 use solana_program::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},

@@ -1,82 +1,130 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::prelude::*;
-use light_compressed_account::instruction_data::zero_copy::{
-    ZOutputCompressedAccountWithPackedContext, ZPackedCompressedAccountWithMerkleContext,
-};
+#![allow(unused_imports)]
+use light_compressed_account::instruction_data::traits::InstructionDataTrait;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use pinocchio::{
+    msg,
+    program_error::ProgramError,
+    pubkey::{checked_create_program_address, try_find_program_address, Pubkey},
+};
 
-use crate::errors::SystemProgramError;
+use crate::{
+    constants::CPI_AUTHORITY_PDA_SEED, context::WrappedInstructionData, errors::SystemProgramError,
+    Result,
+};
 /// Checks:
 /// 1. Invoking program is signer (cpi_signer_check)
 /// 2. Input compressed accounts with data are owned by the invoking program
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
-pub fn cpi_signer_checks(
-    invoking_programid: &Pubkey,
+pub fn cpi_signer_checks<'a, T: InstructionDataTrait<'a>>(
+    invoking_program_id: &Pubkey,
     authority: &Pubkey,
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext],
+    inputs: &WrappedInstructionData<'a, T>,
 ) -> Result<()> {
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_signer_checks");
-    cpi_signer_check(invoking_programid, authority)?;
+    cpi_signer_check(invoking_program_id, authority, inputs.bump())?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_signer_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpd_input_checks");
-    input_compressed_accounts_signer_check(
-        input_compressed_accounts_with_merkle_context,
-        invoking_programid,
-    )?;
+    input_compressed_accounts_signer_check(inputs, invoking_program_id)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpd_input_checks");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_cpi_write_checks");
-    output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
+    output_compressed_accounts_write_access_check(inputs, invoking_program_id)?;
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_cpi_write_checks");
     Ok(())
 }
 
+#[allow(unused_variables)]
 /// Cpi signer check, validates that the provided invoking program
 /// is the actual invoking program.
-pub fn cpi_signer_check(invoking_program: &Pubkey, authority: &Pubkey) -> Result<()> {
-    let seeds = [CPI_AUTHORITY_PDA_SEED];
-    let derived_signer = Pubkey::try_find_program_address(&seeds, invoking_program)
-        .ok_or(ProgramError::InvalidSeeds)?
-        .0;
+pub fn cpi_signer_check(
+    invoking_program: &Pubkey,
+    authority: &Pubkey,
+    bump: Option<u8>,
+) -> Result<()> {
+    let derived_signer = if let Some(bump) = bump {
+        #[allow(unused)]
+        let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
+        #[cfg(target_os = "solana")]
+        {
+            checked_create_program_address(&seeds, invoking_program)?
+        }
+        #[cfg(all(test, not(target_os = "solana")))]
+        {
+            solana_pubkey::Pubkey::create_program_address(
+                &seeds,
+                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+            )
+            .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
+            .to_bytes()
+        }
+        #[cfg(all(not(target_os = "solana"), not(test)))]
+        {
+            unimplemented!("cpi signer check is only implemented for target os solana and test");
+            #[allow(unused)]
+            crate::ID
+        }
+    } else {
+        let seeds = [CPI_AUTHORITY_PDA_SEED];
+        #[cfg(target_os = "solana")]
+        {
+            try_find_program_address(&seeds, invoking_program)
+                .ok_or(ProgramError::InvalidSeeds)?
+                .0
+        }
+        #[cfg(all(test, not(target_os = "solana")))]
+        {
+            solana_pubkey::Pubkey::try_find_program_address(
+                &seeds,
+                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+            )
+            .ok_or(ProgramError::InvalidSeeds)?
+            .0
+            .to_bytes()
+        }
+        #[cfg(all(not(target_os = "solana"), not(test)))]
+        {
+            unimplemented!("cpi signer check is only implemented for target os solana and test");
+            #[allow(unused)]
+            crate::ID
+        }
+    };
+    #[allow(unreachable_code)]
     if derived_signer != *authority {
-        msg!(
-            "Cpi signer check failed. Derived cpi signer {} !=  authority {}",
-            derived_signer,
-            authority
-        );
-        return err!(SystemProgramError::CpiSignerCheckFailed);
+        msg!(format!(
+            "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
+            derived_signer, authority
+        )
+        .as_str());
+        return Err(SystemProgramError::CpiSignerCheckFailed.into());
     }
     Ok(())
 }
 
 /// Checks that the invoking program owns all input compressed accounts.
-pub fn input_compressed_accounts_signer_check(
-    input_compressed_accounts_with_merkle_context: &[ZPackedCompressedAccountWithMerkleContext],
+pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    input_compressed_accounts_with_merkle_context
-        .iter()
+    inputs.input_accounts()
         .try_for_each(
             |compressed_account_with_context| {
-                let invoking_program_id = invoking_program_id.key();
-                if invoking_program_id == compressed_account_with_context.compressed_account.owner.into() {
+                if *invoking_program_id == compressed_account_with_context.owner().to_bytes() {
                     Ok(())
                 } else {
                     msg!(
-                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {}",
-                        compressed_account_with_context.compressed_account.owner.to_bytes(),
-                        invoking_program_id
+                       format!("Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {:?} !=  invoking_program_id {:?}",
+                        compressed_account_with_context.owner().to_bytes(),
+                        invoking_program_id).as_str()
                     );
-                    err!(SystemProgramError::SignerCheckFailed)
+                    Err(SystemProgramError::SignerCheckFailed.into())
                 }
             },
         )
@@ -88,38 +136,26 @@ pub fn input_compressed_accounts_signer_check(
 ///     invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
-pub fn output_compressed_accounts_write_access_check(
-    output_compressed_accounts: &[ZOutputCompressedAccountWithPackedContext],
+pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    for compressed_account in output_compressed_accounts.iter() {
-        if compressed_account.compressed_account.data.is_some()
-            && invoking_program_id.key()
-                != compressed_account
-                    .compressed_account
-                    .owner
-                    .to_bytes()
-                    .into()
+    for compressed_account in inputs.output_accounts() {
+        if compressed_account.has_data()
+            && *invoking_program_id != compressed_account.owner().to_bytes()
         {
             msg!(
-                    "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {}",
-                    compressed_account.compressed_account.owner.to_bytes(),
-                    invoking_program_id.key()
-                );
-            msg!("compressed_account: {:?}", compressed_account);
-            return err!(SystemProgramError::WriteAccessCheckFailed);
+                 format!(   "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {:?}",
+                    compressed_account.owner().to_bytes(),
+                    invoking_program_id
+                ).as_str());
+            return Err(SystemProgramError::WriteAccessCheckFailed.into());
         }
-        if compressed_account.compressed_account.data.is_none()
-            && invoking_program_id.key()
-                == compressed_account
-                    .compressed_account
-                    .owner
-                    .to_bytes()
-                    .into()
+        if !compressed_account.has_data()
+            && *invoking_program_id == compressed_account.owner().to_bytes()
         {
             msg!("For program owned compressed accounts the data field needs to be defined.");
-            msg!("compressed_account: {:?}", compressed_account);
-            return err!(SystemProgramError::DataFieldUndefined);
+            return Err(SystemProgramError::DataFieldUndefined.into());
         }
     }
     Ok(())
@@ -127,6 +163,8 @@ pub fn output_compressed_accounts_write_access_check(
 
 #[cfg(test)]
 mod test {
+    use solana_pubkey::Pubkey;
+
     use super::*;
 
     #[test]
@@ -134,15 +172,30 @@ mod test {
         for _ in 0..1000 {
             let seeds = [CPI_AUTHORITY_PDA_SEED];
             let invoking_program = Pubkey::new_unique();
-            let (derived_signer, _) = Pubkey::find_program_address(&seeds[..], &invoking_program);
-            assert_eq!(cpi_signer_check(&invoking_program, &derived_signer), Ok(()));
+            let (derived_signer, bump) =
+                Pubkey::find_program_address(&seeds[..], &invoking_program);
+            let derived_signer = derived_signer.to_bytes();
+            assert_eq!(
+                cpi_signer_check(&invoking_program.to_bytes(), &derived_signer, Some(bump)),
+                Ok(())
+            );
+            assert_eq!(
+                cpi_signer_check(&invoking_program.to_bytes(), &derived_signer, None),
+                Ok(())
+            );
 
-            let authority = Pubkey::new_unique();
-            let invoking_program = Pubkey::new_unique();
+            let authority = Pubkey::new_unique().to_bytes();
+            let invoking_program = Pubkey::new_unique().to_bytes();
             assert!(
-                cpi_signer_check(&invoking_program, &authority)
-                    == Err(ProgramError::InvalidSeeds.into())
-                    || cpi_signer_check(&invoking_program, &authority)
+                cpi_signer_check(&invoking_program, &authority, None)
+                    == Err(ProgramError::InvalidSeeds)
+                    || cpi_signer_check(&invoking_program, &authority, None)
+                        == Err(SystemProgramError::CpiSignerCheckFailed.into())
+            );
+            assert!(
+                cpi_signer_check(&invoking_program, &authority, Some(255))
+                    == Err(ProgramError::InvalidSeeds)
+                    || cpi_signer_check(&invoking_program, &authority, Some(255))
                         == Err(SystemProgramError::CpiSignerCheckFailed.into())
             );
         }

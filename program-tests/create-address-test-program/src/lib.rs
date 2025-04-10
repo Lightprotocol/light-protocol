@@ -49,7 +49,7 @@ pub mod system_cpi_test {
     ) -> Result<()> {
         for i in 0..num_invocations {
             msg!("invoke_cpi_multiple cpi {}", i);
-            process_invoke_cpi(&ctx, inputs.to_vec(), bump)?;
+            process_invoke_cpi(&ctx, inputs.clone(), bump)?;
         }
         Ok(())
     }

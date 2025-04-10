@@ -37,7 +37,7 @@ macro_rules! impl_to_byte_array_for_integer_type {
     };
 }
 
-#[cfg(any(feature = "solana", feature = "anchor"))]
+#[cfg(not(feature = "pinocchio"))]
 impl ToByteArray for crate::Pubkey {
     const NUM_FIELDS: usize = 1;
 
@@ -457,15 +457,7 @@ mod test {
         expected[28..32].copy_from_slice(&u32_value.to_be_bytes());
         assert_eq!(arrays[0], expected);
 
-        #[cfg(feature = "solana")]
-        {
-            // Test to_byte_arrays for Pubkey
-            let pubkey = crate::Pubkey::new_unique();
-            let arrays = pubkey.to_byte_arrays::<1>().unwrap();
-            assert_eq!(arrays.len(), 1);
-            assert_eq!(arrays[0], pubkey.to_bytes());
-        }
-        #[cfg(feature = "anchor")]
+        #[cfg(not(feature = "pinocchio"))]
         {
             // Test to_byte_arrays for Pubkey
             let pubkey = crate::Pubkey::new_unique();

@@ -7,16 +7,18 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
+solana = ["dep:solana-program"]
+pinocchio = ["dep:pinocchio"]
 
 [dependencies]
 bitvec = "1.0.1"
 fastmurmur3 = "0.2.0"
 num-bigint = { workspace = true }
 solana-program = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, default-features = false }
 num-bigint = { workspace = true, features = ["rand"] }
