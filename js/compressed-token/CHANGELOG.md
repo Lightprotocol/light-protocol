@@ -1,3 +1,77 @@
+## [0.30.0]
+
+#### Breaking Changes
+
+This release has several breaking changes which improve protocol
+scalability. Please reach out to the [team](https://t.me/swen_light) if you need help migrating.
+
+-   new type: TokenPoolInfo
+-   Instruction Changes:
+
+    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
+    -   `decompress` now requires array of one or more TokenPoolInfos.
+
+-   Action Changes:
+    -   Removed optional tokenProgramId: PublicKey
+    -   removed optional merkleTree: PublicKey
+    -   removed optional outputStateTree: PublicKey
+    -   added optional stateTreeInfo: StateTreeInfo
+    -   added optional tokenPoolInfo: TokenPoolInfo
+
+### Migration guide: Compress
+
+```typescript
+// ...
+
+// new code
+const treeInfos = await rpc.getCachedActiveStateTreeInfos();
+const treeInfo = selectStateTreeInfo(treeInfos);
+
+const infos = await getTokenPoolInfos(rpc, mint);
+const info = selectTokenPoolInfo(infos);
+
+const compressIx = await CompressedTokenProgram.compress({
+    // ...
+    outputStateTreeInfo,
+    tokenPoolInfo,
+});
+```
+
+### Migration guide: Decompress
+
+```typescript
+// ...
+// new code:
+const treeInfos = await rpc.getCachedActiveStateTreeInfos();
+const treeInfo = selectStateTreeInfo(treeInfos);
+
+const infos = await getTokenPoolInfos(rpc, mint);
+const selectedInfos = selectTokenPoolInfosForDecompression(
+    tokenPoolInfos,
+    amount,
+);
+
+const ix = await CompressedTokenProgram.decompress({
+    // ...
+    outputStateTreeInfo,
+    tokenPoolInfos: selectedTokenPoolInfos,
+});
+```
+
+### Why the Changes are helpful
+
+`getCachedActiveStateTreeInfos()` retrieves all active state trees.
+
+When building a transaction you can now pick a random treeInfo via `selectStateTreeInfo(infos)`.
+
+This lets you and others execute more transactions within Solana's write lock
+limits.
+
+The same applies to `getTokenPoolInfos`. When you compress or decompress SPL
+tokens, a tokenpool gets write-locked. If you need additional per-block write
+lock capacity, you can register and sample additional (up to 4) tokenpool
+accounts.
+
 ## [0.20.5-0.20.9] - 2025-02-24
 
 ### Changed

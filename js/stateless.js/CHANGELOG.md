@@ -7,8 +7,72 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 
 ### Breaking changes
 
--   ActiveTreeBundle renamed to StateTreeInfo
--   outputStateTree ()
+-   Renamed `ActiveTreeBundle` to `StateTreeInfo`
+-   Updated `StateTreeInfo` internal structure: `{ tree: PublicKey, queue: PublicKey, cpiContext: PublicKey | null, treeType: TreeType }`
+-   Replaced `pickRandomTreeAndQueue` with `selectStateTreeInfo`
+-   Use `selectStateTreeInfo` for tree selection instead of `pickRandomTreeAndQueue`
+
+### Deprecations
+
+-   `rpc.getValidityProof` is now deprecated, use `rpc.getValidityProofV0` instead.
+
+### Migration Guide
+
+1. Update Type References if you use them:
+
+```typescript
+// Old code
+const bundle: ActiveTreeBundle = {
+    tree: publicKey,
+    queue: publicKey,
+    cpiContext: publicKey,
+};
+
+// New code
+const info: StateTreeInfo = {
+    tree: publicKey,
+    queue: publicKey, // Now required
+    cpiContext: publicKey,
+    treeType: TreeType.StateV1, // New required field
+};
+```
+
+2. Update Method Calls:
+
+```typescript
+// Old code
+const ix = LightSystemProgram.compress({
+    outputStateTree: bundle,
+});
+
+// New code
+const ix = LightSystemProgram.compress({
+    outputStateTree: info,
+});
+```
+
+3. Tree Fetching & Selection:
+
+```typescript
+// Old code
+const bundles = await connection.getCachedActiveStateTreeInfo();
+const { tree, queue } = pickRandomTreeAndQueue(bundles);
+
+// New code
+const infos = await rpc.getCachedActiveStateTreeInfos();
+const selectedInfo = selectStateTreeInfo(info);
+```
+
+4. RPC Changes:
+
+```typescript
+// Old code
+// Still works, but will do one additional RPC call.
+const proof = await rpc.getValidityProof(hash[], address[]);
+
+// New code
+const proof = await rpc.getValidityProofV0(HashWithTree[], AddressWithTree[]);
+```
 
 ## [0.20.5-0.20.9] - 2025-02-24
 

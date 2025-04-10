@@ -20,7 +20,6 @@ import { getOrCreateAssociatedTokenAccount } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
-    selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../utils/get-token-pool-infos';
 

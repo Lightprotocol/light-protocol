@@ -22,6 +22,8 @@ import {
     MerkleContextWithMerkleProof,
     bn,
     TokenData,
+    StateTreeInfo,
+    AddressTreeInfo,
 } from './state';
 import BN from 'bn.js';
 
@@ -65,6 +67,34 @@ export interface SignatureWithMetadata {
     blockTime: number;
     signature: string;
     slot: number;
+}
+
+/**
+ * Account hash and associated state tree info.
+ */
+export interface HashWithTreeInfo {
+    /**
+     * Account hash.
+     */
+    hash: BN254;
+    /**
+     * State tree info.
+     */
+    stateTreeInfo: StateTreeInfo;
+}
+
+/**
+ * Address and associated address tree info.
+ */
+export interface AddressWithTreeInfo {
+    /**
+     * Address.
+     */
+    address: BN254;
+    /**
+     * Address tree info.
+     */
+    addressTreeInfo: AddressTreeInfo;
 }
 
 export interface HashWithTree {
