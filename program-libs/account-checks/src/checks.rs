@@ -110,13 +110,6 @@ pub fn check_account_balance_is_rent_exempt(
 ) -> Result<u64, AccountError> {
     let account_size = account_info.data_len();
     if account_size != expected_size {
-        // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-        // crate::msg!(
-        //     "Account {:?} size not equal to expected size. size: {}, expected size {}",
-        //     account_info.key,
-        //     account_size,
-        //     expected_size
-        // );
         return Err(AccountError::InvalidAccountSize);
     }
     let lamports = account_info.lamports();
@@ -126,13 +119,7 @@ pub fn check_account_balance_is_rent_exempt(
         let rent_exemption = (crate::Rent::get()
             .map_err(|_| AccountError::FailedBorrowRentSysvar))?
         .minimum_balance(expected_size);
-        if lamports != rent_exemption {
-            crate::msg!(
-                format!("Account {:?} lamports is not equal to rentexemption: lamports {}, rent exemption {}",
-                account_info.key,
-                lamports,
-                rent_exemption).as_str()
-            );
+        if lamports < rent_exemption {
             return Err(AccountError::InvalidAccountBalance);
         }
     }

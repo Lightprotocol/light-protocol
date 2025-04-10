@@ -8,7 +8,7 @@ if [ ! -e "$out_dir" ]; then
     mkdir -p "$out_dir"
 fi
 
-keys="account_compression light_system_program light_compressed_token light_registry"
+keys="account_compression light_system_program_pinocchio light_compressed_token light_registry"
 for key in $keys
 do
     cp "$root_dir/target/deploy/$key.so" "$out_dir"/"$key".so
