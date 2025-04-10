@@ -153,7 +153,7 @@ light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-groth16-solana = { version = "0.0.3" }
+groth16-solana = { version = "0.1.0" }
 # anchor 0.29 requires 1.19
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
