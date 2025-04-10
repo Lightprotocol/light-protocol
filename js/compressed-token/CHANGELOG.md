@@ -2,7 +2,7 @@
 
 #### Breaking Changes
 
-This release has several breaking changes which are necessary for protocol
+This release has several breaking changes which improve protocol
 scalability. Please reach out to the [team](https://t.me/swen_light) if you need help migrating.
 
 -   new type: TokenPoolInfo
@@ -41,7 +41,6 @@ const compressIx = await CompressedTokenProgram.compress({
 
 ```typescript
 // ...
-
 // new code:
 const treeInfos = await rpc.getCachedActiveStateTreeInfos();
 const treeInfo = selectStateTreeInfo(treeInfos);
@@ -58,6 +57,20 @@ const ix = await CompressedTokenProgram.decompress({
     tokenPoolInfos: selectedTokenPoolInfos,
 });
 ```
+
+### Why the Changes are helpful
+
+`getCachedActiveStateTreeInfos()` retrieves all active state trees.
+
+When building a transaction you can now pick a random treeInfo via `selectStateTreeInfo(infos)`.
+
+This lets you and others execute more transactions within Solana's write lock
+limits.
+
+The same applies to `getTokenPoolInfos`. When you compress or decompress SPL
+tokens, a tokenpool gets write-locked. If you need additional per-block write
+lock capacity, you can register and sample additional (up to 4) tokenpool
+accounts.
 
 ## [0.20.5-0.20.9] - 2025-02-24
 
