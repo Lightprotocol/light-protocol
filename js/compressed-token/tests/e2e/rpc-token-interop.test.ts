@@ -7,9 +7,16 @@ import {
     createRpc,
     getTestRpc,
     defaultTestStateTreeAccounts,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 const TEST_TOKEN_DECIMALS = 2;
 
@@ -21,15 +28,18 @@ describe('rpc-interop token', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
+    let stateTreeInfo: StateTreeInfo;
+    let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        rpc = createRpc();
         const lightWasm = await WasmFactory.getInstance();
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
+        rpc = createRpc();
+        testRpc = await getTestRpc(lightWasm);
+        payer = await newAccountWithLamports(rpc);
+        bob = await newAccountWithLamports(rpc);
+        charlie = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
-
-        testRpc = await getTestRpc(lightWasm);
 
         mint = (
             await createMint(
@@ -41,8 +51,10 @@ describe('rpc-interop token', () => {
             )
         ).mint;
 
-        bob = await newAccountWithLamports(rpc, 1e9, 256);
-        charlie = await newAccountWithLamports(rpc, 1e9, 256);
+        stateTreeInfo = selectStateTreeInfo(
+            await rpc.getCachedActiveStateTreeInfos(),
+        );
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         await mintTo(
             rpc,
@@ -51,7 +63,8 @@ describe('rpc-interop token', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
@@ -252,6 +265,10 @@ describe('rpc-interop token', () => {
             )
         ).mint;
 
+        const tokenPoolInfo2 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, mint2),
+        );
+
         await mintTo(
             rpc,
             payer,
@@ -259,7 +276,8 @@ describe('rpc-interop token', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo2,
         );
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(

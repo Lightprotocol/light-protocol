@@ -9,7 +9,59 @@ import {
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
+    StateTreeInfo,
+    TreeType,
 } from '../../state';
+
+/**
+ * Get the queue for a given tree
+ *
+ * @param info - The active state tree addresses
+ * @param tree - The tree to get the queue for
+ * @returns The queue for the given tree, or undefined if not found
+ */
+/**
+ * Get the queue for a given tree
+ *
+ * @param info - The active state tree addresses
+ * @param tree - The tree to get the queue for
+ * @returns The queue for the given tree, or throws an error if not found
+ */
+export function getQueueForTree(
+    info: StateTreeInfo[],
+    tree: PublicKey,
+): { queue: PublicKey; treeType: TreeType; tree: PublicKey } {
+    const index = info.findIndex(t => t.tree.equals(tree));
+
+    if (index !== -1) {
+        const { queue, treeType } = info[index];
+        if (!queue) {
+            throw new Error('Queue must not be null for state tree');
+        }
+        return { queue, treeType, tree: info[index].tree };
+    }
+
+    // // test-rpc indexes queue as tree.
+    // const indexV2 = info.findIndex(
+    //     t => t.queue && t.queue.equals(tree) && t.treeType === TreeType.StateV2,
+    // );
+    // if (indexV2 !== -1) {
+    //     const {
+    //         queue: actualQueue,
+    //         treeType,
+    //         tree: actualTree,
+    //     } = info[indexV2];
+    //     if (!actualQueue) {
+    //         throw new Error('Queue must not be null for state tree');
+    //     }
+
+    //     return { queue: actualQueue, treeType, tree: actualTree };
+    // }
+
+    throw new Error(
+        `No associated queue found for tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,
+    );
+}
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,
@@ -43,6 +95,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
+    const infos = await rpc.getCachedActiveStateTreeInfos();
 
     for (const event of events) {
         for (
@@ -50,10 +103,21 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             index < event.outputCompressedAccounts.length;
             index++
         ) {
+            const smt =
+                event.pubkeyArray[
+                    event.outputCompressedAccounts[index].merkleTreeIndex
+                ];
+
+            // In test-rpc we can do this with a static set of trees because it's local-only.
+            const { queue, treeType, tree } = getQueueForTree(
+                infos,
+                new PublicKey(smt),
+            );
+
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().nullifierQueue,
+                merkleTree: tree,
+                nullifierQueue: queue,
                 hash: event.outputCompressedAccountHashes[index],
                 leafIndex: event.outputLeafIndices[index],
             };

@@ -1,23 +1,23 @@
 import {
-    AddressLookupTableProgram,
-    Connection,
-    Keypair,
     PublicKey,
+    Keypair,
+    Connection,
+    AddressLookupTableProgram,
     Signer,
 } from '@solana/web3.js';
 import { buildAndSignTx, sendAndConfirmTx } from './send-and-confirm';
-import { dedupeSigner } from '../actions';
-import { ActiveTreeBundle, TreeType } from '../state/types';
+import { dedupeSigner } from './dedupe-signer';
+import { Rpc } from '../rpc';
 
 /**
  * Create two lookup tables storing all public state tree and queue addresses
  * returns lookup table addresses and txId
  *
  * @internal
- * @param connection - Connection to the Solana network
- * @param payer - Keypair of the payer
- * @param authority - Keypair of the authority
- * @param recentSlot - Slot of the recent block
+ * @param connection    Connection to the Solana network
+ * @param payer         Keypair of the payer
+ * @param authority     Keypair of the authority
+ * @param recentSlot    Slot of the recent block
  */
 export async function createStateTreeLookupTable({
     connection,
@@ -45,8 +45,8 @@ export async function createStateTreeLookupTable({
         blockhash.blockhash,
         dedupeSigner(payer as Signer, [authority]),
     );
-    // @ts-expect-error
-    const txId = await sendAndConfirmTx(connection, tx);
+
+    const txId = await sendAndConfirmTx(connection as Rpc, tx);
 
     return {
         address: lookupTableAddress1,
@@ -56,14 +56,15 @@ export async function createStateTreeLookupTable({
 
 /**
  * Extend state tree lookup table with new state tree and queue addresses
+ *
  * @internal
- * @param connection - Connection to the Solana network
- * @param tableAddress - Address of the lookup table to extend
- * @param newStateTreeAddresses - Addresses of the new state trees to add
- * @param newQueueAddresses - Addresses of the new queues to add
- * @param newCpiContextAddresses - Addresses of the new cpi contexts to add
- * @param payer - Keypair of the payer
- * @param authority - Keypair of the authority
+ * @param connection                Connection to the Solana network
+ * @param tableAddress              Address of the lookup table to extend
+ * @param newStateTreeAddresses     Addresses of the new state trees to add
+ * @param newQueueAddresses         Addresses of the new queues to add
+ * @param newCpiContextAddresses    Addresses of the new cpi contexts to add
+ * @param payer                     Keypair of the payer
+ * @param authority                 Keypair of the authority
  */
 export async function extendStateTreeLookupTable({
     connection,
@@ -117,9 +118,8 @@ export async function extendStateTreeLookupTable({
         blockhash.blockhash,
         dedupeSigner(payer as Signer, [authority]),
     );
-    // we pass a Connection type so we don't have to depend on the Rpc module.
-    // @ts-expect-error
-    const txId = await sendAndConfirmTx(connection, tx);
+
+    const txId = await sendAndConfirmTx(connection as Rpc, tx);
 
     return {
         tableAddress,
@@ -130,15 +130,16 @@ export async function extendStateTreeLookupTable({
 /**
  * Adds state tree address to lookup table. Acts as nullifier lookup for rolled
  * over state trees.
+ *
  * @internal
- * @param connection - Connection to the Solana network
- * @param stateTreeAddress - Address of the state tree to nullify
- * @param nullifyTableAddress - Address of the nullifier lookup table to store
- * address in
- * @param stateTreeLookupTableAddress - lookup table storing all state tree
- * addresses
- * @param payer - Keypair of the payer
- * @param authority - Keypair of the authority
+ * @param connection                    Connection to the Solana network
+ * @param stateTreeAddress              Address of the state tree to nullify
+ * @param nullifyTableAddress           Address of the nullifier lookup table to
+ *                                      store address in
+ * @param stateTreeLookupTableAddress   lookup table storing all state tree
+ *                                      addresses
+ * @param payer                         Keypair of the payer
+ * @param authority                     Keypair of the authority
  */
 export async function nullifyLookupTable({
     connection,
@@ -201,57 +202,4 @@ export async function nullifyLookupTable({
     return {
         txId,
     };
-}
-
-/**
- *  Get most recent , active state tree data
- * we store in lookup table for each public state tree
- */
-export async function getLightStateTreeInfo({
-    connection,
-    stateTreeLookupTableAddress,
-    nullifyTableAddress,
-}: {
-    connection: Connection;
-    stateTreeLookupTableAddress: PublicKey;
-    nullifyTableAddress: PublicKey;
-}): Promise<ActiveTreeBundle[]> {
-    const stateTreeLookupTable = await connection.getAddressLookupTable(
-        stateTreeLookupTableAddress,
-    );
-
-    if (!stateTreeLookupTable.value) {
-        throw new Error('State tree lookup table not found');
-    }
-
-    if (stateTreeLookupTable.value.state.addresses.length % 3 !== 0) {
-        throw new Error(
-            'State tree lookup table must have a multiple of 3 addresses',
-        );
-    }
-
-    const nullifyTable =
-        await connection.getAddressLookupTable(nullifyTableAddress);
-    if (!nullifyTable.value) {
-        throw new Error('Nullify table not found');
-    }
-    const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
-    const nullifyTablePubkeys = nullifyTable.value.state.addresses;
-
-    const bundles: ActiveTreeBundle[] = [];
-
-    for (let i = 0; i < stateTreePubkeys.length; i += 3) {
-        const tree = stateTreePubkeys[i];
-        // Skip rolledover (full or almost full) Merkle trees
-        if (!nullifyTablePubkeys.includes(tree)) {
-            bundles.push({
-                tree,
-                queue: stateTreePubkeys[i + 1],
-                cpiContext: stateTreePubkeys[i + 2],
-                treeType: TreeType.State,
-            });
-        }
-    }
-
-    return bundles;
 }

@@ -11,11 +11,13 @@ import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { Rpc } from '../../src/rpc';
 import {
     LightSystemProgram,
+    StateTreeInfo,
     bn,
     compress,
     createAccount,
     createAccountWithLamports,
     decompress,
+    selectStateTreeInfo,
 } from '../../src';
 import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -65,11 +67,15 @@ function txFees(
 describe('compress', () => {
     let rpc: Rpc;
     let payer: Signer;
+    let stateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
+        stateTreeInfo = selectStateTreeInfo(
+            await rpc.getCachedActiveStateTreeInfos(),
+        );
     });
 
     it('should create account with address', async () => {
@@ -86,8 +92,7 @@ describe('compress', () => {
             ],
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
 
         await createAccountWithLamports(
@@ -101,9 +106,9 @@ describe('compress', () => {
             ],
             0,
             LightSystemProgram.programId,
+
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
 
         await createAccount(
@@ -117,8 +122,7 @@ describe('compress', () => {
             ],
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
 
         await createAccount(
@@ -132,8 +136,7 @@ describe('compress', () => {
             ],
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
         await expect(
             createAccount(
@@ -148,8 +151,7 @@ describe('compress', () => {
                 ],
                 LightSystemProgram.programId,
                 undefined,
-                undefined,
-                defaultTestStateTreeAccounts().merkleTree,
+                stateTreeInfo,
             ),
         ).rejects.toThrow();
         const postCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
@@ -177,7 +179,7 @@ describe('compress', () => {
             payer,
             compressLamportsAmount,
             payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
 
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
@@ -210,8 +212,7 @@ describe('compress', () => {
             100,
             LightSystemProgram.programId,
             undefined,
-            undefined,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
         );
 
         const postCreateAccountBalance = await rpc.getBalance(payer.publicKey);
@@ -228,13 +229,7 @@ describe('compress', () => {
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(preCompressBalance, 1e9);
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
 
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -273,13 +268,7 @@ describe('compress', () => {
             Number(compressedAccounts2.items[0].lamports),
             compressLamportsAmount - decompressLamportsAmount,
         );
-        await decompress(
-            rpc,
-            payer,
-            1,
-            decompressRecipient,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await decompress(rpc, payer, 1, decompressRecipient, stateTreeInfo);
 
         const postDecompressBalance = await rpc.getBalance(decompressRecipient);
         assert.equal(

@@ -6,6 +6,8 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
@@ -17,7 +19,7 @@ describe('mergeTokenAccounts', () => {
     let owner: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
+    let stateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -25,6 +27,10 @@ describe('mergeTokenAccounts', () => {
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
+
+        stateTreeInfo = selectStateTreeInfo(
+            await rpc.getCachedActiveStateTreeInfos(),
+        );
 
         mint = (
             await createMint(
@@ -48,7 +54,7 @@ describe('mergeTokenAccounts', () => {
                 owner.publicKey,
                 mintAuthority,
                 bn(100),
-                defaultTestStateTreeAccounts().merkleTree,
+                stateTreeInfo,
             );
         }
     });
@@ -60,13 +66,7 @@ describe('mergeTokenAccounts', () => {
         );
         expect(preAccounts.items.length).to.be.greaterThan(1);
 
-        await mergeTokenAccounts(
-            rpc,
-            payer,
-            mint,
-            owner,
-            defaultTestStateTreeAccounts().merkleTree,
-        );
+        await mergeTokenAccounts(rpc, payer, mint, owner, stateTreeInfo);
 
         const postAccounts = await rpc.getCompressedTokenAccountsByOwner(
             owner.publicKey,
@@ -85,7 +85,7 @@ describe('mergeTokenAccounts', () => {
     // TODO: add coverage for this apparent edge case. not required for now though.
     it('should handle merging when there is only one account', async () => {
         try {
-            await mergeTokenAccounts(rpc, payer, mint, owner, merkleTree);
+            await mergeTokenAccounts(rpc, payer, mint, owner, stateTreeInfo);
             console.log('First merge succeeded');
 
             const postFirstMergeAccounts =
@@ -100,13 +100,7 @@ describe('mergeTokenAccounts', () => {
 
         // Second merge attempt
         try {
-            await mergeTokenAccounts(
-                rpc,
-                payer,
-                mint,
-                owner,
-                defaultTestStateTreeAccounts().merkleTree,
-            );
+            await mergeTokenAccounts(rpc, payer, mint, owner, stateTreeInfo);
             console.log('Second merge succeeded');
         } catch (error) {
             console.error('Second merge failed:', error);

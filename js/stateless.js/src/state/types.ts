@@ -7,26 +7,72 @@ export enum TreeType {
     /**
      * v1 state merkle tree
      */
-    State = 0,
+    StateV1 = 1,
     /**
      * v1 address merkle tree
      */
-    Address = 1,
+    AddressV1 = 2,
     /**
      * v2 state merkle tree
      */
-    BatchedState = 2,
+    StateV2 = 3,
     /**
      * v2 address merkle tree
      */
-    BatchedAddress = 3,
+    AddressV2 = 4,
 }
 
-export type ActiveTreeBundle = {
+// /**
+//  * @deprecated Use {@link StateTreeInfo} instead.
+//  * A bundle of active trees for a given tree type.
+//  */
+// export type ActiveTreeBundle = {
+//     tree: PublicKey;
+//     queue: PublicKey | null;
+//     cpiContext: PublicKey | null;
+//     treeType: TreeType;
+// };
+
+/**
+ * Public keys for a state tree, versioned via {@link TreeType}. The protocol
+ * stores compressed accounts in state trees.
+ *
+ * Onchain Accounts are subject to Solana's write-lock limits.
+ *
+ * To load balance transactions, use {@link selectStateTreeInfo} to
+ * select a random tree from active Trees.
+ *
+ * Example:
+ * ```typescript
+ * const infos = await getCachedActiveStateTreeInfos();
+ * const info = selectStateTreeInfo(infos);
+ * const ix = CompressedTokenProgram.compress({
+ *     ... // other params
+ *     outputStateTree: info
+ * });
+ * ```
+ */
+export type StateTreeInfo = {
+    /**
+     * Account containing the Sparse Merkle tree in which a compressed
+     * account is stored.
+     */
     tree: PublicKey;
-    queue: PublicKey | null;
+    /**
+     * The state nullfier queue belonging to merkleTree.
+     */
+    queue: PublicKey;
+    /**
+     * The compressed cpi context account.
+     */
     cpiContext: PublicKey | null;
+    /**
+     * The type of tree. One of {@link TreeType}.
+     */
     treeType: TreeType;
+};
+export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {
+    cpiContext: null;
 };
 
 export interface PackedCompressedAccountWithMerkleContext {

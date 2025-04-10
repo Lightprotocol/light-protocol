@@ -11,11 +11,18 @@ import {
     Rpc,
     dedupeSigner,
     pickRandomTreeAndQueue,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 
 import BN from 'bn.js';
 
 import { CompressedTokenProgram } from '../program';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../utils/get-token-pool-infos';
 
 /**
  * Compress SPL tokens
@@ -27,11 +34,11 @@ import { CompressedTokenProgram } from '../program';
  * @param owner                 Owner of the compressed tokens.
  * @param sourceTokenAccount    Source (associated) token account
  * @param toAddress             Destination address of the recipient
- * @param merkleTree            State tree account that the compressed tokens
+ * @param outputStateTreeInfo   State tree account that the compressed tokens
  *                              should be inserted into. Defaults to a default
  *                              state tree account.
+ * @param tokenPoolInfo         Token pool info
  * @param confirmOptions        Options for confirming the transaction
- *
  *
  * @return Signature of the confirmed transaction
  */
@@ -43,19 +50,16 @@ export async function compress(
     owner: Signer,
     sourceTokenAccount: PublicKey,
     toAddress: PublicKey | Array<PublicKey>,
-    merkleTree?: PublicKey,
+    outputStateTreeInfo?: StateTreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
     confirmOptions?: ConfirmOptions,
-    tokenProgramId?: PublicKey,
 ): Promise<TransactionSignature> {
-    tokenProgramId = tokenProgramId
-        ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
-
-    if (!merkleTree) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfo();
-        const { tree } = pickRandomTreeAndQueue(stateTreeInfo);
-        merkleTree = tree;
-    }
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
     const compressIx = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
@@ -64,8 +68,8 @@ export async function compress(
         toAddress,
         amount,
         mint,
-        outputStateTree: merkleTree,
-        tokenProgramId,
+        outputStateTreeInfo,
+        tokenPoolInfo,
     });
 
     const blockhashCtx = await rpc.getLatestBlockhash();
@@ -73,7 +77,7 @@ export async function compress(
     const signedTx = buildAndSignTx(
         [
             ComputeBudgetProgram.setComputeUnitLimit({
-                units: 1_000_000,
+                units: 600_000,
             }),
             compressIx,
         ],
@@ -81,11 +85,6 @@ export async function compress(
         blockhashCtx.blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(
-        rpc,
-        signedTx,
-        confirmOptions,
-        blockhashCtx,
-    );
-    return txId;
+
+    return await sendAndConfirmTx(rpc, signedTx, confirmOptions, blockhashCtx);
 }

@@ -31,7 +31,7 @@ export async function createTokenPool(
 ): Promise<TransactionSignature> {
     tokenProgramId = tokenProgramId
         ? tokenProgramId
-        : await CompressedTokenProgram.get_mint_program_id(mint, rpc);
+        : await CompressedTokenProgram.getMintProgramId(mint, rpc);
 
     const ix = await CompressedTokenProgram.createTokenPool({
         feePayer: payer.publicKey,
