@@ -4,8 +4,9 @@ import dts from 'rollup-plugin-dts';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
-
+import replace from '@rollup/plugin-replace';
 import json from '@rollup/plugin-json';
+
 const rolls = (fmt, env) => ({
     input: 'src/index.ts',
     output: {
@@ -16,6 +17,12 @@ const rolls = (fmt, env) => ({
     },
     external: ['@solana/web3.js'],
     plugins: [
+        replace({
+            preventAssignment: true,
+            values: {
+                '__BUILD_VERSION__': JSON.stringify(process.env.BUILD_VERSION || 'V1'),
+            },
+        }),
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
             outDir: `dist/${fmt}/${env}`,

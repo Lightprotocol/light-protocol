@@ -11,20 +11,20 @@ on:
       - reopened
       - ready_for_review
 
-name: js-tests-v1
+name: js-tests-v2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  stateless-js-v1:
-    name: stateless-js-v1
+  stateless-js-v2:
+    name: stateless-js-v2
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     env:
-      LIGHT_PROTOCOL_VERSION: V1
+      LIGHT_PROTOCOL_VERSION: V2
 
     # services:
     #   redis:
@@ -49,17 +49,17 @@ jobs:
         with:
           components: "node,pnpm,solana,anchor,jq,keys,dependencies"
 
-      - name: Build stateless.js with V1
+      - name: Build stateless.js with V2
         run: |
           source ./scripts/devenv.sh
           cd js/stateless.js
-          pnpm build:v1
+          pnpm build:v2
 
-      - name: Build compressed-token with V1
+      - name: Build compressed-token with V2
         run: |
           source ./scripts/devenv.sh
           cd js/compressed-token
-          pnpm build:v1
+          pnpm build:v2
 
       - name: Build CLI
         run: |
@@ -72,12 +72,12 @@ jobs:
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/zk-compression-cli
 
-      - name: Run stateless.js tests with V1
+      - name: Run stateless.js tests with V2
         run: |
           source ./scripts/devenv.sh
-          LIGHT_PROTOCOL_VERSION=V1 npx nx test @lightprotocol/stateless.js
+          LIGHT_PROTOCOL_VERSION=V2 npx nx test @lightprotocol/stateless.js
 
-      - name: Run compressed-token tests with V1
+      - name: Run compressed-token tests with V2
         run: |
           source ./scripts/devenv.sh
-          LIGHT_PROTOCOL_VERSION=V1 npx nx test @lightprotocol/compressed-token
+          LIGHT_PROTOCOL_VERSION=V2 npx nx test @lightprotocol/compressed-token

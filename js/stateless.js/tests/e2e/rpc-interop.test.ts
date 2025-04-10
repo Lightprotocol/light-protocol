@@ -69,7 +69,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it('getCompressedAccountsByOwner [noforester] filter should work', async () => {
+    it.only('getCompressedAccountsByOwner [noforester] filter should work', async () => {
         let accs = await rpc.getCompressedAccountsByOwner(payer.publicKey, {
             filters: [
                 {

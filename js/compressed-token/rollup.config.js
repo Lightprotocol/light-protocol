@@ -6,6 +6,7 @@ import commonjs from '@rollup/plugin-commonjs';
 import alias from '@rollup/plugin-alias';
 import json from '@rollup/plugin-json';
 import terser from '@rollup/plugin-terser';
+import replace from '@rollup/plugin-replace';
 
 const rolls = (fmt, env) => ({
     input: 'src/index.ts',
@@ -22,6 +23,12 @@ const rolls = (fmt, env) => ({
         '@lightprotocol/stateless.js',
     ],
     plugins: [
+        replace({
+            preventAssignment: true,
+            values: {
+                '__BUILD_VERSION__': JSON.stringify(process.env.BUILD_VERSION || 'V1'),
+            },
+        }),
         json(),
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',

@@ -78,8 +78,12 @@
     },
     "scripts": {
         "test": "pnpm test:e2e:all",
+        "test:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm test",
+        "test:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm test",
         "test-all": "vitest run",
         "test:unit:all": "EXCLUDE_E2E=true vitest run",
+        "test:unit:all:v1": "LIGHT_PROTOCOL_VERSION=V1 vitest run tests/unit --reporter=verbose",
+        "test:unit:all:v2": "LIGHT_PROTOCOL_VERSION=V2 vitest run tests/unit --reporter=verbose",
         "test-all:verbose": "vitest run --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test-validator-skip-prover": "./../../cli/test_bin/run test-validator --skip-prover",
@@ -104,6 +108,10 @@
         "pull-idl": "../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm build:bundle",
         "build:bundle": "rollup -c",
+        "build:v1": "BUILD_VERSION=V1 pnpm build:stateless:v1 && BUILD_VERSION=V1 pnpm build",
+        "build:v2": "BUILD_VERSION=V2 pnpm build:stateless:v2 && BUILD_VERSION=V2 pnpm build",
+        "build:stateless:v1": "cd ../stateless.js && pnpm build:v1",
+        "build:stateless:v2": "cd ../stateless.js && pnpm build:v2",
         "format": "prettier --write .",
         "lint": "eslint ."
     },
