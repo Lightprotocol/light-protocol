@@ -662,8 +662,6 @@ describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
         // First account (from input_compressed_accounts)
         const firstAccount = result.inputCompressedAccountsWithMerkleContext[0];
         expect(firstAccount.rootIndex).toBe(789);
-        console.log('result', result);
-        console.log('firstAccount', firstAccount);
 
         expect(firstAccount.readOnly).toBe(false);
         expect(firstAccount.compressedAccount.lamports).toEqual(new BN(2000));

@@ -339,10 +339,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 const leafIndex = leaves.findIndex(leaf =>
                     bn(leaf).eq(hashes[i]),
                 );
-                // const stateTreeInfo = getStateTreeInfoByPubkey(
-                //     cachedStateTreeInfos,
-                //     tree,
-                // );
 
                 /// If leaf is part of current tree, return proof
                 if (leafIndex !== -1) {

@@ -1533,6 +1533,8 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
         );
 
+        const CHANGE_INDEX = featureFlags.isV2() ? 1 : 0; // TODO: find better solution.
+
         const rawData: CompressedTokenInstructionDataApprove = {
             proof: recentValidityProof,
             mint,
@@ -1540,8 +1542,8 @@ export class CompressedTokenProgram {
             cpiContext: null,
             delegate: toAddress,
             delegatedAmount: bn(amount),
-            delegateMerkleTreeIndex: 1, // TODO: find better solution.
-            changeAccountMerkleTreeIndex: 1,
+            delegateMerkleTreeIndex: CHANGE_INDEX,
+            changeAccountMerkleTreeIndex: CHANGE_INDEX,
             delegateLamports: null,
         };
 
@@ -1610,7 +1612,7 @@ export class CompressedTokenProgram {
             mint,
             inputTokenDataWithContext,
             cpiContext: null,
-            outputAccountMerkleTreeIndex: 2, // Because of the delegate account.
+            outputAccountMerkleTreeIndex: featureFlags.isV2() ? 2 : 1,
         };
         const data = encodeRevokeInstructionData(rawData);
 

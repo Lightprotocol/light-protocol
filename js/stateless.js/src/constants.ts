@@ -3,13 +3,18 @@ import { Buffer } from 'buffer';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 import { TreeInfo, TreeType } from './state/types';
 
+export enum VERSION {
+    V1 = 'V1',
+    V2 = 'V2',
+}
+
 /**
 /**
  * @internal
  * Feature flags. Only use if you know what you are doing.
  */
 export const featureFlags = {
-    version: 'V2' as 'V1' | 'V2',
+    version: VERSION.V1,
     isV2: () => featureFlags.version.toUpperCase() === 'V2',
 };
 
