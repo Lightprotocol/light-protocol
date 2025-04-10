@@ -74,7 +74,7 @@ async fn test_state_indexer_async_batched() {
 
     let env = EnvAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 6;
+    config.transaction_config.batch_ixs_per_tx = 3;
     config.payer_keypair = env.forester.insecure_clone();
     config.derivation_pubkey = env.forester.pubkey();
 
