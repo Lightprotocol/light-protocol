@@ -41,7 +41,8 @@ impl PackedAccounts {
     }
 
     pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
-        self.system_accounts.extend(get_light_system_account_metas(config));
+        self.system_accounts
+            .extend(get_light_system_account_metas(config));
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
@@ -82,10 +83,7 @@ impl PackedAccounts {
             .0
     }
 
-    /// Converts the collection of accounts to a vector of
-    /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
-    /// as remaining accounts in instructions or CPI calls.
-    pub fn to_remaining_accounts(&self) -> Vec<AccountMeta> {
+    fn hash_set_accounts_to_metas(&self) -> Vec<AccountMeta> {
         let mut remaining_accounts = self.map.iter().collect::<Vec<_>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
         remaining_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
@@ -99,9 +97,14 @@ impl PackedAccounts {
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
-    pub fn to_account_metas(self) -> Vec<AccountMeta> {
-        let packed_accounts = self.to_remaining_accounts();
-        [self.pre_accounts, self.system_accounts, packed_accounts].concat()
+    pub fn to_account_metas(&self) -> Vec<AccountMeta> {
+        let packed_accounts = self.hash_set_accounts_to_metas();
+        [
+            self.pre_accounts.clone(),
+            self.system_accounts.clone(),
+            packed_accounts,
+        ]
+        .concat()
     }
 }
 
@@ -124,7 +127,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_remaining_accounts().as_slice(),
+            remaining_accounts.to_account_metas().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -150,7 +153,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_remaining_accounts().as_slice(),
+            remaining_accounts.to_account_metas().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
