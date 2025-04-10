@@ -1,29 +1,27 @@
 use std::collections::HashMap;
 
-use solana_program::pubkey::Pubkey;
+use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
 
 use super::compressed_account::{
     pack_merkle_context, PackedReadOnlyCompressedAccount, ReadOnlyCompressedAccount,
 };
 use crate::{
-    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
+    hash_to_bn254_field_size_be,
     instruction_data::data::{
         NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress, ReadOnlyAddress,
     },
-    CompressedAccountError,
+    CompressedAccountError, Pubkey,
 };
 
 pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,
     seed: &[u8; 32],
 ) -> Result<[u8; 32], CompressedAccountError> {
-    let hash = match hash_to_bn254_field_size_be(
-        [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
-    ) {
-        Some(hash) => Ok::<[u8; 32], CompressedAccountError>(hash.0),
-        None => return Err(CompressedAccountError::DeriveAddressError),
-    }?;
-
+    let hash = hash_to_bn254_field_size_be(
+        [merkle_tree_pubkey.as_ref(), seed.as_ref()]
+            .concat()
+            .as_slice(),
+    );
     Ok(hash)
 }
 
@@ -32,14 +30,12 @@ pub fn derive_address(
     merkle_tree_pubkey: &[u8; 32],
     program_id_bytes: &[u8; 32],
 ) -> [u8; 32] {
-    hashv_to_bn254_field_size_be(
-        [
-            seed.as_slice(),
-            merkle_tree_pubkey.as_slice(),
-            program_id_bytes.as_slice(),
-        ]
-        .as_slice(),
-    )
+    let slices = [
+        seed.as_slice(),
+        merkle_tree_pubkey.as_slice(),
+        program_id_bytes.as_slice(),
+    ];
+    hashv_to_bn254_field_size_be_const_array::<4>(&slices).unwrap()
 }
 
 pub fn add_and_get_remaining_account_indices(
@@ -60,6 +56,7 @@ pub fn add_and_get_remaining_account_indices(
     }
     vec
 }
+
 // Helper function to pack new address params for instruction data in rust clients
 pub fn pack_new_address_params(
     new_address_params: &[NewAddressParams],
@@ -146,6 +143,7 @@ pub fn pack_read_only_accounts(
         .collect::<Vec<PackedReadOnlyCompressedAccount>>()
 }
 
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod tests {
 
@@ -153,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_derive_address_with_valid_input() {
-        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey = crate::Pubkey::new_unique();
         let seeds = [1u8; 32];
         let result = derive_address_legacy(&merkle_tree_pubkey, &seeds);
         let result_2 = derive_address_legacy(&merkle_tree_pubkey, &seeds);
@@ -162,8 +160,8 @@ mod tests {
 
     #[test]
     fn test_derive_address_no_collision_same_seeds_diff_pubkey() {
-        let merkle_tree_pubkey = Pubkey::new_unique();
-        let merkle_tree_pubkey_2 = Pubkey::new_unique();
+        let merkle_tree_pubkey = crate::Pubkey::new_unique();
+        let merkle_tree_pubkey_2 = crate::Pubkey::new_unique();
         let seed = [2u8; 32];
 
         let result = derive_address_legacy(&merkle_tree_pubkey, &seed);

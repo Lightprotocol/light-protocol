@@ -8,7 +8,12 @@ license = "Apache-2.0"
 
 [features]
 heavy-tests = []
-solana = ["light-bounded-vec/solana", "light-hasher/solana", "solana-program"]
+solana = ["solana-program", "light-bounded-vec/solana", "light-hasher/solana"]
+pinocchio = [
+    "dep:pinocchio",
+    "light-bounded-vec/solana",
+    "light-hasher/pinocchio",
+]
 
 [dependencies]
 borsh = { workspace = true }
@@ -17,13 +22,14 @@ light-hasher = { workspace = true }
 light-utils = { workspace = true }
 memoffset = "0.9"
 solana-program = { workspace = true, optional = true }
+pinocchio = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-hash-set = { workspace = true, features = ["solana"] }
+light-hash-set = { workspace = true }
 rand = { workspace = true }
 solana-program = { workspace = true }
 spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false }

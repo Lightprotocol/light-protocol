@@ -1,7 +1,6 @@
 use num_traits::ToPrimitive;
 use serde::Serialize;
 
-use super::non_inclusion_json_formatter::NonInclusionJsonStruct;
 use crate::{
     gnark::helpers::{big_int_to_string, create_json_from_struct},
     init_merkle_tree::non_inclusion_merkle_tree_inputs,
@@ -17,14 +16,35 @@ pub struct BatchNonInclusionJsonStruct {
     #[serde(rename = "addressTreeHeight")]
     pub address_tree_height: u32,
     #[serde(rename(serialize = "newAddresses"))]
-    pub inputs: Vec<NonInclusionJsonStruct>,
+    pub inputs: Vec<LegacyNonInclusionJsonStruct>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct LegacyNonInclusionJsonStruct {
+    pub root: String,
+    pub value: String,
+
+    #[serde(rename(serialize = "pathIndex"))]
+    pub path_index: u32,
+
+    #[serde(rename(serialize = "pathElements"))]
+    pub path_elements: Vec<String>,
+
+    #[serde(rename(serialize = "leafLowerRangeValue"))]
+    pub leaf_lower_range_value: String,
+
+    #[serde(rename(serialize = "leafHigherRangeValue"))]
+    pub leaf_higher_range_value: String,
+
+    #[serde(rename(serialize = "nextIndex"))]
+    pub next_index: u32,
 }
 
 impl BatchNonInclusionJsonStruct {
     pub fn new_with_public_inputs(number_of_utxos: usize) -> (Self, NonInclusionMerkleProofInputs) {
         let merkle_inputs = non_inclusion_merkle_tree_inputs(26);
 
-        let input = NonInclusionJsonStruct {
+        let input = LegacyNonInclusionJsonStruct {
             root: big_int_to_string(&merkle_inputs.root),
             value: big_int_to_string(&merkle_inputs.value),
             path_elements: merkle_inputs
@@ -58,9 +78,9 @@ impl BatchNonInclusionJsonStruct {
     }
 
     pub fn from_non_inclusion_proof_inputs(inputs: &NonInclusionProofInputs) -> Self {
-        let mut proof_inputs: Vec<NonInclusionJsonStruct> = Vec::new();
+        let mut proof_inputs: Vec<LegacyNonInclusionJsonStruct> = Vec::new();
         for input in inputs.0 {
-            let prof_input = NonInclusionJsonStruct {
+            let prof_input = LegacyNonInclusionJsonStruct {
                 root: big_int_to_string(&input.root),
                 value: big_int_to_string(&input.value),
                 path_index: input.index_hashed_indexed_element_leaf.to_u32().unwrap(),

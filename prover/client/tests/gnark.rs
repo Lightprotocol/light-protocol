@@ -1,11 +1,11 @@
 use light_batched_merkle_tree::constants::{
     DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT,
 };
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_slice,
-};
-use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_reference::MerkleTree;
+use light_compressed_account::hash_chain::create_hash_chain_from_slice;
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
+use light_indexed_array::changelog::IndexedChangelogEntry;
+use light_merkle_tree_reference::{sparse_merkle_tree::SparseMerkleTree, MerkleTree};
 use light_prover_client::{
     batch_address_append::{
         get_batch_address_append_circuit_inputs, get_test_batch_address_append_inputs,
@@ -24,9 +24,7 @@ use light_prover_client::{
         inclusion_json_formatter_legacy,
         non_inclusion_json_formatter_legacy::non_inclusion_inputs_string,
     },
-    helpers::init_logger,
 };
-use log::info;
 use num_bigint::ToBigUint;
 use reqwest::Client;
 use serial_test::serial;
@@ -34,7 +32,6 @@ use serial_test::serial;
 #[serial]
 #[tokio::test]
 async fn prove_inclusion() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -76,7 +73,6 @@ async fn prove_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_combined() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -121,7 +117,6 @@ async fn prove_combined() {
 #[serial]
 #[tokio::test]
 async fn prove_non_inclusion() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -135,7 +130,6 @@ async fn prove_non_inclusion() {
     {
         for i in 1..=2 {
             let (inputs, _) = non_inclusion_inputs_string(i);
-
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -169,7 +163,6 @@ async fn prove_non_inclusion() {
 #[serial]
 #[tokio::test]
 async fn prove_batch_update() {
-    init_logger();
     spawn_prover(
         true,
         ProverConfig {
@@ -183,7 +176,6 @@ async fn prove_batch_update() {
     let num_insertions = 10;
     let tx_hash = [0u8; 32];
 
-    info!("initializing merkle tree");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     for _ in 0..2 {
         let mut leaves = vec![];
@@ -212,7 +204,7 @@ async fn prove_batch_update() {
         }
         let root = merkle_tree.root();
         let leaves_hashchain = create_hash_chain_from_slice(&nullifiers).unwrap();
-        let inputs = get_batch_update_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_update_inputs::<HEIGHT>(
             root,
             vec![tx_hash; num_insertions],
             leaves,
@@ -221,6 +213,7 @@ async fn prove_batch_update() {
             merkle_proofs,
             path_indices,
             num_insertions as u32,
+            &[],
         )
         .unwrap();
         let client = Client::new();
@@ -247,8 +240,6 @@ async fn prove_batch_update() {
 #[serial]
 #[tokio::test]
 async fn prove_batch_append_with_proofs() {
-    init_logger();
-
     // Spawn the prover with specific configuration
     spawn_prover(
         true,
@@ -262,7 +253,6 @@ async fn prove_batch_append_with_proofs() {
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;
     let num_insertions = 10;
-    info!("Initializing Merkle tree for append.");
     let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     let mut current_index = 0;
     for i in 0..2 {
@@ -299,7 +289,7 @@ async fn prove_batch_append_with_proofs() {
         let leaves_hashchain = create_hash_chain_from_slice(&leaves).unwrap();
 
         // Generate inputs for BatchAppendWithProofsCircuit
-        let inputs = get_batch_append_with_proofs_inputs::<HEIGHT>(
+        let (inputs, _) = get_batch_append_with_proofs_inputs::<HEIGHT>(
             root,
             (i * num_insertions) as u32,
             leaves.clone(),
@@ -307,6 +297,7 @@ async fn prove_batch_append_with_proofs() {
             old_leaves.clone(),
             merkle_proofs.clone(),
             num_insertions as u32,
+            &[],
         )
         .unwrap();
 
@@ -340,7 +331,7 @@ pub fn print_circuit_test_data_json_formatted() {
     let start_index = 2;
     let tree_height = 4;
 
-    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height);
+    let inputs = get_test_batch_address_append_inputs(addresses, start_index, tree_height, None);
 
     let json_output = to_json(&inputs);
     println!("{}", json_output);
@@ -350,9 +341,8 @@ pub fn print_circuit_test_data_json_formatted() {
 #[tokio::test]
 async fn prove_batch_address_append() {
     use light_hasher::Poseidon;
-    use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+    use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 
-    init_logger();
     println!("spawning prover");
     spawn_prover(
         true,
@@ -371,12 +361,9 @@ async fn prove_batch_address_append() {
     }
 
     // Initialize indexing structures
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-    relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree =
+    let relayer_merkle_tree =
         IndexedMerkleTree::<Poseidon, usize>::new(DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize, 0)
             .unwrap();
-    relayer_merkle_tree.init().unwrap();
 
     let start_index = relayer_merkle_tree.merkle_tree.rightmost_index;
     let current_root = relayer_merkle_tree.root();
@@ -391,7 +378,7 @@ async fn prove_batch_address_append() {
     // Generate non-inclusion proofs for each element
     for new_element_value in &new_element_values {
         let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(new_element_value, &relayer_indexing_array)
+            .get_non_inclusion_proof(new_element_value)
             .unwrap();
 
         low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
@@ -407,8 +394,23 @@ async fn prove_batch_address_append() {
         .map(|v| bigint_to_be_bytes_array::<32>(v).unwrap())
         .collect::<Vec<_>>();
     let hash_chain = create_hash_chain_from_slice(&new_element_values).unwrap();
-    let batch_start_index = start_index;
-    // Generate circuit inputs
+
+    let subtrees: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = relayer_merkle_tree
+        .merkle_tree
+        .get_subtrees()
+        .try_into()
+        .unwrap();
+    let mut sparse_merkle_tree = SparseMerkleTree::<
+        Poseidon,
+        { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
+    >::new(subtrees, start_index);
+
+    let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> =
+        Vec::new();
+    let mut indexed_changelog: Vec<
+        IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>,
+    > = Vec::new();
+
     let inputs =
         get_batch_address_append_circuit_inputs::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>(
             start_index,
@@ -419,14 +421,11 @@ async fn prove_batch_address_append() {
             low_element_next_indices,
             low_element_proofs,
             new_element_values,
-            relayer_merkle_tree
-                .merkle_tree
-                .get_subtrees()
-                .try_into()
-                .unwrap(),
+            &mut sparse_merkle_tree,
             hash_chain,
-            batch_start_index,
             zkp_batch_size,
+            &mut changelog,
+            &mut indexed_changelog,
         )
         .unwrap();
     // Convert inputs to JSON format

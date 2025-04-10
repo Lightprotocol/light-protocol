@@ -13,29 +13,14 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetCompressedAccountsByOwnerPostRequestParams {
     /// A 32-byte hash represented as a base58 string.
-    #[serde(
-        rename = "cursor",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub cursor: Option<Option<String>>,
-    #[serde(
-        rename = "dataSlice",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub data_slice: Option<Option<Box<models::DataSlice>>>,
+    #[serde(rename = "cursor", default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+    #[serde(rename = "dataSlice", default, skip_serializing_if = "Option::is_none")]
+    pub data_slice: Option<Box<models::DataSlice>>,
     #[serde(rename = "filters", skip_serializing_if = "Option::is_none")]
     pub filters: Option<Vec<models::FilterSelector>>,
-    #[serde(
-        rename = "limit",
-        default,
-        with = "::serde_with::rust::double_option",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub limit: Option<Option<i32>>,
+    #[serde(rename = "limit", default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<i32>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,

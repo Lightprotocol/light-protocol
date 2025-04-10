@@ -61,7 +61,7 @@ jobs:
       - name: build-programs
         run: |
           source ./scripts/devenv.sh
-          anchor build
+          npx nx build @lightprotocol/programs
 
       - name: ${{ matrix.program }}
         run: |

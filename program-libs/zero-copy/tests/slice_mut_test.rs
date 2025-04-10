@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use core::fmt::Debug;
 
 use light_zero_copy::{

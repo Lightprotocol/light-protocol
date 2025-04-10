@@ -8,16 +8,16 @@ open LightProver (F Order)
 def sbox_uniqueAssignment (Inp : F): UniqueAssignment (LightProver.sbox Inp) id := UniqueAssignment.mk _ $ by
   simp [LightProver.sbox]; tauto
 
-def mds_3_uniqueAssignment (S : Vector F 3): UniqueAssignment (LightProver.mds_3 S) id := UniqueAssignment.mk _ $ by
+def mds_3_uniqueAssignment (S : List.Vector F 3): UniqueAssignment (LightProver.mds_3 S) id := UniqueAssignment.mk _ $ by
   simp [LightProver.mds_3]; tauto
 
-def fullRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (LightProver.fullRound_3_3 S C) id := UniqueAssignment.mk _ $ by
+def fullRound_3_3_uniqueAssignment (S C : List.Vector F 3): UniqueAssignment (LightProver.fullRound_3_3 S C) id := UniqueAssignment.mk _ $ by
   simp [LightProver.fullRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
 
-def halfRound_3_3_uniqueAssignment (S C : Vector F 3): UniqueAssignment (LightProver.halfRound_3_3 S C) id := UniqueAssignment.mk _ $ by
+def halfRound_3_3_uniqueAssignment (S C : List.Vector F 3): UniqueAssignment (LightProver.halfRound_3_3 S C) id := UniqueAssignment.mk _ $ by
   simp [LightProver.halfRound_3_3, (sbox_uniqueAssignment _).equiv, (mds_3_uniqueAssignment _).equiv]; tauto
 
-def poseidon_3_uniqueAssignment (inp : Vector F 3): UniqueAssignment (LightProver.poseidon_3 inp) id := by
+def poseidon_3_uniqueAssignment (inp : List.Vector F 3): UniqueAssignment (LightProver.poseidon_3 inp) id := by
   unfold LightProver.poseidon_3
   repeat (
     apply UniqueAssignment.compose
@@ -38,16 +38,16 @@ lemma Poseidon2_iff_uniqueAssignment (a b : F) (k : F -> Prop) : LightProver.Pos
     rw [(poseidon_3_uniqueAssignment _).equiv]
     congr
 
-def mds_4_uniqueAssignment (S : Vector F 4): UniqueAssignment (LightProver.mds_4 S) id := UniqueAssignment.mk _ $ by
+def mds_4_uniqueAssignment (S : List.Vector F 4): UniqueAssignment (LightProver.mds_4 S) id := UniqueAssignment.mk _ $ by
   simp [LightProver.mds_4]; tauto
 
-def fullRound_4_4_uniqueAssignment (S C : Vector F 4): UniqueAssignment (LightProver.fullRound_4_4 S C) id := UniqueAssignment.mk _ $ by
+def fullRound_4_4_uniqueAssignment (S C : List.Vector F 4): UniqueAssignment (LightProver.fullRound_4_4 S C) id := UniqueAssignment.mk _ $ by
   simp [LightProver.fullRound_4_4, (sbox_uniqueAssignment _).equiv, (mds_4_uniqueAssignment _).equiv]; tauto
 
-def halfRound_4_4_uniqueAssignment (S C : Vector F 4): UniqueAssignment (LightProver.halfRound_4_4 S C) id := UniqueAssignment.mk _ $ by
+def halfRound_4_4_uniqueAssignment (S C : List.Vector F 4): UniqueAssignment (LightProver.halfRound_4_4 S C) id := UniqueAssignment.mk _ $ by
   simp [LightProver.halfRound_4_4, (sbox_uniqueAssignment _).equiv, (mds_4_uniqueAssignment _).equiv]; tauto
 
-def poseidon_4_uniqueAssignment (inp : Vector F 4): UniqueAssignment (LightProver.poseidon_4 inp) id := by
+def poseidon_4_uniqueAssignment (inp : List.Vector F 4): UniqueAssignment (LightProver.poseidon_4 inp) id := by
   unfold LightProver.poseidon_4
   repeat (
     apply UniqueAssignment.compose

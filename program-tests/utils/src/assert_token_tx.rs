@@ -1,7 +1,8 @@
 use anchor_lang::AnchorSerialize;
 use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    compressed_account::CompressedAccountWithMerkleContext,
+    indexer_event::event::PublicTransactionEvent,
 };
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_program_test::indexer::TestIndexerExtensions;

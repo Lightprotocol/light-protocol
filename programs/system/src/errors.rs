@@ -1,78 +1,105 @@
-use anchor_lang::prelude::*;
+// use anchor_lang::error_code;
+use pinocchio::program_error::ProgramError;
+use thiserror::Error;
 
-#[error_code]
+#[derive(Debug, Error, PartialEq)]
 pub enum SystemProgramError {
-    #[msg("Sum check failed")]
+    #[error("Sum check failed")]
     SumCheckFailed,
-    #[msg("Signer check failed")]
+    #[error("Signer check failed")]
     SignerCheckFailed,
-    #[msg("Cpi signer check failed")]
+    #[error("Cpi signer check failed")]
     CpiSignerCheckFailed,
-    #[msg("Computing input sum failed.")]
+    #[error("Computing input sum failed.")]
     ComputeInputSumFailed,
-    #[msg("Computing output sum failed.")]
+    #[error("Computing output sum failed.")]
     ComputeOutputSumFailed,
-    #[msg("Computing rpc sum failed.")]
+    #[error("Computing rpc sum failed.")]
     ComputeRpcSumFailed,
-    #[msg("InvalidAddress")]
+    #[error("InvalidAddress")]
     InvalidAddress,
-    #[msg("DeriveAddressError")]
+    #[error("DeriveAddressError")]
     DeriveAddressError,
-    #[msg("CompressedSolPdaUndefinedForCompressSol")]
+    #[error("CompressedSolPdaUndefinedForCompressSol")]
     CompressedSolPdaUndefinedForCompressSol,
-    #[msg("DeCompressLamportsUndefinedForCompressSol")]
-    DeCompressLamportsUndefinedForCompressSol,
-    #[msg("CompressedSolPdaUndefinedForDecompressSol")]
+    #[error("DecompressLamportsUndefinedForCompressSol")]
+    DecompressLamportsUndefinedForCompressSol,
+    #[error("CompressedSolPdaUndefinedForDecompressSol")]
     CompressedSolPdaUndefinedForDecompressSol,
-    #[msg("DeCompressLamportsUndefinedForDecompressSol")]
+    #[error("DeCompressLamportsUndefinedForDecompressSol")]
     DeCompressLamportsUndefinedForDecompressSol,
-    #[msg("DecompressRecipientUndefinedForDecompressSol")]
+    #[error("DecompressRecipientUndefinedForDecompressSol")]
     DecompressRecipientUndefinedForDecompressSol,
-    #[msg("WriteAccessCheckFailed")]
+    #[error("WriteAccessCheckFailed")]
     WriteAccessCheckFailed,
-    #[msg("InvokingProgramNotProvided")]
+    #[error("InvokingProgramNotProvided")]
     InvokingProgramNotProvided,
-    #[msg("InvalidCapacity")]
+    #[error("InvalidCapacity")]
     InvalidCapacity,
-    #[msg("InvalidMerkleTreeOwner")]
+    #[error("InvalidMerkleTreeOwner")]
     InvalidMerkleTreeOwner,
-    #[msg("ProofIsNone")]
+    #[error("ProofIsNone")]
     ProofIsNone,
-    #[msg("Proof is some but no input compressed accounts or new addresses provided.")]
+    #[error("Proof is some but no input compressed accounts or new addresses provided.")]
     ProofIsSome,
-    #[msg("EmptyInputs")]
+    #[error("EmptyInputs")]
     EmptyInputs,
-    #[msg("CpiContextAccountUndefined")]
+    #[error("CpiContextAccountUndefined")]
     CpiContextAccountUndefined,
-    #[msg("CpiContextEmpty")]
+    #[error("CpiContextEmpty")]
     CpiContextEmpty,
-    #[msg("CpiContextMissing")]
+    #[error("CpiContextMissing")]
     CpiContextMissing,
-    #[msg("DecompressionRecipientDefined")]
+    #[error("DecompressionRecipientDefined")]
     DecompressionRecipientDefined,
-    #[msg("SolPoolPdaDefined")]
+    #[error("SolPoolPdaDefined")]
     SolPoolPdaDefined,
-    #[msg("AppendStateFailed")]
+    #[error("AppendStateFailed")]
     AppendStateFailed,
-    #[msg("The instruction is not callable")]
+    #[error("The instruction is not callable")]
     InstructionNotCallable,
-    #[msg("CpiContextFeePayerMismatch")]
+    #[error("CpiContextFeePayerMismatch")]
     CpiContextFeePayerMismatch,
-    #[msg("CpiContextAssociatedMerkleTreeMismatch")]
+    #[error("CpiContextAssociatedMerkleTreeMismatch")]
     CpiContextAssociatedMerkleTreeMismatch,
-    #[msg("NoInputs")]
+    #[error("NoInputs")]
     NoInputs,
-    #[msg("Input merkle tree indices are not in ascending order.")]
+    #[error("Input merkle tree indices are not in ascending order.")]
     InputMerkleTreeIndicesNotInOrder,
-    #[msg("Output merkle tree indices are not in ascending order.")]
+    #[error("Output merkle tree indices are not in ascending order.")]
     OutputMerkleTreeIndicesNotInOrder,
+    #[error("OutputMerkleTreeNotUnique")]
     OutputMerkleTreeNotUnique,
+    #[error("DataFieldUndefined")]
     DataFieldUndefined,
+    #[error("ReadOnlyAddressAlreadyExists")]
     ReadOnlyAddressAlreadyExists,
+    #[error("ReadOnlyAccountDoesNotExist")]
     ReadOnlyAccountDoesNotExist,
+    #[error("HashChainInputsLenghtInconsistent")]
     HashChainInputsLenghtInconsistent,
+    #[error("InvalidAddressTreeHeight")]
     InvalidAddressTreeHeight,
+    #[error("InvalidStateTreeHeight")]
     InvalidStateTreeHeight,
+    #[error("InvalidArgument")]
     InvalidArgument,
+    #[error("InvalidAccount")]
     InvalidAccount,
+    #[error("AddressMerkleTreeAccountDiscriminatorMismatch")]
+    AddressMerkleTreeAccountDiscriminatorMismatch,
+    #[error("StateMerkleTreeAccountDiscriminatorMismatch")]
+    StateMerkleTreeAccountDiscriminatorMismatch,
+    #[error("Proof verification failed.")]
+    ProofVerificationFailed,
+    #[error("Invalid account mode.")]
+    InvalidAccountMode,
+    #[error("InvalidInstructionDataDiscriminator")]
+    InvalidInstructionDataDiscriminator,
+}
+
+impl From<SystemProgramError> for ProgramError {
+    fn from(e: SystemProgramError) -> ProgramError {
+        ProgramError::Custom(e as u32 + 6000)
+    }
 }

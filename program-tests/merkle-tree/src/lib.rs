@@ -1,12 +1,13 @@
+pub mod indexed;
 pub mod sparse_merkle_tree;
 
 use std::marker::PhantomData;
 
-use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_hasher::{errors::HasherError, Hasher};
+use light_indexed_array::errors::IndexedArrayError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ReferenceMerkleTreeError {
     #[error("Leaf {0} does not exist")]
     LeafDoesNotExist(usize),
@@ -14,6 +15,8 @@ pub enum ReferenceMerkleTreeError {
     Hasher(#[from] HasherError),
     #[error("Invalid proof length provided: {0} required {1}")]
     InvalidProofLength(usize, usize),
+    #[error("IndexedArray error: {0}")]
+    IndexedArray(#[from] IndexedArrayError),
 }
 
 #[derive(Debug, Clone)]
@@ -145,8 +148,8 @@ where
         &self,
         mut index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
-        let mut path = BoundedVec::with_capacity(self.height);
+    ) -> Result<Vec<[u8; 32]>, ReferenceMerkleTreeError> {
+        let mut path = Vec::with_capacity(self.height);
         let limit = match full {
             true => self.height,
             false => self.height - self.canopy_depth,
@@ -157,7 +160,7 @@ where
                 .get(index)
                 .cloned()
                 .unwrap_or(H::zero_bytes()[level]);
-            path.push(node)?;
+            path.push(node);
 
             index /= 2;
         }
@@ -169,8 +172,8 @@ where
         &self,
         mut index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
-        let mut proof = BoundedVec::with_capacity(self.height);
+    ) -> Result<Vec<[u8; 32]>, ReferenceMerkleTreeError> {
+        let mut proof = Vec::with_capacity(self.height);
         let limit = match full {
             true => self.height,
             false => self.height - self.canopy_depth,
@@ -184,7 +187,7 @@ where
                 .get(sibling_index)
                 .cloned()
                 .unwrap_or(H::zero_bytes()[level]);
-            proof.push(node)?;
+            proof.push(node);
 
             index /= 2;
         }
@@ -213,11 +216,11 @@ where
         proofs
     }
 
-    pub fn get_canopy(&self) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+    pub fn get_canopy(&self) -> Result<Vec<[u8; 32]>, ReferenceMerkleTreeError> {
         if self.canopy_depth == 0 {
-            return Ok(BoundedVec::with_capacity(0));
+            return Ok(Vec::with_capacity(0));
         }
-        let mut canopy = BoundedVec::with_capacity(self.canopy_size());
+        let mut canopy = Vec::with_capacity(self.canopy_size());
 
         let mut num_nodes_in_level = 2;
         for i in 0..self.canopy_depth {
@@ -227,7 +230,7 @@ where
                     .get(j)
                     .cloned()
                     .unwrap_or(H::zero_bytes()[level]);
-                canopy.push(node)?;
+                canopy.push(node);
             }
             num_nodes_in_level *= 2;
         }
@@ -255,7 +258,7 @@ where
     pub fn verify(
         &self,
         leaf: &[u8; 32],
-        proof: &BoundedVec<[u8; 32]>,
+        proof: &[[u8; 32]],
         leaf_index: usize,
     ) -> Result<bool, ReferenceMerkleTreeError> {
         if leaf_index >= self.capacity {

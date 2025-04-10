@@ -49,8 +49,8 @@ github.com/mmcloughlin/profile v0.1.1/go.mod h1:IhHD7q1ooxgwTgjxQYkACGA77oFTDdFV
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/reilabs/gnark-lean-extractor/v2 v2.4.0-0.8.0 h1:9TuGGdxGU/RetuPUpmdR7q2Lvd7oLtgfC6wpISxy1sQ=
-github.com/reilabs/gnark-lean-extractor/v2 v2.4.0-0.8.0/go.mod h1:kSqrDOzPVw4WJdWBoiPlHbyuVDx39p6ksejwHydRDLY=
+github.com/reilabs/gnark-lean-extractor/v2 v2.5.0-0.8.0 h1:2PbLqRADdX9RUqtJzacu9foC54HJ4s49/kYHyEkn6Fk=
+github.com/reilabs/gnark-lean-extractor/v2 v2.5.0-0.8.0/go.mod h1:kSqrDOzPVw4WJdWBoiPlHbyuVDx39p6ksejwHydRDLY=
 github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDNXVBh4M=
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rs/xid v1.4.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=

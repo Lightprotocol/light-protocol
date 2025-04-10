@@ -1,5 +1,5 @@
 use anchor_spl::token::{Mint, TokenAccount};
-use forester_utils::create_account_instruction;
+use forester_utils::instructions::create_account::create_account_instruction;
 use light_client::{
     indexer::Indexer,
     rpc::{errors::RpcError, RpcConnection},
@@ -7,6 +7,7 @@ use light_client::{
 };
 use light_compressed_account::{
     compressed_account::MerkleContext, instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
@@ -264,17 +265,26 @@ pub async fn create_token_pool<R: RpcConnection>(
 }
 
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+    let mint = Keypair::new();
+    create_mint_helper_with_keypair(rpc, payer, &mint).await
+}
+
+pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Keypair,
+) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
-    let mint = Keypair::new();
 
     let (instructions, pool) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
+        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, mint);
 
-    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
+    let _ = rpc
+        .create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
         .await
         .unwrap();
     assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
@@ -555,26 +565,9 @@ pub async fn compressed_transfer_22_test<
     for account in input_compressed_accounts {
         let leaf_index = account.compressed_account.merkle_context.leaf_index;
         input_compressed_account_token_data.push(account.token_data.clone());
-        input_compressed_account_hashes.push(
-            account
-                .compressed_account
-                .compressed_account
-                .hash::<Poseidon>(
-                    &account.compressed_account.merkle_context.merkle_tree_pubkey,
-                    &leaf_index,
-                )
-                .unwrap(),
-        );
+        input_compressed_account_hashes.push(account.compressed_account.hash().unwrap());
         sum_input_amounts += account.token_data.amount;
-        input_merkle_tree_context.push(MerkleContext {
-            merkle_tree_pubkey: account.compressed_account.merkle_context.merkle_tree_pubkey,
-            nullifier_queue_pubkey: account
-                .compressed_account
-                .merkle_context
-                .nullifier_queue_pubkey,
-            leaf_index,
-            prove_by_index: false,
-        });
+        input_merkle_tree_context.push(account.compressed_account.merkle_context);
     }
     let output_lamports = lamports
         .clone()

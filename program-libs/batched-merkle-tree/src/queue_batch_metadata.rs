@@ -1,4 +1,5 @@
-use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_compressed_account::QueueType;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_zero_copy::vec::ZeroCopyVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -156,7 +157,7 @@ impl QueueBatches {
     /// Increment the next full batch index if current state is BatchState::Inserted.
     pub fn increment_pending_batch_index_if_inserted(&mut self, state: BatchState) {
         if state == BatchState::Inserted {
-            solana_program::msg!("Incrementing next full batch index");
+            crate::msg!("Incrementing next full batch index");
             self.pending_batch_index = (self.pending_batch_index + 1) % self.num_batches;
         }
     }

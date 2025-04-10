@@ -1,5 +1,6 @@
 use bs58::decode;
 use proc_macro2::TokenStream;
+#[allow(unused)]
 use quote::quote;
 use syn::{parse::Parse, Error, LitStr, Result};
 
@@ -33,9 +34,19 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
         )
     })?;
 
-    Ok(quote! {
-        ::solana_program::pubkey::Pubkey::new_from_array([ #(#arr),* ])
-    })
+    #[cfg(not(feature = "pinocchio"))]
+    return Ok(quote! {
+            ::solana_program::pubkey::Pubkey::new_from_array([ #(#arr),* ])
+    });
+
+    #[cfg(feature = "pinocchio")]
+    return Ok(quote! {
+            [ #(#arr),* ]
+    });
+    #[allow(unreachable_code)]
+    {
+        unimplemented!("Activate exactly one feature: solana (default) or pinocchio.")
+    }
 }
 
 #[cfg(test)]

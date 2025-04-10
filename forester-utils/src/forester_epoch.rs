@@ -1,10 +1,8 @@
-use std::fmt::Display;
-
-// TODO: move into separate forester utils crate
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
 use light_client::rpc::{RpcConnection, RpcError};
+use light_compressed_account::TreeType;
 use light_registry::{
     protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_register_forester_epoch_pda_instruction, create_report_work_instruction},
@@ -80,26 +78,6 @@ impl TreeAccounts {
     }
 }
 
-// TODO: unify with light-merkle-tree-metadata
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum TreeType {
-    Address,
-    State,
-    BatchedState,
-    BatchedAddress,
-}
-
-impl Display for TreeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TreeType::Address => write!(f, "address"),
-            TreeType::State => write!(f, "state"),
-            TreeType::BatchedState => write!(f, "batched state"),
-            TreeType::BatchedAddress => write!(f, "batched address"),
-        }
-    }
-}
-
 pub fn get_schedule_for_queue(
     mut start_solana_slot: u64,
     queue_pubkey: &Pubkey,
@@ -144,11 +122,11 @@ pub fn get_schedule_for_forester_in_queue(
         total_epoch_weight,
         forester_epoch_pda.epoch,
     );
-    slots.iter_mut().for_each(|x| {
-        // TODO: remove unwrap
-        if forester_epoch_pda.is_eligible(x.as_ref().unwrap().forester_index) {
-        } else {
-            *x = None;
+    slots.iter_mut().for_each(|slot_option| {
+        if let Some(slot) = slot_option {
+            if !forester_epoch_pda.is_eligible(slot.forester_index) {
+                *slot_option = None;
+            }
         }
     });
     slots
@@ -445,7 +423,7 @@ impl Epoch {
     ///
     /// forester:
     /// - start a new thread per tree
-    /// - this thread will sleep when it is not elibile and wake up with
+    /// - this thread will sleep when it is not eligible and wake up with
     ///   some buffer time prior to the start of the slot
     /// - threads shut down when the active phase ends
     pub fn execute_active_phase() {}

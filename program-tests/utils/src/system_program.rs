@@ -20,10 +20,9 @@ use light_compressed_account::{
         },
     },
 };
-use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::{
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    constants::SOL_POOL_PDA_SEED,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
 };
 use solana_sdk::{
@@ -55,7 +54,6 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -315,18 +313,9 @@ pub async fn compressed_transaction_test<
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
-
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
         for compressed_account in inputs.input_compressed_accounts.iter() {
-            compressed_account_hashes.push(
-                compressed_account
-                    .compressed_account
-                    .hash::<Poseidon>(
-                        &compressed_account.merkle_context.merkle_tree_pubkey,
-                        &compressed_account.merkle_context.leaf_index,
-                    )
-                    .unwrap(),
-            );
+            compressed_account_hashes.push(compressed_account.hash().unwrap());
         }
         Some(compressed_account_hashes.to_vec())
     } else {
@@ -368,7 +357,6 @@ pub async fn compressed_transaction_test<
                 inputs.rpc,
             )
             .await;
-
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
@@ -456,7 +444,6 @@ pub async fn compressed_transaction_test<
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(slot, &event.0.clone());
-
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
@@ -522,9 +509,7 @@ pub fn create_invoke_instruction(
             .output_compressed_accounts
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
-    println!("remaining accounts: {:?}", remaining_accounts);
     let mut inputs = Vec::new();
-    println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -638,10 +623,6 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: output_compressed_accounts[i].clone(),
             merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
         });
-        println!(
-            "output_compressed_accounts_with_context {:?}",
-            output_compressed_accounts_with_context
-        );
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
@@ -743,12 +724,14 @@ mod test {
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::State,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::State,
             },
         ];
 

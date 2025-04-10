@@ -1,6 +1,6 @@
 use light_bounded_vec::BoundedVec;
-use light_indexed_merkle_tree::{
-    array::IndexedElement, changelog::IndexedChangelogEntry, errors::IndexedMerkleTreeError,
+use light_indexed_array::{
+    array::IndexedElement, changelog::IndexedChangelogEntry, errors::IndexedArrayError,
 };
 use num_bigint::BigUint;
 
@@ -18,14 +18,14 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
     new_element: &mut IndexedElement<usize>,
     low_element_next_value: &mut BigUint,
     low_leaf_proof: &mut BoundedVec<[u8; 32]>,
-) -> Result<(), IndexedMerkleTreeError> {
+) -> Result<(), IndexedArrayError> {
     let next_indexed_changelog_indices: Vec<usize> = (*indexed_changelogs)
         [indexed_changelog_index..]
         .iter()
         .enumerate()
         .filter_map(|(index, changelog_entry)| {
             if changelog_entry.element.index == low_element.index {
-                Some(indexed_changelog_index + index) // ) % indexed_changelogs.len()
+                Some(indexed_changelog_index + index)
             } else {
                 None
             }
@@ -95,15 +95,16 @@ pub fn patch_indexed_changelogs<const HEIGHT: usize>(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use light_bounded_vec::BoundedVec;
-    use light_compressed_account::bigint::bigint_to_be_bytes_array;
-    use light_concurrent_merkle_tree::event::RawIndexedElement;
-    use light_hasher::Poseidon;
-    use light_indexed_merkle_tree::{
+    use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
+    use light_indexed_array::{
         array::{IndexedArray, IndexedElement},
-        changelog::IndexedChangelogEntry,
-        reference::IndexedMerkleTree,
+        changelog::{IndexedChangelogEntry, RawIndexedElement},
     };
+    use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
+    use light_merkle_tree_reference::indexed::IndexedMerkleTree;
     use num_bigint::BigUint;
 
     use super::*;
@@ -133,12 +134,11 @@ mod tests {
         use num_traits::FromPrimitive;
         let rng = &mut ark_std::test_rng();
         for _ in 0..100 {
-            let mut indexed_array = IndexedArray::<Poseidon, usize>::default();
-            indexed_array.init().unwrap();
             let mut indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(8, 0).unwrap();
-            indexed_merkle_tree.init().unwrap();
-            let mut man_indexed_array = IndexedArray::<Poseidon, usize>::default();
-            man_indexed_array.init().unwrap();
+            let mut man_indexed_array = IndexedArray::<Poseidon, usize>::new(
+                BigUint::from_usize(0).unwrap(),
+                BigUint::from_str(HIGHEST_ADDRESS_PLUS_ONE).unwrap(),
+            );
             let mut addresses = vec![];
             for i in 2..100 {
                 let address = BigUint::from_usize(i).unwrap();
@@ -156,7 +156,7 @@ mod tests {
             // get inputs
             for address in addresses.iter() {
                 let non_inclusion_proof = indexed_merkle_tree
-                    .get_non_inclusion_proof(address, &indexed_array)
+                    .get_non_inclusion_proof(address)
                     .unwrap();
                 low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
                 low_element_indices.push(non_inclusion_proof.leaf_index);
@@ -238,14 +238,14 @@ mod tests {
             }
             println!("indexed_changelog {:?}", indexed_changelog);
             for address in addresses.iter() {
-                indexed_merkle_tree
-                    .append(address, &mut indexed_array)
-                    .unwrap();
+                indexed_merkle_tree.append(address).unwrap();
             }
             println!("man_indexed_array {:?}", man_indexed_array);
-            println!("indexed_array {:?}", indexed_array);
 
-            assert_eq!(indexed_array.elements, man_indexed_array.elements);
+            assert_eq!(
+                indexed_merkle_tree.indexed_array.elements,
+                man_indexed_array.elements
+            );
         }
     }
 
@@ -253,12 +253,11 @@ mod tests {
     fn debug_test_indexed_changelog() {
         use num_traits::FromPrimitive;
         for _ in 0..1 {
-            let mut indexed_array = IndexedArray::<Poseidon, usize>::default();
-            indexed_array.init().unwrap();
             let mut indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(8, 0).unwrap();
-            indexed_merkle_tree.init().unwrap();
-            let mut man_indexed_array = IndexedArray::<Poseidon, usize>::default();
-            man_indexed_array.init().unwrap();
+            let mut man_indexed_array = IndexedArray::<Poseidon, usize>::new(
+                BigUint::from_usize(0).unwrap(),
+                BigUint::from_str(HIGHEST_ADDRESS_PLUS_ONE).unwrap(),
+            );
             let mut addresses = vec![];
             for i in 0..10 {
                 let address = BigUint::from_usize(101 - i).unwrap();
@@ -275,7 +274,7 @@ mod tests {
             // get inputs
             for address in addresses.iter() {
                 let non_inclusion_proof = indexed_merkle_tree
-                    .get_non_inclusion_proof(address, &indexed_array)
+                    .get_non_inclusion_proof(address)
                     .unwrap();
                 low_element_values.push(non_inclusion_proof.leaf_lower_range_value);
                 low_element_indices.push(non_inclusion_proof.leaf_index);
@@ -352,14 +351,15 @@ mod tests {
             }
             println!("indexed_changelog {:?}", indexed_changelog);
             for address in addresses.iter() {
-                indexed_merkle_tree
-                    .append(address, &mut indexed_array)
-                    .unwrap();
+                indexed_merkle_tree.append(address).unwrap();
             }
             println!("man_indexed_array {:?}", man_indexed_array);
-            println!("indexed_array {:?}", indexed_array);
+            println!("indexed_array {:?}", indexed_merkle_tree.indexed_array);
 
-            assert_eq!(indexed_array.elements, man_indexed_array.elements);
+            assert_eq!(
+                indexed_merkle_tree.indexed_array.elements,
+                man_indexed_array.elements
+            );
         }
     }
 }

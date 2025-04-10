@@ -22,6 +22,12 @@ pub enum AccountError {
     FailedBorrowRentSysvar,
     #[error("Invalid Signer")]
     InvalidSigner,
+    #[error("Invalid Seeds")]
+    InvalidSeeds,
+    #[error("Invalid Program Id")]
+    InvalidProgramId,
+    #[error("Program not executable.")]
+    ProgramNotExecutable,
 }
 
 // TODO: reconfigure error codes
@@ -38,12 +44,15 @@ impl From<AccountError> for u32 {
             AccountError::InvalidAccountBalance => 12013,
             AccountError::FailedBorrowRentSysvar => 12014,
             AccountError::InvalidSigner => 12015,
+            AccountError::InvalidSeeds => 12016,
+            AccountError::InvalidProgramId => 12017,
+            AccountError::ProgramNotExecutable => 12018,
         }
     }
 }
 
-impl From<AccountError> for solana_program::program_error::ProgramError {
+impl From<AccountError> for crate::ProgramError {
     fn from(e: AccountError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        crate::ProgramError::Custom(e.into())
     }
 }

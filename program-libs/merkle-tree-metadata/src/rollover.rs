@@ -1,12 +1,7 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::errors::MerkleTreeMetadataError;
+use crate::{errors::MerkleTreeMetadataError, AnchorDeserialize, AnchorSerialize};
 
 #[repr(C)]
 #[derive(
@@ -75,7 +70,7 @@ impl RolloverMetadata {
 
         #[cfg(target_os = "solana")]
         {
-            use solana_program::{clock::Clock, sysvar::Sysvar};
+            use crate::{Clock, Sysvar};
             self.rolledover_slot = Clock::get().unwrap().slot;
         }
         #[cfg(not(target_os = "solana"))]
@@ -100,16 +95,20 @@ pub fn check_rollover_fee_sufficient(
     if (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
         < queue_rent + merkle_tree_rent
     {
-        msg!("rollover_fee: {}", rollover_fee);
-        msg!("rollover_threshold: {}", rollover_threshold);
-        msg!("height: {}", height);
-        msg!("merkle_tree_rent: {}", merkle_tree_rent);
-        msg!("queue_rent: {}", queue_rent);
-        msg!(
-            "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
-            ((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100),
-            queue_rent + merkle_tree_rent
-        );
+        #[cfg(not(feature = "pinocchio"))]
+        {
+            use crate::msg;
+            msg!("rollover_fee: {}", rollover_fee);
+            msg!("rollover_threshold: {}", rollover_threshold);
+            msg!("height: {}", height);
+            msg!("merkle_tree_rent: {}", merkle_tree_rent);
+            msg!("queue_rent: {}", queue_rent);
+            msg!(
+                "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
+                ((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100),
+                queue_rent + merkle_tree_rent
+            );
+        }
         return Err(MerkleTreeMetadataError::InsufficientRolloverFee);
     }
     Ok(())

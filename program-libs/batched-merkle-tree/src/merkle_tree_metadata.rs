@@ -1,17 +1,17 @@
 use aligned_sized::aligned_sized;
-use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey};
+use light_compressed_account::{hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::QueueType,
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
 use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{
-    constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE},
+    constants::{
+        DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES, TEST_DEFAULT_BATCH_SIZE,
+        TEST_DEFAULT_ZKP_BATCH_SIZE,
+    },
     errors::BatchedMerkleTreeError,
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -63,7 +63,7 @@ impl Default for BatchedMerkleTreeMetadata {
                 num_batches: NUM_BATCHES as u64,
                 batch_size: TEST_DEFAULT_BATCH_SIZE,
                 bloom_filter_capacity: 20_000 * 8,
-                zkp_batch_size: 10,
+                zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
                 ..Default::default()
             },
             hashed_pubkey: [0u8; 32],
@@ -104,7 +104,7 @@ impl BatchedMerkleTreeMetadata {
             rollover_fee,
         );
         // inited address tree contains two elements.
-        tree.next_index = 2;
+        tree.next_index = 1;
         tree
     }
 
@@ -154,16 +154,14 @@ impl BatchedMerkleTreeMetadata {
                 zkp_batch_size,
                 num_iters,
                 if tree_type == TreeType::BatchedAddress {
-                    2
+                    1
                 } else {
                     0
                 },
             )
             .unwrap(),
             capacity: 2u64.pow(height),
-            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes())
-                .unwrap()
-                .0,
+            hashed_pubkey: hash_to_bn254_field_size_be(&tree_pubkey.to_bytes()),
             nullifier_next_index: 0,
         }
     }

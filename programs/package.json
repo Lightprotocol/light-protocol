@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "anchor build",
+    "build": "cd system/ && cargo build-sbf && cd ..  && anchor build --program-name account_compression && anchor build --program-name light_registry && anchor build --program-name light_compressed_token",
     "build-system": "anchor build --program-name light_system_program -- --features idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features idl-build custom-heap",
     "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-account-compression &&  pnpm test-compressed-token && pnpm e2e-test && pnpm test-registry && pnpm sdk-test-program && pnpm test-system && pnpm test-system-cpi",
@@ -16,7 +16,6 @@
     "test-system-cpi": "cargo test-sbf -p system-cpi-test",
     "ignored-token-escrow": "cargo-test-sbf -p token-escrow --features idl-build",
     "ignored-program-owned-account-test": "cargo-test-sbf -p program-owned-account-test"
-
   },
   "nx": {
     "targets": {

@@ -3,4 +3,7 @@ pub mod cpi_context;
 pub mod data;
 pub mod insert_into_queues;
 pub mod invoke_cpi;
+pub mod traits;
+pub mod with_account_info;
+pub mod with_readonly;
 pub mod zero_copy;

@@ -68,9 +68,7 @@ pub fn process_mint_to(
         mint_spl_to_pool_pda(&ctx, &amounts)?;
 
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
-        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref())
-            .unwrap()
-            .0;
+        let hashed_mint = hash_to_bn254_field_size_be(ctx.accounts.mint.key().as_ref());
         bench_sbf_start!("tm_output_compressed_accounts");
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); recipient_pubkeys.len()];
@@ -87,6 +85,7 @@ pub fn process_mint_to(
             // We ensure that the Merkle tree account is the first
             // remaining account in the cpi to the system program.
             &vec![0; amounts.len()],
+            &[ctx.accounts.merkle_tree.to_account_info()],
         )?;
         bench_sbf_end!("tm_output_compressed_accounts");
 
@@ -494,7 +493,6 @@ mod test {
             data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
         },
     };
-    use light_hasher::Poseidon;
 
     use super::*;
     use crate::{
@@ -521,12 +519,11 @@ mod test {
             };
 
             token_data.serialize(&mut token_data_bytes).unwrap();
-            use light_hasher::DataHasher;
 
             let data = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: token_data_bytes,
-                data_hash: token_data.hash::<Poseidon>().unwrap(),
+                data_hash: token_data.hash_legacy().unwrap(),
             };
             let lamports = 0;
 
@@ -587,12 +584,11 @@ mod test {
                 };
 
                 token_data.serialize(&mut token_data_bytes).unwrap();
-                use light_hasher::DataHasher;
 
                 let data = CompressedAccountData {
                     discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                     data: token_data_bytes,
-                    data_hash: token_data.hash::<Poseidon>().unwrap(),
+                    data_hash: token_data.hash_legacy().unwrap(),
                 };
                 let lamports = rng.gen_range(0..1_000_000_000_000);
 
