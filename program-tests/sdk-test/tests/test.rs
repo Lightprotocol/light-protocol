@@ -115,10 +115,8 @@ pub async fn create_pda(
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
     let mut accounts = PackedAccounts::default();
-    accounts.insert_or_get_signer_mut(payer.pubkey());
+    accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
-
-    let mut light_cpi_accounts = PackedAccounts::default();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -131,10 +129,10 @@ pub async fn create_pda(
         .await
         .unwrap();
 
-    let output_merkle_tree_index = light_cpi_accounts.insert_or_get(*merkle_tree_pubkey);
+    let output_merkle_tree_index = accounts.insert_or_get(*merkle_tree_pubkey);
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
-        &mut light_cpi_accounts,
+        &mut accounts,
         rpc_result.address_root_indices[0],
     );
     let light_ix_data = LightInstructionData {
@@ -148,12 +146,9 @@ pub async fn create_pda(
     };
     let inputs = instruction_data.try_to_vec().unwrap();
 
-    let system_accounts = accounts.to_account_metas();
-    let light_cpi_accounts = light_cpi_accounts.to_account_metas();
-    let accounts = [system_accounts, light_cpi_accounts].concat();
     let instruction = Instruction {
         program_id: sdk_test::ID,
-        accounts,
+        accounts: accounts.to_account_metas(),
         data: [&[0u8][..], &inputs[..]].concat(),
     };
 
@@ -180,10 +175,8 @@ pub async fn update_pda(
 ) -> Result<(), RpcError> {
     let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
     let mut accounts = PackedAccounts::default();
-    accounts.insert_or_get_signer_mut(payer.pubkey());
+    accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
-
-    let mut light_cpi_accounts = PackedAccounts::default();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts2(
@@ -204,7 +197,7 @@ pub async fn update_pda(
         my_compressed_account: UpdateMyCompressedAccount {
             meta: CompressedAccountMeta::from_compressed_account(
                 &compressed_account,
-                &mut light_cpi_accounts,
+                &mut accounts,
                 rpc_result.root_indices[0],
                 &output_merkle_tree,
             )
@@ -222,12 +215,9 @@ pub async fn update_pda(
     };
     let inputs = instruction_data.try_to_vec().unwrap();
 
-    let system_accounts = accounts.to_account_metas();
-    let light_cpi_accounts = light_cpi_accounts.to_account_metas();
-    let accounts = [system_accounts, light_cpi_accounts].concat();
     let instruction = Instruction {
         program_id: sdk_test::ID,
-        accounts,
+        accounts: accounts.to_account_metas(),
         data: [&[1u8][..], &inputs[..]].concat(),
     };
 
