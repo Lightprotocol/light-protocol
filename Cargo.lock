@@ -2208,6 +2208,8 @@ dependencies = [
  "light-prover-client",
  "light-registry",
  "light-system-program-anchor",
+ "log",
+ "num-bigint 0.4.6",
  "num-traits",
  "rand 0.8.5",
  "reqwest",
