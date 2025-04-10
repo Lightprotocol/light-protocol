@@ -18,7 +18,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 
 ### Migration Guide
 
-1. Update Type References:
+1. Update Type References if you use them:
 
 ```typescript
 // Old code
@@ -70,24 +70,9 @@ const selectedInfo = selectStateTreeInfo(info);
 // Still works, but will do one additional RPC call.
 const proof = await rpc.getValidityProof(hash[], address[]);
 
-
 // New code
 const proof = await rpc.getValidityProofV0(HashWithTree[], AddressWithTree[]);
 ```
-
-### New Features
-
--   Added `selectStateTreeInfo` method for better tree selection with tree type filtering
--   Added `getCachedActiveStateTreeInfos` for efficient tree info retrieval
--   Added `setStateTreeInfo` for manual tree info management
--   Added `TreeType` enum for forward compatibility (currently supports `StateV1`)
-
-### Important Notes
-
--   The `queue` field is now required in `StateTreeInfo`
--   All methods requiring state tree info now need the `treeType` field
--   The `getValidityProof` method is deprecated in favor of `getValidityProofV0`
--   Tree selection should use `selectStateTreeInfo` instead of `pickRandomTreeAndQueue`
 
 ## [0.20.5-0.20.9] - 2025-02-24
 

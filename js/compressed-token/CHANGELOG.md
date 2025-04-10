@@ -8,7 +8,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 -   new type: TokenPoolInfo
 -   Instruction Changes:
 
-    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid token pool info
+    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
     -   `decompress` now requires array of one or more TokenPoolInfos.
 
 -   Action Changes:
@@ -31,7 +31,7 @@ const infos = await getTokenPoolInfos(rpc, mint);
 const info = selectTokenPoolInfo(infos);
 
 const compressIx = await CompressedTokenProgram.compress({
-    ...,
+    // ...
     outputStateTreeInfo,
     tokenPoolInfo,
 });
@@ -53,7 +53,7 @@ const selectedInfos = selectTokenPoolInfosForDecompression(
 );
 
 const ix = await CompressedTokenProgram.decompress({
-    ...,
+    // ...
     outputStateTreeInfo,
     tokenPoolInfos: selectedTokenPoolInfos,
 });
