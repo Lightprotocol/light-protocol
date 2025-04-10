@@ -20,5 +20,5 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, default-features = false }
 num-bigint = { workspace = true, features = ["rand"] }

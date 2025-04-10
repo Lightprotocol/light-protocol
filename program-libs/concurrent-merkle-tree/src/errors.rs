@@ -38,6 +38,7 @@ pub enum ConcurrentMerkleTreeError {
     BoundedVec(#[from] BoundedVecError),
 }
 
+#[cfg(any(feature = "solana", feature = "pinocchio"))]
 impl From<ConcurrentMerkleTreeError> for u32 {
     fn from(e: ConcurrentMerkleTreeError) -> u32 {
         match e {
@@ -61,9 +62,16 @@ impl From<ConcurrentMerkleTreeError> for u32 {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(feature = "solana", not(feature = "pinocchio")))]
 impl From<ConcurrentMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: ConcurrentMerkleTreeError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(feature = "pinocchio", not(feature = "solana")))]
+impl From<ConcurrentMerkleTreeError> for pinocchio::program_error::ProgramError {
+    fn from(e: ConcurrentMerkleTreeError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
