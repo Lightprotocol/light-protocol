@@ -29,8 +29,6 @@ use crate::test_utils::{forester_config, general_action_config, init, keypair_ac
 
 mod test_utils;
 
-const PHOTON_INDEXER_URL: &str = "http://127.0.0.1:8784";
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
 async fn test_address_batched() {
@@ -118,7 +116,11 @@ async fn test_address_batched() {
 
     let mut photon_rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
     photon_rpc.payer = forester_keypair.insecure_clone();
-    let mut photon_indexer = PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, photon_rpc);
+    let mut photon_indexer = PhotonIndexer::new(
+        PhotonIndexer::<SolanaRpcConnection>::default_path(),
+        None,
+        photon_rpc,
+    );
 
     let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
         rpc,

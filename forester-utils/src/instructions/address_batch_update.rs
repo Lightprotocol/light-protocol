@@ -289,9 +289,6 @@ async fn generate_zkp_proof(
     let new_root = bigint_to_be_bytes_array::<32>(&inputs.new_root).unwrap();
     let inputs_json = to_json(&inputs);
 
-    debug!("Inputs JSON: {}", inputs_json);
-    debug!("Sending prover inputs to server");
-
     let response_result = client
         .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
         .header("Content-Type", "text/plain; charset=utf-8")

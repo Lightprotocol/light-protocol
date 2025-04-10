@@ -765,7 +765,6 @@ where
                                 let leaves_hash_chain = merkle_tree.hash_chain_stores
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
-                                let _batch_start_index = merkle_tree.next_index as usize;
 
                                 let addresses = self
                                     .indexer

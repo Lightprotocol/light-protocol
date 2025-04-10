@@ -37,6 +37,11 @@ pub struct PhotonIndexer<R: RpcConnection> {
     rate_limiter: Option<RateLimiter>,
 }
 
+impl<R: RpcConnection> PhotonIndexer<R> {
+    pub fn default_path() -> String {
+        "http://127.0.0.1:8784".to_string()
+    }
+}
 impl<R: RpcConnection> UseRateLimiter for PhotonIndexer<R> {
     fn set_rate_limiter(&mut self, rate_limiter: RateLimiter) {
         self.rate_limiter = Some(rate_limiter);
@@ -810,8 +815,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                         }),
                         ..Default::default()
                     };
-
-                    println!("get_validity_proof_v2_post request: {:?}", request);
 
                     let result = photon_api::apis::default_api::get_validity_proof_v2_post(
                         &self.configuration,

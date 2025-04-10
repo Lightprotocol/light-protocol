@@ -261,10 +261,6 @@ impl AddressMerkleTreeBundle {
     }
 
     pub fn new_v2(accounts: AddressMerkleTreeAccounts) -> Result<Self, IndexerError> {
-        println!(
-            "added v2 address Merkle tree pubkey: {:?}",
-            accounts.merkle_tree
-        );
         let height = 40;
         let canopy = 0;
         let merkle_tree = IndexedMerkleTreeVersion::V2(Box::new(
@@ -319,16 +315,7 @@ impl AddressMerkleTreeBundle {
     pub fn get_subtrees(&self) -> Vec<[u8; 32]> {
         match &self.merkle_tree {
             IndexedMerkleTreeVersion::V1(tree) => tree.merkle_tree.get_subtrees(),
-            IndexedMerkleTreeVersion::V2(tree) => {
-                println!(
-                    "get_subtrees v2, rightmost_index: {}",
-                    tree.merkle_tree.rightmost_index
-                );
-                for i in 0..tree.merkle_tree.rightmost_index {
-                    println!("leaf[{}] = {:?}", i, tree.merkle_tree.get_leaf(i).unwrap());
-                }
-                tree.merkle_tree.get_subtrees()
-            }
+            IndexedMerkleTreeVersion::V2(tree) => tree.merkle_tree.get_subtrees(),
         }
     }
 

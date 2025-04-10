@@ -18,3 +18,7 @@ killall solana-test-validator;
 cargo test-sbf -p compressed-token-test -- --ignored --test  generate_photon_test_data_multiple_events;
 cargo xtask export-photon-test-data --test-name test_multiple_events;
 killall solana-test-validator;
+
+cargo test -p forester -- --test test_create_v2_address;
+cargo xtask export-photon-test-data --test-name test_create_v2_address;
+killall solana-test-validator;

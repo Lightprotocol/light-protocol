@@ -348,12 +348,9 @@ where
                         )
                         .await?;
                     let payload_string = if let Some(payload) = payload {
-                        println!("batched payload = {}", payload.to_string());
                         payload.to_string()
                     } else {
-                        let payload_string = payload_legacy.unwrap().to_string();
-                        println!("legacy payload = {}", &payload_string);
-                        payload_string
+                        payload_legacy.unwrap().to_string()
                     };
                     (Vec::<u16>::new(), indices, payload_string)
                 }
@@ -396,29 +393,6 @@ where
                             ])
                             .unwrap(),
                         );
-                        println!(
-                            "inclusion public input hash offchain {:?}",
-                            bigint_to_u8_32(
-                                &string_to_big_int(
-                                    &inclusion_payload.as_ref().unwrap().public_input_hash,
-                                )
-                                .unwrap(),
-                            )
-                            .unwrap()
-                        );
-                        println!(
-                            "non inclusion public input hash offchain {:?}",
-                            bigint_to_u8_32(
-                                &string_to_big_int(&non_inclusion_payload.public_input_hash)
-                                    .unwrap()
-                            )
-                            .unwrap()
-                        );
-
-                        println!(
-                            "public input hash offchain {:?}",
-                            public_input_hash.to_bytes_be()
-                        );
 
                         CombinedJsonStruct {
                             circuit_type: ProofType::Combined.to_string(),
@@ -456,13 +430,9 @@ where
                 .body(json_payload.clone())
                 .send()
                 .await;
-            println!("response_result {:?}", response_result);
             if let Ok(response_result) = response_result {
                 if response_result.status().is_success() {
                     let body = response_result.text().await.unwrap();
-                    println!("body {:?}", body);
-                    println!("root_indices {:?}", root_indices);
-                    println!("address_root_indices {:?}", address_root_indices);
                     let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                     let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                     let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
@@ -908,10 +878,7 @@ where
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         rpc: &mut R,
     ) -> BatchedTreeProofRpcResult {
-        println!("=== create_proof_for_compressed_accounts2 ===");
         let mut indices_to_remove = Vec::new();
-        println!("compressed account: {:?}", compressed_accounts);
-        println!("state Merkle tree pubkeys: {:?}", state_merkle_tree_pubkeys);
         // for all accounts in batched trees, check whether values are in tree or queue
         let (compressed_accounts, state_merkle_tree_pubkeys) =
             if let Some((compressed_accounts, state_merkle_tree_pubkeys)) =
@@ -925,12 +892,8 @@ where
                     let accounts = self.state_merkle_trees.iter().find(|x| {
                         x.accounts.merkle_tree == *state_merkle_tree_pubkey && x.version == 2
                     });
-                    println!("state_merkle_tree_pubkey {:?}", state_merkle_tree_pubkey);
-                    println!("accounts {}", accounts.is_some());
                     if let Some(accounts) = accounts {
                         let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
-                        println!("leaf index {:?} ", leaf_index);
-                        println!("compressed_account {:?}", compressed_account);
                         if leaf_index.is_none() {
                             let output_queue_pubkey = accounts.accounts.nullifier_queue;
                             let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
@@ -945,7 +908,6 @@ where
                             for value_array in queue_zero_copy.value_vecs.iter() {
                                 let index =
                                     value_array.iter().position(|x| *x == *compressed_account);
-                                println!("index {:?}", index);
                                 if index.is_some() {
                                     indices_to_remove.push(i);
                                 }
@@ -1006,8 +968,6 @@ where
             }
             root_indices
         };
-        println!("root_indices {:?}", root_indices);
-        println!("=== create_proof_for_compressed_accounts2 ===");
         BatchedTreeProofRpcResult {
             proof: rpc_result.map(|x| x.unwrap().proof),
             root_indices,
@@ -1161,11 +1121,6 @@ where
                 .unwrap_or_default();
             if leaf == [0u8; 32] {
                 let result = state_merkle_tree_bundle.merkle_tree.update(new_leaf, index);
-                println!("index {}", index);
-                println!(
-                    " next index {}",
-                    state_merkle_tree_bundle.merkle_tree.rightmost_index
-                );
                 if result.is_err() && state_merkle_tree_bundle.merkle_tree.rightmost_index == index
                 {
                     state_merkle_tree_bundle
@@ -1222,11 +1177,6 @@ where
             let result = state_merkle_tree_bundle
                 .merkle_tree
                 .update(&nullifier, index);
-            println!("index {}", index);
-            println!(
-                " next index {}",
-                state_merkle_tree_bundle.merkle_tree.rightmost_index
-            );
             if result.is_err() {
                 let num_missing_leaves =
                     (index + 1) - state_merkle_tree_bundle.merkle_tree.rightmost_index;
@@ -1259,7 +1209,6 @@ where
         let onchain_next_index = onchain_account.next_index;
         let diff_onchain_indexer = onchain_next_index - address_tree_index as u64;
         let addresses = address_tree.queue_elements[0..diff_onchain_indexer as usize].to_vec();
-        println!("diff_onchain_indexer {:?}", diff_onchain_indexer);
         for _ in 0..diff_onchain_indexer {
             address_tree.queue_elements.remove(0);
         }
@@ -1272,7 +1221,6 @@ where
         let onchain_root = onchain_account.root_history.last().unwrap();
         let new_root = address_tree.root();
         assert_eq!(*onchain_root, new_root);
-        println!("finalized batched address tree update");
     }
 }
 
@@ -1571,11 +1519,8 @@ where
                     .iter()
                     .find(|x| x.accounts.merkle_tree == pubkey)
                     .unwrap();
-                println!("merkle tree {:?}", bundle.accounts.merkle_tree);
-                println!("account {:?}", account);
                 let merkle_tree = &bundle.merkle_tree;
                 let leaf_index = merkle_tree.get_leaf_index(account).unwrap();
-                println!("leaf index {:?}", leaf_index);
                 let proof = merkle_tree.get_proof_of_leaf(leaf_index, true).unwrap();
 
                 // Convert proof to owned data that implements Send
@@ -1678,12 +1623,6 @@ where
         let mut non_inclusion_proofs = Vec::new();
         let mut address_root_indices = Vec::new();
         let mut tree_heights = Vec::new();
-        for tree in self.address_merkle_trees.iter() {
-            println!("height {:?}", tree.height());
-            println!("accounts {:?}", tree.accounts);
-            println!("root {:?}", tree.root());
-        }
-        println!("process_non_inclusion_proofs: addresses {:?}", addresses);
         for (i, address) in addresses.iter().enumerate() {
             let address_tree = &self
                 .address_merkle_trees
@@ -1698,12 +1637,6 @@ where
             // We don't have address queues in v2 (batch) address Merkle trees
             // hence both accounts in this struct are the same.
             let is_v2 = address_tree.accounts.merkle_tree == address_tree.accounts.queue;
-            println!("is v2 {:?}", is_v2);
-            println!(
-                "address_merkle_tree_pubkeys[i] {:?}",
-                address_merkle_tree_pubkeys[i]
-            );
-            println!("address_tree.accounts {:?}", address_tree.accounts);
             if is_v2 {
                 let account = rpc
                     .get_account(address_merkle_tree_pubkeys[i])
@@ -1824,8 +1757,6 @@ where
                 slot,
             )
             .unwrap();
-            println!("tx_hash {:?}", tx_hash);
-            println!("slot {:?}", slot);
             let hash = event.input_compressed_account_hashes[i];
             let index = self
                 .compressed_accounts
@@ -1880,13 +1811,11 @@ where
         let mut new_addresses = vec![];
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
-            println!("output compressed account {:?}", compressed_account);
             if let Some(address) = compressed_account.compressed_account.address {
                 if !input_addresses.iter().any(|x| x == &address) {
                     new_addresses.push(address);
                 }
             }
-            println!("event {:?}", event);
 
             let merkle_tree = self.state_merkle_trees.iter().find(|x| {
                 x.accounts.merkle_tree
@@ -1906,7 +1835,6 @@ where
                     })
                     .unwrap()
             };
-            println!("found merkle tree {:?}", merkle_tree.accounts.merkle_tree);
             let nullifier_queue_pubkey = merkle_tree.accounts.nullifier_queue;
             let merkle_tree_pubkey = merkle_tree.accounts.merkle_tree;
             // if data is some, try to deserialize token data, if it fails, add to compressed_accounts
@@ -1979,8 +1907,6 @@ where
                     == event.pubkey_array
                         [event.output_compressed_accounts[i].merkle_tree_index as usize]
             });
-            let is_batched = merkle_tree.is_none();
-            println!("Output is batched {:?}", is_batched);
             if merkle_tree.is_some() {
                 let merkle_tree = merkle_tree.as_mut().unwrap();
                 let leaf_hash = compressed_account
@@ -2013,15 +1939,6 @@ where
                 ));
             }
         }
-        println!("new addresses {:?}", new_addresses);
-        println!("event.pubkey_array {:?}", event.pubkey_array);
-        println!(
-            "address merkle trees {:?}",
-            self.address_merkle_trees
-                .iter()
-                .map(|x| x.accounts.merkle_tree)
-                .collect::<Vec<_>>()
-        );
         // checks whether there are addresses in outputs which don't exist in inputs.
         // if so check pubkey_array for the first address Merkle tree and append to the bundles queue elements.
         // Note:
