@@ -6,37 +6,98 @@ export const ERROR_NO_ACCOUNTS_FOUND =
     'Could not find accounts to select for transfer.';
 
 /**
- * Selects the minimum number of compressed token accounts required for a transfer, up to a specified maximum.
+ * Selects token accounts for approval, first trying to find an exact match, then falling back to minimum selection.
  *
  * @param {ParsedTokenAccount[]} accounts - Token accounts to choose from.
- * @param {BN} transferAmount - Amount to transfer.
- * @param {number} [maxInputs=4] - Max accounts to select. Default is 4.
+ * @param {BN} approveAmount - Amount to approve.
+ * @param {number} [maxInputs=4] - Max accounts to select when falling back to minimum selection.
  * @returns {[
  *   selectedAccounts: ParsedTokenAccount[],
  *   total: BN,
  *   totalLamports: BN | null,
  *   maxPossibleAmount: BN
  * ]} - Returns:
- *   - selectedAccounts: Accounts chosen for transfer.
+ *   - selectedAccounts: Accounts chosen for approval.
  *   - total: Total amount from selected accounts.
  *   - totalLamports: Total lamports from selected accounts.
- *   - maxPossibleAmount: Max transferable amount given maxInputs.
+ *   - maxPossibleAmount: Max approvable amount given maxInputs.
+ */
+export function selectTokenAccountsForApprove(
+    accounts: ParsedTokenAccount[],
+    approveAmount: BN,
+    maxInputs: number = 4,
+): [
+    selectedAccounts: ParsedTokenAccount[],
+    total: BN,
+    totalLamports: BN | null,
+    maxPossibleAmount: BN,
+] {
+    // First try to find an exact match
+    const exactMatch = accounts.find(account =>
+        account.parsed.amount.eq(approveAmount),
+    );
+    if (exactMatch) {
+        return [
+            [exactMatch],
+            exactMatch.parsed.amount,
+            exactMatch.compressedAccount.lamports,
+            exactMatch.parsed.amount,
+        ];
+    }
+
+    // If no exact match, fall back to minimum selection
+    return selectMinCompressedTokenAccountsForTransfer(
+        accounts,
+        approveAmount,
+        maxInputs,
+    );
+}
+
+/**
+ * Selects the minimum number of compressed token accounts required for a
+ * decompress instruction, up to a specified maximum.
  *
- * @example
- * const accounts = [
- *   { parsed: { amount: new BN(100) }, compressedAccount: { lamports: new BN(10) } },
- *   { parsed: { amount: new BN(50) }, compressedAccount: { lamports: new BN(5) } },
- *   { parsed: { amount: new BN(25) }, compressedAccount: { lamports: new BN(2) } },
- * ];
- * const transferAmount = new BN(75);
- * const maxInputs = 2;
+ * @param {ParsedTokenAccount[]} accounts   Token accounts to choose from.
+ * @param {BN} amount                       Amount to decompress.
+ * @param {number} [maxInputs=4]            Max accounts to select. Default
+ *                                          is 4.
  *
- * const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
- *   selectMinCompressedTokenAccountsForTransfer(accounts, transferAmount, maxInputs);
+ * @returns Returns selected accounts and their totals.
+ */
+export function selectMinCompressedTokenAccountsForDecompression(
+    accounts: ParsedTokenAccount[],
+    amount: BN,
+    maxInputs: number = 4,
+): {
+    selectedAccounts: ParsedTokenAccount[];
+    total: BN;
+    totalLamports: BN | null;
+    maxPossibleAmount: BN;
+} {
+    const [selectedAccounts, total, totalLamports, maxPossibleAmount] =
+        selectMinCompressedTokenAccountsForTransfer(
+            accounts,
+            amount,
+            maxInputs,
+        );
+    return { selectedAccounts, total, totalLamports, maxPossibleAmount };
+}
+
+/**
+ * Selects the minimum number of compressed token accounts required for a
+ * transfer or decompression instruction, up to a specified maximum.
  *
- * console.log(selectedAccounts.length); // 2
- * console.log(total.toString()); // '150'
- * console.log(totalLamports!.toString()); // '15'
+ * @param {ParsedTokenAccount[]} accounts   Token accounts to choose from.
+ * @param {BN} transferAmount               Amount to transfer or decompress.
+ * @param {number} [maxInputs=4]            Max accounts to select. Default
+ *                                          is 4.
+ *
+ * @returns Returns selected accounts and their totals. [
+ *   selectedAccounts: ParsedTokenAccount[],
+ *   total: BN,
+ *   totalLamports: BN | null,
+ *   maxPossibleAmount: BN
+ * ]
  */
 export function selectMinCompressedTokenAccountsForTransfer(
     accounts: ParsedTokenAccount[],

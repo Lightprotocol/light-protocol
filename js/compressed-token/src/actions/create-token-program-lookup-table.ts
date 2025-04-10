@@ -12,14 +12,15 @@ import { CompressedTokenProgram } from '../program';
  * Create a lookup table for the token program's default accounts
  *
  * @param rpc                   Rpc connection to use
- * @param payer                 Payer of the transaction fees
+ * @param payer                 Fee payer
  * @param authority             Authority of the lookup table
  * @param mints                 Optional array of mint public keys to include in
  *                              the lookup table
  * @param additionalAccounts    Optional array of additional account public keys
  *                              to include in the lookup table
  *
- * @return Transaction signatures and the address of the created lookup table
+ * @return Object with transaction signatures and the address of the created
+ *         lookup table
  */
 export async function createTokenProgramLookupTable(
     rpc: Rpc,
@@ -39,35 +40,24 @@ export async function createTokenProgramLookupTable(
         });
 
     const additionalSigners = dedupeSigner(payer, [authority]);
-    const blockhashCtx = await rpc.getLatestBlockhash();
-    const signedTx = buildAndSignTx(
-        [instructions[0]],
-        payer,
-        blockhashCtx.blockhash,
-        additionalSigners,
-    );
+    const txIds = [];
 
-    /// Must wait for the first instruction to be finalized.
-    const txId = await sendAndConfirmTx(
-        rpc,
-        signedTx,
-        { commitment: 'finalized' },
-        blockhashCtx,
-    );
+    for (const instruction of instructions) {
+        const blockhashCtx = await rpc.getLatestBlockhash();
+        const signedTx = buildAndSignTx(
+            [instruction],
+            payer,
+            blockhashCtx.blockhash,
+            additionalSigners,
+        );
+        const txId = await sendAndConfirmTx(
+            rpc,
+            signedTx,
+            { commitment: 'finalized' },
+            blockhashCtx,
+        );
+        txIds.push(txId);
+    }
 
-    const blockhashCtx2 = await rpc.getLatestBlockhash();
-    const signedTx2 = buildAndSignTx(
-        [instructions[1]],
-        payer,
-        blockhashCtx2.blockhash,
-        additionalSigners,
-    );
-    const txId2 = await sendAndConfirmTx(
-        rpc,
-        signedTx2,
-        { commitment: 'finalized' },
-        blockhashCtx2,
-    );
-
-    return { txIds: [txId, txId2], address };
+    return { txIds, address };
 }

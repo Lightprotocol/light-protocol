@@ -16,9 +16,16 @@ import {
     sendAndConfirmTx,
     getTestRpc,
     defaultTestStateTreeAccounts,
+    StateTreeInfo,
+    selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
+import {
+    getTokenPoolInfos,
+    selectTokenPoolInfo,
+    TokenPoolInfo,
+} from '../../src/utils/get-token-pool-infos';
 
 async function createTestSplMint(
     rpc: Rpc,
@@ -64,6 +71,8 @@ describe('approveAndMintTo', () => {
     let mintKeypair: Keypair;
     let mint: PublicKey;
     let mintAuthority: Keypair;
+    let tokenPoolInfo: TokenPoolInfo;
+    let stateTreeInfo: StateTreeInfo;
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -79,6 +88,8 @@ describe('approveAndMintTo', () => {
 
         /// Register mint
         await createTokenPool(rpc, payer, mint);
+        tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
 
     it('should mintTo compressed account with external spl mint', async () => {
@@ -91,7 +102,8 @@ describe('approveAndMintTo', () => {
             bob,
             mintAuthority,
             1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfo,
         );
 
         await assertApproveAndMintTo(rpc, mint, bn(1000000000), bob);
@@ -118,6 +130,10 @@ describe('approveAndMintTo', () => {
         await createTokenPool(rpc, payer, token22Mint);
         assert(token22Mint.equals(token22MintKeypair.publicKey));
 
+        const tokenPoolInfoT22 = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, token22Mint),
+        );
+
         await approveAndMintTo(
             rpc,
             payer,
@@ -125,7 +141,8 @@ describe('approveAndMintTo', () => {
             bob,
             token22MintAuthority,
             1000000000,
-            defaultTestStateTreeAccounts().merkleTree,
+            stateTreeInfo,
+            tokenPoolInfoT22,
         );
 
         await assertApproveAndMintTo(rpc, token22Mint, bn(1000000000), bob);
