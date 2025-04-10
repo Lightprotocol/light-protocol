@@ -1,9 +1,4 @@
-// TODO: consider implementing BN254 as wrapper class around _BN mirroring
-// PublicKey this would encapsulate our runtime checks and also enforce
-// typesafety at compile time
-
 import { FIELD_SIZE } from '../constants';
-import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import bs58 from 'bs58';
 import { Buffer } from 'buffer';
@@ -15,12 +10,6 @@ import { Buffer } from 'buffer';
  * are used to from working with the web3.js PublicKey type.
  */
 export type BN254 = BN;
-
-export const bn = (
-    number: string | number | BN | Buffer | Uint8Array | number[],
-    base?: number | 'hex' | undefined,
-    endian?: BN.Endianness | undefined,
-): BN => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
@@ -56,5 +45,5 @@ export function encodeBN254toBase58(bigintNumber: BN): string {
     const bn254 = createBN254(bigintNumber);
     const bn254Buffer = bn254.toArrayLike(Buffer, undefined, 32);
 
-    return bs58.encode(bn254Buffer);
+    return bs58.encode(new Uint8Array(bn254Buffer));
 }

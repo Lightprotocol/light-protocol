@@ -15,13 +15,13 @@ import {
     vecU8,
 } from '@coral-xyz/borsh';
 import {
+    bn,
     InstructionDataInvoke,
     InstructionDataInvokeCpi,
     PublicTransactionEvent,
 } from '../state';
 import { LightSystemProgram } from './system';
 import { INVOKE_CPI_DISCRIMINATOR, INVOKE_DISCRIMINATOR } from '../constants';
-import { BN } from 'bn.js';
 
 export const CompressedAccountLayout = struct(
     [
@@ -94,10 +94,14 @@ export function encodeInstructionDataInvoke(
 ): Buffer {
     const buffer = Buffer.alloc(1000);
     const len = InstructionDataInvokeLayout.encode(data, buffer);
-    const dataBuffer = Buffer.from(buffer.slice(0, len));
+    const dataBuffer = Buffer.from(new Uint8Array(buffer.slice(0, len)));
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
-    return Buffer.concat([INVOKE_DISCRIMINATOR, lengthBuffer, dataBuffer]);
+    return Buffer.concat([
+        new Uint8Array(INVOKE_DISCRIMINATOR),
+        new Uint8Array(lengthBuffer),
+        new Uint8Array(dataBuffer),
+    ]);
 }
 
 export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
@@ -246,14 +250,41 @@ export function decodeInstructionDataInvokeCpi(
 }
 
 export type invokeAccountsLayoutParams = {
+    /**
+     * Fee payer.
+     */
     feePayer: PublicKey;
+    /**
+     * Authority.
+     */
     authority: PublicKey;
+    /**
+     * The registered program pda
+     */
     registeredProgramPda: PublicKey;
+    /**
+     * Noop program.
+     */
     noopProgram: PublicKey;
+    /**
+     * Account compression authority.
+     */
     accountCompressionAuthority: PublicKey;
+    /**
+     * Account compression program.
+     */
     accountCompressionProgram: PublicKey;
+    /**
+     * Solana pool pda. Some() if compression or decompression is done.
+     */
     solPoolPda: PublicKey | null;
+    /**
+     * Decompression recipient.
+     */
     decompressionRecipient: PublicKey | null;
+    /**
+     * Solana system program.
+     */
     systemProgram: PublicKey;
 };
 
@@ -500,7 +531,7 @@ export function convertToPublicTransactionEvent(
                         invokeData?.outputCompressedAccounts[index]
                             ?.compressedAccount.owner || PublicKey.default,
                     ),
-                    lamports: new BN(
+                    lamports: bn(
                         invokeData?.outputCompressedAccounts[index]
                             ?.compressedAccount.lamports || 0,
                     ),
@@ -520,9 +551,11 @@ export function convertToPublicTransactionEvent(
                               data:
                                   convertByteArray(
                                       Buffer.from(
-                                          invokeData.outputCompressedAccounts[
-                                              index
-                                          ].compressedAccount.data.data,
+                                          new Uint8Array(
+                                              invokeData.outputCompressedAccounts[
+                                                  index
+                                              ].compressedAccount.data.data,
+                                          ),
                                       ),
                                   ) ?? [],
                               dataHash: convertByteArray(
@@ -539,18 +572,19 @@ export function convertToPublicTransactionEvent(
         ),
         outputLeafIndices: decoded.output_leaf_indices,
         sequenceNumbers: decoded.sequence_numbers.map((sn: any) => ({
-            tree_pubkey: new PublicKey(sn.tree_pubkey),
-            queue_pubkey: new PublicKey(sn.queue_pubkey),
-            tree_type: new BN(sn.tree_type),
-            seq: new BN(sn.seq),
+            // tree_pubkey: new PublicKey(sn.tree_pubkey),
+            pubkey: new PublicKey(sn.pubkey),
+            // queue_pubkey: new PublicKey(sn.queue_pubkey),
+            // tree_type: new BN(sn.tree_type),
+            seq: bn(sn.seq),
         })),
         pubkeyArray: remainingAccounts
             .slice(2)
             .filter(pk => !pk.equals(PublicKey.default)),
         isCompress: invokeData?.isCompress || false,
-        relayFee: invokeData?.relayFee ? new BN(invokeData.relayFee) : null,
+        relayFee: invokeData?.relayFee ? bn(invokeData.relayFee) : null,
         compressOrDecompressLamports: invokeData?.compressOrDecompressLamports
-            ? new BN(invokeData.compressOrDecompressLamports)
+            ? bn(invokeData.compressOrDecompressLamports)
             : null,
         message: null,
     };

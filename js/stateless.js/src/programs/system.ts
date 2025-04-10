@@ -8,8 +8,9 @@ import { Buffer } from 'buffer';
 import {
     CompressedAccount,
     CompressedAccountWithMerkleContext,
-    CompressedProof,
+    ValidityProof,
     InstructionDataInvoke,
+    StateTreeInfo,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -40,21 +41,24 @@ type CreateAccountWithSeedParams = {
      */
     payer: PublicKey;
     /**
-     * Address params for the new compressed account
+     * Address params for the new compressed account.
      */
     newAddressParams: NewAddressParams;
+    /**
+     * Address of the new compressed account
+     */
     newAddress: number[];
     /**
      * Recent validity proof proving that there's no existing compressed account
      * registered with newAccountAddress
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * State tree pubkey. Defaults to a public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo?: StateTreeInfo;
     /**
-     * Public key of the program to assign as the owner of the created account
+     * Public key of the program to assign as the owner of the created account.
      */
     programId?: PublicKey;
     /**
@@ -86,11 +90,11 @@ type TransferParams = {
      */
     inputCompressedAccounts: CompressedAccountWithMerkleContext[];
     /**
-     * Recipient address
+     * Recipient address.
      */
     toAddress: PublicKey;
     /**
-     * amount of lamports to transfer.
+     * Amount of lamports to transfer.
      */
     lamports: number | BN;
     /**
@@ -104,18 +108,9 @@ type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTrees?: PublicKey[] | PublicKey;
+    recentValidityProof: ValidityProof;
 };
 
-/// TODO:
-/// - add option to compress to another owner
-/// - add option to merge with input state
 /**
  * Defines the parameters for the transfer method
  */
@@ -136,7 +131,7 @@ type CompressParams = {
      * The state tree that the tx output should be inserted into. Defaults to a
      * public state tree if unspecified.
      */
-    outputStateTree?: PublicKey;
+    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -170,13 +165,7 @@ type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTree?: PublicKey;
+    recentValidityProof: ValidityProof;
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
@@ -188,7 +177,7 @@ export class LightSystemProgram {
     constructor() {}
 
     /**
-     * Public key that identifies the CompressedPda program
+     * The LightSystemProgram program ID.
      */
     static programId: PublicKey = new PublicKey(
         'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
@@ -305,7 +294,7 @@ export class LightSystemProgram {
         newAddressParams,
         newAddress,
         recentValidityProof,
-        outputStateTree,
+        outputStateTreeInfo,
         inputCompressedAccounts,
         inputStateRootIndices,
         lamports,
@@ -326,7 +315,9 @@ export class LightSystemProgram {
             inputCompressedAccounts ?? [],
             inputStateRootIndices ?? [],
             outputCompressedAccounts,
-            outputStateTree,
+            !inputCompressedAccounts || inputCompressedAccounts.length === 0
+                ? outputStateTreeInfo
+                : undefined,
         );
 
         const { newAddressParamsPacked, remainingAccounts } =
@@ -372,7 +363,6 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTrees,
     }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
@@ -390,7 +380,6 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTrees,
         );
 
         /// Encode instruction data
@@ -434,7 +423,7 @@ export class LightSystemProgram {
         payer,
         toAddress,
         lamports,
-        outputStateTree,
+        outputStateTreeInfo,
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -453,7 +442,7 @@ export class LightSystemProgram {
             [],
             [],
             [outputCompressedAccount],
-            outputStateTree,
+            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -499,7 +488,6 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTree,
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -518,7 +506,6 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTree,
         );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {

@@ -11,8 +11,12 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
+    selectStateTreeInfo,
+    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
+
 import BN from 'bn.js';
+
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 import {
@@ -22,12 +26,13 @@ import {
 import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
- * Decompress compressed tokens
+ * Decompress delegated compressed tokens. Remaining compressed tokens are
+ * returned to the owner without delegation.
  *
  * @param rpc                   Rpc to use
  * @param payer                 Payer of the transaction fees
  * @param mint                  Mint of the compressed token
- * @param amount                Number of tokens to transfer
+ * @param amount                Number of tokens to decompress
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination **uncompressed** (associated) token
  *                              account address.
@@ -36,7 +41,7 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  *
  * @return Signature of the confirmed transaction
  */
-export async function decompress(
+export async function decompressDelegated(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
@@ -48,12 +53,10 @@ export async function decompress(
 ): Promise<TransactionSignature> {
     amount = bn(amount);
 
-    const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
-        owner.publicKey,
-        {
+    const compressedTokenAccounts =
+        await rpc.getCompressedTokenAccountsByDelegate(owner.publicKey, {
             mint,
-        },
-    );
+        });
 
     const [inputAccounts] = selectMinCompressedTokenAccountsForTransfer(
         compressedTokenAccounts.items,
@@ -68,30 +71,31 @@ export async function decompress(
         })),
     );
 
-    tokenPoolInfos = tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
-
-    const selectedTokenPoolInfos = selectTokenPoolInfosForDecompression(
-        tokenPoolInfos,
-        amount,
-    );
+    const tokenPoolInfosToUse =
+        tokenPoolInfos ??
+        selectTokenPoolInfosForDecompression(
+            await getTokenPoolInfos(rpc, mint),
+            amount,
+        );
 
     const ix = await CompressedTokenProgram.decompress({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
         amount,
-        tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.compressedProof,
+        tokenPoolInfos: tokenPoolInfosToUse,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 }), ix],
         payer,
         blockhash,
         additionalSigners,
     );
-    return await sendAndConfirmTx(rpc, signedTx, confirmOptions);
+
+    return sendAndConfirmTx(rpc, signedTx, confirmOptions);
 }

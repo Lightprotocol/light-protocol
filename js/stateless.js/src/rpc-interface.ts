@@ -17,11 +17,14 @@ import {
 import {
     BN254,
     createBN254,
-    CompressedProof,
+    ValidityProof,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     bn,
     TokenData,
+    StateTreeInfo,
+    AddressTreeInfo,
+    CompressedProof,
 } from './state';
 import BN from 'bn.js';
 
@@ -67,6 +70,34 @@ export interface SignatureWithMetadata {
     slot: number;
 }
 
+/**
+ * Account hash and associated state tree info.
+ */
+export interface HashWithTreeInfo {
+    /**
+     * Account hash.
+     */
+    hash: BN254;
+    /**
+     * State tree info.
+     */
+    stateTreeInfo: StateTreeInfo;
+}
+
+/**
+ * Address and associated address tree info.
+ */
+export interface AddressWithTreeInfo {
+    /**
+     * Address.
+     */
+    address: BN254;
+    /**
+     * Address tree info.
+     */
+    addressTreeInfo: AddressTreeInfo;
+}
+
 export interface HashWithTree {
     hash: BN254;
     tree: PublicKey;
@@ -77,6 +108,11 @@ export interface AddressWithTree {
     address: BN254;
     tree: PublicKey;
     queue: PublicKey;
+}
+
+export interface AddressWithTreeInfo {
+    address: BN254;
+    treeInfo: AddressTreeInfo;
 }
 
 export interface CompressedTransaction {
@@ -114,7 +150,42 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
+/**
+ * Validity proof with context.
+ *
+ * You can request proofs via `rpc.getValidityProof` or
+ * `rpc.getValidityProofV0`.
+ */
+export type ValidityProofWithContext = {
+    /**
+     * Validity proof.
+     */
+    compressedProof: ValidityProof;
+    /**
+     * Roots.
+     */
+    roots: BN[];
+    /**
+     * Root indices.
+     */
+    rootIndices: number[];
+    /**
+     * Leaf indices.
+     */
+    leafIndices: number[];
+    /**
+     * Leaves.
+     */
+    leaves: BN[];
+    /**
+     * Tree infos.
+     */
+    treeInfos: StateTreeInfo[];
+};
+
+/**
+ * @deprecated use {@link ValidityProofWithContext} instead
+ */
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
@@ -213,9 +284,9 @@ const BNFromStringOrNumber = coerce(
             if (!Number.isSafeInteger(value)) {
                 throw new Error(`Unsafe integer. Precision loss: ${value}`);
             }
-            return new BN(value); // Safe number → BN
+            return bn(value); // Safe number → BN
         }
-        return new BN(value, 10); // String → BN
+        return bn(value, 10); // String → BN
     },
 );
 
@@ -556,17 +627,17 @@ export interface CompressionApiInterface {
     getValidityProof(
         hashes: BN254[],
         newAddresses: BN254[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofV0(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofAndRpcContext(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<WithContext<CompressedProofWithContext>>;
+    ): Promise<WithContext<ValidityProofWithContext>>;
 
     getCompressedAccountsByOwner(
         owner: PublicKey,
