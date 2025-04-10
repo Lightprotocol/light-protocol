@@ -1,32 +1,22 @@
 use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_compressed_token::{
-    process_transfer::{
-        CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
-        PackedTokenTransferOutputData,
-    },
-    program::LightCompressedToken,
+use light_compressed_token::process_transfer::{
+    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
+    PackedTokenTransferOutputData,
 };
-use light_sdk::{light_system_accounts, LightTraits};
 
 use crate::create_change_output_compressed_token_account;
 
-#[light_system_accounts]
-#[derive(Accounts, LightTraits)]
+#[derive(Accounts)]
 pub struct EscrowCompressedTokensWithPda<'info> {
     #[account(mut)]
-    #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
-    #[authority]
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
-    #[self_program]
-    pub compressed_token_program: Program<'info, LightCompressedToken>,
-    /// CHECK:
-    pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
     #[account(init_if_needed, seeds = [b"timelock".as_slice(), signer.key.to_bytes().as_slice()],bump, payer = signer, space = 8 + 8)]
     pub timelock_pda: Account<'info, EscrowTimeLock>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Debug)]

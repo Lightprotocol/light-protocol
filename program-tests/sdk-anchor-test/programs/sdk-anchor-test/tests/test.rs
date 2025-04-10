@@ -14,7 +14,7 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     address::v1::derive_address,
-    cpi::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    cpi::accounts::SystemAccountMetaConfig,
     instruction::{
         account_meta::CompressedAccountMeta,
         instruction_data::LightInstructionData,
@@ -143,8 +143,10 @@ where
     R: RpcConnection + MerkleTreeExt,
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
-    let mut remaining_accounts = PackedAccounts::default();
+    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
 
+    let mut remaining_accounts = PackedAccounts::default();
+    remaining_accounts.add_system_accounts(config);
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             None,
@@ -172,27 +174,21 @@ where
         new_addresses: Some(vec![packed_address_merkle_context]),
     };
 
-    let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        light_ix_data,
-        name,
-        output_merkle_tree_index,
-    };
-
     let accounts = sdk_anchor_test::accounts::WithNestedData {
         signer: payer.pubkey(),
     };
 
-    let remaining_accounts = remaining_accounts.to_account_metas();
-
-    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
+    let (remaining_accounts, _, tree_accounts_offset) = remaining_accounts.to_account_metas();
+    println!("tree_accounts_offset {}", tree_accounts_offset);
+    let instruction_data = sdk_anchor_test::instruction::WithNestedData {
+        light_ix_data,
+        name,
+        output_merkle_tree_index,
+        tree_accounts_offset: tree_accounts_offset as u8,
+    };
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
-        accounts: [
-            accounts.to_account_metas(Some(true)),
-            get_light_system_account_metas(config),
-            remaining_accounts,
-        ]
-        .concat(),
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
 
@@ -221,7 +217,8 @@ where
     I: Indexer<R> + TestIndexerExtensions<R>,
 {
     let mut remaining_accounts = PackedAccounts::default();
-
+    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
+    remaining_accounts.add_system_accounts(config);
     let hash = compressed_account.hash().unwrap();
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
@@ -236,12 +233,6 @@ where
         .await
         .unwrap();
 
-    // let compressed_account = LightAccountMeta::new_mut(
-    //     compressed_account,
-    //     rpc_result.root_indices[0].unwrap(),
-    //     &merkle_tree_pubkey,
-    //     remaining_accounts,
-    // );
     let packed_merkle_context =
         pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);
     let light_ix_data = LightInstructionData {
@@ -258,6 +249,13 @@ where
             .as_slice(),
     )
     .unwrap();
+
+    let accounts = sdk_anchor_test::accounts::UpdateNestedData {
+        signer: payer.pubkey(),
+    };
+
+    let remaining_accounts = remaining_accounts.to_account_metas_no_offset();
+
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
         light_ix_data,
         my_compressed_account,
@@ -269,22 +267,9 @@ where
         },
         nested_data,
     };
-
-    let accounts = sdk_anchor_test::accounts::UpdateNestedData {
-        signer: payer.pubkey(),
-    };
-
-    let remaining_accounts = remaining_accounts.to_account_metas();
-    let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
-
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
-        accounts: [
-            accounts.to_account_metas(Some(true)),
-            get_light_system_account_metas(config),
-            remaining_accounts,
-        ]
-        .concat(),
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
 

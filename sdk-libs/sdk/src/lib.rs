@@ -11,6 +11,7 @@ pub mod error;
 pub mod instruction;
 pub mod legacy;
 pub mod token;
+pub mod token_accounts;
 pub mod transfer;
 pub mod utils;
 

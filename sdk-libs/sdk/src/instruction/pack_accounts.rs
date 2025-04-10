@@ -2,21 +2,36 @@ use std::collections::HashMap;
 
 use crate::{
     cpi::accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
+    error::{LightSdkError, Result},
+    token_accounts::{get_compressed_token_account_metas, TokenAccountMetaConfig},
     AccountMeta, Pubkey,
 };
 
 #[derive(Default, Debug)]
 pub struct PackedAccounts {
     pre_accounts: Vec<AccountMeta>,
+    token_accounts: Vec<AccountMeta>,
     system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
+    with_system_accounts: bool,
+    system_accounts_added: bool,
+    with_token_accounts: bool,
+    token_accounts_added: bool,
 }
 
 impl PackedAccounts {
     pub fn new_with_system_accounts(config: SystemAccountMetaConfig) -> Self {
         let mut remaining_accounts = PackedAccounts::default();
+        remaining_accounts.with_system_accounts = true;
         remaining_accounts.add_system_accounts(config);
+        remaining_accounts
+    }
+
+    pub fn new_with_token_accounts(config: TokenAccountMetaConfig) -> Self {
+        let mut remaining_accounts = PackedAccounts::default();
+        remaining_accounts.with_token_accounts = true;
+        remaining_accounts.add_token_accounts(config);
         remaining_accounts
     }
 
@@ -40,9 +55,30 @@ impl PackedAccounts {
         self.pre_accounts.push(account_meta);
     }
 
-    pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
+    pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) -> Result<()> {
+        if !self.with_system_accounts {
+            return Err(LightSdkError::PackedAccountsNotDeclaredWithSystemAccounts);
+        }
+        if self.system_accounts_added {
+            return Err(LightSdkError::SystemAccountsAlreadyAdded);
+        }
         self.system_accounts
             .extend(get_light_system_account_metas(config));
+        self.system_accounts_added = true;
+        Ok(())
+    }
+
+    pub fn add_token_accounts(&mut self, config: TokenAccountMetaConfig) -> Result<()> {
+        if !self.with_token_accounts {
+            return Err(LightSdkError::PackedAccountsNotDeclaredWithSystemAccounts);
+        }
+        if self.token_accounts_added {
+            return Err(LightSdkError::SystemAccountsAlreadyAdded);
+        }
+        self.system_accounts
+            .extend(get_compressed_token_account_metas(config)?);
+        self.token_accounts_added = true;
+        Ok(())
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
@@ -94,10 +130,33 @@ impl PackedAccounts {
         remaining_accounts
     }
 
+    pub fn get_offsets(&self) -> (usize, usize) {
+        let token_accounts_start_offset = self.pre_accounts.len();
+        let system_accounts_start_offset = token_accounts_start_offset + self.token_accounts.len();
+        let packed_accounts_start_offset =
+            system_accounts_start_offset + self.system_accounts.len();
+        (system_accounts_start_offset, packed_accounts_start_offset)
+    }
+
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
-    pub fn to_account_metas(&self) -> Vec<AccountMeta> {
+    pub fn to_account_metas(&self) -> (Vec<AccountMeta>, usize, usize) {
+        let packed_accounts = self.hash_set_accounts_to_metas();
+        let (system_accounts_start_offset, packed_accounts_start_offset) = self.get_offsets();
+        (
+            [
+                self.pre_accounts.clone(),
+                self.system_accounts.clone(),
+                packed_accounts,
+            ]
+            .concat(),
+            system_accounts_start_offset,
+            packed_accounts_start_offset,
+        )
+    }
+
+    pub fn to_account_metas_no_offset(&self) -> Vec<AccountMeta> {
         let packed_accounts = self.hash_set_accounts_to_metas();
         [
             self.pre_accounts.clone(),
@@ -127,7 +186,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas_no_offset().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -153,7 +212,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas_no_offset().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -177,7 +236,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_4), 3);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas_no_offset().as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,

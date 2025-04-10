@@ -45,6 +45,17 @@ pub enum LightSdkError {
     InvalidCpiSignerAccount,
     #[error("Missing meta field: {0}")]
     MissingField(String),
+    #[error("InvalidLightSystemProgramAccountInfo")]
+    InvalidLightSystemProgramAccountInfo,
+    #[error("PackedAccountsNotDeclaredWithSystemAccounts")]
+    PackedAccountsNotDeclaredWithSystemAccounts,
+    #[error("SystemAccountsAlreadyAdded")]
+    SystemAccountsAlreadyAdded,
+    #[error("Unsupported")]
+    Unsupported,
+    PackedAccountsNotDeclaredWithSystemAccounts,
+    #[error("PackedAccountsNotDeclaredWithSystemAccounts")]
+    PackedAccountsNotDeclaredWithSystemAccounts,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error("Program error: {0}")]
@@ -73,6 +84,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::FewerAccountsThanSystemAccounts => 14017,
             LightSdkError::InvalidCpiSignerAccount => 14018,
             LightSdkError::MissingField(_) => 14019,
+            LightSdkError::InvalidLightSystemProgramAccountInfo => 14020,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
         }

@@ -1,4 +1,3 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     address::derive_address_legacy,
@@ -17,37 +16,22 @@ use light_compressed_token::{
     program::LightCompressedToken,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
-use light_sdk::{
-    cpi::{
-        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
-        verify::verify_borsh,
-    },
-    legacy::*,
-    light_system_accounts, LightTraits,
+use light_sdk::cpi::{
+    accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+    verify::verify_borsh,
 };
 
-use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
+use crate::{create_change_output_compressed_token_account, EscrowTimeLock};
 
-#[light_system_accounts]
-#[derive(Accounts, LightTraits)]
+#[derive(Accounts)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[account(mut)]
-    #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program: Program<'info, LightCompressedToken>,
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
-    #[self_program]
-    pub self_program: Program<'info, TokenEscrow>,
-    /// CHECK:
-    #[cpi_context]
-    #[account(mut)]
-    pub cpi_context_account: AccountInfo<'info>,
-    #[authority]
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
-    pub cpi_authority_pda: AccountInfo<'info>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
