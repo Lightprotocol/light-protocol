@@ -430,6 +430,7 @@ fn create_batched_transaction_event(
             .map(|x| NewAddress {
                 address: x.address,
                 mt_pubkey: associated_instructions.accounts[x.tree_index as usize],
+                queue_index: u64::MAX,
             })
             .collect::<Vec<_>>(),
         address_sequence_numbers: associated_instructions
@@ -472,21 +473,11 @@ fn create_batched_transaction_event(
             .collect::<Result<Vec<_>, ParseIndexerEventError>>()?,
         input_sequence_numbers,
     };
+
     let nullifier_queue_indices = create_nullifier_queue_indices(
         associated_instructions,
         batched_transaction_event.batch_input_accounts.len(),
     );
-    // Sanity check assert.
-    // TODO: remove comment once in prod
-    // assert_eq!(
-    //     nullifier_queue_indices
-    //         .iter()
-    //         .filter(|x| **x != u64::MAX)
-    //         .count(),
-    //     batched_transaction_event.batch_input_accounts.len(),
-    //     " {:?}",
-    //     batched_transaction_event.batch_input_accounts
-    // );
 
     batched_transaction_event
         .batch_input_accounts
@@ -495,6 +486,20 @@ fn create_batched_transaction_event(
         .for_each(|(context, index)| {
             context.nullifier_queue_index = *index;
         });
+
+    let address_queue_indices = create_address_queue_indices(
+        associated_instructions,
+        batched_transaction_event.new_addresses.len(),
+    );
+
+    batched_transaction_event
+        .new_addresses
+        .iter_mut()
+        .zip(address_queue_indices.iter())
+        .for_each(|(context, index)| {
+            context.queue_index = *index;
+        });
+
     for cpi_instruction in associated_instructions.cpi_system_instructions.iter() {
         batched_transaction_event
             .event
@@ -537,6 +542,34 @@ fn create_nullifier_queue_indices(
         }
     });
     nullifier_queue_indices
+}
+
+fn create_address_queue_indices(
+    associated_instructions: &AssociatedInstructions,
+    len: usize,
+) -> Vec<u64> {
+    let address_merkle_tree_pubkeys = associated_instructions
+        .insert_into_queues_instruction
+        .addresses
+        .iter()
+        .map(|x| associated_instructions.accounts[x.tree_index as usize])
+        .collect::<Vec<_>>();
+    let mut address_queue_indices = vec![u64::MAX; len];
+    let mut internal_address_sequence_numbers = associated_instructions
+        .insert_into_queues_instruction
+        .address_sequence_numbers
+        .to_vec();
+    internal_address_sequence_numbers
+        .iter_mut()
+        .for_each(|seq| {
+            for (i, merkle_tree_pubkey) in address_merkle_tree_pubkeys.iter().enumerate() {
+                if crate::pubkey::Pubkey::from(*merkle_tree_pubkey) == seq.tree_pubkey {
+                    address_queue_indices[i] = seq.seq.into();
+                    seq.seq += 1;
+                }
+            }
+        });
+    address_queue_indices
 }
 
 #[cfg(test)]

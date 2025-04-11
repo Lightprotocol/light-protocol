@@ -2451,6 +2451,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "groth16-solana"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e88b742ab45083ea752bcece9bb0a1f8b9bdff52013a5f6b4dce77ac2b59f34c"
+dependencies = [
+ "ark-bn254 0.5.0",
+ "ark-ec 0.5.0",
+ "ark-ff 0.5.0",
+ "ark-serialize 0.5.0",
+ "num-bigint 0.4.6",
+ "solana-bn254",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3480,7 +3495,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
- "groth16-solana",
+ "groth16-solana 0.0.3",
  "light-batched-merkle-tree",
  "light-bounded-vec",
  "light-compressed-account",
@@ -3645,7 +3660,7 @@ dependencies = [
 name = "light-verifier"
 version = "1.1.0"
 dependencies = [
- "groth16-solana",
+ "groth16-solana 0.1.0",
  "light-compressed-account",
  "light-prover-client",
  "pinocchio",
@@ -5734,6 +5749,21 @@ dependencies = [
  "tarpc",
  "tokio",
  "tokio-serde",
+]
+
+[[package]]
+name = "solana-bn254"
+version = "2.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4420f125118732833f36facf96a27e7b78314b2d642ba07fa9ffdacd8d79e243"
+dependencies = [
+ "ark-bn254 0.4.0",
+ "ark-ec 0.4.2",
+ "ark-ff 0.4.2",
+ "ark-serialize 0.4.2",
+ "bytemuck",
+ "solana-define-syscall",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -8764,7 +8794,7 @@ dependencies = [
  "ark-ff 0.5.0",
  "clap 4.5.32",
  "dirs",
- "groth16-solana",
+ "groth16-solana 0.0.3",
  "light-batched-merkle-tree",
  "light-client",
  "light-compressed-account",
