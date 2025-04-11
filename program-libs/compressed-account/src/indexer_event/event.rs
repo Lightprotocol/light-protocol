@@ -36,6 +36,7 @@ pub struct PublicTransactionEvent {
 pub struct NewAddress {
     pub address: [u8; 32],
     pub mt_pubkey: Pubkey,
+    pub queue_index: u64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]

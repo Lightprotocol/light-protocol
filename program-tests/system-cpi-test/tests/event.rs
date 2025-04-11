@@ -258,6 +258,7 @@ async fn parse_batched_event_functional() {
                 .map(|x| NewAddress {
                     address: *x,
                     mt_pubkey: env.address_merkle_tree_pubkey,
+                    queue_index: 0,
                 })
                 .collect(),
             tx_hash,
@@ -420,6 +421,7 @@ async fn parse_batched_event_functional() {
                 .map(|x| NewAddress {
                     address: *x,
                     mt_pubkey: env.batch_address_merkle_tree,
+                    queue_index: 0,
                 })
                 .collect(),
             tx_hash,
