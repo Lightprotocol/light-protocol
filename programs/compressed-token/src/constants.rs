@@ -5,4 +5,4 @@ pub const NOT_FROZEN: bool = false;
 pub const POOL_SEED: &[u8] = b"pool";
 
 /// Maximum number of pool accounts that can be created for each mint.
-pub const NUM_MAX_POOL_ACCOUNTS: u8 = 5;
+pub const NUM_MAX_POOL_ACCOUNTS: u8 = 4;
