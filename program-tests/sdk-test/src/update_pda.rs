@@ -40,8 +40,11 @@ pub fn update_pda<const BATCHED: bool>(
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-    let light_cpi_accounts =
-        CompressionCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
+    let light_cpi_accounts = CompressionCpiAccounts::new_with_config(
+        &accounts[0],
+        &accounts[instruction_data.system_accounts_offset as usize..],
+        config,
+    )?;
 
     verify_compressed_account_infos(
         &light_cpi_accounts,
@@ -59,6 +62,7 @@ pub struct UpdatePdaInstructionData {
     pub light_ix_data: LightInstructionData,
     pub my_compressed_account: UpdateMyCompressedAccount,
     pub new_data: [u8; 31],
+    pub system_accounts_offset: u8,
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]

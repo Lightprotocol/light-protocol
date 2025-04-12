@@ -135,6 +135,8 @@ pub async fn create_pda(
         &mut accounts,
         rpc_result.address_root_indices[0],
     );
+    let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
+
     let light_ix_data = LightInstructionData {
         proof: Some(rpc_result.proof),
         new_addresses: Some(vec![packed_address_merkle_context]),
@@ -143,12 +145,14 @@ pub async fn create_pda(
         light_ix_data,
         data: account_data,
         output_merkle_tree_index,
+        system_accounts_offset: system_accounts_offset as u8,
+        tree_accounts_offset: tree_accounts_offset as u8,
     };
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
         program_id: sdk_test::ID,
-        accounts: accounts.to_account_metas(),
+        accounts,
         data: [&[0u8][..], &inputs[..]].concat(),
     };
 
@@ -192,16 +196,17 @@ pub async fn update_pda(
         proof: rpc_result.proof,
         new_addresses: None,
     };
-
+    let meta = CompressedAccountMeta::from_compressed_account(
+        &compressed_account,
+        &mut accounts,
+        rpc_result.root_indices[0],
+        &output_merkle_tree,
+    )
+    .unwrap();
+    let (accounts, system_accounts_offset, _) = accounts.to_account_metas();
     let instruction_data = UpdatePdaInstructionData {
         my_compressed_account: UpdateMyCompressedAccount {
-            meta: CompressedAccountMeta::from_compressed_account(
-                &compressed_account,
-                &mut accounts,
-                rpc_result.root_indices[0],
-                &output_merkle_tree,
-            )
-            .unwrap(),
+            meta,
             data: compressed_account
                 .compressed_account
                 .data
@@ -212,12 +217,13 @@ pub async fn update_pda(
         },
         light_ix_data,
         new_data: new_account_data,
+        system_accounts_offset: system_accounts_offset as u8,
     };
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
         program_id: sdk_test::ID,
-        accounts: accounts.to_account_metas(),
+        accounts,
         data: [&[1u8][..], &inputs[..]].concat(),
     };
 

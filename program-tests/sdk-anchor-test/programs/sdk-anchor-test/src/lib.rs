@@ -25,6 +25,7 @@ pub mod sdk_anchor_test {
         light_ix_data: LightInstructionData,
         output_merkle_tree_index: u8,
         name: String,
+        tree_accounts_offset: u8,
     ) -> Result<()> {
         let program_id = crate::ID.into();
 
@@ -32,8 +33,10 @@ pub mod sdk_anchor_test {
             .new_addresses
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)
             .map_err(ProgramError::from)?[0];
-        let address_merkle_context_unpacked =
-            unpack_address_merkle_context(address_merkle_context, &ctx.remaining_accounts[8..]);
+        let address_merkle_context_unpacked = unpack_address_merkle_context(
+            address_merkle_context,
+            &ctx.remaining_accounts[tree_accounts_offset as usize..],
+        );
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
             &address_merkle_context_unpacked,

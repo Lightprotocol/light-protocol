@@ -84,27 +84,39 @@ impl PackedAccounts {
     }
 
     fn hash_set_accounts_to_metas(&self) -> Vec<AccountMeta> {
-        let mut remaining_accounts = self.map.iter().collect::<Vec<_>>();
+        let mut packed_accounts = self.map.iter().collect::<Vec<_>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
-        remaining_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
-        let remaining_accounts = remaining_accounts
+        packed_accounts.sort_by(|a, b| a.1 .0.cmp(&b.1 .0));
+        let packed_accounts = packed_accounts
             .iter()
             .map(|(_, (_, k))| k.clone())
             .collect::<Vec<AccountMeta>>();
-        remaining_accounts
+        packed_accounts
+    }
+
+    fn get_offsets(&self) -> (usize, usize) {
+        let system_accounts_start_offset = self.pre_accounts.len();
+        let packed_accounts_start_offset =
+            system_accounts_start_offset + self.system_accounts.len();
+        (system_accounts_start_offset, packed_accounts_start_offset)
     }
 
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_sdk::instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
-    pub fn to_account_metas(&self) -> Vec<AccountMeta> {
+    pub fn to_account_metas(&self) -> (Vec<AccountMeta>, usize, usize) {
         let packed_accounts = self.hash_set_accounts_to_metas();
-        [
-            self.pre_accounts.clone(),
-            self.system_accounts.clone(),
-            packed_accounts,
-        ]
-        .concat()
+        let (system_accounts_start_offset, packed_accounts_start_offset) = self.get_offsets();
+        (
+            [
+                self.pre_accounts.clone(),
+                self.system_accounts.clone(),
+                packed_accounts,
+            ]
+            .concat(),
+            system_accounts_start_offset,
+            packed_accounts_start_offset,
+        )
     }
 }
 
@@ -127,7 +139,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas().0.as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -153,7 +165,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_3), 2);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas().0.as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
@@ -177,7 +189,7 @@ mod test {
         assert_eq!(remaining_accounts.insert_or_get(pubkey_4), 3);
 
         assert_eq!(
-            remaining_accounts.to_account_metas().as_slice(),
+            remaining_accounts.to_account_metas().0.as_slice(),
             &[
                 AccountMeta {
                     pubkey: pubkey_1,
