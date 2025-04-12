@@ -3347,6 +3347,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "arrayvec",
+ "borsh 0.10.4",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
  "pinocchio",
@@ -3555,12 +3556,14 @@ name = "light-sdk-macros"
 version = "0.4.0"
 dependencies = [
  "ark-bn254 0.5.0",
+ "borsh 0.10.4",
  "light-compressed-account",
  "light-hasher",
  "light-poseidon 0.3.0",
  "prettyplease",
  "proc-macro2",
  "quote",
+ "solana-program",
  "syn 2.0.100",
 ]
 

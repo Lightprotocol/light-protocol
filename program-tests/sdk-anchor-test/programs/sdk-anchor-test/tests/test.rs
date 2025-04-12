@@ -64,7 +64,7 @@ async fn test_sdk_test() {
 
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],
-        &address_merkle_context,
+        &address_merkle_context.address_merkle_tree_pubkey,
         &sdk_anchor_test::ID,
     );
 
@@ -173,13 +173,12 @@ where
         proof: Some(rpc_result.proof),
         new_addresses: Some(vec![packed_address_merkle_context]),
     };
-    let (remaining_accounts, _, tree_accounts_offset) = remaining_accounts.to_account_metas();
+    let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
         light_ix_data,
         name,
         output_merkle_tree_index,
-        tree_accounts_offset: tree_accounts_offset as u8,
     };
 
     let accounts = sdk_anchor_test::accounts::WithNestedData {

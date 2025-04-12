@@ -57,13 +57,10 @@ pub fn unpack_new_address_params(
 }
 
 pub mod v1 {
-    use light_compressed_account::{
-        hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
-        instruction_data::data::NewAddressParams,
-    };
+    use light_compressed_account::hashv_to_bn254_field_size_be;
     use light_hasher::{Hasher, Keccak};
 
-    use crate::{instruction::merkle_context::AddressMerkleContext, Pubkey};
+    use crate::Pubkey;
 
     /// Derives a single address seed for a compressed account, based on the
     /// provided multiple `seeds`, `program_id` and `merkle_tree_pubkey`.
@@ -91,9 +88,7 @@ pub mod v1 {
     }
 
     fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
-        let mut slices = Vec::with_capacity(bytes.len() + 1);
-        bytes.iter().for_each(|x| slices.push(*x));
-        let mut hashed_value: [u8; 32] = Keccak::hashv(&slices).unwrap();
+        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes).unwrap();
         // Truncates to 31 bytes so that value is less than bn254 Fr modulo
         // field size.
         hashed_value[0] = 0;
@@ -101,16 +96,12 @@ pub mod v1 {
     }
 
     /// Derives an address for a compressed account, based on the provided singular
-    /// `seed` and `address_merkle_context`:
+    /// `seed` and `merkle_tree_pubkey`:
     pub(crate) fn derive_address_from_seed(
         address_seed: &[u8; 32],
-        address_merkle_context: &AddressMerkleContext,
+        merkle_tree_pubkey: &Pubkey,
     ) -> [u8; 32] {
-        let merkle_tree_pubkey = address_merkle_context.address_merkle_tree_pubkey.to_bytes();
-        let input = [merkle_tree_pubkey, *address_seed].concat();
-
-        // PANICS: Not being able to find the bump for truncating the hash is
-        // practically impossible.
+        let input = [merkle_tree_pubkey.to_bytes(), *address_seed].concat();
         hashv_to_bn254_field_size_be(&[input.as_slice()])
     }
 
@@ -134,28 +125,13 @@ pub mod v1 {
     /// ```
     pub fn derive_address(
         seeds: &[&[u8]],
-        address_merkle_context: &AddressMerkleContext,
+        merkle_tree_pubkey: &Pubkey,
         program_id: &Pubkey,
     ) -> ([u8; 32], [u8; 32]) {
         let address_seed = derive_address_seed(seeds, program_id);
-        let address = derive_address_from_seed(&address_seed, address_merkle_context);
+        let address = derive_address_from_seed(&address_seed, merkle_tree_pubkey);
 
         (address, address_seed)
-    }
-
-    /// Derives an address from provided parameters.
-    pub fn derive_address_from_params(params: NewAddressParams) -> [u8; 32] {
-        let NewAddressParams {
-            seed,
-            address_merkle_tree_pubkey,
-            ..
-        } = params;
-        let input = [address_merkle_tree_pubkey.to_bytes(), seed].concat();
-
-        // PANICS: Not being able to find the bump for truncating the hash is
-        // practically impossible. Quite frankly, we should just remove that error
-        // inside.
-        hash_to_bn254_field_size_be(input.as_slice())
     }
 }
 
@@ -205,9 +181,16 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(&address_seed, &address_merkle_context);
+        let address = derive_address_from_seed(
+            &address_seed,
+            &address_merkle_context.address_merkle_tree_pubkey,
+        );
         assert_eq!(address, expected_address.to_bytes());
-        let (address, address_seed) = derive_address(seeds, &address_merkle_context, &program_id);
+        let (address, address_seed) = derive_address(
+            seeds,
+            &address_merkle_context.address_merkle_tree_pubkey,
+            &program_id,
+        );
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
 
@@ -220,9 +203,16 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(&address_seed, &address_merkle_context);
+        let address = derive_address_from_seed(
+            &address_seed,
+            &address_merkle_context.address_merkle_tree_pubkey,
+        );
         assert_eq!(address, expected_address.to_bytes());
-        let (address, address_seed) = derive_address(seeds, &address_merkle_context, &program_id);
+        let (address, address_seed) = derive_address(
+            seeds,
+            &address_merkle_context.address_merkle_tree_pubkey,
+            &program_id,
+        );
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
     }

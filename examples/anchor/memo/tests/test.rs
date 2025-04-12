@@ -69,7 +69,7 @@ async fn test_memo_program() {
 
     let (address, _) = derive_address(
         &[b"memo", payer.pubkey().as_ref()],
-        &address_merkle_context,
+        &address_merkle_context.address_merkle_tree_pubkey,
         &memo::ID,
     );
 

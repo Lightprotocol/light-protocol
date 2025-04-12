@@ -185,6 +185,10 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     pub fn account_infos(&self) -> &'c [AccountInfo<'info>] {
         self.accounts
     }
+
+    pub fn tree_accounts(&self) -> &'c [AccountInfo<'info>] {
+        &self.accounts[self.system_accounts_len()..]
+    }
 }
 
 // Offchain

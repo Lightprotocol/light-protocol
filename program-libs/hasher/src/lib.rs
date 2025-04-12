@@ -40,4 +40,4 @@ pub trait Discriminator {
 #[cfg(feature = "pinocchio")]
 use pinocchio::program_error::ProgramError;
 #[cfg(not(feature = "pinocchio"))]
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::program_error::ProgramError;

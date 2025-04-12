@@ -79,7 +79,7 @@ async fn test_name_service() {
 
     let (address, _) = derive_address(
         &[b"name-service", name.as_bytes()],
-        &address_merkle_context,
+        &address_merkle_context.address_merkle_tree_pubkey,
         &name_service_without_macros::ID,
     );
 

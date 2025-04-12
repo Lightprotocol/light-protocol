@@ -70,7 +70,7 @@ async fn test_counter() {
 
     let (address, _) = derive_address(
         &[b"counter", payer.pubkey().as_ref()],
-        &address_merkle_context,
+        &address_merkle_context.address_merkle_tree_pubkey,
         &counter::ID,
     );
 

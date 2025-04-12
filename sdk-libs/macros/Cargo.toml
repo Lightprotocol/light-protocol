@@ -18,6 +18,8 @@ light-poseidon = { workspace = true }
 [dev-dependencies]
 light-compressed-account = { workspace = true }
 prettyplease = "0.2.29"
+solana-program = { workspace = true }
+borsh = { workspace = true }
 
 [lib]
 proc-macro = true

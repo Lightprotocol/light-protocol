@@ -39,7 +39,7 @@ pub mod memo {
             unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
         let (address, address_seed) = derive_address(
             &[b"memo", ctx.accounts.signer.key().as_ref()],
-            &address_merkle_context,
+            &address_merkle_context.address_merkle_tree_pubkey,
             &crate::ID,
         );
 

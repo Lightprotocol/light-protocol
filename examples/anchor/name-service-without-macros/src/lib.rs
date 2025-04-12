@@ -39,7 +39,7 @@ pub mod name_service {
             unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
         let (address, address_seed) = derive_address(
             &[b"name-service", name.as_bytes()],
-            &address_merkle_context,
+            &address_merkle_context.address_merkle_tree_pubkey,
             &crate::ID,
         );
 

@@ -3,10 +3,7 @@ use light_sdk::{
     address::v1::derive_address,
     cpi::verify::verify_compressed_account_infos,
     error::LightSdkError,
-    instruction::{
-        account_meta::CompressedAccountMeta, instruction_data::LightInstructionData,
-        merkle_context::unpack_address_merkle_context,
-    },
+    instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
     light_account, LightHasher,
 };
 
@@ -25,21 +22,24 @@ pub mod sdk_anchor_test {
         light_ix_data: LightInstructionData,
         output_merkle_tree_index: u8,
         name: String,
-        tree_accounts_offset: u8,
     ) -> Result<()> {
         let program_id = crate::ID.into();
-
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::ID,
+        )
+        .map_err(ProgramError::from)?;
         let address_merkle_context = light_ix_data
             .new_addresses
             .ok_or(LightSdkError::ExpectedAddressMerkleContext)
             .map_err(ProgramError::from)?[0];
-        let address_merkle_context_unpacked = unpack_address_merkle_context(
-            address_merkle_context,
-            &ctx.remaining_accounts[tree_accounts_offset as usize..],
-        );
+
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
-            &address_merkle_context_unpacked,
+            &light_cpi_accounts.tree_accounts()
+                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
+                .key(),
             &crate::ID,
         );
         let new_address_params = NewAddressParamsPacked {
@@ -58,13 +58,6 @@ pub mod sdk_anchor_test {
 
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
-
-        let light_cpi_accounts = CompressionCpiAccounts::new(
-            ctx.accounts.signer.as_ref(),
-            ctx.remaining_accounts,
-            crate::ID,
-        )
-        .map_err(ProgramError::from)?;
 
         verify_compressed_account_infos(
             &light_cpi_accounts,

@@ -1,5 +1,6 @@
 extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
+use hasher::derive_light_hasher;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
 use traits::process_light_traits;
@@ -246,10 +247,10 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-#[proc_macro_derive(LightHasher, attributes(skip, hash, flatten))]
+#[proc_macro_derive(LightHasher, attributes(skip, hash))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    hasher::hasher(input)
+    derive_light_hasher(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
