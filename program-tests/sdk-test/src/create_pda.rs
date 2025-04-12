@@ -34,7 +34,7 @@ pub fn create_pda<const BATCHED: bool>(
             .new_addresses
             .as_ref()
             .unwrap()[0],
-        &accounts[9..],
+        &accounts[instruction_data.tree_accounts_offset as usize..],
     );
 
     let (address, address_seed) = if BATCHED {
@@ -90,8 +90,11 @@ pub fn create_pda<const BATCHED: bool>(
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-    let light_cpi_accounts =
-        CompressionCpiAccounts::new_with_config(&accounts[0], &accounts[1..], config)?;
+    let light_cpi_accounts = CompressionCpiAccounts::new_with_config(
+        &accounts[0],
+        &accounts[instruction_data.system_accounts_offset as usize..],
+        config,
+    )?;
 
     verify_compressed_account_infos(
         &light_cpi_accounts,
@@ -116,4 +119,6 @@ pub struct CreatePdaInstructionData {
     pub light_ix_data: LightInstructionData,
     pub output_merkle_tree_index: u8,
     pub data: [u8; 31],
+    pub system_accounts_offset: u8,
+    pub tree_accounts_offset: u8,
 }
