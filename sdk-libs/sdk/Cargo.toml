@@ -34,7 +34,6 @@ solana = [
     "light-compressed-account/solana",
     "light-hasher/solana",
 ]
-defautl = ["solana"]
 
 [dependencies]
 solana-program = { workspace = true, optional = true }
