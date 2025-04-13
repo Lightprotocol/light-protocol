@@ -23,8 +23,7 @@ where
             );
         }
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
-        let mut slices = [&[], bump_seed.as_slice()];
-        slices[0] = borsh_vec.as_slice();
+        let slices = [borsh_vec.as_slice(), bump_seed.as_slice()];
         // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
         let mut hashed_value = Keccak::hashv(slices.as_slice()).unwrap();
         // Truncates to 31 bytes so that value is less than bn254 Fr modulo
