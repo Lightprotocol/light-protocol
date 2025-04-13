@@ -90,7 +90,7 @@ impl From<&ZNewAddressParamsPacked> for NewAddressParamsPacked {
 )]
 pub struct ZPackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
+    pub queue_pubkey_index: u8,
     pub leaf_index: U32,
     prove_by_index: u8,
 }
@@ -318,7 +318,7 @@ impl From<ZPackedMerkleContext> for PackedMerkleContext {
     fn from(merkle_context: ZPackedMerkleContext) -> Self {
         PackedMerkleContext {
             merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
-            nullifier_queue_pubkey_index: merkle_context.nullifier_queue_pubkey_index,
+            queue_pubkey_index: merkle_context.queue_pubkey_index,
             leaf_index: merkle_context.leaf_index.into(),
             prove_by_index: merkle_context.prove_by_index == 1,
         }
@@ -1073,7 +1073,7 @@ mod test {
             },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 1,
-                nullifier_queue_pubkey_index: 2,
+                queue_pubkey_index: 2,
                 leaf_index: 3,
                 prove_by_index: true,
             },
@@ -1092,7 +1092,7 @@ mod test {
             },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: rng.gen(),
-                nullifier_queue_pubkey_index: rng.gen(),
+                queue_pubkey_index: rng.gen(),
                 leaf_index: rng.gen(),
                 prove_by_index: rng.gen(),
             },
@@ -1300,7 +1300,7 @@ mod test {
         if reference.merkle_tree_pubkey_index != z_copy.merkle_tree_pubkey_index {
             return Err(CompressedAccountError::InvalidArgument);
         }
-        if reference.nullifier_queue_pubkey_index != z_copy.nullifier_queue_pubkey_index {
+        if reference.queue_pubkey_index != z_copy.queue_pubkey_index {
             return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.leaf_index != u32::from(z_copy.leaf_index) {

@@ -69,7 +69,7 @@ mod tests {
                 data_hash: [0; 32],
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
+                    queue_pubkey_index: 0,
                     leaf_index: 0,
                     prove_by_index: false,
                 },

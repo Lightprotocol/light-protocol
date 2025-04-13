@@ -1915,7 +1915,7 @@ pub async fn perform_with_input_accounts<
         );
     }
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
-    let nullifier_pubkey = compressed_account.merkle_context.nullifier_queue_pubkey;
+    let nullifier_pubkey = compressed_account.merkle_context.queue_pubkey;
     let cpi_context = match mode {
         WithInputAccountsMode::Freeze
         | WithInputAccountsMode::Thaw
@@ -1970,7 +1970,7 @@ pub async fn perform_with_input_accounts<
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     prove_by_index: false,
                 },
                 lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
@@ -2000,7 +2000,7 @@ pub async fn perform_with_input_accounts<
             merkle_context: PackedMerkleContext {
                 leaf_index: compressed_account.merkle_context.leaf_index,
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 1,
+                queue_pubkey_index: 1,
                 prove_by_index: false,
             },
             root_index: rpc_result.root_indices[0].unwrap(),

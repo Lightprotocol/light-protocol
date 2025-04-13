@@ -336,7 +336,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     merkle_tree_pubkey: Pubkey::from(
                         Hash::from_base58(&acc.merkle_context.tree).unwrap(),
                     ),
-                    nullifier_queue_pubkey,
+                    queue_pubkey: nullifier_queue_pubkey,
                     leaf_index: acc.leaf_index,
                     tree_type: light_compressed_account::TreeType::from(
                         acc.merkle_context.tree_type as u64,
@@ -382,60 +382,59 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
             let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
             for account in accounts.items.iter() {
-                let token_data_with_merkle_context =
-                    TokenDataWithMerkleContext {
-                        token_data: TokenData {
-                            mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
-                            owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
-                            amount: account.token_data.amount,
-                            delegate: account
-                                .token_data
-                                .delegate
+                let token_data_with_merkle_context = TokenDataWithMerkleContext {
+                    token_data: TokenData {
+                        mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
+                        owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
+                        amount: account.token_data.amount,
+                        delegate: account
+                            .token_data
+                            .delegate
+                            .as_ref()
+                            .map(|x| Pubkey::from_str(x).unwrap()),
+                        state: if account.token_data.state
+                            == photon_api::models::account_state::AccountState::Initialized
+                        {
+                            AccountState::Initialized
+                        } else {
+                            AccountState::Frozen
+                        },
+                        tlv: None,
+                    },
+                    compressed_account: CompressedAccountWithMerkleContext {
+                        compressed_account: CompressedAccount {
+                            owner: Pubkey::from_str(&account.account.owner).unwrap(),
+                            lamports: account.account.lamports,
+                            address: account
+                                .account
+                                .address
                                 .as_ref()
-                                .map(|x| Pubkey::from_str(x).unwrap()),
-                            state: if account.token_data.state
-                                == photon_api::models::account_state::AccountState::Initialized
-                            {
-                                AccountState::Initialized
-                            } else {
-                                AccountState::Frozen
-                            },
-                            tlv: None,
-                        },
-                        compressed_account: CompressedAccountWithMerkleContext {
-                            compressed_account: CompressedAccount {
-                                owner: Pubkey::from_str(&account.account.owner).unwrap(),
-                                lamports: account.account.lamports,
-                                address: account
-                                    .account
-                                    .address
-                                    .as_ref()
-                                    .map(|x| Hash::from_base58(x).unwrap()),
-                                data: account.account.data.as_ref().map(|data| {
-                                    CompressedAccountData {
-                                        discriminator: data.discriminator.to_le_bytes(),
-                                        data: base64::decode(&data.data).unwrap(),
-                                        data_hash: Hash::from_base58(&data.data_hash).unwrap(),
-                                    }
+                                .map(|x| Hash::from_base58(x).unwrap()),
+                            data: account
+                                .account
+                                .data
+                                .as_ref()
+                                .map(|data| CompressedAccountData {
+                                    discriminator: data.discriminator.to_le_bytes(),
+                                    data: base64::decode(&data.data).unwrap(),
+                                    data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                                 }),
-                            },
-                            merkle_context: MerkleContext {
-                                merkle_tree_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.tree,
-                                )
-                                .unwrap(),
-                                nullifier_queue_pubkey: Pubkey::from_str(
-                                    &account.account.merkle_context.queue,
-                                )
-                                .unwrap(),
-                                leaf_index: account.account.leaf_index,
-                                tree_type: light_compressed_account::TreeType::from(
-                                    account.account.merkle_context.tree_type as u64,
-                                ),
-                                prove_by_index: account.account.prove_by_index,
-                            },
                         },
-                    };
+                        merkle_context: MerkleContext {
+                            merkle_tree_pubkey: Pubkey::from_str(
+                                &account.account.merkle_context.tree,
+                            )
+                            .unwrap(),
+                            queue_pubkey: Pubkey::from_str(&account.account.merkle_context.queue)
+                                .unwrap(),
+                            leaf_index: account.account.leaf_index,
+                            tree_type: light_compressed_account::TreeType::from(
+                                account.account.merkle_context.tree_type as u64,
+                            ),
+                            prove_by_index: account.account.prove_by_index,
+                        },
+                    },
+                };
                 token_data.push(token_data_with_merkle_context);
             }
 

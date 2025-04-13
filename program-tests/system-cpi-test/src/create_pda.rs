@@ -327,9 +327,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             match mode {
                 CreatePdaMode::InvalidReadOnlyAccountMerkleTree => {
                     read_only_account[0].merkle_context.merkle_tree_pubkey_index =
-                        read_only_account[0]
-                            .merkle_context
-                            .nullifier_queue_pubkey_index;
+                        read_only_account[0].merkle_context.queue_pubkey_index;
                 }
                 CreatePdaMode::InvalidReadOnlyAccountRootIndex => {
                     let init_value = read_only_account[0].root_index;
@@ -350,9 +348,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                     inputs_struct.proof = Some(CompressedProof::default());
                 }
                 CreatePdaMode::InvalidReadOnlyAccountOutputQueue => {
-                    read_only_account[0]
-                        .merkle_context
-                        .nullifier_queue_pubkey_index =
+                    read_only_account[0].merkle_context.queue_pubkey_index =
                         read_only_account[0].merkle_context.merkle_tree_pubkey_index;
                 }
                 CreatePdaMode::AccountNotInValueVecMarkedProofByIndex => {

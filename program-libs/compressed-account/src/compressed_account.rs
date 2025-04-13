@@ -114,8 +114,8 @@ impl CompressedAccountWithMerkleContext {
                     &self.merkle_context.merkle_tree_pubkey,
                     remaining_accounts,
                 ),
-                nullifier_queue_pubkey_index: pack_account(
-                    &self.merkle_context.nullifier_queue_pubkey,
+                queue_pubkey_index: pack_account(
+                    &self.merkle_context.queue_pubkey,
                     remaining_accounts,
                 ),
                 leaf_index: self.merkle_context.leaf_index,
@@ -143,7 +143,7 @@ pub struct PackedReadOnlyCompressedAccount {
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
-    pub nullifier_queue_pubkey: Pubkey,
+    pub queue_pubkey: Pubkey,
     pub leaf_index: u32,
     pub prove_by_index: bool,
     pub tree_type: TreeType,
@@ -152,7 +152,7 @@ pub struct MerkleContext {
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
+    pub queue_pubkey_index: u8,
     pub leaf_index: u32,
     pub prove_by_index: bool,
 }
@@ -211,10 +211,7 @@ pub fn pack_merkle_context(
                 &merkle_context.merkle_tree_pubkey,
                 remaining_accounts,
             ),
-            nullifier_queue_pubkey_index: pack_account(
-                &merkle_context.nullifier_queue_pubkey,
-                remaining_accounts,
-            ),
+            queue_pubkey_index: pack_account(&merkle_context.queue_pubkey, remaining_accounts),
             prove_by_index: merkle_context.prove_by_index,
         })
         .collect::<Vec<_>>()

@@ -520,7 +520,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
         remaining_accounts[inputs_struct.input_compressed_accounts_with_merkle_context
             [num_inputs - 1]
             .merkle_context
-            .nullifier_queue_pubkey_index as usize] = AccountMeta {
+            .queue_pubkey_index as usize] = AccountMeta {
             pubkey: env.address_merkle_tree_queue_pubkey,
             is_signer: false,
             is_writable: true,
@@ -542,7 +542,7 @@ pub async fn failing_transaction_inputs_inner<R: RpcConnection>(
         remaining_accounts[inputs_struct.input_compressed_accounts_with_merkle_context
             [num_inputs - 1]
             .merkle_context
-            .nullifier_queue_pubkey_index as usize] = AccountMeta {
+            .queue_pubkey_index as usize] = AccountMeta {
             pubkey: env.address_merkle_tree_pubkey,
             is_signer: false,
             is_writable: true,
@@ -993,7 +993,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1028,7 +1028,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1076,7 +1076,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1126,7 +1126,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1158,7 +1158,7 @@ async fn invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 1,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1607,7 +1607,7 @@ async fn test_with_compression() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey,
+            queue_pubkey: nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1863,7 +1863,7 @@ async fn batch_invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey: output_queue_pubkey,
+            queue_pubkey: output_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1904,7 +1904,7 @@ async fn batch_invoke_test() {
         &[MerkleContext {
             merkle_tree_pubkey,
             leaf_index: 0,
-            nullifier_queue_pubkey: output_queue_pubkey,
+            queue_pubkey: output_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -1959,7 +1959,7 @@ async fn batch_invoke_test() {
             &[MerkleContext {
                 merkle_tree_pubkey,
                 leaf_index: compressed_account_with_context.merkle_context.leaf_index,
-                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
             }],
@@ -2010,7 +2010,7 @@ async fn batch_invoke_test() {
             &[MerkleContext {
                 merkle_tree_pubkey,
                 leaf_index: 0,
-                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
             }],
@@ -2038,7 +2038,7 @@ async fn batch_invoke_test() {
         let input_compressed_account = test_indexer
             .get_compressed_accounts_with_merkle_context_by_owner(&payer_pubkey)
             .iter()
-            .filter(|x| x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey)
+            .filter(|x| x.merkle_context.queue_pubkey == output_queue_pubkey)
             .last()
             .unwrap()
             .clone();
@@ -2056,7 +2056,7 @@ async fn batch_invoke_test() {
             &[MerkleContext {
                 merkle_tree_pubkey,
                 leaf_index: input_compressed_account.merkle_context.leaf_index - 1,
-                nullifier_queue_pubkey: output_queue_pubkey,
+                queue_pubkey: output_queue_pubkey,
                 prove_by_index: true,
                 tree_type: TreeType::StateV2,
             }],
@@ -2101,7 +2101,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .cloned()
             .collect::<Vec<_>>()
@@ -2114,7 +2114,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == env.nullifier_queue_pubkey
+                    && x.merkle_context.queue_pubkey == env.nullifier_queue_pubkey
             })
             .collect::<Vec<_>>()[0]
             .clone();
@@ -2175,7 +2175,7 @@ async fn batch_invoke_test() {
             &output_compressed_accounts,
             merkle_context.as_slice(),
             &[
-                merkle_context_1.nullifier_queue_pubkey, // output queue
+                merkle_context_1.queue_pubkey, // output queue
                 merkle_context_2.merkle_tree_pubkey,
             ],
             &proof_rpc_result.root_indices,
@@ -2221,7 +2221,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .last()
             .unwrap()
@@ -2252,7 +2252,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .last()
             .unwrap()
@@ -2283,7 +2283,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .last()
             .unwrap()
@@ -2314,7 +2314,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .last()
             .unwrap()
@@ -2352,7 +2352,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey == output_queue_pubkey
+                    && x.merkle_context.queue_pubkey == output_queue_pubkey
             })
             .collect::<Vec<_>>();
         let compressed_account_with_context_1 = accounts[1].clone();
@@ -2395,7 +2395,7 @@ async fn batch_invoke_test() {
             &[compressed_account_with_context_1.compressed_account],
             &output_compressed_accounts,
             &[merkle_context],
-            &[merkle_context.nullifier_queue_pubkey],
+            &[merkle_context.queue_pubkey],
             &[None],
             &Vec::new(),
             None,
@@ -2425,7 +2425,7 @@ async fn batch_invoke_test() {
             .iter()
             .filter(|x| {
                 x.compressed_account.owner == payer_pubkey
-                    && x.merkle_context.nullifier_queue_pubkey != output_queue_pubkey
+                    && x.merkle_context.queue_pubkey != output_queue_pubkey
             })
             .last()
             .unwrap()
@@ -2509,7 +2509,7 @@ pub async fn double_spend_compressed_account<
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_context_1],
-        &[merkle_context_1.nullifier_queue_pubkey],
+        &[merkle_context_1.queue_pubkey],
         &proof_rpc_result.root_indices,
         &Vec::new(),
         proof,
@@ -2528,7 +2528,7 @@ pub async fn double_spend_compressed_account<
             &input_compressed_accounts,
             &output_compressed_accounts,
             &[merkle_context],
-            &[merkle_context.nullifier_queue_pubkey],
+            &[merkle_context.queue_pubkey],
             &[None],
             &Vec::new(),
             None,

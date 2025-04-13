@@ -1855,7 +1855,7 @@ where
                                     merkle_context: MerkleContext {
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey,
-                                        nullifier_queue_pubkey,
+                                        queue_pubkey: nullifier_queue_pubkey,
                                         prove_by_index: false,
                                         tree_type: if merkle_tree.version == 2 {
                                             TreeType::StateV2
@@ -1872,7 +1872,7 @@ where
                             merkle_context: MerkleContext {
                                 leaf_index: event.output_leaf_indices[i],
                                 merkle_tree_pubkey,
-                                nullifier_queue_pubkey,
+                                queue_pubkey: nullifier_queue_pubkey,
                                 prove_by_index: false,
                                 tree_type: if merkle_tree.version == 2 {
                                     TreeType::StateV2
@@ -1889,7 +1889,7 @@ where
                         merkle_context: MerkleContext {
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey,
-                            nullifier_queue_pubkey,
+                            queue_pubkey: nullifier_queue_pubkey,
                             prove_by_index: false,
                             tree_type: if merkle_tree.version == 2 {
                                 TreeType::StateV2

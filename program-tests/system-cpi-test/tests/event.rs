@@ -125,7 +125,7 @@ async fn parse_batched_event_functional() {
                     leaf_index: i,
                     merkle_tree_pubkey: env.batched_state_merkle_tree,
                     prove_by_index: true,
-                    nullifier_queue_pubkey: env.batched_output_queue,
+                    queue_pubkey: env.batched_output_queue,
                     tree_type: light_compressed_account::TreeType::StateV2,
                 })
             })
@@ -276,7 +276,7 @@ async fn parse_batched_event_functional() {
                     leaf_index: i,
                     merkle_tree_pubkey: env.batched_state_merkle_tree,
                     prove_by_index: true,
-                    nullifier_queue_pubkey: env.batched_output_queue,
+                    queue_pubkey: env.batched_output_queue,
                     tree_type: light_compressed_account::TreeType::StateV2,
                 })
             })

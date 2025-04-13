@@ -22,3 +22,12 @@ cargo clippy \
 # We import the same crates with different features in light-system-program-pinocchio than in account-compression
 # clippy cannot handle this. -> check light-system-program-pinocchio separately
 cargo clippy --package light-system-program-pinocchio --all-targets -- -D warnings
+
+# Make sure that tests compile
+cargo test-sbf -p system-test --no-run
+cargo test-sbf -p system-cpi-test --no-run
+cargo test-sbf -p e2e-test --no-run
+cargo test-sbf -p compressed-token-test --no-run
+cargo test-sbf -p token-escrow --no-run
+cargo test-sbf -p sdk-test --no-run
+cargo test-sbf -p sdk-anchor-test --no-run
