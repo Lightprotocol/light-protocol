@@ -230,8 +230,7 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
 }
 
 #[derive(Debug, PartialEq, Clone, Default, AnchorSerialize, AnchorDeserialize)]
-pub struct CAccountInfo {
-    pub discriminator: [u8; 8], // 1
+pub struct CompressedAccountInfo {
     /// Address.
     pub address: Option<[u8; 32]>, // 2
     /// Input account.
@@ -252,7 +251,7 @@ pub struct ZCAccountInfo<'a> {
     pub output: Option<ZOutAccountInfo<'a>>, // 5
 }
 
-impl<'a> CAccountInfo {
+impl<'a> CompressedAccountInfo {
     pub fn zero_copy_at_with_owner(
         bytes: &'a [u8],
         owner: Pubkey,
@@ -289,7 +288,7 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     pub cpi_context: CompressedCpiContext,
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
-    pub account_infos: Vec<CAccountInfo>,
+    pub account_infos: Vec<CompressedAccountInfo>,
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
 }
@@ -420,8 +419,10 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
             // This prevents agains invalid data allocating a lot of heap memory
             let mut slices = Vec::with_capacity(num_slices);
             for _ in 0..num_slices {
-                let (slice, _bytes) =
-                    CAccountInfo::zero_copy_at_with_owner(bytes, meta.invoking_program_id)?;
+                let (slice, _bytes) = CompressedAccountInfo::zero_copy_at_with_owner(
+                    bytes,
+                    meta.invoking_program_id,
+                )?;
                 bytes = _bytes;
                 slices.push(slice);
             }

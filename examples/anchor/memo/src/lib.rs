@@ -86,7 +86,7 @@ pub mod memo {
             .map_err(ProgramError::from)?;
 
         let mut memo: LightAccount<'_, MemoAccount> =
-            LightAccount::from_meta_mut(&accounts[0], MemoAccount::discriminator(), &crate::ID)
+            LightAccount::meta_mut(&accounts[0], MemoAccount::discriminator(), &crate::ID)
                 .map_err(ProgramError::from)?;
 
         if memo.authority != ctx.accounts.signer.key() {
@@ -126,7 +126,7 @@ pub mod memo {
             .map_err(ProgramError::from)?;
 
         let memo: LightAccount<'_, MemoAccount> =
-            LightAccount::from_meta_close(&accounts[0], MemoAccount::discriminator(), &crate::ID)
+            LightAccount::meta_close(&accounts[0], MemoAccount::discriminator(), &crate::ID)
                 .map_err(ProgramError::from)?;
 
         if memo.authority != ctx.accounts.signer.key() {

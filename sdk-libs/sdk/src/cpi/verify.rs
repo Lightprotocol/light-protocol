@@ -1,10 +1,11 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
     data::NewAddressParamsPacked, invoke_cpi::InstructionDataInvokeCpi,
+    with_account_info::CompressedAccountInfo,
 };
 
 use crate::{
-    account_info::CompressedAccountInfo,
+    account_info::AccountInfoTrait,
     cpi::accounts::CompressionCpiAccounts,
     error::{LightSdkError, Result},
     find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
