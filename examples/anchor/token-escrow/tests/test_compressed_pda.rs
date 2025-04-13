@@ -272,7 +272,7 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
-            tree_type: TreeType::State,
+            tree_type: TreeType::StateV1,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -477,7 +477,7 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
-            tree_type: TreeType::State,
+            tree_type: TreeType::StateV1,
         },
 
         input_cpda_merkle_context: MerkleContext {
@@ -485,7 +485,7 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
             merkle_tree_pubkey: env.merkle_tree_pubkey,
             nullifier_queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
-            tree_type: TreeType::State,
+            tree_type: TreeType::StateV1,
         },
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,

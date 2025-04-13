@@ -54,7 +54,7 @@ impl Default for BatchedMerkleTreeMetadata {
             metadata: MerkleTreeMetadata::default(),
             next_index: 0,
             sequence_number: 0,
-            tree_type: TreeType::BatchedState as u64,
+            tree_type: TreeType::StateV2 as u64,
             height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
             root_history_capacity: 20,
             capacity: 2u64.pow(DEFAULT_BATCH_STATE_TREE_HEIGHT),
@@ -82,12 +82,12 @@ impl BatchedMerkleTreeMetadata {
             + root_history_size
             + self
                 .queue_batches
-                .queue_account_size(QueueType::BatchedInput as u64)?;
+                .queue_account_size(QueueType::InputStateV2 as u64)?;
         Ok(size)
     }
 
     pub fn new_state_tree(params: CreateTreeParams, associated_queue: Pubkey) -> Self {
-        Self::new_tree(TreeType::BatchedState, params, associated_queue, 0)
+        Self::new_tree(TreeType::StateV2, params, associated_queue, 0)
     }
 
     pub fn new_address_tree(params: CreateTreeParams, rent: u64) -> Self {
@@ -97,12 +97,7 @@ impl BatchedMerkleTreeMetadata {
             }
             None => 0,
         };
-        let mut tree = Self::new_tree(
-            TreeType::BatchedAddress,
-            params,
-            Pubkey::default(),
-            rollover_fee,
-        );
+        let mut tree = Self::new_tree(TreeType::AddressV2, params, Pubkey::default(), rollover_fee);
         // inited address tree contains two elements.
         tree.next_index = 1;
         tree
@@ -153,7 +148,7 @@ impl BatchedMerkleTreeMetadata {
                 bloom_filter_capacity,
                 zkp_batch_size,
                 num_iters,
-                if tree_type == TreeType::BatchedAddress {
+                if tree_type == TreeType::AddressV2 {
                     1
                 } else {
                     0

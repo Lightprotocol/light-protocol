@@ -77,7 +77,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
                         MerkleTreeSequenceNumber {
                             tree_pubkey: output_queue.metadata.associated_merkle_tree,
                             queue_pubkey: *output_queue.pubkey(),
-                            tree_type: (TreeType::BatchedState as u64).into(),
+                            tree_type: (TreeType::StateV2 as u64).into(),
                             seq: output_queue.batch_metadata.next_index.into(),
                         };
                     is_batched = true;
@@ -88,7 +88,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
                         MerkleTreeSequenceNumber {
                             tree_pubkey: *pubkey,
                             queue_pubkey: *pubkey,
-                            tree_type: (TreeType::State as u64).into(),
+                            tree_type: (TreeType::StateV1 as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
                     hashed_merkle_tree = context

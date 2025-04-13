@@ -309,7 +309,7 @@ fn test_batched_tree_is_ready_for_rollover() {
         height,
         num_iter,
         bloom_filter_capacity,
-        TreeType::BatchedState,
+        TreeType::StateV2,
     )
     .unwrap();
 

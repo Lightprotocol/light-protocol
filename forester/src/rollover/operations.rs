@@ -48,7 +48,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
     tree_type: TreeType,
 ) -> Result<TreeInfo, ForesterError> {
     match tree_type {
-        TreeType::State => {
+        TreeType::StateV1 => {
             let account = rpc
                 .get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
@@ -74,7 +74,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
-        TreeType::Address => {
+        TreeType::AddressV1 => {
             let account = rpc
                 .get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
@@ -104,7 +104,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
-        TreeType::BatchedState => {
+        TreeType::StateV2 => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
                 BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
@@ -158,7 +158,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             })
         }
 
-        TreeType::BatchedAddress => {
+        TreeType::AddressV2 => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
                 &mut account.data,
@@ -227,12 +227,12 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     );
 
     let account = match tree_type {
-        TreeType::State => TreeAccount::State(
+        TreeType::StateV1 => TreeAccount::State(
             rpc.get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap(),
         ),
-        TreeType::Address => TreeAccount::Address(
+        TreeType::AddressV1 => TreeAccount::Address(
             rpc.get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap(),
@@ -256,10 +256,10 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     let tree_info = get_tree_fullness(rpc, tree_pubkey, tree_type).await?;
 
     match tree_type {
-        TreeType::State => {
+        TreeType::StateV1 => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 1)
         }
-        TreeType::Address => {
+        TreeType::AddressV1 => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
         _ => panic!(

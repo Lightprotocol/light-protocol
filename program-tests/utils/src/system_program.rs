@@ -724,14 +724,14 @@ mod test {
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
                 prove_by_index: false,
-                tree_type: light_compressed_account::TreeType::State,
+                tree_type: light_compressed_account::TreeType::StateV1,
             },
             MerkleContext {
                 merkle_tree_pubkey,
                 nullifier_queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
                 prove_by_index: false,
-                tree_type: light_compressed_account::TreeType::State,
+                tree_type: light_compressed_account::TreeType::StateV1,
             },
         ];
 

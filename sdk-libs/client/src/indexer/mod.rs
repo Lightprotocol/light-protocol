@@ -616,7 +616,7 @@ impl TryFrom<LocalPhotonAccount> for CompressedAccountWithMerkleContext {
             nullifier_queue_pubkey: Default::default(),
             leaf_index: account.leaf_index,
             prove_by_index: false,
-            tree_type: light_compressed_account::TreeType::State,
+            tree_type: light_compressed_account::TreeType::StateV1,
         };
 
         let mut compressed_account = CompressedAccount {

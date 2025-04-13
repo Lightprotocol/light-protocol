@@ -114,17 +114,17 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         tokio::sync::mpsc::channel::<std::result::Result<Signature, RpcError>>(120);
 
     let processor_pool = pool.clone();
-    let queue_length = if tree_accounts.tree_type == TreeType::State {
+    let queue_length = if tree_accounts.tree_type == TreeType::StateV1 {
         STATE_NULLIFIER_QUEUE_VALUES
     } else {
         ADDRESS_QUEUE_VALUES
     };
-    let start_index = if tree_accounts.tree_type == TreeType::State {
+    let start_index = if tree_accounts.tree_type == TreeType::StateV1 {
         config.queue_config.state_queue_start_index
     } else {
         config.queue_config.address_queue_start_index
     };
-    let length = if tree_accounts.tree_type == TreeType::State {
+    let length = if tree_accounts.tree_type == TreeType::StateV1 {
         config.queue_config.state_queue_length
     } else {
         config.queue_config.address_queue_length
@@ -369,7 +369,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
     let (address_items, state_items): (Vec<_>, Vec<_>) = work_items
         .iter()
-        .partition(|item| matches!(item.tree_account.tree_type, TreeType::Address));
+        .partition(|item| matches!(item.tree_account.tree_type, TreeType::AddressV1));
 
     // Prepare data for batch fetching
     let address_data = if !address_items.is_empty() {

@@ -819,7 +819,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            QueueType::BatchedAddress,
+            QueueType::AddressV2,
             batch.zkp_batch_size as u16,
             None,
         )

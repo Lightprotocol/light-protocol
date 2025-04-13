@@ -976,7 +976,7 @@ mod tests {
         let mut queue_metadata = QueueMetadata::default();
         let associated_merkle_tree = Pubkey::new_unique();
         queue_metadata.associated_merkle_tree = associated_merkle_tree;
-        queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+        queue_metadata.queue_type = QueueType::OutputStateV2 as u64;
         let batch_size = 4;
         let zkp_batch_size = 2;
         let bloom_filter_capacity = 0;

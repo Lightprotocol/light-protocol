@@ -6,7 +6,7 @@ use light_account_checks::{
     discriminator::{Discriminator, DISCRIMINATOR_LEN},
 };
 use light_compressed_account::{
-    hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, BATCHED_OUTPUT_QUEUE_TYPE,
+    hash_to_bn254_field_size_be, pubkey::Pubkey, QueueType, OUTPUT_STATE_QUEUE_TYPE_V2,
 };
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
@@ -147,7 +147,7 @@ impl<'a> BatchedQueueAccount<'a> {
     pub fn output_from_account_info(
         account_info: &AccountInfo,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<BATCHED_OUTPUT_QUEUE_TYPE>(
+        Self::from_account_info::<OUTPUT_STATE_QUEUE_TYPE_V2>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -177,7 +177,7 @@ impl<'a> BatchedQueueAccount<'a> {
         account_data: &'a mut [u8],
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         light_account_checks::checks::check_discriminator::<BatchedQueueAccount>(account_data)?;
-        Self::from_bytes::<BATCHED_OUTPUT_QUEUE_TYPE>(account_data, Pubkey::default())
+        Self::from_bytes::<OUTPUT_STATE_QUEUE_TYPE_V2>(account_data, Pubkey::default())
     }
 
     fn from_bytes<const QUEUE_TYPE: u64>(
@@ -477,7 +477,7 @@ pub(crate) fn insert_into_current_queue_batch(
             // Clear the batch if it is inserted.
 
             // If a batch contains a bloom filter it must be zeroed by a forester.
-            if queue_type != QueueType::BatchedOutput as u64
+            if queue_type != QueueType::OutputStateV2 as u64
                 && !current_batch.bloom_filter_is_zeroed()
             {
                 return Err(BatchedMerkleTreeError::BloomFilterNotZeroed);
@@ -506,7 +506,7 @@ pub(crate) fn insert_into_current_queue_batch(
     // 2. Insert value into the current batch.
     let queue_type = QueueType::from(queue_type);
     match queue_type {
-        QueueType::BatchedInput | QueueType::BatchedAddress => current_batch.insert(
+        QueueType::InputStateV2 | QueueType::AddressV2 => current_batch.insert(
             bloom_filter_value.unwrap(),
             hash_chain_value,
             bloom_filter_stores,
@@ -514,7 +514,7 @@ pub(crate) fn insert_into_current_queue_batch(
             batch_index,
             current_slot,
         ),
-        QueueType::BatchedOutput => current_batch.store_and_hash_value(
+        QueueType::OutputStateV2 => current_batch.store_and_hash_value(
             hash_chain_value,
             value_store.unwrap(),
             hash_chain_stores.unwrap(),
@@ -552,7 +552,7 @@ pub fn get_output_queue_account_size(batch_size: u64, zkp_batch_size: u64) -> us
     };
     metadata
         .batch_metadata
-        .queue_account_size(QueueType::BatchedOutput as u64)
+        .queue_account_size(QueueType::OutputStateV2 as u64)
         .unwrap()
 }
 
@@ -576,7 +576,7 @@ pub mod test_utils {
         };
         batch_metadata
             .batch_metadata
-            .queue_account_size(QueueType::BatchedOutput as u64)
+            .queue_account_size(QueueType::OutputStateV2 as u64)
             .unwrap()
     }
 
@@ -595,7 +595,7 @@ pub mod test_utils {
         };
         metadata
             .batch_metadata
-            .queue_account_size(QueueType::BatchedOutput as u64)
+            .queue_account_size(QueueType::OutputStateV2 as u64)
             .unwrap()
     }
 
@@ -611,7 +611,7 @@ pub mod test_utils {
             "batch_metadata mismatch"
         );
 
-        if queue_type == QueueType::BatchedOutput as u64 {
+        if queue_type == QueueType::OutputStateV2 as u64 {
             assert_eq!(value_vecs.len(), NUM_BATCHES, "value_vecs mismatch");
         } else {
             assert_eq!(value_vecs.len(), 0, "value_vecs mismatch");
@@ -709,7 +709,7 @@ fn test_check_is_associated() {
     let mut queue_metadata = QueueMetadata::default();
     let associated_merkle_tree = Pubkey::new_unique();
     queue_metadata.associated_merkle_tree = associated_merkle_tree;
-    queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+    queue_metadata.queue_type = QueueType::OutputStateV2 as u64;
     let batch_size = 4;
     let zkp_batch_size = 2;
     let bloom_filter_capacity = 0;
@@ -748,7 +748,7 @@ fn test_pubkey() {
     let mut queue_metadata = QueueMetadata::default();
     let associated_merkle_tree = Pubkey::new_unique();
     queue_metadata.associated_merkle_tree = associated_merkle_tree;
-    queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+    queue_metadata.queue_type = QueueType::OutputStateV2 as u64;
     let batch_size = 4;
     let zkp_batch_size = 2;
     let bloom_filter_capacity = 0;

@@ -358,7 +358,7 @@ pub async fn assert_merkle_tree_after_tx<
                 sequence_numbers.push(MerkleTreeSequenceNumber {
                     tree_pubkey: snapshot.accounts.merkle_tree,
                     queue_pubkey: snapshot.accounts.nullifier_queue,
-                    tree_type: TreeType::State as u64,
+                    tree_type: TreeType::StateV1 as u64,
                     seq: merkle_tree.sequence_number() as u64,
                 });
                 if merkle_tree.root() == snapshot.root {

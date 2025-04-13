@@ -77,7 +77,7 @@ impl CompressedAccountWithMerkleContext {
         self.compressed_account.hash(
             &self.merkle_context.merkle_tree_pubkey,
             &self.merkle_context.leaf_index,
-            self.merkle_context.tree_type == TreeType::BatchedState,
+            self.merkle_context.tree_type == TreeType::StateV2,
         )
     }
 }

@@ -770,7 +770,7 @@ where
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
-                                        QueueType::BatchedAddress,
+                                        QueueType::AddressV2,
                                         batch.batch_size as u16,
                                         None,
                                     )
@@ -1139,8 +1139,8 @@ where
                     .iter()
                     .map(|state_merkle_tree_bundle| {
                         let tree_type = match state_merkle_tree_bundle.version {
-                            1 => TreeType::State,
-                            2 => TreeType::BatchedState,
+                            1 => TreeType::StateV1,
+                            2 => TreeType::StateV2,
                             _ => panic!("unsupported version {}", state_merkle_tree_bundle.version),
                         };
 
@@ -1155,7 +1155,7 @@ where
                 self.indexer.get_address_merkle_trees().iter().for_each(
                     |address_merkle_tree_bundle| {
                         tree_accounts.push(TreeAccounts {
-                            tree_type: TreeType::Address,
+                            tree_type: TreeType::AddressV1,
                             merkle_tree: address_merkle_tree_bundle.accounts.merkle_tree,
                             queue: address_merkle_tree_bundle.accounts.queue,
                             is_rolledover: false,
@@ -1524,7 +1524,7 @@ where
     ) -> Option<Keypair> {
         for f in foresters.iter() {
             let tree = f.forester.active.merkle_trees.iter().find(|mt| {
-                if mt.tree_accounts.tree_type == TreeType::BatchedState {
+                if mt.tree_accounts.tree_type == TreeType::StateV2 {
                     mt.tree_accounts.merkle_tree == *queue_pubkey
                 } else {
                     mt.tree_accounts.queue == *queue_pubkey
