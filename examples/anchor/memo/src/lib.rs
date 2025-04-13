@@ -12,10 +12,9 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod memo {
-    use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
-        program_merkle_context::unpack_address_merkle_context,
+        program_merkle_context::unpack_address_merkle_context, Discriminator,
     };
 
     use super::*;

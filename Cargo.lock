@@ -3540,6 +3540,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "borsh 0.10.4",
+ "light-account-checks",
  "light-compressed-account",
  "light-hasher",
  "light-macros",
@@ -5292,7 +5293,6 @@ name = "sdk-test"
 version = "1.0.0"
 dependencies = [
  "borsh 0.10.4",
- "light-account-checks",
  "light-client",
  "light-compressed-account",
  "light-hasher",

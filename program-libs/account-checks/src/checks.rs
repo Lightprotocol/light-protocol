@@ -1,10 +1,12 @@
-use crate::{discriminator::Discriminator, error::AccountError, AccountInfo, Pubkey};
+use crate::{
+    discriminator::{Discriminator, DISCRIMINATOR_LEN},
+    error::AccountError,
+    AccountInfo, Pubkey,
+};
 
 /// Sets discriminator in account data.
-pub fn account_info_init<T: Discriminator<U>, const U: usize>(
-    account_info: &AccountInfo,
-) -> Result<(), AccountError> {
-    set_discriminator::<T, U>(
+pub fn account_info_init<T: Discriminator>(account_info: &AccountInfo) -> Result<(), AccountError> {
+    set_discriminator::<T>(
         &mut account_info
             .try_borrow_mut_data()
             .map_err(|_| AccountError::BorrowAccountDataFailed)?,
@@ -16,7 +18,7 @@ pub fn account_info_init<T: Discriminator<U>, const U: usize>(
 /// 1. account is mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_mut<T: Discriminator<U>, const U: usize>(
+pub fn check_account_info_mut<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
@@ -28,14 +30,14 @@ pub fn check_account_info_mut<T: Discriminator<U>, const U: usize>(
     if !account_info.is_writable() {
         return Err(AccountError::AccountMutable);
     }
-    check_account_info::<T, U>(program_id, account_info)
+    check_account_info::<T>(program_id, account_info)
 }
 
 /// Checks:
 /// 1. account is not mutable
 /// 2. account owned by program_id
 /// 3. account discriminator
-pub fn check_account_info_non_mut<T: Discriminator<U>, const U: usize>(
+pub fn check_account_info_non_mut<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
@@ -48,13 +50,13 @@ pub fn check_account_info_non_mut<T: Discriminator<U>, const U: usize>(
         return Err(AccountError::AccountMutable);
     }
 
-    check_account_info::<T, U>(program_id, account_info)
+    check_account_info::<T>(program_id, account_info)
 }
 
 /// Checks:
 /// 1. account owned by program_id
 /// 2. account discriminator
-pub fn check_account_info<T: Discriminator<U>, const U: usize>(
+pub fn check_account_info<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
@@ -63,35 +65,31 @@ pub fn check_account_info<T: Discriminator<U>, const U: usize>(
     let account_data = &account_info
         .try_borrow_data()
         .map_err(|_| AccountError::BorrowAccountDataFailed)?;
-    check_discriminator::<T, U>(account_data)
+    check_discriminator::<T>(account_data)
 }
 
 /// Checks:
 /// 1. discriminator is uninitialized
 /// 2. sets discriminator
-pub fn set_discriminator<T: Discriminator<U>, const U: usize>(
-    bytes: &mut [u8],
-) -> Result<(), AccountError> {
-    if bytes[0..U] != [0; U] {
+pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), AccountError> {
+    if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
         // #[cfg(target_os = "solana")]
         // crate::msg!("Discriminator bytes must be zero for initialization.");
         return Err(AccountError::AlreadyInitialized);
     }
-    bytes[0..U].copy_from_slice(&T::DISCRIMINATOR);
+    bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
     Ok(())
 }
 
 /// Checks:
 /// 1. account size is at least U
 /// 2. account discriminator
-pub fn check_discriminator<T: Discriminator<U>, const U: usize>(
-    bytes: &[u8],
-) -> Result<(), AccountError> {
-    if bytes.len() < U {
+pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), AccountError> {
+    if bytes.len() < DISCRIMINATOR_LEN {
         return Err(AccountError::InvalidAccountSize);
     }
 
-    if T::DISCRIMINATOR != bytes[0..U] {
+    if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
         // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
         // crate::msg!(
         //     "Expected discriminator: {:?}, actual {:?} ",
@@ -260,7 +258,7 @@ mod check_account_tests {
     pub struct MyStruct {
         pub data: u64,
     }
-    impl Discriminator<8> for MyStruct {
+    impl Discriminator for MyStruct {
         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
     }
 
@@ -275,19 +273,19 @@ mod check_account_tests {
 
         // Test 1 functional set discriminator.
         assert_eq!(bytes[0..8], [0; 8]);
-        set_discriminator::<MyStruct, 8>(&mut bytes).unwrap();
+        set_discriminator::<MyStruct>(&mut bytes).unwrap();
         assert_eq!(bytes[0..8], MyStruct::DISCRIMINATOR);
         // Test 2 failing set discriminator.
         assert_eq!(
-            set_discriminator::<MyStruct, 8>(&mut bytes),
+            set_discriminator::<MyStruct>(&mut bytes),
             Err(AccountError::AlreadyInitialized)
         );
         // Test 3 functional check discriminator.
-        assert!(check_discriminator::<MyStruct, 8>(&bytes).is_ok());
+        assert!(check_discriminator::<MyStruct>(&bytes).is_ok());
         // Test 4 failing check discriminator.
         bytes[0] = 0;
         assert_eq!(
-            check_discriminator::<MyStruct, 8>(&bytes),
+            check_discriminator::<MyStruct>(&bytes),
             Err(AccountError::InvalidDiscriminator)
         );
     }
@@ -347,18 +345,18 @@ mod check_account_tests {
         // Test 1 functional check_account_info.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             assert!(
-                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()).is_ok()
+                check_account_info::<MyStruct>(&program_id, &account.get_account_info()).is_ok()
             );
         }
         // Test 2 failing AccountOwnedByWrongProgram.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             account.owner = create_pubkey();
             assert_eq!(
-                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
                 Err(AccountError::AccountOwnedByWrongProgram)
             );
         }
@@ -366,7 +364,7 @@ mod check_account_tests {
         {
             let mut account = TestAccount::new(key, program_id, size);
             assert_eq!(
-                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
                 Err(AccountError::InvalidDiscriminator)
             );
         }
@@ -375,36 +373,35 @@ mod check_account_tests {
             let mut account = TestAccount::new(key, program_id, size - 1);
             account.data[0..8].copy_from_slice(&[1; 8]);
             assert_eq!(
-                check_account_info::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                check_account_info::<MyStruct>(&program_id, &account.get_account_info()),
                 Err(AccountError::InvalidDiscriminator)
             );
         }
         // Test 5 functional check_account_info_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
-            assert!(check_account_info_mut::<MyStruct, 8>(
-                &program_id,
-                &account.get_account_info()
-            )
-            .is_ok());
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
+            assert!(
+                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info())
+                    .is_ok()
+            );
         }
         // Test 6 failing AccountNotMutable with check_account_info_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             account.writable = false;
             // The error can be different depending on the framework
             let result =
-                check_account_info_mut::<MyStruct, 8>(&program_id, &account.get_account_info());
+                check_account_info_mut::<MyStruct>(&program_id, &account.get_account_info());
             assert!(result.is_err());
         }
         // Test 7 functional check_account_info_non_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             account.writable = false;
-            assert!(check_account_info_non_mut::<MyStruct, 8>(
+            assert!(check_account_info_non_mut::<MyStruct>(
                 &program_id,
                 &account.get_account_info()
             )
@@ -413,15 +410,15 @@ mod check_account_tests {
         // Test 8 failing with check_account_info_non_mut.
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             // Different behavior based on the feature flag
             #[cfg(not(feature = "pinocchio"))]
             assert_eq!(
-                check_account_info_non_mut::<MyStruct, 8>(&program_id, &account.get_account_info()),
+                check_account_info_non_mut::<MyStruct>(&program_id, &account.get_account_info()),
                 Err(AccountError::AccountMutable)
             );
             #[cfg(feature = "pinocchio")]
-            assert!(check_account_info_non_mut::<MyStruct, 8>(
+            assert!(check_account_info_non_mut::<MyStruct>(
                 &program_id,
                 &account.get_account_info()
             )
@@ -430,14 +427,14 @@ mod check_account_tests {
         // Test 9 functional account_info_init
         {
             let mut account = TestAccount::new(key, program_id, size);
-            assert!(account_info_init::<MyStruct, 8>(&account.get_account_info()).is_ok());
+            assert!(account_info_init::<MyStruct>(&account.get_account_info()).is_ok());
         }
         // Test 10 failing account_info_init
         {
             let mut account = TestAccount::new(key, program_id, size);
-            set_discriminator::<MyStruct, 8>(&mut account.data).unwrap();
+            set_discriminator::<MyStruct>(&mut account.data).unwrap();
             assert_eq!(
-                account_info_init::<MyStruct, 8>(&account.get_account_info()),
+                account_info_init::<MyStruct>(&account.get_account_info()),
                 Err(AccountError::AlreadyInitialized)
             );
         }
@@ -505,6 +502,7 @@ mod check_account_tests {
     #[cfg(not(feature = "pinocchio"))]
     fn test_check_pda_seeds_solana() {
         let program_id = create_pubkey();
+        let size = 8;
 
         // Test 1: Create a valid PDA and verify it
         {
@@ -516,7 +514,7 @@ mod check_account_tests {
             let check_seeds = &[b"test_seed".as_ref(), &[1, 2, 3]];
 
             // Create a test account with the PDA as key
-            let mut account = TestAccount::new(pda, program_id, 8);
+            let mut account = TestAccount::new(pda, program_id, size);
 
             // This should fail because find_program_address adds the bump seed automatically
             // which check_pda_seeds doesn't do
@@ -542,7 +540,7 @@ mod check_account_tests {
 
             // Create account with a different key
             let different_key = create_pubkey();
-            let mut account = TestAccount::new(different_key, program_id, 8);
+            let mut account = TestAccount::new(different_key, program_id, size);
 
             // This should fail because the account key doesn't match the PDA
             assert_eq!(
@@ -555,7 +553,7 @@ mod check_account_tests {
         {
             // Create a random account key
             let random_key = create_pubkey();
-            let mut account = TestAccount::new(random_key, program_id, 8);
+            let mut account = TestAccount::new(random_key, program_id, size);
 
             // Create seeds that don't correspond to this account's key
             let invalid_seeds = &[b"random_seeds".as_ref()];
@@ -574,31 +572,31 @@ mod check_account_tests {
         #[test]
         fn test_discriminator() {
             // Test that the discriminator functionality works
-            let mut bytes = vec![0; 8 + 8]; // 8 for discriminator, 8 for a u64
+            let mut bytes = vec![0; 8 + 8]; // 8 for discriminator for a u64
 
             // Check that setting and checking a discriminator works as expected
             struct TestDiscriminator {}
-            impl Discriminator<8> for TestDiscriminator {
+            impl Discriminator for TestDiscriminator {
                 const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
             }
 
             assert_eq!(bytes[0..8], [0; 8]);
-            set_discriminator::<TestDiscriminator, 8>(&mut bytes).unwrap();
+            set_discriminator::<TestDiscriminator>(&mut bytes).unwrap();
             assert_eq!(bytes[0..8], TestDiscriminator::DISCRIMINATOR);
 
             // Check that trying to set it again fails
             assert_eq!(
-                set_discriminator::<TestDiscriminator, 8>(&mut bytes),
+                set_discriminator::<TestDiscriminator>(&mut bytes),
                 Err(AccountError::AlreadyInitialized)
             );
 
             // Check that validating works
-            assert!(check_discriminator::<TestDiscriminator, 8>(&bytes).is_ok());
+            assert!(check_discriminator::<TestDiscriminator>(&bytes).is_ok());
 
             // Modify discriminator and check that validation fails
             bytes[0] = 0;
             assert_eq!(
-                check_discriminator::<TestDiscriminator, 8>(&bytes),
+                check_discriminator::<TestDiscriminator>(&bytes),
                 Err(AccountError::InvalidDiscriminator)
             );
         }

@@ -1,7 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::{
-    hashv_to_bn254_field_size_be, instruction_data::data::NewAddressParamsPacked,
-};
 use light_sdk::{
     account::CBorshAccount,
     cpi::{
@@ -9,10 +6,11 @@ use light_sdk::{
         verify::verify_compressed_account_infos,
     },
     error::LightSdkError,
+    hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
     instruction::instruction_data::LightInstructionData,
-    LightDiscriminator, LightHasher,
+    Discriminator, LightDiscriminator, LightHasher, NewAddressParamsPacked,
 };
-use solana_program::account_info::AccountInfo;
+use solana_program::{account_info::AccountInfo, program_error::ProgramError};
 
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
@@ -43,8 +41,11 @@ pub fn create_pda<const BATCHED: bool>(
         .as_ref()
         .unwrap()[0];
     let (address, address_seed) = if BATCHED {
-        let address_seed =
-            hashv_to_bn254_field_size_be(&[b"compressed", instruction_data.data.as_slice()]);
+        let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
+            b"compressed",
+            instruction_data.data.as_slice(),
+        ])
+        .map_err(ProgramError::from)?;
         let address = light_compressed_account::address::derive_address(
             &address_seed,
             &light_cpi_accounts.tree_accounts()

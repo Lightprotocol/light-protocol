@@ -9,11 +9,10 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod counter {
-    use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
         program_merkle_context::unpack_address_merkle_context,
-        system_accounts::CompressionCpiAccounts,
+        system_accounts::CompressionCpiAccounts, Discriminator,
     };
 
     use super::*;

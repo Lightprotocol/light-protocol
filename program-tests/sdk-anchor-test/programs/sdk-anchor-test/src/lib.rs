@@ -4,7 +4,7 @@ use light_sdk::{
     cpi::verify::verify_compressed_account_infos,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    light_account, LightHasher,
+    light_account, Discriminator, LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
