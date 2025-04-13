@@ -1,7 +1,6 @@
-use crate::{
-    account_info::CompressedAccountInfo,
-    error::{LightSdkError, Result},
-};
+use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
+
+use crate::error::{LightSdkError, Result};
 
 /// Transfers a specified amount of lamports from one account to another.
 ///
@@ -50,13 +49,15 @@ pub fn transfer_compressed_sol(
 
 #[cfg(test)]
 mod tests {
-    use light_compressed_account::compressed_account::PackedMerkleContext;
+    use light_compressed_account::{
+        compressed_account::PackedMerkleContext,
+        instruction_data::with_account_info::{
+            CompressedAccountInfo, InAccountInfo, OutAccountInfo,
+        },
+    };
 
     use super::*;
-    use crate::{
-        account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
-        Pubkey,
-    };
+    use crate::Pubkey;
 
     /// Creates a mock account with the given input lamports.
     fn mock_account(_owner: &Pubkey, lamports: Option<u64>) -> CompressedAccountInfo {
@@ -72,6 +73,8 @@ mod tests {
                     leaf_index: 0,
                     prove_by_index: false,
                 },
+                // None of the following values matter.
+                discriminator: [0; 8],
                 root_index: 0,
             }),
             output: Some(OutAccountInfo {
@@ -80,9 +83,9 @@ mod tests {
                 data_hash: [0; 32],
                 data: Vec::new(),
                 output_merkle_tree_index: 0,
+                // None of the following values matter.
+                discriminator: [0; 8],
             }),
-            // None of the following values matter.
-            discriminator: [0; 8],
             address: Some([1; 32]),
         }
     }
@@ -97,9 +100,9 @@ mod tests {
                 data_hash: [0; 32],
                 data: Vec::new(),
                 output_merkle_tree_index: 0,
+                // None of the following values matter.
+                discriminator: [0; 8],
             }),
-            // None of the following values matter.
-            discriminator: [0; 8],
             address: Some([1; 32]),
         }
     }

@@ -1,13 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{
+    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+    pubkey::Pubkey,
+};
 use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
-    account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
-    error::LightSdkError,
-    instruction::account_meta::CompressedAccountMetaTrait,
-    AnchorDeserialize, AnchorSerialize, Discriminator,
+    error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,
+    AnchorSerialize, Discriminator,
 };
 
 #[derive(Debug, PartialEq)]
@@ -30,13 +31,13 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     ) -> Self {
         let output_account_info = OutAccountInfo {
             output_merkle_tree_index,
+            discriminator: A::DISCRIMINATOR,
             ..Default::default()
         };
         Self {
             owner,
             account: A::default(),
             account_info: CompressedAccountInfo {
-                discriminator: A::discriminator(),
                 address,
                 input: None,
                 output: Some(output_account_info),
@@ -56,12 +57,14 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::DISCRIMINATOR,
             }
         };
         let output_account_info = {
             OutAccountInfo {
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 output_merkle_tree_index: input_account_meta.get_output_merkle_tree_index(),
+                discriminator: A::DISCRIMINATOR,
                 ..Default::default()
             }
         };
@@ -70,7 +73,6 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
             owner,
             account: input_account,
             account_info: CompressedAccountInfo {
-                discriminator: A::discriminator(),
                 address: input_account_meta.get_address(),
                 input: Some(input_account_info),
                 output: Some(output_account_info),
@@ -90,13 +92,13 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
                 lamports: input_account_meta.get_lamports().unwrap_or_default(),
                 merkle_context: *input_account_meta.get_merkle_context(),
                 root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::DISCRIMINATOR,
             }
         };
         Ok(Self {
             owner,
             account: input_account,
             account_info: CompressedAccountInfo {
-                discriminator: A::discriminator(),
                 address: input_account_meta.get_address(),
                 input: Some(input_account_info),
                 output: None,
@@ -105,7 +107,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     }
 
     pub fn discriminator(&self) -> &[u8; 8] {
-        &self.account_info.discriminator
+        &A::DISCRIMINATOR
     }
 
     pub fn lamports(&self) -> u64 {

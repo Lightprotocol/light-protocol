@@ -76,7 +76,7 @@ pub mod counter {
             .as_ref()
             .ok_or(LightSdkError::ExpectedAccounts)?;
         let mut counter: LightAccount<'_, CounterAccount> =
-            LightAccount::from_meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
+            LightAccount::meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
 
         if counter.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
@@ -109,7 +109,7 @@ pub mod counter {
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
         let mut counter: LightAccount<'_, CounterAccount> =
-            LightAccount::from_meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
+            LightAccount::meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
 
         if counter.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
@@ -145,7 +145,7 @@ pub mod counter {
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
         let mut counter: LightAccount<'_, CounterAccount> =
-            LightAccount::from_meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
+            LightAccount::meta_mut(&accounts[0], CounterAccount::discriminator(), &crate::ID)?;
 
         if counter.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
