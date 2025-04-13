@@ -2,10 +2,8 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
 import { createRpc, Rpc } from '../../src/rpc';
-import { bn, compress, defaultTestStateTreeAccounts } from '../../src';
+import { bn, compress } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '../../src/test-helpers/test-rpc';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 describe('testnet transfer', () => {
     let rpc: Rpc;

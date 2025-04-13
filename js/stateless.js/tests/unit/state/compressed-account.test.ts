@@ -6,6 +6,7 @@ import {
 } from '../../../src/state/compressed-account';
 import { PublicKey } from '@solana/web3.js';
 import { bn } from '../../../src/state/BN254';
+import { TreeType } from '../../../src/state';
 
 describe('createCompressedAccount function', () => {
     it('should create a compressed account with default values', () => {
@@ -46,9 +47,13 @@ describe('createCompressedAccountWithMerkleContext function', () => {
         const hash = new Array(32).fill(1);
         const leafIndex = 0;
         const merkleContext = createMerkleContext(
-            merkleTree,
-            nullifierQueue,
-            hash,
+            {
+                tree: merkleTree,
+                queue: nullifierQueue,
+                cpiContext: null,
+                treeType: TreeType.AddressV1,
+            },
+            bn(hash),
             leafIndex,
         );
         const accountWithMerkleContext =
@@ -58,11 +63,16 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             lamports: bn(0),
             address: null,
             data: null,
-            merkleTree,
-            nullifierQueue,
-            hash,
+            treeInfo: {
+                tree: merkleTree,
+                queue: nullifierQueue,
+                cpiContext: null,
+                treeType: TreeType.AddressV1,
+            },
+            hash: bn(hash),
             leafIndex,
             readOnly: false,
+            proveByIndex: false,
         });
     });
 });
@@ -75,16 +85,26 @@ describe('createMerkleContext function', () => {
 
         const leafIndex = 0;
         const merkleContext = createMerkleContext(
-            merkleTree,
-            nullifierQueue,
-            hash,
+            {
+                tree: merkleTree,
+                queue: nullifierQueue,
+                cpiContext: null,
+                treeType: TreeType.AddressV1,
+            },
+            bn(hash),
             leafIndex,
+            false,
         );
         expect(merkleContext).toEqual({
-            merkleTree,
-            nullifierQueue,
-            hash,
+            treeInfo: {
+                tree: merkleTree,
+                queue: nullifierQueue,
+                cpiContext: null,
+                treeType: TreeType.AddressV1,
+            },
+            hash: bn(hash),
             leafIndex,
+            proveByIndex: false,
         });
     });
 });

@@ -7,9 +7,9 @@ describe('padOutputStateMerkleTrees', () => {
     const treeB: any = PublicKey.unique();
     const treeC: any = PublicKey.unique();
 
-    const accA: any = { merkleTree: treeA };
-    const accB: any = { merkleTree: treeB };
-    const accC: any = { merkleTree: treeC };
+    const accA: any = { treeInfo: { tree: treeA } };
+    const accB: any = { treeInfo: { tree: treeB } };
+    const accC: any = { treeInfo: { tree: treeC } };
 
     it('should use the 0th state tree of input state if no output state trees are provided', () => {
         const result = padOutputStateMerkleTrees(undefined, 3, [accA, accB]);

@@ -9,10 +9,8 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
-    defaultTestStateTreeAccounts2,
     deriveAddress,
     deriveAddressSeed,
-    pickRandomTreeAndQueue,
     selectStateTreeInfo,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -69,8 +67,8 @@ describe('rpc-multi-trees', () => {
             dataSlice: { offset: 1, length: 2 },
         });
 
-        expect(accs.items[0].merkleTree).toEqual(randTrees[0]);
-        expect(accs.items[0].nullifierQueue).toEqual(randQueues[0]);
+        expect(accs.items[0].treeInfo.tree).toEqual(randTrees[0]);
+        expect(accs.items[0].treeInfo.queue).toEqual(randQueues[0]);
 
         assert.equal(accs.items.length, 1);
     });
@@ -101,8 +99,8 @@ describe('rpc-multi-trees', () => {
         randQueues.push(tree.queue);
 
         const acc = await rpc.getCompressedAccount(bn(address.toBuffer()));
-        expect(acc!.merkleTree).toEqual(tree.tree);
-        expect(acc!.nullifierQueue).toEqual(tree.queue);
+        expect(acc!.treeInfo.tree).toEqual(tree.tree);
+        expect(acc!.treeInfo.queue).toEqual(tree.queue);
     });
 
     it('getValidityProof [noforester] (inclusion) should return correct trees and queues', async () => {
@@ -110,8 +108,8 @@ describe('rpc-multi-trees', () => {
 
         const hash = bn(acc!.hash);
         const pos = randTrees.length - 1;
-        expect(acc?.merkleTree).toEqual(randTrees[pos]);
-        expect(acc?.nullifierQueue).toEqual(randQueues[pos]);
+        expect(acc?.treeInfo.tree).toEqual(randTrees[pos]);
+        expect(acc?.treeInfo.queue).toEqual(randQueues[pos]);
 
         const validityProof = await rpc.getValidityProof([hash]);
 
@@ -178,18 +176,18 @@ describe('rpc-multi-trees', () => {
         // only compare state tree
         assert.isTrue(
             validityProof.merkleTrees[0].equals(
-                senderAccounts.items[0].merkleTree,
+                senderAccounts.items[0].treeInfo.tree,
             ),
             'Mismatch in merkleTrees expected: ' +
-                senderAccounts.items[0].merkleTree +
+                senderAccounts.items[0].treeInfo.tree +
                 ' got: ' +
                 validityProof.merkleTrees[0],
         );
         assert.isTrue(
             validityProof.nullifierQueues[0].equals(
-                senderAccounts.items[0].nullifierQueue,
+                senderAccounts.items[0].treeInfo.queue,
             ),
-            `Mismatch in nullifierQueues expected: ${senderAccounts.items[0].nullifierQueue} got: ${validityProof.nullifierQueues[0]}`,
+            `Mismatch in nullifierQueues expected: ${senderAccounts.items[0].treeInfo.queue} got: ${validityProof.nullifierQueues[0]}`,
         );
 
         /// Creates a compressed account with address and lamports using a
@@ -223,14 +221,14 @@ describe('rpc-multi-trees', () => {
 
             proofs.forEach((proof, index) => {
                 assert.isTrue(
-                    proof.merkleTree.equals(
-                        prePayerAccounts.items[index].merkleTree,
+                    proof.treeInfo.tree.equals(
+                        prePayerAccounts.items[index].treeInfo.tree,
                     ),
                     `Iteration ${round + 1}: Mismatch in merkleTree for account index ${index}`,
                 );
                 assert.isTrue(
-                    proof.nullifierQueue.equals(
-                        prePayerAccounts.items[index].nullifierQueue,
+                    proof.treeInfo.queue.equals(
+                        prePayerAccounts.items[index].treeInfo.queue,
                     ),
                     `Iteration ${round + 1}: Mismatch in nullifierQueue for account index ${index}`,
                 );
@@ -265,14 +263,14 @@ describe('rpc-multi-trees', () => {
 
         compressedAccounts.forEach((account, index) => {
             assert.isTrue(
-                account.merkleTree.equals(
-                    senderAccounts.items[index].merkleTree,
+                account.treeInfo.tree.equals(
+                    senderAccounts.items[index].treeInfo.tree,
                 ),
                 `Mismatch in merkleTree for account index ${index}`,
             );
             assert.isTrue(
-                account.nullifierQueue.equals(
-                    senderAccounts.items[index].nullifierQueue,
+                account.treeInfo.queue.equals(
+                    senderAccounts.items[index].treeInfo.queue,
                 ),
                 `Mismatch in nullifierQueue for account index ${index}`,
             );

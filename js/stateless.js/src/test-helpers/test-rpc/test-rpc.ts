@@ -4,7 +4,7 @@ import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
     getMultipleCompressedAccountsByHashTest,
-    getQueueForTree,
+    getStateTreeInfoByTree,
 } from './get-compressed-accounts';
 import {
     getCompressedTokenAccountByHashTest,
@@ -15,7 +15,6 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
-    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfo,
 } from '../../constants';
@@ -309,23 +308,27 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         event.outputCompressedAccounts[index].merkleTreeIndex
                     ];
 
-                const { treeType, tree, queue } = getQueueForTree(
+                const stateTreeInfo = getStateTreeInfoByTree(
                     cachedStateTreeInfos,
                     treeOrQueue,
                 );
 
-                if (!leavesByTree.has(tree.toBase58())) {
-                    leavesByTree.set(tree.toBase58(), {
+                if (!leavesByTree.has(stateTreeInfo.tree.toBase58())) {
+                    leavesByTree.set(stateTreeInfo.tree.toBase58(), {
                         leaves: [],
                         leafIndices: [],
-                        treeType: treeType,
-                        queue: queue,
+                        treeType: stateTreeInfo.treeType,
+                        queue: stateTreeInfo.queue,
                     });
                 }
 
-                const treeData = leavesByTree.get(tree.toBase58());
+                const treeData = leavesByTree.get(
+                    stateTreeInfo.tree.toBase58(),
+                );
                 if (!treeData) {
-                    throw new Error(`Tree not found: ${tree.toBase58()}`);
+                    throw new Error(
+                        `Tree not found: ${stateTreeInfo.tree.toBase58()}`,
+                    );
                 }
                 treeData.leaves.push(hash);
                 treeData.leafIndices.push(event.outputLeafIndices[index]);
@@ -358,6 +361,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 const leafIndex = leaves.findIndex(leaf =>
                     bn(leaf).eq(hashes[i]),
                 );
+                const stateTreeInfo = getStateTreeInfoByTree(
+                    cachedStateTreeInfos,
+                    tree,
+                );
 
                 /// If leaf is part of current tree, return proof
                 if (leafIndex !== -1) {
@@ -370,14 +377,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         const root = bn(merkleTree.root());
 
                         const merkleProof: MerkleContextWithMerkleProof = {
-                            hash: hashes[i].toArray('be', 32),
-                            merkleTree: tree,
+                            hash: bn(hashes[i].toArray('be', 32)),
+                            treeInfo: stateTreeInfo,
                             leafIndex: leafIndex,
                             merkleProof: bnPathElements,
-                            nullifierQueue: getQueueForTree(
-                                cachedStateTreeInfos,
-                                tree,
-                            ).queue,
+                            proveByIndex: false,
                             rootIndex: leaves.length,
                             root: root,
                         };
@@ -391,10 +395,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         // Validate proofs
         merkleProofsMap.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
-            const computedHash = leavesByTree.get(proof.merkleTree.toBase58())!
-                .leaves[leafIndex];
-            const hashArr = bn(computedHash).toArray('be', 32);
-            if (!hashArr.every((val, index) => val === proof.hash[index])) {
+            const computedHash = leavesByTree.get(
+                proof.treeInfo.tree.toBase58(),
+            )!.leaves[leafIndex];
+            const hashArr = bn(computedHash);
+            if (!hashArr.eq(proof.hash)) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
                 );
@@ -779,10 +784,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 ),
                 leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
                 merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.merkleTree,
+                    proof => proof.treeInfo.tree,
                 ),
                 nullifierQueues: merkleProofsWithContext.map(
-                    proof => proof.nullifierQueue,
+                    proof => proof.treeInfo.queue,
                 ),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
@@ -871,10 +876,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .map(proof => bn(proof.hash))
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
                 merkleTrees: merkleProofsWithContext
-                    .map(proof => proof.merkleTree)
+                    .map(proof => proof.treeInfo.tree)
                     .concat(newAddressProofs.map(proof => proof.merkleTree)),
                 nullifierQueues: merkleProofsWithContext
-                    .map(proof => proof.nullifierQueue)
+                    .map(proof => proof.treeInfo.queue)
                     .concat(
                         newAddressProofs.map(proof => proof.nullifierQueue),
                     ),

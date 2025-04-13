@@ -60,7 +60,7 @@ export function padOutputStateMerkleTrees(
             );
         }
         return new Array(numberOfOutputCompressedAccounts).fill(
-            inputCompressedAccountsWithMerkleContext[0].merkleTree,
+            inputCompressedAccountsWithMerkleContext[0].treeInfo.tree,
         );
         /// Align the number of output state trees with the number of output
         /// accounts, and fill up with 0th output state tree
@@ -130,12 +130,12 @@ export function packCompressedAccounts(
     inputCompressedAccounts.forEach((account, index) => {
         const merkleTreePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.merkleTree,
+            account.treeInfo.tree,
         );
 
         const nullifierQueuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.nullifierQueue,
+            account.treeInfo.queue,
         );
 
         packedInputCompressedAccounts.push({

@@ -90,11 +90,11 @@ describe('rpc-multi-trees', () => {
         expect(senderAccounts.length).toBe(1);
         expect(receiverAccounts.length).toBe(1);
         expect(
-            senderAccounts[0].compressedAccount.merkleTree.toBase58() ===
+            senderAccounts[0].compressedAccount.treeInfo.tree.toBase58() ===
                 stateTreeInfo2.tree.toBase58(),
         ).toBe(true);
         expect(
-            receiverAccounts[0].compressedAccount.merkleTree.toBase58() ===
+            receiverAccounts[0].compressedAccount.treeInfo.tree.toBase58() ===
                 stateTreeInfo2.tree.toBase58(),
         ).toBe(true);
     });
@@ -106,10 +106,10 @@ describe('rpc-multi-trees', () => {
         );
         const senderAccount = senderAccounts.items[0].compressedAccount;
 
-        expect(senderAccount.merkleTree.toBase58()).toBe(
+        expect(senderAccount.treeInfo.tree.toBase58()).toBe(
             stateTreeInfo2.tree.toBase58(),
         );
-        expect(senderAccount.nullifierQueue.toBase58()).toBe(
+        expect(senderAccount.treeInfo.queue.toBase58()).toBe(
             stateTreeInfo2.queue.toBase58(),
         );
     });
@@ -131,13 +131,13 @@ describe('rpc-multi-trees', () => {
         );
         const previousAccount = senderAccounts.items.find(
             account =>
-                account.compressedAccount.merkleTree.toBase58() ===
+                account.compressedAccount.treeInfo.tree.toBase58() ===
                 stateTreeInfo2.tree.toBase58(),
         );
 
         const newlyMintedAccount = senderAccounts.items.find(
             account =>
-                account.compressedAccount.merkleTree.toBase58() ===
+                account.compressedAccount.treeInfo.tree.toBase58() ===
                     stateTreeInfo.tree.toBase58() &&
                 account.parsed.amount.toNumber() === 1042,
         );

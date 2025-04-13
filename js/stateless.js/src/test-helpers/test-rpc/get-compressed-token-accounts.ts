@@ -3,7 +3,7 @@ import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
 import { COMPRESSED_TOKEN_PROGRAM_ID } from '../../constants';
 import { Rpc } from '../../rpc';
-import { getQueueForTree } from './get-compressed-accounts';
+import { getStateTreeInfoByTree } from './get-compressed-accounts';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
@@ -84,10 +84,10 @@ async function parseEventWithTokenTlvData(
             const maybeTree =
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
 
-            const { queue, treeType, tree } = getQueueForTree(infos, maybeTree);
+            const treeInfo = getStateTreeInfoByTree(infos, maybeTree);
 
             if (
-                !tree.equals(
+                !treeInfo.tree.equals(
                     pubkeyArray[
                         event.outputCompressedAccounts[i].merkleTreeIndex
                     ],
@@ -96,10 +96,10 @@ async function parseEventWithTokenTlvData(
                 throw new Error('Invalid tree');
             }
             const merkleContext: MerkleContext = {
-                merkleTree: tree,
-                nullifierQueue: queue,
-                hash: outputHashes[i],
+                treeInfo,
+                hash: bn(outputHashes[i]),
                 leafIndex: event.outputLeafIndices[i],
+                proveByIndex: false,
             };
 
             if (!compressedAccount.compressedAccount.data)

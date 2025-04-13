@@ -68,12 +68,12 @@ export function packCompressedTokenAccounts(
         (account: ParsedTokenAccount, index) => {
             const merkleTreePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
-                account.compressedAccount.merkleTree,
+                account.compressedAccount.treeInfo.tree,
             );
 
             const nullifierQueuePubkeyIndex = getIndexOrAdd(
                 _remainingAccounts,
-                account.compressedAccount.nullifierQueue,
+                account.compressedAccount.treeInfo.queue,
             );
 
             packedInputTokenData.push({
