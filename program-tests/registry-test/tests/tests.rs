@@ -838,13 +838,13 @@ async fn test_register_and_update_forester_pda() {
     // 3. SUCCESS: register forester for epoch
     let tree_accounts = vec![
         TreeAccounts {
-            tree_type: TreeType::State,
+            tree_type: TreeType::StateV1,
             merkle_tree: env.merkle_tree_pubkey,
             queue: env.nullifier_queue_pubkey,
             is_rolledover: false,
         },
         TreeAccounts {
-            tree_type: TreeType::Address,
+            tree_type: TreeType::AddressV1,
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
             is_rolledover: false,

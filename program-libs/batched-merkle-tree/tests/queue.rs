@@ -60,7 +60,7 @@ fn test_output_queue_account() {
     let queue_pubkey = Pubkey::new_unique();
     let current_slot = 123;
     {
-        let queue_type = QueueType::BatchedOutput;
+        let queue_type = QueueType::OutputStateV2;
         let (ref_account, mut account_data) =
             get_test_account_and_account_data(batch_size, queue_type, bloom_filter_capacity);
         BatchedQueueAccount::init(
@@ -89,7 +89,7 @@ fn test_output_queue_account() {
 #[test]
 fn test_value_exists_in_value_vec() {
     let (account, mut account_data) =
-        get_test_account_and_account_data(100, QueueType::BatchedOutput, 0);
+        get_test_account_and_account_data(100, QueueType::OutputStateV2, 0);
     let queue_pubkey = Pubkey::new_unique();
     let mut account = BatchedQueueAccount::init(
         &mut account_data,

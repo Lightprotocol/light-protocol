@@ -139,7 +139,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
-                    TreeType::BatchedAddress => {
+                    TreeType::AddressV2 => {
                         let tree =
                             BatchedMerkleTreeAccount::address_from_account_info(account_info)
                                 .map_err(ProgramError::from)?;
@@ -150,7 +150,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                         )?;
                         Ok(AcpAccount::BatchedAddressTree(tree))
                     }
-                    TreeType::BatchedState => {
+                    TreeType::StateV2 => {
                         let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)
                             .map_err(ProgramError::from)?;
                         manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(

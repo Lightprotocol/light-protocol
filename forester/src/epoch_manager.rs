@@ -67,10 +67,10 @@ pub struct WorkItem {
 
 impl WorkItem {
     pub fn is_address_tree(&self) -> bool {
-        self.tree_account.tree_type == TreeType::Address
+        self.tree_account.tree_type == TreeType::AddressV1
     }
     pub fn is_state_tree(&self) -> bool {
-        self.tree_account.tree_type == TreeType::State
+        self.tree_account.tree_type == TreeType::StateV1
     }
 }
 
@@ -863,8 +863,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     )?
                 };
 
-                if tree.tree_accounts.tree_type == TreeType::BatchedState
-                    || tree.tree_accounts.tree_type == TreeType::BatchedAddress
+                if tree.tree_accounts.tree_type == TreeType::StateV2
+                    || tree.tree_accounts.tree_type == TreeType::AddressV2
                 {
                     let batch_context = BatchContext {
                         rpc_pool: self.rpc_pool.clone(),
@@ -1132,7 +1132,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         let (_, current_epoch) = self.get_current_slot_and_epoch().await?;
 
         let result = match tree_account.tree_type {
-            TreeType::Address => {
+            TreeType::AddressV1 => {
                 rollover_address_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
@@ -1142,7 +1142,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 )
                 .await
             }
-            TreeType::State => {
+            TreeType::StateV1 => {
                 rollover_state_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,

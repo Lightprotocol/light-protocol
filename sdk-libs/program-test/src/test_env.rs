@@ -993,13 +993,13 @@ pub async fn initialize_accounts<R: RpcConnection>(
             .unwrap();
         let tree_accounts = vec![
             TreeAccounts {
-                tree_type: TreeType::State,
+                tree_type: TreeType::StateV1,
                 merkle_tree: merkle_tree_pubkey,
                 queue: nullifier_queue_pubkey,
                 is_rolledover: false,
             },
             TreeAccounts {
-                tree_type: TreeType::Address,
+                tree_type: TreeType::AddressV1,
                 merkle_tree: keypairs.address_merkle_tree.pubkey(),
                 queue: keypairs.address_merkle_tree_queue.pubkey(),
                 is_rolledover: false,

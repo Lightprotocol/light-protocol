@@ -172,8 +172,8 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
     }
-    run_queue_info(config.clone(), trees.clone(), TreeType::State).await;
-    run_queue_info(config.clone(), trees.clone(), TreeType::Address).await;
+    run_queue_info(config.clone(), trees.clone(), TreeType::StateV1).await;
+    run_queue_info(config.clone(), trees.clone(), TreeType::AddressV1).await;
     for tree in &trees {
         let tree_type = format!("[{}]", tree.tree_type);
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type)

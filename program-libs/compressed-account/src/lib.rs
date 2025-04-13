@@ -94,56 +94,56 @@ impl From<CompressedAccountError> for ProgramError {
     }
 }
 
-pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
-pub const ADDRESS_QUEUE_TYPE: u64 = 2;
-pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
-pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
-pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
+pub const NULLIFIER_QUEUE_TYPE_V1: u64 = 1;
+pub const ADDRESS_QUEUE_TYPE_V1: u64 = 2;
+pub const INPUT_STATE_QUEUE_TYPE_V2: u64 = 3;
+pub const ADDRESS_QUEUE_TYPE_V2: u64 = 4;
+pub const OUTPUT_STATE_QUEUE_TYPE_V2: u64 = 5;
 
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
 #[repr(u64)]
 pub enum QueueType {
-    NullifierQueue = NULLIFIER_QUEUE_TYPE,
-    AddressQueue = ADDRESS_QUEUE_TYPE,
-    BatchedInput = BATCHED_INPUT_QUEUE_TYPE,
-    BatchedAddress = BATCHED_ADDRESS_QUEUE_TYPE,
-    BatchedOutput = BATCHED_OUTPUT_QUEUE_TYPE,
+    NullifierV1 = NULLIFIER_QUEUE_TYPE_V1,
+    AddressV1 = ADDRESS_QUEUE_TYPE_V1,
+    InputStateV2 = INPUT_STATE_QUEUE_TYPE_V2,
+    AddressV2 = ADDRESS_QUEUE_TYPE_V2,
+    OutputStateV2 = OUTPUT_STATE_QUEUE_TYPE_V2,
 }
 
 impl From<u64> for QueueType {
     fn from(value: u64) -> Self {
         match value {
-            1 => QueueType::NullifierQueue,
-            2 => QueueType::AddressQueue,
-            3 => QueueType::BatchedInput,
-            4 => QueueType::BatchedAddress,
-            5 => QueueType::BatchedOutput,
+            1 => QueueType::NullifierV1,
+            2 => QueueType::AddressV1,
+            3 => QueueType::InputStateV2,
+            4 => QueueType::AddressV2,
+            5 => QueueType::OutputStateV2,
             _ => panic!("Invalid queue type"),
         }
     }
 }
 
-pub const STATE_MERKLE_TREE_TYPE: u64 = 1;
-pub const ADDRESS_MERKLE_TREE_TYPE: u64 = 2;
-pub const BATCHED_STATE_MERKLE_TREE_TYPE: u64 = 3;
-pub const BATCHED_ADDRESS_MERKLE_TREE_TYPE: u64 = 4;
+pub const STATE_MERKLE_TREE_TYPE_V1: u64 = 1;
+pub const ADDRESS_MERKLE_TREE_TYPE_V1: u64 = 2;
+pub const STATE_MERKLE_TREE_TYPE_V2: u64 = 3;
+pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
 
 #[repr(u64)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
 pub enum TreeType {
-    State = STATE_MERKLE_TREE_TYPE,
-    Address = ADDRESS_MERKLE_TREE_TYPE,
-    BatchedState = BATCHED_STATE_MERKLE_TREE_TYPE,
-    BatchedAddress = BATCHED_ADDRESS_MERKLE_TREE_TYPE,
+    StateV1 = STATE_MERKLE_TREE_TYPE_V1,
+    AddressV1 = ADDRESS_MERKLE_TREE_TYPE_V1,
+    StateV2 = STATE_MERKLE_TREE_TYPE_V2,
+    AddressV2 = ADDRESS_MERKLE_TREE_TYPE_V2,
 }
 
 impl Display for TreeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TreeType::State => write!(f, "State"),
-            TreeType::Address => write!(f, "Address"),
-            TreeType::BatchedState => write!(f, "BatchedState"),
-            TreeType::BatchedAddress => write!(f, "BatchedAddress"),
+            TreeType::StateV1 => write!(f, "StateV1"),
+            TreeType::AddressV1 => write!(f, "AddressV1"),
+            TreeType::StateV2 => write!(f, "StateV2"),
+            TreeType::AddressV2 => write!(f, "AddressV2"),
         }
     }
 }
@@ -151,7 +151,7 @@ impl Display for TreeType {
 #[allow(clippy::derivable_impls)]
 impl std::default::Default for TreeType {
     fn default() -> Self {
-        TreeType::BatchedState
+        TreeType::StateV2
     }
 }
 
@@ -159,10 +159,10 @@ impl std::default::Default for TreeType {
 impl From<u64> for TreeType {
     fn from(value: u64) -> Self {
         match value {
-            1 => TreeType::State,
-            2 => TreeType::Address,
-            3 => TreeType::BatchedState,
-            4 => TreeType::BatchedAddress,
+            1 => TreeType::StateV1,
+            2 => TreeType::AddressV1,
+            3 => TreeType::StateV2,
+            4 => TreeType::AddressV2,
             _ => panic!("Invalid TreeType"),
         }
     }

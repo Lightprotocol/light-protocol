@@ -38,7 +38,7 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::State,
+        TreeType::StateV1,
     ))
 }
 
@@ -48,7 +48,7 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::Address,
+        TreeType::AddressV1,
     ))
 }
 
@@ -62,7 +62,7 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::BatchedState,
+        TreeType::StateV2,
     ))
 }
 
@@ -76,7 +76,7 @@ fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Resul
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::BatchedAddress,
+        TreeType::AddressV2,
     ))
 }
 

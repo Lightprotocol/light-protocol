@@ -65,7 +65,7 @@ pub fn process_initialize_address_queue<'info>(
                 None,
             ),
             associated_merkle_tree,
-            QueueType::AddressQueue,
+            QueueType::AddressV1,
         );
 
         drop(address_queue);

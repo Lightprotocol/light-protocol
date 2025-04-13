@@ -152,7 +152,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
                 params.close_threshold,
                 Some(params.additional_bytes),
             ),
-            queue_type: QueueType::BatchedOutput as u64,
+            queue_type: QueueType::OutputStateV2 as u64,
             associated_merkle_tree: mt_pubkey,
         };
 
@@ -197,7 +197,7 @@ pub fn init_batched_state_merkle_tree_accounts<'a>(
         height,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
-        TreeType::BatchedState,
+        TreeType::StateV2,
     )
 }
 
@@ -333,9 +333,11 @@ pub mod test_utils {
     ) {
         let account = BatchedMerkleTreeAccount::state_from_bytes(account_data, pubkey)
             .expect("from_bytes_unchecked_mut failed");
-        _assert_mt_zero_copy_initialized::<
-            { light_compressed_account::BATCHED_STATE_MERKLE_TREE_TYPE },
-        >(account, ref_account, TreeType::BatchedState as u64);
+        _assert_mt_zero_copy_initialized::<{ light_compressed_account::STATE_MERKLE_TREE_TYPE_V2 }>(
+            account,
+            ref_account,
+            TreeType::StateV2 as u64,
+        );
     }
 
     pub fn assert_address_mt_zero_copy_initialized(
@@ -347,9 +349,11 @@ pub mod test_utils {
 
         let account = BatchedMerkleTreeAccount::address_from_bytes(account_data, pubkey)
             .expect("from_bytes_unchecked_mut failed");
-        _assert_mt_zero_copy_initialized::<
-            { light_compressed_account::BATCHED_STATE_MERKLE_TREE_TYPE },
-        >(account, ref_account, TreeType::Address as u64);
+        _assert_mt_zero_copy_initialized::<{ light_compressed_account::STATE_MERKLE_TREE_TYPE_V2 }>(
+            account,
+            ref_account,
+            TreeType::AddressV1 as u64,
+        );
     }
 
     fn _assert_mt_zero_copy_initialized<const TREE_TYPE: u64>(
@@ -369,14 +373,14 @@ pub mod test_utils {
             ref_account.root_history_capacity as usize,
             "root_history_capacity mismatch"
         );
-        if tree_type == TreeType::BatchedState as u64 {
+        if tree_type == TreeType::StateV2 as u64 {
             assert_eq!(
                 *account.root_history.get(0).unwrap(),
                 light_hasher::Poseidon::zero_bytes()[ref_account.height as usize],
                 "root_history not initialized"
             );
         }
-        if tree_type == TreeType::BatchedAddress as u64 {
+        if tree_type == TreeType::AddressV2 as u64 {
             assert_eq!(
                 *account.root_history.get(0).unwrap(),
                 crate::constants::ADDRESS_TREE_INIT_ROOT_40,
@@ -389,10 +393,10 @@ pub mod test_utils {
             "hash_chain_store mismatch"
         );
 
-        let queue_type = if tree_type == TreeType::BatchedState as u64 {
-            QueueType::BatchedInput as u64
+        let queue_type = if tree_type == TreeType::StateV2 as u64 {
+            QueueType::InputStateV2 as u64
         } else {
-            QueueType::BatchedAddress as u64
+            QueueType::AddressV2 as u64
         };
         assert_queue_inited(queue, ref_queue, queue_type, &mut []);
     }
@@ -464,7 +468,7 @@ pub mod test_utils {
                 network_fee: params.network_fee,
                 additional_bytes: params.additional_bytes,
             },
-            queue_type: QueueType::BatchedOutput as u64,
+            queue_type: QueueType::OutputStateV2 as u64,
             associated_merkle_tree: params.associated_merkle_tree,
         };
         let batch_metadata =

@@ -59,11 +59,11 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
-        if tree_data.tree_type == TreeType::BatchedState {
+        if tree_data.tree_type == TreeType::StateV2 {
             continue;
         }
 
-        let length = if tree_data.tree_type == TreeType::State {
+        let length = if tree_data.tree_type == TreeType::StateV1 {
             STATE_NULLIFIER_QUEUE_VALUES
         } else {
             ADDRESS_QUEUE_VALUES

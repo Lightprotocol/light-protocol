@@ -55,8 +55,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
 
         match state {
             BatchReadyState::ReadyForAppend => match self.tree_type {
-                TreeType::BatchedAddress => address::process_batch(&self.context).await,
-                TreeType::BatchedState => {
+                TreeType::AddressV2 => address::process_batch(&self.context).await,
+                TreeType::StateV2 => {
                     info!(
                         "Process state append for tree: {}",
                         self.context.merkle_tree
@@ -106,7 +106,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         let input_ready = self.verify_input_queue_batch_ready(&mut rpc).await;
-        let output_ready = if self.tree_type == TreeType::BatchedState {
+        let output_ready = if self.tree_type == TreeType::StateV2 {
             self.verify_output_queue_batch_ready(&mut rpc).await
         } else {
             false
@@ -117,7 +117,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
             self.tree_type, input_ready, output_ready
         );
 
-        if self.tree_type == TreeType::BatchedAddress {
+        if self.tree_type == TreeType::AddressV2 {
             return if input_ready {
                 BatchReadyState::ReadyForAppend
             } else {
@@ -256,11 +256,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         let merkle_tree = match self.tree_type {
-            TreeType::BatchedAddress => BatchedMerkleTreeAccount::address_from_bytes(
+            TreeType::AddressV2 => BatchedMerkleTreeAccount::address_from_bytes(
                 account.data.as_mut_slice(),
                 &self.context.merkle_tree.into(),
             ),
-            TreeType::BatchedState => BatchedMerkleTreeAccount::state_from_bytes(
+            TreeType::StateV2 => BatchedMerkleTreeAccount::state_from_bytes(
                 account.data.as_mut_slice(),
                 &self.context.merkle_tree.into(),
             ),
@@ -290,7 +290,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> BatchProcessor<R, I> {
         };
 
         let output_queue = match self.tree_type {
-            TreeType::BatchedState => {
+            TreeType::StateV2 => {
                 BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())
             }
             _ => return false,

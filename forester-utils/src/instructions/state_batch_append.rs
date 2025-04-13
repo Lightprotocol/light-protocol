@@ -58,7 +58,7 @@ pub async fn create_append_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let queue_elements = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            QueueType::BatchedOutput,
+            QueueType::OutputStateV2,
             total_elements as u16,
             Some(offset),
         )

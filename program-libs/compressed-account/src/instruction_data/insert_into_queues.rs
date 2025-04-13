@@ -187,7 +187,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             index,
             tree_pubkey,
             None,
-            TreeType::BatchedAddress as u64,
+            TreeType::AddressV2 as u64,
             seq,
         );
     }

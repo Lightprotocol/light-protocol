@@ -96,7 +96,7 @@ pub async fn create_nullify_batch_ix_data<R: RpcConnection, I: Indexer<R>>(
     let all_queue_elements = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            QueueType::BatchedInput,
+            QueueType::InputStateV2,
             total_elements as u16,
             Some(offset),
         )

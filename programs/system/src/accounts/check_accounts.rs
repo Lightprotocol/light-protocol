@@ -86,14 +86,14 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             );
             let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
             match tree_type {
-                TreeType::BatchedAddress => {
+                TreeType::AddressV2 => {
                     let tree =
                         BatchedMerkleTreeAccount::address_from_account_info(account_info).unwrap();
                     let program_owner = tree.metadata.access_metadata.program_owner;
                     // for batched trees we set the fee when setting the rollover fee.
                     Ok((AcpAccount::BatchedAddressTree(tree), program_owner))
                 }
-                TreeType::BatchedState => {
+                TreeType::StateV2 => {
                     let tree =
                         BatchedMerkleTreeAccount::state_from_account_info(account_info).unwrap();
                     let program_owner = tree.metadata.access_metadata.program_owner;
@@ -180,7 +180,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
             let data = account_info.try_borrow_data().unwrap();
             let queue = bytemuck::from_bytes::<QueueAccount>(&data[8..QueueAccount::LEN]);
 
-            if queue.metadata.queue_type == QueueType::AddressQueue as u64 {
+            if queue.metadata.queue_type == QueueType::AddressV1 as u64 {
                 context.set_legacy_merkle_context(
                     index,
                     MerkleTreeContext {
@@ -194,7 +194,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                     AcpAccount::AddressQueue((*account_info.key()).into(), account_info),
                     program_owner,
                 ))
-            } else if queue.metadata.queue_type == QueueType::NullifierQueue as u64 {
+            } else if queue.metadata.queue_type == QueueType::NullifierV1 as u64 {
                 Ok((AcpAccount::V1Queue(account_info), Pubkey::default()))
             } else {
                 msg!(format!(

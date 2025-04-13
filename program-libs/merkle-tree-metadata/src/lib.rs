@@ -11,10 +11,10 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 pub(crate) use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_compressed_account::{
-    QueueType, TreeType, ADDRESS_MERKLE_TREE_TYPE, ADDRESS_QUEUE_TYPE,
-    BATCHED_ADDRESS_MERKLE_TREE_TYPE, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE,
-    BATCHED_OUTPUT_QUEUE_TYPE, BATCHED_STATE_MERKLE_TREE_TYPE, NULLIFIER_QUEUE_TYPE,
-    STATE_MERKLE_TREE_TYPE,
+    QueueType, TreeType, ADDRESS_MERKLE_TREE_TYPE_V1, ADDRESS_MERKLE_TREE_TYPE_V2,
+    ADDRESS_QUEUE_TYPE_V1, ADDRESS_QUEUE_TYPE_V2, INPUT_STATE_QUEUE_TYPE_V2,
+    NULLIFIER_QUEUE_TYPE_V1, OUTPUT_STATE_QUEUE_TYPE_V2, STATE_MERKLE_TREE_TYPE_V1,
+    STATE_MERKLE_TREE_TYPE_V2,
 };
 // Pinocchio imports
 #[allow(unused_imports)]

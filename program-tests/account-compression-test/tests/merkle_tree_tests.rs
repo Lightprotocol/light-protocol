@@ -1789,7 +1789,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         queue_config,
         &merkle_tree_keypair.pubkey(),
         merkle_tree_config,
-        QueueType::NullifierQueue,
+        QueueType::NullifierV1,
         1,
         None,
         Some(forester),

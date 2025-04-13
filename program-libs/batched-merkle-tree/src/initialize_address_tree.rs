@@ -128,7 +128,7 @@ pub fn init_batched_address_merkle_tree_account(
         height,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
-        TreeType::BatchedAddress,
+        TreeType::AddressV2,
     )
 }
 

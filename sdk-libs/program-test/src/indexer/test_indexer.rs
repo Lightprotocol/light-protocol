@@ -143,7 +143,7 @@ where
             .state_merkle_trees
             .iter_mut()
             .find(|x| x.accounts.merkle_tree == pubkey);
-        if queue_type == QueueType::BatchedInput {
+        if queue_type == QueueType::InputStateV2 {
             if let Some(state_tree_bundle) = state_tree_bundle {
                 let end_offset = min(
                     num_elements as usize,
@@ -205,7 +205,7 @@ where
             }
         }
 
-        if queue_type == QueueType::BatchedOutput {
+        if queue_type == QueueType::OutputStateV2 {
             if let Some(state_tree_bundle) = state_tree_bundle {
                 let end_offset = min(
                     num_elements as usize,
@@ -718,7 +718,7 @@ where
         let address_proofs = self
             .get_queue_elements(
                 merkle_tree_pubkey.to_bytes(),
-                QueueType::BatchedAddress,
+                QueueType::AddressV2,
                 zkp_batch_size,
                 None,
             )
@@ -1858,8 +1858,8 @@ where
                                         nullifier_queue_pubkey,
                                         prove_by_index: false,
                                         tree_type: if merkle_tree.version == 2 {
-                                            TreeType::BatchedState
-                                        } else {TreeType::State}
+                                            TreeType::StateV2
+                                        } else {TreeType::StateV1}
                                     },
                                 },
                             };
@@ -1875,8 +1875,8 @@ where
                                 nullifier_queue_pubkey,
                                 prove_by_index: false,
                                 tree_type: if merkle_tree.version == 2 {
-                                    TreeType::BatchedState
-                                } else {TreeType::State}
+                                    TreeType::StateV2
+                                } else {TreeType::StateV1}
                             },
                         };
                         compressed_accounts.push(compressed_account.clone());
@@ -1892,9 +1892,9 @@ where
                             nullifier_queue_pubkey,
                             prove_by_index: false,
                             tree_type: if merkle_tree.version == 2 {
-                                TreeType::BatchedState
+                                TreeType::StateV2
                             } else {
-                                TreeType::State
+                                TreeType::StateV1
                             },
                         },
                     };
