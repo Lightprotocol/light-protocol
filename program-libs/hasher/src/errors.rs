@@ -22,7 +22,7 @@ pub enum HasherError {
     #[error("Borsh serialization failed.")]
     BorshError,
     #[error(
-        "Option hash to field size returned [0u8;32] a collision with None for an Option type."
+        "Option hash to field size returned [0u8;32], a collision with None for an Option type."
     )]
     OptionHashToFieldSizeZero,
 }
