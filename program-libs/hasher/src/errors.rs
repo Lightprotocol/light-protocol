@@ -19,6 +19,12 @@ pub enum HasherError {
     InvalidNumFields,
     #[error("Empty input")]
     EmptyInput,
+    #[error("Borsh serialization failed.")]
+    BorshError,
+    #[error(
+        "Option hash to field size returned [0u8;32], a collision with None for an Option type."
+    )]
+    OptionHashToFieldSizeZero,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -33,6 +39,8 @@ impl From<HasherError> for u32 {
             HasherError::InvalidInputLength(_, _) => 7005,
             HasherError::InvalidNumFields => 7006,
             HasherError::EmptyInput => 7007,
+            HasherError::BorshError => 7008,
+            HasherError::OptionHashToFieldSizeZero => 7009,
         }
     }
 }

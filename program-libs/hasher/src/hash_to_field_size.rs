@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
+use borsh::BorshSerialize;
 
-use crate::{keccak::Keccak, to_byte_array::ToByteArray, Hasher, HasherError};
+use crate::{keccak::Keccak, Hasher, HasherError};
 
 pub const HASH_TO_FIELD_SIZE_SEED: u8 = u8::MAX;
 
@@ -8,39 +9,21 @@ pub trait HashToFieldSize {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError>;
 }
 
-impl<const N: usize> HashToFieldSize for [u8; N] {
-    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        Ok(hash_to_bn254_field_size_be(self.as_slice()))
-    }
-}
-
-impl HashToFieldSize for String {
-    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        Ok(hash_to_bn254_field_size_be(self.as_bytes()))
-    }
-}
-
-#[cfg(not(feature = "pinocchio"))]
-impl HashToFieldSize for crate::Pubkey {
-    fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        Ok(hash_to_bn254_field_size_be(self.as_ref()))
-    }
-}
-
-impl<T> HashToFieldSize for Vec<T>
+impl<T> HashToFieldSize for T
 where
-    T: ToByteArray,
+    T: BorshSerialize,
 {
     fn hash_to_field_size(&self) -> Result<[u8; 32], HasherError> {
-        let mut arrays = Vec::with_capacity(self.len());
-        for item in self {
-            let byte_array = item.to_byte_array()?;
-            arrays.push(byte_array);
+        let borsh_vec = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
+        #[cfg(debug_assertions)]
+        {
+            println!(
+                "#[hash] hash_to_field_size borsh try_to_vec {:?}",
+                borsh_vec
+            );
         }
-        let mut slices = Vec::with_capacity(self.len() + 1);
-        arrays.iter().for_each(|x| slices.push(x.as_slice()));
         let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
-        slices.push(bump_seed.as_slice());
+        let slices = [borsh_vec.as_slice(), bump_seed.as_slice()];
         // SAFETY: cannot panic Hasher::hashv returns an error because Poseidon can panic.
         let mut hashed_value = Keccak::hashv(slices.as_slice()).unwrap();
         // Truncates to 31 bytes so that value is less than bn254 Fr modulo
@@ -104,12 +87,7 @@ pub fn hashv_to_bn254_field_size_be_const_array<const MAX_SLICES: usize>(
 /// hashv_to_bn254_field_size_be(&[&[0u8;32][..]]);
 /// ```
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> [u8; 32] {
-    let bump_seed = [HASH_TO_FIELD_SIZE_SEED];
-    let mut hashed_value: [u8; 32] = Keccak::hashv(&[bytes, bump_seed.as_ref()]).unwrap();
-    // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-    // field size.
-    hashed_value[0] = 0;
-    hashed_value
+    hashv_to_bn254_field_size_be_const_array::<2>(&[bytes]).unwrap()
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -146,7 +124,7 @@ mod tests {
     #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
-        use crate::Pubkey;
+        use solana_program::pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
             let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice());
@@ -167,7 +145,7 @@ mod tests {
     #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
-        use crate::Pubkey;
+        use solana_program::pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
