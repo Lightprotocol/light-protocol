@@ -58,6 +58,7 @@ overflow-checks = true
 solana-banks-client = "=1.18.22"
 solana-banks-interface = "=1.18.22"
 solana-program = "=1.18.22"
+solana-pubkey = "2.3"
 solana-sdk = "=1.18.22"
 solana-program-test = "=1.18.22"
 solana-client = "=1.18.22"

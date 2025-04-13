@@ -4,7 +4,7 @@ A collection of procedural macros for the Light Protocol SDK.
 
 ## LightHasher
 
-The `LightHasher` derive macro implements cryptographic hashing for struct types, 
+The `LightHasher` derive macro implements cryptographic hashing for struct types,
 providing implementations of the `ToByteArray` and `DataHasher` traits.
 
 ### Attributes
@@ -33,6 +33,13 @@ pub struct MyAccount {
     pub f: Option<usize>,
 }
 ```
+
+### Debug
+
+```bash
+RUST_BACKTRACE=1 cargo test
+```
+Prints DataHasher::hash() inputs.
 
 ## Testing
 

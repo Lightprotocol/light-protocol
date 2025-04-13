@@ -109,12 +109,12 @@ fn process_pubkey_field(
 ) {
     if context.flatten_field_exists {
         context.data_hasher_assignments.push(quote! {
-            field_array[#index + num_flattned_fields] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_bytes()).as_slice();
+            field_array[#index + num_flattned_fields] = ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref()).as_slice();
             slices[#index + num_flattned_fields] = field_array[#index + num_flattned_fields].as_slice();
         });
     } else {
         context.data_hasher_assignments.push(quote! {
-            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_bytes())
+            ::light_hasher::hash_to_field_size::hash_to_bn254_field_size_be(self.#field_name.as_ref())
         });
     }
 }
@@ -171,7 +171,7 @@ fn process_option_field(
     if context.flatten_field_exists {
         context.data_hasher_assignments.push(quote! {
             field_array[#index + num_flattned_fields] = if let Some(#field_name) = &self.#field_name {
-                let result = #field_name.hash_to_field_size()?;
+               let result = #field_name.hash_to_field_size()?;
                 // Security check to ensure that hash_to_field_size
                 // does not produce a collision with None.
                 // This cannot happen in light_hasher hash_to_field_size implementations,
@@ -187,20 +187,18 @@ fn process_option_field(
         });
     } else {
         context.data_hasher_assignments.push(quote! {
-            {
-                if let Some(#field_name) = &self.#field_name {
-                    let result = #field_name.hash_to_field_size()?;
-                    // Security check to ensure that hash_to_field_size
-                    // does not produce a collision with None.
-                    // This cannot happen in light_hasher hash_to_field_size implementations,
-                    // but third parties could implement hash_to_field_size insecurely.
-                    if result == [0u8; 32] {
-                        return Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero);
-                    }
-                    result
-                } else {
-                    [0u8;32]
+            if let Some(#field_name) = &self.#field_name {
+                let result = #field_name.hash_to_field_size()?;
+                // Security check to ensure that hash_to_field_size
+                // does not produce a collision with None.
+                // This cannot happen in light_hasher hash_to_field_size implementations,
+                // but third parties could implement hash_to_field_size insecurely.
+                if result == [0u8; 32] {
+                    return Err(::light_hasher::errors::HasherError::OptionHashToFieldSizeZero);
                 }
+                result
+            } else {
+                [0u8;32]
             }
         });
     }

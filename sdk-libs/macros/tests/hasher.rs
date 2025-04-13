@@ -1,8 +1,10 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
+use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_hasher::{to_byte_array::ToByteArray, DataHasher, Hasher, Poseidon};
+use light_hasher::{to_byte_array::ToByteArray, DataHasher, Hasher, Poseidon, Sha256};
 use light_sdk_macros::LightHasher;
+use solana_pubkey::Pubkey;
 
 #[derive(LightHasher, Clone)]
 pub struct MyAccount {
@@ -129,7 +131,6 @@ mod fixtures {
         }
     }
 }
-use borsh::BorshSerialize;
 
 mod basic_hashing {
     use super::{fixtures::*, *};
@@ -559,8 +560,8 @@ fn test_option_array() {
     };
 
     let result = test_struct.hash::<Poseidon>().unwrap();
-    assert_ne!(result, [0u8; 32],);
-    let expected_result = Poseidon::hash(&hash_to_bn254_field_size_be(&[0u8; 32])).unwrap();
+    assert_ne!(result, [0u8; 32]);
+    let expected_result = Poseidon::hash(&hash_to_bn254_field_size_be(&[0u8; 32][..])).unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -609,13 +610,13 @@ mod option_handling {
             {
                 let mut bytes = [0u8; 32];
                 bytes[28..].copy_from_slice(&42u32.to_be_bytes());
-                bytes[27] = 1; // Suffix with 1 for Some
+                bytes[27] = 1; // Prefix with 1 for Some
                 bytes
             },
             {
                 let mut bytes = [0u8; 32];
                 bytes[24..].copy_from_slice(&u64::MAX.to_be_bytes());
-                bytes[23] = 1; // Suffix with 1 for Some
+                bytes[23] = 1; // Prefix with 1 for Some
                 bytes
             },
             light_compressed_account::hash_to_bn254_field_size_be(
@@ -1143,5 +1144,251 @@ mod option_uniqueness {
             long_struct.hash::<Poseidon>().unwrap(),
             "Different length truncated values should hash differently"
         );
+    }
+}
+
+#[test]
+fn test_solana_program_pubkey() {
+    // Pubkey field
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: Pubkey,
+        }
+        let pubkey_struct = PubkeyStruct {
+            pubkey: Pubkey::new_unique(),
+        };
+
+        let manual_hash = Poseidon::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(pubkey_struct.pubkey.as_ref())
+                .as_slice(),
+        )
+        .unwrap();
+        let manual_hash_borsh = Poseidon::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(
+                pubkey_struct.pubkey.try_to_vec().unwrap().as_slice(),
+            )
+            .as_slice(),
+        )
+        .unwrap();
+        let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+        assert_eq!(manual_hash, hash);
+        assert_eq!(manual_hash_borsh, hash);
+    }
+    // Option<Pubkey>
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: Option<Pubkey>,
+        }
+        // Some
+        {
+            let pubkey_struct = PubkeyStruct {
+                pubkey: Some(Pubkey::new_unique()),
+            };
+            let manual_bytes = pubkey_struct.pubkey.unwrap().try_to_vec().unwrap();
+
+            let manual_hash = Poseidon::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+        // None
+        {
+            let pubkey_struct = PubkeyStruct { pubkey: None };
+            let manual_hash = Poseidon::hash([0u8; 32].as_slice()).unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+    }
+    // Vec<Pubkey>
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: Vec<Pubkey>,
+        }
+        let pubkey_vec = (0..3).map(|_| Pubkey::new_unique()).collect::<Vec<_>>();
+        let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
+        let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
+
+        let manual_hash = Poseidon::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                .as_slice(),
+        )
+        .unwrap();
+        let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+        assert_eq!(manual_hash, hash);
+
+        // Sha256
+        let manual_hash = Sha256::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                .as_slice(),
+        )
+        .unwrap();
+        let hash = pubkey_struct.hash::<Sha256>().unwrap();
+        assert_eq!(manual_hash, hash);
+    }
+    // Vec<Option<Pubkey>>
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: Vec<Option<Pubkey>>,
+        }
+        // Some
+        {
+            let pubkey_vec = (0..3)
+                .map(|_| Some(Pubkey::new_unique()))
+                .collect::<Vec<_>>();
+            let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
+            let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
+
+            let manual_hash = Poseidon::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+        // None
+        {
+            let pubkey_vec = (0..3).map(|_| None).collect::<Vec<_>>();
+            let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
+            let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
+            let manual_hash = Poseidon::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+    }
+}
+
+// Option<BorshStruct>
+#[test]
+fn test_borsh() {
+    #[derive(BorshDeserialize, BorshSerialize)]
+    pub struct BorshStruct {
+        data: [u8; 34],
+    }
+    impl Default for BorshStruct {
+        fn default() -> Self {
+            Self { data: [1u8; 34] }
+        }
+    }
+    // Option Borsh
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: Option<BorshStruct>,
+        }
+        // Some
+        {
+            let pubkey_struct = PubkeyStruct {
+                pubkey: Some(BorshStruct::default()),
+            };
+            let manual_bytes = pubkey_struct.pubkey.as_ref().unwrap().try_to_vec().unwrap();
+
+            let manual_hash = Poseidon::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash(
+                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                    .as_slice(),
+            )
+            .unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+        // None
+        {
+            let pubkey_struct = PubkeyStruct { pubkey: None };
+            let manual_hash = Poseidon::hash([0u8; 32].as_slice()).unwrap();
+            let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+            assert_eq!(manual_hash, hash);
+
+            // Sha256
+            let manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
+            let hash = pubkey_struct.hash::<Sha256>().unwrap();
+            assert_eq!(manual_hash, hash);
+        }
+    }
+    // Borsh
+    {
+        #[derive(LightHasher)]
+        pub struct PubkeyStruct {
+            #[hash]
+            pub pubkey: BorshStruct,
+        }
+
+        let pubkey_struct = PubkeyStruct {
+            pubkey: BorshStruct::default(),
+        };
+        let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
+
+        let manual_hash = Poseidon::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                .as_slice(),
+        )
+        .unwrap();
+        let hash = pubkey_struct.hash::<Poseidon>().unwrap();
+        assert_eq!(manual_hash, hash);
+
+        // Sha256
+        let manual_hash = Sha256::hash(
+            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
+                .as_slice(),
+        )
+        .unwrap();
+        let hash = pubkey_struct.hash::<Sha256>().unwrap();
+        assert_eq!(manual_hash, hash);
     }
 }
