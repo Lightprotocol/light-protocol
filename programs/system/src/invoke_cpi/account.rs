@@ -25,7 +25,7 @@ pub struct CpiContextAccount {
     pub context: Vec<InstructionDataInvokeCpi>,
 }
 
-impl Discriminator<8> for CpiContextAccount {
+impl Discriminator for CpiContextAccount {
     const DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
 }
 

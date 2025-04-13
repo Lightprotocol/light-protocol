@@ -74,7 +74,7 @@ impl<'info> InvokeCpiInstruction<'info> {
             None
         } else {
             check_owner(&crate::ID, option_cpi_context_account).map_err(ProgramError::from)?;
-            check_discriminator::<CpiContextAccount, 8>(
+            check_discriminator::<CpiContextAccount>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )
             .map_err(ProgramError::from)?;

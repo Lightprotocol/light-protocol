@@ -12,10 +12,9 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
-    use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
-        program_merkle_context::unpack_address_merkle_context,
+        program_merkle_context::unpack_address_merkle_context, Discriminator,
     };
 
     use super::*;

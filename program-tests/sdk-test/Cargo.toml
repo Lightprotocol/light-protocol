@@ -21,11 +21,10 @@ default = []
 [dependencies]
 light-sdk = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["solana"] }
-light-compressed-account = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
-light-account-checks = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
+light-compressed-account = { workspace = true, features = ["solana"] }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }

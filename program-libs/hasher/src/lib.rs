@@ -29,14 +29,6 @@ pub trait Hasher {
     fn zero_indexed_leaf() -> [u8; 32];
 }
 
-// TODO: remove once light-sdk is switched to account-checks
-pub trait Discriminator {
-    const DISCRIMINATOR: [u8; 8];
-    fn discriminator() -> [u8; 8] {
-        Self::DISCRIMINATOR
-    }
-}
-
 #[cfg(feature = "pinocchio")]
 use pinocchio::program_error::ProgramError;
 #[cfg(not(feature = "pinocchio"))]

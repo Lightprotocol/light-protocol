@@ -13,8 +13,12 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
     let discriminator: proc_macro2::TokenStream = format!("{discriminator:?}").parse().unwrap();
 
     Ok(quote! {
-        impl #impl_gen light_hasher::Discriminator for #account_name #type_gen #where_clause {
+        impl #impl_gen Discriminator for #account_name #type_gen #where_clause {
             const DISCRIMINATOR: [u8; 8] = #discriminator;
+
+            fn discriminator() -> [u8; 8] {
+                Self::DISCRIMINATOR
+            }
         }
     })
 }
@@ -39,7 +43,7 @@ mod tests {
         let output = discriminator(input).unwrap();
         let output = output.to_string();
 
-        assert!(output.contains("impl light_hasher :: Discriminator for MyAccount"));
+        assert!(output.contains("impl Discriminator for MyAccount"));
         assert!(output.contains("[181 , 255 , 112 , 42 , 17 , 188 , 66 , 199]"));
     }
 }

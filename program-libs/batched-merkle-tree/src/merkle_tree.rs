@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use light_account_checks::{
     checks::{check_account_info, set_discriminator},
-    discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
+    discriminator::{Discriminator, DISCRIMINATOR_LEN},
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
@@ -85,7 +85,7 @@ pub struct BatchedMerkleTreeAccount<'a> {
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
-impl Discriminator<ANCHOR_DISCRIMINATOR_LEN> for BatchedMerkleTreeAccount<'_> {
+impl Discriminator for BatchedMerkleTreeAccount<'_> {
     const DISCRIMINATOR: [u8; 8] = *b"BatchMta";
 }
 
@@ -135,9 +135,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        light_account_checks::checks::check_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(
-            account_data,
-        )?;
+        light_account_checks::checks::check_discriminator::<Self>(account_data)?;
         Self::from_bytes::<BATCHED_STATE_MERKLE_TREE_TYPE>(account_data, pubkey)
     }
 
@@ -160,7 +158,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         program_id: &crate::Pubkey,
         account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info::<Self, ANCHOR_DISCRIMINATOR_LEN>(program_id, account_info)?;
+        check_account_info::<Self>(program_id, account_info)?;
         let mut data = account_info.try_borrow_mut_data()?;
 
         // Necessary to convince the borrow checker.
@@ -185,7 +183,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         // Discriminator is already checked in check_account_info.
-        let (_discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
+        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
@@ -229,8 +227,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         tree_type: TreeType,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
-        let (discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
-        set_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(discriminator)?;
+        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
+        set_discriminator::<Self>(discriminator)?;
 
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)

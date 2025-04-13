@@ -53,6 +53,7 @@ light-macros = { workspace = true }
 light-compressed-account = { workspace = true }
 light-verifier = { workspace = true }
 light-hasher = { workspace = true }
+light-account-checks = { workspace = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
