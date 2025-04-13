@@ -90,6 +90,15 @@ export type TokenPoolActivity = {
     action: Action;
 };
 
+/**
+ * Derive the token pool pda with bump.
+ *
+ * @param mint The mint of the token pool
+ * @param bump Bump. starts at 0. The Protocol supports up to 4 bumps aka token
+ * pools per mint.
+ *
+ * @returns The token pool pda
+ */
 export function deriveTokenPoolPdaWithBump(
     mint: PublicKey,
     bump: number,
@@ -107,6 +116,9 @@ export function deriveTokenPoolPdaWithBump(
     return address;
 }
 
+/**
+ * Token pool pda info.
+ */
 export type TokenPoolInfo = {
     /**
      * The mint of the token pool
@@ -137,12 +149,19 @@ export type TokenPoolInfo = {
      */
     balance: BN;
 };
+
+/**
+ * @internal
+ */
 export enum Action {
     Compress = 1,
     Decompress = 2,
     Transfer = 3,
 }
 
+/**
+ * @internal
+ */
 const shuffleArray = <T>(array: T[]): T[] => {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -171,16 +190,19 @@ export function selectTokenPoolInfo(infos: TokenPoolInfo[]): TokenPoolInfo {
 /**
  * Select one or multiple token pool infos from the token pool infos.
  *
- * @param infos             The token pool infos
- * @param decompressAmount  The amount of tokens to withdraw. Only provide if
- *                          you want to withdraw a specific amount.
+ * Use this function for `decompress`.
  *
- * @returns One or multiple token pool infos
+ * For `compress`, `mintTo` use {@link selectTokenPoolInfo} instead.
+ *
+ * @param infos             The token pool infos
+ * @param decompressAmount  The amount of tokens to withdraw
+ *
+ * @returns Array with one or more token pool infos.
  */
 export function selectTokenPoolInfosForDecompression(
     infos: TokenPoolInfo[],
     decompressAmount: number | BN,
-): TokenPoolInfo | TokenPoolInfo[] {
+): TokenPoolInfo[] {
     infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>

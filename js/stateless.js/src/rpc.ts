@@ -618,16 +618,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
             try {
                 info = await getActiveStateTreeInfos({
                     connection: this,
-                    stateTreeLookupTableAddress:
-                        mainnet[0].stateTreeLookupTable,
-                    nullifyTableAddress: mainnet[0].nullifyTable,
+                    stateTreeLUTPairs: [mainnet[0]],
                 });
                 this.activeStateTreeInfo = info;
             } catch {
                 info = await getActiveStateTreeInfos({
                     connection: this,
-                    stateTreeLookupTableAddress: devnet[0].stateTreeLookupTable,
-                    nullifyTableAddress: devnet[0].nullifyTable,
+                    stateTreeLUTPairs: [devnet[0]],
                 });
                 this.activeStateTreeInfo = info;
             }

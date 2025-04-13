@@ -62,7 +62,7 @@ export const defaultStaticAccountsStruct = () => {
 
 export type StateTreeLUTPair = {
     stateTreeLookupTable: PublicKey;
-    nullifyTable: PublicKey;
+    nullifyLookupTable: PublicKey;
 };
 
 /**
@@ -78,7 +78,7 @@ export const defaultStateTreeLookupTables = (): {
                 stateTreeLookupTable: new PublicKey(
                     stateTreeLookupTableMainnet,
                 ),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableMainnet,
                 ),
             },
@@ -86,7 +86,7 @@ export const defaultStateTreeLookupTables = (): {
         devnet: [
             {
                 stateTreeLookupTable: new PublicKey(stateTreeLookupTableDevnet),
-                nullifyTable: new PublicKey(
+                nullifyLookupTable: new PublicKey(
                     nullifiedStateTreeLookupTableDevnet,
                 ),
             },
