@@ -66,14 +66,14 @@ export async function getActiveStateTreeInfos({
     connection: Connection;
     stateTreeLUTPairs: StateTreeLUTPair[];
 }): Promise<StateTreeInfo[]> {
-    const stateTreeLookupTablesAndNullifyTables = await Promise.all(
+    const stateTreeLookupTablesAndNullifyLookupTables = await Promise.all(
         stateTreeLUTPairs.map(async lutPair => {
             return {
                 stateTreeLookupTable: await connection.getAddressLookupTable(
                     lutPair.stateTreeLookupTable,
                 ),
-                nullifyTable: await connection.getAddressLookupTable(
-                    lutPair.nullifyTable,
+                nullifyLookupTable: await connection.getAddressLookupTable(
+                    lutPair.nullifyLookupTable,
                 ),
             };
         }),
@@ -83,18 +83,19 @@ export async function getActiveStateTreeInfos({
 
     for (const {
         stateTreeLookupTable,
-        nullifyTable,
-    } of stateTreeLookupTablesAndNullifyTables) {
+        nullifyLookupTable,
+    } of stateTreeLookupTablesAndNullifyLookupTables) {
         if (!stateTreeLookupTable.value) {
             throw new Error('State tree lookup table not found');
         }
 
-        if (!nullifyTable.value) {
+        if (!nullifyLookupTable.value) {
             throw new Error('Nullify table not found');
         }
 
         const stateTreePubkeys = stateTreeLookupTable.value.state.addresses;
-        const nullifyTablePubkeys = nullifyTable.value.state.addresses;
+        const nullifyLookupTablePubkeys =
+            nullifyLookupTable.value.state.addresses;
 
         if (stateTreePubkeys.length % 3 !== 0) {
             throw new Error(
@@ -112,7 +113,7 @@ export async function getActiveStateTreeInfos({
             }
 
             // Skip rolledover (full or almost full) Merkle trees
-            if (!nullifyTablePubkeys.includes(tree)) {
+            if (!nullifyLookupTablePubkeys.includes(tree)) {
                 contexts.push({
                     tree,
                     queue,

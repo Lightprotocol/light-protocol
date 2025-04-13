@@ -134,7 +134,7 @@ export async function extendStateTreeLookupTable({
  * @internal
  * @param connection                    Connection to the Solana network
  * @param stateTreeAddress              Address of the state tree to nullify
- * @param nullifyTableAddress           Address of the nullifier lookup table to
+ * @param nullifyLookupTableAddress           Address of the nullifier lookup table to
  *                                      store address in
  * @param stateTreeLookupTableAddress   lookup table storing all state tree
  *                                      addresses
@@ -144,14 +144,14 @@ export async function extendStateTreeLookupTable({
 export async function nullifyLookupTable({
     connection,
     fullStateTreeAddress,
-    nullifyTableAddress,
+    nullifyLookupTableAddress,
     stateTreeLookupTableAddress,
     payer,
     authority,
 }: {
     connection: Connection;
     fullStateTreeAddress: PublicKey;
-    nullifyTableAddress: PublicKey;
+    nullifyLookupTableAddress: PublicKey;
     stateTreeLookupTableAddress: PublicKey;
     payer: Keypair;
     authority: Keypair;
@@ -175,20 +175,23 @@ export async function nullifyLookupTable({
         );
     }
 
-    const nullifyTable =
-        await connection.getAddressLookupTable(nullifyTableAddress);
+    const nullifyLookupTable = await connection.getAddressLookupTable(
+        nullifyLookupTableAddress,
+    );
 
-    if (!nullifyTable.value) {
+    if (!nullifyLookupTable.value) {
         throw new Error('Nullify table not found');
     }
-    if (nullifyTable.value.state.addresses.includes(fullStateTreeAddress)) {
+    if (
+        nullifyLookupTable.value.state.addresses.includes(fullStateTreeAddress)
+    ) {
         throw new Error('Address already exists in nullify lookup table');
     }
 
     const instructions = AddressLookupTableProgram.extendLookupTable({
         payer: payer.publicKey,
         authority: authority.publicKey,
-        lookupTable: nullifyTableAddress,
+        lookupTable: nullifyLookupTableAddress,
         addresses: [fullStateTreeAddress],
     });
 
