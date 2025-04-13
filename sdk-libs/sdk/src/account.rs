@@ -1,13 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{
+    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
+    pubkey::Pubkey,
+};
 use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
-    account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
-    error::LightSdkError,
-    instruction::account_meta::CompressedAccountMetaTrait,
-    AnchorDeserialize, AnchorSerialize, Discriminator,
+    error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,
+    AnchorSerialize, Discriminator,
 };
 
 #[derive(Debug, PartialEq)]
