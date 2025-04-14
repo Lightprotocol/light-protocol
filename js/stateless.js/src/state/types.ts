@@ -22,43 +22,43 @@ export enum TreeType {
     AddressV2 = 4,
 }
 
-// /**
-//  * @deprecated Use {@link StateTreeInfo} instead.
-//  * A bundle of active trees for a given tree type.
-//  */
-// export type ActiveTreeBundle = {
-//     tree: PublicKey;
-//     queue: PublicKey | null;
-//     cpiContext: PublicKey | null;
-//     treeType: TreeType;
-// };
+/**
+ * @deprecated Use {@link StateTreeInfo} instead.
+ * A bundle of active trees for a given tree type.
+ */
+export type ActiveTreeBundle = {
+    tree: PublicKey;
+    queue: PublicKey | null;
+    cpiContext: PublicKey | null;
+    treeType: TreeType;
+};
 
 /**
- * Public keys for a state tree, versioned via {@link TreeType}. The protocol
+ * State tree info, versioned via {@link TreeType}. The protocol
  * stores compressed accounts in state trees.
  *
  * Onchain Accounts are subject to Solana's write-lock limits.
  *
  * To load balance transactions, use {@link selectStateTreeInfo} to
- * select a random tree from active Trees.
+ * select a random tree from a range of active trees.
  *
  * Example:
  * ```typescript
- * const infos = await getCachedActiveStateTreeInfos();
+ * const infos = await rpc.getCachedActiveStateTreeInfos();
  * const info = selectStateTreeInfo(infos);
- * const ix = CompressedTokenProgram.compress({
- *     ... // other params
+ * const ix = await CompressedTokenProgram.compress({
+ *     // ...
  *     outputStateTree: info
  * });
  * ```
  */
 export type StateTreeInfo = {
     /**
-     * Account belonging to the tree.
+     * Pubkey of the tree account.
      */
     tree: PublicKey;
     /**
-     * The state queue belonging to the tree.
+     * Pubkey of the queue account associated with the tree.
      */
     queue: PublicKey;
     /**
@@ -68,15 +68,18 @@ export type StateTreeInfo = {
     /**
      * Optional compressed cpi context account.
      */
-    cpiContext: PublicKey | null;
+    cpiContext?: PublicKey;
     /**
-     * Optional next tree info.
+     * Optional next tree info if the tree is full.
      */
-    nextTreeInfo: StateTreeInfo | null;
+    nextTreeInfo?: StateTreeInfo;
 };
-export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {
-    cpiContext: null;
-};
+
+/**
+ * Address tree info, versioned via {@link TreeType}. The protocol
+ * stores PDAs in address trees.
+ */
+export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {};
 
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
@@ -102,23 +105,28 @@ export interface QueueIndex {
  * compressed account.
  * */
 export interface CompressedAccount {
-    /** Public key of program or user that owns the account */
-    owner: PublicKey;
-    /** Lamports attached to the account */
-    lamports: BN; // u64 // FIXME: optional
     /**
-     * TODO: use PublicKey. Optional unique account ID that is persistent across
-     * transactions.
+     * Public key of program or user owning the account.
      */
-    address: number[] | null; // Option<PublicKey>
-    /** Optional data attached to the account */
-    data: CompressedAccountData | null; // Option<CompressedAccountData>
+    owner: PublicKey;
+    /**
+     * Lamports attached to the account.
+     */
+    lamports: BN;
+    /**
+     * Optional unique account ID that is persistent across transactions.
+     */
+    address: number[] | null;
+    /**
+     * Optional data attached to the account.
+     */
+    data: CompressedAccountData | null;
 }
 
 /**
  * Describe the generic compressed account details applicable to every
  * compressed account.
- * */
+ */
 export interface OutputCompressedAccountWithPackedContext {
     compressedAccount: CompressedAccount;
     merkleTreeIndex: number;
