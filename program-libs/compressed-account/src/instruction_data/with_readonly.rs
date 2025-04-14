@@ -443,7 +443,7 @@ fn test_read_only_zero_copy() {
             data_hash: [10; 32],
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 1,
-                nullifier_queue_pubkey_index: 2,
+                queue_pubkey_index: 2,
                 leaf_index: 3,
                 prove_by_index: false,
             },
@@ -473,7 +473,7 @@ fn test_read_only_zero_copy() {
             account_hash: [80; 32],
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 5,
-                nullifier_queue_pubkey_index: 6,
+                queue_pubkey_index: 6,
                 leaf_index: 7,
                 prove_by_index: false,
             },

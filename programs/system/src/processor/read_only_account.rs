@@ -19,9 +19,7 @@ pub fn verify_read_only_account_inclusion_by_index(
 ) -> Result<usize> {
     let mut num_prove_read_only_accounts_prove_by_index = 0;
     for read_only_account in read_only_accounts.iter() {
-        let queue_index = read_only_account
-            .merkle_context
-            .nullifier_queue_pubkey_index;
+        let queue_index = read_only_account.merkle_context.queue_pubkey_index;
         let tree_index = read_only_account.merkle_context.merkle_tree_pubkey_index;
         let (output_queue_account_info, merkle_tree_account_info) =
             get_queue_and_tree_accounts(accounts, queue_index as usize, tree_index as usize)?;

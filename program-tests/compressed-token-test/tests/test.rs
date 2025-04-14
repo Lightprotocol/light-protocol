@@ -3096,7 +3096,7 @@ async fn test_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let mut additional_token_pool_accounts = (0..4)
                 .map(|x| get_token_pool_pda_with_index(&mint, x))
                 .collect::<Vec<_>>();
@@ -3416,7 +3416,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3451,7 +3451,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3481,7 +3481,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, mut instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -5368,7 +5368,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
             .iter()
             .map(|x| MerkleContext {
                 merkle_tree_pubkey: *merkle_tree_pubkey,
-                nullifier_queue_pubkey: *nullifier_queue_pubkey,
+                queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 prove_by_index: false,
                 tree_type: TreeType::StateV1,

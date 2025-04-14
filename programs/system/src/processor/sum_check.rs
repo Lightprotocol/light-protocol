@@ -165,7 +165,7 @@ mod test {
             let prove_by_index = index < num_by_index;
             let merkle_context = PackedMerkleContext {
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
+                queue_pubkey_index: 0,
                 leaf_index: 0,
                 prove_by_index,
             };

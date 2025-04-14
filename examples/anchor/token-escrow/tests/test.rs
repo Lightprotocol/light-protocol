@@ -264,7 +264,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],
@@ -426,7 +426,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
             tree_type: TreeType::StateV1,
         }],

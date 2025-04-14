@@ -32,17 +32,17 @@ pub fn pack_merkle_context(
 ) -> PackedMerkleContext {
     let MerkleContext {
         merkle_tree_pubkey,
-        nullifier_queue_pubkey,
+        queue_pubkey,
         leaf_index,
         prove_by_index,
         ..
     } = merkle_context;
     let merkle_tree_pubkey_index = remaining_accounts.insert_or_get(*merkle_tree_pubkey);
-    let nullifier_queue_pubkey_index = remaining_accounts.insert_or_get(*nullifier_queue_pubkey);
+    let queue_pubkey_index = remaining_accounts.insert_or_get(*queue_pubkey);
 
     PackedMerkleContext {
         merkle_tree_pubkey_index,
-        nullifier_queue_pubkey_index,
+        queue_pubkey_index,
         leaf_index: *leaf_index,
         prove_by_index: *prove_by_index,
     }
@@ -117,10 +117,10 @@ mod test {
         let mut remaining_accounts = PackedAccounts::default();
 
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let nullifier_queue_pubkey = Pubkey::new_unique();
+        let queue_pubkey = Pubkey::new_unique();
         let merkle_context = MerkleContext {
             merkle_tree_pubkey,
-            nullifier_queue_pubkey,
+            queue_pubkey,
             leaf_index: 69,
             prove_by_index: false,
             ..Default::default()
@@ -131,7 +131,7 @@ mod test {
             packed_merkle_context,
             PackedMerkleContext {
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 1,
+                queue_pubkey_index: 1,
                 leaf_index: 69,
                 prove_by_index: false,
             }
@@ -145,21 +145,21 @@ mod test {
         let merkle_contexts = &[
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
-                nullifier_queue_pubkey: Pubkey::new_unique(),
+                queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 10,
                 prove_by_index: false,
                 ..Default::default()
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
-                nullifier_queue_pubkey: Pubkey::new_unique(),
+                queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 11,
                 prove_by_index: true,
                 ..Default::default()
             },
             MerkleContext {
                 merkle_tree_pubkey: Pubkey::new_unique(),
-                nullifier_queue_pubkey: Pubkey::new_unique(),
+                queue_pubkey: Pubkey::new_unique(),
                 leaf_index: 12,
                 prove_by_index: false,
                 ..Default::default()
@@ -173,19 +173,19 @@ mod test {
             &[
                 PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 10,
                     prove_by_index: false
                 },
                 PackedMerkleContext {
                     merkle_tree_pubkey_index: 2,
-                    nullifier_queue_pubkey_index: 3,
+                    queue_pubkey_index: 3,
                     leaf_index: 11,
                     prove_by_index: true
                 },
                 PackedMerkleContext {
                     merkle_tree_pubkey_index: 4,
-                    nullifier_queue_pubkey_index: 5,
+                    queue_pubkey_index: 5,
                     leaf_index: 12,
                     prove_by_index: false,
                 }

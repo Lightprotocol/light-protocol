@@ -90,10 +90,8 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
             hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
         }
         let merkle_context = input_compressed_account_with_context.merkle_context();
-        let queue_index = context.get_index_or_insert(
-            merkle_context.nullifier_queue_pubkey_index,
-            remaining_accounts,
-        );
+        let queue_index =
+            context.get_index_or_insert(merkle_context.queue_pubkey_index, remaining_accounts);
         let tree_index = context
             .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
@@ -122,11 +120,11 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
         .input_accounts()
         .enumerate()
         .filter(|(i, x)| {
-            let candidate = x.merkle_context().nullifier_queue_pubkey_index;
+            let candidate = x.merkle_context().queue_pubkey_index;
             !instruction_data
                 .input_accounts()
                 .take(*i)
-                .any(|y| y.merkle_context().nullifier_queue_pubkey_index == candidate)
+                .any(|y| y.merkle_context().queue_pubkey_index == candidate)
         })
         .count() as u8;
 

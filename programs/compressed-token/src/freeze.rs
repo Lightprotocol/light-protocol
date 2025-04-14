@@ -395,7 +395,7 @@ pub mod test_freeze {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 1,
                     prove_by_index: false,
                 },
@@ -409,7 +409,7 @@ pub mod test_freeze {
 
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: 2,
                     prove_by_index: false,
                 },
@@ -551,7 +551,7 @@ pub mod test_freeze {
                 amount: rng.gen_range(0..1_000_000_000),
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     leaf_index: rng.gen_range(0..1_000_000_000),
                     prove_by_index: false,
                 },
