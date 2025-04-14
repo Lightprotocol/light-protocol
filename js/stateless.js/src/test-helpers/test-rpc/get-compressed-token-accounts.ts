@@ -162,7 +162,7 @@ export async function getCompressedTokenAccounts(
                 return (
                     JSON.stringify(hash) ===
                     JSON.stringify(
-                        outputCompressedAccount.compressedAccount.hash,
+                        outputCompressedAccount.compressedAccount.hash.toArray(),
                     )
                 );
             }),

@@ -1802,52 +1802,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
-     * array of addresses.
-     *
-     * Validity proofs prove the presence of compressed accounts in state trees
-     * and the non-existence of addresses in address trees, respectively. They
-     * enable verification without recomputing the merkle proof path, thus
-     * lowering verification and data costs.
-     *
-     * @param hashes        Array of { hash: BN254, tree: PublicKey, queue: PublicKey }.
-     * @param newAddresses  Array of { address: BN254, tree: PublicKey, queue: PublicKey }.
-     * @returns             validity proof with context
-     */
-    async getValidityProofV1(
-        hashes: BN[] = [],
-        newAddresses: AddressWithTreeInfo[] = [],
-    ): Promise<ValidityProofWithContext> {
-        // TODO: until v2, consider not upgrading.
-        const accs = await this.getMultipleCompressedAccounts(hashes);
-        const trees = accs.map(acc => acc.treeInfo.tree);
-        const queues = accs.map(acc => acc.treeInfo.queue);
-
-        const formattedHashes = hashes.map((item, index) => {
-            return {
-                hash: item,
-                tree: trees[index],
-                queue: queues[index],
-            };
-        });
-
-        const formattedNewAddresses = newAddresses.map(item => {
-            return {
-                address: item.address,
-                tree: item.treeInfo.tree,
-                queue: item.treeInfo.queue,
-            };
-        });
-
-        const { value } = await this.getValidityProofAndRpcContext(
-            formattedHashes,
-            formattedNewAddresses,
-        );
-        return value;
-    }
-
-    /**
-     * Fetch the latest validity proof for (1) compressed accounts specified by
-     * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses. Returns with context slot.
      *
      * Validity proofs prove the presence of compressed accounts in state trees

@@ -18,9 +18,9 @@ import {
     sendAndConfirmTx,
     StateTreeInfo,
     selectStateTreeInfo,
+    createRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-
 import { createMint, mintTo, transfer } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
@@ -91,7 +91,7 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let rpc: TestRpc;
+    let rpc: TestRpc | Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
@@ -103,6 +103,7 @@ describe('transfer', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
+        // rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -137,7 +138,7 @@ describe('transfer', () => {
         );
     });
 
-    it('should transfer from bob -> charlie', async () => {
+    it.only('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
         const bobPreCompressedTokenAccounts = (
@@ -145,6 +146,21 @@ describe('transfer', () => {
                 mint,
             })
         ).items;
+
+        console.log(
+            'bob pre',
+            bobPreCompressedTokenAccounts.map(acc =>
+                acc.parsed.amount.toString(),
+            ),
+        );
+
+        const charliePreCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                mint,
+            })
+        ).items.map(acc => acc.parsed.amount.toString());
+
+        console.log('charlie pre', charliePreCompressedTokenAccounts);
 
         await transfer(
             rpc,
@@ -155,6 +171,22 @@ describe('transfer', () => {
             charlie.publicKey,
             stateTreeInfo,
         );
+
+        const bobPostCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                mint,
+            })
+        ).items.map(acc => acc.parsed.amount.toString());
+
+        console.log('bob post', bobPostCompressedTokenAccounts);
+
+        const charliePostCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                mint,
+            })
+        ).items.map(acc => acc.parsed.amount.toString());
+
+        console.log('charlie post', charliePostCompressedTokenAccounts);
 
         await assertTransfer(
             rpc,

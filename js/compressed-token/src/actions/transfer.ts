@@ -14,9 +14,7 @@ import {
     StateTreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-
 import BN from 'bn.js';
-
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 
