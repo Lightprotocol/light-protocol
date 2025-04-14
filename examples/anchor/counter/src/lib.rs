@@ -16,8 +16,6 @@ pub mod counter {
         address::v1::derive_address, cpi::accounts::CompressionCpiAccounts, NewAddressParamsPacked,
     };
 
-    use super::*;
-
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
         light_ix_data: LightInstructionData,
@@ -177,6 +175,45 @@ pub mod counter {
         .map_err(ProgramError::from)?;
 
         counter.value = 0;
+
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::ID,
+        )
+        .map_err(ProgramError::from)?;
+
+        verify_compressed_account_infos(
+            &light_cpi_accounts,
+            light_ix_data.proof,
+            &[counter.to_account_info().unwrap()],
+            None,
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
+
+        Ok(())
+    }
+
+    pub fn close_counter<'info>(
+        ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,
+        light_ix_data: LightInstructionData,
+        counter_value: u64,
+        account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let program_id = crate::ID.into();
+        // new_close will creates a  CBorshAccount without output state which will close the account.
+        let counter = CBorshAccount::<'_, CounterAccount>::new_close(
+            &program_id,
+            &account_meta,
+            CounterAccount {
+                owner: ctx.accounts.signer.key(),
+                value: counter_value,
+            },
+        )
+        .map_err(ProgramError::from)?;
 
         let light_cpi_accounts = CompressionCpiAccounts::new(
             ctx.accounts.signer.as_ref(),
