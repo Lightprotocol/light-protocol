@@ -4,7 +4,7 @@ use light_sdk::{
     cpi::verify::verify_compressed_account_infos,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    light_account, Discriminator, LightHasher,
+    Discriminator, LightDiscriminator, LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
@@ -120,8 +120,9 @@ pub mod sdk_anchor_test {
     }
 }
 
-#[light_account]
-#[derive(Clone, Debug, Default)]
+#[derive(
+    Clone, Debug, Default, LightHasher, LightDiscriminator, AnchorSerialize, AnchorDeserialize,
+)]
 pub struct MyCompressedAccount {
     pub name: String,
     pub nested: NestedData,

@@ -26,7 +26,7 @@ members = [
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
-    # "examples/anchor/counter",
+    "examples/anchor/counter",
     # "examples/anchor/memo",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
