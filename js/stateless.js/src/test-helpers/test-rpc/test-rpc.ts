@@ -675,8 +675,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 nextIndex: bn(lowElement.nextIndex),
                 merkleProofHashedIndexedElementLeaf: bnPathElements,
                 indexHashedIndexedElementLeaf: bn(lowElement.index),
-                merkleTree: defaultTestStateTreeAccounts().addressTree,
-                nullifierQueue: defaultTestStateTreeAccounts().addressQueue,
+                treeInfo: {
+                    tree: defaultTestStateTreeAccounts().addressTree,
+                    queue: defaultTestStateTreeAccounts().addressQueue,
+                    treeType: TreeType.AddressV1,
+                    cpiContext: null,
+                },
             };
             newAddressProofs.push(proof);
         }
@@ -822,9 +826,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     proof.indexHashedIndexedElementLeaf.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
+                merkleTrees: newAddressProofs.map(proof => proof.treeInfo.tree),
                 nullifierQueues: newAddressProofs.map(
-                    proof => proof.nullifierQueue,
+                    proof => proof.treeInfo.queue,
                 ),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
@@ -877,11 +881,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
                 merkleTrees: merkleProofsWithContext
                     .map(proof => proof.treeInfo.tree)
-                    .concat(newAddressProofs.map(proof => proof.merkleTree)),
+                    .concat(newAddressProofs.map(proof => proof.treeInfo.tree)),
                 nullifierQueues: merkleProofsWithContext
                     .map(proof => proof.treeInfo.queue)
                     .concat(
-                        newAddressProofs.map(proof => proof.nullifierQueue),
+                        newAddressProofs.map(proof => proof.treeInfo.queue),
                     ),
             };
         } else throw new Error('Invalid input');

@@ -56,6 +56,7 @@ import {
     TokenData,
     CompressedProof,
     TreeType,
+    AddressTreeInfo,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -427,8 +428,7 @@ export type MerkleContextWithNewAddressProof = {
     nextIndex: BN;
     merkleProofHashedIndexedElementLeaf: BN[];
     indexHashedIndexedElementLeaf: BN;
-    merkleTree: PublicKey;
-    nullifierQueue: PublicKey;
+    treeInfo: AddressTreeInfo;
 };
 
 export type NonInclusionJsonStruct = {
@@ -1566,8 +1566,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 nextIndex: bn(proof.nextIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
                 indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
-                merkleTree: proof.merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().addressQueue,
+                treeInfo: {
+                    tree: proof.merkleTree,
+                    queue: defaultTestStateTreeAccounts().addressQueue,
+                    treeType: TreeType.AddressV1,
+                    cpiContext: null,
+                },
             };
             newAddressProofs.push(_proof);
         }
@@ -1671,9 +1675,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     proof.nextIndex.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
+                merkleTrees: newAddressProofs.map(proof => proof.treeInfo.tree),
                 nullifierQueues: newAddressProofs.map(
-                    proof => proof.nullifierQueue,
+                    proof => proof.treeInfo.queue,
                 ),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
@@ -1723,11 +1727,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
                 merkleTrees: merkleProofsWithContext
                     .map(proof => proof.treeInfo.tree)
-                    .concat(newAddressProofs.map(proof => proof.merkleTree)),
+                    .concat(newAddressProofs.map(proof => proof.treeInfo.tree)),
                 nullifierQueues: merkleProofsWithContext
                     .map(proof => proof.treeInfo.queue)
                     .concat(
-                        newAddressProofs.map(proof => proof.nullifierQueue),
+                        newAddressProofs.map(proof => proof.treeInfo.queue),
                     ),
             };
         } else throw new Error('Invalid input');

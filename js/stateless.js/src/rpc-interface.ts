@@ -144,8 +144,7 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
-// TODO: Rename Compressed -> ValidityProof
-export type CompressedProofWithContext = {
+export type ValidityProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
     rootIndices: number[];
@@ -154,6 +153,19 @@ export type CompressedProofWithContext = {
     merkleTrees: PublicKey[];
     nullifierQueues: PublicKey[];
 };
+
+// /**
+//  * @deprecated use {@link ValidityProofWithContext} instead
+//  */
+// export type CompressedProofWithContext = {
+//     compressedProof: CompressedProof;
+//     roots: BN[];
+//     rootIndices: number[];
+//     leafIndices: number[];
+//     leaves: BN[];
+//     merkleTrees: PublicKey[];
+//     nullifierQueues: PublicKey[];
+// };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     mint?: PublicKey;

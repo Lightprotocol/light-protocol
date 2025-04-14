@@ -54,22 +54,25 @@ export enum TreeType {
  */
 export type StateTreeInfo = {
     /**
-     * Account containing the Sparse Merkle tree in which a compressed
-     * account is stored.
+     * Account belonging to the tree.
      */
     tree: PublicKey;
     /**
-     * The state nullfier queue belonging to merkleTree.
+     * The state queue belonging to the tree.
      */
     queue: PublicKey;
-    /**
-     * The compressed cpi context account.
-     */
-    cpiContext: PublicKey | null;
     /**
      * The type of tree. One of {@link TreeType}.
      */
     treeType: TreeType;
+    /**
+     * Optional compressed cpi context account.
+     */
+    cpiContext: PublicKey | null;
+    /**
+     * Optional next tree info.
+     */
+    nextTreeInfo: StateTreeInfo | null;
 };
 export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {
     cpiContext: null;
