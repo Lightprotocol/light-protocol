@@ -26,7 +26,6 @@ use light_sdk::{
 use light_test_utils::{RpcConnection, RpcError};
 use solana_sdk::{
     instruction::Instruction,
-    pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
 
@@ -156,12 +155,12 @@ async fn test_counter() {
         .data;
     let counter = CounterAccount::deserialize(&mut &counter[..]).unwrap();
     assert_eq!(counter.value, 0);
-    
+
     // Close the counter.
     close_counter(&mut rpc, &mut test_indexer, &payer, compressed_account)
         .await
         .unwrap();
-        
+
     // Check that it was closed correctly (no compressed accounts after closing).
     let compressed_accounts = test_indexer
         .get_compressed_accounts_by_owner_v2(&counter::ID)
