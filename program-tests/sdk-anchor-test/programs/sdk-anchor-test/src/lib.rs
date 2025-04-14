@@ -4,7 +4,7 @@ use light_sdk::{
     cpi::verify::verify_compressed_account_infos,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    light_account, Discriminator, LightHasher,
+    Discriminator, LightDiscriminator, LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
@@ -12,7 +12,7 @@ declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 #[program]
 pub mod sdk_anchor_test {
     use light_sdk::{
-        account::CBorshAccount, cpi::accounts::CompressionCpiAccounts, NewAddressParamsPacked,
+        account::LightAccount, cpi::accounts::CompressionCpiAccounts, NewAddressParamsPacked,
     };
 
     use super::*;
@@ -50,7 +50,7 @@ pub mod sdk_anchor_test {
                 .address_merkle_tree_pubkey_index,
         };
 
-        let mut my_compressed_account = CBorshAccount::<'_, MyCompressedAccount>::new_init(
+        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &program_id,
             Some(address),
             output_merkle_tree_index,
@@ -81,7 +81,7 @@ pub mod sdk_anchor_test {
         nested_data: NestedData,
     ) -> Result<()> {
         let program_id = crate::ID.into();
-        let mut my_compressed_account = CBorshAccount::<'_, MyCompressedAccount>::new_mut(
+        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
             &program_id,
             &account_meta,
             my_compressed_account,
@@ -120,8 +120,9 @@ pub mod sdk_anchor_test {
     }
 }
 
-#[light_account]
-#[derive(Clone, Debug, Default)]
+#[derive(
+    Clone, Debug, Default, LightHasher, LightDiscriminator, AnchorSerialize, AnchorDeserialize,
+)]
 pub struct MyCompressedAccount {
     pub name: String,
     pub nested: NestedData,

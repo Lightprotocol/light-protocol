@@ -36,6 +36,8 @@ jobs:
             sub-tests: '[
               "cargo test-sbf -p token-escrow -- --test-threads=1"
             ]'
+          - program: counter-test
+            sub-tests: '["cargo test-sbf -p counter"]'
           - program: sdk-test-program
             sub-tests: '["cargo-test-sbf -p sdk-test"]'
           - program: sdk-anchor-test-program

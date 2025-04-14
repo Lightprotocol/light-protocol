@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    account::CBorshAccount,
+    account::LightAccount,
     cpi::{
         accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
         verify::verify_compressed_account_infos,
@@ -24,7 +24,7 @@ pub fn update_pda<const BATCHED: bool>(
         .map_err(|_| LightSdkError::Borsh)?;
 
     let program_id = crate::ID.into();
-    let mut my_compressed_account = CBorshAccount::<'_, MyCompressedAccount>::new_mut(
+    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
         &program_id,
         &instruction_data.my_compressed_account.meta,
         MyCompressedAccount {
