@@ -32,7 +32,7 @@ import {
     WithCursor,
 } from '../../rpc-interface';
 import {
-    CompressedProofWithContext,
+    ValidityProofWithContext,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ParsedTokenAccount,
@@ -679,7 +679,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     tree: defaultTestStateTreeAccounts().addressTree,
                     queue: defaultTestStateTreeAccounts().addressQueue,
                     treeType: TreeType.AddressV1,
-                    cpiContext: null,
                 },
             };
             newAddressProofs.push(proof);
@@ -708,7 +707,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getValidityProofDirect(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         return this.getValidityProof(hashes, newAddresses);
     }
     /**
@@ -718,7 +717,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getValidityProofAndRpcContext(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<WithContext<CompressedProofWithContext>> {
+    ): Promise<WithContext<ValidityProofWithContext>> {
         if (newAddresses.some(address => !(address instanceof BN))) {
             throw new Error('AddressWithTree is not supported in test-rpc');
         }
@@ -744,11 +743,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         if (newAddresses.some(address => !(address instanceof BN))) {
             throw new Error('AddressWithTree is not supported in test-rpc');
         }
-        let validityProof: CompressedProofWithContext;
+        let validityProof: ValidityProofWithContext;
 
         if (hashes.length === 0 && newAddresses.length === 0) {
             throw new Error(
@@ -787,12 +786,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     proof => proof.leafIndex,
                 ),
                 leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.treeInfo.tree,
-                ),
-                nullifierQueues: merkleProofsWithContext.map(
-                    proof => proof.treeInfo.queue,
-                ),
+                treeInfos: merkleProofsWithContext.map(proof => proof.treeInfo),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -826,10 +820,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     proof.indexHashedIndexedElementLeaf.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.treeInfo.tree),
-                nullifierQueues: newAddressProofs.map(
-                    proof => proof.treeInfo.queue,
-                ),
+                treeInfos: newAddressProofs.map(proof => proof.treeInfo),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -879,14 +870,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 leaves: merkleProofsWithContext
                     .map(proof => bn(proof.hash))
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
-                merkleTrees: merkleProofsWithContext
-                    .map(proof => proof.treeInfo.tree)
-                    .concat(newAddressProofs.map(proof => proof.treeInfo.tree)),
-                nullifierQueues: merkleProofsWithContext
-                    .map(proof => proof.treeInfo.queue)
-                    .concat(
-                        newAddressProofs.map(proof => proof.treeInfo.queue),
-                    ),
+                treeInfos: merkleProofsWithContext
+                    .map(proof => proof.treeInfo)
+                    .concat(newAddressProofs.map(proof => proof.treeInfo)),
             };
         } else throw new Error('Invalid input');
 
@@ -896,7 +882,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     async getValidityProofV0(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         /// TODO(swen): add support for custom trees
         return this.getValidityProof(
             hashes.map(hash => hash.hash),

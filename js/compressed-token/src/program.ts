@@ -8,7 +8,7 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
-    CompressedProof,
+    ValidityProof,
     LightSystemProgram,
     ParsedTokenAccount,
     bn,
@@ -144,7 +144,7 @@ export type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * The state tree that the change tx output should be inserted into.
      * Defaults to a public state tree if unspecified.
@@ -183,7 +183,7 @@ export type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * The state trees that the tx output should be inserted into. This can be a
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
@@ -257,7 +257,7 @@ export type MergeTokenAccountsParams = {
     /**
      * Optional: Recent validity proof for state inclusion
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * Optional: Recent state root indices of the input state
      */

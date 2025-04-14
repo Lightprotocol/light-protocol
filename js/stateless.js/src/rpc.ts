@@ -9,7 +9,7 @@ import {
     BalanceResult,
     CompressedAccountResult,
     CompressedAccountsByOwnerResult,
-    CompressedProofWithContext,
+    ValidityProofWithContext,
     CompressedTokenAccountsByOwnerOrDelegateResult,
     CompressedTransaction,
     CompressedTransactionResult,
@@ -44,6 +44,8 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
+    AddressWithTreeInfo,
+    HashWithTreeInfo,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -54,7 +56,7 @@ import {
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
     TokenData,
-    CompressedProof,
+    ValidityProof,
     TreeType,
     AddressTreeInfo,
 } from './state';
@@ -357,7 +359,7 @@ export const proverRequest = async (
     params: any = [],
     log = false,
     publicInputHash: BN | undefined = undefined,
-): Promise<CompressedProof> => {
+): Promise<ValidityProof> => {
     let logMsg: string = '';
 
     if (log) {
@@ -1570,7 +1572,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     tree: proof.merkleTree,
                     queue: defaultTestStateTreeAccounts().addressQueue,
                     treeType: TreeType.AddressV1,
-                    cpiContext: null,
                 },
             };
             newAddressProofs.push(_proof);
@@ -1600,8 +1601,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofDirect(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
-        let validityProof: CompressedProofWithContext;
+    ): Promise<ValidityProofWithContext> {
+        let validityProof: ValidityProofWithContext;
 
         if (hashes.length === 0 && newAddresses.length === 0) {
             throw new Error(
@@ -1614,19 +1615,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             const inputs = convertMerkleProofsWithContextToHex(
                 merkleProofsWithContext,
             );
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     [],
-            //     lightWasm,
-            // );
+
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
                 false,
-                // publicInputHash,
             );
             validityProof = {
                 compressedProof,
@@ -1638,12 +1632,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     proof => proof.leafIndex,
                 ),
                 leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.treeInfo.tree,
-                ),
-                nullifierQueues: merkleProofsWithContext.map(
-                    proof => proof.treeInfo.queue,
-                ),
+                treeInfos: merkleProofsWithContext.map(proof => proof.treeInfo),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -1675,10 +1664,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     proof.nextIndex.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.treeInfo.tree),
-                nullifierQueues: newAddressProofs.map(
-                    proof => proof.treeInfo.queue,
-                ),
+                treeInfos: newAddressProofs.map(proof => proof.treeInfo),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -1707,6 +1693,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 // publicInputHash,
             );
 
+            const treeInfos = [
+                ...merkleProofsWithContext.map(proof => proof.treeInfo),
+                ...newAddressProofs.map(proof => proof.treeInfo),
+            ];
+
             validityProof = {
                 compressedProof,
                 roots: merkleProofsWithContext
@@ -1725,14 +1716,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leaves: merkleProofsWithContext
                     .map(proof => bn(proof.hash))
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
-                merkleTrees: merkleProofsWithContext
-                    .map(proof => proof.treeInfo.tree)
-                    .concat(newAddressProofs.map(proof => proof.treeInfo.tree)),
-                nullifierQueues: merkleProofsWithContext
-                    .map(proof => proof.treeInfo.queue)
-                    .concat(
-                        newAddressProofs.map(proof => proof.treeInfo.queue),
-                    ),
+                treeInfos,
             };
         } else throw new Error('Invalid input');
 
@@ -1760,7 +1744,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         const accs = await this.getMultipleCompressedAccounts(hashes);
         const trees = accs.map(acc => acc.treeInfo.tree);
         const queues = accs.map(acc => acc.treeInfo.queue);
@@ -1807,10 +1791,56 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofV0(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         const { value } = await this.getValidityProofAndRpcContext(
             hashes,
             newAddresses,
+        );
+        return value;
+    }
+
+    /**
+     * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account hashes. (2) new unique addresses specified by an
+     * array of addresses.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     *
+     * @param hashes        Array of { hash: BN254, tree: PublicKey, queue: PublicKey }.
+     * @param newAddresses  Array of { address: BN254, tree: PublicKey, queue: PublicKey }.
+     * @returns             validity proof with context
+     */
+    async getValidityProofV1(
+        hashes: BN[] = [],
+        newAddresses: AddressWithTreeInfo[] = [],
+    ): Promise<ValidityProofWithContext> {
+        // TODO: until v2, consider not upgrading.
+        const accs = await this.getMultipleCompressedAccounts(hashes);
+        const trees = accs.map(acc => acc.treeInfo.tree);
+        const queues = accs.map(acc => acc.treeInfo.queue);
+
+        const formattedHashes = hashes.map((item, index) => {
+            return {
+                hash: item,
+                tree: trees[index],
+                queue: queues[index],
+            };
+        });
+
+        const formattedNewAddresses = newAddresses.map(item => {
+            return {
+                address: item.address,
+                tree: item.treeInfo.tree,
+                queue: item.treeInfo.queue,
+            };
+        });
+
+        const { value } = await this.getValidityProofAndRpcContext(
+            formattedHashes,
+            formattedNewAddresses,
         );
         return value;
     }
@@ -1834,7 +1864,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofAndRpcContext(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<WithContext<CompressedProofWithContext>> {
+    ): Promise<WithContext<ValidityProofWithContext>> {
         validateNumbersForProof(hashes.length, newAddresses.length);
 
         const unsafeRes = await rpcRequest(
@@ -1870,14 +1900,27 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        const value: CompressedProofWithContext = {
+        const treeInfos = [
+            ...hashes.map(({ tree, queue }) => {
+                return {
+                    tree,
+                    queue,
+                    treeType: TreeType.StateV1,
+                };
+            }),
+            ...newAddresses.map(({ tree, queue }) => {
+                return {
+                    tree,
+                    queue,
+                    treeType: TreeType.AddressV1,
+                };
+            }),
+        ];
+
+        const value: ValidityProofWithContext = {
             compressedProof: result.compressedProof,
-            merkleTrees: result.merkleTrees,
+            treeInfos,
             leafIndices: result.leafIndices,
-            nullifierQueues: [
-                ...hashes.map(({ queue }) => queue),
-                ...newAddresses.map(({ queue }) => queue),
-            ],
             rootIndices: result.rootIndices,
             roots: result.roots,
             leaves: result.leaves,

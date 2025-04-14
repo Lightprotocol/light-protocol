@@ -113,8 +113,8 @@ describe('rpc-multi-trees', () => {
 
         const validityProof = await rpc.getValidityProof([hash]);
 
-        expect(validityProof.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof.nullifierQueues[0]).toEqual(randQueues[pos]);
+        expect(validityProof.treeInfos[0].tree).toEqual(randTrees[pos]);
+        expect(validityProof.treeInfos[0].queue).toEqual(randQueues[pos]);
 
         /// Executes transfers using random output trees
         const tree1 = selectStateTreeInfo(
@@ -135,8 +135,8 @@ describe('rpc-multi-trees', () => {
 
         const validityProof2 = await rpc.getValidityProof([hash]);
 
-        expect(validityProof2.merkleTrees[0]).toEqual(randTrees[pos]);
-        expect(validityProof2.nullifierQueues[0]).toEqual(randQueues[pos]);
+        expect(validityProof2.treeInfos[0].tree).toEqual(randTrees[pos]);
+        expect(validityProof2.treeInfos[0].queue).toEqual(randQueues[pos]);
     });
 
     it('getValidityProof [noforester] (combined) should return correct trees and queues', async () => {
@@ -175,19 +175,19 @@ describe('rpc-multi-trees', () => {
 
         // only compare state tree
         assert.isTrue(
-            validityProof.merkleTrees[0].equals(
+            validityProof.treeInfos[0].tree.equals(
                 senderAccounts.items[0].treeInfo.tree,
             ),
             'Mismatch in merkleTrees expected: ' +
                 senderAccounts.items[0].treeInfo.tree +
                 ' got: ' +
-                validityProof.merkleTrees[0],
+                validityProof.treeInfos[0].tree,
         );
         assert.isTrue(
-            validityProof.nullifierQueues[0].equals(
+            validityProof.treeInfos[0].queue.equals(
                 senderAccounts.items[0].treeInfo.queue,
             ),
-            `Mismatch in nullifierQueues expected: ${senderAccounts.items[0].treeInfo.queue} got: ${validityProof.nullifierQueues[0]}`,
+            `Mismatch in nullifierQueues expected: ${senderAccounts.items[0].treeInfo.queue} got: ${validityProof.treeInfos[0].queue}`,
         );
 
         /// Creates a compressed account with address and lamports using a

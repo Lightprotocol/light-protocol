@@ -17,7 +17,7 @@ import {
 import {
     BN254,
     createBN254,
-    CompressedProof,
+    ValidityProof,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     bn,
@@ -109,6 +109,11 @@ export interface AddressWithTree {
     queue: PublicKey;
 }
 
+export interface AddressWithTreeInfo {
+    address: BN254;
+    treeInfo: AddressTreeInfo;
+}
+
 export interface CompressedTransaction {
     compressionInfo: {
         closedAccounts: {
@@ -145,20 +150,19 @@ export interface HexInputsForProver {
 }
 
 export type ValidityProofWithContext = {
-    compressedProof: CompressedProof;
+    compressedProof: ValidityProof;
     roots: BN[];
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
-    merkleTrees: PublicKey[];
-    nullifierQueues: PublicKey[];
+    treeInfos: StateTreeInfo[];
 };
 
 // /**
 //  * @deprecated use {@link ValidityProofWithContext} instead
 //  */
-// export type CompressedProofWithContext = {
-//     compressedProof: CompressedProof;
+// export type ValidityProofWithContext = {
+//     compressedProof: ValidityProof;
 //     roots: BN[];
 //     rootIndices: number[];
 //     leafIndices: number[];
@@ -598,17 +602,17 @@ export interface CompressionApiInterface {
     getValidityProof(
         hashes: BN254[],
         newAddresses: BN254[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofV0(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<CompressedProofWithContext>;
+    ): Promise<ValidityProofWithContext>;
 
     getValidityProofAndRpcContext(
         hashes: HashWithTree[],
         newAddresses: AddressWithTree[],
-    ): Promise<WithContext<CompressedProofWithContext>>;
+    ): Promise<WithContext<ValidityProofWithContext>>;
 
     getCompressedAccountsByOwner(
         owner: PublicKey,

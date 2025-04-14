@@ -18,12 +18,7 @@ import {
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
-import {
-    addressQueue,
-    addressTree,
-    defaultTestStateTreeAccounts,
-    getDefaultAddressTreeInfo,
-} from '../constants';
+import { getDefaultAddressTreeInfo } from '../constants';
 import { AddressTreeInfo, bn, StateTreeInfo } from '../state';
 import BN from 'bn.js';
 
@@ -73,8 +68,8 @@ export async function createAccount(
     const params: NewAddressParams = {
         seed: seed,
         addressMerkleTreeRootIndex: proof.rootIndices[0],
-        addressMerkleTreePubkey: proof.merkleTrees[0],
-        addressQueuePubkey: proof.nullifierQueues[0],
+        addressMerkleTreePubkey: proof.treeInfos[0].tree,
+        addressQueuePubkey: proof.treeInfos[0].queue,
     };
 
     const ix = await LightSystemProgram.createAccount({
@@ -149,7 +144,7 @@ export async function createAccountWithLamports(
     const address = deriveAddress(seed, tree);
 
     const proof = await rpc.getValidityProof(
-        inputAccounts.map(account => bn(account.hash)),
+        inputAccounts.map(account => account.hash),
         [bn(address.toBytes())],
     );
 
@@ -158,9 +153,8 @@ export async function createAccountWithLamports(
         addressMerkleTreeRootIndex:
             proof.rootIndices[proof.rootIndices.length - 1],
         addressMerkleTreePubkey:
-            proof.merkleTrees[proof.merkleTrees.length - 1],
-        addressQueuePubkey:
-            proof.nullifierQueues[proof.nullifierQueues.length - 1],
+            proof.treeInfos[proof.treeInfos.length - 1].tree,
+        addressQueuePubkey: proof.treeInfos[proof.treeInfos.length - 1].queue,
     };
 
     const ix = await LightSystemProgram.createAccount({

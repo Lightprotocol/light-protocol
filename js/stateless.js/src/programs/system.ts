@@ -8,7 +8,7 @@ import { Buffer } from 'buffer';
 import {
     CompressedAccount,
     CompressedAccountWithMerkleContext,
-    CompressedProof,
+    ValidityProof,
     InstructionDataInvoke,
     StateTreeInfo,
     bn,
@@ -49,7 +49,7 @@ type CreateAccountWithSeedParams = {
      * Recent validity proof proving that there's no existing compressed account
      * registered with newAccountAddress
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * State tree pubkey. Defaults to a public state tree if unspecified.
      */
@@ -105,7 +105,7 @@ type TransferParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * The state trees that the tx output should be inserted into. This can be a
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
@@ -171,7 +171,7 @@ type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * The state trees that the tx output should be inserted into. This can be a
      * single PublicKey or an array of PublicKey. Defaults to the 0th state tree

@@ -9,7 +9,6 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
-    defaultTestStateTreeAccounts,
     deriveAddress,
     deriveAddressSeed,
     getDefaultAddressTreeInfo,
@@ -117,12 +116,14 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
@@ -175,12 +176,14 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
             );
         });
 
@@ -290,11 +293,13 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
         );
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -313,16 +318,18 @@ describe('rpc-interop', () => {
         validityProof.rootIndices.forEach((elem, index) => {
             assert.equal(elem, validityProofTest.rootIndices[index]);
         });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        validityProof.treeInfos.forEach((elem, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            );
+        });
+        validityProof.treeInfos.forEach((elem, index) => {
+            assert.isTrue(
+                elem.queue.equals(validityProofTest.treeInfos[index].queue),
                 'Mismatch in nullifierQueues expected: ' +
                     elem +
                     ' got: ' +
-                    validityProofTest.nullifierQueues[index],
+                    validityProofTest.treeInfos[index].queue,
             );
         });
 
@@ -383,13 +390,15 @@ describe('rpc-interop', () => {
         );
 
         assert.isTrue(
-            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+            newAddressProof.treeInfo.tree.equals(
+                newAddressProofTest.treeInfo.tree,
+            ),
         );
         assert.isTrue(
-            newAddressProof.nullifierQueue.equals(
-                newAddressProofTest.nullifierQueue,
+            newAddressProof.treeInfo.queue.equals(
+                newAddressProofTest.treeInfo.queue,
             ),
-            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.treeInfo.queue} got: ${newAddressProof.treeInfo.queue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));

@@ -156,7 +156,7 @@ export interface PublicTransactionEvent {
 }
 
 export interface InstructionDataInvoke {
-    proof: CompressedProof | null; // Option<CompressedProof>
+    proof: ValidityProof | null; // Option<ValidityProof>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
@@ -166,7 +166,7 @@ export interface InstructionDataInvoke {
 }
 
 export interface InstructionDataInvokeCpi {
-    proof: CompressedProof | null; // Option<CompressedProof>
+    proof: ValidityProof | null; // Option<ValidityProof>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
@@ -187,7 +187,7 @@ export interface CompressedCpiContext {
     cpi_context_account_index: number;
 }
 
-export interface CompressedProof {
+export interface ValidityProof {
     a: number[]; // [u8; 32]
     b: number[]; // [u8; 64]
     c: number[]; // [u8; 32]

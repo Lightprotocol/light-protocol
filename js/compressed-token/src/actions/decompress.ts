@@ -69,8 +69,12 @@ export async function decompress(
         amount,
     );
 
-    const proof = await rpc.getValidityProof(
-        inputAccounts.map(account => bn(account.compressedAccount.hash)),
+    const proof = await rpc.getValidityProofV0(
+        inputAccounts.map(account => ({
+            hash: account.compressedAccount.hash,
+            tree: account.compressedAccount.treeInfo.tree,
+            queue: account.compressedAccount.treeInfo.queue,
+        })),
     );
 
     outputStateTreeInfo =

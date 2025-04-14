@@ -1,6 +1,6 @@
 import BN from 'bn.js';
 import { FIELD_SIZE } from '../constants';
-import { CompressedProof } from '../state';
+import { ValidityProof } from '../state';
 
 interface GnarkProofJson {
     ar: string[];
@@ -20,7 +20,7 @@ export const placeholderValidityProof = () => ({
     c: Array.from({ length: 32 }, (_, i) => i + 1),
 });
 
-export const checkValidityProofShape = (proof: CompressedProof) => {
+export const checkValidityProofShape = (proof: ValidityProof) => {
     if (
         proof.a.length !== 32 ||
         proof.b.length !== 64 ||
@@ -56,7 +56,7 @@ export function proofFromJsonStruct(json: GnarkProofJson): ProofABC {
 
 // TODO: add unit test for negation
 // TODO: test if LE BE issue. unit test
-export function negateAndCompressProof(proof: ProofABC): CompressedProof {
+export function negateAndCompressProof(proof: ProofABC): ValidityProof {
     const proofA = proof.a;
     const proofB = proof.b;
     const proofC = proof.c;
@@ -84,7 +84,7 @@ export function negateAndCompressProof(proof: ProofABC): CompressedProof {
     const proofCIsPositive = yElementIsPositiveG1(new BN(cYElement, 32, 'be'));
     cXElement[0] = addBitmaskToByte(cXElement[0], proofCIsPositive);
 
-    const compressedProof: CompressedProof = {
+    const compressedProof: ValidityProof = {
         a: Array.from(aXElement),
         b: Array.from(bXElement),
         c: Array.from(cXElement),
