@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct CBorshAccount<
+pub struct LightAccount<
     'a,
     A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default,
 > {
@@ -22,7 +22,7 @@ pub struct CBorshAccount<
 }
 
 impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default>
-    CBorshAccount<'a, A>
+    LightAccount<'a, A>
 {
     pub fn new_init(
         owner: &'a Pubkey,
@@ -164,7 +164,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
 }
 
 impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> Deref
-    for CBorshAccount<'_, A>
+    for LightAccount<'_, A>
 {
     type Target = A;
 
@@ -174,7 +174,7 @@ impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Defau
 }
 
 impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> DerefMut
-    for CBorshAccount<'_, A>
+    for LightAccount<'_, A>
 {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
         &mut self.account
