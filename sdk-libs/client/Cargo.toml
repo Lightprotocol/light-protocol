@@ -7,7 +7,7 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Client library for Light Protocol"
 
 [features]
-devenv = []
+devenv = ["light-prover-client/devenv"]
 
 [dependencies]
 solana-banks-client = { workspace = true }

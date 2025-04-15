@@ -53,7 +53,7 @@ impl From<VerifierError> for pinocchio::program_error::ProgramError {
     }
 }
 
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use VerifierError::*;
 
 pub fn verify_create_addresses_proof(

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use account_compression::{
     utils::constants::GROUP_AUTHORITY_SEED, AddressMerkleTreeConfig, AddressQueueConfig,
     GroupAuthority, NullifierQueueConfig, RegisteredProgram, StateMerkleTreeConfig,
@@ -14,8 +12,9 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::{
-    errors::RpcError, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
+use light_client::{
+    rpc::{errors::RpcError, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
+    utils::find_light_bin,
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -40,6 +39,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+#[allow(unused_imports)]
 use crate::{
     acp_sdk::{
         create_initialize_address_merkle_tree_and_queue_instruction,
@@ -65,16 +65,23 @@ pub async fn setup_test_programs(
     let mut program_test = ProgramTest::default();
     let sbf_path = std::env::var("SBF_OUT_DIR").unwrap();
     // find path to bin where light cli stores program binaries.
-    let path = find_light_bin().unwrap();
+    let path = if let Some(path) = find_light_bin() {
+        path
+    } else {
+        panic!("Find light program binaries failed. Install light cli and run light test-validator once to download program binaries.");
+    };
     std::env::set_var("SBF_OUT_DIR", path.to_str().unwrap());
     program_test.add_program("light_registry", light_registry::ID, None);
     program_test.add_program("account_compression", account_compression::ID, None);
     program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
+    #[cfg(feature = "devenv")]
     program_test.add_program(
         "light_system_program_pinocchio",
         light_system_program::ID,
         None,
     );
+    #[cfg(not(feature = "devenv"))]
+    program_test.add_program("light_system_program", light_system_program::ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     std::env::set_var("SBF_OUT_DIR", sbf_path);
     let registered_program = env_accounts::get_registered_program_pda();
@@ -94,51 +101,6 @@ pub async fn setup_test_programs(
     }
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
-}
-
-fn find_light_bin() -> Option<PathBuf> {
-    // Run the 'which light' command to find the location of 'light' binary
-
-    #[cfg(not(feature = "devenv"))]
-    {
-        println!("Running 'which light' (feature 'devenv' is not enabled)");
-        use std::process::Command;
-        let output = Command::new("which")
-            .arg("light")
-            .output()
-            .expect("Failed to execute 'which light'");
-
-        if !output.status.success() {
-            return None;
-        }
-        // Convert the output into a string (removing any trailing newline)
-        let light_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        // Get the parent directory of the 'light' binary
-        let mut light_bin_path = PathBuf::from(light_path);
-        light_bin_path.pop(); // Remove the 'light' binary itself
-
-        // Assuming the node_modules path starts from '/lib/node_modules/...'
-        let node_modules_bin =
-            light_bin_path.join("../lib/node_modules/@lightprotocol/zk-compression-cli/bin");
-
-        Some(node_modules_bin.canonicalize().unwrap_or(node_modules_bin))
-    }
-    #[cfg(feature = "devenv")]
-    {
-        println!("Using 'git rev-parse --show-toplevel' to find the location of 'light' binary");
-        let light_protocol_toplevel = String::from_utf8_lossy(
-            &std::process::Command::new("git")
-                .arg("rev-parse")
-                .arg("--show-toplevel")
-                .output()
-                .expect("Failed to get top-level directory")
-                .stdout,
-        )
-        .trim()
-        .to_string();
-        let light_path = PathBuf::from(format!("{}/target/deploy/", light_protocol_toplevel));
-        Some(light_path)
-    }
 }
 
 #[derive(Debug)]
@@ -817,6 +779,7 @@ pub async fn setup_accounts(keypairs: EnvAccountKeypairs, url: SolanaRpcUrl) -> 
     .await
 }
 
+#[allow(unused_variables)]
 #[allow(clippy::too_many_arguments)]
 pub async fn initialize_accounts<R: RpcConnection>(
     context: &mut R,
@@ -939,6 +902,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
         .await
         .unwrap();
     }
+    #[cfg(feature = "devenv")]
     create_batched_state_merkle_tree(
         &keypairs.governance_authority,
         true,
@@ -950,6 +914,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     )
     .await
     .unwrap();
+    #[cfg(feature = "devenv")]
     if let Some(batched_address_tree_init_params) = batched_address_tree_init_params {
         create_batch_address_merkle_tree(
             context,

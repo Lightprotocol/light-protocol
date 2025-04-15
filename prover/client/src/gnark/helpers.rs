@@ -81,54 +81,57 @@ pub struct ProverConfig {
 }
 
 pub async fn spawn_prover(restart: bool, config: ProverConfig) {
-    if let Some(_project_root) = get_project_root() {
-        let prover_path: &str = {
-            #[cfg(feature = "devenv")]
-            {
+    let prover_path: &str = {
+        #[cfg(feature = "devenv")]
+        {
+            if let Some(_project_root) = get_project_root() {
                 &format!("{}/{}", _project_root.trim(), "cli/test_bin/run")
-            }
-            #[cfg(not(feature = "devenv"))]
-            {
-                "light"
-            }
-        };
-
-        if restart {
-            println!("Killing prover...");
-            kill_prover();
-        }
-
-        if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
-            IS_LOADING.store(true, Ordering::Relaxed);
-
-            let mut command = Command::new(prover_path);
-            command.arg("start-prover");
-
-            if let Some(ref mode) = config.run_mode {
-                command.arg("--run-mode").arg(mode.to_string());
-            }
-
-            for circuit in config.circuits.clone() {
-                command.arg("--circuit").arg(circuit.to_string());
-            }
-
-            println!("Starting prover with command: {:?}", command);
-
-            let _ = command
-                .spawn()
-                .expect("Failed to start prover process")
-                .wait();
-
-            let health_result = health_check(20, 30).await;
-            if health_result {
-                info!("Prover started successfully");
             } else {
-                panic!("Prover failed to start");
+                panic!("Failed to determine the project root directory");
             }
-            IS_LOADING.store(false, Ordering::Relaxed);
         }
-    } else {
-        panic!("Failed to determine the project root directory");
+        #[cfg(not(feature = "devenv"))]
+        {
+            unimplemented!(
+                "spawn_prover is not implemented for use outside the light protocol monorepo."
+            );
+            "light"
+        }
+    };
+
+    if restart {
+        println!("Killing prover...");
+        kill_prover();
+    }
+
+    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        IS_LOADING.store(true, Ordering::Relaxed);
+
+        let mut command = Command::new(prover_path);
+        command.arg("start-prover");
+
+        if let Some(ref mode) = config.run_mode {
+            command.arg("--run-mode").arg(mode.to_string());
+        }
+
+        for circuit in config.circuits.clone() {
+            command.arg("--circuit").arg(circuit.to_string());
+        }
+
+        println!("Starting prover with command: {:?}", command);
+
+        let _ = command
+            .spawn()
+            .expect("Failed to start prover process")
+            .wait();
+
+        let health_result = health_check(20, 30).await;
+        if health_result {
+            info!("Prover started successfully");
+        } else {
+            panic!("Prover failed to start");
+        }
+        IS_LOADING.store(false, Ordering::Relaxed);
     }
 }
 

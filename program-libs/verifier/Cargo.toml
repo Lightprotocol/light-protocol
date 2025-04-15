@@ -1,6 +1,6 @@
 [package]
 name = "light-verifier"
-version = "1.1.0"
+version = "1.2.0"
 description = "ZKP proof verifier used in Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -25,7 +25,7 @@ pinocchio = { workspace = true, optional = true }
 [dev-dependencies]
 tokio = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true , features = ["devenv"] }
 serial_test = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
