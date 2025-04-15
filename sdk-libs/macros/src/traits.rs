@@ -198,27 +198,27 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
         }
     } else {
         let base_impls = quote! {
-            impl<'info> ::light_sdk::legacy::InvokeCpiAccounts<'info> for #name<'info> {
-                fn get_invoking_program(&self) -> AccountInfo<'info> {
-                    self.#self_program_field.to_account_info()
+            impl<'info> ::light_sdk::traits::InvokeCpiAccounts<'info> for #name<'info> {
+                fn get_invoking_program(&self) -> &AccountInfo<'info> {
+                    &self.#self_program_field
                 }
             }
-            impl<'info> ::light_sdk::legacy::SignerAccounts<'info> for #name<'info> {
-                fn get_fee_payer(&self) -> ::anchor_lang::prelude::AccountInfo<'info> {
-                    self.#fee_payer_field.to_account_info()
+            impl<'info> ::light_sdk::traits::SignerAccounts<'info> for #name<'info> {
+                fn get_fee_payer(&self) -> &::anchor_lang::prelude::Signer<'info> {
+                    &self.#fee_payer_field
                 }
                 fn get_authority(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#authority_field
                 }
             }
-            impl<'info> ::light_sdk::legacy::LightSystemAccount<'info> for #name<'info> {
-                fn get_light_system_program(&self) -> ::anchor_lang::prelude::AccountInfo<'info> {
-                    self.#light_system_program_field.to_account_info()
+            impl<'info> ::light_sdk::traits::LightSystemAccount<'info> for #name<'info> {
+                fn get_light_system_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
+                    &self.#light_system_program_field
                 }
             }
         };
         let invoke_accounts_impl = quote! {
-            impl<'info> ::light_sdk::legacy::InvokeAccounts<'info> for #name<'info> {
+            impl<'info> ::light_sdk::traits::InvokeAccounts<'info> for #name<'info> {
                 fn get_registered_program_pda(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#registered_program_pda_field
                 }
@@ -231,8 +231,8 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
                 fn get_account_compression_program(&self) -> &::anchor_lang::prelude::AccountInfo<'info> {
                     &self.#account_compression_program_field
                 }
-                fn get_system_program(&self) ->::anchor_lang::prelude::AccountInfo<'info> {
-                    self.#system_program_field.to_account_info()
+                fn get_system_program(&self) -> &::anchor_lang::prelude::Program<'info, System> {
+                    &self.#system_program_field
                 }
                 fn get_compressed_sol_pda(&self) -> Option<&::anchor_lang::prelude::AccountInfo<'info>> {
                     #compressed_sol_pda_field
@@ -246,7 +246,7 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
             quote! {
                 #base_impls
                 #invoke_accounts_impl
-                impl<'info> ::light_sdk::legacy::InvokeCpiContextAccount<'info> for #name<'info> {
+                impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
                     fn get_cpi_context_account(&self) -> Option<
                         &::anchor_lang::prelude::AccountInfo<'info>
                     > {
@@ -258,7 +258,7 @@ fn process_fields_and_attributes(name: &Ident, fields: FieldsNamed) -> TokenStre
             quote! {
                 #base_impls
                 #invoke_accounts_impl
-                impl<'info> ::light_sdk::legacy::InvokeCpiContextAccount<'info> for #name<'info> {
+                impl<'info> ::light_sdk::traits::InvokeCpiContextAccount<'info> for #name<'info> {
                     fn get_cpi_context_account(&self) -> Option<
                         &::anchor_lang::prelude::AccountInfo<'info>
                     > {
