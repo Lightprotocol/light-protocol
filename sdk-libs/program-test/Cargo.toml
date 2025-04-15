@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 default = []
 devenv = []
-
+# devenv = [ "light-prover-client/devenv" ]
 [dependencies]
 light-client = { workspace = true }
 light-prover-client = { workspace = true }

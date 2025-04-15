@@ -27,7 +27,7 @@ light-test-utils = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true }
 tokio = { workspace = true }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"]  }
 num-bigint = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }

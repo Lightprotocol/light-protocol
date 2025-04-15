@@ -7,9 +7,8 @@ use light_client::{
     rpc::{merkle_tree::MerkleTreeExt, RpcConnection, RpcError},
     transaction_params::TransactionParams,
 };
-use light_compressed_account::indexer_event::{
-    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-    parse::event_from_light_transaction,
+use light_compressed_account::indexer_event::event::{
+    BatchPublicTransactionEvent, PublicTransactionEvent,
 };
 use solana_banks_client::BanksClientError;
 use solana_program_test::ProgramTestContext;
@@ -389,6 +388,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         unimplemented!("get_block_height is unimplemented for ProgramTestRpcConnection")
     }
 
+    #[cfg(feature = "devenv")]
     async fn create_and_send_transaction_with_public_event(
         &mut self,
         instruction: &[Instruction],
@@ -407,6 +407,18 @@ impl RpcConnection for ProgramTestRpcConnection {
         let event = res.map(|e| (e.0[0].event.clone(), e.1, e.2));
         Ok(event)
     }
+
+    #[cfg(not(feature = "devenv"))]
+    async fn create_and_send_transaction_with_public_event(
+        &mut self,
+        _instruction: &[Instruction],
+        _payer: &Pubkey,
+        _signers: &[&Keypair],
+        _transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(PublicTransactionEvent, Signature, Slot)>, RpcError> {
+        unimplemented!()
+    }
+    #[cfg(feature = "devenv")]
     async fn create_and_send_transaction_with_batched_event(
         &mut self,
         instruction: &[Instruction],
@@ -478,7 +490,7 @@ impl RpcConnection for ProgramTestRpcConnection {
                 })
             });
 
-        let event = event_from_light_transaction(
+        let event = light_compressed_account::indexer_event::parse::event_from_light_transaction(
             program_ids.as_slice(),
             vec.as_slice(),
             vec_accounts.to_vec(),
@@ -551,6 +563,16 @@ impl RpcConnection for ProgramTestRpcConnection {
         let slot = self.context.banks_client.get_root_slot().await?;
         let event = event.map(|e| (e, signature, slot));
         Ok(event)
+    }
+    #[cfg(not(feature = "devenv"))]
+    async fn create_and_send_transaction_with_batched_event(
+        &mut self,
+        _instruction: &[Instruction],
+        _payer: &Pubkey,
+        _signers: &[&Keypair],
+        _transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
+        unimplemented!()
     }
 }
 

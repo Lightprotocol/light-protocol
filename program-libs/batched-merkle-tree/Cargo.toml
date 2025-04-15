@@ -48,7 +48,7 @@ light-macros = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-merkle-tree-reference = { workspace = true }
 tokio = { workspace = true }
 serial_test = { workspace = true }

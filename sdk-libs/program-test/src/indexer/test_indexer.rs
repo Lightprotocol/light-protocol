@@ -6,15 +6,13 @@ use account_compression::{
 };
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use forester_utils::account_zero_copy::{
-    get_concurrent_merkle_tree, get_indexed_merkle_tree, AccountZeroCopy,
-};
+use forester_utils::account_zero_copy::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use light_batched_merkle_tree::{
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
-    queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    queue::BatchedQueueAccount,
 };
 use light_client::{
     indexer::{
@@ -422,8 +420,10 @@ where
                 }
             };
 
-        let mut retries = 1000;
+        let mut retries = 3;
         while retries > 0 {
+            println!("PROVE_PATH {:?}", PROVE_PATH);
+            println!("SERVER_ADDRESS {:?}", SERVER_ADDRESS);
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -431,6 +431,7 @@ where
                 .send()
                 .await;
             if let Ok(response_result) = response_result {
+                retries = 0;
                 if response_result.status().is_success() {
                     let body = response_result.text().await.unwrap();
                     let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -870,6 +871,7 @@ where
         &self.group_pda
     }
 
+    #[cfg(feature = "devenv")]
     async fn create_proof_for_compressed_accounts2(
         &mut self,
         compressed_accounts: Option<Vec<[u8; 32]>>,
@@ -896,11 +898,11 @@ where
                         let leaf_index = accounts.merkle_tree.get_leaf_index(compressed_account);
                         if leaf_index.is_none() {
                             let output_queue_pubkey = accounts.accounts.nullifier_queue;
-                            let mut queue = AccountZeroCopy::<BatchedQueueMetadata>::new(
-                                rpc,
-                                output_queue_pubkey,
-                            )
-                            .await;
+                            let mut queue =
+                                forester_utils::account_zero_copy::AccountZeroCopy::<
+                                    light_batched_merkle_tree::queue::BatchedQueueMetadata,
+                                >::new(rpc, output_queue_pubkey)
+                                .await;
                             let queue_zero_copy = BatchedQueueAccount::output_from_bytes(
                                 queue.account.data.as_mut_slice(),
                             )
@@ -975,6 +977,18 @@ where
         }
     }
 
+    #[cfg(not(feature = "devenv"))]
+    async fn create_proof_for_compressed_accounts2(
+        &mut self,
+        _compressed_accounts: Option<Vec<[u8; 32]>>,
+        _state_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _new_addresses: Option<&[[u8; 32]]>,
+        _address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
+        _rpc: &mut R,
+    ) -> BatchedTreeProofRpcResult {
+        unimplemented!("create_proof_for_compressed_accounts2 is only implemented for feature devenv in light-protocol monorepo.")
+    }
+
     fn add_address_merkle_tree_accounts(
         &mut self,
         merkle_tree_keypair: &Keypair,
@@ -1036,6 +1050,7 @@ where
         (compressed_accounts, token_compressed_accounts)
     }
 
+    #[cfg(feature = "devenv")]
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof {
         let bundle = self
             .state_merkle_trees
@@ -1069,6 +1084,11 @@ where
             root_seq: bundle.merkle_tree.sequence_number as u64,
             root: bundle.merkle_tree.root(),
         }
+    }
+
+    #[cfg(not(feature = "devenv"))]
+    fn get_proof_by_index(&mut self, _merkle_tree_pubkey: Pubkey, _index: u64) -> MerkleProof {
+        unimplemented!("get_proof_by_index is unimplemented.")
     }
 
     async fn update_test_indexer_after_append(
@@ -1192,6 +1212,7 @@ where
         }
     }
 
+    #[cfg(feature = "devenv")]
     async fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,
@@ -1222,6 +1243,17 @@ where
         let new_root = address_tree.root();
         assert_eq!(*onchain_root, new_root);
     }
+
+    #[cfg(not(feature = "devenv"))]
+    async fn finalize_batched_address_tree_update(
+        &mut self,
+        _merkle_tree_pubkey: Pubkey,
+        _account_data: &mut [u8],
+    ) {
+        unimplemented!(
+            "finalize_batched_address_tree_update is only implemented with feature devnenv."
+        )
+    }
 }
 
 impl<R> TestIndexer<R>
@@ -1233,29 +1265,31 @@ where
         env: &EnvAccounts,
         prover_config: Option<ProverConfig>,
     ) -> Self {
+        #[allow(unused_mut)]
+        let mut state_merkle_tree_accounts = vec![StateMerkleTreeAccounts {
+            merkle_tree: env.merkle_tree_pubkey,
+            nullifier_queue: env.nullifier_queue_pubkey,
+            cpi_context: env.cpi_context_account_pubkey,
+        }];
+        #[cfg(feature = "devenv")]
+        state_merkle_tree_accounts.push(StateMerkleTreeAccounts {
+            merkle_tree: env.batched_state_merkle_tree,
+            nullifier_queue: env.batched_output_queue,
+            cpi_context: env.batched_cpi_context,
+        });
+        #[allow(unused_mut)]
+        let mut address_merkle_tree_accounts = vec![AddressMerkleTreeAccounts {
+            merkle_tree: env.address_merkle_tree_pubkey,
+            queue: env.address_merkle_tree_queue_pubkey,
+        }];
+        #[cfg(feature = "devenv")]
+        address_merkle_tree_accounts.push(AddressMerkleTreeAccounts {
+            merkle_tree: env.batch_address_merkle_tree,
+            queue: env.batch_address_merkle_tree,
+        });
         Self::new(
-            vec![
-                StateMerkleTreeAccounts {
-                    merkle_tree: env.merkle_tree_pubkey,
-                    nullifier_queue: env.nullifier_queue_pubkey,
-                    cpi_context: env.cpi_context_account_pubkey,
-                },
-                StateMerkleTreeAccounts {
-                    merkle_tree: env.batched_state_merkle_tree,
-                    nullifier_queue: env.batched_output_queue,
-                    cpi_context: env.batched_cpi_context,
-                },
-            ],
-            vec![
-                AddressMerkleTreeAccounts {
-                    merkle_tree: env.address_merkle_tree_pubkey,
-                    queue: env.address_merkle_tree_queue_pubkey,
-                },
-                AddressMerkleTreeAccounts {
-                    merkle_tree: env.batch_address_merkle_tree,
-                    queue: env.batch_address_merkle_tree,
-                },
-            ],
+            state_merkle_tree_accounts,
+            address_merkle_tree_accounts,
             payer.insecure_clone(),
             env.group_pda,
             prover_config,
