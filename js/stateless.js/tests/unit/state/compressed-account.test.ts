@@ -50,7 +50,6 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             {
                 tree: merkleTree,
                 queue: nullifierQueue,
-                cpiContext: null,
                 treeType: TreeType.AddressV1,
             },
             bn(hash),
@@ -66,7 +65,6 @@ describe('createCompressedAccountWithMerkleContext function', () => {
             treeInfo: {
                 tree: merkleTree,
                 queue: nullifierQueue,
-                cpiContext: null,
                 treeType: TreeType.AddressV1,
             },
             hash: bn(hash),
@@ -88,7 +86,6 @@ describe('createMerkleContext function', () => {
             {
                 tree: merkleTree,
                 queue: nullifierQueue,
-                cpiContext: null,
                 treeType: TreeType.AddressV1,
             },
             bn(hash),
@@ -99,7 +96,6 @@ describe('createMerkleContext function', () => {
             treeInfo: {
                 tree: merkleTree,
                 queue: nullifierQueue,
-                cpiContext: null,
                 treeType: TreeType.AddressV1,
             },
             hash: bn(hash),
