@@ -1,7 +1,7 @@
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_compressed_account::hash_to_bn254_field_size_be;
+use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
 use light_hasher::{to_byte_array::ToByteArray, DataHasher, Hasher, Poseidon, Sha256};
 use light_sdk_macros::LightHasher;
 use solana_pubkey::Pubkey;
@@ -133,6 +133,7 @@ mod fixtures {
 }
 
 mod basic_hashing {
+
     use super::{fixtures::*, *};
 
     #[test]
@@ -143,10 +144,7 @@ mod basic_hashing {
         let manual_nested_bytes: Vec<Vec<u8>> = vec![
             nested_struct.a.to_be_bytes().to_vec(),
             nested_struct.b.to_be_bytes().to_vec(),
-            light_compressed_account::hash_to_bn254_field_size_be(
-                nested_struct.c.try_to_vec().unwrap().as_slice(),
-            )
-            .to_vec(),
+            hash_to_bn254_field_size_be(nested_struct.c.try_to_vec().unwrap().as_slice()).to_vec(),
         ];
 
         let nested_bytes: Vec<&[u8]> = manual_nested_bytes.iter().map(|v| v.as_slice()).collect();
@@ -166,7 +164,7 @@ mod basic_hashing {
             vec![u8::from(account.a)],
             account.b.to_be_bytes().to_vec(),
             account.c.hash::<Poseidon>().unwrap().to_vec(),
-            light_compressed_account::hash_to_bn254_field_size_be(&account.d).to_vec(),
+            hash_to_bn254_field_size_be(&account.d).to_vec(),
             {
                 let mut bytes = vec![0; 32];
                 bytes[24..].copy_from_slice(&account.f.unwrap().to_be_bytes());
@@ -199,7 +197,7 @@ mod basic_hashing {
             [0u8; 32],
             [0u8; 32],
             zero_account.c.hash::<Poseidon>().unwrap(),
-            light_compressed_account::hash_to_bn254_field_size_be(&zero_account.d),
+            hash_to_bn254_field_size_be(&zero_account.d),
             {
                 let mut bytes = [0u8; 32];
                 bytes[24..].copy_from_slice(&zero_account.f.unwrap().to_be_bytes());
@@ -324,9 +322,7 @@ mod attribute_behavior {
 
             let manual_hash = Poseidon::hashv(&[
                 &test_struct.inner.hash::<Poseidon>().unwrap(),
-                &light_compressed_account::hash_to_bn254_field_size_be(
-                    test_struct.data.try_to_vec().unwrap().as_slice(),
-                ),
+                &hash_to_bn254_field_size_be(test_struct.data.try_to_vec().unwrap().as_slice()),
             ])
             .unwrap();
 
@@ -619,9 +615,7 @@ mod option_handling {
                 bytes[23] = 1; // Prefix with 1 for Some
                 bytes
             },
-            light_compressed_account::hash_to_bn254_field_size_be(
-                "".try_to_vec().unwrap().as_slice(),
-            ),
+            hash_to_bn254_field_size_be("".try_to_vec().unwrap().as_slice()),
         ];
 
         assert_eq!(test_struct.hash::<Poseidon>(), test_struct.to_byte_array());
@@ -674,18 +668,10 @@ mod option_handling {
         };
 
         let manual_some_bytes = [
-            light_compressed_account::hash_to_bn254_field_size_be(
-                "".try_to_vec().unwrap().as_slice(),
-            ),
-            light_compressed_account::hash_to_bn254_field_size_be(
-                "test".try_to_vec().unwrap().as_slice(),
-            ),
-            light_compressed_account::hash_to_bn254_field_size_be(
-                "a".repeat(100).try_to_vec().unwrap().as_slice(),
-            ),
-            light_compressed_account::hash_to_bn254_field_size_be(
-                &test_struct.large_array.unwrap(),
-            ),
+            hash_to_bn254_field_size_be("".try_to_vec().unwrap().as_slice()),
+            hash_to_bn254_field_size_be("test".try_to_vec().unwrap().as_slice()),
+            hash_to_bn254_field_size_be("a".repeat(100).try_to_vec().unwrap().as_slice()),
+            hash_to_bn254_field_size_be(&test_struct.large_array.unwrap()),
         ];
 
         let test_hash = test_struct.hash::<Poseidon>().unwrap();
@@ -832,10 +818,8 @@ mod option_handling {
                 bytes[27] = 1;
                 bytes
             },
-            light_compressed_account::hash_to_bn254_field_size_be(
-                "test".try_to_vec().unwrap().as_slice(),
-            ),
-            light_compressed_account::hash_to_bn254_field_size_be(&[42u8; 64][..]),
+            hash_to_bn254_field_size_be("test".try_to_vec().unwrap().as_slice()),
+            hash_to_bn254_field_size_be(&[42u8; 64][..]),
             Poseidon::hash(
                 &test_struct
                     .nested_empty
@@ -1160,16 +1144,12 @@ fn test_solana_program_pubkey() {
             pubkey: Pubkey::new_unique(),
         };
 
-        let manual_hash = Poseidon::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(pubkey_struct.pubkey.as_ref())
-                .as_slice(),
-        )
-        .unwrap();
+        let manual_hash =
+            Poseidon::hash(hash_to_bn254_field_size_be(pubkey_struct.pubkey.as_ref()).as_slice())
+                .unwrap();
         let manual_hash_borsh = Poseidon::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(
-                pubkey_struct.pubkey.try_to_vec().unwrap().as_slice(),
-            )
-            .as_slice(),
+            hash_to_bn254_field_size_be(pubkey_struct.pubkey.try_to_vec().unwrap().as_slice())
+                .as_slice(),
         )
         .unwrap();
         let hash = pubkey_struct.hash::<Poseidon>().unwrap();
@@ -1190,20 +1170,16 @@ fn test_solana_program_pubkey() {
             };
             let manual_bytes = pubkey_struct.pubkey.unwrap().try_to_vec().unwrap();
 
-            let manual_hash = Poseidon::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Poseidon>().unwrap();
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let manual_hash = Sha256::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1231,20 +1207,15 @@ fn test_solana_program_pubkey() {
         let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
         let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
 
-        let manual_hash = Poseidon::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                .as_slice(),
-        )
-        .unwrap();
+        let manual_hash =
+            Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                .unwrap();
         let hash = pubkey_struct.hash::<Poseidon>().unwrap();
         assert_eq!(manual_hash, hash);
 
         // Sha256
-        let manual_hash = Sha256::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                .as_slice(),
-        )
-        .unwrap();
+        let manual_hash =
+            Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice()).unwrap();
         let hash = pubkey_struct.hash::<Sha256>().unwrap();
         assert_eq!(manual_hash, hash);
     }
@@ -1263,20 +1234,16 @@ fn test_solana_program_pubkey() {
             let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
             let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
 
-            let manual_hash = Poseidon::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Poseidon>().unwrap();
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let manual_hash = Sha256::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1285,20 +1252,16 @@ fn test_solana_program_pubkey() {
             let pubkey_vec = (0..3).map(|_| None).collect::<Vec<_>>();
             let pubkey_struct = PubkeyStruct { pubkey: pubkey_vec };
             let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
-            let manual_hash = Poseidon::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Poseidon>().unwrap();
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let manual_hash = Sha256::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1331,20 +1294,16 @@ fn test_borsh() {
             };
             let manual_bytes = pubkey_struct.pubkey.as_ref().unwrap().try_to_vec().unwrap();
 
-            let manual_hash = Poseidon::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Poseidon>().unwrap();
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let manual_hash = Sha256::hash(
-                light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                    .as_slice(),
-            )
-            .unwrap();
+            let manual_hash =
+                Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                    .unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1374,20 +1333,15 @@ fn test_borsh() {
         };
         let manual_bytes = pubkey_struct.pubkey.try_to_vec().unwrap();
 
-        let manual_hash = Poseidon::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                .as_slice(),
-        )
-        .unwrap();
+        let manual_hash =
+            Poseidon::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice())
+                .unwrap();
         let hash = pubkey_struct.hash::<Poseidon>().unwrap();
         assert_eq!(manual_hash, hash);
 
         // Sha256
-        let manual_hash = Sha256::hash(
-            light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
-                .as_slice(),
-        )
-        .unwrap();
+        let manual_hash =
+            Sha256::hash(hash_to_bn254_field_size_be(manual_bytes.as_slice()).as_slice()).unwrap();
         let hash = pubkey_struct.hash::<Sha256>().unwrap();
         assert_eq!(manual_hash, hash);
     }
