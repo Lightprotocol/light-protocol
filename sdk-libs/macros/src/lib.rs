@@ -1,15 +1,13 @@
 extern crate proc_macro;
-use accounts::{process_light_accounts, process_light_system_accounts};
+use accounts::{process_light_system_accounts};
 use hasher::derive_light_hasher;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
+use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
 
-mod account;
 mod accounts;
 mod discriminator;
 mod hasher;
-mod program;
 mod traits;
 
 /// Adds required fields to your anchor instruction for applying a zk-compressed
@@ -47,24 +45,6 @@ pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream 
     let input = parse_macro_input!(input as ItemStruct);
 
     process_light_system_accounts(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-
-    match process_light_accounts(input) {
-        Ok(token_stream) => token_stream.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
-}
-
-#[proc_macro_derive(LightAccounts, attributes(light_account))]
-pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    accounts::process_light_accounts_derive(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -251,22 +231,6 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     derive_light_hasher(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    account::account(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemMod);
-    program::program(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
