@@ -115,13 +115,13 @@ light-hash-set = { version = "1.2.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "1.1.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "1.1.0", path = "program-libs/concurrent-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.9.1" }
-light-hasher = { path = "program-libs/hasher", version = "1.1.0" }
+light-hasher = { path = "program-libs/hasher", version = "1.2.0" }
 light-macros = { path = "program-libs/macros", version = "1.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "1.1.0" }
 light-heap = { path = "program-libs/heap", version = "1.1.0" }
 light-prover-client = { path = "prover/client", version = "1.2.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.11.0" }
-light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
+light-sdk-macros = { path = "sdk-libs/macros", version = "0.5.0" }
 light-utils = { version = "1.1.0" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.1.0" }
