@@ -17,7 +17,7 @@ get_package_dir() {
     esac
 }
 
-# Bump version and publish
+# Bump version, publish, and create git tag
 publish_package() {
     local package_name=$1
     local version_type=$2
@@ -33,7 +33,13 @@ publish_package() {
     find "cli/bin" -type f -exec chmod +x {} +
 
     sleep 5
-    if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks); then
+    if (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks); then
+        # Create a git tag with package name and version after successful publish
+        local new_version=$(cd "${package_dir}" && pnpm pkg get version | tr -d '"')
+        local tag_name="${package_name}@${new_version}"
+        git tag "${tag_name}"
+        git push origin "${tag_name}"
+    else
         echo "Error occurred while publishing ${package_name}."
         return 1
     fi
@@ -47,7 +53,10 @@ error_occurred=0
 
 if [ "$#" -eq 0 ]; then
     echo "Bumping ${version_type} version for all packages..."
-    if ! pnpm -r exec -- pnpm version "${version_type}" || ! pnpm -r exec -- pnpm publish --access public; then
+    if pnpm -r exec -- pnpm version "${version_type}" && pnpm -r exec -- pnpm publish --access public; then
+        # Create git tags for all packages after successful bulk publish
+        pnpm -r exec -- bash -c 'package_name=$(basename $(pwd)); new_version=$(pnpm pkg get version | tr -d "\""); tag_name="${package_name}@${new_version}"; git tag "${tag_name}"; git push origin "${tag_name}"'
+    else
         echo "Error occurred during bulk version bump and publish."
         error_occurred=1
     fi
