@@ -3,17 +3,12 @@ import { CustomLoader, rpc } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 
 class BalanceCommand extends Command {
-  static summary = "Get balance";
-
-  static examples = ["$ light balance --mint=<ADDRESS> --owner=<ADDRESS>"];
+  static summary = "Get compressed SOL balance";
+  static examples = ["$ light balance --owner=<ADDRESS>"];
 
   static flags = {
     owner: Flags.string({
-      description: "Address of the compressed token owner.",
-      required: true,
-    }),
-    mint: Flags.string({
-      description: "Mint address of the compressed token account.",
+      description: "Address of the owner.",
       required: true,
     }),
   };
@@ -25,33 +20,26 @@ class BalanceCommand extends Command {
     const loader = new CustomLoader(`Performing balance...\n`);
     loader.start();
     try {
-      const refMint = new PublicKey(flags["mint"]);
       const refOwner = new PublicKey(flags["owner"]);
 
-      const tokenAccounts = await rpc().getCompressedTokenAccountsByOwner(
-        refOwner,
-        { mint: refMint },
-      );
+      const accounts = await rpc().getCompressedAccountsByOwner(refOwner);
 
       loader.stop(false);
 
-      if (tokenAccounts.items.length === 0) {
-        console.log("No token accounts found");
+      if (accounts.items.length === 0) {
+        console.log("No accounts found");
         return;
       }
 
-      const compressedTokenAccount = tokenAccounts.items.find((acc) =>
-        acc.parsed.mint.equals(refMint),
-      );
-      if (compressedTokenAccount === undefined) {
-        console.log("No token accounts found");
-        return;
+      let totalAmount = 0;
+      for (const account of accounts.items) {
+        totalAmount += account.lamports.toNumber();
       }
+
       console.log(
-        "\x1b[1mBalance:\x1b[0m ",
-        compressedTokenAccount.parsed.amount.toString(),
+        "\x1b[1mCompressed SOL balance:\x1b[0m ",
+        totalAmount.toString(),
       );
-      console.log("balance successful");
     } catch (error) {
       this.error(`Failed to get balance!\n${error}`);
     }
