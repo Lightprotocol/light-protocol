@@ -916,7 +916,7 @@ export class CompressedTokenProgram {
                 return {
                     owner: (params.toAddress as PublicKey[])[index],
                     amount,
-                    lamports: bn(0),
+                    lamports: null,
                     tlv: null,
                 };
             });
@@ -925,7 +925,7 @@ export class CompressedTokenProgram {
                 {
                     owner: toAddress as PublicKey,
                     amount: bn(params.amount as number | BN),
-                    lamports: bn(0),
+                    lamports: null,
                     tlv: null,
                 },
             ];
