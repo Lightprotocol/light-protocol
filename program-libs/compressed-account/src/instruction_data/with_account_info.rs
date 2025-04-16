@@ -9,10 +9,13 @@ use zerocopy::{
 use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
-    data::{NewAddressParamsPacked, PackedReadOnlyAddress},
-    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
+    data::{NewAddressParamsAssignedPacked, PackedReadOnlyAddress},
+    traits::{
+        AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait,
+        OutputAccountTrait,
+    },
     zero_copy::{
-        ZCompressedCpiContext, ZNewAddressParamsPacked, ZPackedMerkleContext,
+        ZCompressedCpiContext, ZNewAddressParamsAssignedPacked, ZPackedMerkleContext,
         ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
     },
 };
@@ -287,7 +290,7 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     pub with_cpi_context: bool,
     pub cpi_context: CompressedCpiContext,
     pub proof: Option<CompressedProof>,
-    pub new_address_params: Vec<NewAddressParamsPacked>,
+    pub new_address_params: Vec<NewAddressParamsAssignedPacked>,
     pub account_infos: Vec<CompressedAccountInfo>,
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
@@ -319,7 +322,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
         self.meta.invoking_program_id
     }
 
-    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -390,7 +393,7 @@ impl ZInstructionDataInvokeCpiWithAccountInfoMeta {
 pub struct ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithAccountInfoMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
-    pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsPacked>,
+    pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsAssignedPacked>,
     pub account_infos: Vec<ZCAccountInfo<'a>>,
     pub read_only_addresses: ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>,
     pub read_only_accounts: ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>,
@@ -411,7 +414,7 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
             Ref::<&[u8], ZInstructionDataInvokeCpiWithAccountInfoMeta>::from_prefix(bytes)?;
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
-            ZeroCopySliceBorsh::<'a, ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
+            ZeroCopySliceBorsh::<'a, ZNewAddressParamsAssignedPacked>::from_bytes_at(bytes)?;
         let (account_infos, bytes) = {
             let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
             let num_slices = u32::from(*num_slices) as usize;

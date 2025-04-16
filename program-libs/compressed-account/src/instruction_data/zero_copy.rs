@@ -7,9 +7,11 @@ use zerocopy::{
 };
 
 use super::{
-    data::NewAddressParamsPacked,
     invoke_cpi::InstructionDataInvokeCpi,
-    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
+    traits::{
+        AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait,
+        OutputAccountTrait,
+    },
 };
 use crate::{
     compressed_account::{
@@ -62,25 +64,24 @@ pub struct ZNewAddressParamsPacked {
     pub address_merkle_tree_root_index: U16,
 }
 
-impl From<ZNewAddressParamsPacked> for NewAddressParamsPacked {
-    fn from(value: ZNewAddressParamsPacked) -> Self {
-        NewAddressParamsPacked {
-            address_queue_account_index: value.address_queue_account_index,
-            address_merkle_tree_root_index: value.address_merkle_tree_root_index.into(),
-            seed: value.seed,
-            address_merkle_tree_account_index: value.address_merkle_tree_account_index,
-        }
+impl NewAddressParamsTrait<'_> for ZNewAddressParamsPacked {
+    fn seed(&self) -> [u8; 32] {
+        self.seed
     }
-}
+    fn address_queue_index(&self) -> u8 {
+        self.address_queue_account_index
+    }
 
-impl From<&ZNewAddressParamsPacked> for NewAddressParamsPacked {
-    fn from(value: &ZNewAddressParamsPacked) -> Self {
-        NewAddressParamsPacked {
-            address_queue_account_index: value.address_queue_account_index,
-            address_merkle_tree_root_index: value.address_merkle_tree_root_index.into(),
-            seed: value.seed,
-            address_merkle_tree_account_index: value.address_merkle_tree_account_index,
-        }
+    fn address_merkle_tree_account_index(&self) -> u8 {
+        self.address_merkle_tree_account_index
+    }
+
+    fn assigned_compressed_account_index(&self) -> Option<usize> {
+        None
+    }
+
+    fn address_merkle_tree_root_index(&self) -> u16 {
+        self.address_merkle_tree_root_index.into()
     }
 }
 
@@ -463,7 +464,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
         }
     }
 
-    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -583,7 +584,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
         self.proof
     }
 
-    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -752,6 +753,44 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
             is_compress: data.is_compress,
             cpi_context: None,
         }
+    }
+}
+
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, KnownLayout, Immutable, FromBytes, IntoBytes, Unaligned,
+)]
+pub struct ZNewAddressParamsAssignedPacked {
+    pub seed: [u8; 32],
+    pub address_queue_account_index: u8,
+    pub address_merkle_tree_account_index: u8,
+    pub address_merkle_tree_root_index: U16,
+    pub assigned_to_account: u8,
+    pub assigned_account_index: u8,
+}
+
+impl NewAddressParamsTrait<'_> for ZNewAddressParamsAssignedPacked {
+    fn seed(&self) -> [u8; 32] {
+        self.seed
+    }
+    fn address_queue_index(&self) -> u8 {
+        self.address_queue_account_index
+    }
+
+    fn address_merkle_tree_account_index(&self) -> u8 {
+        self.address_merkle_tree_account_index
+    }
+
+    fn assigned_compressed_account_index(&self) -> Option<usize> {
+        if self.assigned_to_account > 0 {
+            Some(self.assigned_account_index as usize)
+        } else {
+            None
+        }
+    }
+
+    fn address_merkle_tree_root_index(&self) -> u16 {
+        self.address_merkle_tree_root_index.into()
     }
 }
 

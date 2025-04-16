@@ -10,12 +10,14 @@ use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
     data::{
-        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+        NewAddressParamsAssignedPacked, OutputCompressedAccountWithPackedContext,
+        PackedReadOnlyAddress,
     },
-    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait},
+    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait},
     zero_copy::{
-        ZCompressedCpiContext, ZNewAddressParamsPacked, ZOutputCompressedAccountWithPackedContext,
-        ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+        ZCompressedCpiContext, ZNewAddressParamsAssignedPacked,
+        ZOutputCompressedAccountWithPackedContext, ZPackedMerkleContext, ZPackedReadOnlyAddress,
+        ZPackedReadOnlyCompressedAccount,
     },
 };
 use crate::{
@@ -201,7 +203,7 @@ pub struct InstructionDataInvokeCpiWithReadOnly {
     pub with_cpi_context: bool,
     pub cpi_context: CompressedCpiContext,
     pub proof: Option<CompressedProof>,
-    pub new_address_params: Vec<NewAddressParamsPacked>,
+    pub new_address_params: Vec<NewAddressParamsAssignedPacked>,
     pub input_compressed_accounts: Vec<InAccount>,
     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
@@ -239,7 +241,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMeta {
 pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
-    pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsPacked>,
+    pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsAssignedPacked>,
     pub input_compressed_accounts: Vec<ZInAccount<'a>>,
     pub output_compressed_accounts: Vec<ZOutputCompressedAccountWithPackedContext<'a>>,
     pub read_only_addresses: ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>,
@@ -271,7 +273,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
         self.meta.invoking_program_id
     }
 
-    fn new_addresses(&self) -> &[ZNewAddressParamsPacked] {
+    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -328,7 +330,7 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
             Ref::<&[u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>::from_prefix(bytes)?;
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
-            ZeroCopySliceBorsh::<'a, ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
+            ZeroCopySliceBorsh::<'a, ZNewAddressParamsAssignedPacked>::from_bytes_at(bytes)?;
         let (input_compressed_accounts, bytes) = {
             let (num_slices, mut bytes) = Ref::<&[u8], U32>::from_prefix(bytes)?;
             let num_slices = u32::from(*num_slices) as usize;
@@ -417,6 +419,7 @@ impl PartialEq<InstructionDataInvokeCpiWithReadOnly> for ZInstructionDataInvokeC
     }
 }
 
+// TODO: add randomized tests.
 #[test]
 fn test_read_only_zero_copy() {
     let borsh_struct = InstructionDataInvokeCpiWithReadOnly {
@@ -432,11 +435,13 @@ fn test_read_only_zero_copy() {
             cpi_context_account_index: 0,
         },
         proof: None,
-        new_address_params: vec![NewAddressParamsPacked {
+        new_address_params: vec![NewAddressParamsAssignedPacked {
             seed: [1; 32],
             address_merkle_tree_account_index: 1,
             address_queue_account_index: 2,
             address_merkle_tree_root_index: 3,
+            assigned_to_account: true,
+            assigned_account_index: 2,
         }],
         input_compressed_accounts: vec![InAccount {
             discriminator: [1, 2, 3, 4, 5, 6, 7, 8],

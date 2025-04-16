@@ -15,7 +15,8 @@ use light_compressed_account::{
         compressed_proof::CompressedProof,
         cpi_context::CompressedCpiContext,
         data::{
-            NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+            NewAddressParamsAssignedPacked, NewAddressParamsPacked,
+            OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
         },
         invoke_cpi::InstructionDataInvokeCpi,
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
@@ -380,7 +381,12 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             with_cpi_context: inputs_struct.cpi_context.is_some(),
             invoking_program_id: crate::ID.into(),
             proof: inputs_struct.proof,
-            new_address_params: inputs_struct.new_address_params,
+            // Should fail because of this.
+            new_address_params: inputs_struct
+                .new_address_params
+                .iter()
+                .map(|x| NewAddressParamsAssignedPacked::new(*x, None))
+                .collect::<Vec<_>>(),
             cpi_context: inputs_struct.cpi_context.unwrap_or_default(),
             is_decompress: !inputs_struct.is_compress,
             compress_or_decompress_lamports: inputs_struct

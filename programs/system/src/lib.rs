@@ -105,7 +105,13 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         ctx.authority.key(),
     )?;
     let wrapped_inputs = context::WrappedInstructionData::new(inputs);
-    process(wrapped_inputs, None, &ctx, 0, remaining_accounts)?;
+    process::<false, InvokeInstruction, ZInstructionDataInvoke>(
+        wrapped_inputs,
+        None,
+        &ctx,
+        0,
+        remaining_accounts,
+    )?;
     sol_log_compute_units();
     Ok(())
 }
@@ -125,7 +131,7 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
     let wrapped_inputs = WrappedInstructionData::new(inputs);
-    process_invoke_cpi(
+    process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
         *ctx.invoking_program.key(),
         ctx,
         wrapped_inputs,
@@ -185,7 +191,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionDataTrait<'a>>(
     match mode {
         AccountMode::Anchor => {
             let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
-            process_invoke_cpi(
+            process_invoke_cpi::<true, InvokeCpiInstruction, T>(
                 invoking_program,
                 ctx,
                 WrappedInstructionData::new(inputs),
@@ -197,7 +203,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionDataTrait<'a>>(
                 accounts,
                 inputs.account_option_config(),
             )?;
-            process_invoke_cpi(
+            process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,
                 WrappedInstructionData::new(inputs),

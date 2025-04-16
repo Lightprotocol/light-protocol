@@ -34,7 +34,7 @@ use crate::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
         create_inputs_cpi_data::create_inputs_cpi_data,
-        create_outputs_cpi_data::create_outputs_cpi_data,
+        create_outputs_cpi_data::{check_new_address_assignment, create_outputs_cpi_data},
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_proof::{read_address_roots, read_input_state_roots, verify_proof},
@@ -82,6 +82,7 @@ use crate::{
 pub fn process<
     'a,
     'info,
+    const ADDRESS_ASSIGNMENT: bool,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
     T: InstructionDataTrait<'a>,
 >(
@@ -151,13 +152,22 @@ pub fn process<
 
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
-        derive_new_addresses(
+        derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
             accounts.as_slice(),
-        )?
+        )?;
+        if ADDRESS_ASSIGNMENT {
+            check_new_address_assignment(&inputs, &cpi_ix_data)?;
+        } else if inputs
+            .new_addresses()
+            .any(|x| x.assigned_compressed_account_index().is_some())
+        {
+            msg!("Instruction does not allow address assignment");
+            return Err(SystemProgramError::InvalidAddress.into());
+        }
     }
 
     // 7. Verify read only address non-inclusion in bloom filters

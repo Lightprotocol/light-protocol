@@ -148,7 +148,7 @@ use light_registry::{
 };
 use light_sdk::{
     token::{AccountState, TokenDataWithMerkleContext},
-    CPI_AUTHORITY_PDA_SEED,
+    NewAddressParamsAssignedPacked, CPI_AUTHORITY_PDA_SEED,
 };
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
@@ -2590,12 +2590,14 @@ where
                 })
                 .collect::<Vec<_>>()
         };
+        // (address params index, output account index)
+        let mut new_address_indices: Vec<(usize, u8)> = vec![];
 
         let (output_accounts, output_merkle_trees) = {
             let num_output_accounts = Self::safe_gen_range(&mut self.rng, 0..=8, 0);
             let mut accounts = vec![];
 
-            for _ in 0..num_output_accounts {
+            for i in 0..num_output_accounts {
                 let rnd_data: [u8; 32] = self.rng.gen();
                 let mut data_hash = rnd_data;
                 // truncate else 0x1 error
@@ -2605,7 +2607,10 @@ where
                 let num_addresses = addresses.len();
 
                 let address = if select_address && num_addresses > 0 {
-                    Some(addresses.remove(Self::safe_gen_range(&mut self.rng, 0..num_addresses, 0)))
+                    let new_address_index =
+                        Self::safe_gen_range(&mut self.rng, 0..num_addresses, 0);
+                    new_address_indices.push((new_address_index, i.try_into().unwrap()));
+                    Some(addresses.remove(new_address_index))
                 } else {
                     None
                 };
@@ -2739,13 +2744,28 @@ where
             &[CPI_AUTHORITY_PDA_SEED],
             &create_address_test_program::ID,
         );
+        let mut new_address_params = Vec::new();
+        for (index, new_address_param) in invoke_cpi.new_address_params.into_iter().enumerate() {
+            if let Some((_, account_index)) = new_address_indices
+                .iter()
+                .find(|(address_index, _)| *address_index == index)
+            {
+                new_address_params.push(NewAddressParamsAssignedPacked::new(
+                    new_address_param,
+                    Some(*account_index),
+                ));
+            } else {
+                new_address_params
+                    .push(NewAddressParamsAssignedPacked::new(new_address_param, None));
+            }
+        }
 
         let ix_data: InstructionDataInvokeCpiWithReadOnly = InstructionDataInvokeCpiWithReadOnly {
             mode: 0,
             bump,
             invoking_program_id: create_address_test_program::ID.into(),
             proof: invoke_cpi.proof,
-            new_address_params: invoke_cpi.new_address_params,
+            new_address_params,
             with_cpi_context: false,
             cpi_context: CompressedCpiContext::default(),
             input_compressed_accounts: invoke_cpi
