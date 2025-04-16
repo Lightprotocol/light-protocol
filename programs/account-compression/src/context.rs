@@ -83,14 +83,15 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     return Err(AccountError::AccountOwnedByWrongProgram.into());
                 }
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
-                // 1,670 CU
-                // TODO: get from RegisteredProgram account and compare
-                let derived_address = Pubkey::create_program_address(
-                    &[CPI_AUTHORITY_PDA_SEED, &[bump]],
-                    &account.registered_program_id,
-                )?;
+
+                if account.registered_program_signer_pda != *authority.key {
+                    return Err(AccountCompressionErrorCode::InvalidAuthority.into());
+                }
                 skip += 1;
-                Some((derived_address, account.group_authority_pda))
+                Some((
+                    account.registered_program_signer_pda,
+                    account.group_authority_pda,
+                ))
             }
             false => None,
         };
