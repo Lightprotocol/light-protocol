@@ -16,11 +16,8 @@ use crate::{
     address_merkle_tree_from_bytes_zero_copy_mut,
     errors::AccountCompressionErrorCode,
     state_merkle_tree_from_bytes_zero_copy_mut,
-    utils::{
-        check_signer_is_registered_or_authority::{
-            manual_check_signer_is_registered_or_authority, GroupAccess,
-        },
-        constants::CPI_AUTHORITY_PDA_SEED,
+    utils::check_signer_is_registered_or_authority::{
+        manual_check_signer_is_registered_or_authority, GroupAccess,
     },
     AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount,
 };
@@ -68,7 +65,8 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         account_infos: &'info [AccountInfo<'info>],
         authority: &'a AccountInfo<'info>,
         invoked_by_program: bool,
-        bump: u8,
+        // TODO: remove in separate pr because it impacts photon derivation.
+        _bump: u8,
     ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, ProgramError> {
         let mut vec = Vec::with_capacity(account_infos.len());
         let mut skip = 0;
@@ -85,7 +83,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
 
                 if account.registered_program_signer_pda != *authority.key {
-                    return Err(AccountCompressionErrorCode::InvalidAuthority.into());
+                    return Err(AccountError::InvalidSigner.into());
                 }
                 skip += 1;
                 Some((
