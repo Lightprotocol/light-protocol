@@ -37,23 +37,31 @@ class TokenBalanceCommand extends Command {
 
       loader.stop(false);
 
+      // Handle case when no token accounts are found
       if (tokenAccounts.items.length === 0) {
+        console.log("\x1b[1mBalance:\x1b[0m 0");
         console.log("No token accounts found");
         return;
       }
 
-      const compressedTokenAccount = tokenAccounts.items.find((acc) =>
+      const compressedTokenAccounts = tokenAccounts.items.filter((acc) =>
         acc.parsed.mint.equals(refMint),
       );
-      if (compressedTokenAccount === undefined) {
-        console.log("No token accounts found");
+
+      if (compressedTokenAccounts.length === 0) {
+        console.log("\x1b[1mBalance:\x1b[0m 0");
+        console.log("No token accounts found for this mint");
         return;
       }
-      console.log(
-        "\x1b[1mBalance:\x1b[0m ",
-        compressedTokenAccount.parsed.amount.toString(),
-      );
-      console.log("balance successful");
+
+      let totalBalance = BigInt(0);
+
+      compressedTokenAccounts.forEach((account) => {
+        const amount = account.parsed.amount;
+        totalBalance += BigInt(amount.toString());
+      });
+
+      console.log(`\x1b[1mBalance:\x1b[0m ${totalBalance.toString()}`);
     } catch (error) {
       this.error(`Failed to get balance!\n${error}`);
     }

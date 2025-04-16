@@ -41,7 +41,7 @@ describe("Get balance", () => {
     .it(
       `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
       (ctx: any) => {
-        expect(ctx.stdout).to.contain("balance successful");
+        expect(ctx.stdout).to.contain("Balance:");
       },
     );
 });
