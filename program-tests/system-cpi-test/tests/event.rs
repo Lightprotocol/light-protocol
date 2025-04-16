@@ -701,6 +701,7 @@ async fn perform_test_transaction<R: RpcConnection>(
                 root_index: x.root_index,
             })
             .collect::<Vec<_>>(),
+        with_transaction_hash: true,
         ..Default::default()
     };
     let remaining_accounts = to_account_metas(remaining_accounts);

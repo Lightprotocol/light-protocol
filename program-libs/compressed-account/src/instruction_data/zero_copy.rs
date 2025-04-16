@@ -432,6 +432,9 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
     fn bump(&self) -> Option<u8> {
         None
     }
+    fn with_transaction_hash(&self) -> bool {
+        false
+    }
     fn account_option_config(&self) -> AccountOptions {
         unimplemented!()
     }
@@ -544,6 +547,10 @@ impl ZInstructionDataInvokeCpi<'_> {
 impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
     fn bump(&self) -> Option<u8> {
         None
+    }
+
+    fn with_transaction_hash(&self) -> bool {
+        false
     }
 
     fn account_option_config(&self) -> AccountOptions {

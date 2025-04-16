@@ -22,6 +22,7 @@ pub trait InstructionDataTrait<'a> {
     fn cpi_context(&self) -> Option<CompressedCpiContext>;
     fn bump(&self) -> Option<u8>;
     fn account_option_config(&self) -> AccountOptions;
+    fn with_transaction_hash(&self) -> bool;
 }
 
 pub trait NewAddressParamsTrait<'a>

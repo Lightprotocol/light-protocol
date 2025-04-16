@@ -201,6 +201,7 @@ pub struct InstructionDataInvokeCpiWithReadOnly {
     /// -> expect account decompression_recipient
     pub is_decompress: bool,
     pub with_cpi_context: bool,
+    pub with_transaction_hash: bool,
     pub cpi_context: CompressedCpiContext,
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsAssignedPacked>,
@@ -225,6 +226,7 @@ pub struct ZInstructionDataInvokeCpiWithReadOnlyMeta {
     /// -> expect account decompression_recipient
     is_decompress: u8,
     with_cpi_context: u8,
+    with_transaction_hash: u8,
     pub cpi_context: ZCompressedCpiContext,
 }
 
@@ -234,6 +236,9 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMeta {
     }
     pub fn with_cpi_context(&self) -> bool {
         self.with_cpi_context > 0
+    }
+    pub fn with_transaction_hash(&self) -> bool {
+        self.with_transaction_hash > 0
     }
 }
 
@@ -256,6 +261,10 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
         }
+    }
+
+    fn with_transaction_hash(&self) -> bool {
+        self.meta.with_transaction_hash()
     }
 
     fn bump(&self) -> Option<u8> {
@@ -429,6 +438,7 @@ fn test_read_only_zero_copy() {
         compress_or_decompress_lamports: 0,
         is_decompress: false,
         with_cpi_context: false,
+        with_transaction_hash: true,
         cpi_context: CompressedCpiContext {
             set_context: false,
             first_set_context: false,

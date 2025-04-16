@@ -2763,6 +2763,7 @@ where
         let ix_data: InstructionDataInvokeCpiWithReadOnly = InstructionDataInvokeCpiWithReadOnly {
             mode: 0,
             bump,
+            with_transaction_hash: self.rng.gen(),
             invoking_program_id: create_address_test_program::ID.into(),
             proof: invoke_cpi.proof,
             new_address_params,

@@ -14,9 +14,10 @@ use super::{
         AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait,
         OutputAccountTrait,
     },
+    with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMeta,
     zero_copy::{
-        ZCompressedCpiContext, ZNewAddressParamsAssignedPacked, ZPackedMerkleContext,
-        ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+        ZNewAddressParamsAssignedPacked, ZPackedMerkleContext, ZPackedReadOnlyAddress,
+        ZPackedReadOnlyCompressedAccount,
     },
 };
 use crate::{
@@ -288,6 +289,7 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     /// -> expect account decompression_recipient
     pub is_decompress: bool,
     pub with_cpi_context: bool,
+    pub with_transaction_hash: bool,
     pub cpi_context: CompressedCpiContext,
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsAssignedPacked>,
@@ -308,6 +310,10 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
         }
+    }
+
+    fn with_transaction_hash(&self) -> bool {
+        self.meta.with_transaction_hash()
     }
 
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
@@ -363,35 +369,8 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
     }
 }
 
-#[repr(C)]
-#[derive(
-    Debug, Default, PartialEq, Clone, Copy, FromBytes, IntoBytes, Unaligned, Immutable, KnownLayout,
-)]
-pub struct ZInstructionDataInvokeCpiWithAccountInfoMeta {
-    /// 0 With program ids
-    /// 1 without program ids
-    pub mode: u8,
-    pub bump: u8,
-    pub invoking_program_id: Pubkey,
-    /// If compress_or_decompress_lamports > 0 -> expect sol_pool_pda
-    pub compress_or_decompress_lamports: U64,
-    /// -> expect account decompression_recipient
-    is_decompress: u8,
-    with_cpi_context: u8,
-    pub cpi_context: ZCompressedCpiContext,
-}
-
-impl ZInstructionDataInvokeCpiWithAccountInfoMeta {
-    pub fn is_decompress(&self) -> bool {
-        self.is_decompress > 0
-    }
-    pub fn with_cpi_context(&self) -> bool {
-        self.with_cpi_context > 0
-    }
-}
-
 pub struct ZInstructionDataInvokeCpiWithAccountInfo<'a> {
-    meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithAccountInfoMeta>,
+    meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
     pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsAssignedPacked>,
     pub account_infos: Vec<ZCAccountInfo<'a>>,
@@ -400,7 +379,7 @@ pub struct ZInstructionDataInvokeCpiWithAccountInfo<'a> {
 }
 
 impl<'a> Deref for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
-    type Target = Ref<&'a [u8], ZInstructionDataInvokeCpiWithAccountInfoMeta>;
+    type Target = Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>;
 
     fn deref(&self) -> &Self::Target {
         &self.meta
@@ -411,7 +390,7 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
     type Output = ZInstructionDataInvokeCpiWithAccountInfo<'a>;
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::Output, &'a [u8]), ZeroCopyError> {
         let (meta, bytes) =
-            Ref::<&[u8], ZInstructionDataInvokeCpiWithAccountInfoMeta>::from_prefix(bytes)?;
+            Ref::<&[u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>::from_prefix(bytes)?;
         let (proof, bytes) = Option::<Ref<&[u8], CompressedProof>>::zero_copy_at(bytes)?;
         let (new_address_params, bytes) =
             ZeroCopySliceBorsh::<'a, ZNewAddressParamsAssignedPacked>::from_bytes_at(bytes)?;

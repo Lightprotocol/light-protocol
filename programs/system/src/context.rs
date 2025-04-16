@@ -201,6 +201,10 @@ impl<'a, 'b, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.bump()
     }
 
+    pub fn with_transaction_hash(&self) -> bool {
+        self.instruction_data.with_transaction_hash()
+    }
+
     pub fn get_output_account(
         &'b self,
         index: usize,

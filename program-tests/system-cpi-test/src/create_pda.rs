@@ -378,6 +378,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
             mode: 0,
             bump,
+            with_transaction_hash: true,
             with_cpi_context: inputs_struct.cpi_context.is_some(),
             invoking_program_id: crate::ID.into(),
             proof: inputs_struct.proof,

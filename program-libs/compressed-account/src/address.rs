@@ -77,7 +77,7 @@ pub fn pack_new_address_params_assigned(
             address_merkle_tree_root_index: new_address_param.address_merkle_tree_root_index,
             address_merkle_tree_account_index,
             assigned_to_account: new_address_param.assigned_account_index.is_some(),
-            assigned_account_index: new_address_param.assigned_account_index.unwrap(),
+            assigned_account_index: new_address_param.assigned_account_index.unwrap_or_default(),
         });
     }
 

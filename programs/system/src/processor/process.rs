@@ -225,12 +225,14 @@ pub fn process<
         // 8.1. Create a tx hash
         use pinocchio::sysvars::Sysvar;
         let current_slot = Clock::get()?.slot;
-        cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
-            &input_compressed_account_hashes,
-            &output_compressed_account_hashes,
-            current_slot,
-        )
-        .map_err(ProgramError::from)?;
+        if inputs.with_transaction_hash() {
+            cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
+                &input_compressed_account_hashes,
+                &output_compressed_account_hashes,
+                current_slot,
+            )
+            .map_err(ProgramError::from)?;
+        }
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");
