@@ -19,7 +19,6 @@ const rolls = (fmt, env) => ({
         '@solana/web3.js',
         '@solana/spl-token',
         '@coral-xyz/borsh',
-        'buffer-layout',
         '@lightprotocol/stateless.js',
     ],
     plugins: [
