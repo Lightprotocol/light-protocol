@@ -1,9 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
     ValidityProof,
     PackedMerkleContext,
-    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { TokenPoolInfo } from './utils/get-token-pool-infos';
 

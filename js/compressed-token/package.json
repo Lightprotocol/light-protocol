@@ -36,7 +36,8 @@
     "dependencies": {
         "@coral-xyz/borsh": "^0.29.0",
         "bn.js": "^5.2.1",
-        "buffer": "6.0.3"
+        "buffer": "6.0.3",
+        "buffer-layout": "^1.2.2"
     },
     "devDependencies": {
         "@coral-xyz/anchor": "^0.29.0",
@@ -54,7 +55,7 @@
         "@solana/spl-token": "0.4.8",
         "@solana/web3.js": "1.98.0",
         "@types/bn.js": "^5.1.5",
-        "@types/node": "^22.5.5",
+        "@types/node": "^22.13.0",
         "@typescript-eslint/eslint-plugin": "^7.13.1",
         "@typescript-eslint/parser": "^7.13.1",
         "add": "^2.0.6",
@@ -86,7 +87,7 @@
         "test:e2e:layout": "vitest run tests/e2e/layout.test.ts --reporter=verbose",
         "test:e2e:select-accounts": "vitest run tests/e2e/select-accounts.test.ts --reporter=verbose",
         "test:e2e:create-token-pool": "pnpm test-validator && vitest run tests/e2e/create-token-pool.test.ts",
-        "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts --reporter=verbose",
+        "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts --reporter=verbose --bail=1",
         "test:e2e:approve-and-mint-to": "pnpm test-validator && vitest run tests/e2e/approve-and-mint-to.test.ts --reporter=verbose --bail=1",
         "test:e2e:merge-token-accounts": "pnpm test-validator && vitest run tests/e2e/merge-token-accounts.test.ts --reporter=verbose",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose --bail=1",

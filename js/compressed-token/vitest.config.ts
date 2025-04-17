@@ -11,6 +11,10 @@ export default defineConfig({
         exclude: ['src/program.ts'],
         testTimeout: 350000,
         hookTimeout: 100000,
+        reporters: ['verbose'],
+        outputFile: {
+            junit: 'test-results.xml',
+        },
     },
     define: {
         'import.meta.vitest': false,

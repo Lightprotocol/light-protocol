@@ -7,6 +7,7 @@ import {
     AccountMeta,
 } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
     ValidityProof,
     LightSystemProgram,

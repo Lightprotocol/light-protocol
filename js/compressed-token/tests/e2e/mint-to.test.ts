@@ -11,12 +11,10 @@ import {
     createTokenProgramLookupTable,
     mintTo,
 } from '../../src/actions';
-
 import {
     getTestKeypair,
     newAccountWithLamports,
     bn,
-    defaultTestStateTreeAccounts,
     Rpc,
     sendAndConfirmTx,
     buildAndSignTx,

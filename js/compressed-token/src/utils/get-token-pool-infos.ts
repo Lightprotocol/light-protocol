@@ -3,6 +3,7 @@ import { unpackAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../program';
 import { Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 
 /**
  * Check if the token pool info is initialized and has a balance.
