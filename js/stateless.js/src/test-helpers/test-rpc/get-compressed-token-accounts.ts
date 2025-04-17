@@ -59,12 +59,19 @@ export function parseTokenLayoutWithIdl(
     const { data } = compressedAccount.data;
 
     if (data.length === 0) return null;
+
     if (compressedAccount.owner.toBase58() !== programId.toBase58()) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    return TokenDataLayout.decode(data);
+    try {
+        const decoded = TokenDataLayout.decode(Buffer.from(data));
+        return decoded;
+    } catch (error) {
+        console.error('Decoding error:', error);
+        throw error;
+    }
 }
 
 /**
@@ -77,7 +84,6 @@ async function parseEventWithTokenTlvData(
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
     const infos = await rpc.getCachedActiveStateTreeInfos();
-
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
@@ -101,16 +107,12 @@ async function parseEventWithTokenTlvData(
                 leafIndex: event.outputLeafIndices[i],
                 proveByIndex: false,
             };
-
             if (!compressedAccount.compressedAccount.data)
                 throw new Error('No data');
-
             const parsedData = parseTokenLayoutWithIdl(
                 compressedAccount.compressedAccount,
             );
-
             if (!parsedData) throw new Error('Invalid token data');
-
             const withMerkleContext = createCompressedAccountWithMerkleContext(
                 merkleContext,
                 compressedAccount.compressedAccount.owner,
@@ -147,7 +149,6 @@ export async function getCompressedTokenAccounts(
         await Promise.all(
             events.map(event => parseEventWithTokenTlvData(event, rpc)),
         );
-
     /// strip spent compressed accounts if an output compressed account of tx n is
     /// an input compressed account of tx n+m, it is spent
     const allOutCompressedAccounts = eventsWithParsedTokenTlvData.flatMap(
@@ -162,12 +163,13 @@ export async function getCompressedTokenAccounts(
                 return (
                     JSON.stringify(hash) ===
                     JSON.stringify(
-                        outputCompressedAccount.compressedAccount.hash.toArray(),
+                        outputCompressedAccount.compressedAccount.hash.toArrayLike(
+                            Buffer,
+                        ),
                     )
                 );
             }),
     );
-
     return unspentCompressedAccounts;
 }
 

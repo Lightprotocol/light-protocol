@@ -5,7 +5,7 @@ import {
     createMerkleContext,
 } from '../../../src/state/compressed-account';
 import { PublicKey } from '@solana/web3.js';
-import { bn } from '../../../src/state/BN254';
+import { bn } from '../../../src/state';
 import { TreeType } from '../../../src/state';
 
 describe('createCompressedAccount function', () => {

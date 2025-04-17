@@ -5,7 +5,8 @@ import {
     StateTreeInfo,
 } from './types';
 import BN from 'bn.js';
-import { BN254, bn } from './BN254';
+import { BN254 } from './BN254';
+import { bn } from './bn';
 
 export type CompressedAccountWithMerkleContext = CompressedAccount &
     MerkleContext & {

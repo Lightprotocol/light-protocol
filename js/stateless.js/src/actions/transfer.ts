@@ -65,7 +65,7 @@ export async function transfer(
             filters: undefined,
             dataSlice: undefined,
             cursor,
-            limit: new BN(batchSize),
+            limit: bn(batchSize),
         };
 
         const batch = await rpc.getCompressedAccountsByOwner(
@@ -74,7 +74,7 @@ export async function transfer(
         );
 
         for (const account of batch.items) {
-            if (account.lamports.gt(new BN(0))) {
+            if (account.lamports.gt(bn(0))) {
                 compressedAccounts.push(account);
                 accumulatedLamports = accumulatedLamports.add(account.lamports);
             }

@@ -7,6 +7,7 @@ import {
     Wallet,
 } from '@coral-xyz/anchor';
 import BN from 'bn.js';
+import { bn } from '@lightprotocol/stateless.js';
 import {
     encodeMintToInstructionData,
     decodeMintToInstructionData,
@@ -139,7 +140,7 @@ describe('layout', () => {
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [
                         {
-                            amount: new BN('03e8', 16),
+                            amount: bn('03e8', 16),
                             delegateIndex: null,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
@@ -157,7 +158,7 @@ describe('layout', () => {
                             owner: new PublicKey(
                                 'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
                             ),
-                            amount: new BN('012c', 16),
+                            amount: bn('012c', 16),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
@@ -166,7 +167,7 @@ describe('layout', () => {
                             owner: new PublicKey(
                                 'GWYLPLzCCAVxq12UvBSpU4F8pcsmmRYQobPxkGz67ZVx',
                             ),
-                            amount: new BN('02bc', 16),
+                            amount: bn('02bc', 16),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
@@ -188,7 +189,7 @@ describe('layout', () => {
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [],
                     outputCompressedAccounts: [],
-                    compressOrDecompressAmount: new BN(500),
+                    compressOrDecompressAmount: bn(500),
                     isCompress: true,
                     cpiContext: null,
                     lamportsChangeAccountMerkleTreeIndex: null,
@@ -241,7 +242,7 @@ describe('layout', () => {
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [
                         {
-                            amount: new BN(1000),
+                            amount: bn(1000),
                             delegateIndex: 2,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 1,
@@ -250,7 +251,7 @@ describe('layout', () => {
                                 queueIndex: { queueId: 0, index: 4 },
                             },
                             rootIndex: 5,
-                            lamports: new BN(2000),
+                            lamports: bn(2000),
                             tlv: Buffer.from([1, 2, 3]),
                         },
                     ],
@@ -275,8 +276,8 @@ describe('layout', () => {
                             owner: new PublicKey(
                                 'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
                             ),
-                            amount: new BN(3000),
-                            lamports: new BN(4000),
+                            amount: bn(3000),
+                            lamports: bn(4000),
                             merkleTreeIndex: 1,
                             tlv: Buffer.from([4, 5, 6]),
                         },
@@ -367,7 +368,7 @@ describe('layout', () => {
                             '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
                         ),
                     ],
-                    amounts: [new BN(1000)],
+                    amounts: [bn(1000)],
                     lamports: null,
                 },
             },
@@ -382,7 +383,7 @@ describe('layout', () => {
                             '8ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWs',
                         ),
                     ],
-                    amounts: [new BN(1000), new BN(2000)],
+                    amounts: [bn(1000), bn(2000)],
                     lamports: null,
                 },
             },
@@ -394,8 +395,8 @@ describe('layout', () => {
                             '6ASf5EcmmEHTgDJ4X4ZT5vT6iHVJBXPg5AN5YoTCpGWt',
                         ),
                     ],
-                    amounts: [new BN(1000)],
-                    lamports: new BN(500),
+                    amounts: [bn(1000)],
+                    lamports: bn(500),
                 },
             },
         ];
@@ -442,7 +443,7 @@ describe('layout', () => {
                     owner: new PublicKey(
                         'CPMzHV9PsUeb5pFmyrj9nEoDwtL8CcyUKQzJXJxYRnT7',
                     ),
-                    remainingAmount: new BN(110),
+                    remainingAmount: bn(110),
                     cpiContext: null,
                 },
             },
@@ -452,7 +453,7 @@ describe('layout', () => {
                     owner: new PublicKey(
                         'CPMzHV9PsUeb5pFmyrj9nEoDwtL8CcyUKQzJXJxYRnT7',
                     ),
-                    remainingAmount: new BN(110),
+                    remainingAmount: bn(110),
                     cpiContext: {
                         setContext: true,
                         firstSetContext: true,

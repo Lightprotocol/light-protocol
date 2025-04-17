@@ -951,9 +951,9 @@ export class CompressedTokenProgram {
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: Array.isArray(params.amount)
                 ? params.amount
-                      .map(amt => new BN(amt))
-                      .reduce((sum, amt) => sum.add(amt), new BN(0))
-                : new BN(params.amount),
+                      .map(amt => bn(amt))
+                      .reduce((sum, amt) => sum.add(amt), bn(0))
+                : bn(params.amount),
             isCompress: true,
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
@@ -1097,7 +1097,7 @@ export class CompressedTokenProgram {
             toAddress: owner,
             amount: inputCompressedTokenAccounts.reduce(
                 (sum, account) => sum.add(account.parsed.amount),
-                new BN(0),
+                bn(0),
             ),
             outputStateTreeInfo,
             recentInputStateRootIndices,

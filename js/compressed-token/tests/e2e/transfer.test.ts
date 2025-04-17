@@ -391,7 +391,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -400,7 +400,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -409,7 +409,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -418,7 +418,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
 
@@ -429,11 +429,11 @@ describe('e2e transfer with multiple accounts', () => {
         expect(senderAccounts.items.length).toBe(4);
         const totalAmount = senderAccounts.items.reduce(
             (sum, account) => sum.add(account.parsed.amount),
-            new BN(0),
+            bn(0),
         );
-        expect(totalAmount.eq(new BN(100))).toBe(true);
+        expect(totalAmount.eq(bn(100))).toBe(true);
 
-        const transferAmount = new BN(100);
+        const transferAmount = bn(100);
 
         await transferHelper(
             rpc,

@@ -259,9 +259,9 @@ const BNFromStringOrNumber = coerce(
             if (!Number.isSafeInteger(value)) {
                 throw new Error(`Unsafe integer. Precision loss: ${value}`);
             }
-            return new BN(value); // Safe number → BN
+            return bn(value); // Safe number → BN
         }
-        return new BN(value, 10); // String → BN
+        return bn(value, 10); // String → BN
     },
 );
 

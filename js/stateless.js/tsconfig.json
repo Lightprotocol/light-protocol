@@ -17,7 +17,6 @@
     },
     "include": [
         "./src/**/*.ts",
-        "./types/**/*.d.ts",
         "playwright.config.ts",
         "rollup.config.js"
     ]

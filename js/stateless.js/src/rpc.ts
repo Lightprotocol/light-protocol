@@ -113,7 +113,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         limit: options.limit?.toNumber(),
         cursor: options.cursor,
     });
-
     const res = create(
         unsafeRes,
         jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),
@@ -498,7 +497,7 @@ function calculateTwoInputsHashChain(
         throw new Error('Input lengths must match.');
     }
     if (hashesFirst.length === 0) {
-        return new BN(0);
+        return bn(0);
     }
 
     let hashChain = lightWasm.poseidonHashBN([
@@ -981,6 +980,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithCursor<ParsedTokenAccount[]>> {
         if (!options) options = {};
 
+        console.log('#020');
         return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             owner,

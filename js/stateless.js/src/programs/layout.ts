@@ -15,13 +15,13 @@ import {
     vecU8,
 } from '@coral-xyz/borsh';
 import {
+    bn,
     InstructionDataInvoke,
     InstructionDataInvokeCpi,
     PublicTransactionEvent,
 } from '../state';
 import { LightSystemProgram } from './system';
 import { INVOKE_CPI_DISCRIMINATOR, INVOKE_DISCRIMINATOR } from '../constants';
-import { BN } from 'bn.js';
 
 export const CompressedAccountLayout = struct(
     [
@@ -426,7 +426,7 @@ export function convertToPublicTransactionEvent(
                         invokeData?.outputCompressedAccounts[index]
                             ?.compressedAccount.owner || PublicKey.default,
                     ),
-                    lamports: new BN(
+                    lamports: bn(
                         invokeData?.outputCompressedAccounts[index]
                             ?.compressedAccount.lamports || 0,
                     ),
@@ -468,15 +468,15 @@ export function convertToPublicTransactionEvent(
         outputLeafIndices: decoded.output_leaf_indices,
         sequenceNumbers: decoded.sequence_numbers.map((sn: any) => ({
             pubkey: new PublicKey(sn.pubkey),
-            seq: new BN(sn.seq),
+            seq: bn(sn.seq),
         })),
         pubkeyArray: remainingAccounts
             .slice(2)
             .filter(pk => !pk.equals(PublicKey.default)),
         isCompress: invokeData?.isCompress || false,
-        relayFee: invokeData?.relayFee ? new BN(invokeData.relayFee) : null,
+        relayFee: invokeData?.relayFee ? bn(invokeData.relayFee) : null,
         compressOrDecompressLamports: invokeData?.compressOrDecompressLamports
-            ? new BN(invokeData.compressOrDecompressLamports)
+            ? bn(invokeData.compressOrDecompressLamports)
             : null,
         message: null,
     };
