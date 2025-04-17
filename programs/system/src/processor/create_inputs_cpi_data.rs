@@ -2,7 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-        traits::InstructionDataTrait,
+        traits::InstructionData,
     },
 };
 use light_hasher::{Hasher, Poseidon};
@@ -19,7 +19,7 @@ use crate::{
 /// Merkle tree pubkeys are hashed and stored in the hashed_pubkeys array.
 /// Merkle tree pubkeys should be ordered for efficiency.
 #[inline(always)]
-pub fn create_inputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     remaining_accounts: &'info [AccountInfo],
     instruction_data: &WrappedInstructionData<'a, T>,
     context: &mut SystemContext<'info>,

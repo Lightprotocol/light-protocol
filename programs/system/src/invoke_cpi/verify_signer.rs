@@ -1,5 +1,5 @@
 #![allow(unused_imports)]
-use light_compressed_account::instruction_data::traits::InstructionDataTrait;
+use light_compressed_account::instruction_data::traits::InstructionData;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{
@@ -18,7 +18,7 @@ use crate::{
 ///    (input_compressed_accounts_signer_check)
 /// 3. Output compressed accounts with data are owned by the invoking program
 ///    (output_compressed_accounts_write_access_check)
-pub fn cpi_signer_checks<'a, T: InstructionDataTrait<'a>>(
+pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
     invoking_program_id: &Pubkey,
     authority: &Pubkey,
     inputs: &WrappedInstructionData<'a, T>,
@@ -109,7 +109,7 @@ pub fn cpi_signer_check(
 }
 
 /// Checks that the invoking program owns all input compressed accounts.
-pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
@@ -136,7 +136,7 @@ pub fn input_compressed_accounts_signer_check<'a, 'info, T: InstructionDataTrait
 ///     invoking_program.
 /// - outputs without data can be owned by any pubkey.
 #[inline(never)]
-pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {

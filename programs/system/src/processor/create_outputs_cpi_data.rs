@@ -2,7 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::{InstructionDataTrait, OutputAccountTrait},
+        traits::{InstructionData, OutputAccount},
     },
     TreeType,
 };
@@ -30,7 +30,7 @@ use crate::{
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
@@ -196,7 +196,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
 }
 
 // Check that new addresses are assigned correctly to the compressed output accounts specified by index
-pub fn check_new_address_assignment<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     cpi_ix_data: &InsertIntoQueuesInstructionDataMut<'_>,
 ) -> std::result::Result<(), SystemProgramError> {

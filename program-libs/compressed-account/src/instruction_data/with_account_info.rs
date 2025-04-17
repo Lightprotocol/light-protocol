@@ -10,10 +10,7 @@ use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
     data::{NewAddressParamsAssignedPacked, PackedReadOnlyAddress},
-    traits::{
-        AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait,
-        OutputAccountTrait,
-    },
+    traits::{AccountOptions, InputAccount, InstructionData, NewAddress, OutputAccount},
     with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMeta,
     zero_copy::{
         ZNewAddressParamsAssignedPacked, ZPackedMerkleContext, ZPackedReadOnlyAddress,
@@ -70,7 +67,7 @@ pub struct OutAccountInfo {
     pub data: Vec<u8>,
 }
 
-impl<'a> InputAccountTrait<'a> for ZCAccountInfo<'a> {
+impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
     fn owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -123,7 +120,7 @@ impl<'a> InputAccountTrait<'a> for ZCAccountInfo<'a> {
     }
 }
 
-impl<'a> OutputAccountTrait<'a> for ZCAccountInfo<'a> {
+impl<'a> OutputAccount<'a> for ZCAccountInfo<'a> {
     fn lamports(&self) -> u64 {
         self.output.as_ref().unwrap().lamports.into()
     }
@@ -298,7 +295,7 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
 }
 
-impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
+impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     fn bump(&self) -> Option<u8> {
         Some(self.bump)
     }
@@ -328,7 +325,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
         self.meta.invoking_program_id
     }
 
-    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -352,11 +349,11 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'
         !self.meta.is_decompress()
     }
 
-    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.account_infos.as_slice()
     }
 
-    fn output_accounts(&self) -> &[impl super::traits::OutputAccountTrait<'a>] {
+    fn output_accounts(&self) -> &[impl super::traits::OutputAccount<'a>] {
         self.account_infos.as_slice()
     }
 

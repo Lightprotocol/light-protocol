@@ -17,7 +17,7 @@ use invoke_cpi::{
     small_accounts::InvokeCpiInstructionSmall,
 };
 use light_compressed_account::instruction_data::{
-    traits::InstructionDataTrait,
+    traits::InstructionData,
     with_account_info::InstructionDataInvokeCpiWithAccountInfo,
     with_readonly::InstructionDataInvokeCpiWithReadOnly,
     zero_copy::{ZInstructionDataInvoke, ZInstructionDataInvokeCpi},
@@ -181,7 +181,7 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     )
 }
 
-fn shared_invoke_cpi<'a, 'info, T: InstructionDataTrait<'a>>(
+fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
     accounts: &[AccountInfo],
     invoking_program: Pubkey,
     mode: AccountMode,
