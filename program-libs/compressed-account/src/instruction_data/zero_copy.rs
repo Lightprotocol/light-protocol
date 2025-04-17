@@ -433,7 +433,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
         None
     }
     fn with_transaction_hash(&self) -> bool {
-        false
+        true
     }
     fn account_option_config(&self) -> AccountOptions {
         unimplemented!()
@@ -550,7 +550,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
     }
 
     fn with_transaction_hash(&self) -> bool {
-        false
+        true
     }
 
     fn account_option_config(&self) -> AccountOptions {
