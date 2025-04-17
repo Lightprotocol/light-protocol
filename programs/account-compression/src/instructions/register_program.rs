@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Copy)]
+#[derive(Debug, Pod, Zeroable, Copy, PartialEq)]
 #[account]
 #[aligned_sized(anchor)]
 pub struct RegisteredProgram {
