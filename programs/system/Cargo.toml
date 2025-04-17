@@ -58,7 +58,7 @@ pinocchio-system = { version = "0.2.3" }
 
 [dev-dependencies]
 rand = { workspace = true }
-solana-pubkey = { version = "2.3", features = ["curve25519", "sha2"] }
+solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
