@@ -102,7 +102,7 @@ install_rust() {
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add clippy rustfmt
         cargo install cargo-expand --locked
-        cargo install --git https://github.com/Lightprotocol/photon.git --rev 0e513a62daa4fe0eb40c21ac1e208a753ee687d5 --locked
+        cargo install --git https://github.com/Lightprotocol/photon.git --rev edff82c5cb7fd891b5ab62faed9126594c97d90b --locked
         log "rust"
     fi
 }
