@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::{
-    invoke_cpi::InstructionDataInvokeCpi, traits::InstructionDataTrait,
+    invoke_cpi::InstructionDataInvokeCpi, traits::InstructionData,
 };
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
@@ -31,7 +31,7 @@ use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result}
 ///    compressed account, reads cpi context and combines the instruction inputs
 ///    with verified inputs from the cpi context. The proof is verified and
 ///    other state transition is executed with the combined inputs.
-pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
     mut inputs: WrappedInstructionData<'a, T>,
     cpi_context_account_info: Option<&'info AccountInfo>,
     fee_payer: Pubkey,
@@ -91,7 +91,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
     Ok(Some((0, inputs)))
 }
 
-pub fn set_cpi_context<'a, 'info, T: InstructionDataTrait<'a>>(
+pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     fee_payer: Pubkey,
     cpi_context_account_info: &'info AccountInfo,
     inputs: WrappedInstructionData<'a, T>,

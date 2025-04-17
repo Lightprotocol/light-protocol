@@ -4,7 +4,7 @@ use light_compressed_account::{
     instruction_data::{
         compressed_proof::CompressedProof,
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, InsertNullifierInput},
-        traits::InstructionDataTrait,
+        traits::InstructionData,
         zero_copy::ZPackedReadOnlyCompressedAccount,
     },
     tx_hash::create_tx_hash_from_hash_chains,
@@ -84,7 +84,7 @@ pub fn process<
     'info,
     const ADDRESS_ASSIGNMENT: bool,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
-    T: InstructionDataTrait<'a>,
+    T: InstructionData<'a>,
 >(
     inputs: WrappedInstructionData<'a, T>,
     invoking_program: Option<Pubkey>,

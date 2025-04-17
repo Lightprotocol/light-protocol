@@ -5,9 +5,7 @@ use light_compressed_account::{
         cpi_context::CompressedCpiContext,
         data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
-        traits::{
-            InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait, OutputAccountTrait,
-        },
+        traits::{InputAccount, InstructionData, NewAddress, OutputAccount},
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
@@ -135,7 +133,7 @@ impl<'info> SystemContext<'info> {
     }
 }
 
-pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
+pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
     instruction_data: T,
     cpi_context: Option<ZCpiContextAccount<'a>>,
     address_len: usize,
@@ -143,7 +141,7 @@ pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
     outputs_len: usize,
 }
 
-impl<'a, 'b, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
+impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
     pub fn new(instruction_data: T) -> Self {
         Self {
             input_len: instruction_data.input_accounts().len(),
@@ -205,10 +203,7 @@ impl<'a, 'b, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.with_transaction_hash()
     }
 
-    pub fn get_output_account(
-        &'b self,
-        index: usize,
-    ) -> Option<&'b (impl OutputAccountTrait<'a> + 'b)> {
+    pub fn get_output_account(&'b self, index: usize) -> Option<&'b (impl OutputAccount<'a> + 'b)> {
         if index > self.instruction_data.output_accounts().len() {
             None
         } else {
@@ -217,7 +212,7 @@ impl<'a, 'b, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     }
 }
 
-impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
+impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
     pub fn owner(&self) -> light_compressed_account::pubkey::Pubkey {
         self.instruction_data.owner()
     }
@@ -238,9 +233,7 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.compress_or_decompress_lamports()
     }
 
-    pub fn new_addresses<'b>(
-        &'b self,
-    ) -> impl Iterator<Item = &'b (dyn NewAddressParamsTrait<'a> + 'b)> {
+    pub fn new_addresses<'b>(&'b self) -> impl Iterator<Item = &'b (dyn NewAddress<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
             if cpi_context.context.len() > 1 {
                 panic!("Cpi context len > 1");
@@ -255,9 +248,7 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    pub fn output_accounts<'b>(
-        &'b self,
-    ) -> impl Iterator<Item = &'b (dyn OutputAccountTrait<'a> + 'b)> {
+    pub fn output_accounts<'b>(&'b self) -> impl Iterator<Item = &'b (dyn OutputAccount<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
             if cpi_context.context.len() > 1 {
                 panic!("Cpi context len > 1");
@@ -271,9 +262,7 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    pub fn input_accounts<'b>(
-        &'b self,
-    ) -> impl Iterator<Item = &'b (dyn InputAccountTrait<'a> + 'b)> {
+    pub fn input_accounts<'b>(&'b self) -> impl Iterator<Item = &'b (dyn InputAccount<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
             if cpi_context.context.len() > 1 {
                 panic!("Cpi context len > 1");
@@ -358,39 +347,31 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
 }
 
 pub fn chain_outputs<'a, 'b: 'a>(
-    slice1: &'a [impl OutputAccountTrait<'b>],
-    slice2: &'a [impl OutputAccountTrait<'b>],
-) -> impl Iterator<Item = &'a (dyn OutputAccountTrait<'b> + 'a)> {
+    slice1: &'a [impl OutputAccount<'b>],
+    slice2: &'a [impl OutputAccount<'b>],
+) -> impl Iterator<Item = &'a (dyn OutputAccount<'b> + 'a)> {
     slice1
         .iter()
-        .map(|item| item as &dyn OutputAccountTrait<'b>)
-        .chain(
-            slice2
-                .iter()
-                .map(|item| item as &dyn OutputAccountTrait<'b>),
-        )
+        .map(|item| item as &dyn OutputAccount<'b>)
+        .chain(slice2.iter().map(|item| item as &dyn OutputAccount<'b>))
 }
 
 pub fn chain_inputs<'a, 'b: 'a>(
-    slice1: &'a [impl InputAccountTrait<'b>],
-    slice2: &'a [impl InputAccountTrait<'b>],
-) -> impl Iterator<Item = &'a (dyn InputAccountTrait<'b> + 'a)> {
+    slice1: &'a [impl InputAccount<'b>],
+    slice2: &'a [impl InputAccount<'b>],
+) -> impl Iterator<Item = &'a (dyn InputAccount<'b> + 'a)> {
     slice1
         .iter()
-        .map(|item| item as &dyn InputAccountTrait<'b>)
-        .chain(slice2.iter().map(|item| item as &dyn InputAccountTrait<'b>))
+        .map(|item| item as &dyn InputAccount<'b>)
+        .chain(slice2.iter().map(|item| item as &dyn InputAccount<'b>))
 }
 
 pub fn chain_new_addresses<'a, 'b: 'a>(
-    slice1: &'a [impl NewAddressParamsTrait<'b>],
-    slice2: &'a [impl NewAddressParamsTrait<'b>],
-) -> impl Iterator<Item = &'a (dyn NewAddressParamsTrait<'b> + 'a)> {
+    slice1: &'a [impl NewAddress<'b>],
+    slice2: &'a [impl NewAddress<'b>],
+) -> impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)> {
     slice1
         .iter()
-        .map(|item| item as &dyn NewAddressParamsTrait<'b>)
-        .chain(
-            slice2
-                .iter()
-                .map(|item| item as &dyn NewAddressParamsTrait<'b>),
-        )
+        .map(|item| item as &dyn NewAddress<'b>)
+        .chain(slice2.iter().map(|item| item as &dyn NewAddress<'b>))
 }

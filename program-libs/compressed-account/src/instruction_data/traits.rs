@@ -9,11 +9,11 @@ use super::{
 };
 use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
 
-pub trait InstructionDataTrait<'a> {
+pub trait InstructionData<'a> {
     fn owner(&self) -> Pubkey;
-    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>];
-    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>];
-    fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>];
+    fn new_addresses(&self) -> &[impl NewAddress<'a>];
+    fn input_accounts(&self) -> &[impl InputAccount<'a>];
+    fn output_accounts(&self) -> &[impl OutputAccount<'a>];
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;
     fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]>;
     fn is_compress(&self) -> bool;
@@ -25,7 +25,7 @@ pub trait InstructionDataTrait<'a> {
     fn with_transaction_hash(&self) -> bool;
 }
 
-pub trait NewAddressParamsTrait<'a>
+pub trait NewAddress<'a>
 where
     Self: Debug,
 {
@@ -36,7 +36,7 @@ where
     fn assigned_compressed_account_index(&self) -> Option<usize>;
 }
 
-pub trait InputAccountTrait<'a>
+pub trait InputAccount<'a>
 where
     Self: Debug,
 {
@@ -57,7 +57,7 @@ where
     fn root_index(&self) -> u16;
 }
 
-pub trait OutputAccountTrait<'a>
+pub trait OutputAccount<'a>
 where
     Self: Debug,
 {

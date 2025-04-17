@@ -8,10 +8,7 @@ use zerocopy::{
 
 use super::{
     invoke_cpi::InstructionDataInvokeCpi,
-    traits::{
-        AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait,
-        OutputAccountTrait,
-    },
+    traits::{AccountOptions, InputAccount, InstructionData, NewAddress, OutputAccount},
 };
 use crate::{
     compressed_account::{
@@ -64,7 +61,7 @@ pub struct ZNewAddressParamsPacked {
     pub address_merkle_tree_root_index: U16,
 }
 
-impl NewAddressParamsTrait<'_> for ZNewAddressParamsPacked {
+impl NewAddress<'_> for ZNewAddressParamsPacked {
     fn seed(&self) -> [u8; 32] {
         self.seed
     }
@@ -117,7 +114,7 @@ pub struct ZOutputCompressedAccountWithPackedContext<'a> {
     pub merkle_tree_index: u8,
 }
 
-impl<'a> OutputAccountTrait<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
+impl<'a> OutputAccount<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
     fn lamports(&self) -> u64 {
         self.compressed_account.lamports.into()
     }
@@ -332,7 +329,7 @@ pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
     meta: Ref<&'a [u8], ZPackedCompressedAccountWithMerkleContextMeta>,
 }
 
-impl<'a> InputAccountTrait<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
+impl<'a> InputAccount<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
     fn owner(&self) -> &crate::pubkey::Pubkey {
         &self.compressed_account.owner
     }
@@ -428,7 +425,7 @@ pub struct ZInstructionDataInvoke<'a> {
     pub is_compress: bool,
 }
 
-impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
+impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
     fn bump(&self) -> Option<u8> {
         None
     }
@@ -467,16 +464,16 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvoke<'a> {
         }
     }
 
-    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
     }
 
-    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
     }
 
-    fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>] {
+    fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
         self.output_compressed_accounts.as_slice()
     }
 
@@ -544,7 +541,7 @@ impl ZInstructionDataInvokeCpi<'_> {
     }
 }
 
-impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
+impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
     fn bump(&self) -> Option<u8> {
         None
     }
@@ -591,15 +588,15 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpi<'a> {
         self.proof
     }
 
-    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
     }
 
-    fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>] {
+    fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
         self.output_compressed_accounts.as_slice()
     }
 
-    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
     }
@@ -776,7 +773,7 @@ pub struct ZNewAddressParamsAssignedPacked {
     pub assigned_account_index: u8,
 }
 
-impl NewAddressParamsTrait<'_> for ZNewAddressParamsAssignedPacked {
+impl NewAddress<'_> for ZNewAddressParamsAssignedPacked {
     fn seed(&self) -> [u8; 32] {
         self.seed
     }

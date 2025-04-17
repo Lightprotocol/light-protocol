@@ -1,7 +1,7 @@
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     instruction_data::{
-        insert_into_queues::InsertIntoQueuesInstructionDataMut, traits::NewAddressParamsTrait,
+        insert_into_queues::InsertIntoQueuesInstructionDataMut, traits::NewAddress,
     },
 };
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
-    new_address_params: impl Iterator<Item = &'a (dyn NewAddressParamsTrait<'b> + 'a)>,
+    new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
     remaining_accounts: &'info [AccountInfo],
     context: &mut SystemContext<'info>,
     cpi_ix_data: &mut InsertIntoQueuesInstructionDataMut<'_>,

@@ -5,7 +5,7 @@ use light_compressed_account::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     instruction_data::{
         compressed_proof::CompressedProof,
-        traits::{InputAccountTrait, NewAddressParamsTrait},
+        traits::{InputAccount, NewAddress},
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
@@ -25,9 +25,7 @@ const IS_NOT_STATE: bool = false;
 #[inline(always)]
 pub fn read_input_state_roots<'a: 'b, 'b>(
     remaining_accounts: &[AcpAccount<'_>],
-    input_compressed_accounts_with_merkle_context: impl Iterator<
-        Item = &'b (dyn InputAccountTrait<'a> + 'b),
-    >,
+    input_compressed_accounts_with_merkle_context: impl Iterator<Item = &'b (dyn InputAccount<'a> + 'b)>,
     read_only_accounts: &[ZPackedReadOnlyCompressedAccount],
     input_roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
@@ -85,7 +83,7 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
 #[inline(always)]
 pub fn read_address_roots<'a, 'b: 'a>(
     remaining_accounts: &[AcpAccount<'_>],
-    new_address_params: impl Iterator<Item = &'a (dyn NewAddressParamsTrait<'b> + 'a)>,
+    new_address_params: impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)>,
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {

@@ -1,4 +1,4 @@
-use light_compressed_account::instruction_data::traits::InstructionDataTrait;
+use light_compressed_account::instruction_data::traits::InstructionData;
 #[cfg(feature = "bench-sbf")]
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
@@ -22,7 +22,7 @@ pub fn process_invoke_cpi<
     'info,
     const ADDRESS_ASSIGNMENT: bool,
     A: SignerAccounts<'info> + InvokeAccounts<'info> + CpiContextAccountTrait<'info>,
-    T: InstructionDataTrait<'a>,
+    T: InstructionData<'a>,
 >(
     invoking_program: Pubkey,
     ctx: A,

@@ -1,10 +1,10 @@
-use light_compressed_account::instruction_data::traits::InstructionDataTrait;
+use light_compressed_account::instruction_data::traits::InstructionData;
 use pinocchio::program_error::ProgramError;
 
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
 
 #[inline(always)]
-pub fn sum_check<'a, T: InstructionDataTrait<'a>>(
+pub fn sum_check<'a, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     relay_fee: &Option<u64>,
     is_compress: &bool,

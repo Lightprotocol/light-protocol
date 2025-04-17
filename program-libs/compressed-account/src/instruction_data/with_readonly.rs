@@ -13,7 +13,7 @@ use super::{
         NewAddressParamsAssignedPacked, OutputCompressedAccountWithPackedContext,
         PackedReadOnlyAddress,
     },
-    traits::{AccountOptions, InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait},
+    traits::{AccountOptions, InputAccount, InstructionData, NewAddress},
     zero_copy::{
         ZCompressedCpiContext, ZNewAddressParamsAssignedPacked,
         ZOutputCompressedAccountWithPackedContext, ZPackedMerkleContext, ZPackedReadOnlyAddress,
@@ -67,7 +67,7 @@ impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
     }
 }
 
-impl<'a> InputAccountTrait<'a> for ZInAccount<'a> {
+impl<'a> InputAccount<'a> for ZInAccount<'a> {
     fn owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -253,7 +253,7 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
     pub read_only_accounts: ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>,
 }
 
-impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
+impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     fn account_option_config(&self) -> AccountOptions {
         AccountOptions {
             sol_pool_pda: self.is_compress(),
@@ -282,7 +282,7 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
         self.meta.invoking_program_id
     }
 
-    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>] {
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
     }
 
@@ -306,11 +306,11 @@ impl<'a> InstructionDataTrait<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> 
         !self.meta.is_decompress() && self.compress_or_decompress_lamports().is_some()
     }
 
-    fn input_accounts(&self) -> &[impl InputAccountTrait<'a>] {
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts.as_slice()
     }
 
-    fn output_accounts(&self) -> &[impl super::traits::OutputAccountTrait<'a>] {
+    fn output_accounts(&self) -> &[impl super::traits::OutputAccount<'a>] {
         self.output_compressed_accounts.as_slice()
     }
 
