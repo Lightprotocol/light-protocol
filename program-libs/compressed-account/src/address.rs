@@ -8,7 +8,9 @@ use super::compressed_account::{
 use crate::{
     hash_to_bn254_field_size_be,
     instruction_data::data::{
-        NewAddressParams, NewAddressParamsPacked, PackedReadOnlyAddress, ReadOnlyAddress,
+        pack_pubkey_usize, NewAddressParams, NewAddressParamsAssigned,
+        NewAddressParamsAssignedPacked, NewAddressParamsPacked, PackedReadOnlyAddress,
+        ReadOnlyAddress,
     },
     CompressedAccountError, Pubkey,
 };
@@ -54,6 +56,31 @@ pub fn add_and_get_remaining_account_indices(
         };
         vec.push(*remaining_accounts.get(pubkey).unwrap() as u8);
     }
+    vec
+}
+
+pub fn pack_new_address_params_assigned(
+    new_address_params: &[NewAddressParamsAssigned],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<NewAddressParamsAssignedPacked> {
+    let mut vec = Vec::new();
+    for new_address_param in new_address_params.iter() {
+        let address_merkle_tree_account_index = pack_pubkey_usize(
+            &new_address_param.address_merkle_tree_pubkey,
+            remaining_accounts,
+        );
+        let address_queue_account_index =
+            pack_pubkey_usize(&new_address_param.address_queue_pubkey, remaining_accounts);
+        vec.push(NewAddressParamsAssignedPacked {
+            seed: new_address_param.seed,
+            address_queue_account_index,
+            address_merkle_tree_root_index: new_address_param.address_merkle_tree_root_index,
+            address_merkle_tree_account_index,
+            assigned_to_account: new_address_param.assigned_account_index.is_some(),
+            assigned_account_index: new_address_param.assigned_account_index.unwrap_or_default(),
+        });
+    }
+
     vec
 }
 

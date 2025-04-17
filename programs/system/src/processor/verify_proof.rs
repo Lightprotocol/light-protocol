@@ -5,10 +5,8 @@ use light_compressed_account::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     instruction_data::{
         compressed_proof::CompressedProof,
-        traits::InputAccountTrait,
-        zero_copy::{
-            ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
-        },
+        traits::{InputAccountTrait, NewAddressParamsTrait},
+        zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
 use light_verifier::{
@@ -85,17 +83,17 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
 }
 
 #[inline(always)]
-pub fn read_address_roots<'a>(
+pub fn read_address_roots<'a, 'b: 'a>(
     remaining_accounts: &[AcpAccount<'_>],
-    new_address_params: impl Iterator<Item = &'a ZNewAddressParamsPacked>,
+    new_address_params: impl Iterator<Item = &'a (dyn NewAddressParamsTrait<'b> + 'a)>,
     read_only_addresses: &'a [ZPackedReadOnlyAddress],
     address_roots: &'a mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut address_tree_height = 0;
     for new_address_param in new_address_params {
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_NOT_STATE>(
-            &remaining_accounts[new_address_param.address_merkle_tree_account_index as usize],
-            new_address_param.address_merkle_tree_root_index.into(),
+            &remaining_accounts[new_address_param.address_merkle_tree_account_index() as usize],
+            new_address_param.address_merkle_tree_root_index(),
             address_roots,
         )?;
         if address_tree_height == 0 {

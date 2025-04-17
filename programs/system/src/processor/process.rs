@@ -34,7 +34,7 @@ use crate::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
         create_inputs_cpi_data::create_inputs_cpi_data,
-        create_outputs_cpi_data::create_outputs_cpi_data,
+        create_outputs_cpi_data::{check_new_address_assignment, create_outputs_cpi_data},
         sol_compression::compress_or_decompress_lamports,
         sum_check::sum_check,
         verify_proof::{read_address_roots, read_input_state_roots, verify_proof},
@@ -82,6 +82,7 @@ use crate::{
 pub fn process<
     'a,
     'info,
+    const ADDRESS_ASSIGNMENT: bool,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
     T: InstructionDataTrait<'a>,
 >(
@@ -151,13 +152,22 @@ pub fn process<
 
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
-        derive_new_addresses(
+        derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,
             accounts.as_slice(),
-        )?
+        )?;
+        if ADDRESS_ASSIGNMENT {
+            check_new_address_assignment(&inputs, &cpi_ix_data)?;
+        } else if inputs
+            .new_addresses()
+            .any(|x| x.assigned_compressed_account_index().is_some())
+        {
+            msg!("Instruction does not allow address assignment");
+            return Err(SystemProgramError::InvalidAddress.into());
+        }
     }
 
     // 7. Verify read only address non-inclusion in bloom filters
@@ -215,12 +225,14 @@ pub fn process<
         // 8.1. Create a tx hash
         use pinocchio::sysvars::Sysvar;
         let current_slot = Clock::get()?.slot;
-        cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
-            &input_compressed_account_hashes,
-            &output_compressed_account_hashes,
-            current_slot,
-        )
-        .map_err(ProgramError::from)?;
+        if inputs.with_transaction_hash() {
+            cpi_ix_data.tx_hash = create_tx_hash_from_hash_chains(
+                &input_compressed_account_hashes,
+                &output_compressed_account_hashes,
+                current_slot,
+            )
+            .map_err(ProgramError::from)?;
+        }
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");

@@ -1,16 +1,14 @@
-use std::{iter::Chain, slice::Iter};
-
 use light_compressed_account::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     hash_to_bn254_field_size_be,
     instruction_data::{
         cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
         invoke_cpi::InstructionDataInvokeCpi,
-        traits::{InputAccountTrait, InstructionDataTrait, OutputAccountTrait},
-        zero_copy::{
-            ZNewAddressParamsPacked, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount,
+        traits::{
+            InputAccountTrait, InstructionDataTrait, NewAddressParamsTrait, OutputAccountTrait,
         },
+        zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey};
@@ -145,7 +143,7 @@ pub struct WrappedInstructionData<'a, T: InstructionDataTrait<'a>> {
     outputs_len: usize,
 }
 
-impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
+impl<'a, 'b, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     pub fn new(instruction_data: T) -> Self {
         Self {
             input_len: instruction_data.input_accounts().len(),
@@ -202,6 +200,21 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
     pub fn bump(&self) -> Option<u8> {
         self.instruction_data.bump()
     }
+
+    pub fn with_transaction_hash(&self) -> bool {
+        self.instruction_data.with_transaction_hash()
+    }
+
+    pub fn get_output_account(
+        &'b self,
+        index: usize,
+    ) -> Option<&'b (impl OutputAccountTrait<'a> + 'b)> {
+        if index > self.instruction_data.output_accounts().len() {
+            None
+        } else {
+            Some(&self.instruction_data.output_accounts()[index])
+        }
+    }
 }
 
 impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
@@ -227,18 +240,18 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
 
     pub fn new_addresses<'b>(
         &'b self,
-    ) -> Chain<Iter<'b, ZNewAddressParamsPacked>, Iter<'b, ZNewAddressParamsPacked>> {
+    ) -> impl Iterator<Item = &'b (dyn NewAddressParamsTrait<'a> + 'b)> {
         if let Some(cpi_context) = &self.cpi_context {
-            self.instruction_data
-                .new_addresses()
-                .iter()
-                .chain(cpi_context.context[0].new_addresses().iter())
+            if cpi_context.context.len() > 1 {
+                panic!("Cpi context len > 1");
+            }
+            chain_new_addresses(
+                self.instruction_data.new_addresses(),
+                cpi_context.context[0].new_addresses(),
+            )
         } else {
-            let empty_slice: &'b [ZNewAddressParamsPacked] = &[];
-            self.instruction_data
-                .new_addresses()
-                .iter()
-                .chain(empty_slice.iter())
+            let empty_slice = &[];
+            chain_new_addresses(self.instruction_data.new_addresses(), empty_slice)
         }
     }
 
@@ -311,9 +324,23 @@ impl<'a, T: InstructionDataTrait<'a>> WrappedInstructionData<'a, T> {
         }
 
         for new_address_params in self.instruction_data.new_addresses() {
+            if new_address_params
+                .assigned_compressed_account_index()
+                .is_some()
+            {
+                unimplemented!("Address assignment cannot be guaranteed with cpi context.");
+            }
             cpi_account_data
                 .new_address_params
-                .push(new_address_params.into());
+                .push(NewAddressParamsPacked {
+                    seed: new_address_params.seed(),
+                    address_queue_account_index: new_address_params
+                        .address_merkle_tree_account_index(),
+                    address_merkle_tree_root_index: new_address_params
+                        .address_merkle_tree_root_index(),
+                    address_merkle_tree_account_index: new_address_params
+                        .address_merkle_tree_account_index(),
+                });
         }
     }
 
@@ -352,4 +379,18 @@ pub fn chain_inputs<'a, 'b: 'a>(
         .iter()
         .map(|item| item as &dyn InputAccountTrait<'b>)
         .chain(slice2.iter().map(|item| item as &dyn InputAccountTrait<'b>))
+}
+
+pub fn chain_new_addresses<'a, 'b: 'a>(
+    slice1: &'a [impl NewAddressParamsTrait<'b>],
+    slice2: &'a [impl NewAddressParamsTrait<'b>],
+) -> impl Iterator<Item = &'a (dyn NewAddressParamsTrait<'b> + 'a)> {
+    slice1
+        .iter()
+        .map(|item| item as &dyn NewAddressParamsTrait<'b>)
+        .chain(
+            slice2
+                .iter()
+                .map(|item| item as &dyn NewAddressParamsTrait<'b>),
+        )
 }

@@ -1,11 +1,11 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use light_compressed_account::{
-    address::{derive_address, derive_address_legacy, pack_new_address_params},
+    address::{derive_address, derive_address_legacy, pack_new_address_params_assigned},
     compressed_account::{
         pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
         CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -17,11 +17,7 @@ use light_compressed_account::{
     },
     instruction_data::{
         compressed_proof::CompressedProof,
-        data::{
-            NewAddressParams, OutputCompressedAccountWithContext,
-            OutputCompressedAccountWithPackedContext,
-        },
-        invoke_cpi::InstructionDataInvokeCpi,
+        data::{OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext},
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
     nullifier::create_nullifier,
@@ -37,6 +33,7 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{
     spawn_prover, spawn_validator, LightValidatorConfig, ProverConfig, ProverMode,
 };
+use light_sdk::NewAddressParamsAssigned;
 use light_test_utils::{RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl};
 use serial_test::serial;
 use solana_sdk::{
@@ -149,17 +146,19 @@ async fn parse_batched_event_functional() {
             .await;
 
         let new_address_params = vec![
-            NewAddressParams {
+            NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
                 address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
                 address_merkle_tree_root_index: proof_res.address_root_indices[0],
+                assigned_account_index: None,
             },
-            NewAddressParams {
+            NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
                 address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
                 address_merkle_tree_root_index: proof_res.address_root_indices[1],
+                assigned_account_index: None,
             },
         ];
         let (events, output_accounts, _) = perform_test_transaction(
@@ -308,17 +307,19 @@ async fn parse_batched_event_functional() {
             .await;
 
         let new_address_params = vec![
-            NewAddressParams {
+            NewAddressParamsAssigned {
                 seed: [1u8; 32],
                 address_queue_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_root_index: proof_res.address_root_indices[0],
+                assigned_account_index: None,
             },
-            NewAddressParams {
+            NewAddressParamsAssigned {
                 seed: [2u8; 32],
                 address_queue_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_pubkey: env.batch_address_merkle_tree,
                 address_merkle_tree_root_index: proof_res.address_root_indices[1],
+                assigned_account_index: None,
             },
         ];
         let (events, output_accounts, _) = perform_test_transaction(
@@ -644,7 +645,7 @@ async fn perform_test_transaction<R: RpcConnection>(
     payer: &Keypair,
     input_accounts: Vec<CompressedAccountWithMerkleContext>,
     output_accounts: Vec<OutputCompressedAccountWithContext>,
-    new_addresses: Vec<NewAddressParams>,
+    new_addresses: Vec<NewAddressParamsAssigned>,
     num_cpis: Option<u8>,
     proof: Option<CompressedProof>,
 ) -> Result<
@@ -658,7 +659,7 @@ async fn perform_test_transaction<R: RpcConnection>(
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
 
     let packed_new_address_params =
-        pack_new_address_params(new_addresses.as_slice(), &mut remaining_accounts);
+        pack_new_address_params_assigned(new_addresses.as_slice(), &mut remaining_accounts);
 
     let packed_inputs = pack_compressed_accounts(
         input_accounts.as_slice(),
@@ -678,31 +679,18 @@ async fn perform_test_transaction<R: RpcConnection>(
             .as_slice(),
         &mut remaining_accounts,
     );
-    let inputs_struct = InstructionDataInvokeCpi {
-        proof,
-        new_address_params: packed_new_address_params,
-        input_compressed_accounts_with_merkle_context: packed_inputs.clone(),
-        output_compressed_accounts: output_compressed_accounts.clone(),
-        relay_fee: None,
-        compress_or_decompress_lamports: None,
-        is_compress: false,
-        cpi_context: None,
-    };
 
     let ix_data = InstructionDataInvokeCpiWithReadOnly {
         mode: 0,
-        bump: 255, // TODO: correct
-        with_cpi_context: inputs_struct.cpi_context.is_some(),
+        bump: 255,
+        with_cpi_context: false,
         invoking_program_id: create_address_test_program::ID.into(),
-        proof: inputs_struct.proof,
-        new_address_params: inputs_struct.new_address_params,
+        proof,
+        new_address_params: packed_new_address_params,
         is_decompress: false,
-        compress_or_decompress_lamports: inputs_struct
-            .compress_or_decompress_lamports
-            .unwrap_or_default(),
-        output_compressed_accounts: inputs_struct.output_compressed_accounts,
-        input_compressed_accounts: inputs_struct
-            .input_compressed_accounts_with_merkle_context
+        compress_or_decompress_lamports: 0,
+        output_compressed_accounts: output_compressed_accounts.clone(),
+        input_compressed_accounts: packed_inputs
             .iter()
             .map(|x| InAccount {
                 address: x.compressed_account.address,
@@ -713,6 +701,7 @@ async fn perform_test_transaction<R: RpcConnection>(
                 root_index: x.root_index,
             })
             .collect::<Vec<_>>(),
+        with_transaction_hash: true,
         ..Default::default()
     };
     let remaining_accounts = to_account_metas(remaining_accounts);

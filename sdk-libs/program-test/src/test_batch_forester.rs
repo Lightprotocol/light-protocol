@@ -304,6 +304,7 @@ pub async fn get_batched_nullify_ix_data<Rpc: RpcConnection>(
         let index_bytes = index.to_be_bytes();
         use light_hasher::Hasher;
         let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
+
         tx_hashes.push(leaf_info.tx_hash);
         nullifiers.push(nullifier);
         bundle.merkle_tree.update(&nullifier, index).unwrap();

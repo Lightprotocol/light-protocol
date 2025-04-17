@@ -2,7 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::InstructionDataTrait,
+        traits::{InstructionDataTrait, OutputAccountTrait},
     },
     TreeType,
 };
@@ -193,4 +193,29 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionDataTrait<'a>>(
 
     cpi_ix_data.num_output_queues = index_merkle_tree_account as u8;
     Ok(hash_chain)
+}
+
+// Check that new addresses are assigned correctly to the compressed output accounts specified by index
+pub fn check_new_address_assignment<'a, 'info, T: InstructionDataTrait<'a>>(
+    inputs: &WrappedInstructionData<'a, T>,
+    cpi_ix_data: &InsertIntoQueuesInstructionDataMut<'_>,
+) -> std::result::Result<(), SystemProgramError> {
+    for (derived_addresses, new_addresses) in
+        cpi_ix_data.addresses.iter().zip(inputs.new_addresses())
+    {
+        if let Some(assigned_account_index) = new_addresses.assigned_compressed_account_index() {
+            let output_account = inputs
+                .get_output_account(assigned_account_index)
+                .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
+
+            if derived_addresses.address
+                != output_account
+                    .address()
+                    .ok_or(SystemProgramError::AddressIsNone)?
+            {
+                return Err(SystemProgramError::InvalidAddress);
+            }
+        }
+    }
+    Ok(())
 }

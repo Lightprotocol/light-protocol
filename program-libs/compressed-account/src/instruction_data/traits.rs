@@ -5,16 +5,13 @@ use zerocopy::Ref;
 use super::{
     compressed_proof::CompressedProof,
     cpi_context::CompressedCpiContext,
-    zero_copy::{
-        ZNewAddressParamsPacked, ZPackedMerkleContext, ZPackedReadOnlyAddress,
-        ZPackedReadOnlyCompressedAccount,
-    },
+    zero_copy::{ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
 };
 use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
 
 pub trait InstructionDataTrait<'a> {
     fn owner(&self) -> Pubkey;
-    fn new_addresses(&self) -> &[ZNewAddressParamsPacked];
+    fn new_addresses(&self) -> &[impl NewAddressParamsTrait<'a>];
     fn input_accounts(&self) -> &[impl InputAccountTrait<'a>];
     fn output_accounts(&self) -> &[impl OutputAccountTrait<'a>];
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;
@@ -25,6 +22,18 @@ pub trait InstructionDataTrait<'a> {
     fn cpi_context(&self) -> Option<CompressedCpiContext>;
     fn bump(&self) -> Option<u8>;
     fn account_option_config(&self) -> AccountOptions;
+    fn with_transaction_hash(&self) -> bool;
+}
+
+pub trait NewAddressParamsTrait<'a>
+where
+    Self: Debug,
+{
+    fn seed(&self) -> [u8; 32];
+    fn address_queue_index(&self) -> u8;
+    fn address_merkle_tree_account_index(&self) -> u8;
+    fn address_merkle_tree_root_index(&self) -> u16;
+    fn assigned_compressed_account_index(&self) -> Option<usize>;
 }
 
 pub trait InputAccountTrait<'a>

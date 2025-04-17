@@ -96,6 +96,10 @@ pub enum SystemProgramError {
     InvalidAccountMode,
     #[error("InvalidInstructionDataDiscriminator")]
     InvalidInstructionDataDiscriminator,
+    #[error("NewAddressAssignedIndexOutOfBounds")]
+    NewAddressAssignedIndexOutOfBounds,
+    #[error("AddressIsNone")]
+    AddressIsNone,
 }
 
 impl From<SystemProgramError> for ProgramError {

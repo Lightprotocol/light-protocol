@@ -20,8 +20,9 @@ use crate::{
 pub fn process_invoke_cpi<
     'a,
     'info,
-    T: InstructionDataTrait<'a>,
+    const ADDRESS_ASSIGNMENT: bool,
     A: SignerAccounts<'info> + InvokeAccounts<'info> + CpiContextAccountTrait<'info>,
+    T: InstructionDataTrait<'a>,
 >(
     invoking_program: Pubkey,
     ctx: A,
@@ -52,7 +53,7 @@ pub fn process_invoke_cpi<
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
 
-    process(
+    process::<ADDRESS_ASSIGNMENT, A, T>(
         inputs,
         Some(invoking_program),
         &ctx,
