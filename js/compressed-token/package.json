@@ -36,8 +36,7 @@
     "dependencies": {
         "@coral-xyz/borsh": "^0.29.0",
         "bn.js": "^5.2.1",
-        "buffer": "6.0.3",
-        "buffer-layout": "^1.2.2"
+        "buffer": "6.0.3"
     },
     "devDependencies": {
         "@coral-xyz/anchor": "^0.29.0",
