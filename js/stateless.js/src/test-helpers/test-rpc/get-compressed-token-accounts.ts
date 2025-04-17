@@ -64,7 +64,7 @@ export function parseTokenLayoutWithIdl(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    return TokenDataLayout.decode(Buffer.from(data));
+    return TokenDataLayout.decode(data);
 }
 
 /**

@@ -48,7 +48,7 @@ export type ActiveTreeBundle = {
  * const info = selectStateTreeInfo(infos);
  * const ix = await CompressedTokenProgram.compress({
  *     // ...
- *     outputStateTree: info
+ *     outputStateTreeInfo: info
  * });
  * ```
  */
@@ -79,7 +79,12 @@ export type StateTreeInfo = {
  * Address tree info, versioned via {@link TreeType}. The protocol
  * stores PDAs in address trees.
  */
-export type AddressTreeInfo = Omit<StateTreeInfo, 'cpiContext'> & {};
+export type AddressTreeInfo = Omit<
+    StateTreeInfo,
+    'cpiContext' | 'nextTreeInfo'
+> & {
+    nextTreeInfo?: AddressTreeInfo;
+};
 
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;

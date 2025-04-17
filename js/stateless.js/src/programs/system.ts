@@ -44,6 +44,10 @@ type CreateAccountWithSeedParams = {
      * Address params for the new compressed account
      */
     newAddressParams: NewAddressParams;
+
+    /**
+     * Address of the new compressed account
+     */
     newAddress: number[];
     /**
      * Recent validity proof proving that there's no existing compressed account
@@ -114,9 +118,6 @@ type TransferParams = {
     outputStateTreeInfo: StateTreeInfo;
 };
 
-/// TODO:
-/// - add option to compress to another owner
-/// - add option to merge with input state
 /**
  * Defines the parameters for the transfer method
  */
