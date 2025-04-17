@@ -674,6 +674,7 @@ mod check_account_tests {
         }
     }
 
+    #[test]
     pub fn test_check_data_is_zeroed() {
         let zeroed_data = [0u8; 32];
         check_data_is_zeroed(zeroed_data.as_slice()).unwrap();
