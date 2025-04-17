@@ -1,5 +1,8 @@
 use borsh::BorshSerialize;
-use light_account_checks::{checks::check_signer, discriminator::Discriminator};
+use light_account_checks::{
+    checks::{check_data_is_zeroed, check_signer},
+    discriminator::Discriminator,
+};
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_compressed_account::constants;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
@@ -56,13 +59,19 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo], _instruction_data: &[u
         _ => Err(SystemProgramError::AppendStateFailed),
     }
     .map_err(ProgramError::from)?;
+
+    let mut cpi_context_account_data = ctx.cpi_context_account.try_borrow_mut_data()?;
+
+    // Check account is not initialized.
+    check_data_is_zeroed(&cpi_context_account_data[0..8]).map_err(ProgramError::from)?;
+    // Initialize account with discriminator.
+    cpi_context_account_data[..8].copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
+
     let mut cpi_context_account = CpiContextAccount::default();
     cpi_context_account.init(*ctx.associated_merkle_tree.key());
-
+    // Initialize account with data.
     cpi_context_account
-        .serialize(&mut &mut ctx.cpi_context_account.try_borrow_mut_data()?[8..])
+        .serialize(&mut &mut cpi_context_account_data[8..])
         .unwrap();
-    ctx.cpi_context_account.try_borrow_mut_data()?[..8]
-        .copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
     Ok(())
 }

@@ -28,6 +28,8 @@ pub enum AccountError {
     InvalidProgramId,
     #[error("Program not executable.")]
     ProgramNotExecutable,
+    #[error("Account not zeroed.")]
+    AccountNotZeroed,
 }
 
 // TODO: reconfigure error codes
@@ -47,6 +49,7 @@ impl From<AccountError> for u32 {
             AccountError::InvalidSeeds => 12016,
             AccountError::InvalidProgramId => 12017,
             AccountError::ProgramNotExecutable => 12018,
+            AccountError::AccountNotZeroed => 12019,
         }
     }
 }

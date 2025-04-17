@@ -229,6 +229,13 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
+pub fn check_data_is_zeroed(data: &[u8]) -> Result<(), AccountError> {
+    if data.iter().any(|&byte| byte != 0) {
+        return Err(AccountError::AccountNotZeroed);
+    }
+    Ok(())
+}
+
 #[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod check_account_tests {
@@ -665,5 +672,14 @@ mod check_account_tests {
                 check_pda_seeds(invalid_seeds, &program_id, &account.get_account_info()).is_err()
             );
         }
+    }
+
+    pub fn test_check_data_is_zeroed() {
+        let zeroed_data = [0u8; 32];
+        check_data_is_zeroed(zeroed_data.as_slice()).unwrap();
+        let mut not_zeroed_data = [0u8; 32];
+        not_zeroed_data[31] = 1;
+        let failing_res = check_data_is_zeroed(not_zeroed_data.as_slice());
+        assert_eq!(failing_res, Err(AccountError::AccountNotZeroed));
     }
 }
