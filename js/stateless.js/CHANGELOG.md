@@ -74,6 +74,34 @@ const proof = await rpc.getValidityProof(hash[], address[]);
 const proof = await rpc.getValidityProofV0(HashWithTree[], AddressWithTree[]);
 ```
 
+5. Other breaking changes:
+
+**MerkleContext, MerkleContextWithMerkleProof, CompressedAccountWithMerkleContext**
+
+```typescript
+/**
+ * Context for compressed account stored in a state tree
+ */
+export type MerkleContext = {
+    /**
+     * Tree info
+     */
+    treeInfo: StateTreeInfo;
+    /**
+     * Poseidon hash of the account. Stored as leaf in state tree
+     */
+    hash: BN;
+    /**
+     * Position of `hash` in the State tree
+     */
+    leafIndex: number;
+    /**
+     * Whether the account can be proven by index or by merkle proof
+     */
+    proveByIndex: boolean;
+};
+```
+
 ## [0.20.5-0.20.9] - 2025-02-24
 
 ### Bumped to latest compressed-token sdk

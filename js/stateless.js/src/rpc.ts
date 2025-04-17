@@ -44,8 +44,6 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
-    AddressWithTreeInfo,
-    HashWithTreeInfo,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,

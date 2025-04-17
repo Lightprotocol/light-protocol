@@ -94,10 +94,14 @@ export function encodeInstructionDataInvoke(
 ): Buffer {
     const buffer = Buffer.alloc(1000);
     const len = InstructionDataInvokeLayout.encode(data, buffer);
-    const dataBuffer = Buffer.from(buffer.slice(0, len));
+    const dataBuffer = Buffer.from(new Uint8Array(buffer.slice(0, len)));
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
-    return Buffer.concat([INVOKE_DISCRIMINATOR, lengthBuffer, dataBuffer]);
+    return Buffer.concat([
+        new Uint8Array(INVOKE_DISCRIMINATOR),
+        new Uint8Array(lengthBuffer),
+        new Uint8Array(dataBuffer),
+    ]);
 }
 
 export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
@@ -442,9 +446,11 @@ export function convertToPublicTransactionEvent(
                               data:
                                   convertByteArray(
                                       Buffer.from(
-                                          invokeData.outputCompressedAccounts[
-                                              index
-                                          ].compressedAccount.data.data,
+                                          new Uint8Array(
+                                              invokeData.outputCompressedAccounts[
+                                                  index
+                                              ].compressedAccount.data.data,
+                                          ),
                                       ),
                                   ) ?? [],
                               dataHash: convertByteArray(
