@@ -32,7 +32,7 @@ light-merkle-tree-reference = { workspace = true }
 light-hash-set = { workspace = true }
 rand = { workspace = true }
 solana-program = { workspace = true }
-spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false }
+spl-concurrent-merkle-tree = { version = "0.4.1", default-features = false }
 tokio = { workspace = true }
 num-bigint = { workspace = true }
 num-traits = { workspace = true }
