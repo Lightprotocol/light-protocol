@@ -25,13 +25,14 @@ use std::{sync::Arc, time::Duration};
 
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
 pub use config::{ForesterConfig, ForesterEpochInfo};
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_client::{
     indexer::Indexer,
     rate_limiter::RateLimiter,
     rpc::{RpcConnection, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
+use light_compressed_account::TreeType;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
@@ -58,11 +59,11 @@ pub async fn run_queue_info(
         .collect();
 
     for tree_data in trees {
-        if tree_data.tree_type == TreeType::BatchedState {
+        if tree_data.tree_type == TreeType::StateV2 {
             continue;
         }
 
-        let length = if tree_data.tree_type == TreeType::State {
+        let length = if tree_data.tree_type == TreeType::StateV1 {
             STATE_NULLIFIER_QUEUE_VALUES
         } else {
             ADDRESS_QUEUE_VALUES
@@ -90,6 +91,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
+    debug!("run_pipeline");
     let rpc_pool = SolanaRpcPool::<R>::new(
         config.external_services.rpc_url.to_string(),
         CommitmentConfig::confirmed(),

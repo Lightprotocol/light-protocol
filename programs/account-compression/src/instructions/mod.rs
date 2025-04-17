@@ -56,3 +56,6 @@ pub mod insert_into_queues;
 
 pub mod generic;
 pub use generic::*;
+
+pub mod resize_registered_program_account;
+pub use resize_registered_program_account::*;

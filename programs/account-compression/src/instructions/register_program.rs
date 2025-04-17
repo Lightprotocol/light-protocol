@@ -2,15 +2,18 @@ use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use bytemuck::{Pod, Zeroable};
 
-use crate::{errors::AccountCompressionErrorCode, GroupAuthority};
+use crate::{
+    errors::AccountCompressionErrorCode, utils::constants::CPI_AUTHORITY_PDA_SEED, GroupAuthority,
+};
 
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Copy)]
+#[derive(Debug, Pod, Zeroable, Copy, PartialEq)]
 #[account]
 #[aligned_sized(anchor)]
 pub struct RegisteredProgram {
     pub registered_program_id: Pubkey,
     pub group_authority_pda: Pubkey,
+    pub registered_program_signer_pda: Pubkey,
 }
 
 #[derive(Accounts)]
@@ -37,5 +40,12 @@ pub fn process_register_program(ctx: Context<RegisterProgramToGroup>) -> Result<
         ctx.accounts.program_to_be_registered.key();
     ctx.accounts.registered_program_pda.group_authority_pda =
         ctx.accounts.group_authority_pda.key();
+    ctx.accounts
+        .registered_program_pda
+        .registered_program_signer_pda = Pubkey::find_program_address(
+        &[CPI_AUTHORITY_PDA_SEED],
+        &ctx.accounts.program_to_be_registered.key(),
+    )
+    .0;
     Ok(())
 }

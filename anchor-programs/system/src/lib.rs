@@ -1,0 +1,89 @@
+use anchor_lang::prelude::*;
+
+pub mod account_traits;
+pub mod constants;
+pub mod errors;
+pub mod instructions;
+pub mod utils;
+pub use instructions::*;
+pub mod cpi_context_account;
+use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo;
+declare_id!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+
+#[program]
+pub mod light_system_program {
+    #![allow(unused_variables)]
+
+    use super::*;
+
+    pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    pub fn invoke<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    #[allow(unused_variables)]
+    pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+        // TODO: revert once parse_batched_event_functional is migrated to manual cpi
+        inputs: Vec<u8>, // inputs: InstructionDataInvokeCpiWithReadOnly,
+    ) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    #[allow(unused_variables)]
+    pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+        inputs: InstructionDataInvokeCpiWithAccountInfo,
+    ) -> Result<()> {
+        unimplemented!("anchor wrapper not implemented")
+    }
+
+    // /// This function is a stub to allow Anchor to include the input types in
+    // /// the IDL. It should not be included in production builds nor be called in
+    // /// practice.
+    // #[cfg(feature = "idl-build")]
+    // pub fn stub_idl_build<'info>(
+    //     _ctx: Context<'_, '_, '_, 'info, InvokeInstruction<'info>>,
+    //     _inputs1: InstructionDataInvoke,
+    //     _inputs2: InstructionDataInvokeCpi,
+    //     _inputs3: PublicTransactionEvent,
+    // ) -> Result<()> {
+    //     Err(SystemProgramError::InstructionNotCallable.into())
+    // }
+}
+
+#[test]
+fn test_borsh_equivalence() {
+    use anchor_lang::prelude::borsh::BorshSerialize;
+    let struct_a = InstructionDataInvokeCpiWithAccountInfo {
+        mode: 1,
+        bump: 255,
+        invoking_program_id: light_compressed_account::pubkey::Pubkey::new_unique(),
+        ..Default::default()
+    };
+    #[derive(BorshSerialize)]
+    pub struct AnchorWrapped {
+        inputs: InstructionDataInvokeCpiWithAccountInfo,
+    }
+
+    let struct_b = AnchorWrapped {
+        inputs: struct_a.clone(),
+    };
+
+    let struct_a_bytes: Vec<u8> = struct_a.try_to_vec().unwrap();
+    let struct_b_bytes: Vec<u8> = struct_b.try_to_vec().unwrap();
+    assert_eq!(struct_a_bytes, struct_b_bytes);
+}

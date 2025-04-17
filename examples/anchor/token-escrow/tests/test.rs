@@ -11,20 +11,19 @@
 // release compressed tokens
 
 use light_client::indexer::Indexer;
-use light_compressed_account::compressed_account::MerkleContext;
-use light_hasher::Poseidon;
+use light_compressed_account::{compressed_account::MerkleContext, TreeType};
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
+use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
     airdrop_lamports, assert_rpc_error,
     conversions::sdk_to_program_token_data,
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
 };
-use light_verifier::VerifierError;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
@@ -189,7 +188,12 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+    assert_rpc_error(
+        result,
+        0,
+        SystemProgramError::ProofVerificationFailed.into(),
+    )
+    .unwrap();
 
     perform_withdrawal_with_event(
         &mut rpc,
@@ -232,15 +236,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     let compressed_input_account_with_context = input_compressed_token_account_data
         .compressed_account
         .clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -268,8 +264,9 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::StateV1,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -401,15 +398,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         .clone();
     let compressed_input_account_with_context =
         escrow_token_data_with_context.compressed_account.clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -437,8 +426,9 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::StateV1,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,

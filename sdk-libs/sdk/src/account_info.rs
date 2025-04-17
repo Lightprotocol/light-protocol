@@ -1,316 +1,202 @@
-use std::{cell::RefCell, rc::Rc};
-
-use anchor_lang::prelude::Result;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
     },
-    instruction_data::data::{
-        NewAddressParamsPacked as PackedNewAddressParams, OutputCompressedAccountWithPackedContext,
+    instruction_data::{
+        data::OutputCompressedAccountWithPackedContext,
+        with_account_info::{CompressedAccountInfo, InAccountInfo},
     },
+    CompressedAccountError,
 };
-use solana_program::pubkey::Pubkey;
 
-use crate::{account_meta::LightAccountMeta, error::LightSdkError};
+use crate::{error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, msg};
 
-/// Information about compressed account which is being initialized.
-#[derive(Debug)]
-pub struct LightInputAccountInfo<'a> {
-    /// Lamports.
-    pub lamports: Option<u64>,
-    /// Address.
-    pub address: Option<[u8; 32]>,
-    /// Account data.
-    pub data: Option<&'a [u8]>,
-    /// Data hash.
-    pub data_hash: Option<[u8; 32]>,
-    /// Merkle tree context.
-    pub merkle_context: PackedMerkleContext,
-    /// Root index.
-    pub root_index: u16,
+pub trait InAccountInfoTrait {
+    fn input_meta<T: CompressedAccountMetaTrait>(
+        &mut self,
+        meta: &T,
+        data_hash: [u8; 32],
+        discriminator: [u8; 8],
+    );
 }
 
-/// Information about compressed account which is being mutated.
-#[derive(Debug)]
-pub struct LightAccountInfo<'a> {
-    /// Input account.
-    pub(crate) input: Option<LightInputAccountInfo<'a>>,
-    /// Owner of the account.
-    ///
-    /// Defaults to the program ID.
-    pub owner: &'a Pubkey,
-    /// Lamports.
-    pub lamports: Option<u64>,
-    /// Discriminator.
-    pub discriminator: Option<[u8; 8]>,
-    /// Account data.
-    pub data: Option<Rc<RefCell<Vec<u8>>>>,
-    /// Data hash.
-    pub data_hash: Option<[u8; 32]>,
-    /// Address.
-    pub address: Option<[u8; 32]>,
-    /// New Merkle tree index. Set `None` for `close` account infos.
-    pub output_merkle_tree_index: Option<u8>,
-    /// New address parameters.
-    pub new_address_params: Option<PackedNewAddressParams>,
+impl InAccountInfoTrait for InAccountInfo {
+    fn input_meta<T: CompressedAccountMetaTrait>(
+        &mut self,
+        meta: &T,
+        data_hash: [u8; 32],
+        discriminator: [u8; 8],
+    ) {
+        if let Some(input_lamports) = meta.get_lamports() {
+            self.lamports = input_lamports;
+        }
+        self.data_hash = data_hash;
+        self.discriminator = discriminator;
+        if let Some(root_index) = meta.get_root_index().as_ref() {
+            self.root_index = *root_index;
+        }
+        self.merkle_context = *meta.get_merkle_context();
+    }
 }
 
-impl<'a> LightAccountInfo<'a> {
-    pub fn from_meta_init(
-        meta: &'a LightAccountMeta,
+pub trait AccountInfoTrait {
+    fn init(
+        &mut self,
         discriminator: [u8; 8],
-        new_address: [u8; 32],
-        new_address_seed: [u8; 32],
-        space: Option<usize>,
-        owner: &'a Pubkey,
-    ) -> Result<Self> {
-        let address_merkle_context = meta
-            .address_merkle_context
-            .as_ref()
-            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
+        address: Option<[u8; 32]>,
+        output_merkle_tree_index: u8,
+    ) -> Result<(), CompressedAccountError>;
 
-        let new_address_params = PackedNewAddressParams {
-            seed: new_address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
-            address_merkle_tree_root_index: meta
-                .address_merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
-        };
-
-        let data = match space {
-            Some(space) => Vec::with_capacity(space),
-            None => Vec::new(),
-        };
-        let data = Some(Rc::new(RefCell::new(data)));
-
-        let account_info = LightAccountInfo {
-            input: None,
-            owner,
-            // Needs to be assigned by the program.
-            lamports: None,
-            // Needs to be assigned by the program.
-            discriminator: Some(discriminator),
-            data,
-            // Needs to be assigned by the program.
-            data_hash: None,
-            address: Some(new_address),
-            output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address_params: Some(new_address_params),
-        };
-        Ok(account_info)
-    }
-
-    pub fn from_meta_mut(
-        meta: &'a LightAccountMeta,
+    fn meta_mut<M: CompressedAccountMetaTrait>(
+        &mut self,
+        // Input
+        input_account_meta: &M,
+        input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-        owner: &'a Pubkey,
-    ) -> Result<Self> {
-        let input = LightInputAccountInfo {
-            lamports: meta.lamports,
-            address: meta.address,
-            data: meta.data.as_deref(),
-            // Needs to be assigned by the program.
-            data_hash: None,
-            merkle_context: meta
-                .merkle_context
-                .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
-                .merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedRootIndex)?,
-        };
+        output_merkle_tree_index: u8,
+    ) -> Result<(), CompressedAccountError>;
 
-        let account_info = LightAccountInfo {
-            input: Some(input),
-            owner,
-            // Needs to be assigned by the program.
-            lamports: None,
-            // Needs to be assigned by the program.
-            discriminator: Some(discriminator),
-            // NOTE(vadorovsky): A `clone()` here is unavoidable.
-            // What we have here is an immutable reference to `LightAccountMeta`,
-            // from which we can take an immutable reference to `data`.
-            //
-            // - That immutable reference can be used in the input account,
-            //   since we don't make modifications there.
-            // - In the most cases, we intend to make modifications for the
-            //   output account. We make a copy, which then we try not to
-            //   copy again until the moment of creating a CPI call.
-            //
-            // The reason why `solana_account_info::AccountInfo` stores data as
-            // `Rc<RefCell<&'a mut [u8]>>` is that the reference points to
-            // runtime's memory region which provides the accout and is mutable
-            // by design.
-            //
-            // In our case, compressed accounts are part of instruction data.
-            // Instruction data is immutable (`&[u8]`). There is no way to
-            // mutate instruction data without copy.
-            data: meta
-                .data
-                .as_ref()
-                .map(|data| Rc::new(RefCell::new(data.clone()))),
-            // Needs to be assigned by the program.
-            data_hash: None,
-            address: meta.address,
-            output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address_params: None,
-        };
-        Ok(account_info)
-    }
-
-    pub fn from_meta_close(
-        meta: &'a LightAccountMeta,
+    fn meta_close<M: CompressedAccountMetaTrait>(
+        &mut self,
+        input_account_meta: &M,
+        input_data_hash: [u8; 32],
         discriminator: [u8; 8],
-        owner: &'a Pubkey,
-    ) -> Result<Self> {
-        let input = LightInputAccountInfo {
-            lamports: meta.lamports,
-            address: meta.address,
-            data: meta.data.as_deref(),
-            // Needs to be assigned by the program.
-            data_hash: None,
-            merkle_context: meta
-                .merkle_context
-                .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
-                .merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedRootIndex)?,
-        };
-
-        let account_info = LightAccountInfo {
-            input: Some(input),
-            owner,
-            // Needs to be assigned by the program.
-            lamports: None,
-            // Needs to be assigned by the program.
-            discriminator: Some(discriminator),
-            data: None,
-            // Needs to be assigned by the program.
-            data_hash: None,
-            address: meta.address,
-            output_merkle_tree_index: None,
-            new_address_params: None,
-        };
-        Ok(account_info)
-    }
-
-    pub(crate) fn from_meta_init_without_output_data(
-        meta: &'a LightAccountMeta,
-        discriminator: [u8; 8],
-        new_address: [u8; 32],
-        new_address_seed: [u8; 32],
-        owner: &'a Pubkey,
-    ) -> Result<Self> {
-        let address_merkle_context = meta
-            .address_merkle_context
-            .as_ref()
-            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
-
-        let new_address_params = PackedNewAddressParams {
-            seed: new_address_seed,
-            address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
-            address_merkle_tree_account_index: address_merkle_context
-                .address_merkle_tree_pubkey_index,
-            address_merkle_tree_root_index: meta
-                .address_merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedAddressRootIndex)?,
-        };
-
-        let account_info = LightAccountInfo {
-            input: None,
-            owner,
-            // Needs to be assigned by the program.
-            lamports: None,
-            // Needs to be assigned by the program.
-            discriminator: Some(discriminator),
-            data: None,
-            data_hash: None,
-            address: Some(new_address),
-            output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address_params: Some(new_address_params),
-        };
-        Ok(account_info)
-    }
-
-    /// Converts [`LightAcccountMeta`], representing either a `mut` or `close`
-    /// account, to a `LightAccountInfo` without output data set.
-    ///
-    /// Not intended for external use, intended for building upper abstraction
-    /// layers which handle data serialization on their own.
-    pub(crate) fn from_meta_without_output_data(
-        meta: &'a LightAccountMeta,
-        discriminator: [u8; 8],
-        owner: &'a Pubkey,
-    ) -> Result<Self> {
-        let input = LightInputAccountInfo {
-            lamports: meta.lamports,
-            address: meta.address,
-            data: meta.data.as_deref(),
-            // Needs to be assigned by the program.
-            data_hash: None,
-            merkle_context: meta
-                .merkle_context
-                .ok_or(LightSdkError::ExpectedMerkleContext)?,
-            root_index: meta
-                .merkle_tree_root_index
-                .ok_or(LightSdkError::ExpectedRootIndex)?,
-        };
-
-        let account_info = LightAccountInfo {
-            input: Some(input),
-            owner,
-            // Needs to be assigned by the program.
-            lamports: None,
-            discriminator: Some(discriminator),
-            // Needs to be assigned by the program.
-            data: None,
-            data_hash: None,
-            address: meta.address,
-            output_merkle_tree_index: meta.output_merkle_tree_index,
-            new_address_params: None,
-        };
-        Ok(account_info)
-    }
-
-    pub fn compress_and_add_sol(&mut self, lamports: u64) {
-        self.lamports = Some(lamports);
-    }
-
-    /// Returns the original data sent by the client, before any potential
-    /// modifications made by the program.
-    pub fn initial_data(&self) -> Option<&[u8]> {
-        self.input.as_ref().and_then(|input| input.data)
-    }
-
-    /// Converts the given [LightAccountInfo] into a
-    /// [PackedCompressedAccountWithMerkleContext] which can be sent to the
-    /// light-system program.
-    pub fn input_compressed_account(
+    ) -> Result<(), CompressedAccountError>;
+    fn input_compressed_account(
         &self,
-    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>> {
+        owner: crate::Pubkey,
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError>;
+    fn output_compressed_account(
+        &self,
+        owner: crate::Pubkey,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError>;
+}
+
+impl AccountInfoTrait for CompressedAccountInfo {
+    /// Initializes a compressed account info with address.
+    /// 1. The account is zeroed, data has to be added in a separate step.
+    /// 2. Once data is added the data hash has to be added.
+    fn init(
+        &mut self,
+        discriminator: [u8; 8],
+        address: Option<[u8; 32]>,
+        output_merkle_tree_index: u8,
+    ) -> Result<(), CompressedAccountError> {
+        if let Some(self_address) = self.address.as_mut() {
+            if let Some(address) = address {
+                self_address.copy_from_slice(&address);
+            } else {
+                msg!("init: address is none");
+                return Err(CompressedAccountError::InvalidAccountSize);
+            }
+        } else {
+            msg!("init_with_address: address is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+        if let Some(output) = self.output.as_mut() {
+            output.output_merkle_tree_index = output_merkle_tree_index;
+            output.discriminator = discriminator;
+        } else {
+            msg!("init_with_address: output is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+        Ok(())
+    }
+
+    /// Initializes a compressed account info with address.
+    /// 1. The account is zeroed, data has to be added in a separate step.
+    /// 2. Once data is added the data hash has to be added.
+    fn meta_mut<M: CompressedAccountMetaTrait>(
+        &mut self,
+        // Input
+        input_account_meta: &M,
+        input_data_hash: [u8; 32],
+        discriminator: [u8; 8],
+        output_merkle_tree_index: u8,
+    ) -> Result<(), CompressedAccountError> {
+        if let Some(self_address) = self.address.as_mut() {
+            if let Some(address) = input_account_meta.get_address().as_ref() {
+                *self_address = *address;
+            } else {
+                msg!("from_z_meta_mut: address is none");
+                return Err(CompressedAccountError::InvalidAccountSize);
+            }
+        } else {
+            msg!("from_z_meta_mut: address is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+
+        if let Some(input) = self.input.as_mut() {
+            input.input_meta(input_account_meta, input_data_hash, discriminator);
+        } else {
+            msg!("from_z_meta_mut: input is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+
+        if let Some(output) = self.output.as_mut() {
+            output.output_merkle_tree_index = output_merkle_tree_index;
+            output.discriminator = discriminator;
+
+            if let Some(input_lamports) = input_account_meta.get_lamports() {
+                output.lamports = input_lamports;
+            } else {
+                msg!("from_z_meta_mut: output lamports is none");
+                return Err(CompressedAccountError::InvalidAccountSize);
+            }
+        } else {
+            msg!("from_z_meta_mut: output is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+        Ok(())
+    }
+
+    /// Initializes a compressed account info with address.
+    /// 1. The account is zeroed, data has to be added in a separate step.
+    /// 2. Once data is added the data hash has to be added.
+    fn meta_close<M: CompressedAccountMetaTrait>(
+        &mut self,
+        input_account_meta: &M,
+        input_data_hash: [u8; 32],
+        discriminator: [u8; 8],
+    ) -> Result<(), CompressedAccountError> {
+        if let Some(self_address) = self.address.as_mut() {
+            if let Some(address) = input_account_meta.get_address() {
+                self_address.copy_from_slice(&address);
+            } else {
+                msg!("from_z_meta_mut: address is none");
+                return Err(CompressedAccountError::InvalidAccountSize);
+            }
+        } else {
+            msg!("from_z_meta_mut: address is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+
+        if let Some(input) = self.input.as_mut() {
+            input.input_meta(input_account_meta, input_data_hash, discriminator);
+        } else {
+            msg!("from_z_meta_mut: input is none");
+            return Err(CompressedAccountError::InvalidAccountSize);
+        }
+
+        Ok(())
+    }
+
+    fn input_compressed_account(
+        &self,
+        owner: crate::Pubkey,
+    ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkError> {
         match self.input.as_ref() {
             Some(input) => {
-                let data = match input.data {
-                    Some(_) => {
-                        let discriminator = self
-                            .discriminator
-                            .ok_or(LightSdkError::ExpectedDiscriminator)?;
-                        let data_hash = input.data_hash.ok_or(LightSdkError::ExpectedHash)?;
-                        Some(CompressedAccountData {
-                            discriminator,
-                            data: Vec::new(),
-                            data_hash,
-                        })
-                    }
-                    None => None,
-                };
+                let data = Some(CompressedAccountData {
+                    discriminator: input.discriminator,
+                    data: Vec::new(),
+                    data_hash: input.data_hash,
+                });
                 Ok(Some(PackedCompressedAccountWithMerkleContext {
                     compressed_account: CompressedAccount {
-                        owner: *self.owner,
-                        lamports: input.lamports.unwrap_or(0),
-                        address: input.address,
+                        owner,
+                        lamports: input.lamports,
+                        address: self.address,
                         data,
                     },
                     merkle_context: input.merkle_context,
@@ -322,33 +208,25 @@ impl<'a> LightAccountInfo<'a> {
         }
     }
 
-    pub fn output_compressed_account(
+    fn output_compressed_account(
         &self,
-    ) -> Result<Option<OutputCompressedAccountWithPackedContext>> {
-        match self.output_merkle_tree_index {
-            Some(merkle_tree_index) => {
-                let data = match self.data {
-                    Some(_) => {
-                        let discriminator = self
-                            .discriminator
-                            .ok_or(LightSdkError::ExpectedDiscriminator)?;
-                        let data_hash = self.data_hash.ok_or(LightSdkError::ExpectedHash)?;
-                        Some(CompressedAccountData {
-                            discriminator,
-                            data: Vec::new(),
-                            data_hash,
-                        })
-                    }
-                    None => None,
-                };
+        owner: crate::Pubkey,
+    ) -> Result<Option<OutputCompressedAccountWithPackedContext>, LightSdkError> {
+        match self.output.as_ref() {
+            Some(output) => {
+                let data = Some(CompressedAccountData {
+                    discriminator: output.discriminator,
+                    data: output.data.clone(),
+                    data_hash: output.data_hash,
+                });
                 Ok(Some(OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner: *self.owner,
-                        lamports: self.lamports.unwrap_or(0),
+                        owner,
+                        lamports: output.lamports,
                         address: self.address,
                         data,
                     },
-                    merkle_tree_index,
+                    merkle_tree_index: output.output_merkle_tree_index,
                 }))
             }
             None => Ok(None),

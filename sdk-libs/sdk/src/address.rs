@@ -1,11 +1,11 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_account::{
-    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
-    instruction_data::data::{NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams},
+use light_compressed_account::instruction_data::data::{
+    NewAddressParams, NewAddressParamsPacked as PackedNewAddressParams,
 };
-use solana_program::account_info::AccountInfo;
 
-use crate::merkle_context::{AddressMerkleContext, RemainingAccounts};
+use crate::{
+    instruction::{merkle_context::AddressMerkleContext, pack_accounts::PackedAccounts},
+    AccountInfo,
+};
 
 pub struct AddressWithMerkleContext {
     pub address: [u8; 32],
@@ -14,7 +14,7 @@ pub struct AddressWithMerkleContext {
 
 pub fn pack_new_addresses_params(
     addresses_params: &[NewAddressParams],
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut PackedAccounts,
 ) -> Vec<PackedNewAddressParams> {
     addresses_params
         .iter()
@@ -35,7 +35,7 @@ pub fn pack_new_addresses_params(
 
 pub fn pack_new_address_params(
     address_params: NewAddressParams,
-    remaining_accounts: &mut RemainingAccounts,
+    remaining_accounts: &mut PackedAccounts,
 ) -> PackedNewAddressParams {
     pack_new_addresses_params(&[address_params], remaining_accounts)[0]
 }
@@ -56,95 +56,90 @@ pub fn unpack_new_address_params(
     }
 }
 
-/// Derives a single address seed for a compressed account, based on the
-/// provided multiple `seeds`, `program_id` and `merkle_tree_pubkey`.
-///
-/// # Examples
-///
-/// ```ignore
-/// use light_sdk::{address::derive_address, pubkey};
-///
-/// let address = derive_address(
-///     &[b"my_compressed_account"],
-///     &crate::ID,
-/// );
-/// ```
-pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
-    let mut inputs = Vec::with_capacity(seeds.len() + 1);
+pub mod v1 {
+    use light_compressed_account::hashv_to_bn254_field_size_be;
+    use light_hasher::{Hasher, Keccak};
 
-    let program_id = program_id.to_bytes();
-    inputs.push(program_id.as_slice());
+    use crate::Pubkey;
 
-    inputs.extend(seeds);
+    /// Derives a single address seed for a compressed account, based on the
+    /// provided multiple `seeds`, `program_id` and `merkle_tree_pubkey`.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use light_sdk::{address::derive_address, pubkey};
+    ///
+    /// let address = derive_address(
+    ///     &[b"my_compressed_account"],
+    ///     &crate::ID,
+    /// );
+    /// ```
+    pub fn derive_address_seed(seeds: &[&[u8]], program_id: &Pubkey) -> [u8; 32] {
+        let mut inputs = Vec::with_capacity(seeds.len() + 1);
 
-    let seed = hashv_to_bn254_field_size_be(inputs.as_slice());
-    seed
-}
+        let program_id = program_id.to_bytes();
+        inputs.push(program_id.as_slice());
 
-/// Derives an address for a compressed account, based on the provided singular
-/// `seed` and `address_merkle_context`:
-pub(crate) fn derive_address_from_seed(
-    address_seed: &[u8; 32],
-    address_merkle_context: &AddressMerkleContext,
-) -> [u8; 32] {
-    let merkle_tree_pubkey = address_merkle_context.address_merkle_tree_pubkey.to_bytes();
-    let input = [merkle_tree_pubkey, *address_seed].concat();
+        inputs.extend(seeds);
 
-    // PANICS: Not being able to find the bump for truncating the hash is
-    // practically impossible. Quite frankly, we should just remove that error
-    // inside.
-    hash_to_bn254_field_size_be(input.as_slice()).unwrap().0
-}
+        let seed = hashv_to_bn254_field_size_be_legacy(inputs.as_slice());
+        seed
+    }
 
-/// Derives an address from provided seeds. Returns that address and a singular
-/// seed.
-///
-/// # Examples
-///
-/// ```ignore
-/// use light_sdk::{address::derive_address, pubkey};
-///
-/// let address_merkle_context = {
-///     address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
-///     address_queue_pubkey: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
-/// };
-/// let address = derive_address(
-///     &[b"my_compressed_account"],
-///     &address_merkle_context,
-///     &crate::ID,
-/// );
-/// ```
-pub fn derive_address(
-    seeds: &[&[u8]],
-    address_merkle_context: &AddressMerkleContext,
-    program_id: &Pubkey,
-) -> ([u8; 32], [u8; 32]) {
-    let address_seed = derive_address_seed(seeds, program_id);
-    let address = derive_address_from_seed(&address_seed, address_merkle_context);
+    fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
+        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes).unwrap();
+        // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+        // field size.
+        hashed_value[0] = 0;
+        hashed_value
+    }
 
-    (address, address_seed)
-}
+    /// Derives an address for a compressed account, based on the provided singular
+    /// `seed` and `merkle_tree_pubkey`:
+    pub(crate) fn derive_address_from_seed(
+        address_seed: &[u8; 32],
+        merkle_tree_pubkey: &Pubkey,
+    ) -> [u8; 32] {
+        let input = [merkle_tree_pubkey.to_bytes(), *address_seed].concat();
+        hashv_to_bn254_field_size_be(&[input.as_slice()])
+    }
 
-/// Derives an address from provided parameters.
-pub fn derive_address_from_params(params: NewAddressParams) -> [u8; 32] {
-    let NewAddressParams {
-        seed,
-        address_merkle_tree_pubkey,
-        ..
-    } = params;
-    let input = [address_merkle_tree_pubkey.to_bytes(), seed].concat();
+    /// Derives an address from provided seeds. Returns that address and a singular
+    /// seed.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use light_sdk::{address::derive_address, pubkey};
+    ///
+    /// let address_merkle_context = {
+    ///     address_merkle_tree_pubkey: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
+    ///     address_queue_pubkey: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
+    /// };
+    /// let address = derive_address(
+    ///     &[b"my_compressed_account"],
+    ///     &address_merkle_context,
+    ///     &crate::ID,
+    /// );
+    /// ```
+    pub fn derive_address(
+        seeds: &[&[u8]],
+        merkle_tree_pubkey: &Pubkey,
+        program_id: &Pubkey,
+    ) -> ([u8; 32], [u8; 32]) {
+        let address_seed = derive_address_seed(seeds, program_id);
+        let address = derive_address_from_seed(&address_seed, merkle_tree_pubkey);
 
-    // PANICS: Not being able to find the bump for truncating the hash is
-    // practically impossible. Quite frankly, we should just remove that error
-    // inside.
-    hash_to_bn254_field_size_be(input.as_slice()).unwrap().0
+        (address, address_seed)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use light_macros::pubkey;
 
-    use super::*;
+    use super::{v1::*, *};
 
     #[test]
     fn test_derive_address_seed() {
@@ -186,9 +181,16 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(&address_seed, &address_merkle_context);
+        let address = derive_address_from_seed(
+            &address_seed,
+            &address_merkle_context.address_merkle_tree_pubkey,
+        );
         assert_eq!(address, expected_address.to_bytes());
-        let (address, address_seed) = derive_address(seeds, &address_merkle_context, &program_id);
+        let (address, address_seed) = derive_address(
+            seeds,
+            &address_merkle_context.address_merkle_tree_pubkey,
+            &program_id,
+        );
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
 
@@ -201,9 +203,16 @@ mod test {
 
         let address_seed = derive_address_seed(seeds, &program_id);
         assert_eq!(address_seed, expected_address_seed);
-        let address = derive_address_from_seed(&address_seed, &address_merkle_context);
+        let address = derive_address_from_seed(
+            &address_seed,
+            &address_merkle_context.address_merkle_tree_pubkey,
+        );
         assert_eq!(address, expected_address.to_bytes());
-        let (address, address_seed) = derive_address(seeds, &address_merkle_context, &program_id);
+        let (address, address_seed) = derive_address(
+            seeds,
+            &address_merkle_context.address_merkle_tree_pubkey,
+            &program_id,
+        );
         assert_eq!(address_seed, expected_address_seed);
         assert_eq!(address, expected_address.to_bytes());
     }

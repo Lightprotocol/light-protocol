@@ -745,8 +745,13 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyAddress,
         )
         .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
-
+        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
         let result = perform_create_pda_with_event(
             &mut test_indexer,
             &mut rpc,
@@ -763,7 +768,7 @@ async fn only_test_create_pda() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
 
@@ -780,7 +785,13 @@ async fn only_test_create_pda() {
             CreatePdaMode::InvalidReadOnlyRootIndex,
         )
         .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        // assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
 
         let result = perform_create_pda_with_event(
             &mut test_indexer,
@@ -1713,18 +1724,14 @@ async fn perform_create_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
         || mode == CreatePdaMode::ReadOnlyProofOfInsertedAddress
         || mode == CreatePdaMode::UseReadOnlyAddressInAccount
     {
-        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
-            .unwrap()
-            .0;
+        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes());
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.push(read_only_address);
         address_merkle_tree_pubkeys.push(address_merkle_tree_pubkey);
     }
     if mode == CreatePdaMode::TwoReadOnlyAddresses {
-        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes())
-            .unwrap()
-            .0;
+        let mut read_only_address = hash_to_bn254_field_size_be(&Pubkey::new_unique().to_bytes());
         read_only_address[30] = 0;
         read_only_address[29] = 0;
         addresses.insert(0, read_only_address);
@@ -1872,9 +1879,8 @@ pub async fn assert_created_pda<R: RpcConnection, I: Indexer<R> + TestIndexerExt
         1u64.to_le_bytes(),
     );
     let truncated_user_pubkey =
-        hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes())
-            .unwrap()
-            .0;
+        hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes());
+
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
         Poseidon::hashv(&[truncated_user_pubkey.as_slice(), data.as_slice()]).unwrap(),
@@ -1909,7 +1915,7 @@ pub async fn perform_with_input_accounts<
         );
     }
     let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
-    let nullifier_pubkey = compressed_account.merkle_context.nullifier_queue_pubkey;
+    let nullifier_pubkey = compressed_account.merkle_context.queue_pubkey;
     let cpi_context = match mode {
         WithInputAccountsMode::Freeze
         | WithInputAccountsMode::Thaw
@@ -1964,7 +1970,7 @@ pub async fn perform_with_input_accounts<
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 1,
+                    queue_pubkey_index: 1,
                     prove_by_index: false,
                 },
                 lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
@@ -1994,7 +2000,7 @@ pub async fn perform_with_input_accounts<
             merkle_context: PackedMerkleContext {
                 leaf_index: compressed_account.merkle_context.leaf_index,
                 merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 1,
+                queue_pubkey_index: 1,
                 prove_by_index: false,
             },
             root_index: rpc_result.root_indices[0].unwrap(),

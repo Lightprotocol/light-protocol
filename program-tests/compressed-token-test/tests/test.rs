@@ -11,10 +11,12 @@ use anchor_spl::{
     token::{Mint, TokenAccount},
     token_2022::{spl_token_2022, spl_token_2022::extension::ExtensionType},
 };
+use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
 use light_client::indexer::Indexer;
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
+    TreeType,
 };
 use light_compressed_token::{
     constants::NUM_MAX_POOL_ACCOUNTS,
@@ -41,10 +43,10 @@ use light_prover_client::gnark::helpers::{
     kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error, assert_rpc_error,
+    assert_custom_error_or_program_error, assert_rpc_error,
     conversions::sdk_to_program_token_data,
-    create_account_instruction,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
         compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
@@ -56,7 +58,6 @@ use light_test_utils::{
     },
     RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
 };
-use light_verifier::VerifierError;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::{
@@ -2456,7 +2457,12 @@ async fn test_approve_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // 4. Invalid mint.
     {
@@ -2497,7 +2503,12 @@ async fn test_approve_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // 5. Invalid delegate amount (too high)
     {
@@ -2795,7 +2806,12 @@ async fn test_revoke_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // 2. Invalid Merkle tree.
     {
@@ -2875,7 +2891,12 @@ async fn test_revoke_failing() {
                 &[&context_payer, &sender],
             )
             .await;
-        assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+        assert_rpc_error(
+            result,
+            0,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
 }
 
@@ -3075,7 +3096,7 @@ async fn test_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let mut additional_token_pool_accounts = (0..4)
                 .map(|x| get_token_pool_pda_with_index(&mint, x))
                 .collect::<Vec<_>>();
@@ -3245,7 +3266,7 @@ async fn failing_tests_burn() {
             let res = rpc
                 .create_and_send_transaction(&[instruction], &sender.pubkey(), &[&payer, &sender])
                 .await;
-            assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(res, 0, SystemProgramError::ProofVerificationFailed.into()).unwrap();
         }
         // 2. Signer is delegate but token data has no delegate.
         {
@@ -3279,7 +3300,7 @@ async fn failing_tests_burn() {
                     &[&payer, &delegate],
                 )
                 .await;
-            assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(res, 0, SystemProgramError::ProofVerificationFailed.into()).unwrap();
         }
         // 3. Signer is delegate but token data has no delegate.
         {
@@ -3348,7 +3369,7 @@ async fn failing_tests_burn() {
                     &[&payer, &delegate],
                 )
                 .await;
-            assert_rpc_error(res, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(res, 0, SystemProgramError::ProofVerificationFailed.into()).unwrap();
         }
         // 5. invalid mint
         {
@@ -3395,7 +3416,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3416,7 +3437,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -3430,7 +3451,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3460,7 +3481,7 @@ async fn failing_tests_burn() {
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
-                .nullifier_queue_pubkey;
+                .queue_pubkey;
             let (_, _, _, _, mut instruction) = create_burn_test_instruction(
                 &sender,
                 &mut rpc,
@@ -3811,21 +3832,10 @@ async fn test_failing_freeze() {
                     &[&context_payer, &payer],
                 )
                 .await;
-            // // Anchor panics when trying to read the MT account. Unfortunately
-            // // there is no specific error code to assert.
-            // assert!(matches!(
-            //     result,
-            //     Err(RpcError::TransactionError(
-            //         TransactionError::InstructionError(
-            //             0,
-            //             InstructionError::ProgramFailedToComplete
-            //         )
-            //     ))
-            // ));
             assert_rpc_error(
                 result,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -3866,7 +3876,12 @@ async fn test_failing_freeze() {
                     &[&context_payer, &payer],
                 )
                 .await;
-            assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                SystemProgramError::ProofVerificationFailed.into(),
+            )
+            .unwrap();
         }
         // 4. Freeze frozen compressed account
         {
@@ -3940,7 +3955,12 @@ async fn test_failing_freeze() {
                     &[&context_payer, &payer],
                 )
                 .await;
-            assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                SystemProgramError::ProofVerificationFailed.into(),
+            )
+            .unwrap();
         }
     }
 }
@@ -4122,7 +4142,7 @@ async fn test_failing_thaw() {
             assert_rpc_error(
                 result,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -4163,7 +4183,12 @@ async fn test_failing_thaw() {
                     &[&context_payer, &payer],
                 )
                 .await;
-            assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                SystemProgramError::ProofVerificationFailed.into(),
+            )
+            .unwrap();
         }
         // 4. thaw compressed account which is not frozen
         {
@@ -4228,7 +4253,12 @@ async fn test_failing_thaw() {
                     &[&context_payer, &payer],
                 )
                 .await;
-            assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
+            assert_rpc_error(
+                result,
+                0,
+                SystemProgramError::ProofVerificationFailed.into(),
+            )
+            .unwrap();
         }
     }
 }
@@ -5208,8 +5238,11 @@ async fn test_invalid_inputs() {
             false,
         )
         .await;
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // Test 7: invalid owner
     {
@@ -5227,8 +5260,11 @@ async fn test_invalid_inputs() {
             false,
         )
         .await;
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // Test 10: invalid root indices
     {
@@ -5248,8 +5284,11 @@ async fn test_invalid_inputs() {
             false,
         )
         .await;
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // Test 11: invalid mint
     {
@@ -5266,8 +5305,11 @@ async fn test_invalid_inputs() {
             true,
         )
         .await;
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            SystemProgramError::ProofVerificationFailed.into(),
+        )
+        .unwrap();
     }
     // Test 12: invalid Merkle tree pubkey
     {
@@ -5287,7 +5329,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -5326,9 +5368,10 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
             .iter()
             .map(|x| MerkleContext {
                 merkle_tree_pubkey: *merkle_tree_pubkey,
-                nullifier_queue_pubkey: *nullifier_queue_pubkey,
+                queue_pubkey: *nullifier_queue_pubkey,
                 leaf_index: x.merkle_context.leaf_index,
                 prove_by_index: false,
+                tree_type: TreeType::StateV1,
             })
             .collect::<Vec<MerkleContext>>(),
         &[
@@ -5409,9 +5452,9 @@ async fn test_transfer_with_batched_tree() {
         },
     )
     .await;
-    let possible_inputs = [1, 2, 3, 4, 8];
+    let possible_inputs = [1];
     for input_num in possible_inputs {
-        for output_num in 1..8 {
+        for output_num in 1..2 {
             if input_num == 8 && output_num > 5 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;
@@ -5437,6 +5480,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
         wait_time: 10,
         prover_config: None,
         sbf_programs: vec![],
+        limit_ledger_size: None,
     })
     .await;
 

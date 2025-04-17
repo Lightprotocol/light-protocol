@@ -9,15 +9,14 @@ use std::{
 
 use anyhow::Context;
 use dashmap::DashMap;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule, TreeType,
-};
+use forester_utils::forester_epoch::{get_epoch_phases, Epoch, TreeAccounts, TreeForesterSchedule};
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
     rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
     rpc_pool::SolanaRpcPool,
 };
+use light_compressed_account::TreeType;
 use light_registry::{
     protocol_config::state::ProtocolConfig,
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
@@ -31,7 +30,7 @@ use tokio::{
     task::JoinHandle,
     time::{sleep, Instant},
 };
-use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
     batch_processor::{process_batched_operations, BatchContext},
@@ -68,10 +67,10 @@ pub struct WorkItem {
 
 impl WorkItem {
     pub fn is_address_tree(&self) -> bool {
-        self.tree_account.tree_type == TreeType::Address
+        self.tree_account.tree_type == TreeType::AddressV1
     }
     pub fn is_state_tree(&self) -> bool {
-        self.tree_account.tree_type == TreeType::State
+        self.tree_account.tree_type == TreeType::StateV1
     }
 }
 
@@ -816,12 +815,13 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         // TODO: sync at some point
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
-        debug!(
+        trace!(
             "Estimated slot: {}, epoch end: {}",
-            estimated_slot, epoch_info.phases.active.end
+            estimated_slot,
+            epoch_info.phases.active.end
         );
         while estimated_slot < epoch_info.phases.active.end {
-            debug!("Searching for next eligible slot");
+            trace!("Searching for next eligible slot");
             // search for next eligible slot
             let index_and_forester_slot = tree
                 .slots
@@ -830,7 +830,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .find(|(_, slot)| slot.is_some());
 
             if let Some((index, forester_slot)) = index_and_forester_slot {
-                info!(
+                trace!(
                     "Found eligible slot, index: {}, tree: {}",
                     index,
                     tree.tree_accounts.merkle_tree.to_string()
@@ -863,8 +863,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     )?
                 };
 
-                if tree.tree_accounts.tree_type == TreeType::BatchedState
-                    || tree.tree_accounts.tree_type == TreeType::BatchedAddress
+                if tree.tree_accounts.tree_type == TreeType::StateV2
+                    || tree.tree_accounts.tree_type == TreeType::AddressV2
                 {
                     let batch_context = BatchContext {
                         rpc_pool: self.rpc_pool.clone(),
@@ -874,6 +874,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         epoch: epoch_info.epoch,
                         merkle_tree: tree.tree_accounts.merkle_tree,
                         output_queue: tree.tree_accounts.queue,
+                        ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
                     };
 
                     let start_time = Instant::now();
@@ -930,7 +931,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         phantom: std::marker::PhantomData::<R>,
                     };
 
-                    debug!("Sending transactions...");
+                    trace!("Sending transactions...");
                     let start_time = Instant::now();
                     let batch_tx_future = send_batched_transactions(
                         &self.config.payer_keypair,
@@ -950,7 +951,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
                     match num_tx_sent {
                         Ok(num_tx_sent) => {
-                            debug!("Transactions sent successfully");
+                            trace!("{} transactions sent", num_tx_sent);
                             let chunk_duration = start_time.elapsed();
                             queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration)
                                 .await;
@@ -959,6 +960,33 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         }
                         Err(e) => {
                             error!("Failed to send transactions: {:?}", e);
+                            if let Some(client_error) =
+                                e.downcast_ref::<RpcError>().and_then(|rpc_err| {
+                                    if let RpcError::ClientError(client_err) = rpc_err {
+                                        Some(client_err)
+                                    } else {
+                                        None
+                                    }
+                                })
+                            {
+                                if let Some(tx_error) = client_error.get_transaction_error() {
+                                    error!("Transaction error details: {:?}", tx_error);
+                                    if let TransactionError::InstructionError(
+                                        idx,
+                                        instruction_error,
+                                    ) = tx_error
+                                    {
+                                        error!(
+                                            "Failed at instruction {}: {:?}",
+                                            idx, instruction_error
+                                        );
+                                        if let InstructionError::Custom(code) = instruction_error {
+                                            error!("Custom error code: 0x{:x} ({})", code, code);
+                                        }
+                                    }
+                                }
+                            }
+                            return Err(e);
                         }
                     }
                 }
@@ -975,9 +1003,10 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
-            debug!(
+            trace!(
                 "Estimated slot: {}, epoch end: {}",
-                estimated_slot, epoch_info.phases.active.end
+                estimated_slot,
+                epoch_info.phases.active.end
             );
         }
         Ok(())
@@ -1103,7 +1132,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         let (_, current_epoch) = self.get_current_slot_and_epoch().await?;
 
         let result = match tree_account.tree_type {
-            TreeType::Address => {
+            TreeType::AddressV1 => {
                 rollover_address_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,
@@ -1113,7 +1142,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 )
                 .await
             }
-            TreeType::State => {
+            TreeType::StateV1 => {
                 rollover_state_merkle_tree(
                     self.config.clone(),
                     &mut *rpc,

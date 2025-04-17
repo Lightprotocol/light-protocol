@@ -1,16 +1,19 @@
 use light_account_checks::checks::check_account_balance_is_rent_exempt;
 use light_compressed_account::pubkey::Pubkey;
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, utils::if_equals_none};
-use solana_program::{account_info::AccountInfo, msg};
 
+// Import the appropriately feature-gated types from lib.rs
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
         init_batched_state_merkle_tree_accounts, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
-    merkle_tree_metadata::BatchedMerkleTreeMetadata,
-    queue::{BatchedQueueAccount, BatchedQueueMetadata},
+    msg,
+    queue::BatchedQueueAccount,
+    AccountInfo,
 };
 
 #[derive(Debug)]
@@ -47,11 +50,11 @@ pub struct RolloverBatchStateTreeParams<'a> {
 /// additional bytes since those are the basis for the old trees rollover fee.
 /// If new additional_bytes is greater than old additional_bytes additional
 /// rent reimbursements need to be calculated outside of this function.
-pub fn rollover_batched_state_tree_from_account_info<'a>(
-    old_state_merkle_tree: &AccountInfo<'a>,
-    new_state_merkle_tree: &AccountInfo<'a>,
-    old_output_queue: &AccountInfo<'a>,
-    new_output_queue: &AccountInfo<'a>,
+pub fn rollover_batched_state_tree_from_account_info(
+    old_state_merkle_tree: &AccountInfo,
+    new_state_merkle_tree: &AccountInfo,
+    old_output_queue: &AccountInfo,
+    new_output_queue: &AccountInfo,
     additional_bytes: u64,
     network_fee: Option<u64>,
 ) -> Result<u64, BatchedMerkleTreeError> {
@@ -73,8 +76,8 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
     let queue_rent =
         check_account_balance_is_rent_exempt(new_output_queue, old_output_queue.data_len())?;
 
-    use solana_program::sysvar::Sysvar;
-    let additional_bytes_rent = solana_program::rent::Rent::get()?.minimum_balance(
+    use crate::Sysvar;
+    let additional_bytes_rent = crate::Rent::get()?.minimum_balance(
         old_output_queue_account
             .metadata
             .rollover_metadata
@@ -84,15 +87,15 @@ pub fn rollover_batched_state_tree_from_account_info<'a>(
     let new_mt_data = &mut new_state_merkle_tree.try_borrow_mut_data()?;
     let params = RolloverBatchStateTreeParams {
         old_merkle_tree: old_merkle_tree_account,
-        old_mt_pubkey: (*old_state_merkle_tree.key).into(),
+        old_mt_pubkey: (*old_state_merkle_tree.key()).into(),
         new_mt_data,
         new_mt_rent: merkle_tree_rent,
-        new_mt_pubkey: (*new_state_merkle_tree.key).into(),
+        new_mt_pubkey: (*new_state_merkle_tree.key()).into(),
         old_output_queue: old_output_queue_account,
-        old_queue_pubkey: (*old_output_queue.key).into(),
+        old_queue_pubkey: (*old_output_queue.key()).into(),
         new_output_queue_data: &mut new_output_queue.try_borrow_mut_data()?,
         new_output_queue_rent: queue_rent,
-        new_output_queue_pubkey: (*new_output_queue.key).into(),
+        new_output_queue_pubkey: (*new_output_queue.key()).into(),
         additional_bytes_rent,
         additional_bytes,
         network_fee,
@@ -239,106 +242,120 @@ pub fn batched_tree_is_ready_for_rollover(
     Ok(())
 }
 
-#[repr(C)]
-pub struct StateMtRollOverAssertParams {
-    pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeMetadata,
-    pub new_mt_account_data: Vec<u8>,
-    pub old_mt_pubkey: Pubkey,
-    pub new_mt_pubkey: Pubkey,
-    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
-    pub queue_account_data: Vec<u8>,
-    pub ref_queue_account: BatchedQueueMetadata,
-    pub new_queue_account_data: Vec<u8>,
-    pub new_queue_pubkey: Pubkey,
-    pub ref_rolledover_queue: BatchedQueueMetadata,
-    pub old_queue_pubkey: Pubkey,
-    pub slot: u64,
-}
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    use light_compressed_account::pubkey::Pubkey;
 
-#[cfg(not(target_os = "solana"))]
-pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
-    let StateMtRollOverAssertParams {
-        mt_account_data,
-        ref_mt_account,
-        new_mt_account_data,
-        old_mt_pubkey,
-        new_mt_pubkey,
-
-        ref_rolledover_mt,
-        mut queue_account_data,
-        ref_queue_account,
-        mut new_queue_account_data,
-        new_queue_pubkey,
-        mut ref_rolledover_queue,
-        old_queue_pubkey,
-        slot,
-    } = params;
-
-    ref_rolledover_queue
-        .metadata
-        .rollover(old_mt_pubkey, new_queue_pubkey)
-        .unwrap();
-    ref_rolledover_queue
-        .metadata
-        .rollover_metadata
-        .rolledover_slot = slot;
-
-    crate::queue::assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account);
-
-    let zero_copy_queue = BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
-    assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
-    let params = MtRollOverAssertParams {
-        mt_account_data,
-        ref_mt_account,
-        new_mt_account_data,
-        new_mt_pubkey,
-        ref_rolledover_mt,
-        old_queue_pubkey,
-        slot,
-        old_mt_pubkey,
+    use crate::{
+        initialize_state_tree::test_utils::assert_state_mt_zero_copy_initialized,
+        merkle_tree::BatchedMerkleTreeAccount,
+        merkle_tree_metadata::BatchedMerkleTreeMetadata,
+        queue::{
+            test_utils::assert_queue_zero_copy_inited, BatchedQueueAccount, BatchedQueueMetadata,
+        },
     };
 
-    assert_mt_roll_over(params);
-}
+    #[repr(C)]
+    pub struct StateMtRollOverAssertParams {
+        pub mt_account_data: Vec<u8>,
+        pub ref_mt_account: BatchedMerkleTreeMetadata,
+        pub new_mt_account_data: Vec<u8>,
+        pub old_mt_pubkey: Pubkey,
+        pub new_mt_pubkey: Pubkey,
+        pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
+        pub queue_account_data: Vec<u8>,
+        pub ref_queue_account: BatchedQueueMetadata,
+        pub new_queue_account_data: Vec<u8>,
+        pub new_queue_pubkey: Pubkey,
+        pub ref_rolledover_queue: BatchedQueueMetadata,
+        pub old_queue_pubkey: Pubkey,
+        pub slot: u64,
+    }
 
-#[repr(C)]
-pub struct MtRollOverAssertParams {
-    pub mt_account_data: Vec<u8>,
-    pub ref_mt_account: BatchedMerkleTreeMetadata,
-    pub new_mt_account_data: Vec<u8>,
-    pub new_mt_pubkey: Pubkey,
-    pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
-    pub old_queue_pubkey: Pubkey,
-    pub slot: u64,
-    old_mt_pubkey: Pubkey,
-}
+    pub fn assert_state_mt_roll_over(params: StateMtRollOverAssertParams) {
+        let StateMtRollOverAssertParams {
+            mt_account_data,
+            ref_mt_account,
+            new_mt_account_data,
+            old_mt_pubkey,
+            new_mt_pubkey,
 
-#[cfg(not(target_os = "solana"))]
-pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
-    let MtRollOverAssertParams {
-        mut mt_account_data,
-        ref_mt_account,
-        mut new_mt_account_data,
-        new_mt_pubkey,
-        mut ref_rolledover_mt,
-        old_queue_pubkey,
-        slot,
-        old_mt_pubkey,
-    } = params;
+            ref_rolledover_mt,
+            mut queue_account_data,
+            ref_queue_account,
+            mut new_queue_account_data,
+            new_queue_pubkey,
+            mut ref_rolledover_queue,
+            old_queue_pubkey,
+            slot,
+        } = params;
 
-    ref_rolledover_mt
-        .metadata
-        .rollover(old_queue_pubkey, new_mt_pubkey)
-        .unwrap();
-    ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
-    let zero_copy_mt =
-        BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &old_mt_pubkey).unwrap();
-    assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
+        ref_rolledover_queue
+            .metadata
+            .rollover(old_mt_pubkey, new_queue_pubkey)
+            .unwrap();
+        ref_rolledover_queue
+            .metadata
+            .rollover_metadata
+            .rolledover_slot = slot;
 
-    crate::initialize_state_tree::assert_state_mt_zero_copy_initialized(
-        &mut new_mt_account_data,
-        ref_mt_account,
-        &new_mt_pubkey,
-    );
+        assert_queue_zero_copy_inited(&mut new_queue_account_data, ref_queue_account);
+
+        let zero_copy_queue =
+            BatchedQueueAccount::output_from_bytes(&mut queue_account_data).unwrap();
+        assert_eq!(zero_copy_queue.metadata, ref_rolledover_queue.metadata);
+        let params = MtRollOverAssertParams {
+            mt_account_data,
+            ref_mt_account,
+            new_mt_account_data,
+            new_mt_pubkey,
+            ref_rolledover_mt,
+            old_queue_pubkey,
+            slot,
+            old_mt_pubkey,
+        };
+
+        assert_mt_roll_over(params);
+    }
+
+    #[repr(C)]
+    pub struct MtRollOverAssertParams {
+        pub mt_account_data: Vec<u8>,
+        pub ref_mt_account: BatchedMerkleTreeMetadata,
+        pub new_mt_account_data: Vec<u8>,
+        pub new_mt_pubkey: Pubkey,
+        pub ref_rolledover_mt: BatchedMerkleTreeMetadata,
+        pub old_queue_pubkey: Pubkey,
+        pub slot: u64,
+        old_mt_pubkey: Pubkey,
+    }
+
+    pub fn assert_mt_roll_over(params: MtRollOverAssertParams) {
+        let MtRollOverAssertParams {
+            mut mt_account_data,
+            ref_mt_account,
+            mut new_mt_account_data,
+            new_mt_pubkey,
+            mut ref_rolledover_mt,
+            old_queue_pubkey,
+            slot,
+            old_mt_pubkey,
+        } = params;
+
+        ref_rolledover_mt
+            .metadata
+            .rollover(old_queue_pubkey, new_mt_pubkey)
+            .unwrap();
+        ref_rolledover_mt.metadata.rollover_metadata.rolledover_slot = slot;
+        let zero_copy_mt =
+            BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &old_mt_pubkey)
+                .unwrap();
+        assert_eq!(*zero_copy_mt.get_metadata(), ref_rolledover_mt);
+
+        assert_state_mt_zero_copy_initialized(
+            &mut new_mt_account_data,
+            ref_mt_account,
+            &new_mt_pubkey,
+        );
+    }
 }

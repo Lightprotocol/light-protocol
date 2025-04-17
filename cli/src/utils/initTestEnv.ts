@@ -29,7 +29,7 @@ export const SYSTEM_PROGRAMS: Program[] = [
   },
   {
     id: "SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7",
-    name: "light_system_program.so",
+    name: "light_system_program_pinocchio.so",
     tag: LIGHT_SYSTEM_PROGRAM_TAG,
   },
   {

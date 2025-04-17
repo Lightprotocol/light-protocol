@@ -17,7 +17,7 @@ use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::merkle_tree::MerkleTreeExt};
 use light_compressed_account::{
     address::derive_address_legacy, compressed_account::MerkleContext,
-    instruction_data::data::NewAddressParams,
+    instruction_data::data::NewAddressParams, TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
 use light_program_test::{
@@ -234,15 +234,7 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
     let compressed_input_account_with_context = input_compressed_token_account_data
         .compressed_account
         .clone();
-    let input_compressed_account_hash = compressed_input_account_with_context
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-        )
-        .unwrap();
+    let input_compressed_account_hash = compressed_input_account_with_context.hash().unwrap();
 
     let address = derive_address_legacy(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
@@ -278,8 +270,9 @@ async fn create_escrow_ix<R: RpcConnection + MerkleTreeExt>(
                 .merkle_context
                 .leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::StateV1,
         }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -362,9 +355,11 @@ pub async fn assert_escrow<R: RpcConnection + MerkleTreeExt>(
         compressed_escrow_pda_deserialized.discriminator,
         1u64.to_le_bytes(),
     );
+    let mut slot_bytes = [0u8; 32];
+    slot_bytes[24..].copy_from_slice(&compressed_escrow_pda_data.slot.to_be_bytes());
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
-        Poseidon::hash(&compressed_escrow_pda_data.slot.to_le_bytes()).unwrap(),
+        Poseidon::hash(&slot_bytes).unwrap(),
     );
 }
 pub async fn perform_withdrawal_with_event<R: RpcConnection + MerkleTreeExt>(
@@ -452,22 +447,10 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
         .unwrap()
         .clone();
     let token_escrow_account = token_escrow.compressed_account.clone();
-    let token_escrow_account_hash = token_escrow_account
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &token_escrow_account.merkle_context.leaf_index,
-        )
-        .unwrap();
+    let token_escrow_account_hash = token_escrow_account.hash().unwrap();
     println!("token_data_escrow {:?}", token_escrow);
     println!("token escrow_account {:?}", token_escrow_account);
-    let compressed_pda_hash = compressed_escrow_pda
-        .compressed_account
-        .hash::<Poseidon>(
-            &env.merkle_tree_pubkey,
-            &compressed_escrow_pda.merkle_context.leaf_index,
-        )
-        .unwrap();
+    let compressed_pda_hash = compressed_escrow_pda.hash().unwrap();
     println!("compressed_pda_hash {:?}", compressed_pda_hash);
     println!("token_escrow_account_hash {:?}", token_escrow_account_hash);
     // compressed pda will go first into the proof because in the program
@@ -492,14 +475,17 @@ pub async fn perform_withdrawal<R: RpcConnection + MerkleTreeExt>(
         input_token_escrow_merkle_context: MerkleContext {
             leaf_index: token_escrow_account.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::StateV1,
         },
+
         input_cpda_merkle_context: MerkleContext {
             leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
             merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+            queue_pubkey: env.nullifier_queue_pubkey,
             prove_by_index: false,
+            tree_type: TreeType::StateV1,
         },
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
@@ -580,8 +566,10 @@ pub async fn assert_withdrawal<R: RpcConnection + MerkleTreeExt>(
         compressed_escrow_pda_deserialized.discriminator,
         1u64.to_le_bytes(),
     );
+    let mut slot_bytes = [0u8; 32];
+    slot_bytes[24..].copy_from_slice(&compressed_escrow_pda_data.slot.to_be_bytes());
     assert_eq!(
         compressed_escrow_pda_deserialized.data_hash,
-        Poseidon::hash(&compressed_escrow_pda_data.slot.to_le_bytes()).unwrap(),
+        Poseidon::hash(&slot_bytes).unwrap(),
     );
 }

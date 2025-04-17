@@ -1,3 +1,4 @@
+#![cfg(all(feature = "test-only", feature = "solana"))]
 use std::{cell::RefCell, rc::Rc};
 
 use light_batched_merkle_tree::{
@@ -9,8 +10,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::{
         init_batched_state_merkle_tree_from_account_info, InitStateTreeAccountsInstructionData,
     },
-    merkle_tree::{get_merkle_tree_account_size_default, BatchedMerkleTreeAccount},
-    queue::{get_output_queue_account_size_default, BatchedQueueAccount},
+    merkle_tree::{test_utils::get_merkle_tree_account_size_default, BatchedMerkleTreeAccount},
+    queue::{test_utils::get_output_queue_account_size_default, BatchedQueueAccount},
 };
 use light_hasher::zero_bytes;
 use solana_program::{account_info::AccountInfo, pubkey::Pubkey};

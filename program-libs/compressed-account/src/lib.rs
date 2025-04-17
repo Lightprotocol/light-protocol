@@ -1,19 +1,39 @@
 #![allow(unexpected_cfgs)]
 
-use ark_ff::PrimeField;
+use std::fmt::Display;
+
 use light_hasher::HasherError;
-use num_bigint::BigUint;
-use solana_program::keccak::hashv;
 use thiserror::Error;
 
 pub mod address;
-pub mod bigint;
 pub mod compressed_account;
+pub mod constants;
 pub mod discriminators;
-pub mod event;
 pub mod hash_chain;
+pub mod indexer_event;
 pub mod instruction_data;
+pub mod nullifier;
 pub mod pubkey;
+pub mod tx_hash;
+
+#[cfg(feature = "anchor")]
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+#[cfg(not(feature = "anchor"))]
+use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use light_hasher::{
+    bigint::bigint_to_be_bytes_array,
+    hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
+};
+// Pinocchio framework imports
+#[cfg(feature = "pinocchio")]
+pub(crate) use pinocchio::program_error::ProgramError;
+#[cfg(feature = "pinocchio")]
+pub(crate) use pinocchio::pubkey::Pubkey;
+// Solana program imports (default framework)
+#[cfg(not(feature = "pinocchio"))]
+pub(crate) use solana_program::program_error::ProgramError;
+#[cfg(not(feature = "pinocchio"))]
+pub(crate) use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressedAccountError {
@@ -67,121 +87,83 @@ impl From<CompressedAccountError> for u32 {
     }
 }
 
-impl From<CompressedAccountError> for solana_program::program_error::ProgramError {
+// Convert compressed account errors to program errors for both frameworks
+impl From<CompressedAccountError> for ProgramError {
     fn from(e: CompressedAccountError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        ProgramError::Custom(e.into())
     }
 }
 
-pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
-    let bigint = BigUint::from_bytes_be(bytes);
-    bigint < ark_bn254::Fr::MODULUS.into()
+pub const NULLIFIER_QUEUE_TYPE_V1: u64 = 1;
+pub const ADDRESS_QUEUE_TYPE_V1: u64 = 2;
+pub const INPUT_STATE_QUEUE_TYPE_V2: u64 = 3;
+pub const ADDRESS_QUEUE_TYPE_V2: u64 = 4;
+pub const OUTPUT_STATE_QUEUE_TYPE_V2: u64 = 5;
+
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
+#[repr(u64)]
+pub enum QueueType {
+    NullifierV1 = NULLIFIER_QUEUE_TYPE_V1,
+    AddressV1 = ADDRESS_QUEUE_TYPE_V1,
+    InputStateV2 = INPUT_STATE_QUEUE_TYPE_V2,
+    AddressV2 = ADDRESS_QUEUE_TYPE_V2,
+    OutputStateV2 = OUTPUT_STATE_QUEUE_TYPE_V2,
 }
 
-pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
-    let mut bump_seed = [u8::MAX];
-    // Loops with decreasing bump seed to find a valid hash which is less than
-    // bn254 Fr modulo field size.
-    for _ in 0..u8::MAX {
-        {
-            let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
-            // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-            // field size.
-            hashed_value[0] = 0;
-            if is_smaller_than_bn254_field_size_be(&hashed_value) {
-                return Some((hashed_value, bump_seed[0]));
-            }
+impl From<u64> for QueueType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => QueueType::NullifierV1,
+            2 => QueueType::AddressV1,
+            3 => QueueType::InputStateV2,
+            4 => QueueType::AddressV2,
+            5 => QueueType::OutputStateV2,
+            _ => panic!("Invalid queue type"),
         }
-        bump_seed[0] -= 1;
     }
-    None
 }
 
-/// Hashes the provided `bytes` with Keccak256 and ensures the result fits
-/// in the BN254 prime field by repeatedly hashing the inputs with various
-/// "bump seeds" and truncating the resulting hash to 31 bytes.
-///
-/// The attempted "bump seeds" are bytes from 255 to 0.
-///
-/// # Examples
-///
-/// ```
-/// use light_compressed_account::hashv_to_bn254_field_size_be;
-///
-/// hashv_to_bn254_field_size_be(&[b"foo", b"bar"]);
-/// ```
-pub fn hashv_to_bn254_field_size_be(bytes: &[&[u8]]) -> [u8; 32] {
-    let mut hashed_value: [u8; 32] = hashv(bytes).to_bytes();
-    // Truncates to 31 bytes so that value is less than bn254 Fr modulo
-    // field size.
-    hashed_value[0] = 0;
-    hashed_value
+pub const STATE_MERKLE_TREE_TYPE_V1: u64 = 1;
+pub const ADDRESS_MERKLE_TREE_TYPE_V1: u64 = 2;
+pub const STATE_MERKLE_TREE_TYPE_V2: u64 = 3;
+pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
+
+#[repr(u64)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+pub enum TreeType {
+    StateV1 = STATE_MERKLE_TREE_TYPE_V1,
+    AddressV1 = ADDRESS_MERKLE_TREE_TYPE_V1,
+    StateV2 = STATE_MERKLE_TREE_TYPE_V2,
+    AddressV2 = ADDRESS_MERKLE_TREE_TYPE_V2,
 }
 
-#[cfg(test)]
-mod tests {
-    use num_bigint::ToBigUint;
-    use solana_program::pubkey::Pubkey;
-
-    use super::*;
-    use crate::bigint::bigint_to_be_bytes_array;
-
-    #[test]
-    fn test_is_smaller_than_bn254_field_size_be() {
-        let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
-        let modulus_bytes: [u8; 32] = bigint_to_be_bytes_array(&modulus).unwrap();
-        assert!(!is_smaller_than_bn254_field_size_be(&modulus_bytes));
-
-        let bigint = modulus.clone() - 1.to_biguint().unwrap();
-        let bigint_bytes: [u8; 32] = bigint_to_be_bytes_array(&bigint).unwrap();
-        assert!(is_smaller_than_bn254_field_size_be(&bigint_bytes));
-
-        let bigint = modulus + 1.to_biguint().unwrap();
-        let bigint_bytes: [u8; 32] = bigint_to_be_bytes_array(&bigint).unwrap();
-        assert!(!is_smaller_than_bn254_field_size_be(&bigint_bytes));
-    }
-
-    #[test]
-    fn test_hash_to_bn254_field_size_be() {
-        for _ in 0..10_000 {
-            let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
-            let (hashed_value, bump) = hash_to_bn254_field_size_be(input_bytes.as_slice())
-                .expect("Failed to find a hash within BN254 field size");
-            assert_eq!(bump, 255, "Bump seed should be 0");
-            assert!(
-                is_smaller_than_bn254_field_size_be(&hashed_value),
-                "Hashed value should be within BN254 field size"
-            );
+impl Display for TreeType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TreeType::StateV1 => write!(f, "StateV1"),
+            TreeType::AddressV1 => write!(f, "AddressV1"),
+            TreeType::StateV2 => write!(f, "StateV2"),
+            TreeType::AddressV2 => write!(f, "AddressV2"),
         }
-
-        let max_input = [u8::MAX; 32];
-        let (hashed_value, bump) = hash_to_bn254_field_size_be(max_input.as_slice())
-            .expect("Failed to find a hash within BN254 field size");
-        assert_eq!(bump, 255, "Bump seed should be 255");
-        assert!(
-            is_smaller_than_bn254_field_size_be(&hashed_value),
-            "Hashed value should be within BN254 field size"
-        );
     }
+}
 
-    #[test]
-    fn test_hashv_to_bn254_field_size_be() {
-        for _ in 0..10_000 {
-            let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
-            let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
-            let hashed_value = hashv_to_bn254_field_size_be(input_bytes.as_slice());
-            assert!(
-                is_smaller_than_bn254_field_size_be(&hashed_value),
-                "Hashed value should be within BN254 field size"
-            );
+#[allow(clippy::derivable_impls)]
+impl std::default::Default for TreeType {
+    fn default() -> Self {
+        TreeType::StateV2
+    }
+}
+
+// from u64
+impl From<u64> for TreeType {
+    fn from(value: u64) -> Self {
+        match value {
+            1 => TreeType::StateV1,
+            2 => TreeType::AddressV1,
+            3 => TreeType::StateV2,
+            4 => TreeType::AddressV2,
+            _ => panic!("Invalid TreeType"),
         }
-
-        let max_input = [[u8::MAX; 32]; 16];
-        let max_input = max_input.iter().map(|x| x.as_slice()).collect::<Vec<_>>();
-        let hashed_value = hashv_to_bn254_field_size_be(max_input.as_slice());
-        assert!(
-            is_smaller_than_bn254_field_size_be(&hashed_value),
-            "Hashed value should be within BN254 field size"
-        );
     }
 }

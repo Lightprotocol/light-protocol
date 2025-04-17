@@ -8,7 +8,7 @@ use std::{
 
 use light_client::rpc::RpcConnection;
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error};
+use tracing::{error, trace};
 
 pub fn slot_duration() -> Duration {
     Duration::from_nanos(solana_sdk::genesis_config::GenesisConfig::default().ns_per_slot() as u64)
@@ -53,9 +53,11 @@ impl SlotTracker {
         let elapsed = Duration::from_millis(now - last_update);
         let estimated_slot =
             last_slot + (elapsed.as_secs_f64() / slot_duration().as_secs_f64()) as u64;
-        debug!(
+        trace!(
             "Estimated current slot: {} (last known: {}, elapsed: {:?})",
-            estimated_slot, last_slot, elapsed
+            estimated_slot,
+            last_slot,
+            elapsed
         );
         estimated_slot
     }
@@ -78,7 +80,7 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
     slot_tracker: &Arc<SlotTracker>,
     target_slot: u64,
 ) -> crate::Result<()> {
-    debug!("Waiting for slot {}", target_slot);
+    trace!("Waiting for slot {}", target_slot);
 
     loop {
         let current_estimated_slot = slot_tracker.estimated_current_slot();
@@ -98,7 +100,7 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
             slot_duration()
         };
 
-        debug!(
+        trace!(
             "Estimated slot: {}, waiting for {} seconds",
             current_estimated_slot,
             sleep_duration.as_secs_f64()
@@ -106,6 +108,6 @@ pub async fn wait_until_slot_reached<R: RpcConnection>(
         sleep(sleep_duration).await;
     }
 
-    debug!("Slot {} reached", target_slot);
+    trace!("Slot {} reached", target_slot);
     Ok(())
 }

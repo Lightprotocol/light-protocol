@@ -5,24 +5,31 @@ use clap::Parser;
 use dirs::home_dir;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_program_test::test_env::create_state_merkle_tree_and_queue_account;
-use solana_sdk::signature::{read_keypair_file, Keypair, Signer};
+use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
 
 #[derive(Debug, Parser)]
 pub struct Options {
     #[clap(long)]
     payer: Option<PathBuf>,
     #[clap(long)]
-    mt_pubkey: String,
+    mt_pubkey: Option<String>,
     #[clap(long)]
-    nfq_pubkey: String,
+    nfq_pubkey: Option<String>,
     #[clap(long)]
-    cpi_pubkey: String,
+    cpi_pubkey: Option<String>,
     #[clap(long)]
     index: u32,
     /// mainnet, devnet, local, default: mainnet
     #[clap(long)]
     network: Option<String>,
+    /// mainnet, devnet, local, default: mainnet
+    #[clap(long, default_value = "false")]
+    new: bool,
+    /// mainnet, testnet
+    #[clap(long)]
+    config: Option<String>,
 }
+
 pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     let rpc_url = if let Some(network) = options.network {
         if network == "local" {
@@ -43,15 +50,39 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
     let mut nfq_keypairs: Vec<Keypair> = vec![];
     let mut cpi_keypairs: Vec<Keypair> = vec![];
 
-    let mt_keypair = read_keypair_file(options.mt_pubkey).unwrap();
-    let nfq_keypair = read_keypair_file(options.nfq_pubkey).unwrap();
-    let cpi_keypair = read_keypair_file(options.cpi_pubkey).unwrap();
-    println!("read mt: {:?}", mt_keypair.pubkey());
-    println!("read nfq: {:?}", nfq_keypair.pubkey());
-    println!("read cpi: {:?}", cpi_keypair.pubkey());
-    mt_keypairs.push(mt_keypair);
-    nfq_keypairs.push(nfq_keypair);
-    cpi_keypairs.push(cpi_keypair);
+    if options.new {
+        let mt_keypair = Keypair::new();
+        let nfq_keypair = Keypair::new();
+        let cpi_keypair = Keypair::new();
+        println!("new mt: {:?}", mt_keypair.pubkey());
+        println!("new nfq: {:?}", nfq_keypair.pubkey());
+        println!("new cpi: {:?}", cpi_keypair.pubkey());
+
+        write_keypair_file(&mt_keypair, format!("./target/mt-{}", mt_keypair.pubkey())).unwrap();
+        write_keypair_file(
+            &nfq_keypair,
+            format!("./target/nfq-{}", nfq_keypair.pubkey()),
+        )
+        .unwrap();
+        write_keypair_file(
+            &cpi_keypair,
+            format!("./target/cpi-{}", cpi_keypair.pubkey()),
+        )
+        .unwrap();
+        mt_keypairs.push(mt_keypair);
+        nfq_keypairs.push(nfq_keypair);
+        cpi_keypairs.push(cpi_keypair);
+    } else {
+        let mt_keypair = read_keypair_file(options.mt_pubkey.unwrap()).unwrap();
+        let nfq_keypair = read_keypair_file(options.nfq_pubkey.unwrap()).unwrap();
+        let cpi_keypair = read_keypair_file(options.cpi_pubkey.unwrap()).unwrap();
+        println!("read mt: {:?}", mt_keypair.pubkey());
+        println!("read nfq: {:?}", nfq_keypair.pubkey());
+        println!("read cpi: {:?}", cpi_keypair.pubkey());
+        mt_keypairs.push(mt_keypair);
+        nfq_keypairs.push(nfq_keypair);
+        cpi_keypairs.push(cpi_keypair);
+    }
 
     let payer = if let Some(payer) = options.payer.as_ref() {
         read_keypair_file(payer).unwrap_or_else(|_| panic!("{:?}", options.payer))
@@ -64,6 +95,28 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
             .unwrap_or_else(|_| panic!("Keypair not found in default path {:?}", keypair_path))
     };
     println!("read payer: {:?}", payer.pubkey());
+
+    let (merkle_tree_config, queue_config) = if let Some(config) = options.config {
+        if config == "testnet" {
+            (
+                StateMerkleTreeConfig {
+                    changelog_size: 400,
+                    ..Default::default()
+                },
+                NullifierQueueConfig {
+                    capacity: 5000,
+                    ..Default::default()
+                },
+            )
+        } else {
+            unimplemented!("Only testnet is implemented.")
+        }
+    } else {
+        (
+            StateMerkleTreeConfig::default(),
+            NullifierQueueConfig::default(),
+        )
+    };
 
     for ((merkle_tree_keypair, nullifier_queue_keypair), cpi_context_keypair) in mt_keypairs
         .iter()
@@ -89,8 +142,8 @@ pub async fn create_state_tree(options: Options) -> anyhow::Result<()> {
             None,
             None,
             options.index as u64,
-            &StateMerkleTreeConfig::default(),
-            &NullifierQueueConfig::default(),
+            &merkle_tree_config,
+            &queue_config,
         )
         .await
         .unwrap();

@@ -3,18 +3,19 @@ use account_compression::{
     StateMerkleTreeAccount,
 };
 use borsh::BorshDeserialize;
-use forester_utils::forester_epoch::{TreeAccounts, TreeType};
+use forester_utils::forester_epoch::TreeAccounts;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::RpcConnection;
+use light_compressed_account::TreeType;
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use solana_sdk::{account::Account, pubkey::Pubkey};
-use tracing::debug;
+use tracing::trace;
 
 use crate::{errors::AccountDeserializationError, Result};
 
 pub async fn fetch_trees<R: RpcConnection>(rpc: &R) -> Result<Vec<TreeAccounts>> {
     let program_id = account_compression::id();
-    debug!("Fetching accounts for program: {}", program_id);
+    trace!("Fetching accounts for program: {}", program_id);
     Ok(rpc
         .get_program_accounts(&program_id)
         .await?
@@ -37,7 +38,7 @@ fn process_state_account(account: &Account, pubkey: Pubkey) -> Result<TreeAccoun
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::State,
+        TreeType::StateV1,
     ))
 }
 
@@ -47,7 +48,7 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::Address,
+        TreeType::AddressV1,
     ))
 }
 
@@ -61,7 +62,7 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::BatchedState,
+        TreeType::StateV2,
     ))
 }
 
@@ -75,7 +76,7 @@ fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Resul
     Ok(create_tree_accounts(
         pubkey,
         &tree_account.metadata,
-        TreeType::BatchedAddress,
+        TreeType::AddressV2,
     ))
 }
 
@@ -91,9 +92,11 @@ fn create_tree_accounts(
         metadata.rollover_metadata.rolledover_slot != u64::MAX,
     );
 
-    debug!(
+    trace!(
         "{:?} Merkle Tree account found. Pubkey: {}. Queue pubkey: {}",
-        tree_type, pubkey, tree_accounts.queue
+        tree_type,
+        pubkey,
+        tree_accounts.queue
     );
     tree_accounts
 }

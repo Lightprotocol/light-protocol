@@ -1,20 +1,11 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-
 use super::{
     cpi_context::CompressedCpiContext,
-    data::{
-        NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
-    },
+    data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
     zero_copy::ZInstructionDataInvokeCpi,
 };
 use crate::{
-    compressed_account::{
-        PackedCompressedAccountWithMerkleContext, PackedReadOnlyCompressedAccount,
-    },
-    instruction_data::compressed_proof::CompressedProof,
+    compressed_account::PackedCompressedAccountWithMerkleContext,
+    instruction_data::compressed_proof::CompressedProof, AnchorDeserialize, AnchorSerialize,
 };
 
 #[repr(C)]
@@ -48,13 +39,6 @@ impl<'a, 'info: 'a> ZInstructionDataInvokeCpi<'a> {
             }
         }
     }
-}
-
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InstructionDataInvokeCpiWithReadOnly {
-    pub invoke_cpi: InstructionDataInvokeCpi,
-    pub read_only_addresses: Option<Vec<PackedReadOnlyAddress>>,
-    pub read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
 }
 
 #[cfg(test)]

@@ -142,7 +142,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         }
         _ => ctx.accounts.self_program.to_account_info(),
     };
-
+    msg!("input compressed_account {:?}", compressed_account);
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: vec![compressed_account],

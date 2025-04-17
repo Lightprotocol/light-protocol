@@ -1,18 +1,16 @@
 use light_account_checks::{checks::check_account_balance_is_rent_exempt, error::AccountError};
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{pubkey::Pubkey, TreeType};
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
+    access::AccessMetadata, fee::compute_rollover_fee, merkle_tree::MerkleTreeMetadata,
     rollover::RolloverMetadata,
 };
-use solana_program::{account_info::AccountInfo, msg};
 
+// Import feature-gated types from lib.rs
+use crate::AccountInfo;
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
-    constants::{
-        DEFAULT_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE,
-        TEST_DEFAULT_ZKP_BATCH_SIZE,
-    },
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_SIZE, DEFAULT_ZKP_BATCH_SIZE},
     errors::BatchedMerkleTreeError,
     initialize_state_tree::match_circuit_size,
     merkle_tree::{get_merkle_tree_account_size, BatchedMerkleTreeAccount},
@@ -34,42 +32,6 @@ pub struct InitAddressTreeAccountsInstructionData {
     pub rollover_threshold: Option<u64>,
     pub close_threshold: Option<u64>,
     pub height: u32,
-}
-
-impl InitAddressTreeAccountsInstructionData {
-    pub fn test_default() -> Self {
-        Self {
-            index: 0,
-            program_owner: None,
-            forester: None,
-            bloom_filter_num_iters: 3,
-            input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
-            input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: 40,
-            root_history_capacity: 20,
-            bloom_filter_capacity: 20_000 * 8,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        }
-    }
-
-    pub fn e2e_test_default() -> Self {
-        Self {
-            index: 0,
-            program_owner: None,
-            forester: None,
-            bloom_filter_num_iters: 3,
-            input_queue_batch_size: 500,
-            input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
-            height: 40,
-            root_history_capacity: 20,
-            bloom_filter_capacity: 20_000 * 8,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        }
-    }
 }
 
 impl Default for InitAddressTreeAccountsInstructionData {
@@ -97,7 +59,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
 pub fn init_batched_address_merkle_tree_from_account_info(
     params: InitAddressTreeAccountsInstructionData,
     owner: Pubkey,
-    mt_account_info: &AccountInfo<'_>,
+    mt_account_info: &AccountInfo,
 ) -> Result<(), BatchedMerkleTreeError> {
     // 1. Check rent exemption and that accounts are initialized with the correct size.
     let mt_account_size = get_merkle_tree_account_size(
@@ -117,7 +79,7 @@ pub fn init_batched_address_merkle_tree_from_account_info(
         params,
         mt_data,
         merkle_tree_rent,
-        (*mt_account_info.key).into(),
+        (*mt_account_info.key()).into(),
     )?;
     Ok(())
 }
@@ -138,8 +100,10 @@ pub fn init_batched_address_merkle_tree_account(
         }
         None => 0,
     };
-    msg!("rollover fee {}", rollover_fee);
-    msg!("rollover threshold {:?}", params.rollover_threshold);
+    #[cfg(not(feature = "pinocchio"))]
+    crate::msg!("rollover fee {}", rollover_fee);
+    #[cfg(not(feature = "pinocchio"))]
+    crate::msg!("rollover threshold {:?}", params.rollover_threshold);
 
     let metadata = MerkleTreeMetadata {
         next_merkle_tree: Pubkey::default(),
@@ -164,7 +128,7 @@ pub fn init_batched_address_merkle_tree_account(
         height,
         params.bloom_filter_num_iters,
         params.bloom_filter_capacity,
-        TreeType::BatchedAddress,
+        TreeType::AddressV2,
     )
 }
 
@@ -191,7 +155,7 @@ pub fn validate_batched_address_tree_params(params: InitAddressTreeAccountsInstr
     assert!(params.root_history_capacity > 0);
     assert!(params.input_queue_batch_size > 0);
     assert_eq!(params.close_threshold, None);
-    assert_eq!(params.height, 40);
+    assert_eq!(params.height, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT);
 }
 
 pub fn get_address_merkle_tree_account_size_from_params(
@@ -204,6 +168,66 @@ pub fn get_address_merkle_tree_account_size_from_params(
         params.root_history_capacity,
         params.height,
     )
+}
+
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    pub use super::InitAddressTreeAccountsInstructionData;
+    use crate::constants::{
+        DEFAULT_ZKP_BATCH_SIZE, TEST_DEFAULT_BATCH_SIZE, TEST_DEFAULT_ZKP_BATCH_SIZE,
+    };
+
+    impl InitAddressTreeAccountsInstructionData {
+        pub fn test_default() -> Self {
+            Self {
+                index: 0,
+                program_owner: None,
+                forester: None,
+                bloom_filter_num_iters: 3,
+                input_queue_batch_size: TEST_DEFAULT_BATCH_SIZE,
+                input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+                height: 40,
+                root_history_capacity: 20,
+                bloom_filter_capacity: 20_000 * 8,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            }
+        }
+
+        pub fn e2e_test_default() -> Self {
+            Self {
+                index: 0,
+                program_owner: None,
+                forester: None,
+                bloom_filter_num_iters: 3,
+                input_queue_batch_size: 500,
+                input_queue_zkp_batch_size: TEST_DEFAULT_ZKP_BATCH_SIZE,
+                height: 40,
+                root_history_capacity: 20,
+                bloom_filter_capacity: 20_000 * 8,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            }
+        }
+        pub fn testnet_default() -> Self {
+            Self {
+                index: 0,
+                program_owner: None,
+                forester: None,
+                bloom_filter_num_iters: 3,
+                input_queue_batch_size: 2000,
+                input_queue_zkp_batch_size: DEFAULT_ZKP_BATCH_SIZE,
+                height: 40,
+                root_history_capacity: 20,
+                bloom_filter_capacity: 20_000 * 8,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            }
+        }
+    }
 }
 
 #[test]

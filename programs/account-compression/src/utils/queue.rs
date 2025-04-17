@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::prelude::{AccountInfo, Pubkey};
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
 
 /// Mapping of address queue public keys to a bundle containing:
 ///

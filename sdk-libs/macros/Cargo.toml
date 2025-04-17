@@ -12,10 +12,14 @@ quote = { workspace = true }
 syn = { workspace = true }
 
 light-hasher = { workspace = true }
+ark-bn254 = { workspace = true }
+light-poseidon = { workspace = true }
 
 [dev-dependencies]
 light-compressed-account = { workspace = true }
 prettyplease = "0.2.29"
+solana-pubkey = { workspace = true, features = ["borsh"] }
+borsh = { workspace = true }
 
 [lib]
 proc-macro = true

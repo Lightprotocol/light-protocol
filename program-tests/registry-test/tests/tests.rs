@@ -8,12 +8,13 @@ use account_compression::{
 };
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use forester_utils::{
-    airdrop_lamports, forester_epoch::get_epoch_phases, get_concurrent_merkle_tree,
+    account_zero_copy::get_concurrent_merkle_tree, forester_epoch::get_epoch_phases,
+    utils::airdrop_lamports,
 };
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
-    initialize_state_tree::{
+    initialize_state_tree::test_utils::{
         assert_address_mt_zero_copy_initialized, InitStateTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
@@ -21,6 +22,7 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::indexer::Indexer;
+use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -76,7 +78,7 @@ use light_test_utils::{
     register_test_forester,
     test_forester::{empty_address_queue_test, nullify_compressed_accounts},
     update_test_forester, Epoch, RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
-    TreeAccounts, TreeType, CREATE_ADDRESS_TEST_PROGRAM_ID,
+    TreeAccounts, CREATE_ADDRESS_TEST_PROGRAM_ID,
 };
 use serial_test::serial;
 use solana_sdk::{
@@ -521,8 +523,7 @@ async fn test_initialize_protocol_config() {
             0,
         )
         .await;
-        let expected_error_code = RegistryError::InvalidNetworkFee as u32 + 6000;
-        assert_rpc_error(result, 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 3, RegistryError::InvalidNetworkFee.into()).unwrap();
     }
 }
 
@@ -837,13 +838,13 @@ async fn test_register_and_update_forester_pda() {
     // 3. SUCCESS: register forester for epoch
     let tree_accounts = vec![
         TreeAccounts {
-            tree_type: TreeType::State,
+            tree_type: TreeType::StateV1,
             merkle_tree: env.merkle_tree_pubkey,
             queue: env.nullifier_queue_pubkey,
             is_rolledover: false,
         },
         TreeAccounts {
-            tree_type: TreeType::Address,
+            tree_type: TreeType::AddressV1,
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
             is_rolledover: false,
@@ -1448,7 +1449,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         let params = CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),
@@ -1532,7 +1533,7 @@ async fn test_migrate_state() {
             change_log_index: merkle_tree.changelog_index() as u64,
             leaf: hash,
             leaf_index,
-            proof: merkle_proof.to_array().unwrap(),
+            proof: merkle_proof.try_into().unwrap(),
         };
         CreateMigrateStateInstructionInputs {
             authority: env_accounts.forester.pubkey(),

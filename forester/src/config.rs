@@ -58,7 +58,8 @@ pub struct IndexerConfig {
 
 #[derive(Debug, Clone)]
 pub struct TransactionConfig {
-    pub batch_size: usize,
+    pub legacy_ixs_per_tx: usize,
+    pub batch_ixs_per_tx: usize,
     pub max_concurrent_batches: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
@@ -95,7 +96,8 @@ impl Default for IndexerConfig {
 impl Default for TransactionConfig {
     fn default() -> Self {
         Self {
-            batch_size: 1,
+            legacy_ixs_per_tx: 1,
+            batch_ixs_per_tx: 4,
             max_concurrent_batches: 20,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
@@ -173,7 +175,8 @@ impl ForesterConfig {
                 max_concurrent_batches: args.indexer_max_concurrent_batches,
             },
             transaction_config: TransactionConfig {
-                batch_size: args.transaction_batch_size,
+                legacy_ixs_per_tx: args.legacy_ixs_per_tx,
+                batch_ixs_per_tx: args.batch_ixs_per_tx,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,

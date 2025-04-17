@@ -2,19 +2,19 @@ use std::ops::{Deref, DerefMut};
 
 use light_account_checks::{
     checks::{check_account_info, set_discriminator},
-    discriminator::{Discriminator, ANCHOR_DISCRIMINATOR_LEN},
+    discriminator::{Discriminator, DISCRIMINATOR_LEN},
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_array, hash_to_bn254_field_size_be,
-    instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey,
+    instruction_data::compressed_proof::CompressedProof, nullifier::create_nullifier,
+    pubkey::Pubkey, QueueType, TreeType, ADDRESS_MERKLE_TREE_TYPE_V2, ADDRESS_QUEUE_TYPE_V2,
+    INPUT_STATE_QUEUE_TYPE_V2, OUTPUT_STATE_QUEUE_TYPE_V2, STATE_MERKLE_TREE_TYPE_V2,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::Hasher;
 use light_merkle_tree_metadata::{
     errors::MerkleTreeMetadataError,
-    merkle_tree::{MerkleTreeMetadata, TreeType},
-    queue::{
-        QueueType, BATCHED_ADDRESS_QUEUE_TYPE, BATCHED_INPUT_QUEUE_TYPE, BATCHED_OUTPUT_QUEUE_TYPE,
-    },
+    events::{batch::BatchEvent, MerkleTreeEvent},
+    merkle_tree::MerkleTreeMetadata,
 };
 use light_verifier::{
     verify_batch_address_update, verify_batch_append_with_proofs, verify_batch_update,
@@ -22,28 +22,21 @@ use light_verifier::{
 use light_zero_copy::{
     cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError, vec::ZeroCopyVecU64,
 };
-use solana_program::{account_info::AccountInfo, msg};
 use zerocopy::Ref;
 
 use super::batch::Batch;
+#[cfg(not(feature = "pinocchio"))]
+use crate::AccountInfoTrait;
 use crate::{
     batch::BatchState,
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, BATCHED_ADDRESS_TREE_TYPE,
-        BATCHED_STATE_TREE_TYPE, NUM_BATCHES,
-    },
+    constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
-    event::{
-        BatchAddressAppendEvent, BatchAppendEvent, BatchNullifyEvent,
-        BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR, BATCH_APPEND_EVENT_DISCRIMINATOR,
-        BATCH_NULLIFY_EVENT_DISCRIMINATOR,
-    },
     merkle_tree_metadata::BatchedMerkleTreeMetadata,
     queue::{
         deserialize_bloom_filter_stores, insert_into_current_queue_batch, BatchedQueueAccount,
     },
     queue_batch_metadata::QueueBatches,
-    BorshDeserialize, BorshSerialize,
+    AccountInfo, BorshDeserialize, BorshSerialize,
 };
 
 /// Public inputs:
@@ -91,14 +84,14 @@ pub struct BatchedMerkleTreeAccount<'a> {
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
 
-impl Discriminator<ANCHOR_DISCRIMINATOR_LEN> for BatchedMerkleTreeAccount<'_> {
+impl Discriminator for BatchedMerkleTreeAccount<'_> {
     const DISCRIMINATOR: [u8; 8] = *b"BatchMta";
 }
 
 impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Checks state Merkle tree account and returns the root.
     pub fn get_state_root_by_index(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::state_from_account_info(account_info)?;
@@ -109,7 +102,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
     /// Checks address Merkle tree account and returns the root.
     pub fn get_address_root_by_index(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
         index: usize,
     ) -> Result<[u8; 32], BatchedMerkleTreeError> {
         let tree = Self::address_from_account_info(account_info)?;
@@ -125,9 +118,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. discriminator,
     /// 3. tree type is batched state tree type.
     pub fn state_from_account_info(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<BATCHED_STATE_TREE_TYPE>(
+        Self::from_account_info::<STATE_MERKLE_TREE_TYPE_V2>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
@@ -141,10 +134,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        light_account_checks::checks::check_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(
-            account_data,
-        )?;
-        Self::from_bytes::<BATCHED_STATE_TREE_TYPE>(account_data, pubkey)
+        light_account_checks::checks::check_discriminator::<Self>(account_data)?;
+        Self::from_bytes::<STATE_MERKLE_TREE_TYPE_V2>(account_data, pubkey)
     }
 
     /// Deserialize a batched address Merkle tree from account info.
@@ -154,25 +145,25 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 2. discriminator,
     /// 3. tree type is batched address tree type.
     pub fn address_from_account_info(
-        account_info: &AccountInfo<'a>,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_account_info::<BATCHED_ADDRESS_TREE_TYPE>(
+        Self::from_account_info::<ADDRESS_MERKLE_TREE_TYPE_V2>(
             &ACCOUNT_COMPRESSION_PROGRAM_ID,
             account_info,
         )
     }
 
     fn from_account_info<const TREE_TYPE: u64>(
-        program_id: &solana_program::pubkey::Pubkey,
-        account_info: &AccountInfo<'a>,
+        program_id: &crate::Pubkey,
+        account_info: &AccountInfo,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        check_account_info::<Self, ANCHOR_DISCRIMINATOR_LEN>(program_id, account_info)?;
+        check_account_info::<Self>(program_id, account_info)?;
         let mut data = account_info.try_borrow_mut_data()?;
 
         // Necessary to convince the borrow checker.
         let data_slice: &'a mut [u8] =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr(), data.len()) };
-        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key).into())
+        Self::from_bytes::<TREE_TYPE>(data_slice, &(*account_info.key()).into())
     }
 
     /// Deserialize a state BatchedMerkleTreeAccount from bytes.
@@ -183,7 +174,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
-        Self::from_bytes::<BATCHED_ADDRESS_TREE_TYPE>(account_data, pubkey)
+        Self::from_bytes::<ADDRESS_MERKLE_TREE_TYPE_V2>(account_data, pubkey)
     }
 
     fn from_bytes<const TREE_TYPE: u64>(
@@ -191,7 +182,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         pubkey: &Pubkey,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         // Discriminator is already checked in check_account_info.
-        let (_discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
+        let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
@@ -235,8 +226,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         tree_type: TreeType,
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         let account_data_len = account_data.len();
-        let (discriminator, account_data) = account_data.split_at_mut(ANCHOR_DISCRIMINATOR_LEN);
-        set_discriminator::<Self, ANCHOR_DISCRIMINATOR_LEN>(discriminator)?;
+        let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
+        set_discriminator::<Self>(discriminator)?;
 
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
@@ -247,7 +238,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Poseidon hashes required input size < bn254 field size.
         // To map 256bit pubkeys to < 254bit field size, we hash Pubkeys
         // and truncate the hash to 31 bytes/248 bits.
-        account_metadata.hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes()).unwrap().0;
+        account_metadata.hashed_pubkey = hash_to_bn254_field_size_be(&pubkey.to_bytes());
         account_metadata.metadata = metadata;
         account_metadata.root_history_capacity = root_history_capacity;
         account_metadata.height = height;
@@ -259,9 +250,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         account_metadata.queue_batches.bloom_filter_capacity = bloom_filter_capacity;
         if account_data_len != account_metadata.get_account_size()? {
-            msg!("merkle_tree_metadata: {:?}", account_metadata);
-            msg!("account_data.len(): {}", account_data_len);
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!("merkle_tree_metadata: {:?}", account_metadata);
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!("account_data.len(): {}", account_data_len);
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "account.get_account_size(): {}",
                 account_metadata.get_account_size()?
             );
@@ -283,10 +277,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // Initialize root history array with initial root.
         // Batch zkp updates require an input Merkle root.
-        if tree_type == TreeType::BatchedState {
+        if tree_type == TreeType::StateV2 {
             // Root for binary Merkle tree with all zero leaves.
             root_history.push(light_hasher::Poseidon::zero_bytes()[height as usize]);
-        } else if tree_type == TreeType::BatchedAddress {
+        } else if tree_type == TreeType::AddressV2 {
             // Sanity check since init value is hardcoded.
             #[cfg(not(test))]
             if height != 40 {
@@ -301,7 +295,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 2. element:
             // H(452312848583266388373324160190187140051835877600158453279131187530910662655, 0, 0)
             // ... other elements: 0
-            account_metadata.next_index = 2;
+            account_metadata.next_index = 1;
         }
         let next_index = account_metadata.next_index;
 
@@ -347,10 +341,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 3. Returns the batch append event.
     pub fn update_tree_from_output_queue_account_info(
         &mut self,
-        queue_account_info: &AccountInfo<'_>,
+        queue_account_info: &AccountInfo,
         instruction_data: InstructionDataBatchAppendInputs,
-    ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
-        if self.tree_type != TreeType::BatchedState as u64 {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
+        if self.tree_type != TreeType::StateV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
         let queue_account = &mut BatchedQueueAccount::output_from_account_info(queue_account_info)?;
@@ -381,7 +375,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         &mut self,
         queue_account: &mut BatchedQueueAccount,
         instruction_data: InstructionDataBatchAppendInputs,
-    ) -> Result<BatchAppendEvent, BatchedMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
         self.check_tree_is_full()?;
         let pending_batch_index = queue_account.batch_metadata.pending_batch_index as usize;
         let new_root = instruction_data.new_root;
@@ -408,7 +402,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         };
 
         // 2. Verify update proof and update tree account.
-        let (old_next_index, new_next_index) = self.verify_update::<BATCHED_OUTPUT_QUEUE_TYPE>(
+        let (old_next_index, new_next_index) = self.verify_update::<OUTPUT_STATE_QUEUE_TYPE_V2>(
             circuit_batch_size,
             instruction_data.compressed_proof,
             public_input_hash,
@@ -436,43 +430,45 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             self.zero_out_previous_batch_bloom_filter()?;
         }
         // 6. Return the batch append event.
-        Ok(BatchAppendEvent {
-            discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
-            tree_type: self.tree_type,
+        Ok(MerkleTreeEvent::BatchAppend(BatchEvent {
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             output_queue_pubkey: Some(queue_account.pubkey().to_bytes()),
             batch_index: pending_batch_index as u64,
-            batch_size: circuit_batch_size,
+            zkp_batch_size: circuit_batch_size,
             zkp_batch_index: first_ready_zkp_batch_index,
             new_root,
             root_index,
             sequence_number: self.sequence_number,
             old_next_index,
             new_next_index,
-        })
+        }))
     }
 
     /// Update the tree from the input queue account.
     pub fn update_tree_from_input_queue(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
-    ) -> Result<BatchNullifyEvent, BatchedMerkleTreeError> {
-        if self.tree_type != TreeType::BatchedState as u64 {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
+        if self.tree_type != TreeType::StateV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
-        self.update_input_queue::<BATCHED_INPUT_QUEUE_TYPE>(instruction_data)
+        Ok(MerkleTreeEvent::BatchNullify(
+            self.update_input_queue::<INPUT_STATE_QUEUE_TYPE_V2>(instruction_data)?,
+        ))
     }
 
     /// Update the tree from the address queue account.
     pub fn update_tree_from_address_queue(
         &mut self,
         instruction_data: InstructionDataAddressAppendInputs,
-    ) -> Result<BatchAddressAppendEvent, BatchedMerkleTreeError> {
-        if self.tree_type != TreeType::BatchedAddress as u64 {
+    ) -> Result<MerkleTreeEvent, BatchedMerkleTreeError> {
+        if self.tree_type != TreeType::AddressV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
         self.check_tree_is_full()?;
-        self.update_input_queue::<BATCHED_ADDRESS_QUEUE_TYPE>(instruction_data)
+        Ok(MerkleTreeEvent::BatchAddressAppend(
+            self.update_input_queue::<ADDRESS_QUEUE_TYPE_V2>(instruction_data)?,
+        ))
     }
 
     /// Update the tree from the input/address queue account.
@@ -493,7 +489,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     fn update_input_queue<const QUEUE_TYPE: u64>(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
-    ) -> Result<BatchNullifyEvent, BatchedMerkleTreeError> {
+    ) -> Result<BatchEvent, BatchedMerkleTreeError> {
         let pending_batch_index = self.queue_batches.pending_batch_index as usize;
         let first_ready_zkp_batch_index =
             self.queue_batches.batches[pending_batch_index].get_first_ready_zkp_batch()?;
@@ -509,9 +505,9 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 .last()
                 .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
 
-            if QueueType::from(QUEUE_TYPE) == QueueType::BatchedInput {
+            if QueueType::from(QUEUE_TYPE) == QueueType::InputStateV2 {
                 create_hash_chain_from_array([*old_root, new_root, leaves_hash_chain])?
-            } else if QueueType::from(QUEUE_TYPE) == QueueType::BatchedAddress {
+            } else if QueueType::from(QUEUE_TYPE) == QueueType::AddressV2 {
                 let mut next_index_bytes = [0u8; 32];
                 next_index_bytes[24..].copy_from_slice(self.next_index.to_be_bytes().as_slice());
                 create_hash_chain_from_array([
@@ -555,19 +551,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Needs to be executed post mark_as_inserted_in_merkle_tree.
             self.zero_out_previous_batch_bloom_filter()?;
         }
-        let discriminator = if QueueType::from(QUEUE_TYPE) == QueueType::BatchedInput {
-            BATCH_NULLIFY_EVENT_DISCRIMINATOR
-        } else {
-            BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR
-        };
 
-        // 6. Return the batch nullify/address append event.
-        Ok(BatchNullifyEvent {
-            discriminator,
-            tree_type: self.tree_type,
+        // 6. Return the batch event.
+        Ok(BatchEvent {
             merkle_tree_pubkey: self.pubkey.to_bytes(),
             batch_index: pending_batch_index as u64,
-            batch_size: circuit_batch_size,
+            zkp_batch_size: circuit_batch_size,
             zkp_batch_index: first_ready_zkp_batch_index,
             new_root,
             root_index,
@@ -591,13 +580,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         new_root: [u8; 32],
     ) -> Result<(u64, u64), BatchedMerkleTreeError> {
         // 1. Verify update proof.
-        let (old_next_index, new_next_index) = if QUEUE_TYPE == QueueType::BatchedOutput as u64 {
+        let (old_next_index, new_next_index) = if QUEUE_TYPE == QueueType::OutputStateV2 as u64 {
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
             let old_next_index = self.next_index;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
             (old_next_index, self.next_index)
-        } else if QUEUE_TYPE == QueueType::BatchedInput as u64 {
+        } else if QUEUE_TYPE == QueueType::InputStateV2 as u64 {
             let old_next_index = self.nullifier_next_index;
             verify_batch_update(batch_size, public_input_hash, &proof)?;
             // 2. incrementing nullifier next index.
@@ -605,7 +594,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // Nullifier next index is not used onchain.
             self.nullifier_next_index += batch_size;
             (old_next_index, self.nullifier_next_index)
-        } else if QUEUE_TYPE == QueueType::BatchedAddress as u64 {
+        } else if QUEUE_TYPE == QueueType::AddressV2 as u64 {
             let old_next_index = self.next_index;
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
             // 2. Increment next index.
@@ -647,16 +636,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // in the tree and do not append new values.
 
         // 1. Check that the tree is a state tree.
-        if self.tree_type != TreeType::BatchedState as u64 {
+        if self.tree_type != TreeType::StateV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
 
         // 2. Create nullifier Hash(value,leaf_index, tx_hash).
-        let nullifier = {
-            let leaf_index_bytes = leaf_index.to_be_bytes();
-            // Inclusion of the tx_hash enables zk proofs of how a value was spent.
-            Poseidon::hashv(&[compressed_account_hash, &leaf_index_bytes, tx_hash])?
-        };
+        let nullifier = create_nullifier(compressed_account_hash, leaf_index, tx_hash)?;
         // 3. Insert nullifier into current batch.
         //      3.1. nullifier is inserted into the hash chain
         //          so that it can be inserted into the tree.
@@ -669,7 +654,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         //          We cannot insert the nullifier into the bloom filter
         //          since it depends on the tx hash which changes.
         insert_into_current_queue_batch(
-            QueueType::BatchedInput as u64,
+            QueueType::InputStateV2 as u64,
             &mut self.metadata.queue_batches,
             &mut [],
             &mut self.bloom_filter_stores,
@@ -689,7 +674,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         address: &[u8; 32],
         current_slot: &u64,
     ) -> Result<(), BatchedMerkleTreeError> {
-        if self.tree_type != TreeType::BatchedAddress as u64 {
+        if self.tree_type != TreeType::AddressV2 as u64 {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
 
@@ -698,7 +683,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         self.check_queue_next_index_reached_tree_capacity()?;
 
         insert_into_current_queue_batch(
-            QueueType::BatchedInput as u64,
+            QueueType::InputStateV2 as u64,
             &mut self.metadata.queue_batches,
             &mut [],
             &mut self.bloom_filter_stores,
@@ -816,9 +801,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let batch_size = self.queue_batches.batch_size;
         let previous_pending_batch_index = if 0 == current_batch { 1 } else { 0 };
         let current_batch_is_half_full = {
+            let current_batch_is_not_inserted =
+                self.queue_batches.batches[current_batch].get_state() != BatchState::Inserted;
             let num_inserted_elements =
                 self.queue_batches.batches[current_batch].get_num_inserted_elements();
-            num_inserted_elements >= batch_size / 2
+            let current_batch_is_half_full = num_inserted_elements >= batch_size / 2;
+            current_batch_is_half_full && current_batch_is_not_inserted
         };
 
         let previous_pending_batch = self
@@ -935,9 +923,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 }
 
-pub fn get_merkle_tree_account_size_default() -> usize {
-    let mt_account = BatchedMerkleTreeMetadata::default();
-    mt_account.get_account_size().unwrap()
+#[cfg(feature = "test-only")]
+pub mod test_utils {
+    use super::*;
+
+    pub fn get_merkle_tree_account_size_default() -> usize {
+        let mt_account = BatchedMerkleTreeMetadata::default();
+        mt_account.get_account_size().unwrap()
+    }
 }
 
 impl Deref for BatchedMerkleTreeAccount<'_> {
@@ -965,7 +958,7 @@ pub fn get_merkle_tree_account_size(
         metadata: MerkleTreeMetadata::default(),
         next_index: 0,
         sequence_number: 0,
-        tree_type: TreeType::BatchedState as u64,
+        tree_type: TreeType::StateV2 as u64,
         height,
         root_history_capacity,
         queue_batches: QueueBatches {
@@ -982,7 +975,7 @@ pub fn get_merkle_tree_account_size(
 }
 
 pub fn assert_nullify_event(
-    event: BatchNullifyEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_account: &BatchedMerkleTreeAccount,
     mt_pubkey: Pubkey,
@@ -993,26 +986,24 @@ pub fn assert_nullify_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchNullifyEvent {
+    let ref_event = MerkleTreeEvent::BatchNullify(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_NULLIFY_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         // Next index is not modified by nullify.
         old_next_index: old_account.nullifier_next_index,
         new_next_index: old_account.nullifier_next_index + old_account.queue_batches.zkp_batch_size,
-    };
+    });
     assert_eq!(event, ref_event);
 }
 
 pub fn assert_batch_append_event_event(
-    event: BatchAppendEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_output_queue_account: &BatchedQueueAccount,
     old_account: &BatchedMerkleTreeAccount,
@@ -1024,26 +1015,24 @@ pub fn assert_batch_append_event_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchAppendEvent {
+    let ref_event = MerkleTreeEvent::BatchAppend(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_APPEND_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: Some(old_output_queue_account.pubkey().to_bytes()),
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         old_next_index: old_account.next_index,
         new_next_index: old_account.next_index
             + old_output_queue_account.batch_metadata.zkp_batch_size,
-    };
+    });
     assert_eq!(event, ref_event);
 }
 
 pub fn assert_batch_adress_event(
-    event: BatchAddressAppendEvent,
+    event: MerkleTreeEvent,
     new_root: [u8; 32],
     old_account: &BatchedMerkleTreeAccount,
     mt_pubkey: Pubkey,
@@ -1054,28 +1043,28 @@ pub fn assert_batch_adress_event(
         .batches
         .get(batch_index as usize)
         .unwrap();
-    let ref_event = BatchAppendEvent {
+    let ref_event = MerkleTreeEvent::BatchAddressAppend(BatchEvent {
         merkle_tree_pubkey: mt_pubkey.to_bytes(),
-        discriminator: BATCH_ADDRESS_APPEND_EVENT_DISCRIMINATOR,
-        tree_type: old_account.tree_type,
         output_queue_pubkey: None,
         batch_index,
         zkp_batch_index: batch.get_num_inserted_zkps(),
         new_root,
         root_index: (old_account.get_root_index() + 1) % old_account.root_history_capacity,
         sequence_number: old_account.sequence_number + 1,
-        batch_size: old_account.queue_batches.zkp_batch_size,
+        zkp_batch_size: old_account.queue_batches.zkp_batch_size,
         old_next_index: old_account.next_index,
         new_next_index: old_account.next_index + batch.zkp_batch_size,
-    };
+    });
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 #[cfg(test)]
 mod test {
     use rand::{Rng, SeedableRng};
 
     use super::*;
+    use crate::merkle_tree::test_utils::get_merkle_tree_account_size_default;
 
     #[test]
     fn test_from_bytes_invalid_tree_type() {
@@ -1091,7 +1080,7 @@ mod test {
     #[test]
     fn test_from_bytes_invalid_account_size() {
         let mut account_data = vec![0u8; 200];
-        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(
+        let account = BatchedMerkleTreeAccount::from_bytes::<STATE_MERKLE_TREE_TYPE_V2>(
             &mut account_data,
             &Pubkey::default(),
         );
@@ -1101,7 +1090,7 @@ mod test {
     #[test]
     fn test_init_invalid_account_size() {
         let mut account_data = vec![0u8; 200];
-        let account = BatchedMerkleTreeAccount::from_bytes::<BATCHED_STATE_TREE_TYPE>(
+        let account = BatchedMerkleTreeAccount::from_bytes::<STATE_MERKLE_TREE_TYPE_V2>(
             &mut account_data,
             &Pubkey::default(),
         );
@@ -1143,7 +1132,7 @@ mod test {
             40,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         let rng = &mut rand::rngs::StdRng::from_seed([0u8; 32]);
@@ -1301,10 +1290,6 @@ mod test {
             for batch in account.queue_batches.batches.iter_mut() {
                 println!("batch state: {:?}", batch);
             }
-            assert_eq!(
-                account.queue_batches.batches[0].get_num_inserted_elements(),
-                0
-            );
             account.zero_out_previous_batch_bloom_filter().unwrap();
             assert_eq!(account_data, account_data_ref);
         }
@@ -1538,7 +1523,7 @@ mod test {
             height,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         // 1. empty tree is not full
@@ -1590,7 +1575,7 @@ mod test {
             height,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         // 1. empty tree is not full
@@ -1689,7 +1674,7 @@ mod test {
             height,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         // 1. empty tree is not full
@@ -1725,7 +1710,7 @@ mod test {
             height,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         let previous_next_index = account.next_index;
@@ -1767,7 +1752,7 @@ mod test {
             height,
             num_iter,
             bloom_filter_capacity,
-            TreeType::BatchedAddress,
+            TreeType::AddressV2,
         )
         .unwrap();
         assert_eq!(*account.pubkey(), pubkey);

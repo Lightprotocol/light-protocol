@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 declare -a HEIGHTS=("40")
-DEFAULT_STATE_HEIGHT="26"
+DEFAULT_STATE_HEIGHT="32"
 DEFAULT_ADDRESS_HEIGHT="40"
 PROVING_KEYS_DIR="./proving-keys"
-VERIFIER_DIR="../program-libs/verifier/src/verifying_keys"
+VERIFIER_DIR="../../program-libs/verifier/src/verifying_keys"
 
 gnark() {
     local args=("$@")
@@ -24,13 +24,13 @@ generate_circuit() {
     local circuit_file
     local circuit_vkey_file
     local circuit_vkey_rs_file
-    if [ "$circuit_type" == "appendWithProofs" ]; then
+    if [ "$circuit_type" == "append-with-proofs" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="append_with_proofs"
     elif [ "$circuit_type" == "update" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="update"
-    elif [ "$circuit_type" == "addressAppend" ]; then
+    elif [ "$circuit_type" == "address-append" ]; then
         compressed_accounts=$batch_size
         circuit_type_rs="address_append"
     elif [ "$circuit_type" == "inclusion" ]; then
@@ -79,17 +79,17 @@ generate_circuit() {
 }
 
 main() {
-    declare -a append_batch_sizes_arr=("1" "10" "100" "250" "500" "1000")
-    
-    echo "Generating proving keys..."
+    declare -a append_batch_sizes_arr=("1" "10" )
+
+    # echo "Generating proving keys..."
     for batch_size in "${append_batch_sizes_arr[@]}"; do
         echo "Generating address-append circuit for ${batch_size} COMPRESSED_ACCOUNTS with height ${height}..."
-        generate_circuit "addressAppend" "0" "$DEFAULT_ADDRESS_HEIGHT" "$batch_size" "0" "0" 
+        generate_circuit "address-append" "$DEFAULT_ADDRESS_HEIGHT" "0" "$batch_size" "0" "0"
     done
-    
+
 
     for batch_size in "${append_batch_sizes_arr[@]}"; do
-        generate_circuit "appendWithProofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
+        generate_circuit "append-with-proofs" "$DEFAULT_STATE_HEIGHT" "0" "$batch_size" "0" "0"
     done
 
     declare -a update_batch_sizes_arr=("1" "10" "100" "500" "1000")

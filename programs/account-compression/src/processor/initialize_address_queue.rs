@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use light_merkle_tree_metadata::{
     access::AccessMetadata,
     fee::compute_rollover_fee,
-    queue::QueueType,
     rollover::{check_rollover_fee_sufficient, RolloverMetadata},
+    QueueType,
 };
 
 use crate::state::{queue_from_bytes_zero_copy_init, QueueAccount};
@@ -65,7 +65,7 @@ pub fn process_initialize_address_queue<'info>(
                 None,
             ),
             associated_merkle_tree,
-            QueueType::AddressQueue,
+            QueueType::AddressV1,
         );
 
         drop(address_queue);

@@ -12,17 +12,18 @@ use account_compression::{
 };
 use anchor_lang::{error::ErrorCode, InstructionData, ToAccountMetas};
 use light_account_checks::error::AccountError;
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array,
-    instruction_data::{data::pack_pubkey, insert_into_queues::InsertIntoQueuesInstructionDataMut},
+use light_compressed_account::instruction_data::{
+    data::pack_pubkey, insert_into_queues::InsertIntoQueuesInstructionDataMut,
 };
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
 use light_hash_set::HashSetError;
-use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
-use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_hasher::{
+    bigint::bigint_to_be_bytes_array, zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon,
+};
+use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
     acp_sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
@@ -425,12 +426,12 @@ async fn test_full_nullifier_queue_default() {
 /// 1. no nullifiers
 /// 2. mismatch remaining accounts and addresses (removed error)
 /// 3. invalid queue accounts:
-/// 3.1 pass non queue account as queue account
-/// 3.2 pass address queue account
-/// 3.3 pass non associated queue account
+///     3.1 pass non queue account as queue account
+///     3.2 pass address queue account
+///     3.3 pass non associated queue account
 /// 4. invalid Merkle tree accounts:
-/// 4.1 pass non Merkle tree account as Merkle tree account
-/// 4.2 pass non associated Merkle tree account
+///     4.1 pass non Merkle tree account as Merkle tree account
+///     4.2 pass non associated Merkle tree account
 async fn failing_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
@@ -1788,7 +1789,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         queue_config,
         &merkle_tree_keypair.pubkey(),
         merkle_tree_config,
-        QueueType::NullifierQueue,
+        QueueType::NullifierV1,
         1,
         None,
         Some(forester),
@@ -1929,7 +1930,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
         let path = reference_merkle_tree
             .get_path_of_leaf(merkle_tree.current_index(), true)
             .unwrap();
-        assert!(changelog_entry.path.eq_to(path));
+        assert!(changelog_entry.path.eq_to_vec(path));
     }
 }
 
@@ -1992,10 +1993,7 @@ pub async fn nullify<R: RpcConnection>(
     let payer = rpc.get_payer().insecure_clone();
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
-        .unwrap()
-        .to_array::<16>()
-        .unwrap()
-        .to_vec();
+        .unwrap();
 
     let instructions = [
         account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(

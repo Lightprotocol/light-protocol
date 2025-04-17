@@ -359,8 +359,7 @@ async fn test_invalid_registered_program() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
             .await;
-        let expected_error_code =
-            account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
+        let expected_error_code = light_account_checks::error::AccountError::InvalidSigner.into();
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
@@ -619,8 +618,7 @@ async fn test_invalid_registered_program() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
             .await;
-        let expected_error_code =
-            account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
+        let expected_error_code = light_account_checks::error::AccountError::InvalidSigner.into();
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
@@ -655,8 +653,7 @@ async fn test_invalid_registered_program() {
         let result = rpc
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
             .await;
-        let expected_error_code =
-            account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
+        let expected_error_code = light_account_checks::error::AccountError::InvalidSigner.into();
 
         assert_rpc_error(result, 0, expected_error_code).unwrap();
     }

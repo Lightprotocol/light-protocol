@@ -46,7 +46,6 @@ func TestNonInclusion(t *testing.T) {
 		values := make([]frontend.Variable, numberOfCompressedAccounts)
 		leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
 		leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
-		leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 
 		inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 		inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
@@ -59,7 +58,6 @@ func TestNonInclusion(t *testing.T) {
 			values[i] = v.Value
 			leafLowerRangeValues[i] = v.LeafLowerRangeValue
 			leafHigherRangeValues[i] = v.LeafHigherRangeValue
-			leafIndices[i] = v.NextIndex
 			inPathIndices[i] = v.PathIndex
 			for j, v2 := range v.PathElements {
 				inPathElements[i][j] = v2
@@ -71,7 +69,6 @@ func TestNonInclusion(t *testing.T) {
 		circuit.Values = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfCompressedAccounts)
-		circuit.NextIndices = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfCompressedAccounts)
 		for i := 0; i < int(numberOfCompressedAccounts); i++ {
@@ -91,7 +88,6 @@ func TestNonInclusion(t *testing.T) {
 				Values:                     values,
 				LeafLowerRangeValues:       leafLowerRangeValues,
 				LeafHigherRangeValues:      leafHigherRangeValues,
-				NextIndices:                leafIndices,
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
@@ -105,7 +101,6 @@ func TestNonInclusion(t *testing.T) {
 				Values:                     values,
 				LeafLowerRangeValues:       leafLowerRangeValues,
 				LeafHigherRangeValues:      leafHigherRangeValues,
-				NextIndices:                leafIndices,
 				InPathIndices:              inPathIndices,
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,

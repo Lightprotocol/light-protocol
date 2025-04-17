@@ -3,11 +3,14 @@
 use std::str::FromStr;
 
 use account_compression::{
-    self, errors::AccountCompressionErrorCode, utils::constants::GROUP_AUTHORITY_SEED,
-    GroupAuthority, RegisteredProgram, ID,
+    self,
+    errors::AccountCompressionErrorCode,
+    utils::constants::{CPI_AUTHORITY_PDA_SEED, GROUP_AUTHORITY_SEED},
+    GroupAuthority, RegisteredProgram, RegisteredProgramV1, ID,
 };
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use anchor_lang::{system_program, AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_program_test::{
+    env_accounts_v1::get_registered_program_pda,
     test_env::{get_group_pda, OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR},
     test_rpc::ProgramTestRpcConnection,
 };
@@ -32,7 +35,7 @@ async fn test_create_and_update_group() {
     program_test.add_program("account_compression", ID, None);
     let system_program_id =
         Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
-    program_test.add_program("light_system_program", system_program_id, None);
+    program_test.add_program("light_system_program_pinocchio", system_program_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
@@ -329,5 +332,166 @@ async fn test_create_and_update_group() {
             .await
             .unwrap();
         assert_eq!(recipient_balance, rent_exemption);
+    }
+}
+
+#[tokio::test]
+async fn test_resize_registered_program_pda() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("account_compression", ID, None);
+    let system_program_id =
+        Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+    let registered_program = Pubkey::find_program_address(
+        &[system_program_id.to_bytes().as_slice()],
+        &account_compression::ID,
+    )
+    .0;
+    program_test.add_account(registered_program, get_registered_program_pda());
+    program_test.set_compute_max_units(1_400_000u64);
+    let context = program_test.start_with_context().await;
+    let mut context = ProgramTestRpcConnection::new(context);
+    let payer = context.get_payer().insecure_clone();
+
+    let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
+    let accounts = account_compression::accounts::ResizeRegisteredProgramPda {
+        authority: context.get_payer().pubkey(),
+        registered_program_pda: registered_program,
+        system_program: Pubkey::default(),
+    };
+    let instruction = Instruction {
+        program_id: account_compression::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    };
+    // Resize
+    {
+        let pre_account = context
+            .get_account(registered_program)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(pre_account.data.len(), RegisteredProgramV1::LEN);
+        let account_data = RegisteredProgramV1::deserialize(&mut &pre_account.data[8..]).unwrap();
+        println!("account_data: {:?}", account_data);
+        let mut transaction =
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        transaction.sign(&[&payer], recent_blockhash);
+        context.process_transaction(transaction).await.unwrap();
+
+        let account = context
+            .get_account(registered_program)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(account.data.len(), RegisteredProgram::LEN);
+        let expected_registered_program = RegisteredProgram {
+            registered_program_id: system_program_id,
+            group_authority_pda: account_data.group_authority_pda,
+            registered_program_signer_pda: Pubkey::find_program_address(
+                &[CPI_AUTHORITY_PDA_SEED],
+                &system_program_id,
+            )
+            .0,
+        };
+        let account_des = RegisteredProgram::deserialize(&mut &account.data[8..]).unwrap();
+        assert_eq!(expected_registered_program, account_des);
+    }
+    // Resize again should fail.
+    {
+        let mut transaction =
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        transaction.sign(&[&payer], recent_blockhash);
+        let result = context.process_transaction(transaction).await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::ConstraintRaw.into(),
+        )
+        .unwrap();
+    }
+
+    // Invalid program owner.
+    {
+        let mut account = get_registered_program_pda();
+        account.owner = Pubkey::new_unique();
+        let mut program_test = ProgramTest::default();
+        program_test.add_program("account_compression", ID, None);
+        let system_program_id =
+            Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+        let registered_program = Pubkey::find_program_address(
+            &[system_program_id.to_bytes().as_slice()],
+            &account_compression::ID,
+        )
+        .0;
+        program_test.add_account(registered_program, account);
+        program_test.set_compute_max_units(1_400_000u64);
+        let context = program_test.start_with_context().await;
+        let mut context = ProgramTestRpcConnection::new(context);
+        let payer = context.get_payer().insecure_clone();
+
+        let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
+        let accounts = account_compression::accounts::ResizeRegisteredProgramPda {
+            authority: context.get_payer().pubkey(),
+            registered_program_pda: registered_program,
+            system_program: Pubkey::default(),
+        };
+        let instruction = Instruction {
+            program_id: account_compression::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let mut transaction =
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        transaction.sign(&[&payer], recent_blockhash);
+        let result = context.process_transaction(transaction).await;
+        assert_rpc_error(
+            result,
+            0,
+            light_account_checks::error::AccountError::AccountOwnedByWrongProgram.into(),
+        )
+        .unwrap();
+    }
+    // Invalid account discriminator.
+    {
+        let mut account = get_registered_program_pda();
+        account.data[0..8].copy_from_slice(&[1u8; 8]);
+        let mut program_test = ProgramTest::default();
+        program_test.add_program("account_compression", ID, None);
+        let system_program_id =
+            Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7").unwrap();
+        let registered_program = Pubkey::find_program_address(
+            &[system_program_id.to_bytes().as_slice()],
+            &account_compression::ID,
+        )
+        .0;
+        program_test.add_account(registered_program, account);
+        program_test.set_compute_max_units(1_400_000u64);
+        let context = program_test.start_with_context().await;
+        let mut context = ProgramTestRpcConnection::new(context);
+        let payer = context.get_payer().insecure_clone();
+        let instruction_data = account_compression::instruction::ResizeRegisteredProgramPda {};
+        let accounts = account_compression::accounts::ResizeRegisteredProgramPda {
+            authority: context.get_payer().pubkey(),
+            registered_program_pda: registered_program,
+            system_program: Pubkey::default(),
+        };
+        let instruction = Instruction {
+            program_id: account_compression::ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction_data.data(),
+        };
+        let mut transaction = Transaction::new_with_payer(&[instruction], Some(&payer.pubkey()));
+        let recent_blockhash = context.get_latest_blockhash().await.unwrap();
+        transaction.sign(&[&payer], recent_blockhash);
+        let result = context.process_transaction(transaction).await;
+        assert_rpc_error(
+            result,
+            0,
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
 }

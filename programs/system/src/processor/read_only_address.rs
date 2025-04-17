@@ -1,13 +1,12 @@
-use account_compression::context::AcpAccount;
-use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
+use pinocchio::{msg, program_error::ProgramError};
 
-use crate::errors::SystemProgramError;
+use crate::{accounts::check_accounts::AcpAccount, errors::SystemProgramError, Result};
 
 #[inline(always)]
-pub fn verify_read_only_address_queue_non_inclusion<'a>(
-    remaining_accounts: &mut [AcpAccount<'a, '_>],
-    read_only_addresses: &'a [ZPackedReadOnlyAddress],
+pub fn verify_read_only_address_queue_non_inclusion(
+    remaining_accounts: &mut [AcpAccount<'_>],
+    read_only_addresses: &[ZPackedReadOnlyAddress],
 ) -> Result<()> {
     if read_only_addresses.is_empty() {
         return Ok(());
@@ -18,15 +17,16 @@ pub fn verify_read_only_address_queue_non_inclusion<'a>(
         {
             tree
         } else {
-            msg!(
+            msg!(format!(
                 "Read only address account is not a BatchedAddressTree {:?}",
                 read_only_address
-            );
-            return err!(SystemProgramError::InvalidAccount);
+            )
+            .as_str());
+            return Err(SystemProgramError::InvalidAccount.into());
         };
         merkle_tree
             .check_input_queue_non_inclusion(&read_only_address.address)
-            .map_err(|_| SystemProgramError::ReadOnlyAddressAlreadyExists)?;
+            .map_err(|_| ProgramError::from(SystemProgramError::ReadOnlyAddressAlreadyExists))?;
     }
     Ok(())
 }

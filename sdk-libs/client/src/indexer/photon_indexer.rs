@@ -1,23 +1,25 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, str::FromStr};
 
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
 };
-use light_merkle_tree_metadata::queue::QueueType;
-use light_sdk::{proof::ProofRpcResult, token::TokenDataWithMerkleContext};
+use light_merkle_tree_metadata::QueueType;
+use light_sdk::token::{AccountState, TokenData, TokenDataWithMerkleContext};
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::{
-        Account, CompressedProofWithContext, GetCompressedAccountsByOwnerPostRequestParams,
-        TokenBalanceList,
+        Account, CompressedProofWithContext, CompressedProofWithContextV2,
+        GetCompressedAccountsByOwnerPostRequestParams,
+        GetCompressedTokenAccountsByOwnerPostRequestParams,
+        GetCompressedTokenAccountsByOwnerV2PostRequest, TokenBalanceList,
     },
 };
 use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
 use tracing::{debug, error};
 
-use super::MerkleProofWithContext;
+use super::{AddressQueueIndex, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::{
     indexer::{
         Address, AddressMerkleTreeBundle, AddressWithTree, Base58Conversions,
@@ -25,7 +27,7 @@ use crate::{
         NewAddressProofWithContext,
     },
     rate_limiter::{RateLimiter, UseRateLimiter},
-    rpc::RpcConnection,
+    rpc::{types::ProofRpcResult, RpcConnection},
 };
 
 pub struct PhotonIndexer<R: RpcConnection> {
@@ -35,6 +37,11 @@ pub struct PhotonIndexer<R: RpcConnection> {
     rate_limiter: Option<RateLimiter>,
 }
 
+impl<R: RpcConnection> PhotonIndexer<R> {
+    pub fn default_path() -> String {
+        "http://127.0.0.1:8784".to_string()
+    }
+}
 impl<R: RpcConnection> UseRateLimiter for PhotonIndexer<R> {
     fn set_rate_limiter(&mut self, rate_limiter: RateLimiter) {
         self.rate_limiter = Some(rate_limiter);
@@ -99,8 +106,8 @@ impl<R: RpcConnection> PhotonIndexer<R> {
                 "Only one of address or hash must be provided".to_string(),
             )),
             (address, hash) => Ok(photon_api::models::GetCompressedAccountPostRequestParams {
-                address: address.map(|x| Some(x.to_base58())),
-                hash: hash.map(|x| Some(x.to_base58())),
+                address: address.map(|x| x.to_base58()),
+                hash: hash.map(|x| x.to_base58()),
             }),
         }
     }
@@ -120,14 +127,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         &mut self,
         pubkey: [u8; 32],
         queue_type: QueueType,
-        num_elements: u64,
+        num_elements: u16,
         start_offset: Option<u64>,
     ) -> Result<Vec<MerkleProofWithContext>, IndexerError> {
         self.rate_limited_request(|| async {
             let request: photon_api::models::GetQueueElementsPostRequest =
                 photon_api::models::GetQueueElementsPostRequest {
                     params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
-                        merkle_tree: bs58::encode(pubkey).into_string(),
+                        tree: bs58::encode(pubkey).into_string(),
                         queue_type: queue_type as u16,
                         num_elements,
                         start_offset,
@@ -154,7 +161,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                                     .collect();
                                 let root = Hash::from_base58(&x.root).unwrap();
                                 let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                let merkle_tree = Hash::from_base58(&x.merkle_tree).unwrap();
+                                let merkle_tree = Hash::from_base58(&x.tree).unwrap();
                                 let tx_hash =
                                     x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
                                 let account_hash = Hash::from_base58(&x.account_hash).unwrap();
@@ -176,6 +183,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     }
                     None => {
                         let error = response.error.unwrap();
+
                         Err(IndexerError::PhotonError {
                             context: "get_queue_elements".to_string(),
                             message: error.message.unwrap(),
@@ -308,32 +316,32 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let mut accounts: Vec<CompressedAccountWithMerkleContext> = Vec::new();
 
             for acc in accs.items {
-                println!("Acc: {:?}", acc);
                 let compressed_account = CompressedAccount {
-                    owner: Pubkey::from(Hash::from_base58(&acc.account.owner)?),
-                    lamports: acc.account.lamports,
+                    owner: Pubkey::from(Hash::from_base58(&acc.owner)?),
+                    lamports: acc.lamports,
                     address: acc
-                        .account
                         .address
                         .map(|address| Hash::from_base58(&address).unwrap()),
-                    data: acc.account.data.map(|data| CompressedAccountData {
+                    data: acc.data.map(|data| CompressedAccountData {
                         discriminator: data.discriminator.to_be_bytes(),
                         data: data.data.as_bytes().to_vec(),
                         data_hash: Hash::from_base58(&data.data_hash).unwrap(),
                     }),
                 };
 
-                // TODO: do not use tree as a queue?
-                let nullifier_queue_pubkey = Pubkey::from(
-                    Hash::from_base58(&acc.context.queue.unwrap_or(acc.account.tree.clone()))
-                        .unwrap(),
-                );
+                let nullifier_queue_pubkey =
+                    Pubkey::from(Hash::from_base58(&acc.merkle_context.queue).unwrap());
 
                 let merkle_context = MerkleContext {
-                    merkle_tree_pubkey: Pubkey::from(Hash::from_base58(&acc.account.tree).unwrap()),
-                    nullifier_queue_pubkey,
-                    leaf_index: acc.account.leaf_index,
-                    prove_by_index: acc.context.in_output_queue,
+                    merkle_tree_pubkey: Pubkey::from(
+                        Hash::from_base58(&acc.merkle_context.tree).unwrap(),
+                    ),
+                    queue_pubkey: nullifier_queue_pubkey,
+                    leaf_index: acc.leaf_index,
+                    tree_type: light_compressed_account::TreeType::from(
+                        acc.merkle_context.tree_type as u64,
+                    ),
+                    prove_by_index: false, // TODO: implement
                 };
 
                 let account = CompressedAccountWithMerkleContext {
@@ -344,6 +352,93 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             }
 
             Ok(accounts)
+        })
+        .await
+    }
+
+    async fn get_compressed_token_accounts_by_owner_v2(
+        &self,
+        owner: &Pubkey,
+        mint: Option<Pubkey>,
+    ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
+        self.rate_limited_request(|| async {
+            let request = GetCompressedTokenAccountsByOwnerV2PostRequest {
+                params: Box::from(GetCompressedTokenAccountsByOwnerPostRequestParams {
+                    cursor: None,
+                    limit: None,
+                    mint: mint.map(|x| x.to_string()),
+                    owner: owner.to_string(),
+                }),
+                ..Default::default()
+            };
+            let result =
+                photon_api::apis::default_api::get_compressed_token_accounts_by_owner_v2_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+            let accounts = *result.result.unwrap().value;
+
+            let mut token_data: Vec<TokenDataWithMerkleContext> = Vec::new();
+            for account in accounts.items.iter() {
+                let token_data_with_merkle_context = TokenDataWithMerkleContext {
+                    token_data: TokenData {
+                        mint: Pubkey::from_str(&account.token_data.mint).unwrap(),
+                        owner: Pubkey::from_str(&account.token_data.owner).unwrap(),
+                        amount: account.token_data.amount,
+                        delegate: account
+                            .token_data
+                            .delegate
+                            .as_ref()
+                            .map(|x| Pubkey::from_str(x).unwrap()),
+                        state: if account.token_data.state
+                            == photon_api::models::account_state::AccountState::Initialized
+                        {
+                            AccountState::Initialized
+                        } else {
+                            AccountState::Frozen
+                        },
+                        tlv: None,
+                    },
+                    compressed_account: CompressedAccountWithMerkleContext {
+                        compressed_account: CompressedAccount {
+                            owner: Pubkey::from_str(&account.account.owner).unwrap(),
+                            lamports: account.account.lamports,
+                            address: account
+                                .account
+                                .address
+                                .as_ref()
+                                .map(|x| Hash::from_base58(x).unwrap()),
+                            data: account
+                                .account
+                                .data
+                                .as_ref()
+                                .map(|data| CompressedAccountData {
+                                    discriminator: data.discriminator.to_le_bytes(),
+                                    data: base64::decode(&data.data).unwrap(),
+                                    data_hash: Hash::from_base58(&data.data_hash).unwrap(),
+                                }),
+                        },
+                        merkle_context: MerkleContext {
+                            merkle_tree_pubkey: Pubkey::from_str(
+                                &account.account.merkle_context.tree,
+                            )
+                            .unwrap(),
+                            queue_pubkey: Pubkey::from_str(&account.account.merkle_context.queue)
+                                .unwrap(),
+                            leaf_index: account.account.leaf_index,
+                            tree_type: light_compressed_account::TreeType::from(
+                                account.account.merkle_context.tree_type as u64,
+                            ),
+                            prove_by_index: account.account.prove_by_index,
+                        },
+                    },
+                };
+                token_data.push(token_data_with_merkle_context);
+            }
+
+            Ok(token_data)
         })
         .await
     }
@@ -384,7 +479,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 params: Box::new(
                     photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                         owner: owner.to_string(),
-                        mint: mint.map(|x| Some(x.to_string())),
+                        mint: mint.map(|x| x.to_string()),
                         cursor: None,
                         limit: None,
                     },
@@ -438,8 +533,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         self.rate_limited_request(|| async {
             let request = photon_api::models::GetCompressedTokenAccountBalancePostRequest {
                 params: Box::new(photon_api::models::GetCompressedAccountPostRequestParams {
-                    address: address.map(|x| Some(x.to_base58())),
-                    hash: hash.map(|x| Some(x.to_base58())),
+                    address: address.map(|x| x.to_base58()),
+                    hash: hash.map(|x| x.to_base58()),
                 }),
                 ..Default::default()
             };
@@ -466,9 +561,8 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
                 params: Box::new(
                     photon_api::models::GetMultipleCompressedAccountsPostRequestParams {
-                        addresses: addresses
-                            .map(|x| Some(x.iter().map(|x| x.to_base58()).collect())),
-                        hashes: hashes.map(|x| Some(x.iter().map(|x| x.to_base58()).collect())),
+                        addresses: addresses.map(|x| x.iter().map(|x| x.to_base58()).collect()),
+                        hashes: hashes.map(|x| x.iter().map(|x| x.to_base58()).collect()),
                     },
                 ),
                 ..Default::default()
@@ -496,7 +590,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 params: Box::new(
                     photon_api::models::GetCompressedTokenAccountsByOwnerPostRequestParams {
                         owner: owner.to_string(),
-                        mint: mint.map(|x| Some(x.to_string())),
+                        mint: mint.map(|x| x.to_string()),
                         cursor: None,
                         limit: None,
                     },
@@ -556,7 +650,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         merkle_tree_pubkey: [u8; 32],
         addresses: Vec<[u8; 32]>,
     ) -> Result<Vec<NewAddressProofWithContext<16>>, IndexerError> {
-        debug!("get_multiple_new_address_proofs called with merkle_tree_pubkey: {}, addresses count: {}", bs58::encode(&merkle_tree_pubkey).into_string(), addresses.len());
         self.rate_limited_request(|| async {
             let params: Vec<photon_api::models::address_with_tree::AddressWithTree> = addresses
                 .iter()
@@ -565,8 +658,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                     tree: bs58::encode(&merkle_tree_pubkey).into_string(),
                 })
                 .collect();
-
-            debug!("Request params: {:?}", params);
 
             let request = photon_api::models::GetMultipleNewAddressProofsV2PostRequest {
                 params,
@@ -588,10 +679,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
             let photon_proofs =
                 match Self::extract_result("get_multiple_new_address_proofs", result.result) {
-                    Ok(proofs) => {
-                        debug!("Successfully extracted proofs: {:?}", proofs);
-                        proofs
-                    }
+                    Ok(proofs) => proofs,
                     Err(e) => {
                         error!("Failed to extract proofs: {:?}", e);
                         return Err(e);
@@ -688,23 +776,171 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
                 ..Default::default()
             };
 
-            println!("Request: {:?}", request);
-
             let result = photon_api::apis::default_api::get_validity_proof_post(
                 &self.configuration,
                 request,
             )
             .await?;
 
-            println!("Result: {:?}", result);
-
             let result = Self::extract_result("get_validity_proof", result.result)?;
             Ok(*result.value)
         })
         .await
     }
+    async fn get_validity_proof_v2(
+        &self,
+        hashes: Vec<Hash>,
+        new_addresses_with_trees: Vec<AddressWithTree>,
+    ) -> Result<CompressedProofWithContextV2, IndexerError> {
+        let max_retries = 4;
+        let mut retries = 0;
+        let mut delay = 1000;
+
+        loop {
+            match self
+                .rate_limited_request(|| async {
+                    let request = photon_api::models::GetValidityProofV2PostRequest {
+                        params: Box::new(photon_api::models::GetValidityProofPostRequestParams {
+                            hashes: Some(hashes.iter().map(|x| x.to_base58()).collect()),
+                            new_addresses_with_trees: Some(
+                                new_addresses_with_trees
+                                    .iter()
+                                    .map(|x| photon_api::models::AddressWithTree {
+                                        address: x.address.to_base58(),
+                                        tree: x.tree.to_string(),
+                                    })
+                                    .collect(),
+                            ),
+                        }),
+                        ..Default::default()
+                    };
+
+                    let result = photon_api::apis::default_api::get_validity_proof_v2_post(
+                        &self.configuration,
+                        request,
+                    )
+                    .await?;
+
+                    let result = Self::extract_result("get_validity_proof_v2", result.result)?;
+                    Ok(*result.value)
+                })
+                .await
+            {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    if retries >= max_retries {
+                        return Err(e);
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                    retries += 1;
+                    delay *= 2;
+                    continue;
+                }
+            }
+        }
+    }
+
+    async fn get_indexer_slot(&self, _r: &mut R) -> Result<u64, IndexerError> {
+        let request = photon_api::models::GetIndexerSlotPostRequest {
+            ..Default::default()
+        };
+
+        let result =
+            photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
+                .await?;
+
+        let result = Self::extract_result("get_indexer_slot", result.result)?;
+        Ok(result)
+    }
 
     fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
         todo!()
+    }
+
+    async fn get_address_queue_with_proofs(
+        &mut self,
+        merkle_tree_pubkey: &Pubkey,
+        zkp_batch_size: u16,
+    ) -> Result<BatchAddressUpdateIndexerResponse, IndexerError> {
+        self.rate_limited_request(|| async {
+            let merkle_tree = Hash::from_bytes(merkle_tree_pubkey.to_bytes().as_ref())?;
+            let request = photon_api::models::GetBatchAddressUpdateInfoPostRequest {
+                params: Box::new(
+                    photon_api::models::GetBatchAddressUpdateInfoPostRequestParams {
+                        batch_size: zkp_batch_size,
+                        tree: merkle_tree.to_base58(),
+                    },
+                ),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_batch_address_update_info_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let response =
+                Self::extract_result("get_compressed_token_account_balance", result.result)?;
+
+            let addresses = response
+                .addresses
+                .iter()
+                .map(|x| AddressQueueIndex {
+                    address: Hash::from_base58(x.address.clone().as_ref()).unwrap(),
+                    queue_index: x.queue_index,
+                })
+                .collect();
+
+            let mut proofs: Vec<NewAddressProofWithContext<40>> = vec![];
+            for proof in response.non_inclusion_proofs {
+                let proof = NewAddressProofWithContext::<40> {
+                    merkle_tree: merkle_tree_pubkey.to_bytes(),
+                    low_address_index: proof.low_element_leaf_index,
+                    low_address_value: Hash::from_base58(
+                        proof.lower_range_address.clone().as_ref(),
+                    )
+                    .unwrap(),
+                    low_address_next_index: proof.next_index,
+                    low_address_next_value: Hash::from_base58(
+                        proof.higher_range_address.clone().as_ref(),
+                    )
+                    .unwrap(),
+                    low_address_proof: proof
+                        .proof
+                        .iter()
+                        .map(|x| Hash::from_base58(x.clone().as_ref()).unwrap())
+                        .collect::<Vec<_>>()
+                        .try_into()
+                        .unwrap(),
+                    root: Hash::from_base58(proof.root.clone().as_ref()).unwrap(),
+                    root_seq: proof.root_seq,
+
+                    new_low_element: None,
+                    new_element: None,
+                    new_element_next_value: None,
+                };
+                proofs.push(proof);
+            }
+
+            let subtrees = response
+                .subtrees
+                .iter()
+                .map(|x| {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(x.as_slice());
+                    arr
+                })
+                .collect::<Vec<_>>();
+
+            let result = BatchAddressUpdateIndexerResponse {
+                batch_start_index: response.start_index,
+                addresses,
+                non_inclusion_proofs: proofs,
+                subtrees,
+            };
+            Ok(result)
+        })
+        .await
     }
 }

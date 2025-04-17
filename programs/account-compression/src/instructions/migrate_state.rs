@@ -79,6 +79,10 @@ pub fn process_migrate_state<'a, 'b, 'c: 'info, 'info>(
     let output_queue =
         &mut BatchedQueueAccount::output_from_account_info(&ctx.accounts.output_queue)
             .map_err(ProgramError::from)?;
+    check_signer_is_registered_or_authority::<MigrateState, BatchedQueueAccount>(
+        ctx,
+        output_queue,
+    )?;
     // 2. Migrate state
     let nullify_event = migrate_state(
         migrate_leaf_params,
@@ -143,9 +147,7 @@ mod migrate_state_test {
     use light_concurrent_merkle_tree::ConcurrentMerkleTree;
     use light_hasher::Poseidon;
     use light_merkle_tree_metadata::{
-        access::AccessMetadata,
-        queue::{QueueMetadata, QueueType},
-        rollover::RolloverMetadata,
+        access::AccessMetadata, queue::QueueMetadata, rollover::RolloverMetadata, QueueType,
     };
     use rand::Rng;
     use solana_sdk::pubkey::Pubkey;
@@ -164,7 +166,7 @@ mod migrate_state_test {
             next_queue: Pubkey::new_unique().into(),
             access_metadata: AccessMetadata::default(),
             rollover_metadata: RolloverMetadata::default(),
-            queue_type: QueueType::BatchedOutput as u64,
+            queue_type: QueueType::OutputStateV2 as u64,
             associated_merkle_tree: Pubkey::new_unique().into(),
         };
         let batch_size = 1000;
@@ -276,7 +278,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(0, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let event = migrate_state(
@@ -306,7 +308,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(1, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let event = migrate_state(
@@ -333,7 +335,7 @@ mod migrate_state_test {
             proof: ref_merkle_tree
                 .get_proof_of_leaf(2, false)
                 .unwrap()
-                .to_array()
+                .try_into()
                 .unwrap(),
         };
         // Failing 3 Invalid Proof
@@ -463,7 +465,7 @@ mod migrate_state_test {
                 proof: ref_merkle_tree
                     .get_proof_of_leaf(leaf_index, false)
                     .unwrap()
-                    .to_array()
+                    .try_into()
                     .unwrap(),
             };
             let current_batch = output_queue.batch_metadata.currently_processing_batch_index;

@@ -12,10 +12,12 @@ members = [
     "program-libs/concurrent-merkle-tree",
     "program-libs/hash-set",
     "program-libs/indexed-merkle-tree",
+    "program-libs/indexed-array",
     "programs/account-compression",
     "programs/system",
     "programs/compressed-token",
     "programs/registry",
+    "anchor-programs/system",
     "sdk-libs/client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
@@ -23,16 +25,17 @@ members = [
     "sdk-libs/program-test",
     "xtask",
     "examples/anchor/token-escrow",
-    "examples/anchor/name-service-without-macros",
+    # "examples/anchor/name-service-without-macros",
     "examples/anchor/counter",
-    "examples/anchor/memo",
+    # "examples/anchor/memo",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
     "program-tests/e2e-test",
     "program-tests/registry-test",
     "program-tests/system-cpi-test",
     "program-tests/system-test",
-    "program-tests/sdk-test-program/programs/sdk-test",
+    "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
+    "program-tests/sdk-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
@@ -42,17 +45,20 @@ members = [
 
 resolver = "2"
 
+[profile.dev]
+opt-level = 0
+debug = true
+strip = "none"
+
 [profile.release]
 overflow-checks = true
-
-[profile.test]
-opt-level = 2
 
 [workspace.dependencies]
 # Solana
 solana-banks-client = "=1.18.22"
 solana-banks-interface = "=1.18.22"
 solana-program = "=1.18.22"
+solana-pubkey = "2.3"
 solana-sdk = "=1.18.22"
 solana-program-test = "=1.18.22"
 solana-client = "=1.18.22"
@@ -66,9 +72,10 @@ spl-token = "=4.0.0"
 spl-token-2022 = { version = "3.0.5", no-default-features = true, features = [
     "no-entrypoint",
 ] }
+pinocchio = { version = "0.8.1" }
 
 # Anchor
-anchor-lang = "=0.29.0"
+anchor-lang = { version = "=0.29.0", features = ["idl-build"] }
 anchor-spl = "=0.29.0"
 
 # Anchor compatibility
@@ -80,6 +87,7 @@ quote = "1.0"
 syn = { version = "2.0", features = ["visit-mut", "full"] }
 
 # Async ecosystem
+futures = "0.3.17"
 tokio = { version = "1.43.0", features = ["rt", "macros", "rt-multi-thread"] }
 async-trait = "0.1.82"
 bb8 = "0.8.6"
@@ -127,7 +135,7 @@ account-compression = { path = "programs/account-compression", version = "1.2.0"
 light-compressed-token = { path = "programs/compressed-token", version = "1.2.0", features = [
     "cpi",
 ] }
-light-system-program = { path = "programs/system", version = "1.2.0", features = [
+light-system-program-anchor = { path = "anchor-programs/system", version = "1.2.0", features = [
     "cpi",
 ] }
 light-registry = { path = "programs/registry", version = "1.2.0", features = [
@@ -144,15 +152,17 @@ light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
 light-bounded-vec = { version = "1.1.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
+light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-groth16-solana = { version = "0.0.3" }
+groth16-solana = { version = "0.1.0" }
 # anchor 0.29 requires 1.19
 bytemuck = { version = "1.19.0" }
+arrayvec = "0.7"
 
 # Math and crypto
 num-bigint = "0.4.6"
 num-traits = "0.2.19"
-zerocopy = { version = "0.8.14" }
+zerocopy = { version = "0.8.20" }
 base64 = "0.13"
 
 # HTTP client

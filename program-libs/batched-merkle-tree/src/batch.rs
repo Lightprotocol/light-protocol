@@ -1,11 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_bloom_filter::BloomFilter;
 use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::vec::ZeroCopyVecU64;
-use solana_program::msg;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::errors::BatchedMerkleTreeError;
+// Import crate::msg from lib.rs which has the appropriate feature gates
+use crate::{errors::BatchedMerkleTreeError, BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 #[repr(u64)]
@@ -169,8 +168,10 @@ impl Batch {
             if let Some(start_index) = start_index {
                 self.start_index = start_index;
             }
+            self.num_full_zkp_batches = 0;
         } else {
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "Batch is in incorrect state {} expected BatchState::Inserted 1",
                 self.state
             );
@@ -184,12 +185,9 @@ impl Batch {
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Full {
             self.state = BatchState::Inserted.into();
-
-            // Could be zeroed in advance_state_to_fill as well.
-            // Zeroed since all zkps are inserted.
-            self.num_full_zkp_batches = 0;
         } else {
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "Batch is in incorrect state {} expected BatchState::Full 2",
                 self.state
             );
@@ -204,7 +202,8 @@ impl Batch {
         if self.get_state() == BatchState::Fill {
             self.state = BatchState::Full.into();
         } else {
-            msg!(
+            #[cfg(not(feature = "pinocchio"))]
+            crate::msg!(
                 "Batch is in incorrect state {} expected BatchState::Fill 0",
                 self.state
             );
@@ -451,8 +450,8 @@ impl Batch {
 #[cfg(test)]
 mod tests {
 
-    use light_compressed_account::pubkey::Pubkey;
-    use light_merkle_tree_metadata::queue::{QueueMetadata, QueueType};
+    use light_compressed_account::{pubkey::Pubkey, QueueType};
+    use light_merkle_tree_metadata::queue::QueueMetadata;
 
     use super::*;
     use crate::queue::BatchedQueueAccount;
@@ -481,7 +480,7 @@ mod tests {
             } else {
                 assert_eq!(batch.get_state(), BatchState::Inserted);
                 assert_eq!(batch.get_num_inserted_zkp_batch(), 0);
-                assert_eq!(batch.get_current_zkp_batch_index(), 0);
+                assert_eq!(batch.get_current_zkp_batch_index(), 5);
                 assert_eq!(batch.get_num_inserted_zkps(), i + 1);
             }
         }
@@ -494,6 +493,7 @@ mod tests {
         ref_batch.num_inserted_zkp_batches = 5;
         ref_batch.start_slot = current_slot;
         ref_batch.start_slot_is_set = 1;
+        ref_batch.num_full_zkp_batches = 5;
         assert_eq!(batch, ref_batch);
         batch.advance_state_to_fill(Some(1)).unwrap();
         let mut ref_batch = get_test_batch();
@@ -976,7 +976,7 @@ mod tests {
         let mut queue_metadata = QueueMetadata::default();
         let associated_merkle_tree = Pubkey::new_unique();
         queue_metadata.associated_merkle_tree = associated_merkle_tree;
-        queue_metadata.queue_type = QueueType::BatchedOutput as u64;
+        queue_metadata.queue_type = QueueType::OutputStateV2 as u64;
         let batch_size = 4;
         let zkp_batch_size = 2;
         let bloom_filter_capacity = 0;
@@ -1079,7 +1079,6 @@ mod tests {
             account.batch_metadata.batches[0]
                 .advance_state_to_inserted()
                 .unwrap();
-            assert_eq!(account.get_num_inserted_in_current_batch(), 0);
         }
         // Check that batch is cleared properly.
         {
@@ -1156,10 +1155,9 @@ mod tests {
 
         {
             let expected_start_slot = current_slot;
-            for i in 0..batch_size {
+            for _ in 0..batch_size {
                 assert!(!account.tree_is_full());
                 assert!(account.check_tree_is_full().is_ok());
-                assert_eq!(account.get_num_inserted_in_current_batch(), i);
                 account
                     .insert_into_current_batch(&[1u8; 32], &current_slot)
                     .unwrap();

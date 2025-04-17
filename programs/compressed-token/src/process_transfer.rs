@@ -1,5 +1,7 @@
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
+use account_compression::{utils::constants::CPI_AUTHORITY_PDA_SEED, StateMerkleTreeAccount};
+use anchor_lang::{
+    prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize, Discriminator,
+};
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -11,7 +13,6 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
     },
 };
-use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
 
@@ -71,10 +72,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     }
     bench_sbf_end!("t_process_compression");
     bench_sbf_start!("t_create_output_compressed_accounts");
-    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
-        Some(hashed_mint) => hashed_mint.0,
-        None => return err!(ErrorCode::HashToFieldError),
-    };
+    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes());
 
     let mut output_compressed_accounts = vec![
         OutputCompressedAccountWithPackedContext::default();
@@ -129,6 +127,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .iter()
             .map(|data| data.merkle_tree_index)
             .collect::<Vec<u8>>(),
+        ctx.remaining_accounts,
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
 
@@ -138,6 +137,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
             &hashed_mint,
+            ctx.remaining_accounts,
         )?;
     }
     bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
@@ -175,6 +175,8 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.remaining_accounts,
     )
 }
+pub const BATCHED_DISCRIMINATOR: [u8; 8] = *b"BatchMta";
+pub const OUTPUT_QUEUE_DISCRIMINATOR: [u8; 8] = *b"queueacc";
 
 /// Creates output compressed accounts.
 /// Steps:
@@ -193,12 +195,11 @@ pub fn create_output_compressed_accounts(
     lamports: Option<Vec<Option<u64>>>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
+    remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<u64> {
     let mut sum_lamports = 0;
     let hashed_delegate_store = if let Some(delegate) = delegate {
         hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-            .unwrap()
-            .0
     } else {
         [0u8; 32]
     };
@@ -233,11 +234,39 @@ pub fn create_output_compressed_accounts(
             state: AccountState::Initialized,
             tlv: None,
         };
+        // TODO: remove serialization, just write bytes.
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
-        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
-        let amount_bytes = amount.to_le_bytes();
-        let data_hash = TokenData::hash_with_hashed_values::<Poseidon>(
+        let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref());
+
+        let mut amount_bytes = [0u8; 32];
+        let discriminator_bytes: [u8; 8] = remaining_accounts[merkle_tree_indices[i] as usize]
+            .try_borrow_data()?[0..8]
+            .try_into()
+            .unwrap();
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => {
+                amount_bytes[24..].copy_from_slice(amount.to_le_bytes().as_slice());
+                Ok(())
+            }
+            BATCHED_DISCRIMINATOR => {
+                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                Ok(())
+            }
+            OUTPUT_QUEUE_DISCRIMINATOR => {
+                amount_bytes[24..].copy_from_slice(amount.to_be_bytes().as_slice());
+                Ok(())
+            }
+            _ => {
+                msg!(
+                    "{} is no Merkle tree or output queue account. ",
+                    remaining_accounts[merkle_tree_indices[i] as usize].key()
+                );
+                err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
+            }
+        }?;
+
+        let data_hash = TokenData::hash_with_hashed_values(
             hashed_mint,
             &hashed_owner,
             &amount_bytes,
@@ -276,20 +305,54 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
+    remaining_accounts: &[AccountInfo<'_>],
 ) -> Result<()> {
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
-        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes())
-            .unwrap()
-            .0;
+        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
-        let amount = input_token_data[i].amount.to_le_bytes();
+
+        let mut amount_bytes = [0u8; 32];
+        let discriminator_bytes: [u8; 8] = remaining_accounts[compressed_account_with_context
+            .merkle_context
+            .merkle_tree_pubkey_index
+            as usize]
+            .try_borrow_data()?[0..8]
+            .try_into()
+            .unwrap();
+        match discriminator_bytes {
+            StateMerkleTreeAccount::DISCRIMINATOR => {
+                amount_bytes[24..]
+                    .copy_from_slice(input_token_data[i].amount.to_le_bytes().as_slice());
+                Ok(())
+            }
+            BATCHED_DISCRIMINATOR => {
+                amount_bytes[24..]
+                    .copy_from_slice(input_token_data[i].amount.to_be_bytes().as_slice());
+                Ok(())
+            }
+            OUTPUT_QUEUE_DISCRIMINATOR => {
+                amount_bytes[24..]
+                    .copy_from_slice(input_token_data[i].amount.to_be_bytes().as_slice());
+                Ok(())
+            }
+            _ => {
+                msg!(
+                    "{} is no Merkle tree or output queue account. ",
+                    remaining_accounts[compressed_account_with_context
+                        .merkle_context
+                        .merkle_tree_pubkey_index as usize]
+                        .key()
+                );
+                err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
+            }
+        }?;
         let delegate_store;
         let hashed_delegate = if let Some(delegate) = input_token_data[i].delegate {
-            delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes()).unwrap().0;
+            delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes());
             Some(&delegate_store)
         } else {
             None
@@ -298,10 +361,10 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
             Some(CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data,
-                data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                data_hash: TokenData::hash_with_hashed_values(
                     hashed_mint,
                     &hashed_owner,
-                    &amount,
+                    &amount_bytes,
                     &hashed_delegate,
                 )
                 .map_err(ProgramError::from)?,
@@ -310,10 +373,10 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
             Some(CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data,
-                data_hash: TokenData::hash_frozen_with_hashed_values::<Poseidon>(
+                data_hash: TokenData::hash_frozen_with_hashed_values(
                     hashed_mint,
                     &hashed_owner,
-                    &amount,
+                    &amount_bytes,
                     &hashed_delegate,
                 )
                 .map_err(ProgramError::from)?,
@@ -896,7 +959,7 @@ pub mod transfer_sdk {
                     merkle_tree_pubkey_index: *remaining_accounts
                         .get(&input_merkle_context[i].merkle_tree_pubkey)
                         .unwrap() as u8,
-                    nullifier_queue_pubkey_index: 0,
+                    queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
                     prove_by_index,
                 },
@@ -907,18 +970,17 @@ pub mod transfer_sdk {
             input_token_data_with_context.push(token_data_with_context);
         }
         for (i, _) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].nullifier_queue_pubkey) {
+            match remaining_accounts.get(&input_merkle_context[i].queue_pubkey) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts
-                        .insert(input_merkle_context[i].nullifier_queue_pubkey, index);
+                    remaining_accounts.insert(input_merkle_context[i].queue_pubkey, index);
                     index += 1;
                 }
             };
             input_token_data_with_context[i]
                 .merkle_context
-                .nullifier_queue_pubkey_index = *remaining_accounts
-                .get(&input_merkle_context[i].nullifier_queue_pubkey)
+                .queue_pubkey_index = *remaining_accounts
+                .get(&input_merkle_context[i].queue_pubkey)
                 .unwrap() as u8;
         }
         let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =
