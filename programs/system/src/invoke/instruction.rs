@@ -45,7 +45,6 @@ impl<'info> InvokeInstruction<'info> {
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
         check_signer(authority).map_err(ProgramError::from)?;
-        check_non_mut(authority)?;
 
         let registered_program_pda = &accounts[2];
         check_non_mut(registered_program_pda)?;
