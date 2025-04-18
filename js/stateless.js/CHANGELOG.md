@@ -3,7 +3,7 @@
 ## [0.21.0] - 2025-04-08
 
 This release has several breaking changes which are necessary for protocol
-scalability. We also included various QoL changes to create a more robust API.
+scalability.
 
 Please reach out to the [team](https://t.me/swen_light) if you need help
 migrating.
