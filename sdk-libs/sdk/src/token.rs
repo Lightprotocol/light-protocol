@@ -8,7 +8,7 @@ pub enum AccountState {
     Initialized,
     Frozen,
 }
-// TODO: extract token data from program into into a separate crate, import it and remove this file.
+// TODO: extract token data from program into a separate crate, import it and remove this file.
 #[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account
