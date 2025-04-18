@@ -20,32 +20,24 @@ pub mod light_system_program {
         unimplemented!("anchor wrapper not implemented")
     }
 
-    pub fn invoke<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
-        inputs: Vec<u8>,
-    ) -> Result<()> {
+    pub fn invoke(ctx: Context<InvokeInstruction>, inputs: Vec<u8>) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
 
-    pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
-        inputs: Vec<u8>,
-    ) -> Result<()> {
+    pub fn invoke_cpi(ctx: Context<InvokeCpiInstruction>, inputs: Vec<u8>) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
 
-    #[allow(unused_variables)]
-    pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+    pub fn invoke_cpi_with_read_only(
+        ctx: Context<InvokeCpiInstruction>,
         // TODO: revert once parse_batched_event_functional is migrated to manual cpi
         inputs: Vec<u8>, // inputs: InstructionDataInvokeCpiWithReadOnly,
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")
     }
 
-    #[allow(unused_variables)]
-    pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
+    pub fn invoke_cpi_with_account_info(
+        ctx: Context<InvokeCpiInstruction>,
         inputs: InstructionDataInvokeCpiWithAccountInfo,
     ) -> Result<()> {
         unimplemented!("anchor wrapper not implemented")

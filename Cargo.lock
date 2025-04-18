@@ -1474,6 +1474,7 @@ dependencies = [
  "anchor-lang",
  "light-compressed-account",
  "light-hasher",
+ "light-sdk",
  "light-system-program-anchor",
 ]
 
