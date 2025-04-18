@@ -24,6 +24,7 @@ import {
     TokenData,
     StateTreeInfo,
     AddressTreeInfo,
+    CompressedProof,
 } from './state';
 import BN from 'bn.js';
 
@@ -149,27 +150,51 @@ export interface HexInputsForProver {
     leaf: string;
 }
 
+/**
+ * Validity proof with context.
+ *
+ * You can request proofs via `rpc.getValidityProof` or
+ * `rpc.getValidityProofV0`.
+ */
 export type ValidityProofWithContext = {
-    compressedProof: ValidityProof;
+    /**
+     * Validity proof.
+     */
+    validityProof: ValidityProof;
+    /**
+     * Roots.
+     */
+    roots: BN[];
+    /**
+     * Root indices.
+     */
+    rootIndices: number[];
+    /**
+     * Leaf indices.
+     */
+    leafIndices: number[];
+    /**
+     * Leaves.
+     */
+    leaves: BN[];
+    /**
+     * Tree infos.
+     */
+    treeInfos: StateTreeInfo[];
+};
+
+/**
+ * @deprecated use {@link ValidityProofWithContext} instead
+ */
+export type CompressedProofWithContext = {
+    compressedProof: CompressedProof;
     roots: BN[];
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
-    treeInfos: StateTreeInfo[];
+    merkleTrees: PublicKey[];
+    nullifierQueues: PublicKey[];
 };
-
-// /**
-//  * @deprecated use {@link ValidityProofWithContext} instead
-//  */
-// export type ValidityProofWithContext = {
-//     compressedProof: ValidityProof;
-//     roots: BN[];
-//     rootIndices: number[];
-//     leafIndices: number[];
-//     leaves: BN[];
-//     merkleTrees: PublicKey[];
-//     nullifierQueues: PublicKey[];
-// };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
     mint?: PublicKey;

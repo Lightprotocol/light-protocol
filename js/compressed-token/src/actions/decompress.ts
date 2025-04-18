@@ -96,7 +96,7 @@ export async function decompress(
         outputStateTreeInfo,
         tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

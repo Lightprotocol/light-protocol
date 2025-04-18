@@ -106,7 +106,7 @@ export async function transfer(
         toAddress,
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
         outputStateTreeInfo,
     });
 

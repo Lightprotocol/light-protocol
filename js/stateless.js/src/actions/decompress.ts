@@ -66,7 +66,7 @@ export async function decompress(
         toAddress: recipient,
         outputStateTreeInfo,
         inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
         recentInputStateRootIndices: proof.rootIndices,
         lamports,
     });

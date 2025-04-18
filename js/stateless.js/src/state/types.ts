@@ -192,6 +192,24 @@ export interface CompressedCpiContext {
     cpi_context_account_index: number;
 }
 
+/**
+ * @deprecated Use {@link ValidityProof} instead.
+ */
+export interface CompressedProof {
+    a: number[]; // [u8; 32]
+    b: number[]; // [u8; 64]
+    c: number[]; // [u8; 32]
+}
+
+/**
+ * Validity proof.
+ *
+ * You can request proofs via `rpc.getValidityProof` or
+ * `rpc.getValidityProofV0`.
+ *
+ * One proof is 128 bytes large, and can prove the existence of N compressed
+ * accounts or the uniqueness of N PDAs.
+ */
 export interface ValidityProof {
     a: number[]; // [u8; 32]
     b: number[]; // [u8; 64]

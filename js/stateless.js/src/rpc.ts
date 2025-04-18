@@ -1620,7 +1620,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 false,
             );
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: merkleProofsWithContext.map(proof => proof.root),
                 rootIndices: merkleProofsWithContext.map(
                     proof => proof.rootIndex,
@@ -1654,7 +1654,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
 
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
                 rootIndices: newAddressProofs.map(proof => proof.rootIndex),
                 leafIndices: newAddressProofs.map(proof =>
@@ -1696,7 +1696,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             ];
 
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: merkleProofsWithContext
                     .map(proof => proof.root)
                     .concat(newAddressProofs.map(proof => proof.root)),
@@ -1869,7 +1869,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         ];
 
         const value: ValidityProofWithContext = {
-            compressedProof: result.compressedProof,
+            validityProof: result.compressedProof,
             treeInfos,
             leafIndices: result.leafIndices,
             rootIndices: result.rootIndices,

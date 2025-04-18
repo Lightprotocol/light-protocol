@@ -453,7 +453,7 @@ async function transferHelper(
         toAddress,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
         outputStateTreeInfo: stateTreeInfo,
     });
 

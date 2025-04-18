@@ -74,7 +74,7 @@ export async function mergeTokenAccounts(
                 mint,
                 inputCompressedTokenAccounts: batch,
                 outputStateTreeInfo,
-                recentValidityProof: proof.compressedProof,
+                recentValidityProof: proof.validityProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });
 

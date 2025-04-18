@@ -5,9 +5,6 @@ export const bn = (
     base?: number | 'hex' | undefined,
     endian?: BN.Endianness | undefined,
 ): BN => {
-    // if (number instanceof BN) {
-    //     return number;
-    // }
     if (number instanceof Uint8Array && !(number instanceof Buffer)) {
         return new BN(Buffer.from(number), base, endian);
     }

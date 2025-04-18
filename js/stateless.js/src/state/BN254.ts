@@ -11,17 +11,6 @@ import { Buffer } from 'buffer';
  */
 export type BN254 = BN;
 
-// export const bn = (
-//     number: string | number | BN | Buffer | Uint8Array | number[],
-//     base?: number | 'hex' | undefined,
-//     endian?: BN.Endianness | undefined,
-// ): BN => {
-//     if (number instanceof Uint8Array) {
-//         return new BN(Buffer.from(number), base, endian);
-//     }
-//     return new BN(number, base, endian);
-// };
-
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
     number: string | number | BN | Buffer | Uint8Array | number[],
