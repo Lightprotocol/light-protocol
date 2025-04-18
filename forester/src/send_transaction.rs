@@ -211,7 +211,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
         })
         .collect();
 
-    let buffer_duration = Duration::from_secs(2);
+    let buffer_duration = Duration::from_secs(5);
     let adjusted_timeout = if config.retry_config.timeout > buffer_duration {
         config.retry_config.timeout - buffer_duration
     } else {
