@@ -3,7 +3,10 @@
 ## [0.21.0] - 2025-04-08
 
 This release has several breaking changes which are necessary for protocol
-scalability. Please reach out to the [team](https://t.me/swen_light) if you need help migrating.
+scalability. We also included various QoL changes to create a more robust API.
+
+Please reach out to the [team](https://t.me/swen_light) if you need help
+migrating.
 
 ### Breaking changes
 
@@ -15,6 +18,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 ### Deprecations
 
 -   `rpc.getValidityProof` is now deprecated, use `rpc.getValidityProofV0` instead.
+-   `CompressedProof` and `CompressedProofWithContext` were renamed to `ValidityProof` and `ValidityProofWithContext`
 
 ### Migration Guide
 
@@ -68,15 +72,34 @@ const selectedInfo = selectStateTreeInfo(info);
 ```typescript
 // Old code
 // Still works, but will do one additional RPC call.
-const proof = await rpc.getValidityProof(hash[], address[]);
+//  const proof = await rpc.getValidityProof(hash[], address[]);
+const proof = await rpc.getValidityProofV0(
+    inputAccounts.map(account => (bn(account.hash)),
+);
 
 // New code
-const proof = await rpc.getValidityProofV0(HashWithTree[], AddressWithTree[]);
+// const proof = await rpc.getValidityProofV0(HashWithTree[], AddressWithTree[]);
+const proof = await rpc.getValidityProofV0(
+    inputAccounts.map(account => ({
+        hash: account.hash,
+        tree: account.treeInfo.tree,
+        queue: account.treeInfo.queue,
+    })),
+);
+```
+
+```typescript
+// new type
+export interface HashWithTree {
+    hash: BN254;
+    tree: PublicKey;
+    queue: PublicKey;
+}
 ```
 
 5. Other breaking changes:
 
-**MerkleContext, MerkleContextWithMerkleProof, CompressedAccountWithMerkleContext**
+**MerkleContext, MerkleContextWithMerkleProof, CompressedAccountWithMerkleContext** now use `treeInfo`:
 
 ```typescript
 /**
