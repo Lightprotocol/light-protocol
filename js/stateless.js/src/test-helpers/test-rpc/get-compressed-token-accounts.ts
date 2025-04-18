@@ -157,19 +157,16 @@ export async function getCompressedTokenAccounts(
     const allInCompressedAccountHashes = eventsWithParsedTokenTlvData.flatMap(
         event => event.inputCompressedAccountHashes,
     );
+
     const unspentCompressedAccounts = allOutCompressedAccounts.filter(
         outputCompressedAccount =>
             !allInCompressedAccountHashes.some(hash => {
-                return (
-                    JSON.stringify(hash) ===
-                    JSON.stringify(
-                        outputCompressedAccount.compressedAccount.hash.toArrayLike(
-                            Buffer,
-                        ),
-                    )
+                return bn(hash).eq(
+                    outputCompressedAccount.compressedAccount.hash,
                 );
             }),
     );
+
     return unspentCompressedAccounts;
 }
 

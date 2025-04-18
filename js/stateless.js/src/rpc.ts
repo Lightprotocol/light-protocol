@@ -980,7 +980,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithCursor<ParsedTokenAccount[]>> {
         if (!options) options = {};
 
-        console.log('#020');
         return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             owner,

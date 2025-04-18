@@ -115,14 +115,9 @@ export function encodeMintToInstructionData(
 export function decodeMintToInstructionData(
     buffer: Buffer,
 ): MintToInstructionData {
-    const data: any = mintToLayout.decode(
+    return mintToLayout.decode(
         buffer.subarray(MINT_TO_DISCRIMINATOR.length),
-    );
-    return {
-        recipients: data.recipients,
-        amounts: data.amounts,
-        lamports: data.lamports,
-    };
+    ) as MintToInstructionData;
 }
 
 export function encodeCompressSplTokenAccountInstructionData(
@@ -147,9 +142,9 @@ export function encodeCompressSplTokenAccountInstructionData(
 export function decodeCompressSplTokenAccountInstructionData(
     buffer: Buffer,
 ): CompressSplTokenAccountInstructionData {
-    const data: any = compressSplTokenAccountInstructionDataLayout.decode(
-        buffer.slice(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR.length),
-    );
+    const data = compressSplTokenAccountInstructionDataLayout.decode(
+        buffer.subarray(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR.length),
+    ) as CompressSplTokenAccountInstructionData;
     return {
         owner: data.owner,
         remainingAmount: data.remainingAmount,

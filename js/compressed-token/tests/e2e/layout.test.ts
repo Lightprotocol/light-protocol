@@ -7,7 +7,15 @@ import {
     Wallet,
 } from '@coral-xyz/anchor';
 import BN from 'bn.js';
-import { bn } from '@lightprotocol/stateless.js';
+import {
+    bn,
+    InputTokenDataWithContext,
+    PackedMerkleContext,
+    ValidityProof,
+    COMPRESSED_TOKEN_PROGRAM_ID,
+    defaultStaticAccountsStruct,
+    LightSystemProgram,
+} from '@lightprotocol/stateless.js';
 import {
     encodeMintToInstructionData,
     decodeMintToInstructionData,
@@ -21,16 +29,13 @@ import {
     createTokenPoolAccountsLayout,
     transferAccountsLayout,
     CompressedTokenProgram,
+    CompressedTokenInstructionDataTransfer,
+    PackedTokenTransferOutputData,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
-import {
-    COMPRESSED_TOKEN_PROGRAM_ID,
-    defaultStaticAccountsStruct,
-    LightSystemProgram,
-} from '@lightprotocol/stateless.js';
 
 const getTestProgram = (): Program<LightCompressedToken> => {
     const mockKeypair = Keypair.generate();
@@ -45,18 +50,29 @@ const getTestProgram = (): Program<LightCompressedToken> => {
     setProvider(mockProvider);
     return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
 };
-
 function deepEqual(ref: any, val: any) {
-    if (typeof ref !== typeof val) {
-        console.log(`Type mismatch: ${typeof ref} !== ${typeof val}`);
-        return false;
+    if (ref === null && val === null) return true;
+    if (ref === null || val === null) return false;
+
+    if (ref instanceof BN || val instanceof BN) {
+        if (!(ref instanceof BN) || !(val instanceof BN)) {
+            val = bn(val);
+            const result = ref.toString().trim() === val.toString().trim();
+            if (!result) {
+                console.log(
+                    `BN mismatch: ${ref.toString()} !== ${val.toString()}`,
+                );
+            }
+            return result;
+        }
+        const result = ref.toString().trim() === val.toString().trim();
+        if (!result) {
+            console.log(`BN mismatch: ${ref.toString()} !== ${val.toString()}`);
+        }
+        return result;
     }
 
-    if (ref instanceof BN && val instanceof BN) {
-        return ref.eq(val);
-    }
-
-    if (typeof ref === 'object' && ref !== null && val !== null) {
+    if (typeof ref === 'object' && typeof val === 'object') {
         const refKeys = Object.keys(ref);
         const valKeys = Object.keys(val);
 
@@ -133,51 +149,51 @@ describe('layout', () => {
                             185, 153, 246, 199, 206, 47, 210, 17, 10, 66, 68,
                             132, 229, 12, 67, 166, 168, 229, 156, 90, 30,
                         ],
-                    },
+                    } as ValidityProof,
                     mint: new PublicKey(
                         'Bwuvv7NXd59zXRvWRCXcPLvwZ2dfedyQ9XZyqDghRFxv',
                     ),
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [
                         {
-                            amount: bn('03e8', 16),
+                            amount: new BN(1000),
                             delegateIndex: null,
                             merkleContext: {
                                 merkleTreePubkeyIndex: 0,
                                 nullifierQueuePubkeyIndex: 1,
                                 leafIndex: 10,
                                 queueIndex: null,
-                            },
+                            } as PackedMerkleContext,
                             rootIndex: 11,
                             lamports: null,
                             tlv: null,
-                        },
+                        } as InputTokenDataWithContext,
                     ],
                     outputCompressedAccounts: [
                         {
                             owner: new PublicKey(
                                 'ARaDUvjovQDvFTMqaNAu9f2j1MpqJ5rhDAnDFrnyKbwg',
                             ),
-                            amount: bn('012c', 16),
+                            amount: new BN(300),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
-                        },
+                        } as PackedTokenTransferOutputData,
                         {
                             owner: new PublicKey(
                                 'GWYLPLzCCAVxq12UvBSpU4F8pcsmmRYQobPxkGz67ZVx',
                             ),
-                            amount: bn('02bc', 16),
+                            amount: new BN(700),
                             lamports: null,
                             merkleTreeIndex: 0,
                             tlv: null,
-                        },
+                        } as PackedTokenTransferOutputData,
                     ],
                     compressOrDecompressAmount: null,
                     isCompress: false,
                     cpiContext: null,
                     lamportsChangeAccountMerkleTreeIndex: null,
-                },
+                } as CompressedTokenInstructionDataTransfer,
             },
             {
                 description: 'with compressOrDecompressAmount',
@@ -189,11 +205,11 @@ describe('layout', () => {
                     delegatedTransfer: null,
                     inputTokenDataWithContext: [],
                     outputCompressedAccounts: [],
-                    compressOrDecompressAmount: bn(500),
+                    compressOrDecompressAmount: new BN(500),
                     isCompress: true,
                     cpiContext: null,
                     lamportsChangeAccountMerkleTreeIndex: null,
-                },
+                } as CompressedTokenInstructionDataTransfer,
             },
             {
                 description: 'with delegatedTransfer',
@@ -348,8 +364,10 @@ describe('layout', () => {
                     'CompressedTokenInstructionDataTransfer',
                     data,
                 );
+
                 const encoded = encodeTransferInstructionData(data);
                 const decoded = decodeTransferInstructionData(encoded);
+
                 expect(deepEqual(decoded, data)).toBe(true);
                 expect(anchorEncodedData).toEqual(
                     encoded.slice(IX_DISCRIMINATOR + LENGTH_DISCRIMINATOR),
