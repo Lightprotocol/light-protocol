@@ -3190,6 +3190,7 @@ version = "0.1.0"
 dependencies = [
  "borsh 0.10.4",
  "pinocchio",
+ "rand 0.8.5",
  "solana-program",
  "thiserror 2.0.12",
 ]

@@ -1,9 +1,8 @@
-use light_account_checks::{
-    checks::{check_discriminator, check_owner, check_pda_seeds, check_signer},
-    error::AccountError,
+use light_account_checks::checks::{
+    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_signer,
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
     accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
@@ -12,6 +11,7 @@ use crate::{
     Result,
 };
 
+#[derive(PartialEq, Eq)]
 pub struct InvokeCpiInstructionSmall<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
@@ -35,12 +35,12 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
         check_signer(authority).map_err(ProgramError::from)?;
-        if authority.is_writable() {
-            msg!("Authority must not be writable.");
-            return Err(AccountError::AccountMutable.into());
-        }
+        check_non_mut(authority)?;
+
         let registered_program_pda = &accounts[2];
+        check_non_mut(registered_program_pda)?;
         let account_compression_authority = &accounts[3];
+        check_non_mut(account_compression_authority)?;
         let mut account_counter = 4;
         let sol_pool_pda = if options_config.sol_pool_pda {
             let option_sol_pool_pda = &accounts[account_counter];
@@ -79,7 +79,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
                 decompression_recipient,
                 cpi_context_account,
             },
-            &accounts[11..],
+            &accounts[account_counter..],
         ))
     }
 }

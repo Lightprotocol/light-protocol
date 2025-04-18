@@ -26,9 +26,11 @@ pub fn process_invoke_cpi<
 >(
     invoking_program: Pubkey,
     ctx: A,
-    inputs: WrappedInstructionData<'a, T>,
+    inputs: T,
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
+    let inputs = WrappedInstructionData::new(inputs);
+
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
 
