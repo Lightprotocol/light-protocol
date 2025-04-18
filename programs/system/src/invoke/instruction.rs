@@ -1,4 +1,4 @@
-use light_account_checks::checks::{check_pda_seeds, check_program, check_signer};
+use light_account_checks::checks::{check_non_mut, check_pda_seeds, check_program, check_signer};
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
@@ -11,6 +11,7 @@ use crate::{
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
+#[derive(PartialEq, Eq)]
 pub struct InvokeInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
@@ -44,9 +45,13 @@ impl<'info> InvokeInstruction<'info> {
         check_signer(fee_payer).map_err(ProgramError::from)?;
         let authority = &accounts[1];
         check_signer(authority).map_err(ProgramError::from)?;
+        check_non_mut(authority)?;
+
         let registered_program_pda = &accounts[2];
+        check_non_mut(registered_program_pda)?;
         let noop_program = &accounts[3];
         let account_compression_authority = &accounts[4];
+        check_non_mut(account_compression_authority)?;
         let account_compression_program = &accounts[5];
         check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
             .map_err(ProgramError::from)?;

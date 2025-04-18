@@ -75,7 +75,7 @@ where
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError>;
 }
-
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountOptions {
     pub sol_pool_pda: bool,
     pub decompression_recipient: bool,
