@@ -1,9 +1,11 @@
+use light_account_checks::discriminator::Discriminator;
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use light_compressed_account::instruction_data::{
     invoke_cpi::InstructionDataInvokeCpi, traits::InstructionData,
 };
 use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
-use super::account::{deserialize_cpi_context_account, CpiContextAccount};
+use super::account::{deserialize_cpi_context_account, CpiContextAccount, ZCpiContextAccount};
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};
 
 /// Diff:
@@ -48,20 +50,32 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
-        let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
-        let index = if !inputs.inputs_empty() {
-            inputs
+        let (mut cpi_context_account, outputs_offsets) =
+            deserialize_cpi_context_account(cpi_context_account_info)?;
+        let first_merkle_tree_pubkey = if !inputs.inputs_empty() {
+            let index = inputs
                 .input_accounts()
                 .next()
                 .unwrap()
                 .merkle_context()
-                .merkle_tree_pubkey_index
+                .merkle_tree_pubkey_index;
+            *remaining_accounts[index as usize].key()
         } else if !inputs.outputs_empty() {
-            inputs.output_accounts().next().unwrap().merkle_tree_index()
+            let index = inputs.output_accounts().next().unwrap().merkle_tree_index();
+            if &remaining_accounts[index as usize].try_borrow_data()?[..8]
+                == BatchedQueueAccount::DISCRIMINATOR_SLICE
+            {
+                let queue_account = BatchedQueueAccount::output_from_account_info(
+                    &remaining_accounts[index as usize],
+                )?;
+                queue_account.metadata.associated_merkle_tree.to_bytes()
+            } else {
+                *remaining_accounts[index as usize].key()
+            }
         } else {
             return Err(SystemProgramError::NoInputs.into());
         };
-        let first_merkle_tree_pubkey = remaining_accounts[index as usize].key();
+
         if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
             msg!(format!(
                 "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
@@ -71,7 +85,11 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
         }
         msg!(format!("cpi_context {:?}", cpi_context).as_str());
-        if cpi_context.set_context {
+        // if cpi_context.first_set_context {
+        //     set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
+        //     return Ok(None);
+        // } else
+        if cpi_context.set_context || cpi_context.first_set_context {
             set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
             return Ok(None);
         } else {
@@ -82,7 +100,9 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
                 msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
                 return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
-            inputs.set_cpi_context(cpi_context_account);
+            // Zero out the fee payer since the cpi context is being consumed in this instruction.
+            *cpi_context_account.fee_payer = Pubkey::default().into();
+            inputs.set_cpi_context(cpi_context_account, outputs_offsets.0, outputs_offsets.1);
             return Ok(Some((1, inputs)));
         }
     } else {
@@ -114,12 +134,15 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
         let data = cpi_context_account_info.try_borrow_data()?;
         let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
         if inputs.cpi_context().unwrap().first_set_context {
+            msg!("First invocation");
             cpi_context_account.fee_payer = fee_payer;
             cpi_context_account.context.clear();
+            msg!("First invocation1");
 
             let mut instruction_data = InstructionDataInvokeCpi::default();
             inputs.into_instruction_data_invoke_cpi(&mut instruction_data);
             cpi_context_account.context.push(instruction_data);
+            msg!("wrapped up first invocation");
         } else if cpi_context_account.fee_payer == fee_payer
             && !cpi_context_account.context.is_empty()
         {
@@ -139,6 +162,39 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     };
     let mut data = cpi_context_account_info.try_borrow_mut_data()?;
     cpi_context_account.serialize(&mut &mut data[8..]).unwrap();
+    Ok(())
+}
+
+/// Copy CPI context outputs to the provided buffer.
+/// This way we ensure that all data involved in the instruction is emitted in this transaction.
+/// This prevents an edge case where users misuse the cpi context over multiple transactions
+/// and the indexer cannot find all output account data.
+pub fn copy_cpi_context_outputs(
+    cpi_context_account: &Option<ZCpiContextAccount<'_>>,
+    start_offset: usize,
+    end_offset: usize,
+    cpi_context_account_info: Option<&AccountInfo>,
+    cpi_outputs_data_len: usize,
+    bytes: &mut [u8],
+) -> Result<()> {
+    if let Some(cpi_context) = cpi_context_account {
+        let num_outputs: u32 = cpi_context.context[0]
+            .output_compressed_accounts
+            .len()
+            .try_into()
+            .unwrap();
+        msg!(format!("copy_cpi_context_outputs bytes: {:?}", bytes[..64].to_vec()).as_str());
+        let cpi_context_data = cpi_context_account_info.unwrap().try_borrow_data()?;
+
+        msg!(format!(
+            "cpi_context_data[start_offset..end_offset] bytes: {:?}",
+            cpi_context_data[start_offset..end_offset].to_vec()
+        )
+        .as_str());
+        bytes[0..4].copy_from_slice(num_outputs.to_le_bytes().as_slice());
+        bytes[4..4 + cpi_outputs_data_len]
+            .copy_from_slice(&cpi_context_data[start_offset..end_offset]);
+    }
     Ok(())
 }
 

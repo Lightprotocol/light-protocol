@@ -6,8 +6,9 @@ use std::{
 
 use clap::Parser;
 use groth16_solana::groth16::Groth16Verifyingkey;
-use light_utils::rustfmt;
 use quote::quote;
+
+use crate::utils::rustfmt;
 
 #[derive(Debug, Parser)]
 pub struct Options {

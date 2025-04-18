@@ -6,7 +6,7 @@ use std::{
     ptr::NonNull,
 };
 
-use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
+use light_hasher::{bigint::bigint_to_be_bytes_array, HasherError};
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::{FromBytes, ToPrimitive};
 use thiserror::Error;
@@ -29,8 +29,8 @@ pub enum HashSetError {
     IntegerOverflow,
     #[error("Invalid buffer size, expected {0}, got {1}")]
     BufferSize(usize, usize),
-    #[error("Utils: big integer conversion error")]
-    Utils(#[from] UtilsError),
+    #[error("HasherError: big integer conversion error")]
+    Hasher(#[from] HasherError),
 }
 
 impl From<HashSetError> for u32 {
@@ -42,7 +42,7 @@ impl From<HashSetError> for u32 {
             HashSetError::UsizeConv => 9004,
             HashSetError::IntegerOverflow => 9005,
             HashSetError::BufferSize(_, _) => 9006,
-            HashSetError::Utils(e) => e.into(),
+            HashSetError::Hasher(e) => e.into(),
         }
     }
 }

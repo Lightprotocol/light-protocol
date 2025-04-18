@@ -1,9 +1,8 @@
-use light_account_checks::{
-    checks::{check_discriminator, check_owner, check_pda_seeds, check_signer},
-    error::AccountError,
+use light_account_checks::checks::{
+    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_signer,
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
+use pinocchio::{account_info::AccountInfo, msg};
 
 use crate::{
     accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
@@ -12,6 +11,7 @@ use crate::{
     Result,
 };
 
+#[derive(PartialEq, Eq)]
 pub struct InvokeCpiInstructionSmall<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
@@ -32,25 +32,30 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         options_config: AccountOptions,
     ) -> Result<(Self, &'info [AccountInfo])> {
         let fee_payer = &accounts[0];
-        check_signer(fee_payer).map_err(ProgramError::from)?;
+        check_signer(fee_payer)?;
+
         let authority = &accounts[1];
-        check_signer(authority).map_err(ProgramError::from)?;
-        if authority.is_writable() {
-            msg!("Authority must not be writable.");
-            return Err(AccountError::AccountMutable.into());
-        }
+        check_signer(authority)?;
+        check_non_mut(authority)?;
+
         let registered_program_pda = &accounts[2];
+        check_non_mut(registered_program_pda)?;
+
         let account_compression_authority = &accounts[3];
+        check_non_mut(account_compression_authority)?;
+        msg!(format!("options_config {:?}", options_config).as_str());
+
+        msg!("here");
         let mut account_counter = 4;
         let sol_pool_pda = if options_config.sol_pool_pda {
             let option_sol_pool_pda = &accounts[account_counter];
-            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
-                .map_err(ProgramError::from)?;
+            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
             account_counter += 1;
             Some(option_sol_pool_pda)
         } else {
             None
         };
+
         let decompression_recipient = if options_config.decompression_recipient {
             let option_decompression_recipient = &accounts[account_counter];
             account_counter += 1;
@@ -58,17 +63,18 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         } else {
             None
         };
+
         let cpi_context_account = if options_config.cpi_context_account {
             let option_cpi_context_account = &accounts[account_counter];
-            check_owner(&crate::ID, option_cpi_context_account).map_err(ProgramError::from)?;
+            check_owner(&crate::ID, option_cpi_context_account)?;
             check_discriminator::<CpiContextAccount>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
-            )
-            .map_err(ProgramError::from)?;
+            )?;
             Some(option_cpi_context_account)
         } else {
             None
         };
+
         Ok((
             Self {
                 fee_payer,
@@ -79,7 +85,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
                 decompression_recipient,
                 cpi_context_account,
             },
-            &accounts[11..],
+            &accounts[account_counter..],
         ))
     }
 }

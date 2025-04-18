@@ -2,7 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::{InstructionData, OutputAccount},
+        traits::InstructionData,
     },
     TreeType,
 };
@@ -56,6 +56,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     let mut is_batched = true;
 
     for (j, account) in inputs.output_accounts().enumerate() {
+        msg!(format!("output account {:?}", account).as_str());
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
@@ -204,16 +205,16 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
         cpi_ix_data.addresses.iter().zip(inputs.new_addresses())
     {
         if let Some(assigned_account_index) = new_addresses.assigned_compressed_account_index() {
+            msg!(&assigned_account_index.to_string());
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
-
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
-                return Err(SystemProgramError::InvalidAddress);
+                return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }
     }

@@ -12,9 +12,7 @@ use crate::{
     CPI_CONTEXT_ACCOUNT_DISCRIMINATOR,
 };
 pub struct InitializeCpiContextAccount<'info> {
-    // #[signer]
     pub fee_payer: &'info AccountInfo,
-    // #[account(zero)]
     pub cpi_context_account: &'info AccountInfo,
     /// CHECK: manually in instruction
     pub associated_merkle_tree: &'info AccountInfo,

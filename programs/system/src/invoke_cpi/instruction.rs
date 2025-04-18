@@ -1,9 +1,8 @@
-use light_account_checks::{
-    checks::{check_discriminator, check_owner, check_pda_seeds, check_program, check_signer},
-    error::AccountError,
+use light_account_checks::checks::{
+    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_program, check_signer,
 };
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
 use super::account::CpiContextAccount;
 use crate::{
@@ -12,24 +11,30 @@ use crate::{
     Result,
 };
 
+#[derive(PartialEq, Eq)]
 pub struct InvokeCpiInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
+    /// CHECK: is non mutable.
     pub authority: &'info AccountInfo,
-    /// CHECK: in account compression program
+    /// CHECK: is non mutable.
     pub registered_program_pda: &'info AccountInfo,
-    /// CHECK: checked in emit_event.rs.
+    /// CHECK: unused, kept to keep api consistent with V1.
     pub noop_program: &'info AccountInfo,
     /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
     pub account_compression_authority: &'info AccountInfo,
-    /// CHECK:
+    /// CHECK: program id and is executable.
     pub account_compression_program: &'info AccountInfo,
     /// CHECK: checked in cpi_signer_check.
     pub invoking_program: &'info AccountInfo,
+    /// CHECK: derivation.
     pub sol_pool_pda: Option<&'info AccountInfo>,
     /// CHECK: unchecked is user provided recipient.
     pub decompression_recipient: Option<&'info AccountInfo>,
+    /// CHECK: is system program.
     pub system_program: &'info AccountInfo,
+    /// CHECK: owner, discriminator, and association
+    ///     with first state Merkle tree (the latter during processing).
     pub cpi_context_account: Option<&'info AccountInfo>,
 }
 
@@ -38,26 +43,33 @@ impl<'info> InvokeCpiInstruction<'info> {
         accounts: &'info [AccountInfo],
     ) -> Result<(Self, &'info [AccountInfo])> {
         let fee_payer = &accounts[0];
-        check_signer(fee_payer).map_err(ProgramError::from)?;
+        {
+            check_signer(fee_payer)?;
+        }
         let authority = &accounts[1];
-        check_signer(authority).map_err(ProgramError::from)?;
-        if authority.is_writable() {
-            msg!("Authority must not be writable.");
-            return Err(AccountError::AccountMutable.into());
+        {
+            check_signer(authority)?;
+            check_non_mut(authority)?;
         }
         let registered_program_pda = &accounts[2];
+        {
+            check_non_mut(registered_program_pda)?;
+        }
         let noop_program = &accounts[3];
         let account_compression_authority = &accounts[4];
+        {
+            check_non_mut(account_compression_authority)?;
+        }
         let account_compression_program = &accounts[5];
-        check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
-            .map_err(ProgramError::from)?;
+        {
+            check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)?;
+        }
         let invoking_program = &accounts[6];
         let option_sol_pool_pda = &accounts[7];
         let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
             None
         } else {
-            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
-                .map_err(ProgramError::from)?;
+            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
             Some(option_sol_pool_pda)
         };
         let option_decompression_recipient = &accounts[8];
@@ -67,17 +79,20 @@ impl<'info> InvokeCpiInstruction<'info> {
             Some(option_decompression_recipient)
         };
         let system_program = &accounts[9];
-        check_program(&Pubkey::default(), system_program).map_err(ProgramError::from)?;
+        {
+            check_program(&Pubkey::default(), system_program)?;
+        }
         let option_cpi_context_account = &accounts[10];
 
         let cpi_context_account = if *option_cpi_context_account.key() == crate::ID {
             None
         } else {
-            check_owner(&crate::ID, option_cpi_context_account).map_err(ProgramError::from)?;
-            check_discriminator::<CpiContextAccount>(
-                option_cpi_context_account.try_borrow_data()?.as_ref(),
-            )
-            .map_err(ProgramError::from)?;
+            {
+                check_owner(&crate::ID, option_cpi_context_account)?;
+                check_discriminator::<CpiContextAccount>(
+                    option_cpi_context_account.try_borrow_data()?.as_ref(),
+                )?;
+            }
             Some(option_cpi_context_account)
         };
         Ok((

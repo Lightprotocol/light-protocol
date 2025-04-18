@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use std::collections::HashMap;
 
@@ -45,7 +45,7 @@ use solana_sdk::{
 #[serial]
 async fn parse_batched_event_functional() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("create_address_test_program"),
+        "create_address_test_program",
         create_address_test_program::ID,
     )]))
     .await;
@@ -437,7 +437,7 @@ async fn parse_batched_event_functional() {
 async fn parse_multiple_batched_events_functional() {
     for num_expected_events in 1..5 {
         let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-            String::from("create_address_test_program"),
+            "create_address_test_program",
             create_address_test_program::ID,
         )]))
         .await;
@@ -599,7 +599,7 @@ async fn generate_photon_test_data_multiple_events() {
     }
 }
 
-fn get_compressed_input_account(
+pub fn get_compressed_input_account(
     merkle_context: MerkleContext,
 ) -> CompressedAccountWithMerkleContext {
     CompressedAccountWithMerkleContext {
@@ -617,7 +617,7 @@ fn get_compressed_input_account(
     }
 }
 
-fn get_compressed_output_account(
+pub fn get_compressed_output_account(
     data: bool,
     merkle_tree: Pubkey,
 ) -> OutputCompressedAccountWithContext {
@@ -640,7 +640,7 @@ fn get_compressed_output_account(
     }
 }
 
-async fn perform_test_transaction<R: RpcConnection>(
+pub async fn perform_test_transaction<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,
     input_accounts: Vec<CompressedAccountWithMerkleContext>,

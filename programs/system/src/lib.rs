@@ -10,7 +10,6 @@ pub mod utils;
 
 use accounts::{init_context_account::init_cpi_context_account, mode::AccountMode};
 pub use constants::*;
-use context::WrappedInstructionData;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
     instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
@@ -61,6 +60,7 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    sol_log_compute_units();
     if *program_id != ID {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -68,7 +68,8 @@ pub fn process_instruction(
         return Err(ProgramError::InvalidInstructionData);
     }
     let (discriminator, instruction_data) = instruction_data.split_at(8);
-    let discriminator = InstructionDiscriminator::try_from(discriminator).unwrap();
+    let discriminator =
+        InstructionDiscriminator::try_from(discriminator).map_err(ProgramError::from)?;
     match discriminator {
         InstructionDiscriminator::InitializeCpiContextAccount => {
             init_cpi_context_account(accounts, instruction_data)
@@ -111,6 +112,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &ctx,
         0,
         remaining_accounts,
+        None,
     )?;
     sol_log_compute_units();
     Ok(())
@@ -130,11 +132,10 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     bench_sbf_end!("cpda_deserialize");
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
-    let wrapped_inputs = WrappedInstructionData::new(inputs);
     process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
         *ctx.invoking_program.key(),
         ctx,
-        wrapped_inputs,
+        inputs,
         remaining_accounts,
     )?;
     sol_log_compute_units();
@@ -168,6 +169,7 @@ pub fn invoke_cpi_with_account_info<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    msg!("invoke_cpi_with_account_info");
     let instruction_data = &instruction_data[4..];
 
     let (inputs, _) = InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(instruction_data)
@@ -194,7 +196,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
             process_invoke_cpi::<true, InvokeCpiInstruction, T>(
                 invoking_program,
                 ctx,
-                WrappedInstructionData::new(inputs),
+                inputs,
                 remaining_accounts,
             )
         }
@@ -206,7 +208,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
             process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,
-                WrappedInstructionData::new(inputs),
+                inputs,
                 remaining_accounts,
             )
         }

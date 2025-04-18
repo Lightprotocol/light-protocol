@@ -68,6 +68,9 @@ impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
 }
 
 impl<'a> InputAccount<'a> for ZInAccount<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -255,8 +258,18 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     fn account_option_config(&self) -> AccountOptions {
+        #[cfg(feature = "pinocchio")]
+        {
+            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
+            pinocchio::msg!(format!(
+                " is compress_or_decompress_lamports {:?}",
+                self.compress_or_decompress_lamports()
+            )
+            .as_str());
+            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
+        }
         AccountOptions {
-            sol_pool_pda: self.is_compress(),
+            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
@@ -354,22 +367,22 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
             }
             (slices, bytes)
         };
-        #[cfg(feature = "pinocchio")]
-        pinocchio::msg!("post inputs");
+        // #[cfg(feature = "pinocchio")]
+        // pinocchio::msg!("post inputs");
         let (output_compressed_accounts, bytes) =
             <Vec<ZOutputCompressedAccountWithPackedContext<'a>> as Deserialize<'a>>::zero_copy_at(
                 bytes,
             )?;
-        #[cfg(feature = "pinocchio")]
-        pinocchio::msg!("post output_compressed_accounts");
+        // #[cfg(feature = "pinocchio")]
+        // pinocchio::msg!("post output_compressed_accounts");
         let (read_only_addresses, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyAddress>::from_bytes_at(bytes)?;
-        #[cfg(feature = "pinocchio")]
-        pinocchio::msg!("post read_only_addresses");
+        // #[cfg(feature = "pinocchio")]
+        // pinocchio::msg!("post read_only_addresses");
         let (read_only_accounts, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyCompressedAccount>::from_bytes_at(bytes)?;
-        #[cfg(feature = "pinocchio")]
-        pinocchio::msg!("post read_only_accounts");
+        // #[cfg(feature = "pinocchio")]
+        // pinocchio::msg!("post read_only_accounts");
         Ok((
             ZInstructionDataInvokeCpiWithReadOnly {
                 meta,
@@ -500,4 +513,255 @@ fn test_read_only_zero_copy() {
     let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&bytes).unwrap();
 
     assert_eq!(zero_copy, borsh_struct);
+}
+
+#[cfg(not(feature = "pinocchio"))]
+#[cfg(test)]
+mod test {
+    use borsh::BorshSerialize;
+    use rand::{
+        rngs::{StdRng, ThreadRng},
+        Rng, SeedableRng,
+    };
+
+    use super::*;
+    use crate::CompressedAccountError;
+
+    /// Compare the original struct with its zero-copy counterpart
+    fn compare_invoke_cpi_with_readonly(
+        reference: &InstructionDataInvokeCpiWithReadOnly,
+        z_copy: &ZInstructionDataInvokeCpiWithReadOnly,
+    ) -> Result<(), CompressedAccountError> {
+        // Basic field comparisons
+        if reference.mode != z_copy.meta.mode {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.bump != z_copy.meta.bump {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.invoking_program_id != z_copy.meta.invoking_program_id {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.compress_or_decompress_lamports
+            != u64::from(z_copy.meta.compress_or_decompress_lamports)
+        {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.is_decompress != z_copy.meta.is_decompress() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.with_cpi_context != z_copy.meta.with_cpi_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.with_transaction_hash != z_copy.meta.with_transaction_hash() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+
+        // CPI context comparisons
+        if reference.cpi_context.first_set_context != z_copy.meta.cpi_context.first_set_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.cpi_context.set_context != z_copy.meta.cpi_context.set_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.cpi_context.cpi_context_account_index
+            != z_copy.meta.cpi_context.cpi_context_account_index
+        {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+
+        // Proof comparisons
+        if reference.proof.is_some() && z_copy.proof.is_none() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.proof.is_none() && z_copy.proof.is_some() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.proof.is_some() && z_copy.proof.is_some() {
+            let ref_proof = reference.proof.as_ref().unwrap();
+            let z_proof = *z_copy.proof.as_ref().unwrap();
+            if ref_proof.a != z_proof.a || ref_proof.b != z_proof.b || ref_proof.c != z_proof.c {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+        }
+
+        // Collection length comparisons
+        if reference.new_address_params.len() != z_copy.new_address_params.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.input_compressed_accounts.len() != z_copy.input_compressed_accounts.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.output_compressed_accounts.len() != z_copy.output_compressed_accounts.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.read_only_addresses.len() != z_copy.read_only_addresses.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.read_only_accounts.len() != z_copy.read_only_accounts.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+
+        // If we're testing the traits, let's also check that the relevant trait methods work
+        assert_eq!(
+            z_copy.with_transaction_hash(),
+            reference.with_transaction_hash
+        );
+        assert_eq!(z_copy.bump(), Some(reference.bump));
+        assert_eq!(z_copy.owner(), reference.invoking_program_id);
+
+        // The compress or decompress logic is a bit complex, let's test it
+        if reference.compress_or_decompress_lamports > 0 {
+            assert_eq!(
+                z_copy.compress_or_decompress_lamports(),
+                Some(reference.compress_or_decompress_lamports)
+            );
+        } else {
+            assert_eq!(z_copy.compress_or_decompress_lamports(), None);
+        }
+
+        assert_eq!(
+            z_copy.is_compress(),
+            !reference.is_decompress && reference.compress_or_decompress_lamports > 0
+        );
+
+        // For cpi_context, the trait adds a layer of conditional return
+        if reference.with_cpi_context {
+            assert!(z_copy.cpi_context().is_some());
+        } else {
+            assert!(z_copy.cpi_context().is_none());
+        }
+
+        Ok(())
+    }
+
+    /// Generate a random InstructionDataInvokeCpiWithReadOnly
+    fn get_rnd_instruction_data_invoke_cpi_with_readonly(
+        rng: &mut StdRng,
+    ) -> InstructionDataInvokeCpiWithReadOnly {
+        InstructionDataInvokeCpiWithReadOnly {
+            mode: rng.gen_range(0..2),
+            bump: rng.gen(),
+            invoking_program_id: Pubkey::new_unique(),
+            compress_or_decompress_lamports: rng.gen(),
+            is_decompress: rng.gen(),
+            with_cpi_context: rng.gen(),
+            with_transaction_hash: rng.gen(),
+            cpi_context: CompressedCpiContext {
+                first_set_context: rng.gen(),
+                set_context: rng.gen(),
+                cpi_context_account_index: rng.gen(),
+            },
+            proof: if rng.gen() {
+                Some(CompressedProof {
+                    a: rng.gen(),
+                    b: (0..64)
+                        .map(|_| rng.gen())
+                        .collect::<Vec<u8>>()
+                        .try_into()
+                        .unwrap(),
+                    c: rng.gen(),
+                })
+            } else {
+                None
+            },
+            // Keep collections small to minimize complex serialization issues
+            new_address_params: if rng.gen_range(0..5) == 0 {
+                vec![NewAddressParamsAssignedPacked {
+                    seed: rng.gen(),
+                    address_queue_account_index: rng.gen(),
+                    address_merkle_tree_account_index: rng.gen(),
+                    address_merkle_tree_root_index: rng.gen(),
+                    assigned_to_account: rng.gen(),
+                    assigned_account_index: rng.gen(),
+                }]
+            } else {
+                vec![]
+            },
+            input_compressed_accounts: if rng.gen_range(0..5) == 1 {
+                vec![InAccount {
+                    discriminator: rng.gen(),
+                    data_hash: rng.gen(),
+                    merkle_context: PackedMerkleContext {
+                        merkle_tree_pubkey_index: rng.gen(),
+                        queue_pubkey_index: rng.gen(),
+                        leaf_index: rng.gen(),
+                        prove_by_index: rng.gen(),
+                    },
+                    root_index: rng.gen(),
+                    lamports: rng.gen(),
+                    address: if rng.gen() { Some(rng.gen()) } else { None },
+                }]
+            } else {
+                vec![]
+            },
+            output_compressed_accounts: if rng.gen_range(0..5) == 2 {
+                vec![OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: Pubkey::new_unique().into(),
+                        lamports: rng.gen(),
+                        address: if rng.gen() { Some(rng.gen()) } else { None },
+                        data: if rng.gen() {
+                            Some(CompressedAccountData {
+                                discriminator: rng.gen(),
+                                data: vec![], // Keep data empty for simpler testing
+                                data_hash: rng.gen(),
+                            })
+                        } else {
+                            None
+                        },
+                    },
+                    merkle_tree_index: rng.gen(),
+                }]
+            } else {
+                vec![]
+            },
+            read_only_addresses: if rng.gen_range(0..5) == 3 {
+                vec![PackedReadOnlyAddress {
+                    address: rng.gen(),
+                    address_merkle_tree_account_index: rng.gen(),
+                    address_merkle_tree_root_index: rng.gen(),
+                }]
+            } else {
+                vec![]
+            },
+            read_only_accounts: if rng.gen_range(0..5) == 4 {
+                vec![PackedReadOnlyCompressedAccount {
+                    account_hash: rng.gen(),
+                    merkle_context: PackedMerkleContext {
+                        merkle_tree_pubkey_index: rng.gen(),
+                        queue_pubkey_index: rng.gen(),
+                        leaf_index: rng.gen(),
+                        prove_by_index: rng.gen(),
+                    },
+                    root_index: rng.gen(),
+                }]
+            } else {
+                vec![]
+            },
+        }
+    }
+
+    #[test]
+    fn test_instruction_data_invoke_cpi_with_readonly_rnd() {
+        let mut thread_rng = ThreadRng::default();
+        let seed = thread_rng.gen();
+        println!("\n\ne2e test seed {}\n\n", seed);
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        let num_iters = 1000;
+        for _ in 0..num_iters {
+            let value = get_rnd_instruction_data_invoke_cpi_with_readonly(&mut rng);
+
+            let mut vec = Vec::new();
+            value.serialize(&mut vec).unwrap();
+            let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&vec).unwrap();
+
+            // Use the PartialEq implementation first
+            assert_eq!(zero_copy, value);
+
+            // Then use our detailed comparison that also tests trait methods
+            compare_invoke_cpi_with_readonly(&value, &zero_copy).unwrap();
+        }
+    }
 }

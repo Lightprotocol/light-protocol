@@ -30,6 +30,7 @@ use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
     context::WrappedInstructionData,
     errors::SystemProgramError,
+    invoke_cpi::process_cpi_context::copy_cpi_context_outputs,
     processor::{
         cpi::{cpi_account_compression_program, create_cpi_data_and_context},
         create_address_cpi_data::derive_new_addresses,
@@ -91,18 +92,34 @@ pub fn process<
     ctx: &A,
     cpi_context_inputs: usize,
     remaining_accounts: &'info [AccountInfo],
+    cpi_context_account_info: Option<&'info AccountInfo>,
 ) -> Result<()> {
+    msg!("here0");
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_compression");
     let num_input_compressed_accounts = inputs.input_len();
     let num_new_addresses = inputs.address_len();
     let num_output_compressed_accounts = inputs.output_len();
+    msg!("here0.2");
     // hashed_pubkeys_capacity is the maximum of hashed pubkey the tx could have.
     // 1 owner pubkey inputs + every remaining account pubkey can be a tree + every output can be owned by a different pubkey
     // + number of times cpi context account was filled.
     let hashed_pubkeys_capacity =
         1 + remaining_accounts.len() + num_output_compressed_accounts + cpi_context_inputs;
-
+    msg!("here0.3");
+    msg!(format!(
+        "inputs.get_cpi_context_outputs_start_offset() : {}",
+        inputs.get_cpi_context_outputs_start_offset()
+    )
+    .as_str());
+    msg!(format!(
+        "inputs.get_cpi_context_outputs_end_offset() : {}",
+        inputs.get_cpi_context_outputs_end_offset()
+    )
+    .as_str());
+    let cpi_outputs_data_len =
+        inputs.get_cpi_context_outputs_end_offset() - inputs.get_cpi_context_outputs_start_offset();
+    msg!("here1");
     // 1. Allocate cpi data and initialize context
     let (mut context, mut cpi_ix_bytes) = create_cpi_data_and_context(
         ctx,
@@ -110,20 +127,22 @@ pub fn process<
         num_input_compressed_accounts as u8,
         num_new_addresses as u8,
         hashed_pubkeys_capacity,
+        cpi_outputs_data_len,
         invoking_program,
         remaining_accounts,
     )?;
+    msg!("here2");
     // Collect all addresses to check that every address in the output compressed accounts
     // is an input or a new address.
     inputs.input_accounts().for_each(|account| {
         context.addresses.push(account.address());
     });
-
+    msg!("here3");
     // 2. Deserialize and check all Merkle tree and queue accounts.
     #[allow(unused_mut)]
     let mut accounts = try_from_account_infos(remaining_accounts, &mut context)?;
     // 3. Deserialize cpi instruction data as zero copy to fill it.
-    let mut cpi_ix_data = InsertIntoQueuesInstructionDataMut::new(
+    let (mut cpi_ix_data, bytes) = InsertIntoQueuesInstructionDataMut::new_at(
         &mut cpi_ix_bytes[12..], // 8 bytes instruction discriminator + 4 bytes vector length
         num_output_compressed_accounts as u8,
         num_input_compressed_accounts as u8,
@@ -135,7 +154,7 @@ pub fn process<
     .map_err(ProgramError::from)?;
     cpi_ix_data.set_invoked_by_program(true);
     cpi_ix_data.bump = CPI_AUTHORITY_PDA_BUMP;
-
+    msg!("here4");
     // 4. Create new & verify read-only addresses ---------------------------------------------------
     let read_only_addresses = inputs.read_only_addresses().unwrap_or_default();
     let num_of_read_only_addresses = read_only_addresses.len();
@@ -149,7 +168,7 @@ pub fn process<
         read_only_addresses,
         &mut new_address_roots,
     )?;
-
+    msg!("here5");
     // 6. Derive new addresses from seed and invoking program
     if num_new_addresses != 0 {
         derive_new_addresses::<ADDRESS_ASSIGNMENT>(
@@ -159,7 +178,9 @@ pub fn process<
             &mut cpi_ix_data,
             accounts.as_slice(),
         )?;
+
         if ADDRESS_ASSIGNMENT {
+            msg!("here5.1");
             check_new_address_assignment(&inputs, &cpi_ix_data)?;
         } else if inputs
             .new_addresses()
@@ -168,6 +189,7 @@ pub fn process<
             msg!("Instruction does not allow address assignment");
             return Err(SystemProgramError::InvalidAddress.into());
         }
+        msg!("here6");
     }
 
     // 7. Verify read only address non-inclusion in bloom filters
@@ -176,6 +198,7 @@ pub fn process<
         accounts.as_mut_slice(),
         inputs.read_only_addresses().unwrap_or_default(),
     )?;
+    msg!("here7");
     #[cfg(not(feature = "readonly"))]
     if !read_only_addresses.is_empty() {
         unimplemented!("Read only addresses are not supported in this build.")
@@ -195,17 +218,19 @@ pub fn process<
         &mut cpi_ix_data,
         accounts.as_slice(),
     )?;
+    msg!("here8 process");
     #[cfg(feature = "debug")]
     check_vec_capacity(
         hashed_pubkeys_capacity,
         &context.hashed_pubkeys,
         "hashed_pubkeys",
     )?;
-
+    msg!("here8 process2");
     // 10. hash input compressed accounts ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_nullifiers");
     if !inputs.inputs_empty() {
+        msg!("here8 !inputs.inputs_empty()");
         // currently must be post output accounts since the order of account infos matters
         // for the outputs.
         let input_compressed_account_hashes = create_inputs_cpi_data(
@@ -215,7 +240,7 @@ pub fn process<
             &mut cpi_ix_data,
             accounts.as_slice(),
         )?;
-
+        msg!("here7");
         #[cfg(feature = "debug")]
         check_vec_capacity(
             hashed_pubkeys_capacity,
@@ -236,7 +261,7 @@ pub fn process<
     }
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_nullifiers");
-
+    msg!("here8 w");
     // 11. Sum check ---------------------------------------------------
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_sum_check");
@@ -267,10 +292,12 @@ pub fn process<
     } else if ctx.get_sol_pool_pda().is_some() {
         return Err(SystemProgramError::SolPoolPdaDefined.into());
     }
-
+    msg!("here9");
     // 13. Verify read-only account inclusion by index ---------------------------------------------------
     let read_only_accounts = inputs.read_only_accounts().unwrap_or_default();
+    msg!(format!("read_only_accounts: {:?}", read_only_accounts).as_str());
 
+    msg!("here10");
     #[cfg(feature = "readonly")]
     let num_prove_read_only_accounts_prove_by_index =
         verify_read_only_account_inclusion_by_index(accounts.as_mut_slice(), read_only_accounts)?;
@@ -280,7 +307,7 @@ pub fn process<
     if !read_only_addresses.is_empty() {
         unimplemented!("Read only addresses are not supported in this build.")
     }
-
+    msg!("here11");
     let num_read_only_accounts = read_only_accounts.len();
     let num_read_only_accounts_proof =
         num_read_only_accounts - num_prove_read_only_accounts_prove_by_index;
@@ -302,7 +329,7 @@ pub fn process<
         read_only_accounts,
         &mut input_compressed_account_roots,
     )?;
-
+    msg!("here12");
     #[cfg(feature = "debug")]
     check_vec_capacity(
         num_inclusion_proof_inputs,
@@ -327,7 +354,7 @@ pub fn process<
             for read_only_address in read_only_addresses.iter() {
                 new_addresses.push(read_only_address.address);
             }
-
+            msg!("here12");
             // 15.2. Select accounts account hashes for ZKP.
             // We need to filter out accounts that are proven by index.
             let mut proof_input_compressed_account_hashes =
@@ -400,19 +427,28 @@ pub fn process<
     {
         return Err(SystemProgramError::EmptyInputs.into());
     }
-
+    msg!("here13");
     // 16. Transfer network, address, and rollover fees ---------------------------------------------------
     //      Note: we transfer rollover fees from the system program instead
     //      of the account compression program to reduce cpi depth.
     context.transfer_fees(remaining_accounts, ctx.get_fee_payer())?;
-
+    msg!("here14");
     // No elements are to be inserted into the queue.
     // -> tx only contains read only accounts.
     if inputs.inputs_empty() && inputs.address_empty() && inputs.outputs_empty() {
         return Ok(());
     }
-    // 17. CPI account compression program ---------------------------------------------------
 
+    // 17. Copy CPI context outputs ---------------------------------------------------
+    copy_cpi_context_outputs(
+        inputs.get_cpi_context_account(),
+        inputs.get_cpi_context_outputs_start_offset(),
+        inputs.get_cpi_context_outputs_end_offset(),
+        cpi_context_account_info,
+        cpi_outputs_data_len,
+        bytes,
+    )?;
+    // 18. CPI account compression program ---------------------------------------------------
     cpi_account_compression_program(context, cpi_ix_bytes)
 }
 

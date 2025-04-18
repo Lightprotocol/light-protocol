@@ -23,11 +23,11 @@ light-compressed-account = { workspace = true }
 # ark dependencies
 ark-serialize = { workspace = true }
 ark-bn254 = { workspace = true }
-ark-std = { workspace = true,  features = ["parallel",] }
+ark-std = { workspace = true, features = ["parallel"] }
 light-batched-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
 # solana
-groth16-solana = "0.0.3"
+groth16-solana = { workspace = true }
 solana-program = { workspace = true }
 num-bigint = { workspace = true, features = ["serde"] }
 
@@ -43,6 +43,7 @@ reqwest = { version = "0.11.24", features = [
     "rustls-tls",
 ], optional = true }
 sysinfo = "0.33"
+solana-bn254 = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

@@ -26,9 +26,11 @@ pub fn process_invoke_cpi<
 >(
     invoking_program: Pubkey,
     ctx: A,
-    inputs: WrappedInstructionData<'a, T>,
+    inputs: T,
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
+    let inputs = WrappedInstructionData::new(inputs);
+
     #[cfg(feature = "bench-sbf")]
     bench_sbf_start!("cpda_process_cpi_context");
 
@@ -52,32 +54,42 @@ pub fn process_invoke_cpi<
         };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
-
+    msg!("cpda_process_cpi_context");
     process::<ADDRESS_ASSIGNMENT, A, T>(
         inputs,
         Some(invoking_program),
         &ctx,
         cpi_context_inputs_len,
         remaining_accounts,
+        ctx.get_cpi_context_account(),
     )?;
 
     // clear cpi context account
     if cpi_context_inputs_len > 0 {
-        msg!("cpi_context_inputs_len");
-        let mut cpi_context_account =
-            deserialize_cpi_context_account(ctx.get_cpi_context_account().unwrap())?;
-        msg!("cpi_context_inputs_len1");
-
-        if cpi_context_account.context.is_empty() {
-            msg!(format!("cpi context account : {:?}", cpi_context_account).as_str());
-            return Err(SystemProgramError::CpiContextEmpty.into());
+        {
+            let mut data = ctx
+                .get_cpi_context_account()
+                .unwrap()
+                .try_borrow_mut_data()?;
+            // Offset for stored cpi context
+            // Discriminator + Fee payer + associated Merkle tree + vector len
+            // 8 + 32 + 32 + 4
+            let start_offset = 8 + 32 + 32;
+            // Overwriting the vector len with 0 is sufficient to clear the vector.
+            // Zeroing many bytes is expensive.
+            data[start_offset..start_offset + 4].copy_from_slice(&[0u8, 0u8, 0u8, 0u8]);
         }
-        msg!("cpi_context_inputs_len2");
-        // Reset cpi context account
-        cpi_context_account.context.clear();
-        msg!("cpi_context_inputs_len3");
-        *cpi_context_account.fee_payer = Pubkey::default().into();
-        msg!("cpi_context_inputs_len4");
+        {
+            msg!("cpi_context_inputs_len");
+            let (mut cpi_context_account, _) =
+                deserialize_cpi_context_account(ctx.get_cpi_context_account().unwrap())?;
+            msg!("cpi_context_inputs_len1");
+            // TODO: remove Sanity check to debug.
+            if !cpi_context_account.context.is_empty() {
+                msg!(format!("cpi context account : {:?}", cpi_context_account).as_str());
+                return Err(SystemProgramError::CpiContextEmpty.into());
+            }
+        }
     }
     Ok(())
 }

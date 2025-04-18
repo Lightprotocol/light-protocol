@@ -186,7 +186,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
 ) {
     for (address, pubkey) in created_addresses.iter().zip(address_queue_pubkeys) {
         let account = rpc.get_account(*pubkey).await.unwrap().unwrap();
-        let discriminator = account.data[0..8].try_into().unwrap();
+        let discriminator = &account.data[0..8];
         match discriminator {
             QueueAccount::DISCRIMINATOR => {
                 let address_queue = unsafe { get_hash_set::<QueueAccount, R>(rpc, *pubkey).await };
@@ -194,7 +194,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
                     .contains(&BigUint::from_be_bytes(address), None)
                     .unwrap());
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
                 let mut account_data = account.data.clone();
                 let mut merkle_tree =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey.into())
@@ -422,7 +422,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
             .await
             .unwrap()
             .unwrap();
-        match account_data.data[0..8].try_into().unwrap() {
+        match &account_data.data[0..8] {
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 let merkle_tree =
                     get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
@@ -461,7 +461,7 @@ pub async fn get_merkle_tree_snapshots<R: RpcConnection>(
                     version: 1,
                 });
             }
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
                 let merkle_tree_account_lamports = account_data.lamports;
                 let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
                     &mut account_data.data,

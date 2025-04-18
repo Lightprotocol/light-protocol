@@ -27,8 +27,8 @@ pub async fn insert_addresses<R: RpcConnection>(
             1
         )
     ];
-    let ix_data =
-        &mut InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, 0, num_addresses, 0, 0, 1)
+    let (ix_data, _) =
+        &mut InsertIntoQueuesInstructionDataMut::new_at(&mut bytes, 0, 0, num_addresses, 0, 0, 1)
             .unwrap();
     ix_data.num_address_queues = 1;
     let is_batched = address_queue_pubkey == address_merkle_tree_pubkey;

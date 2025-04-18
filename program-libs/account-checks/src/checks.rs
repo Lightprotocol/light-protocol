@@ -41,6 +41,12 @@ pub fn check_account_info_non_mut<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
+    check_non_mut(account_info)?;
+
+    check_account_info::<T>(program_id, account_info)
+}
+
+pub fn check_non_mut(account_info: &AccountInfo) -> Result<(), AccountError> {
     #[cfg(not(feature = "pinocchio"))]
     if account_info.is_writable {
         return Err(AccountError::AccountMutable);
@@ -49,8 +55,7 @@ pub fn check_account_info_non_mut<T: Discriminator>(
     if account_info.is_writable() {
         return Err(AccountError::AccountMutable);
     }
-
-    check_account_info::<T>(program_id, account_info)
+    Ok(())
 }
 
 /// Checks:
@@ -267,6 +272,7 @@ mod check_account_tests {
     }
     impl Discriminator for MyStruct {
         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+        const DISCRIMINATOR_SLICE: &[u8] = &Self::DISCRIMINATOR;
     }
 
     /// Tests:

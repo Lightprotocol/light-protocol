@@ -23,6 +23,8 @@ light-compressed-token = { workspace = true }
 light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
 light-compressed-account = { workspace = true }
+light-batched-merkle-tree = { workspace = true }
+light-registry = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

@@ -8,7 +8,7 @@ pub struct InitializeBatchedAddressTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:  initialized in account compression program.
-    #[account(zero)]
+    #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program) access control.
     pub registered_program_pda: AccountInfo<'info>,

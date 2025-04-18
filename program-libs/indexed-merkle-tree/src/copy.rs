@@ -105,8 +105,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use light_hasher::Poseidon;
-    use light_utils::bigint::bigint_to_be_bytes_array;
+    use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
     use num_bigint::RandBigInt;
     use rand::thread_rng;
 

@@ -71,6 +71,7 @@ pub fn pack_new_address_params_assigned(
         );
         let address_queue_account_index =
             pack_pubkey_usize(&new_address_param.address_queue_pubkey, remaining_accounts);
+        println!("new_address_param {:?}", new_address_param);
         vec.push(NewAddressParamsAssignedPacked {
             seed: new_address_param.seed,
             address_queue_account_index,

@@ -9,6 +9,7 @@ mod fee;
 mod hash_set;
 mod new_deployment;
 mod type_sizes;
+mod utils;
 mod zero_bytes;
 mod zero_indexed_leaf;
 

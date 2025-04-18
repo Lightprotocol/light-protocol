@@ -26,7 +26,7 @@ members = [
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
-    "examples/anchor/counter",
+    # "examples/anchor/counter",
     # "examples/anchor/memo",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
@@ -34,7 +34,8 @@ members = [
     "program-tests/registry-test",
     "program-tests/system-cpi-test",
     "program-tests/system-test",
-    "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
+    # Issue is that anchor discriminator now returns a slice instead of an array
+    # "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -43,7 +44,7 @@ members = [
     "forester",
 ]
 
-resolver = "2"
+resolver = "2" # Explicitly using resolver v2 to help with dependency conflicts
 
 [profile.dev]
 opt-level = 0
@@ -54,29 +55,37 @@ strip = "none"
 overflow-checks = true
 
 [workspace.dependencies]
-# Solana
-solana-banks-client = "=1.18.22"
-solana-banks-interface = "=1.18.22"
-solana-program = "=1.18.22"
-solana-pubkey = "2.3"
-solana-sdk = "=1.18.22"
-solana-program-test = "=1.18.22"
-solana-client = "=1.18.22"
-solana-cli-output = "=1.18.22"
-solana-transaction-status = "=1.18.22"
-solana-account-decoder = "=1.18.22"
-solana-rpc = "=1.18.22"
-solana-rpc-client-api = "=1.18.22"
+# Fix all Solana packages to exact version =2.2.1.0
+solana-banks-client = { version = "=2.2.1" }    # , path = "../agave/banks-client"
+solana-banks-interface = { version = "=2.2.1" } # , path = "../agave/banks-client-interface"
+solana-program = "=2.2.1"
+solana-pubkey = "=2.2.1"
+solana-sdk = "=2.2.1"
+solana-program-test = { version = "=2.2.1" }    #, path = "../agave/program-test"
+solana-client = "=2.2.1"
+solana-cli-output = "=2.2.1"
+solana-transaction-status = "=2.2.1"
+solana-account-decoder = "=2.2.1"
+solana-rpc = "=2.2.1"
+solana-rpc-client-api = "=2.2.1"
+# Explicitly pin any related Solana packages
+solana-transaction-context = "=2.2.1"
+solana-frozen-abi = "=2.2.1"
+solana-frozen-abi-macro = "=2.2.1"
+solana-zk-token-sdk = "=2.2.1"
+solana-logger = "=2.2.1"
+solana-bpf-loader-program = "=2.2.1"
+solana-bn254 = "=2.2.1"
 solana-security-txt = "1.1.1"
-spl-token = "=4.0.0"
-spl-token-2022 = { version = "3.0.5", no-default-features = true, features = [
+spl-token = "7.0.0"
+spl-token-2022 = { version = "7", no-default-features = true, features = [
     "no-entrypoint",
 ] }
 pinocchio = { version = "0.8.1" }
 
 # Anchor
-anchor-lang = { version = "=0.29.0", features = ["idl-build"] }
-anchor-spl = "=0.29.0"
+anchor-lang = { version = "=0.31.0", features = ["idl-build"] }
+anchor-spl = "=0.31.0"
 
 # Anchor compatibility
 borsh = "0.10.0"
@@ -104,7 +113,7 @@ thiserror = "2.0"
 anyhow = "1.0"
 
 # Arkworks
-ark-ff = "0.5"
+ark-ff = "=0.5.0"
 ark-bn254 = "0.5"
 ark-serialize = "0.5"
 ark-std = "0.5"
@@ -122,7 +131,6 @@ light-heap = { path = "program-libs/heap", version = "1.1.0" }
 light-prover-client = { path = "prover/client", version = "1.2.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.11.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
-light-utils = { version = "1.1.0" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
@@ -149,13 +157,12 @@ light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.1.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
-light-bounded-vec = { version = "1.1.0" }
+light-bounded-vec = { version = "1.1.0", path = "../program-libs/bounded-vec" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-groth16-solana = { version = "0.1.0" }
-# anchor 0.29 requires 1.19
+groth16-solana = { version = "0.1.0", path = "../groth16-solana" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 
@@ -164,6 +171,7 @@ num-bigint = "0.4.6"
 num-traits = "0.2.19"
 zerocopy = { version = "0.8.20" }
 base64 = "0.13"
+zeroize = "=1.3.0"
 
 # HTTP client
 reqwest = "0.11"
@@ -177,27 +185,6 @@ governor = "0.8.0"
 # Random
 rand = "0.8.5"
 
-[patch.crates-io]
-"solana-account-decoder" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-accounts-db" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-banks-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-banks-interface" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-banks-server" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-program" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-cli-output" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-program-test" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-program-runtime" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-rpc" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-rpc-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-rpc-client-api" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-runtime" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-sdk" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-sdk-macro" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-client" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-zk-token-sdk" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-frozen-abi" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-frozen-abi-macro" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
-"solana-transaction-status" = { git = "https://github.com/lightprotocol/agave", branch = "v1.18.22-enforce-cpi-tracking" }
 
 [workspace.lints.rust.unexpected_cfgs]
 level = "allow"

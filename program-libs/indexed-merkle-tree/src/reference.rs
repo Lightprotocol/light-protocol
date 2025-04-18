@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 
 use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_concurrent_merkle_tree::light_hasher::{errors::HasherError, Hasher};
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_reference::{MerkleTree, ReferenceMerkleTreeError};
-use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 use thiserror::Error;

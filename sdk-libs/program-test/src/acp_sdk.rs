@@ -64,7 +64,7 @@ pub fn create_insert_leaves_instruction(
             0,
         )
     ];
-    let mut ix_data = InsertIntoQueuesInstructionDataMut::new(
+    let (mut ix_data, _) = InsertIntoQueuesInstructionDataMut::new_at(
         &mut bytes,
         leaves.len() as u8,
         0,

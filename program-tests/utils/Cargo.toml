@@ -13,7 +13,7 @@ devenv = []
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-num-bigint = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }
 num-traits = { workspace = true }
 solana-program-test = { workspace = true }
 solana-sdk = { workspace = true }

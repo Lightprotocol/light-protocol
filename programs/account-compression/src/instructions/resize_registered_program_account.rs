@@ -35,10 +35,7 @@ pub fn process_resize_registered_program_pda<'info>(
     // 1. Discriminator check
     // 2. Ownership check
     {
-        let discriminator_bytes: [u8; 8] = ctx.accounts.registered_program_pda.try_borrow_data()?
-            [0..8]
-            .try_into()
-            .unwrap();
+        let discriminator_bytes = &ctx.accounts.registered_program_pda.try_borrow_data()?[0..8];
         if discriminator_bytes != RegisteredProgram::DISCRIMINATOR {
             return err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch);
         }
@@ -73,12 +70,14 @@ pub fn process_resize_registered_program_pda<'info>(
     // Initialize registered_program_signer_pda with derived signer pda.
     let account_info = ctx.accounts.registered_program_pda.to_account_info();
     let mut data = account_info.try_borrow_mut_data()?;
-    let reloaded_account = from_bytes_mut::<RegisteredProgram>(&mut data[8..]);
+    let account = from_bytes_mut::<RegisteredProgram>(&mut data[8..]);
+    let account = from_bytes_mut::<RegisteredProgram>(&mut data[8..]);
+
     let derived_signer = Pubkey::find_program_address(
         &[CPI_AUTHORITY_PDA_SEED],
         &pre_account.registered_program_id,
     )
     .0;
-    reloaded_account.registered_program_signer_pda = derived_signer;
+    account.registered_program_signer_pda = derived_signer;
     Ok(())
 }
