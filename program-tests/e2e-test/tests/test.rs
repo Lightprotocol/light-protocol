@@ -94,7 +94,7 @@ async fn test_batched_only() {
     let (rpc, env_accounts) =
         setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
             Some(vec![(
-                String::from("create_address_test_program"),
+                "create_address_test_program",
                 CREATE_ADDRESS_TEST_PROGRAM_ID,
             )]),
             protocol_config,

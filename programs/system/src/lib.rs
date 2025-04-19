@@ -10,7 +10,6 @@ pub mod utils;
 
 use accounts::{init_context_account::init_cpi_context_account, mode::AccountMode};
 pub use constants::*;
-use context::WrappedInstructionData;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
     instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
@@ -130,11 +129,10 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     bench_sbf_end!("cpda_deserialize");
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
-    let wrapped_inputs = WrappedInstructionData::new(inputs);
     process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
         *ctx.invoking_program.key(),
         ctx,
-        wrapped_inputs,
+        inputs,
         remaining_accounts,
     )?;
     sol_log_compute_units();
@@ -194,7 +192,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
             process_invoke_cpi::<true, InvokeCpiInstruction, T>(
                 invoking_program,
                 ctx,
-                WrappedInstructionData::new(inputs),
+                inputs,
                 remaining_accounts,
             )
         }
@@ -206,7 +204,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
             process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,
-                WrappedInstructionData::new(inputs),
+                inputs,
                 remaining_accounts,
             )
         }

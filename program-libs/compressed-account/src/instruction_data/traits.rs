@@ -46,6 +46,7 @@ where
     fn merkle_context(&self) -> ZPackedMerkleContext;
     fn has_data(&self) -> bool;
     fn data(&self) -> Option<CompressedAccountData>;
+    fn skip(&self) -> bool;
     fn hash_with_hashed_values(
         &self,
         owner_hashed: &[u8; 32],
@@ -64,6 +65,7 @@ where
     fn lamports(&self) -> u64;
     fn address(&self) -> Option<[u8; 32]>;
     fn has_data(&self) -> bool;
+    fn skip(&self) -> bool;
     fn data(&self) -> Option<CompressedAccountData>;
     fn owner(&self) -> Pubkey;
     fn merkle_tree_index(&self) -> u8;
@@ -75,7 +77,7 @@ where
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError>;
 }
-
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountOptions {
     pub sol_pool_pda: bool,
     pub decompression_recipient: bool,

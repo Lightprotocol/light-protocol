@@ -144,8 +144,16 @@ pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
 impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
     pub fn new(instruction_data: T) -> Self {
         Self {
-            input_len: instruction_data.input_accounts().len(),
-            outputs_len: instruction_data.output_accounts().len(),
+            input_len: instruction_data
+                .input_accounts()
+                .iter()
+                .filter(|x| !x.skip())
+                .count(),
+            outputs_len: instruction_data
+                .output_accounts()
+                .iter()
+                .filter(|x| !x.skip())
+                .count(),
             address_len: instruction_data.new_addresses().len(),
             cpi_context: None,
             instruction_data,
@@ -298,6 +306,9 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 .push(input_account);
         }
         for output in self.instruction_data.output_accounts() {
+            if output.skip() {
+                continue;
+            }
             let output_account = OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
                     owner: output.owner().into(),
@@ -352,8 +363,14 @@ pub fn chain_outputs<'a, 'b: 'a>(
 ) -> impl Iterator<Item = &'a (dyn OutputAccount<'b> + 'a)> {
     slice1
         .iter()
+        .filter(|x| !x.skip())
         .map(|item| item as &dyn OutputAccount<'b>)
-        .chain(slice2.iter().map(|item| item as &dyn OutputAccount<'b>))
+        .chain(
+            slice2
+                .iter()
+                .filter(|x| !x.skip())
+                .map(|item| item as &dyn OutputAccount<'b>),
+        )
 }
 
 pub fn chain_inputs<'a, 'b: 'a>(
@@ -362,8 +379,14 @@ pub fn chain_inputs<'a, 'b: 'a>(
 ) -> impl Iterator<Item = &'a (dyn InputAccount<'b> + 'a)> {
     slice1
         .iter()
+        .filter(|x| !x.skip())
         .map(|item| item as &dyn InputAccount<'b>)
-        .chain(slice2.iter().map(|item| item as &dyn InputAccount<'b>))
+        .chain(
+            slice2
+                .iter()
+                .filter(|x| !x.skip())
+                .map(|item| item as &dyn InputAccount<'b>),
+        )
 }
 
 pub fn chain_new_addresses<'a, 'b: 'a>(

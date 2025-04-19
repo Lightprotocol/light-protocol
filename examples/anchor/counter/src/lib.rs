@@ -6,14 +6,14 @@ use light_sdk::{
     cpi::{accounts::CompressionCpiAccounts, verify::verify_compressed_account_infos},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    Discriminator, LightDiscriminator, LightHasher, NewAddressParamsPacked,
+    LightDiscriminator, LightHasher, NewAddressParamsPacked,
 };
-
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod counter {
     use super::*;
+    use anchor_lang::Discriminator;
 
     pub fn create_counter<'info>(
         ctx: Context<'_, '_, '_, 'info, GenericAnchorAccounts<'info>>,

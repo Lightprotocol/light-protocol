@@ -165,13 +165,11 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         token_data.serialize(&mut token_data_bytes)?;
 
-        let discriminator_bytes: [u8; 8] = remaining_accounts[token_data_with_context
+        let discriminator_bytes = &remaining_accounts[token_data_with_context
             .merkle_context
             .merkle_tree_pubkey_index
             as usize]
-            .try_borrow_data()?[0..8]
-            .try_into()
-            .unwrap();
+            .try_borrow_data()?[0..8];
         use anchor_lang::Discriminator;
         let data_hash = match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_legacy(),

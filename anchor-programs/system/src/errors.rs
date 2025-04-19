@@ -80,4 +80,7 @@ pub enum SystemProgramError {
     ProofVerificationFailed,
     InvalidAccountMode,
     InvalidInstructionDataDiscriminator,
+    NewAddressAssignedIndexOutOfBounds,
+    AddressIsNone,
+    AddressDoesNotMatch,
 }

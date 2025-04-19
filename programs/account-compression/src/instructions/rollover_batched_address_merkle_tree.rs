@@ -22,7 +22,7 @@ pub struct RolloverBatchedAddressMerkleTree<'info> {
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK:  in account compression program.
-    #[account(zero)]
+    #[account(mut)]
     pub new_address_merkle_tree: AccountInfo<'info>,
     /// CHECK: cecked in manual deserialization.
     #[account(mut)]

@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use light_sdk::{
     address::v1::derive_address,
     cpi::verify::verify_compressed_account_infos,
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    Discriminator, LightDiscriminator, LightHasher,
+    LightDiscriminator, LightHasher,
 };
-
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[program]

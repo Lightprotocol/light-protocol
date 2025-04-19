@@ -12,7 +12,10 @@ pub use create_pda::*;
 use light_compressed_account::instruction_data::{
     compressed_proof::CompressedProof, data::NewAddressParamsPacked,
 };
-
+use light_sdk::cpi::{
+    accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+    verify::verify_system_info,
+};
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
@@ -39,6 +42,22 @@ pub mod system_cpi_test {
         bump: u8,
     ) -> Result<()> {
         process_invoke_cpi(&ctx, inputs, bump)
+    }
+
+    /// Test wrapper, for with read-only and with account info instructions.
+    pub fn invoke_with_read_only<'info>(
+        ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
+        config: CompressionCpiAccountsConfig,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        let fee_payer = ctx.accounts.signer.to_account_info();
+        let cpi_accounts =
+            CompressionCpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
+                .map_err(ProgramError::from)?;
+        msg!("invoke_with_read_only cpi");
+
+        verify_system_info(&cpi_accounts, inputs).map_err(ProgramError::from)?;
+        Ok(())
     }
 
     pub fn invoke_cpi_multiple<'info>(
@@ -121,6 +140,28 @@ pub fn create_invoke_cpi_instruction(
         self_program: crate::id(),
         system_program: Pubkey::default(),
     };
+    println!("crate id: {:?}", crate::id());
+    Instruction {
+        program_id: crate::id(),
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        data: ix_data,
+    }
+}
+
+#[derive(Accounts)]
+pub struct InvokeCpiReadOnly<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+}
+
+pub fn create_invoke_read_only_account_info_instruction(
+    signer: Pubkey,
+    inputs: Vec<u8>,
+    config: CompressionCpiAccountsConfig,
+    remaining_accounts: Vec<AccountMeta>,
+) -> Instruction {
+    let ix_data = crate::instruction::InvokeWithReadOnly { inputs, config }.data();
+    let accounts = crate::accounts::InvokeCpiReadOnly { signer };
     println!("crate id: {:?}", crate::id());
     Instruction {
         program_id: crate::id(),

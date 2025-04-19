@@ -74,7 +74,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             true => {
                 let account_info = &account_infos[0];
                 let data = account_info.try_borrow_data()?;
-                if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
+                if RegisteredProgram::DISCRIMINATOR != &data[..8] {
                     return Err(AccountError::InvalidDiscriminator.into());
                 }
                 if account_info.owner != &crate::ID {
@@ -132,8 +132,8 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
             let data = account_info.try_borrow_data()?;
             discriminator.copy_from_slice(&data[..8]);
         }
-        match discriminator {
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
+        match &discriminator[..] {
+            BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
                 let mut tree_type = [0u8; 8];
                 tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
@@ -163,7 +163,7 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                     _ => Err(ProgramError::from(AccountError::BorrowAccountDataFailed).into()),
                 }
             }
-            BatchedQueueAccount::DISCRIMINATOR => {
+            BatchedQueueAccount::DISCRIMINATOR_SLICE => {
                 let queue = BatchedQueueAccount::output_from_account_info(account_info)
                     .map_err(ProgramError::from)?;
 

@@ -8,7 +8,9 @@ use super::{
     },
 };
 use crate::{
-    compressed_account::PackedCompressedAccountWithMerkleContext,
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, REGISTERED_PROGRAM_PDA,
         SYSTEM_PROGRAM_ID,
@@ -17,6 +19,7 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
+        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
@@ -306,6 +309,7 @@ fn deserialize_instruction<'a>(
             })
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
+            // TODO: adapt for small instructions
             if accounts.len() < 11 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
@@ -321,6 +325,70 @@ fn deserialize_instruction<'a>(
                         x.into_packed_compressed_account_with_merkle_context(
                             data.invoking_program_id,
                         )
+                    })
+                    .collect::<Vec<_>>(),
+                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
+                relay_fee: None,
+                compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
+                    None
+                } else {
+                    Some(data.compress_or_decompress_lamports)
+                },
+                execute_cpi_context: data.with_cpi_context,
+                accounts,
+            })
+        }
+        INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
+            // TODO: adapt for small instructions
+            if accounts.len() < 11 {
+                return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
+            }
+            let accounts = accounts.split_at(11).1;
+            let data: InstructionDataInvokeCpiWithAccountInfo =
+                InstructionDataInvokeCpiWithAccountInfo::deserialize(&mut &instruction[..])?;
+            Ok(ExecutingSystemInstruction {
+                output_compressed_accounts: data
+                    .account_infos
+                    .iter()
+                    .filter(|x| x.output.is_some())
+                    .map(|x| {
+                        let account = x.output.as_ref().unwrap();
+                        OutputCompressedAccountWithPackedContext {
+                            compressed_account: CompressedAccount {
+                                address: x.address,
+                                owner: data.invoking_program_id.into(),
+                                lamports: account.lamports,
+                                data: Some(CompressedAccountData {
+                                    discriminator: account.discriminator,
+                                    data: account.data.clone(),
+                                    data_hash: account.data_hash,
+                                }),
+                            },
+                            merkle_tree_index: account.output_merkle_tree_index,
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+                input_compressed_accounts: data
+                    .account_infos
+                    .iter()
+                    .filter(|x| x.input.is_some())
+                    .map(|x| {
+                        let account = x.input.as_ref().unwrap();
+                        PackedCompressedAccountWithMerkleContext {
+                            compressed_account: CompressedAccount {
+                                address: x.address,
+                                owner: data.invoking_program_id.into(),
+                                lamports: account.lamports,
+                                data: Some(CompressedAccountData {
+                                    discriminator: account.discriminator,
+                                    data: vec![],
+                                    data_hash: account.data_hash,
+                                }),
+                            },
+                            read_only: false,
+                            root_index: account.root_index,
+                            merkle_context: account.merkle_context,
+                        }
                     })
                     .collect::<Vec<_>>(),
                 is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,

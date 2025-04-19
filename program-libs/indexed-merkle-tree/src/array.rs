@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
 use light_concurrent_merkle_tree::{event::RawIndexedElement, light_hasher::Hasher};
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned, Zero};
 
