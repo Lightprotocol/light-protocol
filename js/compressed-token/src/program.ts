@@ -742,7 +742,6 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
             recentValidityProof,
             amount,
-
             toAddress,
         } = params;
 

@@ -15,9 +15,5 @@
         "skipLibCheck": false,
         "typeRoots": ["types/", "./node_modules/@types"]
     },
-    "include": [
-        "./src/**/*.ts",
-        "playwright.config.ts",
-        "rollup.config.js"
-    ]
+    "include": ["./src/**/*.ts", "playwright.config.ts", "rollup.config.js"]
 }
