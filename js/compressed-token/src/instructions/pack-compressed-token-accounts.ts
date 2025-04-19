@@ -5,6 +5,7 @@ import {
     bn,
     padOutputStateMerkleTrees,
     StateTreeInfo,
+    TreeType,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
@@ -20,7 +21,7 @@ export type PackCompressedTokenAccountsParams = {
      * state tree of the input state. Gets padded to the length of
      * outputCompressedAccounts.
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo?: StateTreeInfo;
     /** Optional remaining accounts to append to */
     remainingAccounts?: PublicKey[];
     /**
@@ -94,9 +95,43 @@ export function packCompressedTokenAccounts(
         },
     );
 
-    /// pack output state trees
+    // Validate that we have either input accounts or output state tree info, but not both
+    if (inputCompressedTokenAccounts.length > 0 && outputStateTreeInfo) {
+        throw new Error(
+            'Cannot specify both input accounts and outputStateTreeInfo',
+        );
+    }
+    if (inputCompressedTokenAccounts.length === 0 && !outputStateTreeInfo) {
+        throw new Error(
+            'Must specify either input accounts or outputStateTreeInfo',
+        );
+    }
+
+    // By this point, we know one of these conditions must be true
+    let treeInfo: StateTreeInfo;
+    if (inputCompressedTokenAccounts.length > 0) {
+        treeInfo = inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
+    } else if (outputStateTreeInfo) {
+        // We've verified outputStateTreeInfo exists with the above checks
+        treeInfo = outputStateTreeInfo;
+    } else {
+        // This should never happen due to our previous checks, but satisfies TypeScript
+        throw new Error(
+            'Neither input accounts nor outputStateTreeInfo are available',
+        );
+    }
+
+    // Use next tree if available, otherwise fall back to current tree
+    const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
+    const activeTreeOrQueue = activeTreeInfo.tree;
+    // V2 trees are not yet supported
+    if (activeTreeInfo.treeType === TreeType.StateV2) {
+        throw new Error('V2 trees are not supported yet');
+    }
+
+    // Pack output state trees
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputStateTreeInfo.tree,
+        activeTreeOrQueue,
         tokenTransferOutputs.length,
         inputCompressedTokenAccounts.map(acc => acc.compressedAccount),
     );

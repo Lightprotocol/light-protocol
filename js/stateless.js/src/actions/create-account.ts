@@ -131,11 +131,6 @@ export async function createAccountWithLamports(
         lamports,
     );
 
-    if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
-    }
-
     const { blockhash } = await rpc.getLatestBlockhash();
 
     const { tree } = addressTreeInfo ?? getDefaultAddressTreeInfo();

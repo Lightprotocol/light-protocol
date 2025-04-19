@@ -147,11 +147,6 @@ export type DecompressParams = {
      */
     recentValidityProof: ValidityProof;
     /**
-     * The state tree that the change tx output should be inserted into.
-     * Defaults to a public state tree if unspecified.
-     */
-    outputStateTreeInfo: StateTreeInfo;
-    /**
      * Tokenpool addresses. One or more token pools can be provided.
      */
     tokenPoolInfos: TokenPoolInfo | TokenPoolInfo[];
@@ -177,7 +172,6 @@ export type TransferParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-
      */
     recentInputStateRootIndices: number[];
     /**
@@ -185,12 +179,6 @@ export type TransferParams = {
      * expires after n slots.
      */
     recentValidityProof: ValidityProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -251,10 +239,6 @@ export type MergeTokenAccountsParams = {
      * Array of compressed token accounts to merge
      */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
-    /**
-     * Optional: Public key of the state tree to merge into
-     */
-    outputStateTreeInfo: StateTreeInfo;
     /**
      * Optional: Recent validity proof for state inclusion
      */
@@ -758,7 +742,7 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
             recentValidityProof,
             amount,
-            outputStateTreeInfo,
+
             toAddress,
         } = params;
 
@@ -768,13 +752,13 @@ export class CompressedTokenProgram {
                 toAddress,
                 amount,
             );
+
         const {
             inputTokenDataWithContext,
             packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
@@ -994,7 +978,6 @@ export class CompressedTokenProgram {
             payer,
             inputCompressedTokenAccounts,
             toAddress,
-            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1013,7 +996,6 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
         });
@@ -1082,7 +1064,6 @@ export class CompressedTokenProgram {
             payer,
             owner,
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1099,7 +1080,6 @@ export class CompressedTokenProgram {
                 (sum, account) => sum.add(account.parsed.amount),
                 bn(0),
             ),
-            outputStateTreeInfo,
             recentInputStateRootIndices,
             recentValidityProof,
         });

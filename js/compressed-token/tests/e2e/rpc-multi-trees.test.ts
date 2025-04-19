@@ -60,20 +60,12 @@ describe('rpc-multi-trees', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            stateTreeInfo,
+            stateTreeInfo2,
             tokenPoolInfo,
         );
 
         // should auto land in same tree
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo2,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
 
     it('getCompressedTokenAccountsByOwner work with random state tree', async () => {

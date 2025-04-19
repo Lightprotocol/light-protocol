@@ -23,8 +23,6 @@ import {
  * @param payer                 Payer of the transaction and initialization fees
  * @param lamports              Amount of lamports to compress
  * @param toAddress             Address of the recipient compressed account
- * @param outputStateTreeInfo   Optional output state tree. Defaults to fetching
- *                              a current shared state tree.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
@@ -34,13 +32,8 @@ export async function decompress(
     payer: Signer,
     lamports: number | BN,
     recipient: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
-
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
         (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
 
@@ -64,7 +57,6 @@ export async function decompress(
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
-        outputStateTreeInfo,
         inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
         recentValidityProof: proof.validityProof,
         recentInputStateRootIndices: proof.rootIndices,

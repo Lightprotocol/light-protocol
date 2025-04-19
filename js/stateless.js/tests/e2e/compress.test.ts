@@ -4,7 +4,6 @@ import {
     STATE_MERKLE_TREE_NETWORK_FEE,
     ADDRESS_QUEUE_ROLLOVER_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    defaultTestStateTreeAccounts,
     ADDRESS_TREE_NETWORK_FEE,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
@@ -95,6 +94,25 @@ describe('compress', () => {
             stateTreeInfo,
         );
 
+        await expect(
+            createAccountWithLamports(
+                rpc as TestRpc,
+                payer,
+                [
+                    new Uint8Array([
+                        1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                        31, 32,
+                    ]),
+                ],
+                0,
+                LightSystemProgram.programId,
+            ),
+        ).rejects.toThrowError(
+            'Neither input accounts nor outputStateTreeInfo are available',
+        );
+
+        // 0 lamports => 0 input accounts selected, so outputStateTreeInfo is required
         await createAccountWithLamports(
             rpc as TestRpc,
             payer,
@@ -106,7 +124,6 @@ describe('compress', () => {
             ],
             0,
             LightSystemProgram.programId,
-
             undefined,
             stateTreeInfo,
         );
@@ -212,7 +229,6 @@ describe('compress', () => {
             100,
             LightSystemProgram.programId,
             undefined,
-            stateTreeInfo,
         );
 
         const postCreateAccountBalance = await rpc.getBalance(payer.publicKey);
@@ -268,7 +284,7 @@ describe('compress', () => {
             Number(compressedAccounts2.items[0].lamports),
             compressLamportsAmount - decompressLamportsAmount,
         );
-        await decompress(rpc, payer, 1, decompressRecipient, stateTreeInfo);
+        await decompress(rpc, payer, 1, decompressRecipient);
 
         const postDecompressBalance = await rpc.getBalance(decompressRecipient);
         assert.equal(

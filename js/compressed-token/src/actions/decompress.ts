@@ -35,9 +35,6 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination **uncompressed** (associated) token
  *                              account address.
- * @param outputStateTreeInfo   State tree account that any change compressed
- *                              tokens should be inserted into. Defaults to a
- *                              default state tree account.
  * @param tokenPoolInfos        Token pool infos
  * @param confirmOptions        Options for confirming the transaction
 
@@ -51,7 +48,6 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     tokenPoolInfos?: TokenPoolInfo[],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
@@ -77,10 +73,6 @@ export async function decompress(
         })),
     );
 
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
-
     tokenPoolInfos = tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
 
     const selectedTokenPoolInfos = selectTokenPoolInfosForDecompression(
@@ -93,7 +85,6 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
         amount,
-        outputStateTreeInfo,
         tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.validityProof,

@@ -75,9 +75,6 @@ class DecompressSplCommand extends Command {
         amount,
         payer,
         recipientAta.address,
-        undefined,
-        undefined,
-        undefined,
       );
 
       loader.stop(false);

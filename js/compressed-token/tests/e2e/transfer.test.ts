@@ -146,15 +146,7 @@ describe('transfer', () => {
             })
         ).items;
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -173,15 +165,7 @@ describe('transfer', () => {
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
             });
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(200),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(200), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -201,15 +185,7 @@ describe('transfer', () => {
                 mint,
             });
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(5),
-            charlie,
-            bob.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(5), charlie, bob.publicKey);
 
         await assertTransfer(
             rpc,
@@ -243,15 +219,7 @@ describe('transfer', () => {
         );
 
         await expect(
-            transfer(
-                rpc,
-                payer,
-                mint,
-                10000,
-                bob,
-                charlie.publicKey,
-                stateTreeInfo,
-            ),
+            transfer(rpc, payer, mint, 10000, bob, charlie.publicKey),
         ).rejects.toThrow('Insufficient balance for transfer');
     });
 
@@ -293,15 +261,7 @@ describe('transfer', () => {
             })
         ).items;
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -454,7 +414,6 @@ async function transferHelper(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.validityProof,
-        outputStateTreeInfo: stateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

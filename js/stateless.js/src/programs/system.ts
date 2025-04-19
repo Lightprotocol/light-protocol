@@ -41,10 +41,9 @@ type CreateAccountWithSeedParams = {
      */
     payer: PublicKey;
     /**
-     * Address params for the new compressed account
+     * Address params for the new compressed account.
      */
     newAddressParams: NewAddressParams;
-
     /**
      * Address of the new compressed account
      */
@@ -57,9 +56,9 @@ type CreateAccountWithSeedParams = {
     /**
      * State tree pubkey. Defaults to a public state tree if unspecified.
      */
-    outputStateTreeInfo: StateTreeInfo;
+    outputStateTreeInfo?: StateTreeInfo;
     /**
-     * Public key of the program to assign as the owner of the created account
+     * Public key of the program to assign as the owner of the created account.
      */
     programId?: PublicKey;
     /**
@@ -91,11 +90,11 @@ type TransferParams = {
      */
     inputCompressedAccounts: CompressedAccountWithMerkleContext[];
     /**
-     * Recipient address
+     * Recipient address.
      */
     toAddress: PublicKey;
     /**
-     * amount of lamports to transfer.
+     * Amount of lamports to transfer.
      */
     lamports: number | BN;
     /**
@@ -110,12 +109,6 @@ type TransferParams = {
      * expires after n slots.
      */
     recentValidityProof: ValidityProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTreeInfo: StateTreeInfo;
 };
 
 /**
@@ -173,12 +166,6 @@ type DecompressParams = {
      * expires after n slots.
      */
     recentValidityProof: ValidityProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTreeInfo: StateTreeInfo;
 };
 
 const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
@@ -190,7 +177,7 @@ export class LightSystemProgram {
     constructor() {}
 
     /**
-     * Public key that identifies the CompressedPda program
+     * The LightSystemProgram program ID.
      */
     static programId: PublicKey = new PublicKey(
         'SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7',
@@ -328,7 +315,9 @@ export class LightSystemProgram {
             inputCompressedAccounts ?? [],
             inputStateRootIndices ?? [],
             outputCompressedAccounts,
-            outputStateTreeInfo,
+            !inputCompressedAccounts || inputCompressedAccounts.length === 0
+                ? outputStateTreeInfo
+                : undefined,
         );
 
         const { newAddressParamsPacked, remainingAccounts } =
@@ -374,7 +363,6 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTreeInfo,
     }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
@@ -392,7 +380,6 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTreeInfo,
         );
 
         /// Encode instruction data
@@ -501,7 +488,6 @@ export class LightSystemProgram {
         lamports,
         recentInputStateRootIndices,
         recentValidityProof,
-        outputStateTreeInfo,
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
@@ -520,7 +506,6 @@ export class LightSystemProgram {
             inputCompressedAccounts,
             recentInputStateRootIndices,
             outputCompressedAccounts,
-            outputStateTreeInfo,
         );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {

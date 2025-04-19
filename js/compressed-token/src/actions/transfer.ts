@@ -27,9 +27,6 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
  * @param amount                Number of tokens to transfer
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination address of the recipient
- * @param outputStateTreeInfo   State tree account that the compressed tokens
- *                              should be inserted into. Defaults to the default
- *                              state tree account.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -41,7 +38,6 @@ export async function transfer(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
@@ -56,10 +52,6 @@ export async function transfer(
         compressedTokenAccounts.items,
         amount,
     );
-
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
 
     const proof = await rpc.getValidityProofV0(
         inputAccounts.map(account => ({
@@ -76,7 +68,6 @@ export async function transfer(
         amount,
         recentInputStateRootIndices: proof.rootIndices,
         recentValidityProof: proof.validityProof,
-        outputStateTreeInfo,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

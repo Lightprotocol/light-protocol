@@ -348,7 +348,7 @@ describe('rpc-interop', () => {
             0,
             LightSystemProgram.programId,
             undefined,
-            undefined,
+            stateTreeInfo,
         );
         executedTxs++;
     });

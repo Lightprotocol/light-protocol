@@ -24,7 +24,6 @@ import { CompressedTokenProgram } from '../program';
  * @param payer                 Payer of the transaction fees
  * @param mint                  Public key of the token's mint
  * @param owner                 Owner of the token accounts to be merged
- * @param outputStateTreeInfo   Optional merkle tree for compressed tokens
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return signature of the confirmed transaction
@@ -34,13 +33,8 @@ export async function mergeTokenAccounts(
     payer: Signer,
     mint: PublicKey,
     owner: Signer,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
-
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         owner.publicKey,
         { mint },
@@ -73,7 +67,6 @@ export async function mergeTokenAccounts(
                 owner: owner.publicKey,
                 mint,
                 inputCompressedTokenAccounts: batch,
-                outputStateTreeInfo,
                 recentValidityProof: proof.validityProof,
                 recentInputStateRootIndices: proof.rootIndices,
             });
