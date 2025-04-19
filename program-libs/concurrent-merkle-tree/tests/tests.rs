@@ -11,10 +11,14 @@ use light_concurrent_merkle_tree::{
 };
 use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
-use light_utils::rand::gen_range_exclude;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
-use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use rand::{
+    distributions::uniform::{SampleRange, SampleUniform},
+    rngs::ThreadRng,
+    seq::SliceRandom,
+    thread_rng, Rng,
+};
 
 /// Tests whether append operations work as expected.
 fn append<H, const CANOPY: usize>()
@@ -299,6 +303,24 @@ fn invalid_updates<H, const HEIGHT: usize, const CHANGELOG: usize>(
         Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
     ));
 
+    /// Generates a random value in the given range, excluding the values provided
+    /// in `exclude`.
+    pub fn gen_range_exclude<N, R, T>(rng: &mut N, range: R, exclude: &[T]) -> T
+    where
+        N: Rng,
+        R: Clone + SampleRange<T>,
+        T: PartialEq + SampleUniform,
+    {
+        loop {
+            // This utility is supposed to be used only in unit tests. This `clone`
+            // is harmless and necessary (can't pass a reference to range, it has
+            // to be moved).
+            let sample = rng.gen_range(range.clone());
+            if !exclude.contains(&sample) {
+                return sample;
+            }
+        }
+    }
     let invalid_index_in_range = gen_range_exclude(rng, 0..merkle_tree.next_index(), &[leaf_index]);
     let mut proof_clone = proof.clone();
     let res = merkle_tree.update(

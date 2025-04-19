@@ -15,7 +15,6 @@ light-hash-set = { workspace = true }
 light-hasher = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true }
-light-utils = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
 light-registry = { workspace = true }
 num-bigint = { workspace = true }

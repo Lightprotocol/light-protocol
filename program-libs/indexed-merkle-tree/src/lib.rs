@@ -14,7 +14,7 @@ use light_concurrent_merkle_tree::{
     light_hasher::Hasher,
     ConcurrentMerkleTree,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 

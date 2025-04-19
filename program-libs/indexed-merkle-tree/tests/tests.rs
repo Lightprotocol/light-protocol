@@ -7,12 +7,12 @@ use light_concurrent_merkle_tree::{
     light_hasher::{Hasher, Poseidon},
 };
 use light_hash_set::{HashSet, HashSetError};
+use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
     reference, IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
-use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt, ToBigUint};
 use num_traits::{FromBytes, Num};
 use rand::thread_rng;
