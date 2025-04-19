@@ -19,7 +19,7 @@ pub struct InitializeBatchedAddressMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: is initialized in this instruction.
-    #[account(zero)]
+    #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }

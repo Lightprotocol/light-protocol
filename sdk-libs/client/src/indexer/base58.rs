@@ -19,18 +19,12 @@ impl Base58Conversions for [u8; 32] {
     }
 
     fn from_base58(s: &str) -> Result<Self, IndexerError> {
-        let mut result = [0u8; 32];
-
-        let len = bs58::decode(s)
-            .into(&mut result)
-            .map_err(|e| IndexerError::base58_decode_error(s, e))?;
-
-        if len != 32 {
-            return Err(IndexerError::Base58DecodeError {
-                field: s.to_string(),
-                message: "Invalid length".to_string(),
-            });
-        }
+        // TODO: remove vec conversion.
+        let result = bs58::decode(s)
+            .into_vec()
+            .map_err(|e| IndexerError::base58_decode_error(s, e))?
+            .try_into()
+            .map_err(|_| IndexerError::ApiError("Try into failed.".to_string()))?;
 
         Ok(result)
     }

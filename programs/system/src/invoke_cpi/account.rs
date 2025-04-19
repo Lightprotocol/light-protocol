@@ -27,6 +27,7 @@ pub struct CpiContextAccount {
 
 impl Discriminator for CpiContextAccount {
     const DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
+    const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
 }
 
 impl CpiContextAccount {

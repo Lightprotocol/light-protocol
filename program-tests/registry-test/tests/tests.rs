@@ -1843,7 +1843,7 @@ async fn test_batch_address_tree() {
     let (mut rpc, env) =
         setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
             Some(vec![(
-                String::from("create_address_test_program"),
+                "create_address_test_program",
                 CREATE_ADDRESS_TEST_PROGRAM_ID,
             )]),
             ProtocolConfig::default(),
@@ -2031,7 +2031,7 @@ async fn test_rollover_batch_address_tree() {
     let (mut rpc, env) =
         setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
             Some(vec![(
-                String::from("create_address_test_program"),
+                "create_address_test_program",
                 CREATE_ADDRESS_TEST_PROGRAM_ID,
             )]),
             ProtocolConfig::default(),

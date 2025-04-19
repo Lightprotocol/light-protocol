@@ -493,12 +493,10 @@ fn create_compressed_pda_data(
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-    let mut discriminator_bytes = [0u8; 8];
+    let discriminator_bytes = &ctx.remaining_accounts
+        [new_address_params.address_merkle_tree_account_index as usize]
+        .try_borrow_data()?[0..8];
 
-    discriminator_bytes.copy_from_slice(
-        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-            .try_borrow_data()?[0..8],
-    );
     let address = match discriminator_bytes {
         AddressMerkleTreeAccount::DISCRIMINATOR => derive_address_legacy(
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
@@ -506,7 +504,7 @@ fn create_compressed_pda_data(
             &new_address_params.seed,
         )
         .map_err(ProgramError::from)?,
-        BatchedMerkleTreeAccount::DISCRIMINATOR => derive_address(
+        BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => derive_address(
             &new_address_params.seed,
             &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
                 .key()

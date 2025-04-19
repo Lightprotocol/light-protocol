@@ -23,13 +23,13 @@ pub struct RolloverBatchedStateMerkleTree<'info> {
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: is initialized in this instruction.
-    #[account(zero)]
+    #[account(mut)]
     pub new_state_merkle_tree: AccountInfo<'info>,
     /// CHECK: in state_from_account_info.
     #[account(mut)]
     pub old_state_merkle_tree: AccountInfo<'info>,
     /// CHECK: is initialized in this instruction.
-    #[account(zero)]
+    #[account(mut)]
     pub new_output_queue: AccountInfo<'info>,
     /// CHECK: in output_from_account_info.
     #[account(mut)]

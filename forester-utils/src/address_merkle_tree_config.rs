@@ -160,7 +160,7 @@ pub async fn state_tree_ready_for_rollover<R: RpcConnection>(
             .await;
             (tree.next_index(), tree_meta_data, 26)
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {
+        BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {
             let tree_meta_data = BatchedMerkleTreeAccount::state_from_bytes(
                 account.data.as_mut_slice(),
                 &merkle_tree.into(),

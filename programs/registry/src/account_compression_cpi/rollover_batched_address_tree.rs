@@ -12,7 +12,7 @@ pub struct RolloverBatchedAddressMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:  initialized in account compression program.
-    #[account(zero)]
+    #[account(mut)]
     pub new_address_merkle_tree: AccountInfo<'info>,
     /// CHECK:  in account compression program.
     #[account(mut)]

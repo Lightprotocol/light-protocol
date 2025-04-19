@@ -272,6 +272,7 @@ mod check_account_tests {
     }
     impl Discriminator for MyStruct {
         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+        const DISCRIMINATOR_SLICE: &[u8] = &Self::DISCRIMINATOR;
     }
 
     /// Tests:

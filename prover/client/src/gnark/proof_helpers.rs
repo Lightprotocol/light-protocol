@@ -4,7 +4,7 @@ use std::ops::Neg;
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 use num_traits::Num;
-use solana_program::alt_bn128::compression::prelude::{
+use solana_bn254::compression::prelude::{
     alt_bn128_g1_compress, alt_bn128_g2_compress, convert_endianness,
 };
 

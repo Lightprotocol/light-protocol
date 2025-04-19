@@ -12,19 +12,19 @@ pub struct RolloverBatchedStateMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:  initialized in account compression program.
-    #[account(zero)]
+    #[account(mut)]
     pub new_state_merkle_tree: AccountInfo<'info>,
     /// CHECK:  in account compression program.
     #[account(mut)]
     pub old_state_merkle_tree: AccountInfo<'info>,
     /// CHECK:  initialized in account compression program.
-    #[account(zero)]
+    #[account(mut)]
     pub new_output_queue: AccountInfo<'info>,
     /// CHECK:  in account compression program.
     #[account(mut)]
     pub old_output_queue: AccountInfo<'info>,
     /// CHECK: (system program) new cpi context account.
-    #[account(zero)]
+    #[account(mut)]
     pub cpi_context_account: AccountInfo<'info>,
     /// CHECK: (account compression program) access control.
     pub registered_program_pda: AccountInfo<'info>,

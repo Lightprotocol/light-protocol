@@ -39,7 +39,7 @@ async fn functional_read_only() {
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
-                    String::from("create_address_test_program"),
+                    "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
                 ProtocolConfig {
@@ -257,8 +257,7 @@ async fn functional_read_only() {
                             .address_root_indices
                             .iter()
                             .zip(read_only_addresses)
-                            .enumerate()
-                            .map(|(_, (root_index, address))| ReadOnlyAddress {
+                            .map(|(root_index, address)| ReadOnlyAddress {
                                 address_merkle_tree_pubkey: address_tree,
                                 address,
                                 address_merkle_tree_root_index: *root_index,
@@ -312,7 +311,7 @@ async fn addresses_with_read_only() {
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
-                    String::from("create_address_test_program"),
+                    "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
                 ProtocolConfig {
