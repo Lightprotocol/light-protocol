@@ -141,6 +141,9 @@ pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDa
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
     for compressed_account in inputs.output_accounts() {
+        if compressed_account.skip() {
+            continue;
+        }
         if compressed_account.has_data()
             && *invoking_program_id != compressed_account.owner().to_bytes()
         {

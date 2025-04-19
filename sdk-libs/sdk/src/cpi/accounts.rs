@@ -1,6 +1,7 @@
 use crate::{
-    error::Result, find_cpi_signer_macro, AccountInfo, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
-    PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
+    error::Result, find_cpi_signer_macro, msg, AccountInfo, AccountMeta, AnchorDeserialize,
+    AnchorSerialize, Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
+    PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 
 #[repr(usize)]
@@ -18,7 +19,19 @@ pub enum CompressionCpiAccountIndex {
     CpiContext,
 }
 
+#[repr(usize)]
+pub enum CompressionCpiAccountIndexSmall {
+    Authority,
+    RegisteredProgramPda,
+    NoopProgram,
+    AccountCompressionAuthority,
+    SolPoolPda,
+    DecompressionRecipent,
+    CpiContext,
+}
+
 pub const SYSTEM_ACCOUNTS_LEN: usize = 11;
+pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 7;
 
 // TODO: add unit tests
 pub struct CompressionCpiAccounts<'c, 'info> {
@@ -69,6 +82,9 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     }
 
     pub fn light_system_program(&self) -> &'c AccountInfo<'info> {
+        if self.config.small_ix {
+            unimplemented!("system program account info does not exist in small instruction.");
+        }
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
             .get(CompressionCpiAccountIndex::LightSystemProgram as usize)
@@ -76,17 +92,32 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     }
 
     pub fn authority(&self) -> &'c AccountInfo<'info> {
-        // PANICS: We are sure about the bounds of the slice.
-        self.accounts
-            .get(CompressionCpiAccountIndex::Authority as usize)
-            .unwrap()
+        if self.config.small_ix {
+            msg!("small ix authority");
+            self.accounts
+                .get(CompressionCpiAccountIndexSmall::Authority as usize)
+                .unwrap()
+        } else {
+            msg!("regular ix authority");
+            // PANICS: We are sure about the bounds of the slice.
+            self.accounts
+                .get(CompressionCpiAccountIndex::Authority as usize)
+                .unwrap()
+        }
     }
 
     pub fn invoking_program(&self) -> &'c AccountInfo<'info> {
+        if self.config.small_ix {
+            unimplemented!("invoking program account info does not exist in small instruction.");
+        }
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
             .get(CompressionCpiAccountIndex::InvokingProgram as usize)
             .unwrap()
+    }
+
+    pub fn self_program_id(&self) -> &Pubkey {
+        &self.config.self_program
     }
 
     pub fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
@@ -110,18 +141,32 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_signer: true,
             is_writable: false,
         });
+        use crate::msg;
+        msg!(format!(
+            "{:?}",
+            self.accounts.iter().map(|acc| acc.key).collect::<Vec<_>>()
+        )
+        .as_str());
+        msg!("here");
+        // Skip system program account info (small ix doesn't send program account infos)
+        let offset = if self.config.small_ix { 1 } else { 2 };
+        self.accounts[offset..]
+            .iter()
+            .enumerate()
+            .for_each(|(i, acc)| {
+                msg!("here {}", i);
 
-        self.accounts[2..].iter().enumerate().for_each(|(i, acc)| {
-            if i < self.system_accounts_len() - 2 {
-                account_metas.push(AccountMeta {
-                    pubkey: *acc.key,
-                    is_signer: false,
-                    is_writable: false,
-                });
-            }
-        });
-
-        if !self.config.sol_pool_pda {
+                if i < self.system_accounts_len().saturating_sub(2) {
+                    account_metas.push(AccountMeta {
+                        pubkey: *acc.key,
+                        is_signer: false,
+                        is_writable: false,
+                    });
+                }
+            });
+        msg!("here1");
+        msg!(format!("self.config: {:?}", self.config).as_str());
+        if !self.config.sol_pool_pda && !self.config.small_ix {
             account_metas.insert(
                 CompressionCpiAccountIndex::SolPoolPda as usize,
                 AccountMeta {
@@ -131,8 +176,9 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
                 },
             );
         }
+        msg!("here2");
 
-        if !self.config.sol_compression_recipient {
+        if !self.config.sol_compression_recipient && !self.config.small_ix {
             account_metas.insert(
                 CompressionCpiAccountIndex::DecompressionRecipent as usize,
                 AccountMeta {
@@ -142,7 +188,9 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
                 },
             );
         }
-        if !self.config.cpi_context {
+        msg!("here3");
+
+        if !self.config.cpi_context && !self.config.small_ix {
             account_metas.insert(
                 CompressionCpiAccountIndex::CpiContext as usize,
                 AccountMeta {
@@ -152,6 +200,8 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
                 },
             );
         }
+        msg!("here4");
+
         self.accounts[self.system_accounts_len()..]
             .iter()
             .for_each(|acc| {
@@ -169,7 +219,11 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     }
 
     pub fn system_accounts_len(&self) -> usize {
-        let mut len = SYSTEM_ACCOUNTS_LEN;
+        let mut len = if self.config.small_ix {
+            SMALL_SYSTEM_ACCOUNTS_LEN
+        } else {
+            SYSTEM_ACCOUNTS_LEN
+        };
         if !self.config.sol_pool_pda {
             len -= 1;
         }
@@ -220,13 +274,14 @@ impl SystemAccountMetaConfig {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressionCpiAccountsConfig {
     pub self_program: Pubkey,
     // TODO: move to instructiond data
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,
     pub sol_pool_pda: bool,
+    pub small_ix: bool,
 }
 
 impl CompressionCpiAccountsConfig {
@@ -236,6 +291,7 @@ impl CompressionCpiAccountsConfig {
             cpi_context: false,
             sol_compression_recipient: false,
             sol_pool_pda: false,
+            small_ix: false,
         }
     }
 
@@ -245,6 +301,7 @@ impl CompressionCpiAccountsConfig {
             cpi_context: true,
             sol_compression_recipient: false,
             sol_pool_pda: false,
+            small_ix: false,
         }
     }
 }
@@ -286,6 +343,7 @@ impl Default for SystemAccountPubkeys {
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
+
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
         AccountMeta::new_readonly(cpi_signer, false),
@@ -294,11 +352,8 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
         AccountMeta::new_readonly(config.self_program, false),
-        // sol_pool_pda,
-        // decompression_recipient,
-        // AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        // cpi_context,
     ];
+
     if let Some(pubkey) = config.sol_pool_pda {
         vec.push(AccountMeta {
             pubkey,

@@ -100,6 +100,8 @@ pub enum SystemProgramError {
     NewAddressAssignedIndexOutOfBounds,
     #[error("AddressIsNone")]
     AddressIsNone,
+    #[error("AddressDoesNotMatch")]
+    AddressDoesNotMatch,
 }
 
 impl From<SystemProgramError> for ProgramError {

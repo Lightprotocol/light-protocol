@@ -68,6 +68,9 @@ impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
 }
 
 impl<'a> InputAccount<'a> for ZInAccount<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -256,7 +259,7 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     fn account_option_config(&self) -> AccountOptions {
         AccountOptions {
-            sol_pool_pda: self.is_compress(),
+            sol_pool_pda: self.is_compress() && self.compress_or_decompress_lamports().is_some(),
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),

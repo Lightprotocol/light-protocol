@@ -115,6 +115,9 @@ pub struct ZOutputCompressedAccountWithPackedContext<'a> {
 }
 
 impl<'a> OutputAccount<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn lamports(&self) -> u64 {
         self.compressed_account.lamports.into()
     }
@@ -330,6 +333,9 @@ pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
 }
 
 impl<'a> InputAccount<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn owner(&self) -> &crate::pubkey::Pubkey {
         &self.compressed_account.owner
     }

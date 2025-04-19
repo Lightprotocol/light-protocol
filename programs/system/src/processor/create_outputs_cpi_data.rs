@@ -207,13 +207,12 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
-
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
-                return Err(SystemProgramError::InvalidAddress);
+                return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }
     }

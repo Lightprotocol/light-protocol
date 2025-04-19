@@ -72,6 +72,10 @@ impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
         &self.owner
     }
 
+    fn skip(&self) -> bool {
+        self.input.is_none()
+    }
+
     fn lamports(&self) -> u64 {
         self.input.as_ref().unwrap().lamports.into()
     }
@@ -127,6 +131,10 @@ impl<'a> OutputAccount<'a> for ZCAccountInfo<'a> {
 
     fn address(&self) -> Option<[u8; 32]> {
         self.address.map(|x| *x)
+    }
+
+    fn skip(&self) -> bool {
+        self.output.is_none()
     }
 
     fn owner(&self) -> Pubkey {
@@ -355,7 +363,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn compress_or_decompress_lamports(&self) -> Option<u64> {
-        if self.meta.is_decompress() || self.is_compress() {
+        if self.meta.compress_or_decompress_lamports != U64::from(0) {
             Some(self.meta.compress_or_decompress_lamports.into())
         } else {
             None

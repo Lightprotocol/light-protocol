@@ -7483,6 +7483,7 @@ dependencies = [
  "light-system-program-anchor",
  "light-test-utils",
  "light-verifier",
+ "rand 0.8.5",
  "serial_test",
  "solana-sdk",
  "tokio",

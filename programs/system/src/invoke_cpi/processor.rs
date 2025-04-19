@@ -54,7 +54,7 @@ pub fn process_invoke_cpi<
         };
     #[cfg(feature = "bench-sbf")]
     bench_sbf_end!("cpda_process_cpi_context");
-
+    msg!("cpda_process_cpi_context");
     process::<ADDRESS_ASSIGNMENT, A, T>(
         inputs,
         Some(invoking_program),
