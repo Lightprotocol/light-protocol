@@ -238,7 +238,7 @@ where
 
         let reference_proof = reference_tree.get_proof_of_leaf(i, true).unwrap();
 
-        assert_eq!(proof, reference_proof);
+        assert_eq!(proof.to_vec(), reference_proof);
     }
 }
 
@@ -410,7 +410,10 @@ where
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
-    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(
+        merkle_tree.canopy,
+        BoundedVec::from_slice(reference_tree.get_canopy().unwrap().as_slice())
+    );
     assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf1`.
@@ -484,7 +487,10 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 5);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
-    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(
+        merkle_tree.canopy,
+        BoundedVec::from_slice(reference_tree.get_canopy().unwrap().as_slice())
+    );
     assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf2`.
@@ -557,7 +563,10 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 6);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
-    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(
+        merkle_tree.canopy,
+        BoundedVec::from_slice(reference_tree.get_canopy().unwrap().as_slice())
+    );
     assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf3`.
@@ -630,7 +639,10 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 7);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
-    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(
+        merkle_tree.canopy,
+        BoundedVec::from_slice(reference_tree.get_canopy().unwrap().as_slice())
+    );
     assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 
     // Replace `leaf4`.
@@ -703,7 +715,10 @@ where
     assert_eq!(merkle_tree.roots.last_index(), 8);
     assert_eq!(merkle_tree.next_index(), 4);
     assert_eq!(merkle_tree.rightmost_leaf(), new_leaf4);
-    assert_eq!(merkle_tree.canopy, reference_tree.get_canopy().unwrap());
+    assert_eq!(
+        merkle_tree.canopy,
+        BoundedVec::from_slice(reference_tree.get_canopy().unwrap().as_slice())
+    );
     assert_eq!(merkle_tree.canopy.as_slice(), expected_canopy.as_slice());
 }
 
@@ -778,7 +793,12 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree
+                .get_proof_of_leaf(i, false)
+                .unwrap()
+                .as_slice(),
+        );
 
         merkle_tree
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
@@ -801,7 +821,12 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree
+                .get_proof_of_leaf(i, false)
+                .unwrap()
+                .as_slice(),
+        );
 
         merkle_tree
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
@@ -822,7 +847,12 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree
+                .get_proof_of_leaf(i, false)
+                .unwrap()
+                .as_slice(),
+        );
 
         merkle_tree
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
@@ -994,12 +1024,19 @@ where
                 for leaf_i in 0..batch_size {
                     let leaf_index = (batch_i * batch_size) + leaf_i;
 
-                    let mut proof_with_canopy = reference_mt_with_canopy
+                    let inter_proof_with_canopy = reference_mt_with_canopy
                         .get_proof_of_leaf(leaf_index, false)
                         .unwrap();
-                    let proof_without_canopy = reference_mt_without_canopy
-                        .get_proof_of_leaf(leaf_index, true)
-                        .unwrap();
+                    let mut proof_with_canopy = BoundedVec::with_capacity(HEIGHT);
+                    for node in inter_proof_with_canopy.iter() {
+                        proof_with_canopy.push(*node).unwrap();
+                    }
+                    let proof_without_canopy = BoundedVec::from_slice(
+                        reference_mt_without_canopy
+                            .get_proof_of_leaf(leaf_index, true)
+                            .unwrap()
+                            .as_slice(),
+                    );
 
                     assert_eq!(
                         proof_with_canopy[..],
@@ -1390,7 +1427,12 @@ async fn test_spl_compat() {
             let root = concurrent_mt.root();
             let changelog_index = concurrent_mt.changelog_index();
             let old_leaf = reference_tree.leaf(0);
-            let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+            let mut proof = BoundedVec::from_slice(
+                reference_tree
+                    .get_proof_of_leaf(0, false)
+                    .unwrap()
+                    .as_slice(),
+            );
 
             concurrent_mt
                 .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof)
@@ -1414,7 +1456,12 @@ async fn test_spl_compat() {
         let root = concurrent_mt.root();
         let changelog_index = concurrent_mt.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree
+                .get_proof_of_leaf(i, false)
+                .unwrap()
+                .as_slice(),
+        );
 
         concurrent_mt
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
@@ -1535,10 +1582,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -1554,9 +1600,12 @@ where
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = reference_tree_1
-            .get_proof_of_leaf(leaf_index, false)
-            .unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree_1
+                .get_proof_of_leaf(leaf_index, false)
+                .unwrap()
+                .as_slice(),
+        );
         let changelog_index = merkle_tree.changelog_index();
         merkle_tree
             .update(
@@ -1598,10 +1647,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -1627,9 +1675,12 @@ where
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = reference_tree_1
-            .get_proof_of_leaf(leaf_index, false)
-            .unwrap();
+        let mut proof = BoundedVec::from_slice(
+            reference_tree_1
+                .get_proof_of_leaf(leaf_index, false)
+                .unwrap()
+                .as_slice(),
+        );
         let changelog_index = merkle_tree.changelog_index();
         merkle_tree
             .update(
@@ -1671,10 +1722,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -2151,7 +2201,7 @@ pub fn test_100_nullify_mt() {
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
         assert_eq!(
             onchain_merkle_tree.canopy,
-            crank_merkle_tree.get_canopy().unwrap()
+            BoundedVec::from_slice(crank_merkle_tree.get_canopy().unwrap().as_slice())
         );
 
         let mut rng = rand::thread_rng();
@@ -2173,9 +2223,16 @@ pub fn test_100_nullify_mt() {
                 .get_leaf_index(&leaf_cell.value_bytes())
                 .unwrap();
 
-            let mut proof = crank_merkle_tree
-                .get_proof_of_leaf(leaf_index, false)
-                .unwrap();
+            let inter_proof = BoundedVec::from_slice(
+                crank_merkle_tree
+                    .get_proof_of_leaf(leaf_index, false)
+                    .unwrap()
+                    .as_slice(),
+            );
+            let mut proof = BoundedVec::with_capacity(onchain_merkle_tree.height);
+            for node in inter_proof.iter() {
+                proof.push(*node).unwrap();
+            }
             onchain_merkle_tree
                 .update(
                     change_log_index,
@@ -2194,7 +2251,7 @@ pub fn test_100_nullify_mt() {
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
         assert_eq!(
             onchain_merkle_tree.canopy,
-            crank_merkle_tree.get_canopy().unwrap()
+            BoundedVec::from_slice(crank_merkle_tree.get_canopy().unwrap().as_slice())
         );
     }
 }
@@ -2401,7 +2458,9 @@ fn test_subtree_updates() {
         match leaf.1 {
             Some(index) => {
                 let change_log_index = con_mt.changelog_index();
-                let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
+                let mut proof = BoundedVec::from_slice(
+                    ref_mt.get_proof_of_leaf(index, false).unwrap().as_slice(),
+                );
                 let old_leaf = ref_mt.leaf(index);
                 let current_root = con_mt.root();
                 spl_concurrent_mt
@@ -2431,7 +2490,8 @@ fn test_subtree_updates() {
     let index = con_mt.next_index() - 1;
     // test rightmost leaf edge case
     let change_log_index = con_mt.changelog_index();
-    let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
+    let mut proof =
+        BoundedVec::from_slice(ref_mt.get_proof_of_leaf(index, false).unwrap().as_slice());
     let old_leaf = ref_mt.leaf(index);
     let current_root = con_mt.root();
     spl_concurrent_mt
@@ -2500,12 +2560,23 @@ where
 
     // Save a proof of the first append.
     let outdated_changelog_index = merkle_tree.changelog_index();
-    let mut outdated_proof = reference_tree.get_proof_of_leaf(0, false).unwrap().clone();
+    let mut outdated_proof = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(0, false)
+            .unwrap()
+            .clone()
+            .as_slice(),
+    );
 
     let mut old_leaf = first_leaf;
     for _ in 0..CONFLICTS {
         // Update leaf. Always use an up-to-date proof.
-        let mut up_to_date_proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+        let mut up_to_date_proof = BoundedVec::from_slice(
+            reference_tree
+                .get_proof_of_leaf(0, false)
+                .unwrap()
+                .as_slice(),
+        );
         let new_leaf = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
@@ -2933,10 +3004,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -2956,7 +3026,11 @@ where
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        let inter_proof_with_canopy = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        let mut proof = BoundedVec::with_capacity(HEIGHT);
+        for node in inter_proof_with_canopy.iter() {
+            proof.push(*node).unwrap();
+        }
         merkle_tree
             .update(
                 merkle_tree.changelog_index(),
@@ -2986,10 +3060,9 @@ where
             .zip(changelog_entries)
         {
             assert_eq!(changelog_entry.index, *leaf_index as u64);
-            for i in 0..HEIGHT {
+            for (i, path_node) in merkle_path.iter().enumerate() {
                 let changelog_node = changelog_entry.path[i].unwrap();
-                let path_node = merkle_path[i];
-                assert_eq!(changelog_node, path_node);
+                assert_eq!(changelog_node, *path_node);
             }
         }
 
@@ -3112,7 +3185,12 @@ where
     merkle_tree.append(&leaf).unwrap();
     reference_tree.append(&leaf).unwrap();
 
-    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    let mut proof = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(0, false)
+            .unwrap()
+            .as_slice(),
+    );
 
     let res =
         update_proof_from_changelog(&merkle_tree, merkle_tree.changelog_index(), 0, &mut proof);
@@ -3178,7 +3256,12 @@ where
         .unwrap();
     let (changelog_index, _) = merkle_tree.append(&leaf).unwrap();
     reference_tree.append(&leaf).unwrap();
-    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    let mut proof = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(0, false)
+            .unwrap()
+            .as_slice(),
+    );
 
     // Perform enough appends and updates to overfill the changelog
     for i in 0..CHANGELOG {
@@ -3200,7 +3283,12 @@ where
                 .to_bytes_be()
                 .try_into()
                 .unwrap();
-            let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+            let mut proof = BoundedVec::from_slice(
+                reference_tree
+                    .get_proof_of_leaf(leaf_index, false)
+                    .unwrap()
+                    .as_slice(),
+            );
             merkle_tree
                 .update(
                     merkle_tree.changelog_index(),
@@ -3231,7 +3319,12 @@ where
     // Try to update the original `leaf` with an up-to-date proof and changelog
     // index. Expect a success.
     let changelog_index = merkle_tree.changelog_index();
-    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    let mut proof = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(0, false)
+            .unwrap()
+            .as_slice(),
+    );
     merkle_tree
         .update(changelog_index, &leaf, &new_leaf, 0, &mut proof)
         .unwrap();
@@ -3308,8 +3401,18 @@ fn test_append_batch_and_update() {
     reference_tree.append(&leaf_1).unwrap();
 
     let changelog_index = tree.changelog_index();
-    let mut proof_leaf_0 = reference_tree.get_proof_of_leaf(0, false).unwrap();
-    let mut proof_leaf_1 = reference_tree.get_proof_of_leaf(1, false).unwrap();
+    let mut proof_leaf_0 = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(0, false)
+            .unwrap()
+            .as_slice(),
+    );
+    let mut proof_leaf_1 = BoundedVec::from_slice(
+        reference_tree
+            .get_proof_of_leaf(1, false)
+            .unwrap()
+            .as_slice(),
+    );
 
     // Append another two leaves.
     let leaf_2 = [2; 32];

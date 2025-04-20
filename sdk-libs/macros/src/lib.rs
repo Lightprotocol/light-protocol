@@ -1,5 +1,6 @@
 extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
+use hasher::derive_light_hasher;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
 use traits::process_light_traits;
@@ -160,7 +161,7 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 ///
 /// - `skip` - skips the given field, it doesn't get included neither in
 ///   `AsByteVec` nor `DataHasher` implementation.
-/// - `truncate` - makes sure that the byte value does not exceed the BN254
+/// - `hash` - makes sure that the byte value does not exceed the BN254
 ///   prime field modulus, by hashing it (with Keccak) and truncating it to 31
 ///   bytes. It's generally a good idea to use it on any field which is
 ///   expected to output more than 31 bytes.
@@ -184,9 +185,9 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 /// pub struct MyCompressedAccount {
 ///     a: i64
 ///     b: Option<u64>,
-///     #[truncate]
+///     #[hash]
 ///     c: [u8; 32],
-///     #[truncate]
+///     #[hash]
 ///     d: String,
 /// }
 /// ```
@@ -246,10 +247,10 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-#[proc_macro_derive(LightHasher, attributes(skip, truncate, nested))]
+#[proc_macro_derive(LightHasher, attributes(skip, hash))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    hasher::hasher(input)
+    derive_light_hasher(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

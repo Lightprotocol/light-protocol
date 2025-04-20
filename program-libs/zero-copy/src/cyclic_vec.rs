@@ -87,7 +87,18 @@ where
 
         let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
         let (metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
-        let usize_len: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
+        let usize_capacity: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
+        let usize_len: usize = u64::from(metadata[LENGTH_INDEX]) as usize;
+        let usize_current_index: usize = u64::from(metadata[CURRENT_INDEX_INDEX]) as usize;
+
+        if usize_len > usize_capacity {
+            return Err(ZeroCopyError::LengthGreaterThanCapacity);
+        }
+
+        if usize_current_index > usize_len {
+            return Err(ZeroCopyError::CurrentIndexGreaterThanLength);
+        }
+
         let full_vector_size = Self::data_size(metadata[CAPACITY_INDEX]);
         if bytes.len() < full_vector_size {
             return Err(ZeroCopyError::InsufficientMemoryAllocated(
@@ -96,7 +107,7 @@ where
             ));
         }
         let (slice, remaining_bytes) =
-            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_len)?;
+            Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_capacity)?;
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
@@ -290,6 +301,7 @@ where
         &mut self.slice[..len]
     }
 
+    #[cfg(feature = "std")]
     pub fn try_into_array<const N: usize>(&self) -> Result<[T; N], ZeroCopyError> {
         if self.len() != N {
             return Err(ZeroCopyError::ArraySize(N, self.len()));

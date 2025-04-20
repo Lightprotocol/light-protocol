@@ -1,14 +1,12 @@
 use light_bounded_vec::BoundedVec;
-use light_compressed_account::{
-    bigint::bigint_to_be_bytes_array,
-    hash_chain::{create_hash_chain_from_array, create_hash_chain_from_slice},
+use light_compressed_account::hash_chain::{
+    create_hash_chain_from_array, create_hash_chain_from_slice,
 };
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry, event::RawIndexedElement};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{
-    array::{IndexedArray, IndexedElement},
-    changelog::IndexedChangelogEntry,
-    reference::IndexedMerkleTree,
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
+use light_indexed_array::{
+    array::IndexedElement,
+    changelog::{IndexedChangelogEntry, RawIndexedElement},
 };
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use num_bigint::BigUint;
@@ -38,7 +36,6 @@ pub struct BatchAddressAppendInputs {
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
-    // Onchain account merkle tree next index.
     next_index: usize,
     current_root: [u8; 32],
     low_element_values: Vec<[u8; 32]>,
@@ -47,11 +44,11 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     low_element_next_indices: Vec<usize>,
     low_element_proofs: Vec<Vec<[u8; 32]>>,
     new_element_values: Vec<[u8; 32]>,
-    subtrees: [[u8; 32]; HEIGHT],
+    sparse_merkle_tree: &mut SparseMerkleTree<Poseidon, HEIGHT>,
     leaves_hashchain: [u8; 32],
-    // Merkle tree index at batch index 0. (Indexer next index)
-    batch_start_index: usize,
     zkp_batch_size: usize,
+    changelog: &mut Vec<ChangelogEntry<HEIGHT>>,
+    indexed_changelog: &mut Vec<IndexedChangelogEntry<usize, HEIGHT>>,
 ) -> Result<BatchAddressAppendInputs, ProverClientError> {
     // 1. input all elements of a batch.
     // 2. iterate over elements 0..end_index
@@ -62,20 +59,16 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     let mut new_root = [0u8; 32];
     let mut low_element_circuit_merkle_proofs = vec![];
     let mut new_element_circuit_merkle_proofs = vec![];
-    let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
-
-    let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, HEIGHT>> = Vec::new();
 
     let mut patched_low_element_next_values: Vec<[u8; 32]> = Vec::new();
     let mut patched_low_element_next_indices: Vec<usize> = Vec::new();
     let mut patched_low_element_values: Vec<[u8; 32]> = Vec::new();
     let mut patched_low_element_indices: Vec<usize> = Vec::new();
-    let mut merkle_tree = SparseMerkleTree::<Poseidon, HEIGHT>::new(subtrees, batch_start_index);
 
     for i in 0..new_element_values.len() {
         let mut changelog_index = 0;
 
-        let new_element_index = batch_start_index + i;
+        let new_element_index = next_index + i;
         let mut low_element: IndexedElement<usize> = IndexedElement {
             index: low_element_indices[i],
             value: BigUint::from_bytes_be(&low_element_values[i]),
@@ -91,19 +84,16 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         let mut low_element_proof: BoundedVec<[u8; 32]> =
             BoundedVec::from_slice(low_element_proofs[i].as_slice());
         let mut low_element_next_value = BigUint::from_bytes_be(&low_element_next_values[i]);
-
-        if i > 0 {
-            patch_indexed_changelogs(
-                0,
-                &mut changelog_index,
-                &mut indexed_changelog,
-                &mut low_element,
-                &mut new_element,
-                &mut low_element_next_value,
-                &mut low_element_proof,
-            )
-            .unwrap();
-        }
+        patch_indexed_changelogs(
+            0,
+            &mut changelog_index,
+            indexed_changelog,
+            &mut low_element,
+            &mut new_element,
+            &mut low_element_next_value,
+            &mut low_element_proof,
+        )
+        .unwrap();
         patched_low_element_next_values
             .push(bigint_to_be_bytes_array::<32>(&low_element_next_value).unwrap());
         patched_low_element_next_indices.push(low_element.next_index());
@@ -124,12 +114,10 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         };
 
         {
-            if i > 0 {
-                for change_log_entry in changelog.iter().skip(changelog_index) {
-                    change_log_entry
-                        .update_proof(low_element.index(), &mut low_element_proof)
-                        .unwrap();
-                }
+            for change_log_entry in changelog.iter().skip(changelog_index) {
+                change_log_entry
+                    .update_proof(low_element.index(), &mut low_element_proof)
+                    .unwrap();
             }
             let merkle_proof = low_element_proof.to_array().unwrap();
             let new_low_leaf_hash = new_low_element
@@ -155,28 +143,23 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         };
 
         indexed_changelog.push(low_element_changelog_entry);
+
         {
             let new_element_next_value = low_element_next_value;
             let new_element_leaf_hash = new_element
                 .hash::<Poseidon>(&new_element_next_value)
                 .unwrap();
-            let proof = merkle_tree.append(new_element_leaf_hash);
+            let proof = sparse_merkle_tree.append(new_element_leaf_hash);
 
             let mut bounded_vec_merkle_proof = BoundedVec::from_slice(proof.as_slice());
-            let current_index = batch_start_index + i;
+            let current_index = next_index + i;
 
             for change_log_entry in changelog.iter() {
                 change_log_entry
                     .update_proof(current_index, &mut bounded_vec_merkle_proof)
                     .unwrap();
             }
-
-            let reference_root =
-                compute_root_from_merkle_proof(new_element_leaf_hash, &proof, current_index as u32);
-            assert_eq!(merkle_tree.root(), reference_root.0);
-
             let merkle_proof_array = bounded_vec_merkle_proof.to_array().unwrap();
-
             let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
                 new_element_leaf_hash,
                 &merkle_proof_array,
@@ -255,12 +238,17 @@ pub fn get_test_batch_address_append_inputs(
     addresses: Vec<BigUint>,
     start_index: usize,
     tree_height: usize,
+    tree: Option<light_merkle_tree_reference::indexed::IndexedMerkleTree<Poseidon, usize>>,
 ) -> BatchAddressAppendInputs {
-    let mut relayer_indexing_array = IndexedArray::<Poseidon, usize>::default();
-    relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(tree_height, 0).unwrap();
-    relayer_merkle_tree.init().unwrap();
+    let mut relayer_merkle_tree = light_merkle_tree_reference::indexed::IndexedMerkleTree::<
+        Poseidon,
+        usize,
+    >::new(tree_height, 0)
+    .unwrap();
+
+    if let Some(tree) = tree {
+        relayer_merkle_tree = tree;
+    }
 
     let old_root = relayer_merkle_tree.root();
 
@@ -274,7 +262,7 @@ pub fn get_test_batch_address_append_inputs(
 
     for address in &addresses {
         let non_inclusion_proof = relayer_merkle_tree
-            .get_non_inclusion_proof(address, &relayer_indexing_array)
+            .get_non_inclusion_proof(address)
             .unwrap();
         relayer_merkle_tree
             .verify_non_inclusion_proof(&non_inclusion_proof)
@@ -296,10 +284,6 @@ pub fn get_test_batch_address_append_inputs(
             .collect();
         low_element_proofs.push(proof);
 
-        relayer_merkle_tree
-            .append(address, &mut relayer_indexing_array)
-            .unwrap();
-
         let new_proof = relayer_merkle_tree
             .get_proof_of_leaf(relayer_merkle_tree.merkle_tree.rightmost_index - 1, true)
             .unwrap();
@@ -314,7 +298,6 @@ pub fn get_test_batch_address_append_inputs(
 
     let new_root = relayer_merkle_tree.root();
 
-    // Create hashchain
     let addresses_bytes = addresses
         .iter()
         .map(|x| bigint_to_be_bytes_array::<32>(x).unwrap())

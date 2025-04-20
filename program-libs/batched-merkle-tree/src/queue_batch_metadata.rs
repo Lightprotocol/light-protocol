@@ -1,4 +1,5 @@
-use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueType};
+use light_compressed_account::QueueType;
+use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_zero_copy::vec::ZeroCopyVecU64;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -156,7 +157,7 @@ impl QueueBatches {
     /// Increment the next full batch index if current state is BatchState::Inserted.
     pub fn increment_pending_batch_index_if_inserted(&mut self, state: BatchState) {
         if state == BatchState::Inserted {
-            solana_program::msg!("Incrementing next full batch index");
+            crate::msg!("Incrementing next full batch index");
             self.pending_batch_index = (self.pending_batch_index + 1) % self.num_batches;
         }
     }
@@ -188,15 +189,15 @@ impl QueueBatches {
     ) -> Result<(usize, usize, usize), MerkleTreeMetadataError> {
         let num_batches = self.num_batches as usize;
         // Input queues don't store values.
-        let num_value_stores = if queue_type == QueueType::BatchedOutput as u64 {
+        let num_value_stores = if queue_type == QueueType::OutputStateV2 as u64 {
             num_batches
-        } else if queue_type == QueueType::BatchedInput as u64 {
+        } else if queue_type == QueueType::InputStateV2 as u64 {
             0
         } else {
             return Err(MerkleTreeMetadataError::InvalidQueueType);
         };
         // Output queues don't use bloom filters.
-        let num_stores = if queue_type == QueueType::BatchedOutput as u64 {
+        let num_stores = if queue_type == QueueType::OutputStateV2 as u64 {
             0
         } else {
             num_batches
@@ -207,7 +208,7 @@ impl QueueBatches {
     pub fn queue_account_size(&self, queue_type: u64) -> Result<usize, BatchedMerkleTreeError> {
         let (num_value_vec, num_bloom_filter_stores, num_hash_chain_store) =
             self.get_size_parameters(queue_type)?;
-        let account_size = if queue_type == QueueType::BatchedInput as u64 {
+        let account_size = if queue_type == QueueType::InputStateV2 as u64 {
             // Input queue is part of the Merkle tree account.
             0
         } else {
@@ -304,7 +305,7 @@ fn test_output_queue_account_size() {
     let queue_size = 488 + (16 + 10 * 32) * 2 + (16 + 5 * 32) * 2 + 32 + 32;
     assert_eq!(
         metadata
-            .queue_account_size(QueueType::BatchedOutput as u64)
+            .queue_account_size(QueueType::OutputStateV2 as u64)
             .unwrap(),
         queue_size
     );
@@ -316,7 +317,7 @@ fn test_imput_queue_account_size() {
     let queue_size = 20000 * 2 + (16 + 5 * 32) * 2;
     assert_eq!(
         metadata
-            .queue_account_size(QueueType::BatchedInput as u64)
+            .queue_account_size(QueueType::InputStateV2 as u64)
             .unwrap(),
         queue_size
     );
@@ -331,19 +332,19 @@ fn test_get_size_parameters() {
     let metadata = QueueBatches::new_input_queue(10, 10, 2, 1, 0).unwrap();
     assert_eq!(
         metadata
-            .get_size_parameters(QueueType::BatchedInput as u64)
+            .get_size_parameters(QueueType::InputStateV2 as u64)
             .unwrap(),
         (0, 2, 2)
     );
     assert_eq!(
         metadata
-            .get_size_parameters(QueueType::BatchedOutput as u64)
+            .get_size_parameters(QueueType::OutputStateV2 as u64)
             .unwrap(),
         (2, 0, 2)
     );
     assert_eq!(
         metadata
-            .get_size_parameters(QueueType::NullifierQueue as u64)
+            .get_size_parameters(QueueType::NullifierV1 as u64)
             .unwrap_err(),
         MerkleTreeMetadataError::InvalidQueueType
     );

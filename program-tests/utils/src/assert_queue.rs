@@ -1,11 +1,9 @@
 use account_compression::QueueAccount;
-use forester_utils::{get_hash_set, AccountZeroCopy};
+use forester_utils::account_zero_copy::{get_hash_set, AccountZeroCopy};
 use light_client::rpc::RpcConnection;
 use light_merkle_tree_metadata::{
-    access::AccessMetadata,
-    fee::compute_rollover_fee,
-    queue::{QueueMetadata, QueueType},
-    rollover::RolloverMetadata,
+    access::AccessMetadata, fee::compute_rollover_fee, queue::QueueMetadata,
+    rollover::RolloverMetadata, QueueType,
 };
 use solana_sdk::pubkey::Pubkey;
 

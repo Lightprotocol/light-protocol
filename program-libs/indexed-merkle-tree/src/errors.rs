@@ -5,7 +5,7 @@ use light_concurrent_merkle_tree::{
 use light_utils::UtilsError;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum IndexedMerkleTreeError {
     #[error("Integer overflow")]
     IntegerOverflow,
@@ -35,9 +35,6 @@ pub enum IndexedMerkleTreeError {
     ArrayFull,
 }
 
-// NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
-// doesn't support data-carrying enums.
-#[cfg(feature = "solana")]
 impl From<IndexedMerkleTreeError> for u32 {
     fn from(e: IndexedMerkleTreeError) -> u32 {
         match e {
@@ -58,7 +55,13 @@ impl From<IndexedMerkleTreeError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(feature = "pinocchio")]
+impl From<IndexedMerkleTreeError> for pinocchio::program_error::ProgramError {
+    fn from(e: IndexedMerkleTreeError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
+    }
+}
+#[cfg(not(feature = "pinocchio"))]
 impl From<IndexedMerkleTreeError> for solana_program::program_error::ProgramError {
     fn from(e: IndexedMerkleTreeError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())

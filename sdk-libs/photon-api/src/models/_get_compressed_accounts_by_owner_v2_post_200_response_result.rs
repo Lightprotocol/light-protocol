@@ -15,13 +15,13 @@ pub struct GetCompressedAccountsByOwnerV2Post200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: Box<models::PaginatedAccountListWithContext>,
+    pub value: Box<models::PaginatedAccountListV2>,
 }
 
 impl GetCompressedAccountsByOwnerV2Post200ResponseResult {
     pub fn new(
         context: models::Context,
-        value: models::PaginatedAccountListWithContext,
+        value: models::PaginatedAccountListV2,
     ) -> GetCompressedAccountsByOwnerV2Post200ResponseResult {
         GetCompressedAccountsByOwnerV2Post200ResponseResult {
             context: Box::new(context),

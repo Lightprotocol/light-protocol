@@ -15,9 +15,11 @@ use light_compressed_account::{
         compressed_proof::CompressedProof,
         cpi_context::CompressedCpiContext,
         data::{
-            NewAddressParamsPacked, OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
+            NewAddressParamsAssignedPacked, NewAddressParamsPacked,
+            OutputCompressedAccountWithPackedContext, PackedReadOnlyAddress,
         },
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
 };
 use light_hasher::{errors::HasherError, DataHasher, Poseidon};
@@ -326,9 +328,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
             match mode {
                 CreatePdaMode::InvalidReadOnlyAccountMerkleTree => {
                     read_only_account[0].merkle_context.merkle_tree_pubkey_index =
-                        read_only_account[0]
-                            .merkle_context
-                            .nullifier_queue_pubkey_index;
+                        read_only_account[0].merkle_context.queue_pubkey_index;
                 }
                 CreatePdaMode::InvalidReadOnlyAccountRootIndex => {
                     let init_value = read_only_account[0].root_index;
@@ -349,9 +349,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                     inputs_struct.proof = Some(CompressedProof::default());
                 }
                 CreatePdaMode::InvalidReadOnlyAccountOutputQueue => {
-                    read_only_account[0]
-                        .merkle_context
-                        .nullifier_queue_pubkey_index =
+                    read_only_account[0].merkle_context.queue_pubkey_index =
                         read_only_account[0].merkle_context.merkle_tree_pubkey_index;
                 }
                 CreatePdaMode::AccountNotInValueVecMarkedProofByIndex => {
@@ -378,12 +376,40 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         msg!("read_only_address {:?}", read_only_address);
         let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
-            invoke_cpi: inputs_struct,
-            read_only_addresses: read_only_address,
-            read_only_accounts,
+            mode: 0,
+            bump,
+            with_transaction_hash: true,
+            with_cpi_context: inputs_struct.cpi_context.is_some(),
+            invoking_program_id: crate::ID.into(),
+            proof: inputs_struct.proof,
+            // Should fail because of this.
+            new_address_params: inputs_struct
+                .new_address_params
+                .iter()
+                .enumerate()
+                .map(|(i, x)| NewAddressParamsAssignedPacked::new(*x, Some(i as u8)))
+                .collect::<Vec<_>>(),
+            cpi_context: inputs_struct.cpi_context.unwrap_or_default(),
+            is_decompress: !inputs_struct.is_compress,
+            compress_or_decompress_lamports: inputs_struct
+                .compress_or_decompress_lamports
+                .unwrap_or_default(),
+            output_compressed_accounts: inputs_struct.output_compressed_accounts,
+            input_compressed_accounts: inputs_struct
+                .input_compressed_accounts_with_merkle_context
+                .iter()
+                .map(|x| InAccount {
+                    address: x.compressed_account.address,
+                    merkle_context: x.merkle_context,
+                    lamports: x.compressed_account.lamports,
+                    discriminator: x.compressed_account.data.as_ref().unwrap().discriminator,
+                    data_hash: x.compressed_account.data.as_ref().unwrap().data_hash,
+                    root_index: x.root_index,
+                })
+                .collect::<Vec<_>>(),
+            read_only_addresses: read_only_address.unwrap_or_default(),
+            read_only_accounts: read_only_accounts.unwrap_or_default(),
         };
-        let mut inputs = Vec::new();
-        InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -412,11 +438,11 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = remaining_accounts;
 
-        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi_with_read_only(
+            cpi_ctx,
+            inputs_struct.try_to_vec().unwrap(),
+        )?;
     } else {
-        let mut inputs = Vec::new();
-        InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
-
         let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
             fee_payer: ctx.accounts.signer.to_account_info(),
             authority: ctx.accounts.cpi_signer.to_account_info(),
@@ -444,7 +470,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
         cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-        light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+        light_system_program::cpi::invoke_cpi(cpi_ctx, inputs_struct.try_to_vec().unwrap())?;
     }
     Ok(())
 }
@@ -522,10 +548,7 @@ pub struct RegisteredUser {
 
 impl light_hasher::DataHasher for RegisteredUser {
     fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
-            .unwrap()
-            .0;
-
+        let truncated_user_pubkey = hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes());
         H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }
 }

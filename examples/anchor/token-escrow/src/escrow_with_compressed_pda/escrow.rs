@@ -18,7 +18,12 @@ use light_compressed_token::{
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
-    legacy::create_cpi_inputs_for_new_account, light_system_accounts, verify::verify, LightTraits,
+    cpi::{
+        accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
+        verify::verify_borsh,
+    },
+    legacy::*,
+    light_system_accounts, LightTraits,
 };
 
 use crate::{create_change_output_compressed_token_account, program::TokenEscrow, EscrowTimeLock};
@@ -97,7 +102,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     cpi_compressed_pda_transfer(ctx, proof, new_address_params, compressed_pda, cpi_context)?;
     Ok(())
 }
-
 fn cpi_compressed_pda_transfer<'info>(
     ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     proof: CompressedProof,
@@ -105,9 +109,6 @@ fn cpi_compressed_pda_transfer<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
-    let bump = Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID).1;
-    let bump = [bump];
-    let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &bump];
     cpi_context.first_set_context = false;
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_account(
@@ -116,8 +117,33 @@ fn cpi_compressed_pda_transfer<'info>(
         compressed_pda,
         Some(cpi_context),
     );
+    let mut system_accounts = vec![
+        ctx.accounts.get_light_system_program().clone(),
+        ctx.accounts.get_authority().clone(),
+        ctx.accounts.get_registered_program_pda().clone(),
+        ctx.accounts.get_noop_program().clone(),
+        ctx.accounts.get_account_compression_authority().clone(),
+        ctx.accounts.get_account_compression_program().clone(),
+        ctx.accounts.self_program.to_account_info(),
+        ctx.accounts.get_system_program().clone(),
+        ctx.accounts
+            .get_cpi_context_account()
+            .unwrap_or(&ctx.accounts.get_light_system_program())
+            .clone(),
+    ];
+    system_accounts.extend_from_slice(ctx.remaining_accounts);
+    let light_accounts = CompressionCpiAccounts::new_with_config(
+        ctx.accounts.signer.as_ref(),
+        &system_accounts,
+        CompressionCpiAccountsConfig {
+            self_program: crate::ID,
+            cpi_context: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
 
-    verify(&ctx, &inputs_struct, &[&signer_seeds])?;
+    verify_borsh(&light_accounts, &inputs_struct).map_err(ProgramError::from)?;
 
     Ok(())
 }
@@ -157,7 +183,9 @@ fn create_compressed_pda_data(
 
 impl light_hasher::DataHasher for EscrowTimeLock {
     fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        H::hash(&self.slot.to_le_bytes())
+        let mut slot_bytes = [0u8; 32];
+        slot_bytes[24..].copy_from_slice(&self.slot.to_be_bytes());
+        H::hash(&slot_bytes)
     }
 }
 

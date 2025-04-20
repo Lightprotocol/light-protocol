@@ -10,7 +10,6 @@ pub enum BloomFilterError {
     InvalidStoreCapacity,
 }
 
-#[cfg(feature = "solana")]
 impl From<BloomFilterError> for u32 {
     fn from(e: BloomFilterError) -> u32 {
         match e {
@@ -20,10 +19,17 @@ impl From<BloomFilterError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(all(feature = "solana", not(feature = "pinocchio")))]
 impl From<BloomFilterError> for solana_program::program_error::ProgramError {
     fn from(e: BloomFilterError) -> Self {
         solana_program::program_error::ProgramError::Custom(e.into())
+    }
+}
+
+#[cfg(all(feature = "pinocchio", not(feature = "solana")))]
+impl From<BloomFilterError> for pinocchio::program_error::ProgramError {
+    fn from(e: BloomFilterError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e.into())
     }
 }
 
@@ -108,7 +114,7 @@ impl<'a> BloomFilter<'a> {
 
 #[cfg(test)]
 mod test {
-    use light_compressed_account::bigint::bigint_to_be_bytes_array;
+    use light_hasher::bigint::bigint_to_be_bytes_array;
     use num_bigint::{RandBigInt, ToBigUint};
     use rand::thread_rng;
 

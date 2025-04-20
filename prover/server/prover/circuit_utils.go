@@ -80,7 +80,6 @@ type NonInclusionProof struct {
 
 	LeafLowerRangeValues  []frontend.Variable
 	LeafHigherRangeValues []frontend.Variable
-	NextIndices           []frontend.Variable
 
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
@@ -94,7 +93,6 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
-			NextIndex:            gadget.NextIndices[proofIndex],
 			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],
 			Value:                gadget.Values[proofIndex]}
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
@@ -142,7 +140,6 @@ func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
 
 type LeafHashGadget struct {
 	LeafLowerRangeValue  frontend.Variable
-	NextIndex            frontend.Variable
 	LeafHigherRangeValue frontend.Variable
 	Value                frontend.Variable
 }
@@ -155,7 +152,7 @@ func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	// Value is less than upper bound
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
 
-	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.NextIndex, In3: gadget.LeafHigherRangeValue})
+	return abstractor.Call(api, poseidon.Poseidon2{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafHigherRangeValue})
 }
 
 // Assert A is less than B.
@@ -219,38 +216,4 @@ func (gadget MerkleRootUpdateGadget) DefineGadget(api frontend.API) interface{} 
 		Height: gadget.Height,
 	})
 	return newRoot
-}
-
-// incrementBits implements binary addition to increment a number represented as a list of bits.
-// It uses XOR and AND operations to efficiently increment the binary number without using
-// traditional arithmetic operations, which is beneficial in zero-knowledge proof circuits.
-//
-// The function works as follows:
-//  1. It starts with a carry of 1 (equivalent to adding 1 to the number).
-//  2. For each bit, from least to most significant:
-//     a. It XORs the current bit with the carry. This effectively adds the bit and carry
-//     without considering a new carry. (0⊕0=0, 0⊕1=1, 1⊕0=1, 1⊕1=0)
-//     b. It ANDs the original bit with the carry to determine if there should be a carry
-//     for the next bit. (0∧0=0, 0∧1=0, 1∧0=0, 1∧1=1)
-//     c. The result of XOR becomes the new value for the current bit.
-//     d. The result of AND becomes the new carry for the next iteration.
-//  3. This process continues for all bits, resulting in the incremented binary number.
-//
-// Example: Incrementing 0111 (7 in decimal)
-// Initial state: 0111, carry = 1
-// i=0: 1⊕1=0, carry=1∧1=1 -> 0110, carry=1
-// i=1: 1⊕1=0, carry=1∧1=1 -> 0010, carry=1
-// i=2: 1⊕1=0, carry=1∧1=1 -> 1010, carry=1
-// i=3: 0⊕1=1, carry=0∧1=0 -> 1000, carry=0
-// Final result: 1000 (8 in decimal)
-func incrementBits(api frontend.API, bits []frontend.Variable) []frontend.Variable {
-	carry := frontend.Variable(1)
-	for i := 0; i < len(bits); i++ {
-		// XOR operation implements binary addition without carry
-		newBit := api.Xor(bits[i], carry)
-		// AND operation determines if we need to carry to the next bit
-		carry = api.And(bits[i], carry)
-		bits[i] = newBit
-	}
-	return bits
 }

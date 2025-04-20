@@ -2,17 +2,19 @@ use anchor_lang::prelude::*;
 use borsh::BorshDeserialize;
 use light_sdk::{
     account::LightAccount, instruction_data::LightInstructionData, light_system_accounts,
-    verify::verify_light_accounts, LightDiscriminator, LightHasher, LightTraits,
+    system_accounts::CompressionCpiAccounts, verify::verify_light_accounts, LightDiscriminator,
+    LightHasher, LightTraits,
 };
+
+use solana_program::program_error::ProgramError;
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod memo {
-    use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
-        program_merkle_context::unpack_address_merkle_context,
+        program_merkle_context::unpack_address_merkle_context, Discriminator,
     };
 
     use super::*;
@@ -30,12 +32,13 @@ pub mod memo {
 
         let address_merkle_context = accounts[0]
             .address_merkle_context
-            .ok_or(LightSdkError::ExpectedAddressMerkleContext)?;
+            .ok_or(LightSdkError::ExpectedAddressMerkleContext)
+            .map_err(ProgramError::from)?;
         let address_merkle_context =
             unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
         let (address, address_seed) = derive_address(
             &[b"memo", ctx.accounts.signer.key().as_ref()],
-            &address_merkle_context,
+            &address_merkle_context.address_merkle_tree_pubkey,
             &crate::ID,
         );
 
@@ -45,12 +48,27 @@ pub mod memo {
             address,
             address_seed,
             &crate::ID,
-        )?;
+        )
+        .map_err(ProgramError::from)?;
 
         memo.authority = ctx.accounts.signer.key();
         memo.message = message;
 
-        verify_light_accounts(&ctx, inputs.proof, &[memo], None, false, None)?;
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[memo],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
 
         Ok(())
     }
@@ -64,10 +82,12 @@ pub mod memo {
         let accounts = inputs
             .accounts
             .as_ref()
-            .ok_or(LightSdkError::ExpectedAccounts)?;
+            .ok_or(LightSdkError::ExpectedAccounts)
+            .map_err(ProgramError::from)?;
 
         let mut memo: LightAccount<'_, MemoAccount> =
-            LightAccount::from_meta_mut(&accounts[0], MemoAccount::discriminator(), &crate::ID)?;
+            LightAccount::meta_mut(&accounts[0], MemoAccount::discriminator(), &crate::ID)
+                .map_err(ProgramError::from)?;
 
         if memo.authority != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
@@ -75,7 +95,21 @@ pub mod memo {
 
         memo.message = new_message;
 
-        verify_light_accounts(&ctx, inputs.proof, &[memo], None, false, None)?;
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
+
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[memo],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
 
         Ok(())
     }
@@ -88,16 +122,31 @@ pub mod memo {
         let accounts = inputs
             .accounts
             .as_ref()
-            .ok_or(LightSdkError::ExpectedAccounts)?;
+            .ok_or(LightSdkError::ExpectedAccounts)
+            .map_err(ProgramError::from)?;
 
         let memo: LightAccount<'_, MemoAccount> =
-            LightAccount::from_meta_close(&accounts[0], MemoAccount::discriminator(), &crate::ID)?;
+            LightAccount::meta_close(&accounts[0], MemoAccount::discriminator(), &crate::ID)
+                .map_err(ProgramError::from)?;
 
         if memo.authority != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
         }
+        let light_cpi_accounts = CompressionCpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.accounts.cpi_signer.as_ref(),
+            ctx.remaining_accounts,
+        );
 
-        verify_light_accounts(&ctx, inputs.proof, &[memo], None, false, None)?;
+        verify_light_accounts(
+            &light_cpi_accounts,
+            inputs.proof,
+            &[memo],
+            None,
+            false,
+            None,
+        )
+        .map_err(ProgramError::from)?;
 
         Ok(())
     }
@@ -108,7 +157,7 @@ pub mod memo {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct MemoAccount {
-    #[truncate]
+    #[hash]
     pub authority: Pubkey,
     pub message: String,
 }

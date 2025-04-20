@@ -147,7 +147,12 @@ func runCli() {
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType {
+					if circuit != prover.InclusionCircuitType &&
+						circuit != prover.NonInclusionCircuitType &&
+						circuit != prover.CombinedCircuitType &&
+						circuit != prover.BatchUpdateCircuitType &&
+						circuit != prover.BatchAppendWithProofsCircuitType &&
+						circuit != prover.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -699,15 +704,18 @@ func runCli() {
 				Name: "extract-circuit",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
-					&cli.UintFlag{Name: "tree-height", Usage: "Merkle tree height", Required: true},
+					&cli.UintFlag{Name: "state-tree-height", Usage: "Merkle tree height", Required: true},
+					&cli.UintFlag{Name: "address-tree-height", Usage: "Indexed Merkle tree height", Required: true},
 					&cli.UintFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
-					treeHeight := uint32(context.Uint("tree-height"))
+					stateTreeHeight := uint32(context.Uint("state-tree-height"))
+					addressTreeHeight := uint32(context.Uint("address-tree-height"))
 					compressedAccounts := uint32(context.Uint("compressed-accounts"))
+
 					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
-					circuitString, err := prover.ExtractLean(treeHeight, compressedAccounts)
+					circuitString, err := prover.ExtractLean(stateTreeHeight, addressTreeHeight, compressedAccounts)
 					if err != nil {
 						return err
 					}

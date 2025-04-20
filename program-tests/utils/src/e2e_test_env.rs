@@ -73,11 +73,11 @@ use account_compression::{
 use anchor_lang::AnchorSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester_utils::{
+    account_zero_copy::AccountZeroCopy,
     address_merkle_tree_config::{address_tree_ready_for_rollover, state_tree_ready_for_rollover},
-    airdrop_lamports,
-    forester_epoch::{Epoch, Forester, TreeAccounts, TreeType},
+    forester_epoch::{Epoch, Forester, TreeAccounts},
     registry::register_test_forester,
-    AccountZeroCopy,
+    utils::airdrop_lamports,
 };
 use light_batched_merkle_tree::{
     batch::BatchState,
@@ -102,23 +102,28 @@ use light_compressed_account::{
         derive_address, pack_new_address_params, pack_read_only_accounts,
         pack_read_only_address_params,
     },
-    bigint::bigint_to_be_bytes_array,
     compressed_account::{
         pack_compressed_accounts, pack_output_compressed_accounts, CompressedAccount,
         CompressedAccountData, CompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
     },
     instruction_data::{
         compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
         data::{NewAddressParams, ReadOnlyAddress},
-        invoke_cpi::{InstructionDataInvokeCpi, InstructionDataInvokeCpiWithReadOnly},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
+    TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_hasher::Poseidon;
+use light_concurrent_merkle_tree::changelog::ChangelogEntry;
+use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
+use light_indexed_array::changelog::IndexedChangelogEntry;
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
-use light_merkle_tree_metadata::queue::QueueType;
+use light_merkle_tree_metadata::QueueType;
+use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_batch_forester::{perform_batch_append, perform_batch_nullify},
@@ -141,7 +146,10 @@ use light_registry::{
     utils::get_protocol_config_pda_address,
     ForesterConfig,
 };
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
+use light_sdk::{
+    token::{AccountState, TokenDataWithMerkleContext},
+    NewAddressParamsAssignedPacked, CPI_AUTHORITY_PDA_SEED,
+};
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -669,7 +677,7 @@ where
                     &self.foresters,
                     self.slot,
                 ) {
-                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("\n --------------------------------------------------\n\t\t Empty v1 Address Queue\n --------------------------------------------------");
                     println!("epoch {}", self.epoch);
                     println!("forester {}", payer.pubkey());
                     if address_merkle_tree_bundle.accounts.queue
@@ -757,14 +765,13 @@ where
                                 let leaves_hash_chain = merkle_tree.hash_chain_stores
                                     [full_batch_index as usize]
                                     [zkp_batch_index as usize];
-                                let batch_start_index = merkle_tree.next_index as usize;
 
                                 let addresses = self
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
-                                        QueueType::BatchedAddress,
-                                        batch.batch_size,
+                                        QueueType::AddressV2,
+                                        batch.batch_size as u16,
                                         None,
                                     )
                                     .await
@@ -805,6 +812,16 @@ where
                                     low_element_proofs
                                         .push(non_inclusion_proof.low_address_proof.to_vec());
                                 }
+
+                                let subtrees =   self.indexer
+                                    .get_subtrees(merkle_tree_pubkey.to_bytes())
+                                    .await
+                                    .unwrap();
+                                let mut sparse_merkle_tree = SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(<[[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize]>::try_from(subtrees).unwrap(), start_index);
+
+                                let mut changelog: Vec<ChangelogEntry<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
+                                let mut indexed_changelog: Vec<IndexedChangelogEntry<usize, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>> = Vec::new();
+
                                 let inputs = get_batch_address_append_circuit_inputs::<
                                     { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
                                 >(
@@ -816,15 +833,11 @@ where
                                     low_element_next_indices,
                                     low_element_proofs,
                                     addresses,
-                                    self.indexer
-                                        .get_subtrees(merkle_tree_pubkey.to_bytes())
-                                        .await
-                                        .unwrap()
-                                        .try_into()
-                                        .unwrap(),
+                                    &mut sparse_merkle_tree,
                                     leaves_hash_chain,
-                                    batch_start_index,
                                     batch.zkp_batch_size as usize,
+                                    &mut changelog,
+                                    &mut indexed_changelog,
                                 )
                                 .unwrap();
                                 let client = Client::new();
@@ -1126,8 +1139,8 @@ where
                     .iter()
                     .map(|state_merkle_tree_bundle| {
                         let tree_type = match state_merkle_tree_bundle.version {
-                            1 => TreeType::State,
-                            2 => TreeType::BatchedState,
+                            1 => TreeType::StateV1,
+                            2 => TreeType::StateV2,
                             _ => panic!("unsupported version {}", state_merkle_tree_bundle.version),
                         };
 
@@ -1142,7 +1155,7 @@ where
                 self.indexer.get_address_merkle_trees().iter().for_each(
                     |address_merkle_tree_bundle| {
                         tree_accounts.push(TreeAccounts {
-                            tree_type: TreeType::Address,
+                            tree_type: TreeType::AddressV1,
                             merkle_tree: address_merkle_tree_bundle.accounts.merkle_tree,
                             queue: address_merkle_tree_bundle.accounts.queue,
                             is_rolledover: false,
@@ -1292,6 +1305,7 @@ where
         // TODO: Add assert
     }
 
+    /// Only supports v1 address trees.
     pub async fn create_address_tree(&mut self, rollover_threshold: Option<u64>) {
         let merkle_tree_keypair = Keypair::new();
         let nullifier_queue_keypair = Keypair::new();
@@ -1361,22 +1375,17 @@ where
             nullifier_queue_keypair.pubkey(),
         )
         .await;
-        self.indexer
-            .get_address_merkle_trees_mut()
-            .push(AddressMerkleTreeBundle {
-                rollover_fee: queue_account
-                    .deserialized()
-                    .metadata
-                    .rollover_metadata
-                    .rollover_fee as i64,
-                accounts: AddressMerkleTreeAccounts {
-                    merkle_tree: merkle_tree_keypair.pubkey(),
-                    queue: nullifier_queue_keypair.pubkey(),
-                },
-                merkle_tree,
-                indexed_array,
-                queue_elements: vec![],
-            });
+        let mut bundle = AddressMerkleTreeBundle::new_v1(AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: nullifier_queue_keypair.pubkey(),
+        })
+        .unwrap();
+        bundle.rollover_fee = queue_account
+            .deserialized()
+            .metadata
+            .rollover_metadata
+            .rollover_fee as i64;
+        self.indexer.get_address_merkle_trees_mut().push(bundle);
         // TODO: Add assert
     }
 
@@ -1515,7 +1524,7 @@ where
     ) -> Option<Keypair> {
         for f in foresters.iter() {
             let tree = f.forester.active.merkle_trees.iter().find(|mt| {
-                if mt.tree_accounts.tree_type == TreeType::BatchedState {
+                if mt.tree_accounts.tree_type == TreeType::StateV2 {
                     mt.tree_accounts.merkle_tree == *queue_pubkey
                 } else {
                     mt.tree_accounts.queue == *queue_pubkey
@@ -2581,12 +2590,14 @@ where
                 })
                 .collect::<Vec<_>>()
         };
+        // (address params index, output account index)
+        let mut new_address_indices: Vec<(usize, u8)> = vec![];
 
         let (output_accounts, output_merkle_trees) = {
             let num_output_accounts = Self::safe_gen_range(&mut self.rng, 0..=8, 0);
             let mut accounts = vec![];
 
-            for _ in 0..num_output_accounts {
+            for i in 0..num_output_accounts {
                 let rnd_data: [u8; 32] = self.rng.gen();
                 let mut data_hash = rnd_data;
                 // truncate else 0x1 error
@@ -2596,7 +2607,10 @@ where
                 let num_addresses = addresses.len();
 
                 let address = if select_address && num_addresses > 0 {
-                    Some(addresses.remove(Self::safe_gen_range(&mut self.rng, 0..num_addresses, 0)))
+                    let new_address_index =
+                        Self::safe_gen_range(&mut self.rng, 0..num_addresses, 0);
+                    new_address_indices.push((new_address_index, i.try_into().unwrap()));
+                    Some(addresses.remove(new_address_index))
                 } else {
                     None
                 };
@@ -2679,15 +2693,6 @@ where
                 }
             }
 
-            // if !input_accounts.is_empty() {
-            //     for (i, input_account) in input_accounts.iter_mut().enumerate() {
-            //         if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
-            //             // input_account.root_index = root_index;
-            //         } else {
-            //             input_account.merkle_context.prove_by_index = true;
-            //         }
-            //     }
-            // }
             if !read_only_accounts.is_empty() {
                 for (i, input_account) in read_only_accounts.iter_mut().enumerate() {
                     if let Some(root_index) = proof_rpc_res.root_indices[i + input_accounts.len()] {
@@ -2731,36 +2736,57 @@ where
             is_compress: false,
             cpi_context: None,
         };
-        let read_only_accounts = if read_only_accounts.is_empty() {
-            None
-        } else {
-            Some(pack_read_only_accounts(
-                read_only_accounts.as_slice(),
-                &mut remaining_accounts,
-            ))
-        };
-        let read_only_addresses = if read_only_addresses.is_empty() {
-            None
-        } else {
-            Some(pack_read_only_address_params(
-                read_only_addresses.as_slice(),
-                &mut remaining_accounts,
-            ))
-        };
+        let read_only_accounts =
+            pack_read_only_accounts(read_only_accounts.as_slice(), &mut remaining_accounts);
+        let read_only_addresses =
+            pack_read_only_address_params(read_only_addresses.as_slice(), &mut remaining_accounts);
+        let (_, bump) = Pubkey::find_program_address(
+            &[CPI_AUTHORITY_PDA_SEED],
+            &create_address_test_program::ID,
+        );
+        let mut new_address_params = Vec::new();
+        for (index, new_address_param) in invoke_cpi.new_address_params.into_iter().enumerate() {
+            if let Some((_, account_index)) = new_address_indices
+                .iter()
+                .find(|(address_index, _)| *address_index == index)
+            {
+                new_address_params.push(NewAddressParamsAssignedPacked::new(
+                    new_address_param,
+                    Some(*account_index),
+                ));
+            } else {
+                new_address_params
+                    .push(NewAddressParamsAssignedPacked::new(new_address_param, None));
+            }
+        }
 
         let ix_data: InstructionDataInvokeCpiWithReadOnly = InstructionDataInvokeCpiWithReadOnly {
-            invoke_cpi,
+            mode: 0,
+            bump,
+            with_transaction_hash: self.rng.gen(),
+            invoking_program_id: create_address_test_program::ID.into(),
+            proof: invoke_cpi.proof,
+            new_address_params,
+            with_cpi_context: false,
+            cpi_context: CompressedCpiContext::default(),
+            input_compressed_accounts: invoke_cpi
+                .input_compressed_accounts_with_merkle_context
+                .iter()
+                .map(|x| (*x).clone().into())
+                .collect::<Vec<_>>(),
+            is_decompress: !invoke_cpi.is_compress,
+            compress_or_decompress_lamports: invoke_cpi
+                .compress_or_decompress_lamports
+                .unwrap_or_default(),
+            output_compressed_accounts: invoke_cpi.output_compressed_accounts,
             read_only_accounts,
             read_only_addresses,
         };
         println!("ix_data: {:?}", ix_data);
-        if ix_data.read_only_accounts.is_none()
-            && ix_data.read_only_addresses.is_none()
-            && ix_data
-                .invoke_cpi
-                .input_compressed_accounts_with_merkle_context
-                .is_empty()
-            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
+        if ix_data.read_only_accounts.is_empty()
+            && ix_data.read_only_addresses.is_empty()
+            && ix_data.input_compressed_accounts.is_empty()
+            && ix_data.output_compressed_accounts.is_empty()
         {
             return Ok(());
         }
@@ -2772,6 +2798,7 @@ where
             user.pubkey(),
             ix_data.try_to_vec().unwrap(),
             remaining_accounts,
+            None,
         );
 
         let res = self
@@ -2786,13 +2813,10 @@ where
         // In case that only read only accounts exist in a transaction
         // the account compression program is not invoked -> there is no event and it is ok.
         let tx_has_read_only =
-            ix_data.read_only_accounts.is_some() || ix_data.read_only_addresses.is_some();
-        let tx_has_no_writable = ix_data
-            .invoke_cpi
-            .input_compressed_accounts_with_merkle_context
-            .is_empty()
-            && ix_data.invoke_cpi.output_compressed_accounts.is_empty()
-            && ix_data.invoke_cpi.new_address_params.is_empty();
+            !ix_data.read_only_accounts.is_empty() || !ix_data.read_only_addresses.is_empty();
+        let tx_has_no_writable = ix_data.input_compressed_accounts.is_empty()
+            && ix_data.output_compressed_accounts.is_empty()
+            && ix_data.new_address_params.is_empty();
         let tx_is_read_only = tx_has_read_only && tx_has_no_writable;
         if !tx_is_read_only {
             let (event, _, slot) = res.ok_or(RpcError::CustomError(

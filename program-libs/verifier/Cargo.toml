@@ -7,13 +7,20 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
+default = ["solana"]
+solana = ["solana-program", "light-compressed-account/solana"]
+anchor = ["solana"] # For backward compatibility, alias to solana
+pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 
 [dependencies]
-groth16-solana = { workspace = true }
+groth16-solana = { workspace = true, default-features = false }
 thiserror = { workspace = true }
+light-compressed-account = { workspace = true, default-features = false }
+
+# Optional import for ProgramError conversion
 solana-program = { workspace = true, optional = true }
-light-compressed-account = { workspace = true }
+# Optional import for ProgramError conversion
+pinocchio = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

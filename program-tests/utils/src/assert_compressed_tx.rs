@@ -1,6 +1,8 @@
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::Discriminator;
-use forester_utils::{get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy};
+use forester_utils::account_zero_copy::{
+    get_concurrent_merkle_tree, get_hash_set, AccountZeroCopy,
+};
 use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 use light_batched_merkle_tree::{
     batch::Batch, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueMetadata,
@@ -11,7 +13,8 @@ use light_client::{
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    indexer_event::event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    TreeType,
 };
 use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
@@ -239,7 +242,7 @@ pub fn assert_created_compressed_accounts(
         assert!(output_merkle_tree_pubkeys
             .iter()
             .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey
-                || *x == output_account.merkle_context.nullifier_queue_pubkey),);
+                || *x == output_account.merkle_context.queue_pubkey),);
     }
 }
 
@@ -287,16 +290,16 @@ pub fn assert_public_transaction_event(
     );
     let mut updated_sequence_numbers = event.sequence_numbers.clone();
     for account in event.output_compressed_accounts.iter() {
-        let merkle_tree_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
+        let queue_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
         let index = &mut updated_sequence_numbers
             .iter_mut()
-            .find(|x| x.pubkey == merkle_tree_pubkey);
+            .find(|x| x.queue_pubkey == queue_pubkey);
         if index.is_none() {
             println!("reference sequence numbers: {:?}", sequence_numbers);
             println!("event: {:?}", event);
             panic!(
-                "merkle tree pubkey not found in sequence numbers : {:?}",
-                merkle_tree_pubkey
+                "queue pubkey not found in sequence numbers : {:?}",
+                queue_pubkey
             );
         } else {
             let seq = &mut index.as_mut().unwrap().seq;
@@ -353,7 +356,9 @@ pub async fn assert_merkle_tree_after_tx<
                 println!("next index: {:?}", snapshot.next_index);
                 println!("prev sequence number: {:?}", snapshot.num_added_accounts);
                 sequence_numbers.push(MerkleTreeSequenceNumber {
-                    pubkey: snapshot.accounts.merkle_tree,
+                    tree_pubkey: snapshot.accounts.merkle_tree,
+                    queue_pubkey: snapshot.accounts.nullifier_queue,
+                    tree_type: TreeType::StateV1 as u64,
                     seq: merkle_tree.sequence_number() as u64,
                 });
                 if merkle_tree.root() == snapshot.root {

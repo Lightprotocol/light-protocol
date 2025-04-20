@@ -15,21 +15,18 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-custom-heap = ["light-heap"]
-mem-profiling = []
-default = ["custom-heap", "mem-profiling"]
+default = []
 test-sbf = []
 bench-sbf = []
 sdk = []
 
 [dependencies]
 aligned-sized = { workspace = true }
-anchor-lang = { workspace = true , features = ["init-if-needed"]}
-light-heap = { workspace = true, optional = true }
-account-compression = { workspace =  true  }
-light-system-program = { workspace = true , features = ["cpi"]  }
+anchor-lang = { workspace = true, features = ["init-if-needed"] }
+account-compression = { workspace = true }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
-light-merkle-tree-metadata = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true }
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

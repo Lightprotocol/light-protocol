@@ -10,17 +10,14 @@ use light_batched_merkle_tree::{
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-use light_merkle_tree_metadata::merkle_tree::TreeType;
+use light_merkle_tree_metadata::TreeType;
 
 use crate::{
     address_merkle_tree_from_bytes_zero_copy_mut,
     errors::AccountCompressionErrorCode,
     state_merkle_tree_from_bytes_zero_copy_mut,
-    utils::{
-        check_signer_is_registered_or_authority::{
-            manual_check_signer_is_registered_or_authority, GroupAccess,
-        },
-        constants::CPI_AUTHORITY_PDA_SEED,
+    utils::check_signer_is_registered_or_authority::{
+        manual_check_signer_is_registered_or_authority, GroupAccess,
     },
     AddressMerkleTreeAccount, QueueAccount, StateMerkleTreeAccount,
 };
@@ -68,7 +65,8 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
         account_infos: &'info [AccountInfo<'info>],
         authority: &'a AccountInfo<'info>,
         invoked_by_program: bool,
-        bump: u8,
+        // TODO: remove in separate pr because it impacts photon derivation.
+        _bump: u8,
     ) -> std::result::Result<Vec<AcpAccount<'a, 'info>>, ProgramError> {
         let mut vec = Vec::with_capacity(account_infos.len());
         let mut skip = 0;
@@ -79,15 +77,19 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 if RegisteredProgram::DISCRIMINATOR.as_slice() != &data[..8] {
                     return Err(AccountError::InvalidDiscriminator.into());
                 }
+                if account_info.owner != &crate::ID {
+                    return Err(AccountError::AccountOwnedByWrongProgram.into());
+                }
                 let account = bytemuck::from_bytes::<RegisteredProgram>(&data[8..]);
-                // 1,670 CU
-                // TODO: get from RegisteredProgram account and compare
-                let derived_address = Pubkey::create_program_address(
-                    &[CPI_AUTHORITY_PDA_SEED, &[bump]],
-                    &account.registered_program_id,
-                )?;
+
+                if account.registered_program_signer_pda != *authority.key {
+                    return Err(AccountError::InvalidSigner.into());
+                }
                 skip += 1;
-                Some((derived_address, account.group_authority_pda))
+                Some((
+                    account.registered_program_signer_pda,
+                    account.group_authority_pda,
+                ))
             }
             false => None,
         };
@@ -136,11 +138,18 @@ impl<'a, 'info> AcpAccount<'a, 'info> {
                 tree_type.copy_from_slice(&account_info.try_borrow_data()?[8..16]);
                 let tree_type = TreeType::from(u64::from_le_bytes(tree_type));
                 match tree_type {
-                    TreeType::BatchedAddress => Ok(AcpAccount::BatchedAddressTree(
-                        BatchedMerkleTreeAccount::address_from_account_info(account_info)
-                            .map_err(ProgramError::from)?,
-                    )),
-                    TreeType::BatchedState => {
+                    TreeType::AddressV2 => {
+                        let tree =
+                            BatchedMerkleTreeAccount::address_from_account_info(account_info)
+                                .map_err(ProgramError::from)?;
+                        manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(
+                            registered_program_pda,
+                            authority,
+                            &tree,
+                        )?;
+                        Ok(AcpAccount::BatchedAddressTree(tree))
+                    }
+                    TreeType::StateV2 => {
                         let tree = BatchedMerkleTreeAccount::state_from_account_info(account_info)
                             .map_err(ProgramError::from)?;
                         manual_check_signer_is_registered_or_authority::<BatchedMerkleTreeAccount>(

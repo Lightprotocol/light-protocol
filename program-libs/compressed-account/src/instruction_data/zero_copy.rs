@@ -6,7 +6,10 @@ use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
-use super::invoke_cpi::InstructionDataInvokeCpi;
+use super::{
+    invoke_cpi::InstructionDataInvokeCpi,
+    traits::{AccountOptions, InputAccount, InstructionData, NewAddress, OutputAccount},
+};
 use crate::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
@@ -58,13 +61,34 @@ pub struct ZNewAddressParamsPacked {
     pub address_merkle_tree_root_index: U16,
 }
 
+impl NewAddress<'_> for ZNewAddressParamsPacked {
+    fn seed(&self) -> [u8; 32] {
+        self.seed
+    }
+    fn address_queue_index(&self) -> u8 {
+        self.address_queue_account_index
+    }
+
+    fn address_merkle_tree_account_index(&self) -> u8 {
+        self.address_merkle_tree_account_index
+    }
+
+    fn assigned_compressed_account_index(&self) -> Option<usize> {
+        None
+    }
+
+    fn address_merkle_tree_root_index(&self) -> u16 {
+        self.address_merkle_tree_root_index.into()
+    }
+}
+
 #[repr(C)]
 #[derive(
     Debug, Default, PartialEq, Clone, Copy, KnownLayout, Immutable, FromBytes, IntoBytes, Unaligned,
 )]
 pub struct ZPackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
+    pub queue_pubkey_index: u8,
     pub leaf_index: U32,
     prove_by_index: u8,
 }
@@ -88,6 +112,49 @@ impl<'a> Deserialize<'a> for ZPackedMerkleContext {
 pub struct ZOutputCompressedAccountWithPackedContext<'a> {
     pub compressed_account: ZCompressedAccount<'a>,
     pub merkle_tree_index: u8,
+}
+
+impl<'a> OutputAccount<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
+    fn lamports(&self) -> u64 {
+        self.compressed_account.lamports.into()
+    }
+    fn owner(&self) -> Pubkey {
+        self.compressed_account.owner
+    }
+
+    fn merkle_tree_index(&self) -> u8 {
+        self.merkle_tree_index
+    }
+
+    fn address(&self) -> Option<[u8; 32]> {
+        self.compressed_account.address.map(|x| *x)
+    }
+
+    fn has_data(&self) -> bool {
+        self.compressed_account.data.is_some()
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        self.compressed_account
+            .data
+            .as_ref()
+            .map(|data| data.into())
+    }
+
+    fn hash_with_hashed_values(
+        &self,
+        owner_hashed: &[u8; 32],
+        merkle_tree_hashed: &[u8; 32],
+        leaf_index: &u32,
+        is_batched: bool,
+    ) -> Result<[u8; 32], crate::CompressedAccountError> {
+        self.compressed_account.hash_with_hashed_values(
+            owner_hashed,
+            merkle_tree_hashed,
+            leaf_index,
+            is_batched,
+        )
+    }
 }
 
 impl<'a> From<&ZOutputCompressedAccountWithPackedContext<'a>>
@@ -127,6 +194,16 @@ pub struct ZCompressedAccountData<'a> {
 
 impl From<ZCompressedAccountData<'_>> for CompressedAccountData {
     fn from(compressed_account_data: ZCompressedAccountData) -> Self {
+        CompressedAccountData {
+            discriminator: *compressed_account_data.discriminator,
+            data: compressed_account_data.data.to_vec(),
+            data_hash: *compressed_account_data.data_hash,
+        }
+    }
+}
+
+impl From<&ZCompressedAccountData<'_>> for CompressedAccountData {
+    fn from(compressed_account_data: &ZCompressedAccountData) -> Self {
         CompressedAccountData {
             discriminator: *compressed_account_data.discriminator,
             data: compressed_account_data.data.to_vec(),
@@ -193,7 +270,7 @@ impl From<&ZCompressedAccount<'_>> for CompressedAccount {
                     data_hash: *data.data_hash,
                 });
         CompressedAccount {
-            owner: compressed_account.owner.into(),
+            owner: crate::Pubkey::from(compressed_account.owner),
             lamports: compressed_account.lamports.into(),
             address: compressed_account.address.map(|x| *x),
             data,
@@ -239,7 +316,7 @@ impl From<ZPackedMerkleContext> for PackedMerkleContext {
     fn from(merkle_context: ZPackedMerkleContext) -> Self {
         PackedMerkleContext {
             merkle_tree_pubkey_index: merkle_context.merkle_tree_pubkey_index,
-            nullifier_queue_pubkey_index: merkle_context.nullifier_queue_pubkey_index,
+            queue_pubkey_index: merkle_context.queue_pubkey_index,
             leaf_index: merkle_context.leaf_index.into(),
             prove_by_index: merkle_context.prove_by_index == 1,
         }
@@ -250,6 +327,49 @@ impl From<ZPackedMerkleContext> for PackedMerkleContext {
 pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
     pub compressed_account: ZCompressedAccount<'a>,
     meta: Ref<&'a [u8], ZPackedCompressedAccountWithMerkleContextMeta>,
+}
+
+impl<'a> InputAccount<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
+    fn owner(&self) -> &crate::pubkey::Pubkey {
+        &self.compressed_account.owner
+    }
+    fn lamports(&self) -> u64 {
+        self.compressed_account.lamports.into()
+    }
+    fn address(&self) -> Option<[u8; 32]> {
+        self.compressed_account.address.map(|x| *x)
+    }
+
+    fn merkle_context(&self) -> ZPackedMerkleContext {
+        self.meta.merkle_context
+    }
+
+    fn root_index(&self) -> u16 {
+        self.meta.root_index.into()
+    }
+
+    fn has_data(&self) -> bool {
+        self.compressed_account.data.is_some()
+    }
+
+    fn data(&self) -> Option<CompressedAccountData> {
+        self.compressed_account.data.as_ref().map(|x| x.into())
+    }
+
+    fn hash_with_hashed_values(
+        &self,
+        owner_hashed: &[u8; 32],
+        merkle_tree_hashed: &[u8; 32],
+        leaf_index: &u32,
+        is_batched: bool,
+    ) -> Result<[u8; 32], crate::CompressedAccountError> {
+        self.compressed_account.hash_with_hashed_values(
+            owner_hashed,
+            merkle_tree_hashed,
+            leaf_index,
+            is_batched,
+        )
+    }
 }
 
 impl From<&ZPackedCompressedAccountWithMerkleContext<'_>>
@@ -305,6 +425,62 @@ pub struct ZInstructionDataInvoke<'a> {
     pub is_compress: bool,
 }
 
+impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
+    fn bump(&self) -> Option<u8> {
+        None
+    }
+    fn with_transaction_hash(&self) -> bool {
+        true
+    }
+    fn account_option_config(&self) -> AccountOptions {
+        unimplemented!()
+    }
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        None
+    }
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        None
+    }
+    fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
+        self.proof
+    }
+    fn is_compress(&self) -> bool {
+        self.is_compress
+    }
+    fn compress_or_decompress_lamports(&self) -> Option<u64> {
+        self.compress_or_decompress_lamports.map(|x| (*x).into())
+    }
+    fn owner(&self) -> Pubkey {
+        // TODO: investigate why this is called if there are no inputs when using mint_to.
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
+    }
+
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
+        self.new_address_params.as_slice()
+    }
+
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
+        self.input_compressed_accounts_with_merkle_context
+            .as_slice()
+    }
+
+    fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
+        self.output_compressed_accounts.as_slice()
+    }
+
+    fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        unimplemented!()
+    }
+}
 impl<'a> Deserialize<'a> for ZInstructionDataInvoke<'a> {
     type Output = Self;
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
@@ -350,9 +526,109 @@ pub struct ZInstructionDataInvokeCpi<'a> {
     pub cpi_context: Option<Ref<&'a [u8], ZCompressedCpiContext>>,
 }
 
+impl ZInstructionDataInvokeCpi<'_> {
+    pub fn owner(&self) -> Pubkey {
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
+    }
+}
+
+impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
+    fn bump(&self) -> Option<u8> {
+        None
+    }
+
+    fn with_transaction_hash(&self) -> bool {
+        true
+    }
+
+    fn account_option_config(&self) -> AccountOptions {
+        AccountOptions {
+            sol_pool_pda: self.is_compress(),
+            decompression_recipient: self.compress_or_decompress_lamports().is_some()
+                && !self.is_compress(),
+            cpi_context_account: self.cpi_context().is_some(),
+        }
+    }
+
+    fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]> {
+        None
+    }
+
+    fn read_only_addresses(&self) -> Option<&[ZPackedReadOnlyAddress]> {
+        None
+    }
+
+    fn owner(&self) -> Pubkey {
+        if self
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            Pubkey::default()
+        } else {
+            self.input_compressed_accounts_with_merkle_context[0]
+                .compressed_account
+                .owner
+        }
+    }
+
+    fn is_compress(&self) -> bool {
+        self.is_compress
+    }
+
+    fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {
+        self.proof
+    }
+
+    fn new_addresses(&self) -> &[impl NewAddress<'a>] {
+        self.new_address_params.as_slice()
+    }
+
+    fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
+        self.output_compressed_accounts.as_slice()
+    }
+
+    fn input_accounts(&self) -> &[impl InputAccount<'a>] {
+        self.input_compressed_accounts_with_merkle_context
+            .as_slice()
+    }
+
+    fn cpi_context(&self) -> Option<CompressedCpiContext> {
+        self.cpi_context
+            .as_ref()
+            .map(|cpi_context| CompressedCpiContext {
+                set_context: cpi_context.set_context(),
+                first_set_context: cpi_context.first_set_context(),
+                cpi_context_account_index: cpi_context.cpi_context_account_index,
+            })
+    }
+
+    fn compress_or_decompress_lamports(&self) -> Option<u64> {
+        self.compress_or_decompress_lamports.map(|x| (*x).into())
+    }
+}
+
 #[repr(C)]
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, FromBytes, IntoBytes, Immutable, KnownLayout,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    FromBytes,
+    IntoBytes,
+    Immutable,
+    Unaligned,
+    KnownLayout,
 )]
 pub struct ZCompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
@@ -461,32 +737,6 @@ impl<'a> Deserialize<'a> for ZPackedReadOnlyCompressedAccount {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    pub invoke_cpi: ZInstructionDataInvokeCpi<'a>,
-    pub read_only_addresses: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>>,
-    pub read_only_accounts: Option<ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>>,
-}
-
-impl<'a> Deserialize<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    type Output = Self;
-    fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self, &'a [u8]), ZeroCopyError> {
-        let (invoke_cpi, bytes) = ZInstructionDataInvokeCpi::zero_copy_at(bytes)?;
-        let (read_only_addresses, bytes) =
-            Option::<ZeroCopySliceBorsh<ZPackedReadOnlyAddress>>::zero_copy_at(bytes)?;
-        let (read_only_accounts, bytes) =
-            Option::<ZeroCopySliceBorsh<ZPackedReadOnlyCompressedAccount>>::zero_copy_at(bytes)?;
-        Ok((
-            ZInstructionDataInvokeCpiWithReadOnly {
-                invoke_cpi,
-                read_only_addresses,
-                read_only_accounts,
-            },
-            bytes,
-        ))
-    }
-}
-
 impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
     fn from(data: &ZInstructionDataInvokeCpi<'_>) -> Self {
         Self {
@@ -510,8 +760,47 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
     }
 }
 
+#[repr(C)]
+#[derive(
+    Debug, PartialEq, Default, Clone, Copy, KnownLayout, Immutable, FromBytes, IntoBytes, Unaligned,
+)]
+pub struct ZNewAddressParamsAssignedPacked {
+    pub seed: [u8; 32],
+    pub address_queue_account_index: u8,
+    pub address_merkle_tree_account_index: u8,
+    pub address_merkle_tree_root_index: U16,
+    pub assigned_to_account: u8,
+    pub assigned_account_index: u8,
+}
+
+impl NewAddress<'_> for ZNewAddressParamsAssignedPacked {
+    fn seed(&self) -> [u8; 32] {
+        self.seed
+    }
+    fn address_queue_index(&self) -> u8 {
+        self.address_queue_account_index
+    }
+
+    fn address_merkle_tree_account_index(&self) -> u8 {
+        self.address_merkle_tree_account_index
+    }
+
+    fn assigned_compressed_account_index(&self) -> Option<usize> {
+        if self.assigned_to_account > 0 {
+            Some(self.assigned_account_index as usize)
+        } else {
+            None
+        }
+    }
+
+    fn address_merkle_tree_root_index(&self) -> u16 {
+        self.address_merkle_tree_root_index.into()
+    }
+}
+
 // TODO: add randomized tests
 // TODO: add unit test ZInstructionDataInvokeCpiWithReadOnly
+#[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;
@@ -760,7 +1049,7 @@ mod test {
 
     fn get_test_account() -> CompressedAccount {
         CompressedAccount {
-            owner: solana_program::pubkey::Pubkey::new_unique(),
+            owner: crate::Pubkey::new_unique(),
             lamports: 100,
             address: Some(Pubkey::new_unique().to_bytes()),
             data: Some(get_test_account_data()),
@@ -769,7 +1058,7 @@ mod test {
 
     fn get_rnd_test_account(rng: &mut StdRng) -> CompressedAccount {
         CompressedAccount {
-            owner: solana_program::pubkey::Pubkey::new_unique(),
+            owner: crate::Pubkey::new_unique(),
             lamports: rng.gen(),
             address: Some(Pubkey::new_unique().to_bytes()),
             data: Some(get_rnd_test_account_data(rng)),
@@ -816,7 +1105,7 @@ mod test {
     fn get_test_input_account() -> PackedCompressedAccountWithMerkleContext {
         PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
-                owner: solana_program::pubkey::Pubkey::new_unique(),
+                owner: crate::Pubkey::new_unique(),
                 lamports: 100,
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(CompressedAccountData {
@@ -827,7 +1116,7 @@ mod test {
             },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 1,
-                nullifier_queue_pubkey_index: 2,
+                queue_pubkey_index: 2,
                 leaf_index: 3,
                 prove_by_index: true,
             },
@@ -839,14 +1128,14 @@ mod test {
     fn get_rnd_test_input_account(rng: &mut StdRng) -> PackedCompressedAccountWithMerkleContext {
         PackedCompressedAccountWithMerkleContext {
             compressed_account: CompressedAccount {
-                owner: solana_program::pubkey::Pubkey::new_unique(),
+                owner: crate::Pubkey::new_unique(),
                 lamports: 100,
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(get_rnd_test_account_data(rng)),
             },
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: rng.gen(),
-                nullifier_queue_pubkey_index: rng.gen(),
+                queue_pubkey_index: rng.gen(),
                 leaf_index: rng.gen(),
                 prove_by_index: rng.gen(),
             },
@@ -1054,7 +1343,7 @@ mod test {
         if reference.merkle_tree_pubkey_index != z_copy.merkle_tree_pubkey_index {
             return Err(CompressedAccountError::InvalidArgument);
         }
-        if reference.nullifier_queue_pubkey_index != z_copy.nullifier_queue_pubkey_index {
+        if reference.queue_pubkey_index != z_copy.queue_pubkey_index {
             return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.leaf_index != u32::from(z_copy.leaf_index) {

@@ -1,12 +1,11 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
-use light_compressed_account::pubkey::Pubkey;
+use light_compressed_account::{pubkey::Pubkey, QueueType};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
-use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata};
+use crate::{
+    access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::RolloverMetadata,
+    AnchorDeserialize, AnchorSerialize,
+};
 
 #[repr(C)]
 #[derive(
@@ -27,41 +26,11 @@ use crate::{access::AccessMetadata, errors::MerkleTreeMetadataError, rollover::R
 pub struct QueueMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
-
     // Queue associated with this Merkle tree.
     pub associated_merkle_tree: Pubkey,
     // Next queue to be used after rollover.
     pub next_queue: Pubkey,
     pub queue_type: u64,
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
-#[repr(u8)]
-pub enum QueueType {
-    NullifierQueue = 1,
-    AddressQueue = 2,
-    BatchedInput = 3,
-    BatchedAddress = 4,
-    BatchedOutput = 5,
-}
-
-pub const NULLIFIER_QUEUE_TYPE: u64 = 1;
-pub const ADDRESS_QUEUE_TYPE: u64 = 2;
-pub const BATCHED_INPUT_QUEUE_TYPE: u64 = 3;
-pub const BATCHED_ADDRESS_QUEUE_TYPE: u64 = 4;
-pub const BATCHED_OUTPUT_QUEUE_TYPE: u64 = 5;
-
-impl From<u64> for QueueType {
-    fn from(value: u64) -> Self {
-        match value {
-            1 => QueueType::NullifierQueue,
-            2 => QueueType::AddressQueue,
-            3 => QueueType::BatchedInput,
-            4 => QueueType::BatchedAddress,
-            5 => QueueType::BatchedOutput,
-            _ => panic!("Invalid queue type"),
-        }
-    }
 }
 
 pub fn check_queue_type(
@@ -138,14 +107,14 @@ mod tests {
 
     #[test]
     fn test_check_queue_type_valid() {
-        let valid_queue_type = QueueType::NullifierQueue;
+        let valid_queue_type = QueueType::NullifierV1;
         assert!(check_queue_type(&(valid_queue_type as u64), &valid_queue_type).is_ok());
     }
 
     #[test]
     fn test_check_queue_type_invalid() {
-        let queue_type = QueueType::NullifierQueue;
-        let expected_queue_type = QueueType::AddressQueue;
+        let queue_type = QueueType::NullifierV1;
+        let expected_queue_type = QueueType::AddressV1;
         assert!(matches!(
             check_queue_type(&(queue_type as u64), &expected_queue_type),
             Err(MerkleTreeMetadataError::InvalidQueueType)
@@ -155,7 +124,7 @@ mod tests {
     #[test]
     fn test_init_method() {
         let associated_merkle_tree = Pubkey::new_unique();
-        let queue_type = QueueType::BatchedInput;
+        let queue_type = QueueType::InputStateV2;
         let access_metadata = access::AccessMetadata {
             owner: Pubkey::new_unique(),
             program_owner: Pubkey::new_unique(),
@@ -191,7 +160,7 @@ mod tests {
         let associated_merkle_tree = Pubkey::new_unique();
         let next_queue = Pubkey::new_unique();
         let mut queue_metadata =
-            create_queue_metadata(associated_merkle_tree, QueueType::NullifierQueue);
+            create_queue_metadata(associated_merkle_tree, QueueType::NullifierV1);
 
         // Update the next queue as part of the method.
         assert!(queue_metadata
@@ -206,7 +175,7 @@ mod tests {
         let wrong_tree = Pubkey::new_unique();
         let next_queue = Pubkey::new_unique();
         let mut queue_metadata =
-            create_queue_metadata(associated_merkle_tree, QueueType::NullifierQueue);
+            create_queue_metadata(associated_merkle_tree, QueueType::NullifierV1);
 
         // Should fail because `wrong_tree` does not match the associated merkle tree.
         assert!(matches!(
@@ -219,7 +188,7 @@ mod tests {
     fn test_rollover_method_not_configured() {
         let associated_merkle_tree = Pubkey::new_unique();
         let mut queue_metadata =
-            create_queue_metadata(associated_merkle_tree, QueueType::NullifierQueue);
+            create_queue_metadata(associated_merkle_tree, QueueType::NullifierV1);
 
         // Simulate a case where rollover threshold is not configured.
         queue_metadata.rollover_metadata.rollover_threshold = u64::MAX;
@@ -233,7 +202,7 @@ mod tests {
     fn test_rollover_method_already_rolled_over() {
         let associated_merkle_tree = Pubkey::new_unique();
         let mut queue_metadata =
-            create_queue_metadata(associated_merkle_tree, QueueType::NullifierQueue);
+            create_queue_metadata(associated_merkle_tree, QueueType::NullifierV1);
 
         // Simulate a case where it is already rolled over.
         queue_metadata.rollover_metadata.rolledover_slot = 10;
@@ -245,11 +214,11 @@ mod tests {
 
     #[test]
     fn test_queue_type_from() {
-        assert_eq!(QueueType::NullifierQueue, QueueType::from(1));
-        assert_eq!(QueueType::AddressQueue, QueueType::from(2));
-        assert_eq!(QueueType::BatchedInput, QueueType::from(3));
-        assert_eq!(QueueType::BatchedAddress, QueueType::from(4));
-        assert_eq!(QueueType::BatchedOutput, QueueType::from(5));
+        assert_eq!(QueueType::NullifierV1, QueueType::from(1));
+        assert_eq!(QueueType::AddressV1, QueueType::from(2));
+        assert_eq!(QueueType::InputStateV2, QueueType::from(3));
+        assert_eq!(QueueType::AddressV2, QueueType::from(4));
+        assert_eq!(QueueType::OutputStateV2, QueueType::from(5));
     }
 
     #[should_panic = "Invalid queue type"]

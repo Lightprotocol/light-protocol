@@ -15,13 +15,13 @@ pub struct GetMultipleCompressedAccountProofsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: Vec<models::MerkleProofWithContext>,
+    pub value: Vec<models::GetCompressedAccountProofResponseValue>,
 }
 
 impl GetMultipleCompressedAccountProofsPost200ResponseResult {
     pub fn new(
         context: models::Context,
-        value: Vec<models::MerkleProofWithContext>,
+        value: Vec<models::GetCompressedAccountProofResponseValue>,
     ) -> GetMultipleCompressedAccountProofsPost200ResponseResult {
         GetMultipleCompressedAccountProofsPost200ResponseResult {
             context: Box::new(context),

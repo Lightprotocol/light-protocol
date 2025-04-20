@@ -26,12 +26,12 @@ light-test-utils = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true }
 anchor-lang = { workspace = true }
-light-system-program = { workspace = true }
-account-compression = { workspace = true }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
 light-hasher = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
 light-client = { workspace = true }
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 light-verifier = { workspace = true }
 light-registry = { workspace = true }
 solana-cli-output = { workspace = true }
@@ -40,6 +40,6 @@ solana-sdk = { workspace = true }
 quote.workspace = true
 serial_test = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
-light-merkle-tree-metadata = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-bloom-filter = { workspace = true }
 light-utils = { workspace = true }

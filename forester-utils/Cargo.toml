@@ -14,14 +14,20 @@ light-hash-set = { workspace = true }
 light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
+light-indexed-array = { workspace = true }
 light-prover-client = { workspace = true }
 light-registry = { workspace = true }
-light-system-program = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
+light-merkle-tree-reference = { workspace = true }
 light-client = { workspace = true }
 light-account-checks = { workspace = true }
+create-address-test-program = { workspace = true }
+
+tokio = { workspace = true }
+futures = { workspace = true }
 
 # Anchor
 anchor-lang = { workspace = true }
@@ -33,10 +39,15 @@ solana-sdk = { workspace = true }
 thiserror = { workspace = true }
 
 # Logging
-log = { workspace = true }
+tracing = { workspace = true }
 
 # Big numbers
 num-traits = { workspace = true }
+num-bigint = { workspace = true }
+
+rand = { workspace = true }
 
 # HTTP client
 reqwest = { workspace = true }
+log = "0.4.26"
+hex = "0.4.3"

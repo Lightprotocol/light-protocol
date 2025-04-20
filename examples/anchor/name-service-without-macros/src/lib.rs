@@ -12,10 +12,9 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
 #[program]
 pub mod name_service {
-    use light_hasher::Discriminator;
     use light_sdk::{
         address::derive_address, error::LightSdkError,
-        program_merkle_context::unpack_address_merkle_context,
+        program_merkle_context::unpack_address_merkle_context, Discriminator,
     };
 
     use super::*;
@@ -39,7 +38,7 @@ pub mod name_service {
             unpack_address_merkle_context(address_merkle_context, ctx.remaining_accounts);
         let (address, address_seed) = derive_address(
             &[b"name-service", name.as_bytes()],
-            &address_merkle_context,
+            &address_merkle_context.address_merkle_tree_pubkey,
             &crate::ID,
         );
 
@@ -75,7 +74,7 @@ pub mod name_service {
 
         // Convert `LightAccountMeta` to `LightAccount`.
         let mut record: LightAccount<'_, NameRecord> =
-            LightAccount::from_meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
+            LightAccount::meta_mut(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
         // Check the ownership of the `record`.
         if record.owner != ctx.accounts.signer.key() {
@@ -100,7 +99,7 @@ pub mod name_service {
             .ok_or(LightSdkError::ExpectedAccounts)?;
 
         let record: LightAccount<'_, NameRecord> =
-            LightAccount::from_meta_close(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
+            LightAccount::meta_close(&accounts[0], NameRecord::discriminator(), &crate::ID)?;
 
         if record.owner != ctx.accounts.signer.key() {
             return err!(CustomError::Unauthorized);
@@ -141,9 +140,9 @@ impl Default for RData {
     Clone, Debug, Default, AnchorDeserialize, AnchorSerialize, LightDiscriminator, LightHasher,
 )]
 pub struct NameRecord {
-    #[truncate]
+    #[hash]
     pub owner: Pubkey,
-    #[truncate]
+    #[hash]
     pub name: String,
     pub rdata: RData,
 }

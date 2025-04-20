@@ -1,22 +1,28 @@
+#![cfg(feature = "test-only")]
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
     initialize_state_tree::{
-        assert_state_mt_zero_copy_initialized, create_output_queue_account,
-        init_batched_state_merkle_tree_accounts, CreateOutputQueueParams,
+        init_batched_state_merkle_tree_accounts,
+        test_utils::{
+            assert_state_mt_zero_copy_initialized, create_output_queue_account,
+            CreateOutputQueueParams,
+        },
         InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{
-        get_merkle_tree_account_size, get_merkle_tree_account_size_default,
+        get_merkle_tree_account_size, test_utils::get_merkle_tree_account_size_default,
         BatchedMerkleTreeAccount,
     },
     merkle_tree_metadata::{BatchedMerkleTreeMetadata, CreateTreeParams},
     queue::{
-        assert_queue_zero_copy_inited, get_output_queue_account_size,
-        get_output_queue_account_size_default, BatchedQueueAccount,
+        get_output_queue_account_size,
+        test_utils::{assert_queue_zero_copy_inited, get_output_queue_account_size_default},
+        BatchedQueueAccount,
     },
     rollover_state_tree::{
-        assert_state_mt_roll_over, rollover_batched_state_tree, RolloverBatchStateTreeParams,
-        StateMtRollOverAssertParams,
+        rollover_batched_state_tree,
+        test_utils::{assert_state_mt_roll_over, StateMtRollOverAssertParams},
+        RolloverBatchStateTreeParams,
     },
 };
 use light_compressed_account::pubkey::Pubkey;

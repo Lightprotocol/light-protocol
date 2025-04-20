@@ -1,7 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_merkle_tree_metadata::{
-    access::AccessMetadata, queue::QueueType, rollover::RolloverMetadata,
-};
+use light_merkle_tree_metadata::{access::AccessMetadata, rollover::RolloverMetadata, QueueType};
 
 use crate::{queue_from_bytes_zero_copy_init, QueueAccount};
 
@@ -42,7 +40,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
             },
             rollover_meta_data,
             associated_merkle_tree,
-            QueueType::NullifierQueue,
+            QueueType::NullifierV1,
         );
 
         drop(nullifier_queue);

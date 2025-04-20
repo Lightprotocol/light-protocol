@@ -20,10 +20,9 @@ use light_compressed_account::{
         },
     },
 };
-use light_hasher::Poseidon;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_system_program::{
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    constants::SOL_POOL_PDA_SEED,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
 };
 use solana_sdk::{
@@ -55,7 +54,6 @@ pub async fn create_addresses_test<R: RpcConnection, I: Indexer<R> + TestIndexer
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address_legacy(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -315,18 +313,9 @@ pub async fn compressed_transaction_test<
     inputs: CompressedTransactionTestInputs<'_, R, I>,
 ) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
-
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
         for compressed_account in inputs.input_compressed_accounts.iter() {
-            compressed_account_hashes.push(
-                compressed_account
-                    .compressed_account
-                    .hash::<Poseidon>(
-                        &compressed_account.merkle_context.merkle_tree_pubkey,
-                        &compressed_account.merkle_context.leaf_index,
-                    )
-                    .unwrap(),
-            );
+            compressed_account_hashes.push(compressed_account.hash().unwrap());
         }
         Some(compressed_account_hashes.to_vec())
     } else {
@@ -368,7 +357,6 @@ pub async fn compressed_transaction_test<
                 inputs.rpc,
             )
             .await;
-
         root_indices = proof_rpc_res.root_indices;
 
         if let Some(proof_rpc_res) = proof_rpc_res.proof {
@@ -456,7 +444,6 @@ pub async fn compressed_transaction_test<
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(slot, &event.0.clone());
-
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
@@ -522,9 +509,7 @@ pub fn create_invoke_instruction(
             .output_compressed_accounts
             .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
     }
-    println!("remaining accounts: {:?}", remaining_accounts);
     let mut inputs = Vec::new();
-    println!("inputs_struct: {:?}", inputs_struct);
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -595,7 +580,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
                 merkle_tree_pubkey_index: *remaining_accounts
                     .get(&context.merkle_tree_pubkey)
                     .unwrap() as u8,
-                nullifier_queue_pubkey_index: 0,
+                queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
                 prove_by_index,
             },
@@ -605,18 +590,16 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     }
 
     for (i, context) in merkle_context.iter().enumerate() {
-        match remaining_accounts.get(&context.nullifier_queue_pubkey) {
+        match remaining_accounts.get(&context.queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.nullifier_queue_pubkey, index);
+                remaining_accounts.insert(context.queue_pubkey, index);
                 index += 1;
             }
         };
         _input_compressed_accounts[i]
             .merkle_context
-            .nullifier_queue_pubkey_index = *remaining_accounts
-            .get(&context.nullifier_queue_pubkey)
-            .unwrap() as u8;
+            .queue_pubkey_index = *remaining_accounts.get(&context.queue_pubkey).unwrap() as u8;
     }
 
     let mut output_compressed_accounts_with_context: Vec<OutputCompressedAccountWithPackedContext> =
@@ -638,10 +621,6 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
             compressed_account: output_compressed_accounts[i].clone(),
             merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
         });
-        println!(
-            "output_compressed_accounts_with_context {:?}",
-            output_compressed_accounts_with_context
-        );
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
@@ -740,15 +719,17 @@ mod test {
         let input_merkle_context = vec![
             MerkleContext {
                 merkle_tree_pubkey,
-                nullifier_queue_pubkey: nullifier_array_pubkey,
+                queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 0,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::StateV1,
             },
             MerkleContext {
                 merkle_tree_pubkey,
-                nullifier_queue_pubkey: nullifier_array_pubkey,
+                queue_pubkey: nullifier_array_pubkey,
                 leaf_index: 1,
                 prove_by_index: false,
+                tree_type: light_compressed_account::TreeType::StateV1,
             },
         ];
 
@@ -829,13 +810,13 @@ mod test {
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                 .merkle_context
-                .nullifier_queue_pubkey_index,
+                .queue_pubkey_index,
             1
         );
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                 .merkle_context
-                .nullifier_queue_pubkey_index,
+                .queue_pubkey_index,
             1
         );
         assert_eq!(
@@ -856,14 +837,14 @@ mod test {
             instruction.accounts[9 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[0]
                 .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+                .queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
             instruction.accounts[9 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[1]
                 .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+                .queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(

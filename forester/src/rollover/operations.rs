@@ -3,10 +3,9 @@ use account_compression::{
     QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use forester_utils::{
+    account_zero_copy::{get_concurrent_merkle_tree, get_indexed_merkle_tree},
     address_merkle_tree_config::{get_address_bundle_config, get_state_bundle_config},
-    create_account_instruction,
-    forester_epoch::TreeType,
-    get_concurrent_merkle_tree, get_indexed_merkle_tree,
+    instructions::create_account::create_account_instruction,
     registry::RentExemption,
 };
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
@@ -14,6 +13,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{RpcConnection, RpcError},
 };
+use light_compressed_account::TreeType;
 use light_hasher::Poseidon;
 use light_registry::{
     account_compression_cpi::sdk::{
@@ -26,7 +26,7 @@ use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
-use tracing::info;
+use tracing::trace;
 
 use crate::errors::ForesterError;
 
@@ -48,7 +48,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
     tree_type: TreeType,
 ) -> Result<TreeInfo, ForesterError> {
     match tree_type {
-        TreeType::State => {
+        TreeType::StateV1 => {
             let account = rpc
                 .get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
@@ -74,7 +74,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
-        TreeType::Address => {
+        TreeType::AddressV1 => {
             let account = rpc
                 .get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
@@ -104,7 +104,7 @@ pub async fn get_tree_fullness<R: RpcConnection>(
                 threshold,
             })
         }
-        TreeType::BatchedState => {
+        TreeType::StateV2 => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
             let merkle_tree =
                 BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
@@ -143,10 +143,13 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             println!("tree next_index: {:?}", merkle_tree.next_index);
             println!("tree height: {:?}", merkle_tree.height);
 
-            // TODO: implement
-            let threshold = 0;
-            let next_index = 0;
-            let fullness = 0.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold = ((1 << height)
+                * merkle_tree.metadata.rollover_metadata.rollover_threshold
+                / 100) as usize;
+            let next_index = merkle_tree.next_index as usize;
+            let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
                 fullness,
@@ -155,11 +158,13 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             })
         }
 
-        TreeType::BatchedAddress => {
+        TreeType::AddressV2 => {
             let mut account = rpc.get_account(tree_pubkey).await?.unwrap();
-            let merkle_tree =
-                BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
-                    .unwrap();
+            let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
+                &mut account.data,
+                &tree_pubkey.into(),
+            )
+            .unwrap();
             println!(
                 "merkle_tree.get_account().queue.batch_size: {:?}",
                 merkle_tree.queue_batches.batch_size
@@ -194,10 +199,13 @@ pub async fn get_tree_fullness<R: RpcConnection>(
             println!("tree next_index: {:?}", merkle_tree.next_index);
             println!("tree height: {:?}", merkle_tree.height);
 
-            // TODO: implement
-            let threshold = 0;
-            let next_index = 0;
-            let fullness = 0.0;
+            let height = merkle_tree.height as u64;
+            let capacity = 1u64 << height;
+            let threshold = ((1 << height)
+                * merkle_tree.metadata.rollover_metadata.rollover_threshold
+                / 100) as usize;
+            let next_index = merkle_tree.next_index as usize;
+            let fullness = next_index as f64 / capacity as f64;
 
             Ok(TreeInfo {
                 fullness,
@@ -213,18 +221,18 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     tree_pubkey: Pubkey,
     tree_type: TreeType,
 ) -> Result<bool, ForesterError> {
-    info!(
+    trace!(
         "Checking if tree is ready for rollover: {:?}",
         tree_pubkey.to_string()
     );
 
     let account = match tree_type {
-        TreeType::State => TreeAccount::State(
+        TreeType::StateV1 => TreeAccount::State(
             rpc.get_anchor_account::<StateMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap(),
         ),
-        TreeType::Address => TreeAccount::Address(
+        TreeType::AddressV1 => TreeAccount::Address(
             rpc.get_anchor_account::<AddressMerkleTreeAccount>(&tree_pubkey)
                 .await?
                 .unwrap(),
@@ -241,17 +249,17 @@ pub async fn is_tree_ready_for_rollover<R: RpcConnection>(
     };
 
     if is_already_rolled_over {
-        info!("Tree {:?} is already rolled over", tree_pubkey);
+        trace!("Tree {:?} is already rolled over", tree_pubkey);
         return Ok(false);
     }
 
     let tree_info = get_tree_fullness(rpc, tree_pubkey, tree_type).await?;
 
     match tree_type {
-        TreeType::State => {
+        TreeType::StateV1 => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 1)
         }
-        TreeType::Address => {
+        TreeType::AddressV1 => {
             Ok(tree_info.next_index >= tree_info.threshold && tree_info.next_index > 3)
         }
         _ => panic!(
