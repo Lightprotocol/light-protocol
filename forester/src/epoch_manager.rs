@@ -812,7 +812,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         mut tree: TreeForesterSchedule,
     ) -> Result<()> {
         info!("enter process_queue");
-        // TODO: sync at some point
+
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
         trace!(
@@ -821,7 +821,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             epoch_info.phases.active.end
         );
         while estimated_slot < epoch_info.phases.active.end {
-            trace!("Searching for next eligible slot");
             // search for next eligible slot
             let index_and_forester_slot = tree
                 .slots
@@ -830,16 +829,18 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .find(|(_, slot)| slot.is_some());
 
             if let Some((index, forester_slot)) = index_and_forester_slot {
-                trace!(
-                    "Found eligible slot, index: {}, tree: {}",
-                    index,
-                    tree.tree_accounts.merkle_tree.to_string()
-                );
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
                 tree.slots.remove(index);
 
+                info!("Found eligible slot: {:?}", forester_slot);
+
                 let mut rpc = self.rpc_pool.get_connection().await?;
-                // Wait until next eligible light slot is reached (until the start solana slot is reached)
+
+                info!(
+                    "Current solana slot: {}, waiting for slot {}",
+                    estimated_slot, forester_slot.start_solana_slot
+                );
+
                 wait_until_slot_reached(
                     &mut *rpc,
                     &self.slot_tracker,
@@ -931,7 +932,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         phantom: std::marker::PhantomData::<R>,
                     };
 
-                    trace!("Sending transactions...");
+                    info!("Sending transactions...");
                     let start_time = Instant::now();
                     let batch_tx_future = send_batched_transactions(
                         &self.config.payer_keypair,
@@ -947,7 +948,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
                     // Wait for both operations to complete
                     let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
-                    rollover_result?;
+                    if let Err(e) = rollover_result {
+                        error!("Error during rollover check: {:?}", e);
+                    }
 
                     match num_tx_sent {
                         Ok(num_tx_sent) => {
@@ -986,13 +989,12 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                                     }
                                 }
                             }
-                            return Err(e);
+                            warn!("Continuing despite transaction send failure");
                         }
                     }
                 }
             } else {
-                debug!("No eligible slot found");
-                // The forester is not eligible for any more slots in the current epoch
+                info!("No eligible slot found");
                 break;
             }
 
@@ -1003,10 +1005,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
-            trace!(
+            info!(
                 "Estimated slot: {}, epoch end: {}",
-                estimated_slot,
-                epoch_info.phases.active.end
+                estimated_slot, epoch_info.phases.active.end
             );
         }
         Ok(())
