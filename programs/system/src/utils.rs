@@ -41,7 +41,7 @@ pub fn get_queue_and_tree_accounts<'b, 'info>(
     })
 }
 
-pub fn transfer_lamports_cpi(
+pub fn transfer_lamports_invoke(
     from: &AccountInfo,
     to: &AccountInfo,
     lamports: u64,

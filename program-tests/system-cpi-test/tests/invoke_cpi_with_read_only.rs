@@ -1229,6 +1229,7 @@ async fn create_addresses_with_read_only() {
     for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
+        println!("batched {}, small ix {}", batched, is_small_ix);
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
@@ -1324,6 +1325,7 @@ async fn create_addresses_with_read_only() {
         };
         // 1. Create unassigned address and use it in account_info.
         {
+            println!("1");
             let mut new_address_params = new_address_params.clone();
             new_address_params.assigned_account_index = None;
             let result = local_sdk::perform_test_transaction(
@@ -1353,6 +1355,7 @@ async fn create_addresses_with_read_only() {
         }
         // 2. Create address assigned to a non-existent account.
         {
+            println!("2");
             let result = local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -1385,6 +1388,7 @@ async fn create_addresses_with_read_only() {
         }
         // 3. Address assigned to account. The accounts address is None.
         {
+            println!("3");
             let new_address_params = new_address_params.clone();
             let mut output_1 = output_1.clone();
             output_1.compressed_account.address = None;
@@ -1415,6 +1419,7 @@ async fn create_addresses_with_read_only() {
         }
         // 4. Create address assigned to account with different address.
         {
+            println!("4");
             let result = local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -1442,6 +1447,7 @@ async fn create_addresses_with_read_only() {
         }
         // 5. Create two addresses assigned to same account.
         {
+            println!("5");
             let mut new_address_params1 = new_address_params1.clone();
             new_address_params1.assigned_account_index = Some(0);
             let result = local_sdk::perform_test_transaction(
@@ -1471,6 +1477,7 @@ async fn create_addresses_with_read_only() {
         }
         // 6. Functional create two addresses.
         {
+            println!("6");
             local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -1498,6 +1505,7 @@ async fn create_addresses_with_read_only() {
         }
         // 7. Create two unassigned addresses.
         {
+            println!("7");
             let seed = [3u8; 32];
             let address = if batched {
                 derive_address(
@@ -1569,6 +1577,7 @@ async fn create_addresses_with_read_only() {
         }
         // 8. Create one unassigned address.
         {
+            println!("8");
             let seed = [5u8; 32];
             let address = if batched {
                 derive_address(
@@ -1623,6 +1632,7 @@ async fn create_addresses_with_read_only() {
         }
         // 9. Create two addresses one unassigned address one assigned address.
         {
+            println!("8");
             let mut output_accounts = (0..1)
                 .map(|_| get_compressed_output_account(true, if batched { queue } else { tree }))
                 .collect::<Vec<_>>();
@@ -1699,6 +1709,7 @@ async fn create_addresses_with_read_only() {
         }
         // 10. Create one assigned address.
         {
+            println!("10");
             let mut output_accounts = (0..1)
                 .map(|_| get_compressed_output_account(true, if batched { queue } else { tree }))
                 .collect::<Vec<_>>();
@@ -1827,7 +1838,7 @@ async fn compress_sol_with_account_info() {
                     Vec::new(),
                     queue,
                     tree,
-                    false,
+                    true,
                     Some(compression_lamports),
                     true,
                     None,
@@ -1854,7 +1865,7 @@ async fn compress_sol_with_account_info() {
                     Vec::new(),
                     queue,
                     tree,
-                    false,
+                    true,
                     Some(compression_lamports),
                     false,
                     None,
@@ -1905,7 +1916,7 @@ async fn compress_sol_with_account_info() {
                     Vec::new(),
                     queue,
                     tree,
-                    true,
+                    false,
                     Some(compression_lamports),
                     true,
                     None,
@@ -1932,7 +1943,7 @@ async fn compress_sol_with_account_info() {
                     Vec::new(),
                     queue,
                     tree,
-                    true,
+                    false,
                     Some(compression_lamports),
                     false,
                     None,
@@ -1960,7 +1971,7 @@ async fn cpi_context_with_read_only() {
     .await;
     let with_transaction_hash = false;
     let batched = true;
-    for is_small_ix in [true, false].into_iter().skip(1) {
+    for is_small_ix in [true, false].into_iter() {
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
@@ -2255,7 +2266,7 @@ async fn cpi_context_with_account_info() {
     .await;
     let with_transaction_hash = false;
     let batched = true;
-    for is_small_ix in [true, false].into_iter().skip(0) {
+    for is_small_ix in [true, false].into_iter() {
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
@@ -2626,7 +2637,7 @@ async fn compress_sol_with_read_only() {
                     Vec::new(),
                     queue,
                     tree,
-                    false,
+                    true,
                     Some(compression_lamports),
                     true,
                     None,
@@ -2653,7 +2664,7 @@ async fn compress_sol_with_read_only() {
                     Vec::new(),
                     queue,
                     tree,
-                    false,
+                    true,
                     Some(compression_lamports),
                     false,
                     None,
@@ -2701,7 +2712,7 @@ async fn compress_sol_with_read_only() {
                     Vec::new(),
                     queue,
                     tree,
-                    true,
+                    false,
                     Some(compression_lamports),
                     true,
                     None,
@@ -2728,7 +2739,7 @@ async fn compress_sol_with_read_only() {
                     Vec::new(),
                     queue,
                     tree,
-                    true,
+                    false,
                     Some(compression_lamports),
                     false,
                     None,
@@ -2833,7 +2844,7 @@ pub mod local_sdk {
         read_only_addresses: Vec<ReadOnlyAddress>,
         queue: Pubkey,
         tree: Pubkey,
-        is_decompress: bool,
+        is_compress: bool,
         compress_or_decompress_lamports: Option<u64>,
         invalid_sol_pool: bool,
         cpi_context: Option<CompressedCpiContext>,
@@ -2885,7 +2896,7 @@ pub mod local_sdk {
                 invoking_program_id: create_address_test_program::ID.into(),
                 proof,
                 new_address_params: packed_new_address_params,
-                is_decompress,
+                is_compress,
                 compress_or_decompress_lamports: compress_or_decompress_lamports
                     .unwrap_or_default(),
                 output_compressed_accounts: output_compressed_accounts.clone(),
@@ -2917,7 +2928,7 @@ pub mod local_sdk {
                 new_address_params: packed_new_address_params,
                 read_only_accounts,
                 read_only_addresses,
-                is_decompress,
+                is_compress,
                 compress_or_decompress_lamports: compress_or_decompress_lamports
                     .unwrap_or_default(),
                 account_infos: account_infos.clone(),

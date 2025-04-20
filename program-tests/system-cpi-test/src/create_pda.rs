@@ -390,7 +390,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                 .map(|(i, x)| NewAddressParamsAssignedPacked::new(*x, Some(i as u8)))
                 .collect::<Vec<_>>(),
             cpi_context: inputs_struct.cpi_context.unwrap_or_default(),
-            is_decompress: !inputs_struct.is_compress,
+            is_compress: inputs_struct.is_compress,
             compress_or_decompress_lamports: inputs_struct
                 .compress_or_decompress_lamports
                 .unwrap_or_default(),

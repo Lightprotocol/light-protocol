@@ -687,7 +687,7 @@ pub async fn perform_test_transaction<R: RpcConnection>(
         invoking_program_id: create_address_test_program::ID.into(),
         proof,
         new_address_params: packed_new_address_params,
-        is_decompress: false,
+        is_compress: false,
         compress_or_decompress_lamports: 0,
         output_compressed_accounts: output_compressed_accounts.clone(),
         input_compressed_accounts: packed_inputs

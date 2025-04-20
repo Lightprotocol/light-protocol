@@ -289,7 +289,7 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     /// If compress_or_decompress_lamports > 0 -> expect sol_pool_pda
     pub compress_or_decompress_lamports: u64,
     /// -> expect account decompression_recipient
-    pub is_decompress: bool,
+    pub is_compress: bool,
     pub with_cpi_context: bool,
     pub with_transaction_hash: bool,
     pub cpi_context: CompressedCpiContext,
@@ -351,7 +351,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn is_compress(&self) -> bool {
-        !self.meta.is_decompress()
+        self.meta.is_compress()
     }
 
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
@@ -457,7 +457,7 @@ pub mod test {
             bump: rng.gen(),
             invoking_program_id: Pubkey::new_unique(),
             compress_or_decompress_lamports: rng.gen(),
-            is_decompress: rng.gen(),
+            is_compress: rng.gen(),
             with_cpi_context: rng.gen(),
             with_transaction_hash: rng.gen(),
             cpi_context: get_rnd_cpi_context(rng),
@@ -580,7 +580,7 @@ pub mod test {
         {
             return Err(CompressedAccountError::InvalidArgument);
         }
-        if reference.is_decompress != z_copy.meta.is_decompress() {
+        if reference.is_compress != z_copy.meta.is_compress() {
             return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.with_cpi_context != z_copy.meta.with_cpi_context() {
@@ -749,7 +749,7 @@ pub mod test {
 
         // Test is_compress
         let expected_is_compress =
-            !reference.is_decompress && reference.compress_or_decompress_lamports > 0;
+            reference.is_compress && reference.compress_or_decompress_lamports > 0;
         assert_eq!(z_copy.is_compress(), expected_is_compress);
 
         // Test cpi_context

@@ -83,4 +83,7 @@ pub enum SystemProgramError {
     NewAddressAssignedIndexOutOfBounds,
     AddressIsNone,
     AddressDoesNotMatch,
+    CpiContextAlreadySet,
+    InvalidTreeHeight,
+    TooManyOutputAccounts,
 }

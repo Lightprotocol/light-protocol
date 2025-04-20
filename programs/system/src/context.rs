@@ -13,7 +13,7 @@ use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pub
 
 use crate::{
     errors::SystemProgramError, invoke_cpi::account::ZCpiContextAccount,
-    utils::transfer_lamports_cpi, Result, MAX_OUTPUT_ACCOUNTS,
+    utils::transfer_lamports_invoke, Result, MAX_OUTPUT_ACCOUNTS,
 };
 
 pub struct SystemContext<'info> {
@@ -130,7 +130,7 @@ impl<'info> SystemContext<'info> {
     ///     Transfers rollover and network fees.
     pub fn transfer_fees(&self, accounts: &[AccountInfo], fee_payer: &AccountInfo) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
-            transfer_lamports_cpi(fee_payer, &accounts[*i as usize], *fee)?;
+            transfer_lamports_invoke(fee_payer, &accounts[*i as usize], *fee)?;
         }
         Ok(())
     }
