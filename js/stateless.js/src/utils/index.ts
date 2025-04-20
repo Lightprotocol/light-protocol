@@ -10,3 +10,4 @@ export * from './send-and-confirm';
 export * from './sleep';
 export * from './state-tree-lookup-table';
 export * from './validation';
+export * from './get-state-tree-infos';

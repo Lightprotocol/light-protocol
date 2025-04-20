@@ -138,7 +138,6 @@ describe('decompress', () => {
                 bn(5),
                 bob,
                 charlieAta,
-                stateTreeInfo,
                 tokenPoolInfos,
             );
 

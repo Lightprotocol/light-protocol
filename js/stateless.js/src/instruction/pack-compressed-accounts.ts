@@ -60,7 +60,7 @@ export function padOutputStateMerkleTrees(
             );
         }
         return new Array(numberOfOutputCompressedAccounts).fill(
-            inputCompressedAccountsWithMerkleContext[0].merkleTree,
+            inputCompressedAccountsWithMerkleContext[0].treeInfo.tree,
         );
         /// Align the number of output state trees with the number of output
         /// accounts, and fill up with 0th output state tree
@@ -111,7 +111,7 @@ export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
     inputStateRootIndices: number[],
     outputCompressedAccounts: CompressedAccount[],
-    outputStateTreeInfo: StateTreeInfo,
+    outputStateTreeInfo?: StateTreeInfo,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
@@ -130,12 +130,12 @@ export function packCompressedAccounts(
     inputCompressedAccounts.forEach((account, index) => {
         const merkleTreePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.merkleTree,
+            account.treeInfo.tree,
         );
 
         const nullifierQueuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
-            account.nullifierQueue,
+            account.treeInfo.queue,
         );
 
         packedInputCompressedAccounts.push({
@@ -155,17 +155,33 @@ export function packCompressedAccounts(
             readOnly: false,
         });
     });
+    if (inputCompressedAccounts.length > 0 && outputStateTreeInfo) {
+        throw new Error(
+            'Cannot specify both input accounts and outputStateTreeInfo',
+        );
+    }
 
-    if (outputStateTreeInfo.treeType === TreeType.StateV2) {
+    let treeInfo: StateTreeInfo;
+    if (inputCompressedAccounts.length > 0) {
+        treeInfo = inputCompressedAccounts[0].treeInfo;
+    } else if (outputStateTreeInfo) {
+        treeInfo = outputStateTreeInfo;
+    } else {
+        throw new Error(
+            'Neither input accounts nor outputStateTreeInfo are available',
+        );
+    }
+
+    // Use next tree if available, otherwise fall back to current tree
+    const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
+    const activeTreeOrQueue = activeTreeInfo.tree;
+    // V2 trees are not yet supported
+    if (activeTreeInfo.treeType === TreeType.StateV2) {
         throw new Error('V2 trees are not supported yet');
     }
-    // internal. v2 trees require the output queue account instead of directly
-    // appending to the merkle tree.
-    const outputTreeOrQueue = outputStateTreeInfo.tree;
-
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
-        outputTreeOrQueue,
+        activeTreeOrQueue,
         outputCompressedAccounts.length,
         inputCompressedAccounts,
     );

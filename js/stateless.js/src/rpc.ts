@@ -9,7 +9,7 @@ import {
     BalanceResult,
     CompressedAccountResult,
     CompressedAccountsByOwnerResult,
-    CompressedProofWithContext,
+    ValidityProofWithContext,
     CompressedTokenAccountsByOwnerOrDelegateResult,
     CompressedTransaction,
     CompressedTransactionResult,
@@ -54,8 +54,9 @@ import {
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
     TokenData,
-    CompressedProof,
+    ValidityProof,
     TreeType,
+    AddressTreeInfo,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -75,7 +76,7 @@ import { LightWasm } from './test-helpers';
 import { getActiveStateTreeInfos } from './utils/get-state-tree-infos';
 import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
-import { getQueueForTree } from './test-helpers/test-rpc/get-compressed-accounts';
+import { getStateTreeInfoByTree } from './test-helpers/test-rpc/get-compressed-accounts';
 
 /** @internal */
 export function parseAccountData({
@@ -112,7 +113,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         limit: options.limit?.toNumber(),
         cursor: options.cursor,
     });
-
     const res = create(
         unsafeRes,
         jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),
@@ -128,23 +128,22 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+    const activeStateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
 
     res.result.value.items.map(item => {
         const _account = item.account;
         const _tokenData = item.tokenData;
 
-        const { queue, treeType, tree } = getQueueForTree(
-            activeStateTreeInfo,
+        const stateTreeInfo = getStateTreeInfoByTree(
+            activeStateTreeInfos,
             _account.tree!,
         );
 
         const compressedAccount: CompressedAccountWithMerkleContext =
             createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    _account.tree!,
-                    queue,
-                    _account.hash.toArray('be', 32),
+                    stateTreeInfo,
+                    _account.hash,
                     _account.leafIndex,
                 ),
                 _account.owner,
@@ -199,16 +198,15 @@ function buildCompressedAccountWithMaybeTokenData(
     const tokenDataResult =
         accountStructWithOptionalTokenData.optionalTokenData;
 
-    const { queue, treeType, tree } = getQueueForTree(
+    const stateTreeInfo = getStateTreeInfoByTree(
         activeStateTreeInfo,
         compressedAccountResult.tree!,
     );
     const compressedAccount: CompressedAccountWithMerkleContext =
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
-                compressedAccountResult.merkleTree,
-                queue,
-                compressedAccountResult.hash.toArray('be', 32),
+                stateTreeInfo,
+                compressedAccountResult.hash,
                 compressedAccountResult.leafIndex,
             ),
             compressedAccountResult.owner,
@@ -358,7 +356,7 @@ export const proverRequest = async (
     params: any = [],
     log = false,
     publicInputHash: BN | undefined = undefined,
-): Promise<CompressedProof> => {
+): Promise<ValidityProof> => {
     let logMsg: string = '';
 
     if (log) {
@@ -429,8 +427,7 @@ export type MerkleContextWithNewAddressProof = {
     nextIndex: BN;
     merkleProofHashedIndexedElementLeaf: BN[];
     indexHashedIndexedElementLeaf: BN;
-    merkleTree: PublicKey;
-    nullifierQueue: PublicKey;
+    treeInfo: AddressTreeInfo;
 };
 
 export type NonInclusionJsonStruct = {
@@ -500,7 +497,7 @@ function calculateTwoInputsHashChain(
         throw new Error('Input lengths must match.');
     }
     if (hashesFirst.length === 0) {
-        return new BN(0);
+        return bn(0);
     }
 
     let hashChain = lightWasm.poseidonHashBN([
@@ -684,18 +681,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
-        const { queue, treeType, tree } = getQueueForTree(
+        const stateTreeInfo = getStateTreeInfoByTree(
             activeStateTreeInfo,
             res.result.value.tree!,
         );
         const item = res.result.value;
         const account = createCompressedAccountWithMerkleContext(
-            createMerkleContext(
-                item.tree!,
-                queue,
-                item.hash.toArray('be', 32),
-                item.leafIndex,
-            ),
+            createMerkleContext(stateTreeInfo, item.hash, item.leafIndex),
             item.owner,
             bn(item.lamports),
             item.data ? parseAccountData(item.data) : undefined,
@@ -793,19 +785,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
-        const { queue, treeType, tree } = getQueueForTree(
+        const treeInfo = getStateTreeInfoByTree(
             activeStateTreeInfo,
-            res.result.value.merkleTree,
+            res.result.value.merkleTree!,
         );
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray('be', 32),
-            merkleTree: res.result.value.merkleTree,
+            hash: bn(res.result.value.hash.toArray('be', 32)),
+            treeInfo,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof,
-            nullifierQueue: queue, // TODO(photon): support nullifierQueue in response.
             rootIndex: res.result.value.rootSeq % 2400,
             root: res.result.value.root,
+            proveByIndex: false,
         };
         return value;
     }
@@ -840,15 +832,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map(item => {
-            const { queue, treeType, tree } = getQueueForTree(
+            const stateTreeInfo = getStateTreeInfoByTree(
                 activeStateTreeInfo,
-                item.tree,
+                item.tree!,
             );
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    tree,
-                    queue,
-                    item.hash.toArray('be', 32),
+                    stateTreeInfo,
+                    bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -893,20 +884,20 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
+        const treeInfos = await this.getCachedActiveStateTreeInfos();
         for (const proof of res.result.value) {
-            const { queue, treeType, tree } = getQueueForTree(
-                activeStateTreeInfo,
-                proof.merkleTree,
+            const treeInfo = getStateTreeInfoByTree(
+                treeInfos,
+                proof.merkleTree!,
             );
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray('be', 32),
-                merkleTree: proof.merkleTree,
+                hash: bn(proof.hash.toArray('be', 32)),
+                treeInfo,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                nullifierQueue: queue,
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
+                proveByIndex: false,
             };
             merkleProofs.push(value);
         }
@@ -954,15 +945,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const activeStateTreeInfo = await this.getCachedActiveStateTreeInfos();
 
         res.result.value.items.map(item => {
-            const { queue, tree } = getQueueForTree(
+            const stateTreeInfo = getStateTreeInfoByTree(
                 activeStateTreeInfo,
                 item.tree,
             );
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
-                    tree,
-                    queue,
-                    item.hash.toArray('be', 32),
+                    stateTreeInfo,
+                    bn(item.hash.toArray('be', 32)),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -1575,8 +1565,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 nextIndex: bn(proof.nextIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
                 indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
-                merkleTree: proof.merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().addressQueue,
+                treeInfo: {
+                    tree: proof.merkleTree,
+                    queue: defaultTestStateTreeAccounts().addressQueue,
+                    treeType: TreeType.AddressV1,
+                },
             };
             newAddressProofs.push(_proof);
         }
@@ -1605,8 +1598,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofDirect(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
-        let validityProof: CompressedProofWithContext;
+    ): Promise<ValidityProofWithContext> {
+        let validityProof: ValidityProofWithContext;
 
         if (hashes.length === 0 && newAddresses.length === 0) {
             throw new Error(
@@ -1619,22 +1612,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
             const inputs = convertMerkleProofsWithContextToHex(
                 merkleProofsWithContext,
             );
-            // const lightWasm = await WasmFactory.getInstance();
-            // const publicInputHash = getPublicInputHash(
-            //     merkleProofsWithContext,
-            //     hashes,
-            //     [],
-            //     lightWasm,
-            // );
+
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'inclusion',
                 inputs,
                 false,
-                // publicInputHash,
             );
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: merkleProofsWithContext.map(proof => proof.root),
                 rootIndices: merkleProofsWithContext.map(
                     proof => proof.rootIndex,
@@ -1643,12 +1629,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     proof => proof.leafIndex,
                 ),
                 leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-                merkleTrees: merkleProofsWithContext.map(
-                    proof => proof.merkleTree,
-                ),
-                nullifierQueues: merkleProofsWithContext.map(
-                    proof => proof.nullifierQueue,
-                ),
+                treeInfos: merkleProofsWithContext.map(proof => proof.treeInfo),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
             /// new-address
@@ -1673,17 +1654,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
 
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
                 rootIndices: newAddressProofs.map(proof => proof.rootIndex),
                 leafIndices: newAddressProofs.map(proof =>
                     proof.nextIndex.toNumber(),
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
-                merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
-                nullifierQueues: newAddressProofs.map(
-                    proof => proof.nullifierQueue,
-                ),
+                treeInfos: newAddressProofs.map(proof => proof.treeInfo),
             };
         } else if (hashes.length > 0 && newAddresses.length > 0) {
             /// combined
@@ -1712,8 +1690,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 // publicInputHash,
             );
 
+            const treeInfos = [
+                ...merkleProofsWithContext.map(proof => proof.treeInfo),
+                ...newAddressProofs.map(proof => proof.treeInfo),
+            ];
+
             validityProof = {
-                compressedProof,
+                validityProof: compressedProof,
                 roots: merkleProofsWithContext
                     .map(proof => proof.root)
                     .concat(newAddressProofs.map(proof => proof.root)),
@@ -1730,14 +1713,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leaves: merkleProofsWithContext
                     .map(proof => bn(proof.hash))
                     .concat(newAddressProofs.map(proof => bn(proof.value))),
-                merkleTrees: merkleProofsWithContext
-                    .map(proof => proof.merkleTree)
-                    .concat(newAddressProofs.map(proof => proof.merkleTree)),
-                nullifierQueues: merkleProofsWithContext
-                    .map(proof => proof.nullifierQueue)
-                    .concat(
-                        newAddressProofs.map(proof => proof.nullifierQueue),
-                    ),
+                treeInfos,
             };
         } else throw new Error('Invalid input');
 
@@ -1765,10 +1741,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         const accs = await this.getMultipleCompressedAccounts(hashes);
-        const trees = accs.map(acc => acc.merkleTree);
-        const queues = accs.map(acc => acc.nullifierQueue);
+        const trees = accs.map(acc => acc.treeInfo.tree);
+        const queues = accs.map(acc => acc.treeInfo.queue);
 
         // TODO: add dynamic address tree support here
         const defaultAddressTreePublicKey =
@@ -1812,7 +1788,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofV0(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<CompressedProofWithContext> {
+    ): Promise<ValidityProofWithContext> {
         const { value } = await this.getValidityProofAndRpcContext(
             hashes,
             newAddresses,
@@ -1839,7 +1815,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getValidityProofAndRpcContext(
         hashes: HashWithTree[] = [],
         newAddresses: AddressWithTree[] = [],
-    ): Promise<WithContext<CompressedProofWithContext>> {
+    ): Promise<WithContext<ValidityProofWithContext>> {
         validateNumbersForProof(hashes.length, newAddresses.length);
 
         const unsafeRes = await rpcRequest(
@@ -1875,14 +1851,27 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        const value: CompressedProofWithContext = {
-            compressedProof: result.compressedProof,
-            merkleTrees: result.merkleTrees,
+        const treeInfos = [
+            ...hashes.map(({ tree, queue }) => {
+                return {
+                    tree,
+                    queue,
+                    treeType: TreeType.StateV1,
+                };
+            }),
+            ...newAddresses.map(({ tree, queue }) => {
+                return {
+                    tree,
+                    queue,
+                    treeType: TreeType.AddressV1,
+                };
+            }),
+        ];
+
+        const value: ValidityProofWithContext = {
+            validityProof: result.compressedProof,
+            treeInfos,
             leafIndices: result.leafIndices,
-            nullifierQueues: [
-                ...hashes.map(({ queue }) => queue),
-                ...newAddresses.map(({ queue }) => queue),
-            ],
             rootIndices: result.rootIndices,
             roots: result.roots,
             leaves: result.leaves,

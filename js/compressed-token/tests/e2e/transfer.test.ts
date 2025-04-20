@@ -20,7 +20,6 @@ import {
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-
 import { createMint, mintTo, transfer } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
@@ -91,7 +90,7 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let rpc: TestRpc;
+    let rpc: TestRpc | Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
@@ -103,6 +102,7 @@ describe('transfer', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
+        // rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -146,15 +146,7 @@ describe('transfer', () => {
             })
         ).items;
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -173,15 +165,7 @@ describe('transfer', () => {
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
             });
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(200),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(200), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -201,15 +185,7 @@ describe('transfer', () => {
                 mint,
             });
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(5),
-            charlie,
-            bob.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(5), charlie, bob.publicKey);
 
         await assertTransfer(
             rpc,
@@ -243,15 +219,7 @@ describe('transfer', () => {
         );
 
         await expect(
-            transfer(
-                rpc,
-                payer,
-                mint,
-                10000,
-                bob,
-                charlie.publicKey,
-                stateTreeInfo,
-            ),
+            transfer(rpc, payer, mint, 10000, bob, charlie.publicKey),
         ).rejects.toThrow('Insufficient balance for transfer');
     });
 
@@ -293,15 +261,7 @@ describe('transfer', () => {
             })
         ).items;
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            stateTreeInfo,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
 
         await assertTransfer(
             rpc,
@@ -359,7 +319,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -368,7 +328,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -377,7 +337,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
         await mintTo(
@@ -386,7 +346,7 @@ describe('e2e transfer with multiple accounts', () => {
             mint,
             sender.publicKey,
             mintAuthority,
-            new BN(25),
+            bn(25),
             stateTreeInfo,
         );
 
@@ -397,11 +357,11 @@ describe('e2e transfer with multiple accounts', () => {
         expect(senderAccounts.items.length).toBe(4);
         const totalAmount = senderAccounts.items.reduce(
             (sum, account) => sum.add(account.parsed.amount),
-            new BN(0),
+            bn(0),
         );
-        expect(totalAmount.eq(new BN(100))).toBe(true);
+        expect(totalAmount.eq(bn(100))).toBe(true);
 
-        const transferAmount = new BN(100);
+        const transferAmount = bn(100);
 
         await transferHelper(
             rpc,
@@ -453,8 +413,7 @@ async function transferHelper(
         toAddress,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
-        outputStateTreeInfo: stateTreeInfo,
+        recentValidityProof: proof.validityProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

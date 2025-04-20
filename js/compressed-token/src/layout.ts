@@ -11,7 +11,6 @@ import {
     u16,
     vecU8,
 } from '@coral-xyz/borsh';
-import { Buffer } from 'buffer';
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { CompressedTokenProgram } from './program';
 import {
@@ -24,6 +23,7 @@ import {
     MINT_TO_DISCRIMINATOR,
     TRANSFER_DISCRIMINATOR,
 } from './constants';
+import { Buffer } from 'buffer';
 
 const CompressedProofLayout = struct([
     array(u8(), 32, 'a'),
@@ -106,20 +106,18 @@ export function encodeMintToInstructionData(
         buffer,
     );
 
-    return Buffer.concat([MINT_TO_DISCRIMINATOR, buffer.slice(0, len)]);
+    return Buffer.concat([
+        new Uint8Array(MINT_TO_DISCRIMINATOR),
+        new Uint8Array(buffer.subarray(0, len)),
+    ]);
 }
 
 export function decodeMintToInstructionData(
     buffer: Buffer,
 ): MintToInstructionData {
-    const data: any = mintToLayout.decode(
-        buffer.slice(MINT_TO_DISCRIMINATOR.length),
-    );
-    return {
-        recipients: data.recipients,
-        amounts: data.amounts,
-        lamports: data.lamports,
-    };
+    return mintToLayout.decode(
+        buffer.subarray(MINT_TO_DISCRIMINATOR.length),
+    ) as MintToInstructionData;
 }
 
 export function encodeCompressSplTokenAccountInstructionData(
@@ -136,17 +134,17 @@ export function encodeCompressSplTokenAccountInstructionData(
     );
 
     return Buffer.concat([
-        COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR,
-        buffer.slice(0, len),
+        new Uint8Array(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR),
+        new Uint8Array(buffer.subarray(0, len)),
     ]);
 }
 
 export function decodeCompressSplTokenAccountInstructionData(
     buffer: Buffer,
 ): CompressSplTokenAccountInstructionData {
-    const data: any = compressSplTokenAccountInstructionDataLayout.decode(
-        buffer.slice(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR.length),
-    );
+    const data = compressSplTokenAccountInstructionDataLayout.decode(
+        buffer.subarray(COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR.length),
+    ) as CompressSplTokenAccountInstructionData;
     return {
         owner: data.owner,
         remainingAmount: data.remainingAmount,
@@ -166,10 +164,12 @@ export function encodeTransferInstructionData(
     const lengthBuffer = Buffer.alloc(4);
     lengthBuffer.writeUInt32LE(len, 0);
 
+    const dataBuffer = buffer.subarray(0, len);
+
     return Buffer.concat([
-        TRANSFER_DISCRIMINATOR,
-        lengthBuffer,
-        buffer.slice(0, len),
+        new Uint8Array(TRANSFER_DISCRIMINATOR),
+        new Uint8Array(lengthBuffer),
+        new Uint8Array(dataBuffer),
     ]);
 }
 

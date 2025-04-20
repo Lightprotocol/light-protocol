@@ -35,9 +35,6 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination **uncompressed** (associated) token
  *                              account address.
- * @param outputStateTreeInfo   State tree account that any change compressed
- *                              tokens should be inserted into. Defaults to a
- *                              default state tree account.
  * @param tokenPoolInfos        Token pool infos
  * @param confirmOptions        Options for confirming the transaction
 
@@ -51,7 +48,6 @@ export async function decompress(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     tokenPoolInfos?: TokenPoolInfo[],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
@@ -69,13 +65,13 @@ export async function decompress(
         amount,
     );
 
-    const proof = await rpc.getValidityProof(
-        inputAccounts.map(account => bn(account.compressedAccount.hash)),
+    const proof = await rpc.getValidityProofV0(
+        inputAccounts.map(account => ({
+            hash: account.compressedAccount.hash,
+            tree: account.compressedAccount.treeInfo.tree,
+            queue: account.compressedAccount.treeInfo.queue,
+        })),
     );
-
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
 
     tokenPoolInfos = tokenPoolInfos ?? (await getTokenPoolInfos(rpc, mint));
 
@@ -89,10 +85,9 @@ export async function decompress(
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
         amount,
-        outputStateTreeInfo,
         tokenPoolInfos: selectedTokenPoolInfos,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

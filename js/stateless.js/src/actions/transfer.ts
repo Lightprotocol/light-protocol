@@ -33,9 +33,6 @@ import { GetCompressedAccountsByOwnerConfig } from '../rpc-interface';
  * @param lamports              Number of lamports to transfer
  * @param owner                 Owner of the compressed lamports
  * @param toAddress             Destination address of the recipient
- * @param outputStateTreeInfo   State tree account that the compressed lamports
- *                              should be inserted into. Defaults to the default
- *                              state tree account.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -55,17 +52,12 @@ export async function transfer(
     const batchSize = 1000; // Maximum allowed by the API
     lamports = bn(lamports);
 
-    if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
-    }
-
     while (accumulatedLamports.lt(lamports)) {
         const batchConfig: GetCompressedAccountsByOwnerConfig = {
             filters: undefined,
             dataSlice: undefined,
             cursor,
-            limit: new BN(batchSize),
+            limit: bn(batchSize),
         };
 
         const batch = await rpc.getCompressedAccountsByOwner(
@@ -74,7 +66,7 @@ export async function transfer(
         );
 
         for (const account of batch.items) {
-            if (account.lamports.gt(new BN(0))) {
+            if (account.lamports.gt(bn(0))) {
                 compressedAccounts.push(account);
                 accumulatedLamports = accumulatedLamports.add(account.lamports);
             }
@@ -106,8 +98,7 @@ export async function transfer(
         toAddress,
         lamports,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
-        outputStateTreeInfo,
+        recentValidityProof: proof.validityProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

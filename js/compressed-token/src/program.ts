@@ -7,8 +7,9 @@ import {
     AccountMeta,
 } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
+    ValidityProof,
     LightSystemProgram,
     ParsedTokenAccount,
     bn,
@@ -144,12 +145,7 @@ export type DecompressParams = {
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
-    /**
-     * The state tree that the change tx output should be inserted into.
-     * Defaults to a public state tree if unspecified.
-     */
-    outputStateTreeInfo: StateTreeInfo;
+    recentValidityProof: ValidityProof;
     /**
      * Tokenpool addresses. One or more token pools can be provided.
      */
@@ -176,20 +172,13 @@ export type TransferParams = {
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
-
      */
     recentInputStateRootIndices: number[];
     /**
      * The recent validity proof for state inclusion of the input state. It
      * expires after n slots.
      */
-    recentValidityProof: CompressedProof;
-    /**
-     * The state trees that the tx output should be inserted into. This can be a
-     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
-     * of input state.
-     */
-    outputStateTreeInfo: StateTreeInfo;
+    recentValidityProof: ValidityProof;
 };
 
 /**
@@ -251,13 +240,9 @@ export type MergeTokenAccountsParams = {
      */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
-     * Optional: Public key of the state tree to merge into
-     */
-    outputStateTreeInfo: StateTreeInfo;
-    /**
      * Optional: Recent validity proof for state inclusion
      */
-    recentValidityProof: CompressedProof;
+    recentValidityProof: ValidityProof;
     /**
      * Optional: Recent state root indices of the input state
      */
@@ -303,9 +288,13 @@ export type MintToParams = {
  * Creates an omnibus account for the mint
  */
 export type RegisterMintParams = {
-    /** Tx feepayer */
+    /**
+     * Tx feepayer
+     */
     feePayer: PublicKey;
-    /** Mint public key */
+    /**
+     * Mint public key
+     */
     mint: PublicKey;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID
@@ -757,7 +746,6 @@ export class CompressedTokenProgram {
             recentInputStateRootIndices,
             recentValidityProof,
             amount,
-            outputStateTreeInfo,
             toAddress,
         } = params;
 
@@ -767,13 +755,13 @@ export class CompressedTokenProgram {
                 toAddress,
                 amount,
             );
+
         const {
             inputTokenDataWithContext,
             packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
@@ -916,7 +904,7 @@ export class CompressedTokenProgram {
                 return {
                     owner: (params.toAddress as PublicKey[])[index],
                     amount,
-                    lamports: bn(0),
+                    lamports: null,
                     tlv: null,
                 };
             });
@@ -925,7 +913,7 @@ export class CompressedTokenProgram {
                 {
                     owner: toAddress as PublicKey,
                     amount: bn(params.amount as number | BN),
-                    lamports: bn(0),
+                    lamports: null,
                     tlv: null,
                 },
             ];
@@ -950,9 +938,9 @@ export class CompressedTokenProgram {
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: Array.isArray(params.amount)
                 ? params.amount
-                      .map(amt => new BN(amt))
-                      .reduce((sum, amt) => sum.add(amt), new BN(0))
-                : new BN(params.amount),
+                      .map(amt => bn(amt))
+                      .reduce((sum, amt) => sum.add(amt), bn(0))
+                : bn(params.amount),
             isCompress: true,
             cpiContext: null,
             lamportsChangeAccountMerkleTreeIndex: null,
@@ -993,7 +981,6 @@ export class CompressedTokenProgram {
             payer,
             inputCompressedTokenAccounts,
             toAddress,
-            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1012,7 +999,6 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
         });
@@ -1081,7 +1067,6 @@ export class CompressedTokenProgram {
             payer,
             owner,
             inputCompressedTokenAccounts,
-            outputStateTreeInfo,
             recentValidityProof,
             recentInputStateRootIndices,
         } = params;
@@ -1096,9 +1081,8 @@ export class CompressedTokenProgram {
             toAddress: owner,
             amount: inputCompressedTokenAccounts.reduce(
                 (sum, account) => sum.add(account.parsed.amount),
-                new BN(0),
+                bn(0),
             ),
-            outputStateTreeInfo,
             recentInputStateRootIndices,
             recentValidityProof,
         });

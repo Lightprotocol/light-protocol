@@ -51,7 +51,7 @@ describe('deserialize apc cpi', () => {
         expect(result.meta.is_invoked_by_program).toEqual(1);
 
         expect(result.addresses.length).toBeGreaterThan(0);
-        console.log('address ', result.addresses[0]);
+
         expect(result.addresses[0]).toEqual({
             address: new Array(32).fill(1),
             tree_index: 1,

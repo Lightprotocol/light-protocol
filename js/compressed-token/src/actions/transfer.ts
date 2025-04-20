@@ -14,9 +14,7 @@ import {
     StateTreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-
 import BN from 'bn.js';
-
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 
@@ -29,9 +27,6 @@ import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
  * @param amount                Number of tokens to transfer
  * @param owner                 Owner of the compressed tokens
  * @param toAddress             Destination address of the recipient
- * @param outputStateTreeInfo   State tree account that the compressed tokens
- *                              should be inserted into. Defaults to the default
- *                              state tree account.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Signature of the confirmed transaction
@@ -43,7 +38,6 @@ export async function transfer(
     amount: number | BN,
     owner: Signer,
     toAddress: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);
@@ -59,12 +53,12 @@ export async function transfer(
         amount,
     );
 
-    outputStateTreeInfo =
-        outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
-
-    const proof = await rpc.getValidityProof(
-        inputAccounts.map(account => bn(account.compressedAccount.hash)),
+    const proof = await rpc.getValidityProofV0(
+        inputAccounts.map(account => ({
+            hash: account.compressedAccount.hash,
+            tree: account.compressedAccount.treeInfo.tree,
+            queue: account.compressedAccount.treeInfo.queue,
+        })),
     );
 
     const ix = await CompressedTokenProgram.transfer({
@@ -73,8 +67,7 @@ export async function transfer(
         toAddress,
         amount,
         recentInputStateRootIndices: proof.rootIndices,
-        recentValidityProof: proof.compressedProof,
-        outputStateTreeInfo,
+        recentValidityProof: proof.validityProof,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();

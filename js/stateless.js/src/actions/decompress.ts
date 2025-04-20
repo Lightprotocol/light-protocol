@@ -7,11 +7,8 @@ import {
 } from '@solana/web3.js';
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
-import {
-    buildAndSignTx,
-    selectStateTreeInfo,
-    sendAndConfirmTx,
-} from '../utils';
+import { buildAndSignTx, sendAndConfirmTx } from '../utils';
+import { selectStateTreeInfo } from '../utils/get-state-tree-infos';
 import BN from 'bn.js';
 import {
     CompressedAccountWithMerkleContext,
@@ -26,8 +23,6 @@ import {
  * @param payer                 Payer of the transaction and initialization fees
  * @param lamports              Amount of lamports to compress
  * @param toAddress             Address of the recipient compressed account
- * @param outputStateTreeInfo   Optional output state tree. Defaults to fetching
- *                              a current shared state tree.
  * @param confirmOptions        Options for confirming the transaction
  *
  * @return Transaction signature
@@ -37,13 +32,8 @@ export async function decompress(
     payer: Signer,
     lamports: number | BN,
     recipient: PublicKey,
-    outputStateTreeInfo?: StateTreeInfo,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
-        outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
-    }
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
         (await rpc.getCompressedAccountsByOwner(payer.publicKey)).items;
 
@@ -67,9 +57,8 @@ export async function decompress(
     const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
-        outputStateTreeInfo,
         inputCompressedAccounts: userCompressedAccountsWithMerkleContext,
-        recentValidityProof: proof.compressedProof,
+        recentValidityProof: proof.validityProof,
         recentInputStateRootIndices: proof.rootIndices,
         lamports,
     });

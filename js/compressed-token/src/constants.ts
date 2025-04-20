@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 export const POOL_SEED = Buffer.from('pool');
 
 export const CPI_AUTHORITY_SEED = Buffer.from('cpi_authority');

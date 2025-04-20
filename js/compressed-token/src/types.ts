@@ -1,9 +1,9 @@
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 import {
-    CompressedProof,
+    ValidityProof,
     PackedMerkleContext,
-    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { TokenPoolInfo } from './utils/get-token-pool-infos';
 
@@ -90,7 +90,7 @@ export type CompressedTokenInstructionDataTransfer = {
     /**
      * Validity proof
      */
-    proof: CompressedProof | null;
+    proof: ValidityProof | null;
     /**
      * The mint of the transfer
      */

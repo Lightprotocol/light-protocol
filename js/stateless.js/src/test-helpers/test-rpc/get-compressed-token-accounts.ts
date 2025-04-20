@@ -3,7 +3,7 @@ import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
 import { COMPRESSED_TOKEN_PROGRAM_ID } from '../../constants';
 import { Rpc } from '../../rpc';
-import { getQueueForTree } from './get-compressed-accounts';
+import { getStateTreeInfoByTree } from './get-compressed-accounts';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
@@ -59,12 +59,19 @@ export function parseTokenLayoutWithIdl(
     const { data } = compressedAccount.data;
 
     if (data.length === 0) return null;
+
     if (compressedAccount.owner.toBase58() !== programId.toBase58()) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    return TokenDataLayout.decode(Buffer.from(data));
+    try {
+        const decoded = TokenDataLayout.decode(Buffer.from(data));
+        return decoded;
+    } catch (error) {
+        console.error('Decoding error:', error);
+        throw error;
+    }
 }
 
 /**
@@ -77,17 +84,16 @@ async function parseEventWithTokenTlvData(
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
     const infos = await rpc.getCachedActiveStateTreeInfos();
-
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const maybeTree =
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
 
-            const { queue, treeType, tree } = getQueueForTree(infos, maybeTree);
+            const treeInfo = getStateTreeInfoByTree(infos, maybeTree);
 
             if (
-                !tree.equals(
+                !treeInfo.tree.equals(
                     pubkeyArray[
                         event.outputCompressedAccounts[i].merkleTreeIndex
                     ],
@@ -96,21 +102,17 @@ async function parseEventWithTokenTlvData(
                 throw new Error('Invalid tree');
             }
             const merkleContext: MerkleContext = {
-                merkleTree: tree,
-                nullifierQueue: queue,
-                hash: outputHashes[i],
+                treeInfo,
+                hash: bn(outputHashes[i]),
                 leafIndex: event.outputLeafIndices[i],
+                proveByIndex: false,
             };
-
             if (!compressedAccount.compressedAccount.data)
                 throw new Error('No data');
-
             const parsedData = parseTokenLayoutWithIdl(
                 compressedAccount.compressedAccount,
             );
-
             if (!parsedData) throw new Error('Invalid token data');
-
             const withMerkleContext = createCompressedAccountWithMerkleContext(
                 merkleContext,
                 compressedAccount.compressedAccount.owner,
@@ -147,7 +149,6 @@ export async function getCompressedTokenAccounts(
         await Promise.all(
             events.map(event => parseEventWithTokenTlvData(event, rpc)),
         );
-
     /// strip spent compressed accounts if an output compressed account of tx n is
     /// an input compressed account of tx n+m, it is spent
     const allOutCompressedAccounts = eventsWithParsedTokenTlvData.flatMap(
@@ -156,14 +157,12 @@ export async function getCompressedTokenAccounts(
     const allInCompressedAccountHashes = eventsWithParsedTokenTlvData.flatMap(
         event => event.inputCompressedAccountHashes,
     );
+
     const unspentCompressedAccounts = allOutCompressedAccounts.filter(
         outputCompressedAccount =>
             !allInCompressedAccountHashes.some(hash => {
-                return (
-                    JSON.stringify(hash) ===
-                    JSON.stringify(
-                        outputCompressedAccount.compressedAccount.hash,
-                    )
+                return bn(hash).eq(
+                    outputCompressedAccount.compressedAccount.hash,
                 );
             }),
     );

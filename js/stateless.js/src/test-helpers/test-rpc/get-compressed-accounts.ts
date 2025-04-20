@@ -27,10 +27,10 @@ import {
  * @param tree - The tree to get the queue for
  * @returns The queue for the given tree, or throws an error if not found
  */
-export function getQueueForTree(
+export function getStateTreeInfoByTree(
     info: StateTreeInfo[],
     tree: PublicKey,
-): { queue: PublicKey; treeType: TreeType; tree: PublicKey } {
+): StateTreeInfo {
     const index = info.findIndex(t => t.tree.equals(tree));
 
     if (index !== -1) {
@@ -38,7 +38,12 @@ export function getQueueForTree(
         if (!queue) {
             throw new Error('Queue must not be null for state tree');
         }
-        return { queue, treeType, tree: info[index].tree };
+        return {
+            queue,
+            treeType,
+            tree: info[index].tree,
+            cpiContext: info[index].cpiContext,
+        };
     }
 
     // // test-rpc indexes queue as tree.
@@ -108,18 +113,14 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
                     event.outputCompressedAccounts[index].merkleTreeIndex
                 ];
 
-            // In test-rpc we can do this with a static set of trees because it's local-only.
-            const { queue, treeType, tree } = getQueueForTree(
-                infos,
-                new PublicKey(smt),
-            );
+            const treeInfo = getStateTreeInfoByTree(infos, new PublicKey(smt));
 
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {
-                merkleTree: tree,
-                nullifierQueue: queue,
-                hash: event.outputCompressedAccountHashes[index],
+                treeInfo,
+                hash: bn(event.outputCompressedAccountHashes[index]),
                 leafIndex: event.outputLeafIndices[index],
+                proveByIndex: false,
             };
             const withCtx: CompressedAccountWithMerkleContext =
                 createCompressedAccountWithMerkleContext(

@@ -1,8 +1,9 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { unpackAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../program';
-import { Rpc } from '@lightprotocol/stateless.js';
+import { bn, Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
+import { Buffer } from 'buffer';
 
 /**
  * Check if the token pool info is initialized and has a balance.
@@ -68,7 +69,7 @@ export async function getTokenPoolInfos(
                 tokenPoolPda: addresses[i],
                 tokenProgram,
                 activity: undefined,
-                balance: new BN(0),
+                balance: bn(0),
                 isInitialized: false,
             };
         }
@@ -78,7 +79,7 @@ export async function getTokenPoolInfos(
             tokenPoolPda: parsedInfo.address,
             tokenProgram,
             activity: undefined,
-            balance: new BN(parsedInfo.amount.toString()),
+            balance: bn(parsedInfo.amount.toString()),
             isInitialized: true,
         };
     });
@@ -206,7 +207,7 @@ export function selectTokenPoolInfosForDecompression(
     infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>
-        info.balance.gte(new BN(decompressAmount).mul(new BN(10))),
+        info.balance.gte(bn(decompressAmount).mul(bn(10))),
     );
     // filter only infos that are initialized
     infos = infos.filter(info => info.isInitialized);
