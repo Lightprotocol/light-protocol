@@ -288,9 +288,13 @@ export type MintToParams = {
  * Creates an omnibus account for the mint
  */
 export type RegisterMintParams = {
-    /** Tx feepayer */
+    /**
+     * Tx feepayer
+     */
     feePayer: PublicKey;
-    /** Mint public key */
+    /**
+     * Mint public key
+     */
     mint: PublicKey;
     /**
      * Optional: The token program ID. Default: SPL Token Program ID

@@ -128,14 +128,14 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+    const activeStateTreeInfos = await rpc.getCachedActiveStateTreeInfos();
 
     res.result.value.items.map(item => {
         const _account = item.account;
         const _tokenData = item.tokenData;
 
         const stateTreeInfo = getStateTreeInfoByTree(
-            activeStateTreeInfo,
+            activeStateTreeInfos,
             _account.tree!,
         );
 
