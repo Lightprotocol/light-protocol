@@ -2774,7 +2774,7 @@ where
                 .iter()
                 .map(|x| (*x).clone().into())
                 .collect::<Vec<_>>(),
-            is_decompress: !invoke_cpi.is_compress,
+            is_compress: invoke_cpi.is_compress,
             compress_or_decompress_lamports: invoke_cpi
                 .compress_or_decompress_lamports
                 .unwrap_or_default(),

@@ -9,7 +9,7 @@ use crate::{
     accounts::account_traits::{InvokeAccounts, SignerAccounts},
     context::WrappedInstructionData,
     errors::SystemProgramError,
-    utils::transfer_lamports_cpi,
+    utils::transfer_lamports_invoke,
 };
 
 #[aligned_sized(anchor)]
@@ -93,7 +93,7 @@ pub fn compress_lamports<
         None => return Err(SystemProgramError::DecompressLamportsUndefinedForCompressSol.into()),
     };
 
-    transfer_lamports_cpi(ctx.get_fee_payer(), recipient, lamports)
+    transfer_lamports_invoke(ctx.get_fee_payer(), recipient, lamports)
 }
 
 pub fn transfer_lamports(from: &AccountInfo, to: &AccountInfo, lamports: u64) -> crate::Result<()> {

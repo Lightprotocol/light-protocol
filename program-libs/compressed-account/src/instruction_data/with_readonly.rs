@@ -202,7 +202,7 @@ pub struct InstructionDataInvokeCpiWithReadOnly {
     /// If compress_or_decompress_lamports > 0 -> expect sol_pool_pda
     pub compress_or_decompress_lamports: u64,
     /// -> expect account decompression_recipient
-    pub is_decompress: bool,
+    pub is_compress: bool,
     pub with_cpi_context: bool,
     pub with_transaction_hash: bool,
     pub cpi_context: CompressedCpiContext,
@@ -227,15 +227,15 @@ pub struct ZInstructionDataInvokeCpiWithReadOnlyMeta {
     /// If compress_or_decompress_lamports > 0 -> expect sol_pool_pda
     pub compress_or_decompress_lamports: U64,
     /// -> expect account decompression_recipient
-    is_decompress: u8,
+    is_compress: u8,
     with_cpi_context: u8,
     with_transaction_hash: u8,
     pub cpi_context: ZCompressedCpiContext,
 }
 
 impl ZInstructionDataInvokeCpiWithReadOnlyMeta {
-    pub fn is_decompress(&self) -> bool {
-        self.is_decompress > 0
+    pub fn is_compress(&self) -> bool {
+        self.is_compress > 0
     }
     pub fn with_cpi_context(&self) -> bool {
         self.with_cpi_context > 0
@@ -306,7 +306,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     }
 
     fn is_compress(&self) -> bool {
-        !self.meta.is_decompress() && self.compress_or_decompress_lamports().is_some()
+        self.meta.is_compress() && self.compress_or_decompress_lamports().is_some()
     }
 
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
@@ -392,7 +392,7 @@ impl PartialEq<InstructionDataInvokeCpiWithReadOnly> for ZInstructionDataInvokeC
             || self.invoking_program_id != other.invoking_program_id
             || u64::from(self.compress_or_decompress_lamports)
                 != other.compress_or_decompress_lamports
-            || self.is_decompress() != other.is_decompress
+            || self.is_compress() != other.is_compress
             || self.with_cpi_context() != other.with_cpi_context
         {
             return false;
@@ -435,7 +435,7 @@ fn test_read_only_zero_copy() {
         bump: 0,
         invoking_program_id: Pubkey::default(),
         compress_or_decompress_lamports: 0,
-        is_decompress: false,
+        is_compress: false,
         with_cpi_context: false,
         with_transaction_hash: true,
         cpi_context: CompressedCpiContext {
@@ -533,7 +533,7 @@ mod test {
         {
             return Err(CompressedAccountError::InvalidArgument);
         }
-        if reference.is_decompress != z_copy.meta.is_decompress() {
+        if reference.is_compress != z_copy.meta.is_compress() {
             return Err(CompressedAccountError::InvalidArgument);
         }
         if reference.with_cpi_context != z_copy.meta.with_cpi_context() {
@@ -608,7 +608,7 @@ mod test {
 
         assert_eq!(
             z_copy.is_compress(),
-            !reference.is_decompress && reference.compress_or_decompress_lamports > 0
+            reference.is_compress && reference.compress_or_decompress_lamports > 0
         );
 
         // For cpi_context, the trait adds a layer of conditional return
@@ -630,7 +630,7 @@ mod test {
             bump: rng.gen(),
             invoking_program_id: Pubkey::new_unique(),
             compress_or_decompress_lamports: rng.gen(),
-            is_decompress: rng.gen(),
+            is_compress: rng.gen(),
             with_cpi_context: rng.gen(),
             with_transaction_hash: rng.gen(),
             cpi_context: CompressedCpiContext {

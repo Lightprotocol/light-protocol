@@ -91,14 +91,11 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                             tree_type: (TreeType::StateV1 as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
-                    hashed_merkle_tree = context
+                    let merkle_context = context
                         .get_legacy_merkle_context(current_index as u8)
-                        .unwrap()
-                        .hashed_pubkey;
-                    rollover_fee = context
-                        .get_legacy_merkle_context(current_index as u8)
-                        .unwrap()
-                        .rollover_fee;
+                        .unwrap();
+                    hashed_merkle_tree = merkle_context.hashed_pubkey;
+                    rollover_fee = merkle_context.rollover_fee;
                     mt_next_index = tree.next_index() as u32;
                     is_batched = false;
                     *pubkey

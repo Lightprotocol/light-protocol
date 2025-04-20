@@ -338,7 +338,7 @@ fn deserialize_instruction<'a>(
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
-                if data.is_decompress {
+                if !data.is_compress && data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
                 if data.with_cpi_context {
@@ -359,7 +359,7 @@ fn deserialize_instruction<'a>(
                         )
                     })
                     .collect::<Vec<_>>(),
-                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
+                is_compress: data.is_compress && data.compress_or_decompress_lamports > 0,
                 relay_fee: None,
                 compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
                     None
@@ -385,7 +385,7 @@ fn deserialize_instruction<'a>(
                 if data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
-                if data.is_decompress {
+                if !data.is_compress && data.compress_or_decompress_lamports > 0 {
                     len += 1;
                 }
                 if data.with_cpi_context {
@@ -440,7 +440,7 @@ fn deserialize_instruction<'a>(
                         }
                     })
                     .collect::<Vec<_>>(),
-                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
+                is_compress: data.is_compress && data.compress_or_decompress_lamports > 0,
                 relay_fee: None,
                 compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
                     None
