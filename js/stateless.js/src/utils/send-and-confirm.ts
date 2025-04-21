@@ -10,8 +10,11 @@ import {
     TransactionSignature,
     PublicKey,
     AddressLookupTableAccount,
+    SignatureStatus,
+    SignatureStatusConfig,
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
+import { sleep } from './sleep';
 
 /**
  * Builds a versioned Transaction from instructions.
@@ -58,16 +61,7 @@ export async function sendAndConfirmTx(
 
     if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
 
-    const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
-        signature: txId,
-        blockhash: blockHashCtx.blockhash,
-        lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
-    };
-
-    const ctxAndRes = await rpc.confirmTransaction(
-        transactionConfirmationStrategy0,
-        confirmOptions?.commitment || rpc.commitment || 'confirmed',
-    );
+    const ctxAndRes = await confirmTx(rpc, txId, confirmOptions, blockHashCtx);
     const slot = ctxAndRes.context.slot;
     await rpc.confirmTransactionIndexed(slot);
     return txId;
@@ -90,18 +84,46 @@ export async function confirmTx(
 ): Promise<RpcResponseAndContext<SignatureResult>> {
     if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
 
-    const transactionConfirmationStrategy: TransactionConfirmationStrategy = {
-        signature: txId,
-        blockhash: blockHashCtx.blockhash,
-        lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
+    const commitment =
+        confirmOptions?.commitment || rpc.commitment || 'confirmed';
+    let status: SignatureStatus | null = null;
+    let slot: number = 0;
+
+    const signatureStatusConfig: SignatureStatusConfig = {
+        searchTransactionHistory: false,
     };
-    const res = await rpc.confirmTransaction(
-        transactionConfirmationStrategy,
-        confirmOptions?.commitment || rpc.commitment || 'confirmed',
-    );
-    const slot = res.context.slot;
+
+    while (!status || status.confirmationStatus !== commitment) {
+        const res = await rpc.getSignatureStatuses(
+            [txId],
+            signatureStatusConfig,
+        );
+        status = res.value[0];
+        slot = res.context.slot;
+
+        if (!status) {
+            throw new Error('Transaction not found');
+        }
+
+        if (status.err) {
+            throw new Error(
+                `Transaction failed: ${JSON.stringify(status.err)}`,
+            );
+        }
+
+        const currentBlockHeight = await rpc.getBlockHeight();
+        if (
+            blockHashCtx &&
+            currentBlockHeight > blockHashCtx.lastValidBlockHeight
+        ) {
+            throw new Error('Transaction expired: block height exceeded');
+        }
+
+        await sleep(400);
+    }
+
     await rpc.confirmTransactionIndexed(slot);
-    return res;
+    return { context: { slot }, value: { err: null } };
 }
 
 /**
