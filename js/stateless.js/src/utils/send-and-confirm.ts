@@ -80,52 +80,10 @@ export async function confirmTx(
     confirmOptions?: ConfirmOptions,
     _blockHashCtx?: { blockhash: string; lastValidBlockHeight: number }, // TODO: add this back in.
 ): Promise<RpcResponseAndContext<SignatureResult>> {
-    const commitment = confirmOptions?.commitment || 'confirmed';
-    const isLocal = isLocalTest(rpc.rpcEndpoint);
-
-    const configs = [
-        // local
-        {
-            local: true,
-            commitment: 'confirmed',
-            timeout: 15_000,
-            interval: 200,
-        },
-        {
-            local: true,
-            commitment: 'finalized',
-            timeout: 80_000,
-            interval: 1000,
-        },
-        // devnet, mainnet
-        {
-            local: false,
-            commitment: 'confirmed',
-            timeout: 35_000,
-            interval: 1000,
-        },
-        {
-            local: false,
-            commitment: 'finalized',
-            timeout: 100_000,
-            interval: 1000,
-        },
-    ];
-
-    const config = configs.find(
-        c => c.local === isLocal && c.commitment === commitment,
-    );
-
-    if (!config) {
-        throw new Error(
-            'No config found for local: ' +
-                isLocal +
-                ' and commitment: ' +
-                commitment,
-        );
-    }
-
-    const { timeout, interval } = config;
+    const commitment =
+        confirmOptions?.commitment || rpc.commitment || 'confirmed';
+    const timeout = 80_000;
+    const interval = isLocalTest(rpc.rpcEndpoint) ? 200 : 1000;
 
     let elapsed = 0;
 
