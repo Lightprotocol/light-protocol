@@ -150,7 +150,7 @@ async fn test_batched_only() {
         "state_merkle_trees {:?}",
         env.indexer.state_merkle_trees.len()
     );
-    for i in 0..100 {
+    for i in 0..10000 {
         println!("\n\nround {:?}\n\n", i);
         env.invoke_cpi_test(0).await.unwrap();
         env.activate_general_actions().await;
