@@ -1,5 +1,5 @@
 use crate::{
-    error::Result, find_cpi_signer_macro, msg, AccountInfo, AccountMeta, AnchorDeserialize,
+    error::Result, find_cpi_signer_macro, AccountInfo, AccountMeta, AnchorDeserialize,
     AnchorSerialize, Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
     PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
@@ -115,9 +115,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_signer: true,
             is_writable: false,
         });
-        use crate::msg;
 
-        msg!("here");
         account_metas.push(AccountMeta {
             pubkey: *self.accounts[CompressionCpiAccountIndex::RegisteredProgramPda as usize].key,
             is_signer: false,

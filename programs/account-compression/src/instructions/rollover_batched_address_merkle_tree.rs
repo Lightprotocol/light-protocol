@@ -24,7 +24,7 @@ pub struct RolloverBatchedAddressMerkleTree<'info> {
     /// CHECK:  in account compression program.
     #[account(mut)]
     pub new_address_merkle_tree: AccountInfo<'info>,
-    /// CHECK: cecked in manual deserialization.
+    /// CHECK: checked in manual deserialization.
     #[account(mut)]
     pub old_address_merkle_tree: AccountInfo<'info>,
 }
@@ -62,7 +62,6 @@ pub fn process_rollover_batched_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.old_address_merkle_tree,
     )
     .map_err(ProgramError::from)?;
-    msg!("here");
     // 2. Check that signer is registered or authority.
     check_signer_is_registered_or_authority::<
         RolloverBatchedAddressMerkleTree,

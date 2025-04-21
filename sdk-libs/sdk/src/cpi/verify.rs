@@ -3,7 +3,6 @@ use light_compressed_account::instruction_data::{
     data::NewAddressParamsPacked, invoke_cpi::InstructionDataInvokeCpi,
     with_account_info::CompressedAccountInfo,
 };
-use solana_program::log::sol_log_compute_units;
 
 use crate::{
     account_info::AccountInfoTrait,
@@ -111,8 +110,7 @@ pub fn invoke_light_system_program(
     //     );
     //     return Err(LightSdkError::InvalidCpiSignerAccount);
     // }
-    sol_log_compute_units();
+
     invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])?;
-    sol_log_compute_units();
     Ok(())
 }

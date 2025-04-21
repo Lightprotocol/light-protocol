@@ -773,7 +773,10 @@ pub mod test {
 
         // Check account_option_config
         let account_options = z_copy.account_option_config();
-        assert_eq!(account_options.sol_pool_pda, z_copy.is_compress());
+        assert_eq!(
+            account_options.sol_pool_pda,
+            z_copy.compress_or_decompress_lamports().is_some()
+        );
         assert_eq!(
             account_options.decompression_recipient,
             z_copy.compress_or_decompress_lamports().is_some() && !z_copy.is_compress()

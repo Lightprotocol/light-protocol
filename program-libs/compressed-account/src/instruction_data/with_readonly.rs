@@ -258,16 +258,6 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
     fn account_option_config(&self) -> AccountOptions {
-        #[cfg(feature = "pinocchio")]
-        {
-            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
-            pinocchio::msg!(format!(
-                " is compress_or_decompress_lamports {:?}",
-                self.compress_or_decompress_lamports()
-            )
-            .as_str());
-            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
-        }
         AccountOptions {
             sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
             decompression_recipient: self.compress_or_decompress_lamports().is_some()

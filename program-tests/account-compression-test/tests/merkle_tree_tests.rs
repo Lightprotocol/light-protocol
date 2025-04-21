@@ -1348,8 +1348,8 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
             0
         )
     ];
-    let mut ix_data =
-        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, elements.len() as u8, 0, 0, 0, 0)
+    let (mut ix_data, _) =
+        InsertIntoQueuesInstructionDataMut::new_at(&mut bytes, 0, elements.len() as u8, 0, 0, 0, 0)
             .unwrap();
     ix_data.num_queues = 1;
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
@@ -1401,8 +1401,8 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
             0
         )
     ];
-    let mut ix_data =
-        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 0, elements.len() as u8, 0, 0, 0, 0)
+    let (mut ix_data, _) =
+        InsertIntoQueuesInstructionDataMut::new_at(&mut bytes, 0, elements.len() as u8, 0, 0, 0, 0)
             .unwrap();
 
     for (i, ix_nf) in ix_data.nullifiers.iter_mut().enumerate() {
@@ -1816,7 +1816,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
             0,
         )
     ];
-    let mut ix_data = InsertIntoQueuesInstructionDataMut::new(
+    let (mut ix_data, _) = InsertIntoQueuesInstructionDataMut::new_at(
         &mut bytes,
         leaves.len() as u8,
         0,
@@ -1947,8 +1947,8 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
             0u8;
             InsertIntoQueuesInstructionDataMut::required_size_for_capacity(1, 0, 0, 1, 0, 0,)
         ];
-    let mut ix_data =
-        InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 0, 0, 1, 0, 0).unwrap();
+    let (mut ix_data, _) =
+        InsertIntoQueuesInstructionDataMut::new_at(&mut bytes, 1, 0, 0, 1, 0, 0).unwrap();
     ix_data.num_output_queues = 1;
     ix_data.leaves[0].leaf = [1; 32];
     ix_data.leaves[0].account_index = 0;

@@ -106,29 +106,30 @@ pub fn event_from_light_transaction(
         .map(|associated_instruction| create_batched_transaction_event(associated_instruction))
         .collect::<Result<Vec<_>, _>>()?;
 
-    // Sanity checks:
-    // - this must not throw in production because indexing just works if all instructions are in the same transaction.
-    // - It's ok if someone misues the cpi context account but transaction data will not be available in photon.
-    // - if we would throw an error it would brick photon because we would not be able to index a transaction that changed queue state.
-    // - I could add extra data to the account compression cpi to make this impossible. -> this makes sense it is more robust.
-    // TODO: make debug
-    batched_transaction_events.iter().for_each(|event| {
-        assert_eq!(
-            event.event.input_compressed_account_hashes.len(),
-            event.batch_input_accounts.len(),
-            "Input hashes and input accounts length mismatch "
-        );
-        assert_eq!(
-            event.event.output_compressed_account_hashes.len(),
-            event.event.output_leaf_indices.len(),
-            "Output hashes and output leaf indices length mismatch "
-        );
-        assert_eq!(
-            event.event.output_compressed_account_hashes.len(),
-            event.event.output_compressed_accounts.len(),
-            "Output hashes and output compressed accounts length mismatch "
-        );
-    });
+    // // Sanity checks:
+    // // - this must not throw in production because indexing just works if all instructions are in the same transaction.
+    // // - It's ok if someone misues the cpi context account but transaction data will not be available in photon.
+    // // - if we would throw an error it would brick photon because we would not be able to index a transaction that changed queue state.
+    // // - I could add extra data to the account compression cpi to make this impossible. -> this makes sense it is more robust.
+    // // TODO: make debug
+    // batched_transaction_events.iter().for_each(|event| {
+    //     println!("event: {:?}", event);
+    //     assert_eq!(
+    //         event.event.input_compressed_account_hashes.len(),
+    //         event.batch_input_accounts.len(),
+    //         "Input hashes and input accounts length mismatch "
+    //     );
+    //     assert_eq!(
+    //         event.event.output_compressed_account_hashes.len(),
+    //         event.event.output_leaf_indices.len(),
+    //         "Output hashes and output leaf indices length mismatch "
+    //     );
+    //     assert_eq!(
+    //         event.event.output_compressed_account_hashes.len(),
+    //         event.event.output_compressed_accounts.len(),
+    //         "Output hashes and output compressed accounts length mismatch "
+    //     );
+    // });
     Ok(Some(batched_transaction_events))
 }
 
@@ -155,6 +156,7 @@ fn deserialize_associated_instructions<'a>(
             Err(ParseIndexerEventError::DeserializeAccountCompressionInstructionError)
         }
     }?;
+    println!("cpi_context_outputs {:?}", cpi_context_outputs);
     let exec_instruction =
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
     Ok(AssociatedInstructions {
