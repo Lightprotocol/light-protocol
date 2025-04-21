@@ -1,12 +1,7 @@
-use anchor_lang::Key;
-
 use crate::{
-    error::Result, find_cpi_signer_macro, msg, AccountInfo, AccountMeta, Pubkey,
-    CPI_AUTHORITY_PDA_SEED,
-};
-
-use super::accounts::{
-    CompressionCpiAccountsConfig, SystemAccountMetaConfig, SystemAccountPubkeys,
+    cpi::accounts::{CompressionCpiAccountsConfig, SystemAccountMetaConfig, SystemAccountPubkeys},
+    error::Result,
+    find_cpi_signer_macro, msg, AccountInfo, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
 };
 
 #[repr(usize)]
@@ -75,13 +70,6 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     }
 
     pub fn authority(&self) -> &'c AccountInfo<'info> {
-        msg!(
-            "small ix authority {:?}",
-            self.accounts
-                .get(CompressionCpiAccountIndexSmall::Authority as usize)
-                .unwrap()
-                .key()
-        );
         self.accounts
             .get(CompressionCpiAccountIndexSmall::Authority as usize)
             .unwrap()

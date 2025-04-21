@@ -1,7 +1,7 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyAddress;
 use pinocchio::{msg, program_error::ProgramError};
 
-use crate::{accounts::check_accounts::AcpAccount, errors::SystemProgramError, Result};
+use crate::{accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError, Result};
 
 #[inline(always)]
 pub fn verify_read_only_address_queue_non_inclusion(

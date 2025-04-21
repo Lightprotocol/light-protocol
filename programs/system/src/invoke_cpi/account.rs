@@ -34,13 +34,6 @@ impl Discriminator for CpiContextAccount {
     const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
 }
 
-impl CpiContextAccount {
-    pub fn init(&mut self, associated_merkle_tree: Pubkey) {
-        self.associated_merkle_tree = associated_merkle_tree;
-        self.context = Vec::new();
-    }
-}
-
 #[derive(Debug)]
 pub struct ZCpiContextAccount<'a> {
     pub fee_payer: Ref<&'a mut [u8], light_compressed_account::pubkey::Pubkey>,
@@ -53,12 +46,16 @@ pub fn deserialize_cpi_context_account<'a>(
 ) -> std::result::Result<(ZCpiContextAccount<'a>, (usize, usize)), ZeroCopyError> {
     let mut account_data = account_info.try_borrow_mut_data().unwrap();
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
+
     let data_len = data.len();
     let (fee_payer, data) =
         Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(&mut data[8..])?;
+
     let (associated_merkle_tree, data) =
         Ref::<&'a mut [u8], light_compressed_account::pubkey::Pubkey>::from_prefix(data)?;
+
     let (len, data) = Ref::<&'a mut [u8], U32>::from_prefix(data)?;
+
     let (context, offsets) = if *len > U32::from(1) {
         return Err(ZeroCopyError::InvalidCapacity);
     } else if *len == 1 {
@@ -68,6 +65,7 @@ pub fn deserialize_cpi_context_account<'a>(
             ZeroCopySliceBorsh::<ZNewAddressParamsPacked>::from_bytes_at(bytes)?;
         let (input_compressed_accounts_with_merkle_context, bytes) =
             Vec::<ZPackedCompressedAccountWithMerkleContext>::zero_copy_at(bytes)?;
+
         let output_accounts_start_offset = data_len - bytes.len() + 4;
         let (output_compressed_accounts, bytes) =
             Vec::<ZOutputCompressedAccountWithPackedContext>::zero_copy_at(bytes)?;

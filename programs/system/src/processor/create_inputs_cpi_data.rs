@@ -9,7 +9,7 @@ use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    accounts::check_accounts::AcpAccount,
+    accounts::remaining_account_checks::AcpAccount,
     context::{SystemContext, WrappedInstructionData},
     errors::SystemProgramError,
     Result,

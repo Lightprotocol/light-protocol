@@ -1,13 +1,14 @@
-use light_account_checks::checks::{
-    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_program, check_signer,
-};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
-use super::account::CpiContextAccount;
 use crate::{
-    accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    accounts::{
+        account_checks::{
+            anchor_option_account_info, check_account_compression_program,
+            check_anchor_option_cpi_context_account, check_anchor_option_sol_pool_pda,
+            check_authority, check_fee_payer, check_non_mut_account_info, check_system_program,
+        },
+        account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    },
     Result,
 };
 
@@ -19,8 +20,8 @@ pub struct InvokeCpiInstruction<'info> {
     pub authority: &'info AccountInfo,
     /// CHECK: is non mutable.
     pub registered_program_pda: &'info AccountInfo,
-    /// CHECK: unused, kept to keep api consistent with V1.
-    pub noop_program: &'info AccountInfo,
+    // /// CHECK: unused, kept to keep api consistent with V1.
+    // pub noop_program: &'info AccountInfo,
     /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
     pub account_compression_authority: &'info AccountInfo,
     /// CHECK: program id and is executable.
@@ -40,67 +41,39 @@ pub struct InvokeCpiInstruction<'info> {
 
 impl<'info> InvokeCpiInstruction<'info> {
     pub fn from_account_infos(
-        accounts: &'info [AccountInfo],
+        account_infos: &'info [AccountInfo],
     ) -> Result<(Self, &'info [AccountInfo])> {
-        let fee_payer = &accounts[0];
-        {
-            check_signer(fee_payer)?;
-        }
-        let authority = &accounts[1];
-        {
-            check_signer(authority)?;
-            check_non_mut(authority)?;
-        }
-        let registered_program_pda = &accounts[2];
-        {
-            check_non_mut(registered_program_pda)?;
-        }
-        let noop_program = &accounts[3];
-        let account_compression_authority = &accounts[4];
-        {
-            check_non_mut(account_compression_authority)?;
-        }
-        let account_compression_program = &accounts[5];
-        {
-            check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)?;
-        }
-        let invoking_program = &accounts[6];
-        let option_sol_pool_pda = &accounts[7];
-        let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
-            None
-        } else {
-            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
-            Some(option_sol_pool_pda)
-        };
-        let option_decompression_recipient = &accounts[8];
-        let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
-            None
-        } else {
-            Some(option_decompression_recipient)
-        };
-        let system_program = &accounts[9];
-        {
-            check_program(&Pubkey::default(), system_program)?;
-        }
-        let option_cpi_context_account = &accounts[10];
+        let (accounts, remaining_accounts) = account_infos.split_at(11);
+        let mut accounts = accounts.iter();
+        let fee_payer = check_fee_payer(accounts.next())?;
 
-        let cpi_context_account = if *option_cpi_context_account.key() == crate::ID {
-            None
-        } else {
-            {
-                check_owner(&crate::ID, option_cpi_context_account)?;
-                check_discriminator::<CpiContextAccount>(
-                    option_cpi_context_account.try_borrow_data()?.as_ref(),
-                )?;
-            }
-            Some(option_cpi_context_account)
-        };
+        let authority = check_authority(accounts.next())?;
+
+        let registered_program_pda = check_non_mut_account_info(accounts.next())?;
+
+        // Unchecked since unused.
+        let _noop_program = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        let account_compression_authority = check_non_mut_account_info(accounts.next())?;
+
+        let account_compression_program = check_account_compression_program(accounts.next())?;
+
+        let invoking_program = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next())?;
+
+        let decompression_recipient = anchor_option_account_info(accounts.next())?;
+
+        let system_program = check_system_program(accounts.next())?;
+
+        let cpi_context_account = check_anchor_option_cpi_context_account(accounts.next())?;
+        assert!(accounts.next().is_none());
+
         Ok((
             Self {
                 fee_payer,
                 authority,
                 registered_program_pda,
-                noop_program,
                 account_compression_authority,
                 account_compression_program,
                 invoking_program,
@@ -109,7 +82,7 @@ impl<'info> InvokeCpiInstruction<'info> {
                 system_program,
                 cpi_context_account,
             },
-            &accounts[11..],
+            remaining_accounts,
         ))
     }
 }

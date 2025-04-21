@@ -71,9 +71,7 @@ pub fn process_instruction(
     let discriminator =
         InstructionDiscriminator::try_from(discriminator).map_err(ProgramError::from)?;
     match discriminator {
-        InstructionDiscriminator::InitializeCpiContextAccount => {
-            init_cpi_context_account(accounts, instruction_data)
-        }
+        InstructionDiscriminator::InitializeCpiContextAccount => init_cpi_context_account(accounts),
         InstructionDiscriminator::Invoke => invoke(accounts, instruction_data),
         InstructionDiscriminator::InvokeCpi => invoke_cpi(accounts, instruction_data),
         InstructionDiscriminator::InvokeCpiWithReadOnly => {
@@ -92,15 +90,10 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     // remove vec prefix
     let instruction_data = &instruction_data[4..];
-    sol_log_compute_units();
 
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("invoke_deserialize");
     let (inputs, _) = ZInstructionDataInvoke::zero_copy_at(instruction_data).unwrap();
     let (ctx, remaining_accounts) = InvokeInstruction::from_account_infos(accounts)?;
-    sol_log_compute_units();
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("invoke_deserialize");
+
     input_compressed_accounts_signer_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         ctx.authority.key(),
@@ -114,7 +107,6 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         remaining_accounts,
         None,
     )?;
-    sol_log_compute_units();
     Ok(())
 }
 
@@ -122,14 +114,11 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<()> {
+    // remove vec prefix
     let instruction_data = &instruction_data[4..];
 
-    sol_log_compute_units();
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_deserialize");
     let (inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(instruction_data).unwrap();
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpda_deserialize");
+
     let (ctx, remaining_accounts) = InvokeCpiInstruction::from_account_infos(accounts)?;
 
     process_invoke_cpi::<false, InvokeCpiInstruction, ZInstructionDataInvokeCpi>(
@@ -138,10 +127,6 @@ pub fn invoke_cpi<'a, 'b, 'c: 'info, 'info>(
         inputs,
         remaining_accounts,
     )?;
-    sol_log_compute_units();
-    // 22,903 bytes heap with 33 outputs
-    #[cfg(feature = "bench-sbf")]
-    light_heap::bench_sbf_end!("total_usage");
     Ok(())
 }
 
@@ -151,9 +136,6 @@ pub fn invoke_cpi_with_read_only<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let instruction_data = &instruction_data[4..];
     msg!("invoke_cpi_with_read_only");
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_deserialize");
-    #[allow(unreachable_code)]
     let (inputs, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
 

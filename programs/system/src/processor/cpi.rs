@@ -47,7 +47,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
         min(remaining_accounts.len() as u8, num_nullifiers),
         min(remaining_accounts.len() as u8, num_new_addresses),
     );
-    // Data size + 8 bytes for discriminator + 4 bytes for length, + 4 cpi data length, + cpi data length.
+    // Data size + 8 bytes for discriminator + 4 bytes for vec length, + 4 cpi data vec length, + cpi data length.
     let byte_len = bytes_size + 8 + 4 + 4 + cpi_data_len;
     let mut bytes = vec![0u8; byte_len];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);

@@ -67,7 +67,7 @@ pub struct OutAccountInfo {
     pub data: Vec<u8>,
 }
 
-impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
+impl<'a> InputAccount<'a> for ZCompressedAccountInfo<'a> {
     fn owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -124,7 +124,7 @@ impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
     }
 }
 
-impl<'a> OutputAccount<'a> for ZCAccountInfo<'a> {
+impl<'a> OutputAccount<'a> for ZCompressedAccountInfo<'a> {
     fn lamports(&self) -> u64 {
         self.output.as_ref().unwrap().lamports.into()
     }
@@ -241,34 +241,34 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
 #[derive(Debug, PartialEq, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountInfo {
     /// Address.
-    pub address: Option<[u8; 32]>, // 2
+    pub address: Option<[u8; 32]>,
     /// Input account.
-    pub input: Option<InAccountInfo>, // 3
+    pub input: Option<InAccountInfo>,
     /// Output account.
-    pub output: Option<OutAccountInfo>, // 5
+    pub output: Option<OutAccountInfo>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ZCAccountInfo<'a> {
+pub struct ZCompressedAccountInfo<'a> {
     pub owner: Pubkey,
     /// Address.
-    pub address: Option<Ref<&'a [u8], [u8; 32]>>, // 2
+    pub address: Option<Ref<&'a [u8], [u8; 32]>>,
     /// Input account.
-    pub input: Option<Ref<&'a [u8], ZInAccountInfo>>, // 3
+    pub input: Option<Ref<&'a [u8], ZInAccountInfo>>,
     /// Output account.
-    pub output: Option<ZOutAccountInfo<'a>>, // 5
+    pub output: Option<ZOutAccountInfo<'a>>,
 }
 
 impl<'a> CompressedAccountInfo {
     pub fn zero_copy_at_with_owner(
         bytes: &'a [u8],
         owner: Pubkey,
-    ) -> Result<(ZCAccountInfo<'a>, &'a [u8]), ZeroCopyError> {
+    ) -> Result<(ZCompressedAccountInfo<'a>, &'a [u8]), ZeroCopyError> {
         let (address, bytes) = Option::<Ref<&[u8], [u8; 32]>>::zero_copy_at(bytes)?;
         let (input, bytes) = Option::<Ref<&[u8], ZInAccountInfo>>::zero_copy_at(bytes)?;
         let (output, bytes) = Option::<ZOutAccountInfo<'a>>::zero_copy_at(bytes)?;
         Ok((
-            ZCAccountInfo {
+            ZCompressedAccountInfo {
                 owner,
                 address,
                 input,
@@ -306,29 +306,12 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn account_option_config(&self) -> super::traits::AccountOptions {
-        #[cfg(feature = "pinocchio")]
-        {
-            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
-            pinocchio::msg!(format!(
-                " is compress_or_decompress_lamports {:?}",
-                self.compress_or_decompress_lamports()
-            )
-            .as_str());
-            pinocchio::msg!(format!(" is compress {}", self.is_compress()).as_str());
-        }
         AccountOptions {
             sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
         }
-
-        // AccountOptions {
-        //     sol_pool_pda: self.is_compress(),
-        //     decompression_recipient: self.compress_or_decompress_lamports().is_some()
-        //         && !self.is_compress(),
-        //     cpi_context_account: self.cpi_context().is_some(),
-        // }
     }
 
     fn with_transaction_hash(&self) -> bool {
@@ -392,7 +375,7 @@ pub struct ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
     pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsAssignedPacked>,
-    pub account_infos: Vec<ZCAccountInfo<'a>>,
+    pub account_infos: Vec<ZCompressedAccountInfo<'a>>,
     pub read_only_addresses: ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>,
     pub read_only_accounts: ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>,
 }
@@ -679,7 +662,7 @@ pub mod test {
             return Err(CompressedAccountError::InvalidArgument);
         }
         // We could do more detailed comparison of account_infos here if needed
-        // but it's complex due to the ZCAccountInfo structure
+        // but it's complex due to the ZCompressedAccountInfo structure
 
         // Read-only addresses comparison
         if reference.read_only_addresses.len() != z_copy.read_only_addresses.len() {

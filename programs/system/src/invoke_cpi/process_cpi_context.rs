@@ -30,67 +30,72 @@ use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result}
 ///    token accounts, caches these in the cpi context and returns. The state
 ///    transition is not executed yet.
 /// 2. second invocation (pda program) performs signer checks of the pda
-///    compressed account, reads cpi context and combines the instruction inputs
-///    with verified inputs from the cpi context. The proof is verified and
-///    other state transition is executed with the combined inputs.
+///    compressed account, reads cpi context and combines the instruction instruction_data
+///    with verified instruction_data from the cpi context. The proof is verified and
+///    other state transition is executed with the combined instruction_data.
 pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
-    mut inputs: WrappedInstructionData<'a, T>,
+    mut instruction_data: WrappedInstructionData<'a, T>,
     cpi_context_account_info: Option<&'info AccountInfo>,
     fee_payer: Pubkey,
     remaining_accounts: &[AccountInfo],
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
-    let cpi_context = &inputs.cpi_context();
+    let cpi_context = &instruction_data.cpi_context();
     if cpi_context_account_info.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
     }
+
     if let Some(cpi_context) = cpi_context {
-        msg!("cpi context is some");
         let cpi_context_account_info = match cpi_context_account_info {
             Some(cpi_context_account_info) => cpi_context_account_info,
             None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
         };
+
         let (mut cpi_context_account, outputs_offsets) =
             deserialize_cpi_context_account(cpi_context_account_info)?;
-        let first_merkle_tree_pubkey = if !inputs.inputs_empty() {
-            let index = inputs
-                .input_accounts()
-                .next()
-                .unwrap()
-                .merkle_context()
-                .merkle_tree_pubkey_index;
-            *remaining_accounts[index as usize].key()
-        } else if !inputs.outputs_empty() {
-            let index = inputs.output_accounts().next().unwrap().merkle_tree_index();
-            if &remaining_accounts[index as usize].try_borrow_data()?[..8]
-                == BatchedQueueAccount::DISCRIMINATOR_SLICE
-            {
-                let queue_account = BatchedQueueAccount::output_from_account_info(
-                    &remaining_accounts[index as usize],
-                )?;
-                queue_account.metadata.associated_merkle_tree.to_bytes()
-            } else {
-                *remaining_accounts[index as usize].key()
-            }
-        } else {
-            return Err(SystemProgramError::NoInputs.into());
-        };
 
-        if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
-            msg!(format!(
-                "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
-                first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree
-            )
-            .as_str());
-            return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
+        // Move into function.
+        {
+            let first_merkle_tree_pubkey = if !instruction_data.inputs_empty() {
+                let index = instruction_data
+                    .input_accounts()
+                    .next()
+                    .unwrap()
+                    .merkle_context()
+                    .merkle_tree_pubkey_index;
+                *remaining_accounts[index as usize].key()
+            } else if !instruction_data.outputs_empty() {
+                let index = instruction_data
+                    .output_accounts()
+                    .next()
+                    .unwrap()
+                    .merkle_tree_index();
+                if &remaining_accounts[index as usize].try_borrow_data()?[..8]
+                    == BatchedQueueAccount::DISCRIMINATOR_SLICE
+                {
+                    let queue_account = BatchedQueueAccount::output_from_account_info(
+                        &remaining_accounts[index as usize],
+                    )?;
+                    queue_account.metadata.associated_merkle_tree.to_bytes()
+                } else {
+                    *remaining_accounts[index as usize].key()
+                }
+            } else {
+                return Err(SystemProgramError::NoInputs.into());
+            };
+
+            if *cpi_context_account.associated_merkle_tree != first_merkle_tree_pubkey.into() {
+                msg!(format!(
+                    "first_merkle_tree_pubkey {:?} != associated_merkle_tree {:?}",
+                    first_merkle_tree_pubkey, cpi_context_account.associated_merkle_tree
+                )
+                .as_str());
+                return Err(SystemProgramError::CpiContextAssociatedMerkleTreeMismatch.into());
+            }
         }
-        msg!(format!("cpi_context {:?}", cpi_context).as_str());
-        // if cpi_context.first_set_context {
-        //     set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
-        //     return Ok(None);
-        // } else
+
         if cpi_context.set_context || cpi_context.first_set_context {
-            set_cpi_context(fee_payer, cpi_context_account_info, inputs)?;
+            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
             return Ok(None);
         } else {
             if cpi_context_account.context.is_empty() {
@@ -102,19 +107,21 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             }
             // Zero out the fee payer since the cpi context is being consumed in this instruction.
             *cpi_context_account.fee_payer = Pubkey::default().into();
-            inputs.set_cpi_context(cpi_context_account, outputs_offsets.0, outputs_offsets.1);
-            return Ok(Some((1, inputs)));
+            instruction_data.set_cpi_context(
+                cpi_context_account,
+                outputs_offsets.0,
+                outputs_offsets.1,
+            )?;
+            return Ok(Some((1, instruction_data)));
         }
-    } else {
-        msg!("cpi context is none");
     }
-    Ok(Some((0, inputs)))
+    Ok(Some((0, instruction_data)))
 }
 
 pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     fee_payer: Pubkey,
     cpi_context_account_info: &'info AccountInfo,
-    inputs: WrappedInstructionData<'a, T>,
+    instruction_data: WrappedInstructionData<'a, T>,
 ) -> Result<()> {
     // SAFETY Assumptions:
     // -  previous data in cpi_context_account
@@ -133,27 +140,17 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
     let cpi_context_account = {
         let data = cpi_context_account_info.try_borrow_data()?;
         let mut cpi_context_account = CpiContextAccount::deserialize(&mut &data[8..]).unwrap();
-        if inputs.cpi_context().unwrap().first_set_context {
-            msg!("First invocation");
-            cpi_context_account.fee_payer = fee_payer;
+        if instruction_data.cpi_context().unwrap().first_set_context {
             cpi_context_account.context.clear();
-            msg!("First invocation1");
+            cpi_context_account.fee_payer = fee_payer;
 
-            let mut instruction_data = InstructionDataInvokeCpi::default();
-            inputs.into_instruction_data_invoke_cpi(&mut instruction_data);
-            cpi_context_account.context.push(instruction_data);
-            msg!("wrapped up first invocation");
+            let mut new_cpi_context_data = InstructionDataInvokeCpi::default();
+            instruction_data.into_instruction_data_invoke_cpi(&mut new_cpi_context_data);
+            cpi_context_account.context.push(new_cpi_context_data);
         } else if cpi_context_account.fee_payer == fee_payer
             && !cpi_context_account.context.is_empty()
         {
-            msg!(format!(
-                " cpi context fee payer {:?} != {:?}, is empty {}",
-                fee_payer,
-                cpi_context_account.fee_payer,
-                cpi_context_account.context.is_empty()
-            )
-            .as_str());
-            inputs.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
+            instruction_data.into_instruction_data_invoke_cpi(&mut cpi_context_account.context[0]);
         } else {
             msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
             return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
@@ -183,15 +180,11 @@ pub fn copy_cpi_context_outputs(
             .len()
             .try_into()
             .unwrap();
-        msg!(format!("copy_cpi_context_outputs bytes: {:?}", bytes[..64].to_vec()).as_str());
         let cpi_context_data = cpi_context_account_info.unwrap().try_borrow_data()?;
-
-        msg!(format!(
-            "cpi_context_data[start_offset..end_offset] bytes: {:?}",
-            cpi_context_data[start_offset..end_offset].to_vec()
-        )
-        .as_str());
+        // Manually copy output bytes in borsh compatible format.
+        // 1. Write Vec<Outputs>::len() as u32.
         bytes[0..4].copy_from_slice(num_outputs.to_le_bytes().as_slice());
+        // 2. Copy serialized outputs.
         bytes[4..4 + cpi_outputs_data_len]
             .copy_from_slice(&cpi_context_data[start_offset..end_offset]);
     }
@@ -233,11 +226,11 @@ pub fn copy_cpi_context_outputs(
 
 //     use super::*;
 
-//     fn clean_input_data(inputs: &mut InstructionDataInvokeCpi) {
-//         inputs.cpi_context = None;
-//         inputs.compress_or_decompress_lamports = None;
-//         inputs.relay_fee = None;
-//         inputs.proof = None;
+//     fn clean_input_data(instruction_data: &mut InstructionDataInvokeCpi) {
+//         instruction_data.cpi_context = None;
+//         instruction_data.compress_or_decompress_lamports = None;
+//         instruction_data.relay_fee = None;
+//         instruction_data.proof = None;
 //     }
 
 //     fn create_test_cpi_context_account() -> CpiContextAccount {
@@ -298,18 +291,18 @@ pub fn copy_cpi_context_outputs(
 //     fn test_set_cpi_context_first_invocation() {
 //         let fee_payer = Pubkey::new_unique();
 //         let mut cpi_context_account = create_test_cpi_context_account();
-//         let mut inputs = create_test_instruction_data(true, true, 1);
+//         let mut instruction_data = create_test_instruction_data(true, true, 1);
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 
 //         let result = set_cpi_context(fee_payer, &mut cpi_context_account, z_inputs);
 //         assert!(result.is_ok());
 //         assert_eq!(cpi_context_account.fee_payer, fee_payer);
 //         assert_eq!(cpi_context_account.context.len(), 1);
-//         assert_ne!(cpi_context_account.context[0], inputs);
-//         clean_input_data(&mut inputs);
-//         assert_eq!(cpi_context_account.context[0], inputs);
+//         assert_ne!(cpi_context_account.context[0], instruction_data);
+//         clean_input_data(&mut instruction_data);
+//         assert_eq!(cpi_context_account.context[0], instruction_data);
 //     }
 
 //     #[test]
@@ -375,10 +368,10 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_both_none() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(false, true, 1);
+//         let instruction_data = create_test_instruction_data(false, true, 1);
 //         let mut cpi_context_account: Option<Account<CpiContextAccount>> = None;
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(z_inputs, &mut cpi_context_account, fee_payer, &[]);
 //         assert_eq!(
@@ -391,10 +384,10 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_account_none_context_some() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(false, true, 1);
+//         let instruction_data = create_test_instruction_data(false, true, 1);
 //         let mut cpi_context_account: Option<Account<CpiContextAccount>> = None;
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(z_inputs, &mut cpi_context_account, fee_payer, &[]);
 //         assert_eq!(
@@ -407,7 +400,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_account_some_context_none() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = InstructionDataInvokeCpi {
+//         let instruction_data = InstructionDataInvokeCpi {
 //             cpi_context: None,
 //             ..create_test_instruction_data(false, true, 1)
 //         };
@@ -431,7 +424,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let mut cpi_context_account = Some(Account::try_from(account_info.as_ref()).unwrap());
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(z_inputs, &mut cpi_context_account, fee_payer, &[]);
 //         assert_eq!(result, Err(SystemProgramError::CpiContextMissing.into()));
@@ -441,9 +434,9 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_no_inputs() {
 //         let fee_payer = Pubkey::new_unique();
-//         let mut inputs = create_test_instruction_data(false, true, 1);
-//         inputs.input_compressed_accounts_with_merkle_context = vec![];
-//         inputs.output_compressed_accounts = vec![];
+//         let mut instruction_data = create_test_instruction_data(false, true, 1);
+//         instruction_data.input_compressed_accounts_with_merkle_context = vec![];
+//         instruction_data.output_compressed_accounts = vec![];
 
 //         let mut lamports = 0;
 //         let cpi_context_content = CpiContextAccount {
@@ -465,7 +458,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let mut cpi_context_account = Some(Account::try_from(account_info.as_ref()).unwrap());
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(z_inputs, &mut cpi_context_account, fee_payer, &[]);
 //         assert_eq!(result, Err(SystemProgramError::NoInputs.into()));
@@ -475,7 +468,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_associated_tree_mismatch() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(true, true, 1);
+//         let instruction_data = create_test_instruction_data(true, true, 1);
 //         let mut lamports = 0;
 //         let merkle_tree_pubkey = Pubkey::new_unique();
 //         let cpi_context_content = CpiContextAccount {
@@ -511,7 +504,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -529,7 +522,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_no_set_context() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(false, false, 1);
+//         let instruction_data = create_test_instruction_data(false, false, 1);
 //         let mut lamports = 0;
 //         let merkle_tree_pubkey = Pubkey::new_unique();
 //         let cpi_context_content = CpiContextAccount {
@@ -564,7 +557,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -579,7 +572,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_empty_context_error() {
 //         let fee_payer = Pubkey::default();
-//         let inputs = create_test_instruction_data(false, true, 1);
+//         let instruction_data = create_test_instruction_data(false, true, 1);
 //         let mut lamports = 0;
 //         let merkle_tree_pubkey = Pubkey::new_unique();
 //         let cpi_context_content = CpiContextAccount {
@@ -614,7 +607,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -632,7 +625,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_fee_payer_mismatch_error() {
 //         let fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(true, true, 1);
+//         let instruction_data = create_test_instruction_data(true, true, 1);
 //         let mut lamports = 0;
 //         let merkle_tree_pubkey = Pubkey::new_unique();
 //         let cpi_context_content = CpiContextAccount {
@@ -667,7 +660,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -677,9 +670,9 @@ pub fn copy_cpi_context_outputs(
 //         );
 //         assert!(result.is_ok());
 //         let invalid_fee_payer = Pubkey::new_unique();
-//         let inputs = create_test_instruction_data(false, true, 1);
+//         let instruction_data = create_test_instruction_data(false, true, 1);
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -696,7 +689,7 @@ pub fn copy_cpi_context_outputs(
 //     #[test]
 //     fn test_process_cpi_context_set_context() {
 //         let fee_payer = Pubkey::new_unique();
-//         let mut inputs = create_test_instruction_data(true, true, 1);
+//         let mut instruction_data = create_test_instruction_data(true, true, 1);
 //         let mut lamports = 0;
 //         let merkle_tree_pubkey = Pubkey::new_unique();
 //         let cpi_context_content = CpiContextAccount {
@@ -731,7 +724,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -742,15 +735,15 @@ pub fn copy_cpi_context_outputs(
 //         assert!(result.is_ok());
 //         assert_eq!(cpi_context_account.as_ref().unwrap().context.len(), 1);
 //         assert_eq!(cpi_context_account.as_ref().unwrap().fee_payer, fee_payer);
-//         clean_input_data(&mut inputs);
-//         assert_eq!(cpi_context_account.as_ref().unwrap().context[0], inputs);
+//         clean_input_data(&mut instruction_data);
+//         assert_eq!(cpi_context_account.as_ref().unwrap().context[0], instruction_data);
 //         assert_eq!(result.unwrap(), None);
 //     }
 
 //     #[test]
 //     fn test_process_cpi_context_combine() {
 //         let fee_payer = Pubkey::new_unique();
-//         let mut inputs = create_test_instruction_data(true, true, 1);
+//         let mut instruction_data = create_test_instruction_data(true, true, 1);
 //         let malicious_inputs = create_test_instruction_data(true, true, 100);
 
 //         let mut lamports = 0;
@@ -787,7 +780,7 @@ pub fn copy_cpi_context_outputs(
 //         };
 //         let remaining_accounts = &[merkle_tree_account_info];
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //         let result = process_cpi_context(
 //             z_inputs,
@@ -798,15 +791,15 @@ pub fn copy_cpi_context_outputs(
 //         assert!(result.is_ok());
 //         assert_eq!(cpi_context_account.as_ref().unwrap().context.len(), 1);
 //         assert_eq!(cpi_context_account.as_ref().unwrap().fee_payer, fee_payer);
-//         clean_input_data(&mut inputs);
+//         clean_input_data(&mut instruction_data);
 
-//         assert_eq!(cpi_context_account.as_ref().unwrap().context[0], inputs);
+//         assert_eq!(cpi_context_account.as_ref().unwrap().context[0], instruction_data);
 //         assert_eq!(result.unwrap(), None);
 //         for i in 2..10 {
 //             let pre_account_info = account_info.data.clone();
-//             let mut inputs = create_test_instruction_data(false, true, i);
+//             let mut instruction_data = create_test_instruction_data(false, true, i);
 //             let mut input_bytes = Vec::new();
-//             inputs.serialize(&mut input_bytes).unwrap();
+//             instruction_data.serialize(&mut input_bytes).unwrap();
 //             let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 //             let result = process_cpi_context(
 //                 z_inputs,
@@ -820,10 +813,10 @@ pub fn copy_cpi_context_outputs(
 //                 i as usize
 //             );
 //             assert_eq!(cpi_context_account.as_ref().unwrap().fee_payer, fee_payer);
-//             clean_input_data(&mut inputs);
+//             clean_input_data(&mut instruction_data);
 //             assert_eq!(
 //                 cpi_context_account.as_ref().unwrap().context[(i - 1) as usize],
-//                 inputs
+//                 instruction_data
 //             );
 //             assert_eq!(result.unwrap(), None);
 //             assert_eq!(account_info.data, pre_account_info);
@@ -852,9 +845,9 @@ pub fn copy_cpi_context_outputs(
 //         let mut cpi_context_account =
 //             Some(Account::<CpiContextAccount>::try_from(account_info.as_ref()).unwrap());
 
-//         let inputs = create_test_instruction_data(false, false, 10);
+//         let instruction_data = create_test_instruction_data(false, false, 10);
 //         let mut input_bytes = Vec::new();
-//         inputs.serialize(&mut input_bytes).unwrap();
+//         instruction_data.serialize(&mut input_bytes).unwrap();
 //         let (z_inputs, _) = ZInstructionDataInvokeCpi::zero_copy_at(&input_bytes).unwrap();
 
 //         let result = process_cpi_context(

@@ -224,7 +224,7 @@ fn test_cpi_context_account_error_handling() {
 
         let result = InvokeCpiInstructionSmall::from_account_infos(
             account_info_array.as_slice(),
-            options_config.clone(),
+            options_config,
         );
 
         assert!(result == Err(ProgramError::from(AccountError::AccountOwnedByWrongProgram)));

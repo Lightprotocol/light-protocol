@@ -18,7 +18,6 @@ use light_compressed_account::{
     },
     TreeType,
 };
-use light_compressed_token::process_transfer::OUTPUT_QUEUE_DISCRIMINATOR;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
     test_env::setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,

@@ -10,7 +10,7 @@ use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
-    accounts::check_accounts::AcpAccount,
+    accounts::remaining_account_checks::AcpAccount,
     context::{SystemContext, WrappedInstructionData},
     errors::SystemProgramError,
     Result,
@@ -56,7 +56,6 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     let mut is_batched = true;
 
     for (j, account) in inputs.output_accounts().enumerate() {
-        msg!(format!("output account {:?}", account).as_str());
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
@@ -140,11 +139,6 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             {
                 context.addresses.remove(position);
             } else {
-                // msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
-                // msg!(
-                //     "Remaining compressed_account_addresses: {:?}",
-                //     context.addresses
-                // );
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }

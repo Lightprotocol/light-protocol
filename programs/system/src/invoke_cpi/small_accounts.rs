@@ -1,13 +1,15 @@
-use light_account_checks::checks::{
-    check_discriminator, check_non_mut, check_owner, check_pda_seeds, check_signer,
-};
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use pinocchio::{account_info::AccountInfo, msg};
+use pinocchio::account_info::AccountInfo;
 
 use crate::{
-    accounts::account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
-    invoke_cpi::account::CpiContextAccount,
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    accounts::{
+        account_checks::{
+            check_authority, check_fee_payer, check_non_mut_account_info,
+            check_option_cpi_context_account, check_option_decompression_recipient,
+            check_option_sol_pool_pda,
+        },
+        account_traits::{CpiContextAccountTrait, InvokeAccounts, SignerAccounts},
+    },
     Result,
 };
 
@@ -28,52 +30,27 @@ pub struct InvokeCpiInstructionSmall<'info> {
 
 impl<'info> InvokeCpiInstructionSmall<'info> {
     pub fn from_account_infos(
-        accounts: &'info [AccountInfo],
-        options_config: AccountOptions,
+        account_infos: &'info [AccountInfo],
+        account_options: AccountOptions,
     ) -> Result<(Self, &'info [AccountInfo])> {
-        let fee_payer = &accounts[0];
-        check_signer(fee_payer)?;
+        let num_expected_static_accounts = 4 + account_options.get_num_expected_accounts();
+        let (accounts, remaining_accounts) = account_infos.split_at(num_expected_static_accounts);
+        let mut accounts = accounts.iter();
+        let fee_payer = check_fee_payer(accounts.next())?;
 
-        let authority = &accounts[1];
-        check_signer(authority)?;
-        check_non_mut(authority)?;
+        let authority = check_authority(accounts.next())?;
 
-        let registered_program_pda = &accounts[2];
-        check_non_mut(registered_program_pda)?;
+        let registered_program_pda = check_non_mut_account_info(accounts.next())?;
 
-        let account_compression_authority = &accounts[3];
-        check_non_mut(account_compression_authority)?;
-        msg!(format!("options_config {:?}", options_config).as_str());
+        let account_compression_authority = check_non_mut_account_info(accounts.next())?;
 
-        msg!("here");
-        let mut account_counter = 4;
-        let sol_pool_pda = if options_config.sol_pool_pda {
-            let option_sol_pool_pda = &accounts[account_counter];
-            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
-            account_counter += 1;
-            Some(option_sol_pool_pda)
-        } else {
-            None
-        };
+        let sol_pool_pda = check_option_sol_pool_pda(accounts.next(), account_options)?;
 
-        let decompression_recipient = if options_config.decompression_recipient {
-            let option_decompression_recipient = &accounts[account_counter];
-            account_counter += 1;
-            Some(option_decompression_recipient)
-        } else {
-            None
-        };
+        let decompression_recipient =
+            check_option_decompression_recipient(accounts.next(), account_options)?;
 
-        let cpi_context_account = if options_config.cpi_context_account {
-            let option_cpi_context_account = &accounts[account_counter];
-            check_owner(&crate::ID, option_cpi_context_account)?;
-            check_discriminator::<CpiContextAccount>(
-                option_cpi_context_account.try_borrow_data()?.as_ref(),
-            )?;
-            Some(option_cpi_context_account)
-        } else {
-            None
-        };
+        let cpi_context_account =
+            check_option_cpi_context_account(accounts.next(), account_options)?;
 
         Ok((
             Self {
@@ -85,7 +62,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
                 decompression_recipient,
                 cpi_context_account,
             },
-            &accounts[account_counter..],
+            remaining_accounts,
         ))
     }
 }

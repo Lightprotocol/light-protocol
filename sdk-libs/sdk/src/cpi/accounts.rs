@@ -77,7 +77,6 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     }
 
     pub fn authority(&self) -> &'c AccountInfo<'info> {
-        msg!("regular ix authority");
         // PANICS: We are sure about the bounds of the slice.
         self.accounts
             .get(CompressionCpiAccountIndex::Authority as usize)
@@ -152,8 +151,6 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_writable: false,
         });
         let mut current_index = 7;
-        msg!("here1");
-        msg!(format!("self.config: {:?}", self.config).as_str());
         if !self.config.sol_pool_pda {
             account_metas.push(AccountMeta {
                 pubkey: *self.light_system_program().key,
@@ -168,17 +165,13 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             });
             current_index += 1;
         }
-        msg!("here2");
 
         if !self.config.sol_compression_recipient {
-            account_metas.push(
-                // CompressionCpiAccountIndex::DecompressionRecipent as usize,
-                AccountMeta {
-                    pubkey: *self.light_system_program().key,
-                    is_signer: false,
-                    is_writable: false,
-                },
-            );
+            account_metas.push(AccountMeta {
+                pubkey: *self.light_system_program().key,
+                is_signer: false,
+                is_writable: false,
+            });
         } else {
             account_metas.push(AccountMeta {
                 pubkey: *self.accounts[current_index].key,
@@ -196,14 +189,11 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
         current_index += 1;
 
         if !self.config.cpi_context {
-            account_metas.push(
-                // CompressionCpiAccountIndex::CpiContext as usize,
-                AccountMeta {
-                    pubkey: *self.light_system_program().key,
-                    is_signer: false,
-                    is_writable: false,
-                },
-            );
+            account_metas.push(AccountMeta {
+                pubkey: *self.light_system_program().key,
+                is_signer: false,
+                is_writable: false,
+            });
         } else {
             account_metas.push(AccountMeta {
                 pubkey: *self.accounts[current_index].key,
@@ -211,7 +201,6 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
                 is_writable: true,
             });
         }
-        msg!("here4");
 
         self.accounts[self.system_accounts_len()..]
             .iter()

@@ -1,10 +1,14 @@
-use light_account_checks::checks::{check_non_mut, check_pda_seeds, check_program, check_signer};
-use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    accounts::account_traits::{InvokeAccounts, SignerAccounts},
-    processor::sol_compression::SOL_POOL_PDA_SEED,
+    accounts::{
+        account_checks::{
+            anchor_option_account_info, check_account_compression_program,
+            check_anchor_option_sol_pool_pda, check_fee_payer, check_non_mut_account_info,
+            check_system_program,
+        },
+        account_traits::{InvokeAccounts, SignerAccounts},
+    },
     Result,
 };
 
@@ -16,11 +20,8 @@ pub struct InvokeInstruction<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
-    /// CHECK: this account
+    /// CHECK: in account compression program.
     pub registered_program_pda: &'info AccountInfo,
-    /// CHECK: is checked when emitting the event.
-    /// Unused legacy.
-    pub noop_program: &'info AccountInfo,
     /// CHECK: this account in account compression program.
     /// This pda is used to invoke the account compression program.
     pub account_compression_authority: &'info AccountInfo,
@@ -30,59 +31,53 @@ pub struct InvokeInstruction<'info> {
     /// Sol pool pda is used to store the native sol that has been compressed.
     /// It's only required when compressing or decompressing sol.
     pub sol_pool_pda: Option<&'info AccountInfo>,
-    /// Only needs to be provided for decompression as a recipient for the
-    /// decompressed sol.
-    /// Compressed sol originate from authority.
+    /// Unchecked recipient for decompressed sol.
+    /// Compressed sol originate from sol_pool_pda.
     pub decompression_recipient: Option<&'info AccountInfo>,
     pub system_program: &'info AccountInfo,
 }
 
 impl<'info> InvokeInstruction<'info> {
     pub fn from_account_infos(
-        accounts: &'info [AccountInfo],
+        account_infos: &'info [AccountInfo],
     ) -> Result<(Self, &'info [AccountInfo])> {
-        let fee_payer = &accounts[0];
-        check_signer(fee_payer).map_err(ProgramError::from)?;
-        let authority = &accounts[1];
-        check_signer(authority).map_err(ProgramError::from)?;
+        let (accounts, remaining_accounts) = account_infos.split_at(9);
+        let mut accounts = accounts.iter();
+        let fee_payer = check_fee_payer(accounts.next())?;
 
-        let registered_program_pda = &accounts[2];
-        check_non_mut(registered_program_pda)?;
-        let noop_program = &accounts[3];
-        let account_compression_authority = &accounts[4];
-        check_non_mut(account_compression_authority)?;
-        let account_compression_program = &accounts[5];
-        check_program(&ACCOUNT_COMPRESSION_PROGRAM_ID, account_compression_program)
-            .map_err(ProgramError::from)?;
-        let option_sol_pool_pda = &accounts[6];
-        let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
-            None
-        } else {
-            check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)
-                .map_err(ProgramError::from)?;
-            Some(option_sol_pool_pda)
-        };
-        let option_decompression_recipient = &accounts[7];
-        let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
-            None
-        } else {
-            Some(option_decompression_recipient)
-        };
-        let system_program = &accounts[8];
-        check_program(&Pubkey::default(), system_program).map_err(ProgramError::from)?;
+        // Fee payer and authority can be the same account in case of invoke.
+        let authority = check_fee_payer(accounts.next())?;
+
+        let registered_program_pda = check_non_mut_account_info(accounts.next())?;
+
+        // For backwards compatibility we skip an account
+        // in this index previously the noop program was passed here.
+        let _unused_account_info = accounts.next().ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        let account_compression_authority = check_non_mut_account_info(accounts.next())?;
+
+        let account_compression_program = check_account_compression_program(accounts.next())?;
+
+        let sol_pool_pda = check_anchor_option_sol_pool_pda(accounts.next())?;
+
+        let decompression_recipient = anchor_option_account_info(accounts.next())?;
+
+        let system_program = check_system_program(accounts.next())?;
+
+        assert!(accounts.next().is_none());
+
         Ok((
             Self {
                 fee_payer,
                 authority,
                 registered_program_pda,
-                noop_program,
                 account_compression_authority,
                 account_compression_program,
                 sol_pool_pda,
                 decompression_recipient,
                 system_program,
             },
-            &accounts[9..],
+            remaining_accounts,
         ))
     }
 }

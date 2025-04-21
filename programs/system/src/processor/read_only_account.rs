@@ -2,7 +2,7 @@ use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompre
 use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{
-    accounts::check_accounts::AcpAccount, errors::SystemProgramError,
+    accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError,
     utils::get_queue_and_tree_accounts, Result,
 };
 

@@ -234,6 +234,21 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
+#[cfg(feature = "pinocchio")]
+pub fn check_pda_seeds_with_bump(
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    account_info: &AccountInfo,
+) -> Result<(), AccountError> {
+    if !pinocchio::pubkey::create_program_address(seeds, program_id)
+        .map_err(|_| AccountError::InvalidSeeds)?
+        .eq(account_info.key())
+    {
+        return Err(AccountError::InvalidSeeds);
+    }
+    Ok(())
+}
+
 pub fn check_data_is_zeroed(data: &[u8]) -> Result<(), AccountError> {
     if data.iter().any(|&byte| byte != 0) {
         return Err(AccountError::AccountNotZeroed);

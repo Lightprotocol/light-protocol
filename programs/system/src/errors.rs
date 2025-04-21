@@ -102,6 +102,10 @@ pub enum SystemProgramError {
     AddressIsNone,
     #[error("AddressDoesNotMatch")]
     AddressDoesNotMatch,
+    #[error("CpiContextAlreadySet")]
+    CpiContextAlreadySet,
+    #[error("InvalidTreeHeight")]
+    InvalidTreeHeight,
 }
 
 impl From<SystemProgramError> for ProgramError {

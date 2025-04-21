@@ -28,7 +28,6 @@ pub fn create_pda<const BATCHED: bool>(
         cpi_context: false,
         sol_pool_pda: false,
         sol_compression_recipient: false,
-        small_ix: false,
     };
     let light_cpi_accounts = CompressionCpiAccounts::new_with_config(
         &accounts[0],

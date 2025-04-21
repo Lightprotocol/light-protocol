@@ -1,4 +1,5 @@
 use aligned_sized::*;
+use light_compressed_account::instruction_data::traits::InstructionData;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
@@ -7,6 +8,7 @@ use pinocchio::{
 
 use crate::{
     accounts::account_traits::{InvokeAccounts, SignerAccounts},
+    context::WrappedInstructionData,
     errors::SystemProgramError,
     utils::transfer_lamports_cpi,
 };
@@ -22,18 +24,29 @@ pub fn compress_or_decompress_lamports<
     'c: 'info,
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
+    T: InstructionData<'a>,
 >(
-    is_compress: bool,
-    decompression_lamports: Option<u64>,
-    ctx: &'a A,
+    inputs: &WrappedInstructionData<'a, T>,
+    ctx: &A,
 ) -> crate::Result<()> {
-    if is_compress {
-        msg!("is compress");
-        compress_lamports(decompression_lamports, ctx)
-    } else {
-        msg!("is decompress");
-        decompress_lamports(decompression_lamports, ctx)
+    if inputs.compress_or_decompress_lamports().is_some() {
+        if inputs.is_compress() && ctx.get_decompression_recipient().is_some() {
+            return Err(SystemProgramError::DecompressionRecipientDefined.into());
+        }
+        let decompression_lamports = inputs.compress_or_decompress_lamports();
+        if inputs.is_compress() {
+            msg!("is compress");
+            compress_lamports(decompression_lamports, ctx)?;
+        } else {
+            msg!("is decompress");
+            decompress_lamports(decompression_lamports, ctx)?;
+        }
+    } else if ctx.get_decompression_recipient().is_some() {
+        return Err(SystemProgramError::DecompressionRecipientDefined.into());
+    } else if ctx.get_sol_pool_pda().is_some() {
+        return Err(SystemProgramError::SolPoolPdaDefined.into());
     }
+    Ok(())
 }
 
 pub fn decompress_lamports<

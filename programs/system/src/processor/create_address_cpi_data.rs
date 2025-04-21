@@ -7,8 +7,8 @@ use light_compressed_account::{
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    accounts::check_accounts::AcpAccount, context::SystemContext, errors::SystemProgramError,
-    Result,
+    accounts::remaining_account_checks::AcpAccount, context::SystemContext,
+    errors::SystemProgramError, Result,
 };
 
 pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
@@ -46,7 +46,6 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 )
             }
             AcpAccount::BatchedAddressTree(tree) => {
-                // Use the cloned reference instead of borrowing context again
                 let invoking_program_id_bytes = if let Some(ref bytes) = invoking_program_id_clone {
                     Ok(bytes)
                 } else {
