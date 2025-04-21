@@ -689,7 +689,7 @@ mod check_account_tests {
         let zeroed_data = [0u8; 32];
         check_data_is_zeroed::<8>(zeroed_data.as_slice()).unwrap();
         let mut not_zeroed_data = [0u8; 32];
-        not_zeroed_data[31] = 1;
+        not_zeroed_data[7] = 1;
         let failing_res = check_data_is_zeroed::<8>(not_zeroed_data.as_slice());
         assert_eq!(failing_res, Err(AccountError::AccountNotZeroed));
     }
