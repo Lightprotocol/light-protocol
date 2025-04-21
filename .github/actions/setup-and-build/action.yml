@@ -25,6 +25,7 @@ runs:
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
 
     - name: Install dependencies
+      shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y libudev-dev pkg-config
