@@ -20,8 +20,6 @@ pub struct InvokeCpiInstruction<'info> {
     pub authority: &'info AccountInfo,
     /// CHECK: is non mutable.
     pub registered_program_pda: &'info AccountInfo,
-    // /// CHECK: unused, kept to keep api consistent with V1.
-    // pub noop_program: &'info AccountInfo,
     /// CHECK: used to invoke account compression program cpi sign will fail if invalid account is provided seeds = [CPI_AUTHORITY_PDA_SEED].
     pub account_compression_authority: &'info AccountInfo,
     /// CHECK: program id and is executable.

@@ -38,10 +38,7 @@ impl<'info> InitializeCpiContextAccount<'info> {
 
         match discriminator_bytes {
             STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR => Ok(()),
-            BatchedMerkleTreeAccount::DISCRIMINATOR => {
-                BatchedMerkleTreeAccount::state_from_account_info(associated_merkle_tree)?;
-                Ok(())
-            }
+            BatchedMerkleTreeAccount::DISCRIMINATOR => Ok(()),
             _ => Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch),
         }
         .map_err(ProgramError::from)?;

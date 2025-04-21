@@ -44,7 +44,7 @@ members = [
     "forester",
 ]
 
-resolver = "2" # Explicitly using resolver v2 to help with dependency conflicts
+resolver = "2"
 
 [profile.dev]
 opt-level = 0
@@ -55,27 +55,25 @@ strip = "none"
 overflow-checks = true
 
 [workspace.dependencies]
-# Fix all Solana packages to exact version =2.2.1.0
-solana-banks-client = { version = "=2.2.1" }    # , path = "../agave/banks-client"
-solana-banks-interface = { version = "=2.2.1" } # , path = "../agave/banks-client-interface"
-solana-program = "=2.2.1"
-solana-pubkey = "=2.2.1"
-solana-sdk = "=2.2.1"
-solana-program-test = { version = "=2.2.1" }    #, path = "../agave/program-test"
-solana-client = "=2.2.1"
-solana-cli-output = "=2.2.1"
-solana-transaction-status = "=2.2.1"
-solana-account-decoder = "=2.2.1"
-solana-rpc = "=2.2.1"
-solana-rpc-client-api = "=2.2.1"
-# Explicitly pin any related Solana packages
-solana-transaction-context = "=2.2.1"
-solana-frozen-abi = "=2.2.1"
-solana-frozen-abi-macro = "=2.2.1"
-solana-zk-token-sdk = "=2.2.1"
-solana-logger = "=2.2.1"
-solana-bpf-loader-program = "=2.2.1"
-solana-bn254 = "=2.2.1"
+solana-banks-client = { version = "2.2.1" }
+solana-banks-interface = { version = "2.2.1" }
+solana-program = "2.2.1"
+solana-pubkey = "2.2.1"
+solana-sdk = "2.2.1"
+solana-program-test = { version = "2.2.1" }
+solana-client = "2.2.1"
+solana-cli-output = "2.2.1"
+solana-transaction-status = "2.2.1"
+solana-account-decoder = "2.2.1"
+solana-rpc = "2.2.1"
+solana-rpc-client-api = "2.2.1"
+solana-transaction-context = "2.2.1"
+solana-frozen-abi = "2.2.1"
+solana-frozen-abi-macro = "2.2.1"
+solana-zk-token-sdk = "2.2.1"
+solana-logger = "2.2.1"
+solana-bpf-loader-program = "2.2.1"
+solana-bn254 = "2.2.1"
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7", no-default-features = true, features = [
@@ -112,7 +110,6 @@ tracing-appender = "0.2.3"
 thiserror = "2.0"
 anyhow = "1.0"
 
-# Arkworks
 ark-ff = "=0.5.0"
 ark-bn254 = "0.5"
 ark-serialize = "0.5"
@@ -157,12 +154,12 @@ light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.1.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
-light-bounded-vec = { version = "1.1.0", path = "../program-libs/bounded-vec" }
+light-bounded-vec = { version = "1.1.0", git = "https://github.com/lightprotocol/program-libs", rev = "cf87f3e002d8a7dd40dd19d9387e73398cdcfef8" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
-groth16-solana = { version = "0.1.0", path = "../groth16-solana" }
+groth16-solana = { version = "0.1.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 
@@ -192,3 +189,4 @@ check-cfg = [
     'cfg(target_os, values("solana"))',
     'cfg(feature, values("frozen-abi", "no-entrypoint"))',
 ]
+# Arkworks

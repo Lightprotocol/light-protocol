@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 mod event;
 
@@ -44,7 +44,7 @@ use solana_sdk::pubkey::Pubkey;
 #[tokio::test]
 async fn functional_read_only() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
@@ -335,7 +335,7 @@ async fn functional_read_only() {
 #[tokio::test]
 async fn functional_account_infos() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
@@ -637,7 +637,7 @@ async fn functional_account_infos() {
 #[tokio::test]
 async fn create_addresses_with_account_info() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],
@@ -1217,7 +1217,7 @@ async fn create_addresses_with_account_info() {
 #[tokio::test]
 async fn create_addresses_with_read_only() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: Some(ProverMode::Rpc),
             circuits: vec![],

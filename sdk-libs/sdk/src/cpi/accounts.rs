@@ -116,11 +116,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_writable: false,
         });
         use crate::msg;
-        msg!(format!(
-            "{:?}",
-            self.accounts.iter().map(|acc| acc.key).collect::<Vec<_>>()
-        )
-        .as_str());
+
         msg!("here");
         account_metas.push(AccountMeta {
             pubkey: *self.accounts[CompressionCpiAccountIndex::RegisteredProgramPda as usize].key,

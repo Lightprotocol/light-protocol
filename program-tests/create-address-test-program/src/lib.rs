@@ -51,13 +51,7 @@ pub mod system_cpi_test {
         inputs: Vec<u8>,
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
-        // msg!(
-        //     "invoke_with_read_only {:?}",
-        //     ctx.remaining_accounts
-        //         .iter()
-        //         .map(|x| x.key())
-        //         .collect::<Vec<_>>()
-        // );
+
         let (account_infos, account_metas) = if small_ix {
             use light_sdk::cpi::account_small_ix::CompressionCpiAccounts;
             let cpi_accounts =
@@ -163,7 +157,6 @@ pub fn create_invoke_cpi_instruction(
         self_program: crate::id(),
         system_program: Pubkey::default(),
     };
-    println!("crate id: {:?}", crate::id());
     Instruction {
         program_id: crate::id(),
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
@@ -191,7 +184,6 @@ pub fn create_invoke_read_only_account_info_instruction(
     }
     .data();
     let accounts = crate::accounts::InvokeCpiReadOnly { signer };
-    println!("crate id: {:?}", crate::id());
     Instruction {
         program_id: crate::id(),
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),

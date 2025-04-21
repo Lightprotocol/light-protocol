@@ -199,7 +199,6 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
         cpi_ix_data.addresses.iter().zip(inputs.new_addresses())
     {
         if let Some(assigned_account_index) = new_addresses.assigned_compressed_account_index() {
-            msg!(&assigned_account_index.to_string());
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;

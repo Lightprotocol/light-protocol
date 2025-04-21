@@ -59,7 +59,6 @@ pub(crate) enum ProgramId {
 struct AssociatedInstructions<'a> {
     pub executing_system_instruction: ExecutingSystemInstruction<'a>,
     pub cpi_context_outputs: Vec<OutputCompressedAccountWithPackedContext>,
-    // pub cpi_system_instructions: Vec<CpiSystemInstruction<'a>>,
     pub insert_into_queues_instruction: InsertIntoQueuesInstructionData<'a>,
     pub accounts: &'a [Pubkey],
 }
@@ -101,7 +100,6 @@ pub fn event_from_light_transaction(
         .iter()
         .map(|pattern| deserialize_associated_instructions(pattern, instructions, &accounts))
         .collect::<Result<Vec<_>, _>>()?;
-    println!("associated_instructions {:?}", associated_instructions);
     // 3. Create batched transaction events.
     let batched_transaction_events = associated_instructions
         .iter()
@@ -289,7 +287,6 @@ fn deserialize_instruction<'a>(
     }
     let instruction_discriminator = instruction[0..8].try_into().unwrap();
     let instruction = instruction.split_at(12).1;
-    println!("instruction_discriminator {:?}", instruction_discriminator);
     match instruction_discriminator {
         // Cannot be exucted with cpi context -> executing tx
         DISCRIMINATOR_INVOKE => {
@@ -327,7 +324,6 @@ fn deserialize_instruction<'a>(
             })
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
-            println!("accounts len {}", accounts.len());
             // Min len for a small instruction 3 accounts + 1 tree or queue
             // Fee payer + authority + registered program + account compression authority
             if accounts.len() < 5 {
@@ -350,10 +346,8 @@ fn deserialize_instruction<'a>(
                 }
                 len
             };
-            println!("system_accounts_len: {}", system_accounts_len);
-            println!("accounts {:?}", accounts);
+
             let accounts = accounts.split_at(system_accounts_len).1;
-            println!("split accounts {:?}", accounts);
             Ok(ExecutingSystemInstruction {
                 output_compressed_accounts: data.output_compressed_accounts,
                 input_compressed_accounts: data
@@ -377,7 +371,6 @@ fn deserialize_instruction<'a>(
             })
         }
         INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
-            println!("accounts len {}", accounts.len());
             // Min len for a small instruction 4 accounts + 1 tree or queue
             // Fee payer + authority + registered program + account compression authority
             if accounts.len() < 5 {

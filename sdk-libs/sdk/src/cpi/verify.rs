@@ -69,13 +69,7 @@ pub fn verify_system_info(
     data: Vec<u8>,
 ) -> Result<()> {
     let account_infos = light_system_accounts.to_account_infos();
-    crate::msg!(
-        "account_infos: {:?}",
-        account_infos
-            .iter()
-            .map(|info| info.key)
-            .collect::<Vec<_>>()
-    );
+
     let account_metas = light_system_accounts.to_account_metas();
     invoke_light_system_program(
         light_system_accounts.self_program_id(),

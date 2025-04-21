@@ -2,10 +2,10 @@
 
 set -e
 
-# npx nx run-many --target=format --all
-# npx nx run-many --target=lint:fix --all
+npx nx run-many --target=format --all
+npx nx run-many --target=lint:fix --all
 
-# cargo +nightly fmt --all
+cargo +nightly fmt --all
 cargo clippy \
         --workspace \
         --no-deps \

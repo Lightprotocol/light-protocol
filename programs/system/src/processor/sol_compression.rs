@@ -3,7 +3,6 @@ use light_compressed_account::instruction_data::traits::InstructionData;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
-    msg,
 };
 
 use crate::{
@@ -35,10 +34,8 @@ pub fn compress_or_decompress_lamports<
         }
         let decompression_lamports = inputs.compress_or_decompress_lamports();
         if inputs.is_compress() {
-            msg!("is compress");
             compress_lamports(decompression_lamports, ctx)?;
         } else {
-            msg!("is decompress");
             decompress_lamports(decompression_lamports, ctx)?;
         }
     } else if ctx.get_decompression_recipient().is_some() {

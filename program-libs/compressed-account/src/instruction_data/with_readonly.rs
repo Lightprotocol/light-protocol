@@ -367,22 +367,18 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithReadOnly {
             }
             (slices, bytes)
         };
-        // #[cfg(feature = "pinocchio")]
-        // pinocchio::msg!("post inputs");
+
         let (output_compressed_accounts, bytes) =
             <Vec<ZOutputCompressedAccountWithPackedContext<'a>> as Deserialize<'a>>::zero_copy_at(
                 bytes,
             )?;
-        // #[cfg(feature = "pinocchio")]
-        // pinocchio::msg!("post output_compressed_accounts");
+
         let (read_only_addresses, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyAddress>::from_bytes_at(bytes)?;
-        // #[cfg(feature = "pinocchio")]
-        // pinocchio::msg!("post read_only_addresses");
+
         let (read_only_accounts, bytes) =
             ZeroCopySliceBorsh::<'a, ZPackedReadOnlyCompressedAccount>::from_bytes_at(bytes)?;
-        // #[cfg(feature = "pinocchio")]
-        // pinocchio::msg!("post read_only_accounts");
+
         Ok((
             ZInstructionDataInvokeCpiWithReadOnly {
                 meta,

@@ -24,8 +24,8 @@ use light_compressed_account::instruction_data::{
 use light_macros::pubkey;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, log::sol_log_compute_units, msg,
-    program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+    account_info::AccountInfo, entrypoint, msg, program_error::ProgramError, pubkey::Pubkey,
+    ProgramResult,
 };
 
 use crate::{
@@ -60,7 +60,6 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    sol_log_compute_units();
     if *program_id != ID {
         return Err(ProgramError::IncorrectProgramId);
     }

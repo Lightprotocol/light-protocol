@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use std::str::FromStr;
 
@@ -1417,7 +1417,6 @@ async fn perform_transfer_22_test(
     start_prover_server: bool,
     batched_tree: bool,
 ) {
-    // let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let (mut rpc, env) =
         setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
             None,
@@ -5471,7 +5470,7 @@ async fn mint_with_batched_tree() {
 #[tokio::test]
 async fn test_transfer_with_batched_tree() {
     spawn_prover(
-        false,
+        true,
         ProverConfig {
             run_mode: None,
             circuits: vec![ProofType::Inclusion],
