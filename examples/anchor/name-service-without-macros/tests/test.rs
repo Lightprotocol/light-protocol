@@ -46,7 +46,7 @@ async fn test_name_service() {
     .await;
 
     let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        String::from("name_service_without_macros"),
+        "name_service_without_macros",
         name_service_without_macros::ID,
     )]))
     .await;

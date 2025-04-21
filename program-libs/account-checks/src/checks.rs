@@ -78,8 +78,6 @@ pub fn check_account_info<T: Discriminator>(
 /// 2. sets discriminator
 pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), AccountError> {
     if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
-        // #[cfg(target_os = "solana")]
-        // crate::msg!("Discriminator bytes must be zero for initialization.");
         return Err(AccountError::AlreadyInitialized);
     }
     bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
@@ -95,12 +93,6 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
     }
 
     if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
-        // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-        // crate::msg!(
-        //     "Expected discriminator: {:?}, actual {:?} ",
-        //     T::DISCRIMINATOR,
-        //     bytes[0..U].to_vec()
-        // );
         return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
@@ -172,11 +164,6 @@ pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), Acc
 #[cfg(not(feature = "pinocchio"))]
 pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
     if *account_info.key != *program_id {
-        // msg!(
-        //     "check_owner expected {:?} got: {:?}",
-        //     program_id,
-        //     account_info.key()
-        // );
         return Err(AccountError::InvalidProgramId);
     }
     if !account_info.executable {
@@ -218,7 +205,6 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
-// TODO: add with provided bump
 #[cfg(feature = "pinocchio")]
 pub fn check_pda_seeds(
     seeds: &[&[u8]],
@@ -249,8 +235,11 @@ pub fn check_pda_seeds_with_bump(
     Ok(())
 }
 
-pub fn check_data_is_zeroed(data: &[u8]) -> Result<(), AccountError> {
-    if data.iter().any(|&byte| byte != 0) {
+/// Check that an account is not initialized by checking it's discriminator is zeroed.
+///
+/// Equivalent functionality to anchor #[account(zero)].
+pub fn check_data_is_zeroed<const N: usize>(data: &[u8]) -> Result<(), AccountError> {
+    if data[..N].iter().any(|&byte| byte != 0) {
         return Err(AccountError::AccountNotZeroed);
     }
     Ok(())

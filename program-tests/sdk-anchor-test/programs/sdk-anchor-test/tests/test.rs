@@ -32,7 +32,7 @@ use solana_sdk::{
 #[tokio::test]
 async fn test_sdk_test() {
     let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        String::from("sdk_anchor_test"),
+        "sdk_anchor_test",
         sdk_anchor_test::ID,
     )]))
     .await;

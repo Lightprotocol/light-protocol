@@ -57,7 +57,7 @@ pub fn init_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
 
     let mut cpi_context_account_data = ctx.cpi_context_account.try_borrow_mut_data()?;
     // Check account is not initialized.
-    check_data_is_zeroed(&cpi_context_account_data[0..8]).map_err(ProgramError::from)?;
+    check_data_is_zeroed::<8>(&cpi_context_account_data[..])).map_err(ProgramError::from)?;
     // Initialize account with discriminator.
     cpi_context_account_data[..8].copy_from_slice(&CPI_CONTEXT_ACCOUNT_DISCRIMINATOR);
 
