@@ -10,8 +10,12 @@ import {
     TransactionSignature,
     PublicKey,
     AddressLookupTableAccount,
+    SignatureStatus,
+    SignatureStatusConfig,
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
+import { sleep } from './sleep';
+import { isLocalTest } from '../constants';
 
 /**
  * Builds a versioned Transaction from instructions.
@@ -56,20 +60,8 @@ export async function sendAndConfirmTx(
 ): Promise<TransactionSignature> {
     const txId = await rpc.sendTransaction(tx, confirmOptions);
 
-    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
+    await confirmTx(rpc, txId, confirmOptions, blockHashCtx);
 
-    const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
-        signature: txId,
-        blockhash: blockHashCtx.blockhash,
-        lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
-    };
-
-    const ctxAndRes = await rpc.confirmTransaction(
-        transactionConfirmationStrategy0,
-        confirmOptions?.commitment || rpc.commitment || 'confirmed',
-    );
-    const slot = ctxAndRes.context.slot;
-    await rpc.confirmTransactionIndexed(slot);
     return txId;
 }
 
@@ -86,22 +78,39 @@ export async function confirmTx(
     rpc: Rpc,
     txId: string,
     confirmOptions?: ConfirmOptions,
-    blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
+    _blockHashCtx?: { blockhash: string; lastValidBlockHeight: number }, // TODO: add this back in.
 ): Promise<RpcResponseAndContext<SignatureResult>> {
-    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
+    const commitment =
+        confirmOptions?.commitment || rpc.commitment || 'confirmed';
+    const timeout = 80_000;
+    const interval = isLocalTest(rpc.rpcEndpoint) ? 200 : 1000;
 
-    const transactionConfirmationStrategy: TransactionConfirmationStrategy = {
-        signature: txId,
-        blockhash: blockHashCtx.blockhash,
-        lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
-    };
-    const res = await rpc.confirmTransaction(
-        transactionConfirmationStrategy,
-        confirmOptions?.commitment || rpc.commitment || 'confirmed',
-    );
-    const slot = res.context.slot;
+    let elapsed = 0;
+
+    const res = await new Promise<TransactionSignature>((resolve, reject) => {
+        const intervalId = setInterval(async () => {
+            elapsed += interval;
+
+            if (elapsed >= timeout) {
+                clearInterval(intervalId);
+                reject(
+                    new Error(`Transaction ${txId}'s confirmation timed out`),
+                );
+            }
+
+            const status = await rpc.getSignatureStatuses([txId]);
+
+            if (status?.value[0]?.confirmationStatus === commitment) {
+                clearInterval(intervalId);
+                resolve(txId);
+            }
+        }, interval);
+    });
+
+    const slot = await rpc.getSlot();
     await rpc.confirmTransactionIndexed(slot);
-    return res;
+
+    return { context: { slot }, value: { err: null } };
 }
 
 /**

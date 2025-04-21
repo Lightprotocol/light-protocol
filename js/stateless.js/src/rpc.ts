@@ -1464,6 +1464,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Ensure that the Compression Indexer has already indexed the transaction
      */
     async confirmTransactionIndexed(slot: number): Promise<boolean> {
+        const timeout = isLocalTest(this.rpcEndpoint) ? 10000 : 20000;
+        const interval = isLocalTest(this.rpcEndpoint) ? 100 : 200;
         const startTime = Date.now();
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -1472,13 +1474,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             if (indexerSlot >= slot) {
                 return true;
             }
-            if (Date.now() - startTime > 20000) {
-                // 20 seconds
+            if (Date.now() - startTime > timeout) {
                 throw new Error(
-                    'Timeout: Indexer slot did not reach the required slot within 20 seconds',
+                    `Timeout: Indexer slot did not reach the required slot within ${timeout / 1000}s`,
                 );
             }
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, interval));
         }
     }
 
