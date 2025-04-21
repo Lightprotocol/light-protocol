@@ -95,27 +95,18 @@ export function packCompressedTokenAccounts(
         },
     );
 
-    // Validate that we have either input accounts or output state tree info, but not both
     if (inputCompressedTokenAccounts.length > 0 && outputStateTreeInfo) {
         throw new Error(
             'Cannot specify both input accounts and outputStateTreeInfo',
         );
     }
-    if (inputCompressedTokenAccounts.length === 0 && !outputStateTreeInfo) {
-        throw new Error(
-            'Must specify either input accounts or outputStateTreeInfo',
-        );
-    }
 
-    // By this point, we know one of these conditions must be true
     let treeInfo: StateTreeInfo;
     if (inputCompressedTokenAccounts.length > 0) {
         treeInfo = inputCompressedTokenAccounts[0].compressedAccount.treeInfo;
     } else if (outputStateTreeInfo) {
-        // We've verified outputStateTreeInfo exists with the above checks
         treeInfo = outputStateTreeInfo;
     } else {
-        // This should never happen due to our previous checks, but satisfies TypeScript
         throw new Error(
             'Neither input accounts nor outputStateTreeInfo are available',
         );

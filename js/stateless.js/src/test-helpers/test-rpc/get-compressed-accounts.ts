@@ -1,8 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
-
 import BN from 'bn.js';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
@@ -10,61 +8,40 @@ import {
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     StateTreeInfo,
-    TreeType,
 } from '../../state';
 
 /**
- * Get the queue for a given tree
+ * Get the info for a given tree or queue
  *
- * @param info - The active state tree addresses
- * @param tree - The tree to get the queue for
- * @returns The queue for the given tree, or undefined if not found
+ * @param info          The active state tree addresses
+ * @param treeOrQueue   The tree or queue to get the info for
+ * @returns The info for the given tree or queue, or throws an error if not
+ * found
  */
-/**
- * Get the queue for a given tree
- *
- * @param info - The active state tree addresses
- * @param tree - The tree to get the queue for
- * @returns The queue for the given tree, or throws an error if not found
- */
-export function getStateTreeInfoByTree(
-    info: StateTreeInfo[],
-    tree: PublicKey,
+export function getStateTreeInfoByPubkey(
+    treeInfos: StateTreeInfo[],
+    treeOrQueue: PublicKey,
 ): StateTreeInfo {
-    const index = info.findIndex(t => t.tree.equals(tree));
+    if (treeInfos.some(t => t.queue.equals(treeOrQueue)))
+        throw new Error('Checking by queue not supported yet');
+
+    const index = treeInfos.findIndex(t => t.tree.equals(treeOrQueue));
 
     if (index !== -1) {
-        const { queue, treeType } = info[index];
+        const { queue, treeType } = treeInfos[index];
         if (!queue) {
             throw new Error('Queue must not be null for state tree');
         }
         return {
             queue,
             treeType,
-            tree: info[index].tree,
-            cpiContext: info[index].cpiContext,
+            tree: treeInfos[index].tree,
+            cpiContext: treeInfos[index].cpiContext,
         };
     }
 
-    // // test-rpc indexes queue as tree.
-    // const indexV2 = info.findIndex(
-    //     t => t.queue && t.queue.equals(tree) && t.treeType === TreeType.StateV2,
-    // );
-    // if (indexV2 !== -1) {
-    //     const {
-    //         queue: actualQueue,
-    //         treeType,
-    //         tree: actualTree,
-    //     } = info[indexV2];
-    //     if (!actualQueue) {
-    //         throw new Error('Queue must not be null for state tree');
-    //     }
-
-    //     return { queue: actualQueue, treeType, tree: actualTree };
-    // }
-
     throw new Error(
-        `No associated queue found for tree. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. tree: ${tree.toBase58()}`,
+        `No associated StateTreeInfo found for tree or queue. Please set activeStateTreeInfos with latest Tree accounts. If you use custom state trees, set manually. Pubkey: ${treeOrQueue.toBase58()}`,
     );
 }
 
@@ -100,7 +77,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
-    const infos = await rpc.getCachedActiveStateTreeInfos();
+    const infos = await rpc.getCachedStateTreeInfos();
 
     for (const event of events) {
         for (
@@ -113,7 +90,10 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
                     event.outputCompressedAccounts[index].merkleTreeIndex
                 ];
 
-            const treeInfo = getStateTreeInfoByTree(infos, new PublicKey(smt));
+            const treeInfo = getStateTreeInfoByPubkey(
+                infos,
+                new PublicKey(smt),
+            );
 
             const account = event.outputCompressedAccounts[index];
             const merkleContext: MerkleContext = {

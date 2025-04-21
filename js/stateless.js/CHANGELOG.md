@@ -63,7 +63,7 @@ const bundles = await connection.getCachedActiveStateTreeInfo();
 const { tree, queue } = pickRandomTreeAndQueue(bundles);
 
 // New code
-const infos = await rpc.getCachedActiveStateTreeInfos();
+const infos = await rpc.getCachedStateTreeInfos();
 const selectedInfo = selectStateTreeInfo(info);
 ```
 

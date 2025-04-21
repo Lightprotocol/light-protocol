@@ -54,7 +54,7 @@ export async function compressSplTokenAccount(
 ): Promise<TransactionSignature> {
     outputStateTreeInfo =
         outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedActiveStateTreeInfos());
+        selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
     tokenPoolInfo =
         tokenPoolInfo ??
         selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));

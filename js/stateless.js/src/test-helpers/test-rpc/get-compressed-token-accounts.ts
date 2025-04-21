@@ -3,7 +3,7 @@ import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
 import { COMPRESSED_TOKEN_PROGRAM_ID } from '../../constants';
 import { Rpc } from '../../rpc';
-import { getStateTreeInfoByTree } from './get-compressed-accounts';
+import { getStateTreeInfoByPubkey } from './get-compressed-accounts';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
 import {
     CompressedAccount,
@@ -83,14 +83,14 @@ async function parseEventWithTokenTlvData(
     rpc: Rpc,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-    const infos = await rpc.getCachedActiveStateTreeInfos();
+    const infos = await rpc.getCachedStateTreeInfos();
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const maybeTree =
                 pubkeyArray[event.outputCompressedAccounts[i].merkleTreeIndex];
 
-            const treeInfo = getStateTreeInfoByTree(infos, maybeTree);
+            const treeInfo = getStateTreeInfoByPubkey(infos, maybeTree);
 
             if (
                 !treeInfo.tree.equals(

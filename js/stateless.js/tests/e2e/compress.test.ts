@@ -73,7 +73,7 @@ describe('compress', () => {
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
         stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
+            await rpc.getCachedStateTreeInfos(),
         );
     });
 

@@ -89,7 +89,7 @@ describe('mintTo', () => {
         ).mint;
 
         stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
+            await rpc.getCachedStateTreeInfos(),
         );
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 

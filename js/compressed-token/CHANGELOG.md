@@ -24,7 +24,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 // ...
 
 // new code
-const treeInfos = await rpc.getCachedActiveStateTreeInfos();
+const treeInfos = await rpc.getCachedStateTreeInfos();
 const treeInfo = selectStateTreeInfo(treeInfos);
 
 const infos = await getTokenPoolInfos(rpc, mint);
@@ -42,7 +42,7 @@ const compressIx = await CompressedTokenProgram.compress({
 ```typescript
 // ...
 // new code:
-const treeInfos = await rpc.getCachedActiveStateTreeInfos();
+const treeInfos = await rpc.getCachedStateTreeInfos();
 const treeInfo = selectStateTreeInfo(treeInfos);
 
 const infos = await getTokenPoolInfos(rpc, mint);
@@ -60,7 +60,7 @@ const ix = await CompressedTokenProgram.decompress({
 
 ### Why the Changes are helpful
 
-`getCachedActiveStateTreeInfos()` retrieves all active state trees.
+`getCachedStateTreeInfos()` retrieves all active state trees.
 
 When building a transaction you can now pick a random treeInfo via `selectStateTreeInfo(infos)`.
 

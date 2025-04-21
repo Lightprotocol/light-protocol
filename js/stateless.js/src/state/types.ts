@@ -24,6 +24,7 @@ export enum TreeType {
 
 /**
  * @deprecated Use {@link StateTreeInfo} instead.
+ *
  * A bundle of active trees for a given tree type.
  */
 export type ActiveTreeBundle = {
@@ -44,7 +45,7 @@ export type ActiveTreeBundle = {
  *
  * Example:
  * ```typescript
- * const infos = await rpc.getCachedActiveStateTreeInfos();
+ * const infos = await rpc.getCachedStateTreeInfos();
  * const info = selectStateTreeInfo(infos);
  * const ix = await CompressedTokenProgram.compress({
  *     // ...

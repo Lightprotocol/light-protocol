@@ -34,8 +34,8 @@ describe('rpc-multi-trees', () => {
 
         testRpc = await getTestRpc(lightWasm);
 
-        const stateTreeInfo = (await rpc.getCachedActiveStateTreeInfos())[0];
-        stateTreeInfo2 = (await rpc.getCachedActiveStateTreeInfos())[1];
+        const stateTreeInfo = (await rpc.getCachedStateTreeInfos())[0];
+        stateTreeInfo2 = (await rpc.getCachedStateTreeInfos())[1];
 
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);
@@ -75,9 +75,7 @@ describe('rpc-multi-trees', () => {
 
     let address: PublicKey;
     it('must create account with random output tree (pickRandomTreeAndQueue)', async () => {
-        const tree = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        const tree = selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
 
         const seed = randomBytes(32);
         const addressSeed = deriveAddressSeed(
@@ -117,17 +115,13 @@ describe('rpc-multi-trees', () => {
         expect(validityProof.treeInfos[0].queue).toEqual(randQueues[pos]);
 
         /// Executes transfers using random output trees
-        const tree1 = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        const tree1 = selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
         await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree1);
         executedTxs++;
         randTrees.push(tree1.tree);
         randQueues.push(tree1.queue);
 
-        const tree2 = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        const tree2 = selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
         await transfer(rpc, payer, 1e5, payer, bob.publicKey, tree2);
         executedTxs++;
         randTrees.push(tree2.tree);
@@ -192,9 +186,7 @@ describe('rpc-multi-trees', () => {
 
         /// Creates a compressed account with address and lamports using a
         /// (combined) 'validityProof' from Photon
-        const tree = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
-        );
+        const tree = selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
         await createAccountWithLamports(
             rpc,
             payer,
@@ -235,7 +227,7 @@ describe('rpc-multi-trees', () => {
             });
 
             const tree = selectStateTreeInfo(
-                await rpc.getCachedActiveStateTreeInfos(),
+                await rpc.getCachedStateTreeInfos(),
             );
             await transfer(
                 rpc,

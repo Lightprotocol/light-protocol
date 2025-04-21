@@ -96,7 +96,7 @@ describe('decompress', () => {
         ).mint;
 
         stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
+            await rpc.getCachedStateTreeInfos(),
         );
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 

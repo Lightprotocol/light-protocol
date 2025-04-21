@@ -4,7 +4,7 @@ import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
     getMultipleCompressedAccountsByHashTest,
-    getStateTreeInfoByTree,
+    getStateTreeInfoByPubkey,
 } from './get-compressed-accounts';
 import {
     getCompressedTokenAccountByHashTest,
@@ -142,7 +142,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     lightWasm: LightWasm;
     depth: number;
     log = false;
-    activeStateTreeInfo: StateTreeInfo[] | null = null;
+    allStateTreeInfos: StateTreeInfo[] | null = null;
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -178,16 +178,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Manually set state tree addresses
-     */
-    setStateTreeInfo(info: StateTreeInfo[]): void {
-        this.activeStateTreeInfo = info;
-    }
-
-    /**
      * Returns local test state trees.
      */
-    async getCachedActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getCachedStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
@@ -293,7 +286,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
         > = new Map();
 
-        const cachedStateTreeInfos = await this.getCachedActiveStateTreeInfos();
+        const cachedStateTreeInfos = await this.getCachedStateTreeInfos();
 
         /// Assign leaves to their respective trees
         for (const event of events) {
@@ -308,7 +301,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         event.outputCompressedAccounts[index].merkleTreeIndex
                     ];
 
-                const stateTreeInfo = getStateTreeInfoByTree(
+                const stateTreeInfo = getStateTreeInfoByPubkey(
                     cachedStateTreeInfos,
                     treeOrQueue,
                 );
@@ -361,7 +354,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 const leafIndex = leaves.findIndex(leaf =>
                     bn(leaf).eq(hashes[i]),
                 );
-                const stateTreeInfo = getStateTreeInfoByTree(
+                const stateTreeInfo = getStateTreeInfoByPubkey(
                     cachedStateTreeInfos,
                     tree,
                 );

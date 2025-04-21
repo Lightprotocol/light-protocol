@@ -29,7 +29,7 @@ describe('mergeTokenAccounts', () => {
         const mintKeypair = Keypair.generate();
 
         stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
+            await rpc.getCachedStateTreeInfos(),
         );
 
         mint = (

@@ -41,6 +41,7 @@ const logIndexed = async (
 };
 
 describe('rpc-interop', () => {
+    LightSystemProgram.deriveCompressedSolPda();
     let payer: Signer;
     let bob: Signer;
     let rpc: Rpc;

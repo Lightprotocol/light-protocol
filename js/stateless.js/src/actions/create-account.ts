@@ -53,7 +53,7 @@ export async function createAccount(
     const address = deriveAddress(seed, tree);
 
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedActiveStateTreeInfos();
+        const stateTreeInfo = await rpc.getCachedStateTreeInfos();
         outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 

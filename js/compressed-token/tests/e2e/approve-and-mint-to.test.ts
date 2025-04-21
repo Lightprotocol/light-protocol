@@ -90,7 +90,7 @@ describe('approveAndMintTo', () => {
         await createTokenPool(rpc, payer, mint);
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
         stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedActiveStateTreeInfos(),
+            await rpc.getCachedStateTreeInfos(),
         );
     });
 
