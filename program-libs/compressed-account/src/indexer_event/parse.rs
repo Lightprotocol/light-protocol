@@ -156,13 +156,11 @@ fn deserialize_associated_instructions<'a>(
             Err(ParseIndexerEventError::DeserializeAccountCompressionInstructionError)
         }
     }?;
-    println!("cpi_context_outputs {:?}", cpi_context_outputs);
     let exec_instruction =
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
     Ok(AssociatedInstructions {
         executing_system_instruction: exec_instruction,
         cpi_context_outputs,
-        // cpi_system_instructions: vec![], // we get this data
         insert_into_queues_instruction: insert_queues_instruction,
         // Remove signer and register program accounts.
         accounts: &accounts[indices.insert_into_queues][2..],
