@@ -59,11 +59,8 @@ export async function sendAndConfirmTx(
 ): Promise<TransactionSignature> {
     const txId = await rpc.sendTransaction(tx, confirmOptions);
 
-    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
+    await confirmTx(rpc, txId, confirmOptions, blockHashCtx);
 
-    const ctxAndRes = await confirmTx(rpc, txId, confirmOptions, blockHashCtx);
-    const slot = ctxAndRes.context.slot;
-    await rpc.confirmTransactionIndexed(slot);
     return txId;
 }
 
@@ -80,49 +77,40 @@ export async function confirmTx(
     rpc: Rpc,
     txId: string,
     confirmOptions?: ConfirmOptions,
-    blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
+    _blockHashCtx?: { blockhash: string; lastValidBlockHeight: number }, // TODO: add this back in.
 ): Promise<RpcResponseAndContext<SignatureResult>> {
-    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
+    // 30 second timeout
+    const timeout = 30000;
+    // 2 second retry interval
+    const interval = 2000;
+    let elapsed = 0;
 
-    const commitment =
-        confirmOptions?.commitment || rpc.commitment || 'confirmed';
-    let status: SignatureStatus | null = null;
-    let slot: number = 0;
+    const res = await new Promise<TransactionSignature>((resolve, reject) => {
+        const intervalId = setInterval(async () => {
+            elapsed += interval;
 
-    const signatureStatusConfig: SignatureStatusConfig = {
-        searchTransactionHistory: false,
-    };
+            if (elapsed >= timeout) {
+                clearInterval(intervalId);
+                reject(
+                    new Error(`Transaction ${txId}'s confirmation timed out`),
+                );
+            }
 
-    while (!status || status.confirmationStatus !== commitment) {
-        const res = await rpc.getSignatureStatuses(
-            [txId],
-            signatureStatusConfig,
-        );
-        status = res.value[0];
-        slot = res.context.slot;
+            const status = await rpc.getSignatureStatuses([txId]);
 
-        if (!status) {
-            throw new Error('Transaction not found');
-        }
+            if (
+                status?.value[0]?.confirmationStatus ===
+                (confirmOptions?.commitment || 'confirmed')
+            ) {
+                clearInterval(intervalId);
+                resolve(txId);
+            }
+        }, interval);
+    });
 
-        if (status.err) {
-            throw new Error(
-                `Transaction failed: ${JSON.stringify(status.err)}`,
-            );
-        }
-
-        const currentBlockHeight = await rpc.getBlockHeight();
-        if (
-            blockHashCtx &&
-            currentBlockHeight > blockHashCtx.lastValidBlockHeight
-        ) {
-            throw new Error('Transaction expired: block height exceeded');
-        }
-
-        await sleep(400);
-    }
-
+    const slot = await rpc.getSlot();
     await rpc.confirmTransactionIndexed(slot);
+
     return { context: { slot }, value: { err: null } };
 }
 
