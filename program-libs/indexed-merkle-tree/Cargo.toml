@@ -35,3 +35,4 @@ thiserror = { workspace = true }
 [dev-dependencies]
 light-hash-set = { workspace = true }
 rand = { workspace = true }
+num-bigint = { workspace = true, features = ["rand"] }
