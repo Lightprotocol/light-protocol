@@ -4,7 +4,7 @@ export default defineConfig({
     test: {
         include: ['tests/**/*.test.ts'],
         exclude: process.env.EXCLUDE_E2E ? ['tests/e2e/**'] : [],
-        testTimeout: 30000,
+        testTimeout: 35000,
         reporters: ['default', 'verbose'],
     },
 });

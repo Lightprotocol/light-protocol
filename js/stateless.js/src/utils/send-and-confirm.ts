@@ -15,6 +15,7 @@ import {
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
 import { sleep } from './sleep';
+import { isLocalTest } from '../constants';
 
 /**
  * Builds a versioned Transaction from instructions.
@@ -79,10 +80,8 @@ export async function confirmTx(
     confirmOptions?: ConfirmOptions,
     _blockHashCtx?: { blockhash: string; lastValidBlockHeight: number }, // TODO: add this back in.
 ): Promise<RpcResponseAndContext<SignatureResult>> {
-    // 30 second timeout
-    const timeout = 30000;
-    // 2 second retry interval
-    const interval = 2000;
+    const timeout = isLocalTest(rpc.rpcEndpoint) ? 10000 : 30000;
+    const interval = isLocalTest(rpc.rpcEndpoint) ? 200 : 1000;
     let elapsed = 0;
 
     const res = await new Promise<TransactionSignature>((resolve, reject) => {
