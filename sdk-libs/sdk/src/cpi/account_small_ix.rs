@@ -18,6 +18,7 @@ pub enum CompressionCpiAccountIndexSmall {
 }
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 3;
+// 6 + 3 program ids, fee payer is extra.
 pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
 
 // TODO: add unit tests
@@ -105,7 +106,6 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_signer: true,
             is_writable: false,
         });
-        use crate::msg;
 
         account_metas.push(AccountMeta {
             pubkey: *self.accounts[CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize]
@@ -121,46 +121,41 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_writable: false,
         });
 
-        msg!("here1");
-        msg!(format!("self.config: {:?}", self.config).as_str());
+        let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
         if self.config.sol_pool_pda {
             account_metas.push(AccountMeta {
-                pubkey: *self.accounts[CompressionCpiAccountIndexSmall::SolPoolPda as usize].key,
+                pubkey: *self.accounts[index].key,
                 is_signer: false,
                 is_writable: true,
             });
+            index += 1;
         }
-        msg!("here2");
 
         if self.config.sol_compression_recipient {
             account_metas.push(AccountMeta {
-                pubkey: *self.accounts
-                    [CompressionCpiAccountIndexSmall::DecompressionRecipent as usize]
-                    .key,
+                pubkey: *self.accounts[index].key,
                 is_signer: false,
                 is_writable: true,
             });
+            index += 1;
         }
-        msg!("here3");
 
         if self.config.cpi_context {
             account_metas.push(AccountMeta {
-                pubkey: *self.accounts[CompressionCpiAccountIndexSmall::CpiContext as usize].key,
+                pubkey: *self.accounts[index].key,
                 is_signer: false,
                 is_writable: true,
             });
+            index += 1;
         }
-        msg!("here4");
 
-        self.accounts[self.system_accounts_end_offset()..]
-            .iter()
-            .for_each(|acc| {
-                account_metas.push(AccountMeta {
-                    pubkey: *acc.key,
-                    is_signer: false,
-                    is_writable: true,
-                });
+        self.accounts[index..].iter().for_each(|acc| {
+            account_metas.push(AccountMeta {
+                pubkey: *acc.key,
+                is_signer: false,
+                is_writable: true,
             });
+        });
         account_metas
     }
 

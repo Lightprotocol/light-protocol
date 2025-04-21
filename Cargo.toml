@@ -70,10 +70,14 @@ solana-rpc-client-api = "2.2.1"
 solana-transaction-context = "2.2.1"
 solana-frozen-abi = "2.2.1"
 solana-frozen-abi-macro = "2.2.1"
+solana-msg = { version = "2.2.1" }
 solana-zk-token-sdk = "2.2.1"
 solana-logger = "2.2.1"
 solana-bpf-loader-program = "2.2.1"
 solana-bn254 = "2.2.1"
+solana-sysvar = { version = "2.1.1" }
+solana-program-error = { version = "2.1.1" }
+solana-account-info = { version = "2.1.1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7", no-default-features = true, features = [

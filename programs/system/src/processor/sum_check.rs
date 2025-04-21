@@ -239,7 +239,7 @@ mod test {
             relay_fee: None,
             cpi_context: None,
         };
-        let wrapped_inputs = WrappedInstructionData::new(ix_data);
+        let wrapped_inputs = WrappedInstructionData::new(ix_data)?;
         let calc_num_prove_by_index_accounts =
             sum_check(&wrapped_inputs, &relay_fee, &is_compress)?;
 

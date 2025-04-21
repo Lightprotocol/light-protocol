@@ -730,6 +730,15 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection::new(context);
     let keypairs = EnvAccountKeypairs::program_test_default();
+    println!(
+        "batched cpi context pubkey : {:?}",
+        keypairs.batched_cpi_context.pubkey()
+    );
+    println!(
+        "batched cpi context pubkey : {:?}",
+        keypairs.batched_cpi_context.pubkey().to_bytes()
+    );
+
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),

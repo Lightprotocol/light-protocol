@@ -28,7 +28,7 @@ pub fn process_invoke_cpi<
     instruction_data: T,
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<()> {
-    let instruction_data = WrappedInstructionData::new(instruction_data);
+    let instruction_data = WrappedInstructionData::new(instruction_data)?;
 
     cpi_signer_checks::<T>(
         &invoking_program,

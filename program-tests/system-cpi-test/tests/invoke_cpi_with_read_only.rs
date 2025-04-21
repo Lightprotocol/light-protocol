@@ -12,6 +12,7 @@ use light_client::rpc::types::BatchedTreeProofRpcResult;
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     compressed_account::{MerkleContext, PackedMerkleContext, ReadOnlyCompressedAccount},
+    constants::ACCOUNT_COMPRESSION_PROGRAM_ID,
     instruction_data::{
         cpi_context::CompressedCpiContext,
         with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
@@ -101,7 +102,7 @@ async fn functional_read_only() {
                         env.merkle_tree_pubkey
                     }
                 );
-                40
+                30
             ];
             local_sdk::perform_test_transaction(
                 &mut rpc,
@@ -394,7 +395,7 @@ async fn functional_account_infos() {
                         env.merkle_tree_pubkey
                     }
                 );
-                40
+                30
             ];
             local_sdk::perform_test_transaction(
                 &mut rpc,
@@ -1759,7 +1760,6 @@ async fn create_addresses_with_read_only() {
     }
 }
 
-#[serial]
 #[tokio::test]
 async fn compress_sol_with_account_info() {
     let with_transaction_hash = false;
@@ -1950,6 +1950,14 @@ async fn compress_sol_with_account_info() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_read_only() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        },
+    )
+    .await;
     let with_transaction_hash = false;
     let batched = true;
     for is_small_ix in [true, false].into_iter().skip(1) {
@@ -2237,9 +2245,17 @@ async fn cpi_context_with_read_only() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_account_info() {
+    spawn_prover(
+        true,
+        ProverConfig {
+            run_mode: Some(ProverMode::Rpc),
+            circuits: vec![],
+        },
+    )
+    .await;
     let with_transaction_hash = false;
     let batched = true;
-    for is_small_ix in [true, false].into_iter() {
+    for is_small_ix in [true, false].into_iter().skip(0) {
         let (mut rpc, env) =
             setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
                 Some(vec![(
@@ -2284,6 +2300,8 @@ async fn cpi_context_with_account_info() {
         } else {
             env.cpi_context_account_pubkey
         };
+        println!("cpi context account {:?}", cpi_context_account);
+        println!("cpi context account {:?}", cpi_context_account.to_bytes());
 
         let payer = rpc.get_payer().insecure_clone();
         let mut test_indexer =
@@ -2381,7 +2399,10 @@ async fn cpi_context_with_account_info() {
                 input: None,
                 output: Some(output_account),
             };
-
+            println!(
+                "ACCOUNT_COMPRESSION_PROGRAM_ID {:?}",
+                ACCOUNT_COMPRESSION_PROGRAM_ID
+            );
             local_sdk::perform_test_transaction(
                 &mut rpc,
                 &mut test_indexer,
@@ -2542,7 +2563,6 @@ async fn cpi_context_with_account_info() {
     }
 }
 
-#[serial]
 #[tokio::test]
 async fn compress_sol_with_read_only() {
     let with_transaction_hash = false;

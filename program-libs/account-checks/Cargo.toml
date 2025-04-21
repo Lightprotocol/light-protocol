@@ -8,14 +8,19 @@ edition = "2021"
 
 [features]
 default = ["solana"]
-solana = ["solana-program-error", "solana-sysvar",  "solana-account-info", "solana-pubkey"]
+solana = [
+    "solana-program-error",
+    "solana-sysvar",
+    "solana-account-info",
+    "solana-pubkey",
+]
 pinocchio = ["dep:pinocchio"]
 test_only = ["dep:rand"]
 
 [dependencies]
-solana-sysvar = {version = "2.1.1",optional = true}
-solana-program-error = { version = "2.1.1", optional = true }
-solana-account-info = { version = "2.1.1", optional = true }
+solana-sysvar = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-account-info = { workspace = true, optional = true }
 solana-pubkey = { workspace = true, optional = true, features = [
     "curve25519",
     "sha2",

@@ -41,9 +41,9 @@ pub fn check_account_compression_program(
 }
 
 pub fn check_anchor_option_sol_pool_pda(
-    accounts_info: Option<&AccountInfo>,
+    account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
-    let option_sol_pool_pda = accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let option_sol_pool_pda = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     let sol_pool_pda = if *option_sol_pool_pda.key() == crate::ID {
         None
     } else {
@@ -59,9 +59,9 @@ pub fn check_anchor_option_sol_pool_pda(
 
 /// Processes account equivalent to anchor Accounts Option<AccountInfo>.
 pub fn anchor_option_account_info(
-    accounts_info: Option<&AccountInfo>,
+    account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
-    let option_decompression_recipient = accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let option_decompression_recipient = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     let decompression_recipient = if *option_decompression_recipient.key() == crate::ID {
         None
     } else {
@@ -77,9 +77,9 @@ pub fn check_system_program(account_info: Option<&AccountInfo>) -> Result<&Accou
 }
 
 pub fn check_anchor_option_cpi_context_account(
-    accounts_info: Option<&AccountInfo>,
+    account_info: Option<&AccountInfo>,
 ) -> Result<Option<&AccountInfo>> {
-    let option_cpi_context_account = accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let option_cpi_context_account = account_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
     let cpi_context_account = if *option_cpi_context_account.key() == crate::ID {
         None
     } else {
@@ -94,13 +94,17 @@ pub fn check_anchor_option_cpi_context_account(
     Ok(cpi_context_account)
 }
 
-pub fn check_option_decompression_recipient(
-    accounts_info: Option<&AccountInfo>,
+pub fn check_option_decompression_recipient<'a, I>(
+    account_infos: &mut I,
     account_options: AccountOptions,
-) -> Result<Option<&AccountInfo>> {
+) -> Result<Option<&'a AccountInfo>>
+where
+    I: Iterator<Item = &'a AccountInfo>,
+{
     let account = if account_options.decompression_recipient {
-        let option_decompression_recipient =
-            accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let option_decompression_recipient = account_infos
+            .next()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
         Some(option_decompression_recipient)
     } else {
         None
@@ -108,27 +112,37 @@ pub fn check_option_decompression_recipient(
     Ok(account)
 }
 
-pub fn check_option_cpi_context_account(
-    accounts_info: Option<&AccountInfo>,
+pub fn check_option_cpi_context_account<'a, I>(
+    account_infos: &mut I,
     account_options: AccountOptions,
-) -> Result<Option<&AccountInfo>> {
+) -> Result<Option<&'a AccountInfo>>
+where
+    I: Iterator<Item = &'a AccountInfo>,
+{
     let account = if account_options.cpi_context_account {
-        let accounts_info = accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
-        check_owner(&crate::ID, accounts_info)?;
-        check_discriminator::<CpiContextAccount>(accounts_info.try_borrow_data()?.as_ref())?;
-        Some(accounts_info)
+        let account_info = account_infos
+            .next()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        check_owner(&crate::ID, account_info)?;
+        check_discriminator::<CpiContextAccount>(account_info.try_borrow_data()?.as_ref())?;
+        Some(account_info)
     } else {
         None
     };
     Ok(account)
 }
 
-pub fn check_option_sol_pool_pda(
-    accounts_info: Option<&AccountInfo>,
+pub fn check_option_sol_pool_pda<'a, I>(
+    account_infos: &mut I,
     account_options: AccountOptions,
-) -> Result<Option<&AccountInfo>> {
+) -> Result<Option<&'a AccountInfo>>
+where
+    I: Iterator<Item = &'a AccountInfo>,
+{
     let sol_pool_pda = if account_options.sol_pool_pda {
-        let option_sol_pool_pda = accounts_info.ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let option_sol_pool_pda = account_infos
+            .next()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
         check_pda_seeds(&[SOL_POOL_PDA_SEED], &crate::ID, option_sol_pool_pda)?;
         Some(option_sol_pool_pda)
     } else {

@@ -13,7 +13,7 @@ use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pub
 
 use crate::{
     errors::SystemProgramError, invoke_cpi::account::ZCpiContextAccount,
-    utils::transfer_lamports_cpi, Result,
+    utils::transfer_lamports_cpi, Result, MAX_OUTPUT_ACCOUNTS,
 };
 
 pub struct SystemContext<'info> {
@@ -150,24 +150,28 @@ pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
 }
 
 impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
-    pub fn new(instruction_data: T) -> Self {
-        Self {
+    pub fn new(instruction_data: T) -> std::result::Result<Self, SystemProgramError> {
+        let outputs_len = instruction_data
+            .output_accounts()
+            .iter()
+            .filter(|x| !x.skip())
+            .count();
+        if outputs_len > MAX_OUTPUT_ACCOUNTS {
+            return Err(SystemProgramError::TooManyOutputAccounts);
+        }
+        Ok(Self {
             input_len: instruction_data
                 .input_accounts()
                 .iter()
                 .filter(|x| !x.skip())
                 .count(),
-            outputs_len: instruction_data
-                .output_accounts()
-                .iter()
-                .filter(|x| !x.skip())
-                .count(),
+            outputs_len,
             address_len: instruction_data.new_addresses().len(),
             cpi_context: None,
             instruction_data,
             cpi_context_outputs_start_offset: 0,
             cpi_context_outputs_end_offset: 0,
-        }
+        })
     }
 
     pub fn set_cpi_context(
@@ -180,8 +184,11 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
             return Err(SystemProgramError::InvalidCapacity.into());
         }
         if self.cpi_context.is_none() {
-            self.address_len += cpi_context.context[0].new_address_params.len();
             self.outputs_len += cpi_context.context[0].output_compressed_accounts.len();
+            if self.outputs_len > MAX_OUTPUT_ACCOUNTS {
+                return Err(SystemProgramError::TooManyOutputAccounts.into());
+            }
+            self.address_len += cpi_context.context[0].new_address_params.len();
             self.input_len += cpi_context.context[0]
                 .input_compressed_accounts_with_merkle_context
                 .len();

@@ -805,7 +805,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::UseReadOnlyAddressInAccount,
         )
         .await;
-        assert_rpc_error(result, 0, SystemProgramError::InvalidAddress.into()).unwrap();
+        assert_rpc_error(result, 0, SystemProgramError::AddressDoesNotMatch.into()).unwrap();
 
         // // The transaction inserts the address first, then checks read only addresses.
         // let result = perform_create_pda_with_event(

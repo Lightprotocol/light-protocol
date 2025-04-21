@@ -4,6 +4,8 @@ pub const CPI_AUTHORITY_PDA_BUMP: u8 = 255;
 
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
 
+pub const MAX_OUTPUT_ACCOUNTS: usize = 30;
+
 pub const INIT_CPI_CONTEXT_ACCOUNT_INSTRUCTION: [u8; 8] = [233, 112, 71, 66, 121, 33, 178, 188];
 pub const INVOKE_INSTRUCTION: [u8; 8] = [26, 16, 169, 7, 21, 202, 242, 25];
 pub const INVOKE_CPI_INSTRUCTION: [u8; 8] = [49, 212, 191, 129, 39, 194, 43, 196];

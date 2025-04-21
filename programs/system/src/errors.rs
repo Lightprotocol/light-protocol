@@ -106,6 +106,8 @@ pub enum SystemProgramError {
     CpiContextAlreadySet,
     #[error("InvalidTreeHeight")]
     InvalidTreeHeight,
+    #[error("TooManyOutputAccounts")]
+    TooManyOutputAccounts,
 }
 
 impl From<SystemProgramError> for ProgramError {

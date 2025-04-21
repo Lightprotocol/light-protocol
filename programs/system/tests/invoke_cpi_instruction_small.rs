@@ -7,7 +7,7 @@ use light_account_checks::{
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
 use light_system_program_pinocchio::invoke_cpi::{
-    account::CpiContextAccount, small_accounts::InvokeCpiInstructionSmall,
+    account::CpiContextAccount, instruction_small::InvokeCpiInstructionSmall,
 };
 // We'll avoid direct PDA validation as it's difficult in unit tests
 use pinocchio::account_info::AccountInfo;

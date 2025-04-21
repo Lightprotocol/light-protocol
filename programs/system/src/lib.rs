@@ -12,8 +12,8 @@ use accounts::{init_context_account::init_cpi_context_account, mode::AccountMode
 pub use constants::*;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
-    instruction::InvokeCpiInstruction, processor::process_invoke_cpi,
-    small_accounts::InvokeCpiInstructionSmall,
+    instruction::InvokeCpiInstruction, instruction_small::InvokeCpiInstructionSmall,
+    processor::process_invoke_cpi,
 };
 use light_compressed_account::instruction_data::{
     traits::InstructionData,
@@ -24,8 +24,7 @@ use light_compressed_account::instruction_data::{
 use light_macros::pubkey;
 use light_zero_copy::borsh::Deserialize;
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, msg, program_error::ProgramError, pubkey::Pubkey,
-    ProgramResult,
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
 use crate::{
@@ -52,7 +51,10 @@ pub enum InstructionDiscriminator {
     InvokeCpiWithReadOnly,
     InvokeCpiWithAccountInfo,
 }
+#[cfg(not(feature = "no-entrypoint"))]
+use pinocchio::entrypoint;
 
+#[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
@@ -97,7 +99,7 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         ctx.authority.key(),
     )?;
-    let wrapped_inputs = context::WrappedInstructionData::new(inputs);
+    let wrapped_inputs = context::WrappedInstructionData::new(inputs)?;
     process::<false, InvokeInstruction, ZInstructionDataInvoke>(
         wrapped_inputs,
         None,

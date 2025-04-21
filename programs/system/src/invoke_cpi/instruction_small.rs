@@ -34,7 +34,9 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
         account_options: AccountOptions,
     ) -> Result<(Self, &'info [AccountInfo])> {
         let num_expected_static_accounts = 4 + account_options.get_num_expected_accounts();
+
         let (accounts, remaining_accounts) = account_infos.split_at(num_expected_static_accounts);
+
         let mut accounts = accounts.iter();
         let fee_payer = check_fee_payer(accounts.next())?;
 
@@ -44,13 +46,13 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
 
         let account_compression_authority = check_non_mut_account_info(accounts.next())?;
 
-        let sol_pool_pda = check_option_sol_pool_pda(accounts.next(), account_options)?;
+        let sol_pool_pda = check_option_sol_pool_pda(&mut accounts, account_options)?;
 
         let decompression_recipient =
-            check_option_decompression_recipient(accounts.next(), account_options)?;
+            check_option_decompression_recipient(&mut accounts, account_options)?;
 
-        let cpi_context_account =
-            check_option_cpi_context_account(accounts.next(), account_options)?;
+        let cpi_context_account = check_option_cpi_context_account(&mut accounts, account_options)?;
+        assert!(accounts.next().is_none());
 
         Ok((
             Self {
