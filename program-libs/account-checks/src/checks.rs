@@ -77,9 +77,8 @@ pub fn check_account_info<T: Discriminator>(
 /// 1. discriminator is uninitialized
 /// 2. sets discriminator
 pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), AccountError> {
-    if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
-        return Err(AccountError::AlreadyInitialized);
-    }
+    check_data_is_zeroed::<DISCRIMINATOR_LEN>(bytes)
+        .map_err(|_| AccountError::AlreadyInitialized)?;
     bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
     Ok(())
 }
