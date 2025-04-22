@@ -46,11 +46,8 @@ use token_escrow::{
 
 #[tokio::test]
 async fn test_escrow_with_compressed_pda() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("token_escrow"),
-        token_escrow::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts(Some(vec![("token_escrow", token_escrow::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
     let test_indexer = TestIndexer::init_from_env(

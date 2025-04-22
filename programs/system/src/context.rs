@@ -3,15 +3,18 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         cpi_context::CompressedCpiContext,
-        data::{NewAddressParamsPacked, OutputCompressedAccountWithPackedContext},
+        data::OutputCompressedAccountWithPackedContext,
         invoke_cpi::InstructionDataInvokeCpi,
         traits::{InputAccount, InstructionData, NewAddress, OutputAccount},
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::{invoke_cpi::account::ZCpiContextAccount, utils::transfer_lamports_cpi, Result};
+use crate::{
+    errors::SystemProgramError, invoke_cpi::account::ZCpiContextAccount,
+    utils::transfer_lamports_cpi, Result, MAX_OUTPUT_ACCOUNTS,
+};
 
 pub struct SystemContext<'info> {
     pub account_indices: Vec<u8>,
@@ -139,37 +142,75 @@ pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
     address_len: usize,
     input_len: usize,
     outputs_len: usize,
+    /// Offsets are used to copy output compressed account data from the cpi context
+    /// to the system program -> account compression program cpi instruction data.
+    /// This ensures the indexer can index all output account data.
+    cpi_context_outputs_start_offset: usize,
+    cpi_context_outputs_end_offset: usize,
 }
 
 impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
-    pub fn new(instruction_data: T) -> Self {
-        Self {
-            input_len: instruction_data.input_accounts().len(),
-            outputs_len: instruction_data.output_accounts().len(),
+    pub fn new(instruction_data: T) -> std::result::Result<Self, SystemProgramError> {
+        let outputs_len = instruction_data
+            .output_accounts()
+            .iter()
+            .filter(|x| !x.skip())
+            .count();
+        if outputs_len > MAX_OUTPUT_ACCOUNTS {
+            return Err(SystemProgramError::TooManyOutputAccounts);
+        }
+        Ok(Self {
+            input_len: instruction_data
+                .input_accounts()
+                .iter()
+                .filter(|x| !x.skip())
+                .count(),
+            outputs_len,
             address_len: instruction_data.new_addresses().len(),
             cpi_context: None,
             instruction_data,
-        }
+            cpi_context_outputs_start_offset: 0,
+            cpi_context_outputs_end_offset: 0,
+        })
     }
 
-    pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) {
+    pub fn set_cpi_context(
+        &mut self,
+        cpi_context: ZCpiContextAccount<'a>,
+        outputs_start_offset: usize,
+        outputs_end_offset: usize,
+    ) -> Result<()> {
         if cpi_context.context.len() != 1 {
-            unimplemented!(
-                "Cpi context account must be 1, is: {}",
-                cpi_context.context.len()
-            );
+            return Err(SystemProgramError::InvalidCapacity.into());
         }
         if self.cpi_context.is_none() {
-            self.address_len += cpi_context.context[0].new_address_params.len();
             self.outputs_len += cpi_context.context[0].output_compressed_accounts.len();
+            if self.outputs_len > MAX_OUTPUT_ACCOUNTS {
+                return Err(SystemProgramError::TooManyOutputAccounts.into());
+            }
+            self.address_len += cpi_context.context[0].new_address_params.len();
             self.input_len += cpi_context.context[0]
                 .input_compressed_accounts_with_merkle_context
                 .len();
-            msg!(format!("setting cpi context {:?}", cpi_context).as_str());
             self.cpi_context = Some(cpi_context);
+            self.cpi_context_outputs_start_offset = outputs_start_offset;
+            self.cpi_context_outputs_end_offset = outputs_end_offset;
         } else {
-            panic!("Cpi context is already set.");
+            return Err(SystemProgramError::CpiContextAlreadySet.into());
         }
+        Ok(())
+    }
+
+    pub fn get_cpi_context_outputs_start_offset(&self) -> usize {
+        self.cpi_context_outputs_start_offset
+    }
+
+    pub fn get_cpi_context_outputs_end_offset(&self) -> usize {
+        self.cpi_context_outputs_end_offset
+    }
+
+    pub fn get_cpi_context_account(&'b self) -> &'b Option<ZCpiContextAccount<'a>> {
+        &self.cpi_context
     }
 
     pub fn address_len(&self) -> usize {
@@ -203,11 +244,27 @@ impl<'a, 'b, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.with_transaction_hash()
     }
 
-    pub fn get_output_account(&'b self, index: usize) -> Option<&'b (impl OutputAccount<'a> + 'b)> {
-        if index > self.instruction_data.output_accounts().len() {
-            None
+    pub fn get_output_account(&'b self, index: usize) -> Option<&'b (dyn OutputAccount<'a> + 'b)> {
+        let ix_outputs_len = self.instruction_data.output_accounts().len();
+        if index >= ix_outputs_len {
+            if let Some(cpi_context) = self.cpi_context.as_ref() {
+                if let Some(context) = cpi_context.context.first() {
+                    let index = index.saturating_sub(ix_outputs_len);
+                    context
+                        .output_accounts()
+                        .get(index)
+                        .map(|account| account as &dyn OutputAccount<'a>)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         } else {
-            Some(&self.instruction_data.output_accounts()[index])
+            self.instruction_data
+                .output_accounts()
+                .get(index)
+                .map(|account| account as &dyn OutputAccount<'a>)
         }
     }
 }
@@ -233,11 +290,8 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         self.instruction_data.compress_or_decompress_lamports()
     }
 
-    pub fn new_addresses<'b>(&'b self) -> impl Iterator<Item = &'b (dyn NewAddress<'a> + 'b)> {
+    pub fn new_addresses<'b>(&'b self) -> impl Iterator<Item = &'b dyn NewAddress<'a>> {
         if let Some(cpi_context) = &self.cpi_context {
-            if cpi_context.context.len() > 1 {
-                panic!("Cpi context len > 1");
-            }
             chain_new_addresses(
                 self.instruction_data.new_addresses(),
                 cpi_context.context[0].new_addresses(),
@@ -248,11 +302,8 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    pub fn output_accounts<'b>(&'b self) -> impl Iterator<Item = &'b (dyn OutputAccount<'a> + 'b)> {
+    pub fn output_accounts<'b>(&'b self) -> impl Iterator<Item = &'b dyn OutputAccount<'a>> {
         if let Some(cpi_context) = &self.cpi_context {
-            if cpi_context.context.len() > 1 {
-                panic!("Cpi context len > 1");
-            }
             chain_outputs(
                 self.instruction_data.output_accounts(),
                 cpi_context.context[0].output_accounts(),
@@ -262,11 +313,8 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         }
     }
 
-    pub fn input_accounts<'b>(&'b self) -> impl Iterator<Item = &'b (dyn InputAccount<'a> + 'b)> {
+    pub fn input_accounts<'b>(&'b self) -> impl Iterator<Item = &'b dyn InputAccount<'a>> {
         if let Some(cpi_context) = &self.cpi_context {
-            if cpi_context.context.len() > 1 {
-                panic!("Cpi context len > 1");
-            }
             chain_inputs(
                 self.instruction_data.input_accounts(),
                 cpi_context.context[0].input_accounts(),
@@ -282,6 +330,9 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         cpi_account_data: &mut InstructionDataInvokeCpi,
     ) {
         for input in self.instruction_data.input_accounts() {
+            if input.skip() {
+                continue;
+            }
             let input_account = PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: input.owner().into(),
@@ -297,7 +348,11 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 .input_compressed_accounts_with_merkle_context
                 .push(input_account);
         }
+
         for output in self.instruction_data.output_accounts() {
+            if output.skip() {
+                continue;
+            }
             let output_account = OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
                     owner: output.owner().into(),
@@ -312,24 +367,8 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
                 .push(output_account);
         }
 
-        for new_address_params in self.instruction_data.new_addresses() {
-            if new_address_params
-                .assigned_compressed_account_index()
-                .is_some()
-            {
-                unimplemented!("Address assignment cannot be guaranteed with cpi context.");
-            }
-            cpi_account_data
-                .new_address_params
-                .push(NewAddressParamsPacked {
-                    seed: new_address_params.seed(),
-                    address_queue_account_index: new_address_params
-                        .address_merkle_tree_account_index(),
-                    address_merkle_tree_root_index: new_address_params
-                        .address_merkle_tree_root_index(),
-                    address_merkle_tree_account_index: new_address_params
-                        .address_merkle_tree_account_index(),
-                });
+        if !self.instruction_data.new_addresses().is_empty() {
+            unimplemented!("Address assignment cannot be guaranteed with cpi context.");
         }
     }
 
@@ -349,27 +388,39 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
 pub fn chain_outputs<'a, 'b: 'a>(
     slice1: &'a [impl OutputAccount<'b>],
     slice2: &'a [impl OutputAccount<'b>],
-) -> impl Iterator<Item = &'a (dyn OutputAccount<'b> + 'a)> {
+) -> impl Iterator<Item = &'a (dyn OutputAccount<'b>)> {
     slice1
         .iter()
+        .filter(|x| !x.skip())
         .map(|item| item as &dyn OutputAccount<'b>)
-        .chain(slice2.iter().map(|item| item as &dyn OutputAccount<'b>))
+        .chain(
+            slice2
+                .iter()
+                .filter(|x| !x.skip())
+                .map(|item| item as &dyn OutputAccount<'b>),
+        )
 }
 
 pub fn chain_inputs<'a, 'b: 'a>(
     slice1: &'a [impl InputAccount<'b>],
     slice2: &'a [impl InputAccount<'b>],
-) -> impl Iterator<Item = &'a (dyn InputAccount<'b> + 'a)> {
+) -> impl Iterator<Item = &'a (dyn InputAccount<'b>)> {
     slice1
         .iter()
+        .filter(|x| !x.skip())
         .map(|item| item as &dyn InputAccount<'b>)
-        .chain(slice2.iter().map(|item| item as &dyn InputAccount<'b>))
+        .chain(
+            slice2
+                .iter()
+                .filter(|x| !x.skip())
+                .map(|item| item as &dyn InputAccount<'b>),
+        )
 }
 
 pub fn chain_new_addresses<'a, 'b: 'a>(
     slice1: &'a [impl NewAddress<'b>],
     slice2: &'a [impl NewAddress<'b>],
-) -> impl Iterator<Item = &'a (dyn NewAddress<'b> + 'a)> {
+) -> impl Iterator<Item = &'a (dyn NewAddress<'b>)> {
     slice1
         .iter()
         .map(|item| item as &dyn NewAddress<'b>)

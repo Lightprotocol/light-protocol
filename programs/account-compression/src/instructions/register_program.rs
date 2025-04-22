@@ -21,7 +21,7 @@ pub struct RegisterProgramToGroup<'info> {
     /// CHECK: Signer is checked according to authority pda in instruction.
     #[account( mut, constraint= authority.key() == group_authority_pda.authority @AccountCompressionErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
-    /// CHECK: TODO: check that upgrade authority is signer.
+    /// CHECK:
     pub program_to_be_registered: Signer<'info>,
     #[account(
         init,

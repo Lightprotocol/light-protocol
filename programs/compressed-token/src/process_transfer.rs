@@ -175,8 +175,8 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.remaining_accounts,
     )
 }
-pub const BATCHED_DISCRIMINATOR: [u8; 8] = *b"BatchMta";
-pub const OUTPUT_QUEUE_DISCRIMINATOR: [u8; 8] = *b"queueacc";
+pub const BATCHED_DISCRIMINATOR: &[u8] = b"BatchMta";
+pub const OUTPUT_QUEUE_DISCRIMINATOR: &[u8] = b"queueacc";
 
 /// Creates output compressed accounts.
 /// Steps:
@@ -240,10 +240,8 @@ pub fn create_output_compressed_accounts(
         let hashed_owner = hash_to_bn254_field_size_be(owner.as_ref());
 
         let mut amount_bytes = [0u8; 32];
-        let discriminator_bytes: [u8; 8] = remaining_accounts[merkle_tree_indices[i] as usize]
-            .try_borrow_data()?[0..8]
-            .try_into()
-            .unwrap();
+        let discriminator_bytes =
+            &remaining_accounts[merkle_tree_indices[i] as usize].try_borrow_data()?[0..8];
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 amount_bytes[24..].copy_from_slice(amount.to_le_bytes().as_slice());
@@ -316,13 +314,11 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         input_token_data[i].serialize(&mut data)?;
 
         let mut amount_bytes = [0u8; 32];
-        let discriminator_bytes: [u8; 8] = remaining_accounts[compressed_account_with_context
+        let discriminator_bytes = &remaining_accounts[compressed_account_with_context
             .merkle_context
             .merkle_tree_pubkey_index
             as usize]
-            .try_borrow_data()?[0..8]
-            .try_into()
-            .unwrap();
+            .try_borrow_data()?[0..8];
         match discriminator_bytes {
             StateMerkleTreeAccount::DISCRIMINATOR => {
                 amount_bytes[24..]

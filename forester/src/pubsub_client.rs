@@ -86,6 +86,7 @@ fn spawn_pubsub_client(
                 .program_subscribe(
                     &account_compression::id(),
                     Some(RpcProgramAccountsConfig {
+                        sort_results: None,
                         filters: None,
                         account_config: RpcAccountInfoConfig {
                             encoding: Some(UiAccountEncoding::Base64),

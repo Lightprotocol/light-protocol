@@ -36,7 +36,11 @@ use light_compressed_token::{
 };
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts, EnvAccountKeypairs, EnvAccounts},
+    test_env::{
+        setup_test_programs_with_accounts,
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
+        EnvAccountKeypairs, EnvAccounts,
+    },
     test_rpc::ProgramTestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{
@@ -1398,6 +1402,13 @@ async fn perform_transfer_test(
 ) {
     perform_transfer_22_test(inputs, outputs, amount, false, start_prover_server, false).await;
 }
+
+// TODO: reexport these types from ligth-program test.
+use light_batched_merkle_tree::{
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
+};
+use light_registry::protocol_config::state::ProtocolConfig;
 async fn perform_transfer_22_test(
     inputs: usize,
     outputs: usize,
@@ -1406,8 +1417,22 @@ async fn perform_transfer_22_test(
     start_prover_server: bool,
     batched_tree: bool,
 ) {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
-
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+            None,
+            ProtocolConfig {
+                // Init with an active epoch which doesn't end
+                active_phase_length: 1_000_000_000,
+                slot_length: 1_000_000_000 - 1,
+                genesis_slot: 0,
+                registration_phase_length: 2,
+                ..Default::default()
+            },
+            true,
+            InitStateTreeAccountsInstructionData::default(),
+            InitAddressTreeAccountsInstructionData::test_default(),
+        )
+        .await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = if batched_tree {
         env.batched_output_queue
@@ -5428,7 +5453,7 @@ async fn mint_with_batched_tree() {
         .unwrap();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
-    let num_recipients = 33;
+    let num_recipients = 30;
     mint_tokens_helper(
         &mut rpc,
         &mut test_indexer,

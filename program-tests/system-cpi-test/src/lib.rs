@@ -106,8 +106,8 @@ pub mod system_cpi_test {
                 0u8;
                 InsertIntoQueuesInstructionDataMut::required_size_for_capacity(1, 1, 1, 1, 1, 1)
             ];
-        let mut inputs =
-            InsertIntoQueuesInstructionDataMut::new(&mut bytes, 1, 1, 1, 1, 1, 1).unwrap();
+        let (mut inputs, _) =
+            InsertIntoQueuesInstructionDataMut::new_at(&mut bytes, 1, 1, 1, 1, 1, 1).unwrap();
         inputs.num_queues = 1;
         inputs.num_output_queues = 1;
         inputs.num_address_queues = 1;

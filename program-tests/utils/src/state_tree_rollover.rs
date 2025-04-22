@@ -125,7 +125,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
     lamports: u64,
 ) {
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    let discriminator = merkle_tree.data[0..8].try_into().unwrap();
+    let discriminator = &merkle_tree.data[0..8];
     match discriminator {
         StateMerkleTreeAccount::DISCRIMINATOR => {
             {
@@ -150,7 +150,7 @@ pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
                 .unwrap();
             assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
         }
-        BatchedMerkleTreeAccount::DISCRIMINATOR => {}
+        BatchedMerkleTreeAccount::DISCRIMINATOR_SLICE => {}
         _ => panic!("Invalid discriminator"),
     }
 }

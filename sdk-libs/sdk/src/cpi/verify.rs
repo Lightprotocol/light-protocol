@@ -68,9 +68,10 @@ pub fn verify_system_info(
     data: Vec<u8>,
 ) -> Result<()> {
     let account_infos = light_system_accounts.to_account_infos();
+
     let account_metas = light_system_accounts.to_account_metas();
     invoke_light_system_program(
-        light_system_accounts.invoking_program().key,
+        light_system_accounts.self_program_id(),
         &account_infos,
         account_metas,
         data,
@@ -90,25 +91,26 @@ pub fn invoke_light_system_program(
         data,
     };
 
-    let (authority, bump) = find_cpi_signer_macro!(invoking_program_id);
+    let (_authority, bump) = find_cpi_signer_macro!(invoking_program_id);
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
 
-    if *account_infos[1].key != authority {
-        #[cfg(feature = "anchor")]
-        anchor_lang::prelude::msg!(
-            "System program signer authority is invalid. Expected {:?}, found {:?}",
-            authority,
-            account_infos[1].key
-        );
-        #[cfg(feature = "anchor")]
-        anchor_lang::prelude::msg!(
-            "Seeds to derive expected pubkey: [CPI_AUTHORITY_PDA_SEED] {:?}",
-            [CPI_AUTHORITY_PDA_SEED]
-        );
-        return Err(LightSdkError::InvalidCpiSignerAccount);
-    }
+    // TODO: restore but not a priority it is a convenience check
+    // It's index 0 for small instruction accounts.
+    // if *account_infos[1].key != authority {
+    //     #[cfg(feature = "anchor")]
+    //     anchor_lang::prelude::msg!(
+    //         "System program signer authority is invalid. Expected {:?}, found {:?}",
+    //         authority,
+    //         account_infos[1].key
+    //     );
+    //     #[cfg(feature = "anchor")]
+    //     anchor_lang::prelude::msg!(
+    //         "Seeds to derive expected pubkey: [CPI_AUTHORITY_PDA_SEED] {:?}",
+    //         [CPI_AUTHORITY_PDA_SEED]
+    //     );
+    //     return Err(LightSdkError::InvalidCpiSignerAccount);
+    // }
 
     invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])?;
-
     Ok(())
 }

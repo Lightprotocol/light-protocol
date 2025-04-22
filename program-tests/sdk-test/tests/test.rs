@@ -37,8 +37,7 @@ use solana_sdk::{
 #[tokio::test]
 async fn test_sdk_test() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![(String::from("sdk_test"), sdk_test::ID)]))
-            .await;
+        setup_test_programs_with_accounts_v2(Some(vec![("sdk_test", sdk_test::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(

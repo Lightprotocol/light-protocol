@@ -49,11 +49,8 @@ use token_escrow::{
 /// 9. withdraw after lockup time
 #[tokio::test]
 async fn test_escrow_pda() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("token_escrow"),
-        token_escrow::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts(Some(vec![("token_escrow", token_escrow::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;

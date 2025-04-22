@@ -88,8 +88,7 @@ use system_cpi_test::{
 #[tokio::test]
 #[ignore = "Currently failes with Prover failed to generate proof."]
 async fn test_read_only_accounts() {
-    let (_rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
+    let (_rpc, env) = setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
     let payer = _rpc.get_payer().insecure_clone();
     let skip_prover = false;
 
@@ -717,7 +716,7 @@ async fn test_read_only_accounts() {
 #[tokio::test]
 async fn only_test_create_pda() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
+        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
         &payer,
@@ -806,7 +805,7 @@ async fn only_test_create_pda() {
             CreatePdaMode::UseReadOnlyAddressInAccount,
         )
         .await;
-        assert_rpc_error(result, 0, SystemProgramError::InvalidAddress.into()).unwrap();
+        assert_rpc_error(result, 0, SystemProgramError::AddressDoesNotMatch.into()).unwrap();
 
         // // The transaction inserts the address first, then checks read only addresses.
         // let result = perform_create_pda_with_event(
@@ -1167,7 +1166,7 @@ async fn only_test_create_pda() {
 #[tokio::test]
 async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
+        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
@@ -1379,7 +1378,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_trees() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
+        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(

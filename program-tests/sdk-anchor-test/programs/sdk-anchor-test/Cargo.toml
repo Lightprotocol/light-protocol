@@ -3,7 +3,6 @@ name = "sdk-anchor-test"
 version = "0.7.0"
 description = "Test program for Light SDK and Light Macros"
 edition = "2021"
-rust-version = "1.75.0"
 license = "Apache-2.0"
 
 [lib]

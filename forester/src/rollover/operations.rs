@@ -23,8 +23,8 @@ use light_registry::{
     protocol_config::state::ProtocolConfig,
 };
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
-    transaction::Transaction,
+    compute_budget::ComputeBudgetInstruction, instruction::Instruction, pubkey::Pubkey,
+    signature::Keypair, signer::Signer, transaction::Transaction,
 };
 use tracing::trace;
 
@@ -321,7 +321,7 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
     old_queue_pubkey: &Pubkey,
     epoch: u64,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    let instructions = create_rollover_address_merkle_tree_instructions(
+    let mut instructions = create_rollover_address_merkle_tree_instructions(
         context,
         &payer.pubkey(),
         derivation,
@@ -332,6 +332,8 @@ pub async fn perform_address_merkle_tree_rollover<R: RpcConnection>(
         epoch,
     )
     .await;
+    let compute_budget_instruction = ComputeBudgetInstruction::set_compute_unit_limit(500_000);
+    instructions.insert(0, compute_budget_instruction);
     let blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

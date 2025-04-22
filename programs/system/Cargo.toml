@@ -55,10 +55,14 @@ light-account-checks = { workspace = true, default-features = false, features = 
 ] }
 pinocchio = { workspace = true }
 pinocchio-system = { version = "0.2.3" }
+solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 [dev-dependencies]
 rand = { workspace = true }
-solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
+light-account-checks = { workspace = true, default-features = false, features = [
+    "pinocchio",
+    "test_only",
+] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

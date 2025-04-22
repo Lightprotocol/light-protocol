@@ -17,13 +17,14 @@ use crate::{
     context::SystemContext,
     Result,
 };
-
+#[allow(clippy::too_many_arguments)]
 pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     ctx: &A,
     num_leaves: u8,
     num_nullifiers: u8,
     num_new_addresses: u8,
     hashed_pubkeys_capacity: usize,
+    cpi_data_len: usize,
     invoking_program_id: Option<Pubkey>,
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<(SystemContext<'info>, Vec<u8>)> {
@@ -46,8 +47,8 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
         min(remaining_accounts.len() as u8, num_nullifiers),
         min(remaining_accounts.len() as u8, num_new_addresses),
     );
-    // Data size + 8 bytes for discriminator + 4 bytes for length.
-    let byte_len = bytes_size + 8 + 4;
+    // Data size + 8 bytes for discriminator + 4 bytes for vec length, + 4 cpi data vec length, + cpi data length.
+    let byte_len = bytes_size + 8 + 4 + 4 + cpi_data_len;
     let mut bytes = vec![0u8; byte_len];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
     // Vec len.

@@ -3,7 +3,6 @@ name = "memo"
 version = "0.0.1"
 description = "Created with Anchor"
 edition = "2021"
-rust-version = "1.75.0"
 license = "Apache-2.0"
 
 [lib]

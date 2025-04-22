@@ -100,6 +100,14 @@ pub enum SystemProgramError {
     NewAddressAssignedIndexOutOfBounds,
     #[error("AddressIsNone")]
     AddressIsNone,
+    #[error("AddressDoesNotMatch")]
+    AddressDoesNotMatch,
+    #[error("CpiContextAlreadySet")]
+    CpiContextAlreadySet,
+    #[error("InvalidTreeHeight")]
+    InvalidTreeHeight,
+    #[error("TooManyOutputAccounts")]
+    TooManyOutputAccounts,
 }
 
 impl From<SystemProgramError> for ProgramError {

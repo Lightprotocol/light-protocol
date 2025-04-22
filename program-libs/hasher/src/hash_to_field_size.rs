@@ -101,6 +101,7 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
+    use borsh::BorshDeserialize;
     use num_bigint::{BigUint, ToBigUint};
 
     use super::*;
@@ -119,6 +120,21 @@ mod tests {
         let bigint = modulus + 1.to_biguint().unwrap();
         let bigint_bytes: [u8; 32] = bigint_to_be_bytes_array(&bigint).unwrap();
         assert!(!is_smaller_than_bn254_field_size_be(&bigint_bytes));
+    }
+
+    #[test]
+    fn hash_to_field_size_borsh() {
+        #[derive(BorshSerialize, BorshDeserialize)]
+        pub struct TestStruct {
+            a: u32,
+            b: u32,
+            c: u64,
+        }
+        let test_struct = TestStruct { a: 1, b: 2, c: 3 };
+        let serialized = test_struct.try_to_vec().unwrap();
+        let hash = test_struct.hash_to_field_size().unwrap();
+        let manual_hash = hash_to_bn254_field_size_be(&serialized);
+        assert_eq!(hash, manual_hash);
     }
 
     #[cfg(not(feature = "pinocchio"))]

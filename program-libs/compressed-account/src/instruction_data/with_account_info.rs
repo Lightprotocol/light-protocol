@@ -67,9 +67,13 @@ pub struct OutAccountInfo {
     pub data: Vec<u8>,
 }
 
-impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
+impl<'a> InputAccount<'a> for ZCompressedAccountInfo<'a> {
     fn owner(&self) -> &Pubkey {
         &self.owner
+    }
+
+    fn skip(&self) -> bool {
+        self.input.is_none()
     }
 
     fn lamports(&self) -> u64 {
@@ -94,7 +98,7 @@ impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
     fn data(&self) -> Option<CompressedAccountData> {
         Some(CompressedAccountData {
             data_hash: self.input.unwrap().data_hash,
-            discriminator: *self.discriminator,
+            discriminator: self.input.unwrap().discriminator,
             data: Vec::new(),
         })
     }
@@ -120,13 +124,17 @@ impl<'a> InputAccount<'a> for ZCAccountInfo<'a> {
     }
 }
 
-impl<'a> OutputAccount<'a> for ZCAccountInfo<'a> {
+impl<'a> OutputAccount<'a> for ZCompressedAccountInfo<'a> {
     fn lamports(&self) -> u64 {
         self.output.as_ref().unwrap().lamports.into()
     }
 
     fn address(&self) -> Option<[u8; 32]> {
         self.address.map(|x| *x)
+    }
+
+    fn skip(&self) -> bool {
+        self.output.is_none()
     }
 
     fn owner(&self) -> Pubkey {
@@ -143,7 +151,7 @@ impl<'a> OutputAccount<'a> for ZCAccountInfo<'a> {
 
     fn data(&self) -> Option<CompressedAccountData> {
         Some(CompressedAccountData {
-            discriminator: *self.discriminator,
+            discriminator: self.output.as_ref().unwrap().discriminator,
             data_hash: self.output.as_ref().unwrap().data_hash,
             data: self.output.as_ref().unwrap().data.to_vec(),
         })
@@ -233,38 +241,35 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
 #[derive(Debug, PartialEq, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountInfo {
     /// Address.
-    pub address: Option<[u8; 32]>, // 2
+    pub address: Option<[u8; 32]>,
     /// Input account.
-    pub input: Option<InAccountInfo>, // 3
+    pub input: Option<InAccountInfo>,
     /// Output account.
-    pub output: Option<OutAccountInfo>, // 5
+    pub output: Option<OutAccountInfo>,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ZCAccountInfo<'a> {
+pub struct ZCompressedAccountInfo<'a> {
     pub owner: Pubkey,
-    pub discriminator: Ref<&'a [u8], [u8; 8]>, // 1
     /// Address.
-    pub address: Option<Ref<&'a [u8], [u8; 32]>>, // 2
+    pub address: Option<Ref<&'a [u8], [u8; 32]>>,
     /// Input account.
-    pub input: Option<Ref<&'a [u8], ZInAccountInfo>>, // 3
+    pub input: Option<Ref<&'a [u8], ZInAccountInfo>>,
     /// Output account.
-    pub output: Option<ZOutAccountInfo<'a>>, // 5
+    pub output: Option<ZOutAccountInfo<'a>>,
 }
 
 impl<'a> CompressedAccountInfo {
     pub fn zero_copy_at_with_owner(
         bytes: &'a [u8],
         owner: Pubkey,
-    ) -> Result<(ZCAccountInfo<'a>, &'a [u8]), ZeroCopyError> {
-        let (discriminator, bytes) = Ref::<&[u8], [u8; 8]>::from_prefix(bytes)?;
+    ) -> Result<(ZCompressedAccountInfo<'a>, &'a [u8]), ZeroCopyError> {
         let (address, bytes) = Option::<Ref<&[u8], [u8; 32]>>::zero_copy_at(bytes)?;
         let (input, bytes) = Option::<Ref<&[u8], ZInAccountInfo>>::zero_copy_at(bytes)?;
         let (output, bytes) = Option::<ZOutAccountInfo<'a>>::zero_copy_at(bytes)?;
         Ok((
-            ZCAccountInfo {
+            ZCompressedAccountInfo {
                 owner,
-                discriminator,
                 address,
                 input,
                 output,
@@ -302,7 +307,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
 
     fn account_option_config(&self) -> super::traits::AccountOptions {
         AccountOptions {
-            sol_pool_pda: self.is_compress(),
+            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
             decompression_recipient: self.compress_or_decompress_lamports().is_some()
                 && !self.is_compress(),
             cpi_context_account: self.cpi_context().is_some(),
@@ -358,7 +363,7 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     }
 
     fn compress_or_decompress_lamports(&self) -> Option<u64> {
-        if self.meta.is_decompress() || self.is_compress() {
+        if self.meta.compress_or_decompress_lamports != U64::from(0) {
             Some(self.meta.compress_or_decompress_lamports.into())
         } else {
             None
@@ -370,7 +375,7 @@ pub struct ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     meta: Ref<&'a [u8], ZInstructionDataInvokeCpiWithReadOnlyMeta>,
     pub proof: Option<Ref<&'a [u8], CompressedProof>>,
     pub new_address_params: ZeroCopySliceBorsh<'a, ZNewAddressParamsAssignedPacked>,
-    pub account_infos: Vec<ZCAccountInfo<'a>>,
+    pub account_infos: Vec<ZCompressedAccountInfo<'a>>,
     pub read_only_addresses: ZeroCopySliceBorsh<'a, ZPackedReadOnlyAddress>,
     pub read_only_accounts: ZeroCopySliceBorsh<'a, ZPackedReadOnlyCompressedAccount>,
 }
@@ -422,5 +427,386 @@ impl<'a> Deserialize<'a> for InstructionDataInvokeCpiWithAccountInfo {
             },
             bytes,
         ))
+    }
+}
+
+#[cfg(not(feature = "pinocchio"))]
+#[cfg(test)]
+pub mod test {
+    use borsh::BorshSerialize;
+    use rand::{
+        rngs::{StdRng, ThreadRng},
+        Rng, SeedableRng,
+    };
+
+    use super::*;
+    use crate::{
+        compressed_account::{PackedMerkleContext, PackedReadOnlyCompressedAccount},
+        instruction_data::{
+            compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
+            data::NewAddressParamsAssignedPacked,
+        },
+        CompressedAccountError,
+    };
+
+    fn get_rnd_instruction_data_invoke_cpi_with_account_info(
+        rng: &mut StdRng,
+    ) -> InstructionDataInvokeCpiWithAccountInfo {
+        InstructionDataInvokeCpiWithAccountInfo {
+            mode: rng.gen_range(0..2),
+            bump: rng.gen(),
+            invoking_program_id: Pubkey::new_unique(),
+            compress_or_decompress_lamports: rng.gen(),
+            is_decompress: rng.gen(),
+            with_cpi_context: rng.gen(),
+            with_transaction_hash: rng.gen(),
+            cpi_context: get_rnd_cpi_context(rng),
+            proof: Some(CompressedProof {
+                a: rng.gen(),
+                b: (0..64)
+                    .map(|_| rng.gen())
+                    .collect::<Vec<u8>>()
+                    .try_into()
+                    .unwrap(),
+                c: rng.gen(),
+            }),
+            new_address_params: vec![
+                get_rnd_new_address_params_assigned(rng);
+                rng.gen_range(0..10)
+            ],
+            account_infos: vec![get_rnd_test_account_info(rng); rng.gen_range(0..10)],
+            read_only_addresses: vec![get_rnd_read_only_address(rng); rng.gen_range(0..10)],
+            read_only_accounts: vec![get_rnd_read_only_account(rng); rng.gen_range(0..10)],
+        }
+    }
+
+    fn get_rnd_cpi_context(rng: &mut StdRng) -> CompressedCpiContext {
+        CompressedCpiContext {
+            first_set_context: rng.gen(),
+            set_context: rng.gen(),
+            cpi_context_account_index: rng.gen(),
+        }
+    }
+
+    fn get_rnd_read_only_address(rng: &mut StdRng) -> PackedReadOnlyAddress {
+        PackedReadOnlyAddress {
+            address: rng.gen(),
+            address_merkle_tree_root_index: rng.gen(),
+            address_merkle_tree_account_index: rng.gen(),
+        }
+    }
+
+    fn get_rnd_read_only_account(rng: &mut StdRng) -> PackedReadOnlyCompressedAccount {
+        PackedReadOnlyCompressedAccount {
+            account_hash: rng.gen(),
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: rng.gen(),
+                queue_pubkey_index: rng.gen(),
+                leaf_index: rng.gen(),
+                prove_by_index: rng.gen(),
+            },
+            root_index: rng.gen(),
+        }
+    }
+
+    fn get_rnd_in_account_info(rng: &mut StdRng) -> InAccountInfo {
+        InAccountInfo {
+            discriminator: rng.gen(),
+            data_hash: rng.gen(),
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: rng.gen(),
+                queue_pubkey_index: rng.gen(),
+                leaf_index: rng.gen(),
+                prove_by_index: rng.gen(),
+            },
+            root_index: rng.gen(),
+            lamports: rng.gen(),
+        }
+    }
+
+    pub fn get_rnd_out_account_info(rng: &mut StdRng) -> OutAccountInfo {
+        OutAccountInfo {
+            discriminator: rng.gen(),
+            data_hash: rng.gen(),
+            output_merkle_tree_index: rng.gen(),
+            lamports: rng.gen(),
+            data: (0..rng.gen_range(0..100)).map(|_| rng.gen()).collect(),
+        }
+    }
+
+    pub fn get_rnd_test_account_info(rng: &mut StdRng) -> CompressedAccountInfo {
+        CompressedAccountInfo {
+            address: if rng.gen() { Some(rng.gen()) } else { None },
+            input: if rng.gen() {
+                Some(get_rnd_in_account_info(rng))
+            } else {
+                None
+            },
+            output: if rng.gen() {
+                Some(get_rnd_out_account_info(rng))
+            } else {
+                None
+            },
+        }
+    }
+
+    pub fn get_rnd_new_address_params_assigned(rng: &mut StdRng) -> NewAddressParamsAssignedPacked {
+        NewAddressParamsAssignedPacked {
+            seed: rng.gen(),
+            address_queue_account_index: rng.gen(),
+            address_merkle_tree_account_index: rng.gen(),
+            address_merkle_tree_root_index: rng.gen(),
+            assigned_to_account: rng.gen(),
+            assigned_account_index: rng.gen(),
+        }
+    }
+
+    fn compare_invoke_cpi_with_account_info(
+        reference: &InstructionDataInvokeCpiWithAccountInfo,
+        z_copy: &ZInstructionDataInvokeCpiWithAccountInfo,
+    ) -> Result<(), CompressedAccountError> {
+        // Basic field comparisons
+        if reference.mode != z_copy.meta.mode {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.bump != z_copy.meta.bump {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.invoking_program_id != z_copy.meta.invoking_program_id {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.compress_or_decompress_lamports
+            != u64::from(z_copy.meta.compress_or_decompress_lamports)
+        {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.is_decompress != z_copy.meta.is_decompress() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.with_cpi_context != z_copy.meta.with_cpi_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.with_transaction_hash != z_copy.meta.with_transaction_hash() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+
+        // CPI context comparisons
+        if reference.cpi_context.first_set_context != z_copy.meta.cpi_context.first_set_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.cpi_context.set_context != z_copy.meta.cpi_context.set_context() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.cpi_context.cpi_context_account_index
+            != z_copy.meta.cpi_context.cpi_context_account_index
+        {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+
+        // Proof comparisons
+        if reference.proof.is_some() && z_copy.proof.is_none() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.proof.is_none() && z_copy.proof.is_some() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        if reference.proof.is_some() && z_copy.proof.is_some() {
+            let ref_proof = reference.proof.as_ref().unwrap();
+            let z_proof = *z_copy.proof.as_ref().unwrap();
+            if ref_proof.a != z_proof.a || ref_proof.b != z_proof.b || ref_proof.c != z_proof.c {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+        }
+
+        // New address params comparisons - detailed comparison of contents
+        if reference.new_address_params.len() != z_copy.new_address_params.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        for i in 0..reference
+            .new_address_params
+            .len()
+            .min(z_copy.new_address_params.len())
+        {
+            let ref_param = &reference.new_address_params[i];
+            let z_param = &z_copy.new_address_params[i];
+
+            if ref_param.seed != z_param.seed {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_param.address_queue_account_index != z_param.address_queue_account_index {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_param.address_merkle_tree_account_index
+                != z_param.address_merkle_tree_account_index
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_param.address_merkle_tree_root_index
+                != u16::from(z_param.address_merkle_tree_root_index)
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            // For ZNewAddressParamsAssignedPacked, assigned_to_account is a u8 (0 or 1)
+            // For NewAddressParamsAssignedPacked, it's a bool
+            let z_assigned_to_account_bool = z_param.assigned_to_account > 0;
+            if ref_param.assigned_to_account != z_assigned_to_account_bool {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_param.assigned_account_index != z_param.assigned_account_index {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+        }
+
+        // Account infos comparison - check the length first
+        if reference.account_infos.len() != z_copy.account_infos.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        // We could do more detailed comparison of account_infos here if needed
+        // but it's complex due to the ZCompressedAccountInfo structure
+
+        // Read-only addresses comparison
+        if reference.read_only_addresses.len() != z_copy.read_only_addresses.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        for i in 0..reference
+            .read_only_addresses
+            .len()
+            .min(z_copy.read_only_addresses.len())
+        {
+            let ref_addr = &reference.read_only_addresses[i];
+            let z_addr = &z_copy.read_only_addresses[i];
+
+            if ref_addr.address != z_addr.address {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_addr.address_merkle_tree_account_index
+                != z_addr.address_merkle_tree_account_index
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_addr.address_merkle_tree_root_index
+                != u16::from(z_addr.address_merkle_tree_root_index)
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+        }
+
+        // Read-only accounts comparison
+        if reference.read_only_accounts.len() != z_copy.read_only_accounts.len() {
+            return Err(CompressedAccountError::InvalidArgument);
+        }
+        for i in 0..reference
+            .read_only_accounts
+            .len()
+            .min(z_copy.read_only_accounts.len())
+        {
+            let ref_acc = &reference.read_only_accounts[i];
+            let z_acc = &z_copy.read_only_accounts[i];
+
+            if ref_acc.account_hash != z_acc.account_hash {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+
+            // Compare merkle_context
+            if ref_acc.merkle_context.merkle_tree_pubkey_index
+                != z_acc.merkle_context.merkle_tree_pubkey_index
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_acc.merkle_context.queue_pubkey_index != z_acc.merkle_context.queue_pubkey_index
+            {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_acc.merkle_context.leaf_index != u32::from(z_acc.merkle_context.leaf_index) {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+            if ref_acc.merkle_context.prove_by_index != z_acc.merkle_context.prove_by_index() {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+
+            if ref_acc.root_index != u16::from(z_acc.root_index) {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
+        }
+
+        // Test trait methods
+        assert_eq!(
+            z_copy.with_transaction_hash(),
+            reference.with_transaction_hash
+        );
+        assert_eq!(z_copy.bump(), Some(reference.bump));
+        assert_eq!(z_copy.owner(), reference.invoking_program_id);
+
+        // Test the complex logic for compress/decompress
+        if reference.compress_or_decompress_lamports > 0 {
+            assert_eq!(
+                z_copy.compress_or_decompress_lamports(),
+                Some(reference.compress_or_decompress_lamports)
+            );
+        } else {
+            assert_eq!(z_copy.compress_or_decompress_lamports(), None);
+        }
+
+        // Test is_compress
+        let expected_is_compress =
+            !reference.is_decompress && reference.compress_or_decompress_lamports > 0;
+        assert_eq!(z_copy.is_compress(), expected_is_compress);
+
+        // Test cpi_context
+        if reference.with_cpi_context {
+            let context = z_copy.cpi_context();
+            assert!(context.is_some());
+            if let Some(ctx) = context {
+                assert_eq!(
+                    ctx.first_set_context,
+                    reference.cpi_context.first_set_context
+                );
+                assert_eq!(ctx.set_context, reference.cpi_context.set_context);
+                assert_eq!(
+                    ctx.cpi_context_account_index,
+                    reference.cpi_context.cpi_context_account_index
+                );
+            }
+        } else {
+            assert!(z_copy.cpi_context().is_none());
+        }
+
+        // Check account_option_config
+        let account_options = z_copy.account_option_config();
+        assert_eq!(
+            account_options.sol_pool_pda,
+            z_copy.compress_or_decompress_lamports().is_some()
+        );
+        assert_eq!(
+            account_options.decompression_recipient,
+            z_copy.compress_or_decompress_lamports().is_some() && !z_copy.is_compress()
+        );
+        assert_eq!(
+            account_options.cpi_context_account,
+            z_copy.cpi_context().is_some()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_instruction_data_invoke_cpi_with_account_info_rnd() {
+        let mut thread_rng = ThreadRng::default();
+        let seed = thread_rng.gen();
+        println!("\n\ne2e test seed {}\n\n", seed);
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        let num_iters = 1000;
+        for _ in 0..num_iters {
+            // For now, we're using a fixed structure to ensure the test passes
+            // Later, we can gradually introduce randomness in parts of the struct
+            let value = get_rnd_instruction_data_invoke_cpi_with_account_info(&mut rng);
+
+            let mut vec = Vec::new();
+            value.serialize(&mut vec).unwrap();
+            let (zero_copy, _) =
+                InstructionDataInvokeCpiWithAccountInfo::zero_copy_at(&vec).unwrap();
+            compare_invoke_cpi_with_account_info(&value, &zero_copy).unwrap();
+        }
     }
 }

@@ -115,6 +115,9 @@ pub struct ZOutputCompressedAccountWithPackedContext<'a> {
 }
 
 impl<'a> OutputAccount<'a> for ZOutputCompressedAccountWithPackedContext<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn lamports(&self) -> u64 {
         self.compressed_account.lamports.into()
     }
@@ -330,6 +333,9 @@ pub struct ZPackedCompressedAccountWithMerkleContext<'a> {
 }
 
 impl<'a> InputAccount<'a> for ZPackedCompressedAccountWithMerkleContext<'a> {
+    fn skip(&self) -> bool {
+        false
+    }
     fn owner(&self) -> &crate::pubkey::Pubkey {
         &self.compressed_account.owner
     }
@@ -798,11 +804,9 @@ impl NewAddress<'_> for ZNewAddressParamsAssignedPacked {
     }
 }
 
-// TODO: add randomized tests
-// TODO: add unit test ZInstructionDataInvokeCpiWithReadOnly
 #[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
-mod test {
+pub mod test {
     use borsh::BorshSerialize;
     use rand::{
         rngs::{StdRng, ThreadRng},
@@ -1197,26 +1201,111 @@ mod test {
     }
 
     #[test]
-    fn test_invoke_ix_data_deserialize() {
-        let invoke_ref = InstructionDataInvoke {
-            proof: Some(CompressedProof {
-                a: [1; 32],
-                b: [2; 64],
-                c: [3; 32],
-            }),
-            input_compressed_accounts_with_merkle_context: vec![get_test_input_account(); 2],
-            output_compressed_accounts: vec![get_test_output_account(); 2],
-            relay_fee: None,
-            new_address_params: vec![get_new_address_params(); 2],
-            compress_or_decompress_lamports: Some(1),
-            is_compress: true,
-        };
-        let mut bytes = Vec::new();
-        invoke_ref.serialize(&mut bytes).unwrap();
+    fn test_invoke_ix_data_deserialize_rnd() {
+        use rand::{rngs::StdRng, Rng, SeedableRng};
+        let mut thread_rng = ThreadRng::default();
+        let seed = thread_rng.gen();
+        // Keep this print so that in case the test fails
+        // we can use the seed to reproduce the error.
+        println!("\n\ne2e test seed for invoke_ix_data {}\n\n", seed);
+        let mut rng = StdRng::seed_from_u64(seed);
 
-        let (z_copy, bytes) = ZInstructionDataInvoke::zero_copy_at(&bytes).unwrap();
-        assert!(bytes.is_empty());
-        compare_instruction_data(&invoke_ref, &z_copy).unwrap();
+        let num_iters = 1000;
+        for i in 0..num_iters {
+            // Create randomized instruction data
+            let invoke_ref = InstructionDataInvoke {
+                proof: if rng.gen() {
+                    Some(CompressedProof {
+                        a: rng.gen(),
+                        b: (0..64)
+                            .map(|_| rng.gen())
+                            .collect::<Vec<u8>>()
+                            .try_into()
+                            .unwrap(),
+                        c: rng.gen(),
+                    })
+                } else {
+                    None
+                },
+                input_compressed_accounts_with_merkle_context: if i % 5 == 0 {
+                    // Only add inputs occasionally to keep test manageable
+                    vec![get_rnd_test_input_account(&mut rng); rng.gen_range(1..3)]
+                } else {
+                    vec![]
+                },
+                output_compressed_accounts: if i % 4 == 0 {
+                    vec![get_rnd_test_output_account(&mut rng); rng.gen_range(1..3)]
+                } else {
+                    vec![]
+                },
+                relay_fee: None, // Relay fee is currently not supported
+                new_address_params: if i % 3 == 0 {
+                    vec![get_rnd_new_address_params(&mut rng); rng.gen_range(1..3)]
+                } else {
+                    vec![]
+                },
+                compress_or_decompress_lamports: if rng.gen() { Some(rng.gen()) } else { None },
+                is_compress: rng.gen(),
+            };
+
+            let mut bytes = Vec::new();
+            invoke_ref.serialize(&mut bytes).unwrap();
+
+            let (z_copy, bytes) = ZInstructionDataInvoke::zero_copy_at(&bytes).unwrap();
+            assert!(bytes.is_empty());
+
+            // Compare serialized and deserialized data
+            compare_instruction_data(&invoke_ref, &z_copy).unwrap();
+
+            // Test trait methods
+            assert!(z_copy.with_transaction_hash()); // Always true for ZInstructionDataInvoke
+            assert!(z_copy.bump().is_none()); // Always None for ZInstructionDataInvoke
+            assert_eq!(z_copy.is_compress(), invoke_ref.is_compress);
+            assert_eq!(
+                z_copy.compress_or_decompress_lamports(),
+                invoke_ref.compress_or_decompress_lamports
+            );
+
+            // The account_option_config() method will call unimplemented!(),
+            // so we don't call it directly in the test. Instead, we'll just verify other trait methods.
+
+            // Additional trait method checks
+            assert!(z_copy.read_only_accounts().is_none());
+            assert!(z_copy.read_only_addresses().is_none());
+
+            // Verify new_addresses() - check that length matches
+            assert_eq!(
+                z_copy.new_addresses().len(),
+                invoke_ref.new_address_params.len()
+            );
+
+            // Verify input_accounts() and output_accounts() count matches
+            assert_eq!(
+                z_copy.input_accounts().len(),
+                invoke_ref
+                    .input_compressed_accounts_with_merkle_context
+                    .len()
+            );
+            assert_eq!(
+                z_copy.output_accounts().len(),
+                invoke_ref.output_compressed_accounts.len()
+            );
+
+            // Check owner() method returns expected value
+            if !invoke_ref
+                .input_compressed_accounts_with_merkle_context
+                .is_empty()
+            {
+                let expected_owner: Pubkey = invoke_ref
+                    .input_compressed_accounts_with_merkle_context[0]
+                    .compressed_account
+                    .owner
+                    .into();
+                assert_eq!(z_copy.owner(), expected_owner);
+            } else {
+                assert_eq!(z_copy.owner(), Pubkey::default());
+            }
+        }
     }
 
     fn compare_instruction_data(
@@ -1229,13 +1318,13 @@ mod test {
         if reference.proof.is_none() && z_copy.proof.is_some() {
             return Err(CompressedAccountError::InvalidArgument);
         }
-        if reference.proof.is_some()
-            && z_copy.proof.is_some()
-            && reference.proof.as_ref().unwrap().a != z_copy.proof.as_ref().unwrap().a
-            || reference.proof.as_ref().unwrap().b != z_copy.proof.as_ref().unwrap().b
-            || reference.proof.as_ref().unwrap().c != z_copy.proof.as_ref().unwrap().c
-        {
-            return Err(CompressedAccountError::InvalidArgument);
+        if reference.proof.is_some() && z_copy.proof.is_some() {
+            let ref_proof = reference.proof.as_ref().unwrap();
+            let z_proof = z_copy.proof.as_ref().unwrap();
+
+            if ref_proof.a != z_proof.a || ref_proof.b != z_proof.b || ref_proof.c != z_proof.c {
+                return Err(CompressedAccountError::InvalidArgument);
+            }
         }
         if reference
             .input_compressed_accounts_with_merkle_context

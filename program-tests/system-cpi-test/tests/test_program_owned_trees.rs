@@ -49,11 +49,9 @@ use system_cpi_test::sdk::{
 #[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("system_cpi_test"),
-        system_cpi_test::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
+            .await;
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
 
@@ -207,11 +205,9 @@ const CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR: [u8; 64] = [
 #[serial]
 #[tokio::test]
 async fn test_invalid_registered_program() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("system_cpi_test"),
-        system_cpi_test::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts(Some(vec![("system_cpi_test", system_cpi_test::ID)]))
+            .await;
     let payer = env.forester.insecure_clone();
     airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
         .await

@@ -2,7 +2,6 @@ use light_bounded_vec::BoundedVecError;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
 };
-use light_utils::UtilsError;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -27,8 +26,6 @@ pub enum IndexedMerkleTreeError {
     Hasher(#[from] HasherError),
     #[error("Concurrent Merkle tree error: {0}")]
     ConcurrentMerkleTree(#[from] ConcurrentMerkleTreeError),
-    #[error("Utils error {0}")]
-    Utils(#[from] UtilsError),
     #[error("Bounded vector error: {0}")]
     BoundedVec(#[from] BoundedVecError),
     #[error("Indexed array is full, cannot append more elements")]
@@ -49,7 +46,6 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::ArrayFull => 11009,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
-            IndexedMerkleTreeError::Utils(e) => e.into(),
             IndexedMerkleTreeError::BoundedVec(e) => e.into(),
         }
     }

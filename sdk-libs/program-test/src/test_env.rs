@@ -60,7 +60,7 @@ pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiF
 /// 3. light_compressed_token program
 /// 4. light_system_program program
 pub async fn setup_test_programs(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
     let sbf_path = std::env::var("SBF_OUT_DIR").unwrap();
@@ -89,7 +89,7 @@ pub async fn setup_test_programs(
     );
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
-            program_test.add_program(&name, id, None);
+            program_test.add_program(name, id, None);
         }
     }
     program_test.set_compute_max_units(1_400_000u64);
@@ -654,7 +654,7 @@ pub const BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
 /// - active phase doesn't end
 // TODO(vadorovsky): Remove this function...
 pub async fn setup_test_programs_with_accounts(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     setup_test_programs_with_accounts_with_protocol_config(
         additional_programs,
@@ -688,7 +688,7 @@ pub async fn setup_test_programs_with_accounts(
 /// - advances to the active phase slot 2
 /// - active phase doesn't end
 pub async fn setup_test_programs_with_accounts_v2(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     setup_test_programs_with_accounts_with_protocol_config_v2(
         additional_programs,
@@ -706,7 +706,7 @@ pub async fn setup_test_programs_with_accounts_v2(
 }
 
 pub async fn setup_test_programs_with_accounts_with_protocol_config(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
@@ -721,7 +721,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config(
 }
 
 pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
     batched_tree_init_params: InitStateTreeAccountsInstructionData,
@@ -730,6 +730,15 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
     let context = setup_test_programs(additional_programs).await;
     let mut context = ProgramTestRpcConnection::new(context);
     let keypairs = EnvAccountKeypairs::program_test_default();
+    println!(
+        "batched cpi context pubkey : {:?}",
+        keypairs.batched_cpi_context.pubkey()
+    );
+    println!(
+        "batched cpi context pubkey : {:?}",
+        keypairs.batched_cpi_context.pubkey().to_bytes()
+    );
+
     airdrop_lamports(
         &mut context,
         &keypairs.governance_authority.pubkey(),
@@ -760,7 +769,7 @@ pub async fn setup_test_programs_with_accounts_with_protocol_config_and_batched_
 
 // TODO(vadorovsky): ...in favor of this one.
 pub async fn setup_test_programs_with_accounts_with_protocol_config_v2(
-    additional_programs: Option<Vec<(String, Pubkey)>>,
+    additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     protocol_config: ProtocolConfig,
     register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {

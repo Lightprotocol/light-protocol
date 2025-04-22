@@ -105,8 +105,8 @@ impl<'a> Deserialize<'a> for InsertIntoQueuesInstructionData<'a> {
             ZeroCopySlice::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
         let (address_sequence_numbers, bytes) =
             ZeroCopySlice::<u8, MerkleTreeSequenceNumber, false>::from_bytes_at(bytes)?;
-        let output_leaf_indices =
-            ZeroCopySlice::<u8, zerocopy::little_endian::U32, false>::from_bytes(bytes)?;
+        let (output_leaf_indices, bytes) =
+            ZeroCopySlice::<u8, zerocopy::little_endian::U32, false>::from_bytes_at(bytes)?;
         Ok((
             InsertIntoQueuesInstructionData {
                 meta,
@@ -244,7 +244,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             + ZeroCopySliceMut::<u8, U32, false>::required_size_for_capacity(leaves_capacity)
     }
 
-    pub fn new(
+    pub fn new_at(
         bytes: &'a mut [u8],
         leaves_capacity: u8,
         nullifiers_capacity: u8,
@@ -252,7 +252,7 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
         num_output_trees: u8,
         num_input_trees: u8,
         num_address_trees: u8,
-    ) -> std::result::Result<Self, ZeroCopyError> {
+    ) -> std::result::Result<(Self, &'a mut [u8]), ZeroCopyError> {
         let (meta, bytes) =
             Ref::<&mut [u8], InsertIntoQueuesInstructionDataMeta>::from_prefix(bytes)?;
         let (leaves, bytes) =
@@ -278,17 +278,21 @@ impl<'a> InsertIntoQueuesInstructionDataMut<'a> {
             MerkleTreeSequenceNumber,
             false,
         >::new_at(num_address_trees, bytes)?;
-        let output_leaf_indices = ZeroCopySliceMut::<u8, U32, false>::new(leaves_capacity, bytes)?;
-        Ok(InsertIntoQueuesInstructionDataMut {
-            meta,
-            leaves,
-            nullifiers,
-            addresses,
-            output_sequence_numbers,
-            input_sequence_numbers,
-            address_sequence_numbers,
-            output_leaf_indices,
-        })
+        let (output_leaf_indices, bytes) =
+            ZeroCopySliceMut::<u8, U32, false>::new_at(leaves_capacity, bytes)?;
+        Ok((
+            InsertIntoQueuesInstructionDataMut {
+                meta,
+                leaves,
+                nullifiers,
+                addresses,
+                output_sequence_numbers,
+                input_sequence_numbers,
+                address_sequence_numbers,
+                output_leaf_indices,
+            },
+            bytes,
+        ))
     }
 }
 
@@ -330,7 +334,7 @@ fn test_rnd_insert_into_queues_ix_data() {
             num_address_trees,
         );
         let mut bytes = vec![0u8; size];
-        let mut new_data = InsertIntoQueuesInstructionDataMut::new(
+        let (mut new_data, _) = InsertIntoQueuesInstructionDataMut::new_at(
             &mut bytes,
             leaves_capacity,
             nullifiers_capacity,

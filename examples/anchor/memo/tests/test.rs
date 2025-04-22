@@ -41,7 +41,7 @@ async fn test_memo_program() {
     .await;
 
     let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![(String::from("memo"), memo::ID)])).await;
+        setup_test_programs_with_accounts_v2(Some(vec![("memo", memo::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(

@@ -67,6 +67,7 @@ pub fn process_initialize_address_queue<'info>(
             associated_merkle_tree,
             QueueType::AddressV1,
         );
+        msg!("address queue address_queue.init");
 
         drop(address_queue);
     }

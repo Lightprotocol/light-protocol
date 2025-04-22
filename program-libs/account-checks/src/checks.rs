@@ -41,6 +41,12 @@ pub fn check_account_info_non_mut<T: Discriminator>(
     program_id: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<(), AccountError> {
+    check_non_mut(account_info)?;
+
+    check_account_info::<T>(program_id, account_info)
+}
+
+pub fn check_non_mut(account_info: &AccountInfo) -> Result<(), AccountError> {
     #[cfg(not(feature = "pinocchio"))]
     if account_info.is_writable {
         return Err(AccountError::AccountMutable);
@@ -49,8 +55,7 @@ pub fn check_account_info_non_mut<T: Discriminator>(
     if account_info.is_writable() {
         return Err(AccountError::AccountMutable);
     }
-
-    check_account_info::<T>(program_id, account_info)
+    Ok(())
 }
 
 /// Checks:
@@ -73,8 +78,6 @@ pub fn check_account_info<T: Discriminator>(
 /// 2. sets discriminator
 pub fn set_discriminator<T: Discriminator>(bytes: &mut [u8]) -> Result<(), AccountError> {
     if bytes[0..DISCRIMINATOR_LEN] != [0; DISCRIMINATOR_LEN] {
-        // #[cfg(target_os = "solana")]
-        // crate::msg!("Discriminator bytes must be zero for initialization.");
         return Err(AccountError::AlreadyInitialized);
     }
     bytes[0..DISCRIMINATOR_LEN].copy_from_slice(&T::DISCRIMINATOR);
@@ -90,12 +93,6 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
     }
 
     if T::DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
-        // #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
-        // crate::msg!(
-        //     "Expected discriminator: {:?}, actual {:?} ",
-        //     T::DISCRIMINATOR,
-        //     bytes[0..U].to_vec()
-        // );
         return Err(AccountError::InvalidDiscriminator);
     }
     Ok(())
@@ -153,12 +150,12 @@ pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), Acc
 #[cfg(feature = "pinocchio")]
 pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
     if !account_info.is_owned_by(owner) {
-        pinocchio::msg!(format!(
-            "check_owner expected {:?} got: {:?}",
-            owner,
-            account_info.key()
-        )
-        .as_str());
+        pinocchio::msg!(
+            format!("check_owner expected {:?} got: {:?}", owner, unsafe {
+                account_info.owner()
+            })
+            .as_str()
+        );
         return Err(AccountError::AccountOwnedByWrongProgram);
     }
     Ok(())
@@ -167,11 +164,6 @@ pub fn check_owner(owner: &Pubkey, account_info: &AccountInfo) -> Result<(), Acc
 #[cfg(not(feature = "pinocchio"))]
 pub fn check_program(program_id: &Pubkey, account_info: &AccountInfo) -> Result<(), AccountError> {
     if *account_info.key != *program_id {
-        // msg!(
-        //     "check_owner expected {:?} got: {:?}",
-        //     program_id,
-        //     account_info.key()
-        // );
         return Err(AccountError::InvalidProgramId);
     }
     if !account_info.executable {
@@ -213,7 +205,6 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
-// TODO: add with provided bump
 #[cfg(feature = "pinocchio")]
 pub fn check_pda_seeds(
     seeds: &[&[u8]],
@@ -229,8 +220,26 @@ pub fn check_pda_seeds(
     Ok(())
 }
 
-pub fn check_data_is_zeroed(data: &[u8]) -> Result<(), AccountError> {
-    if data.iter().any(|&byte| byte != 0) {
+#[cfg(feature = "pinocchio")]
+pub fn check_pda_seeds_with_bump(
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    account_info: &AccountInfo,
+) -> Result<(), AccountError> {
+    if !pinocchio::pubkey::create_program_address(seeds, program_id)
+        .map_err(|_| AccountError::InvalidSeeds)?
+        .eq(account_info.key())
+    {
+        return Err(AccountError::InvalidSeeds);
+    }
+    Ok(())
+}
+
+/// Check that an account is not initialized by checking it's discriminator is zeroed.
+///
+/// Equivalent functionality to anchor #[account(zero)].
+pub fn check_data_is_zeroed<const N: usize>(data: &[u8]) -> Result<(), AccountError> {
+    if data[..N].iter().any(|&byte| byte != 0) {
         return Err(AccountError::AccountNotZeroed);
     }
     Ok(())
@@ -267,6 +276,7 @@ mod check_account_tests {
     }
     impl Discriminator for MyStruct {
         const DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+        const DISCRIMINATOR_SLICE: &[u8] = &Self::DISCRIMINATOR;
     }
 
     /// Tests:
@@ -677,10 +687,10 @@ mod check_account_tests {
     #[test]
     pub fn test_check_data_is_zeroed() {
         let zeroed_data = [0u8; 32];
-        check_data_is_zeroed(zeroed_data.as_slice()).unwrap();
+        check_data_is_zeroed::<8>(zeroed_data.as_slice()).unwrap();
         let mut not_zeroed_data = [0u8; 32];
-        not_zeroed_data[31] = 1;
-        let failing_res = check_data_is_zeroed(not_zeroed_data.as_slice());
+        not_zeroed_data[7] = 1;
+        let failing_res = check_data_is_zeroed::<8>(not_zeroed_data.as_slice());
         assert_eq!(failing_res, Err(AccountError::AccountNotZeroed));
     }
 }

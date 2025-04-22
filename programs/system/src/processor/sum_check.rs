@@ -11,6 +11,7 @@ pub fn sum_check<'a, T: InstructionData<'a>>(
 ) -> Result<usize> {
     let compress_or_decompress_lamports = &inputs.compress_or_decompress_lamports();
     let input_compressed_accounts_with_merkle_context = inputs.input_accounts();
+
     let output_compressed_accounts = inputs.output_accounts();
     let mut sum: u64 = 0;
     let mut num_prove_by_index_accounts = 0;
@@ -238,7 +239,7 @@ mod test {
             relay_fee: None,
             cpi_context: None,
         };
-        let wrapped_inputs = WrappedInstructionData::new(ix_data);
+        let wrapped_inputs = WrappedInstructionData::new(ix_data)?;
         let calc_num_prove_by_index_accounts =
             sum_check(&wrapped_inputs, &relay_fee, &is_compress)?;
 

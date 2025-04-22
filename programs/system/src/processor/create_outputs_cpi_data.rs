@@ -2,7 +2,7 @@ use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
         insert_into_queues::{InsertIntoQueuesInstructionDataMut, MerkleTreeSequenceNumber},
-        traits::{InstructionData, OutputAccount},
+        traits::InstructionData,
     },
     TreeType,
 };
@@ -10,7 +10,7 @@ use light_hasher::{Hasher, Poseidon};
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
-    accounts::check_accounts::AcpAccount,
+    accounts::remaining_account_checks::AcpAccount,
     context::{SystemContext, WrappedInstructionData},
     errors::SystemProgramError,
     Result,
@@ -139,11 +139,6 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             {
                 context.addresses.remove(position);
             } else {
-                // msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
-                // msg!(
-                //     "Remaining compressed_account_addresses: {:?}",
-                //     context.addresses
-                // );
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
@@ -207,13 +202,12 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
-
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
-                return Err(SystemProgramError::InvalidAddress);
+                return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }
     }

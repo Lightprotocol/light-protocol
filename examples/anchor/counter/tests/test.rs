@@ -41,7 +41,7 @@ async fn test_counter() {
     .await;
 
     let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![(String::from("counter"), counter::ID)]))
+        setup_test_programs_with_accounts_v2(Some(vec![("counter", counter::ID)]))
             .await;
     let payer = rpc.get_payer().insecure_clone();
 

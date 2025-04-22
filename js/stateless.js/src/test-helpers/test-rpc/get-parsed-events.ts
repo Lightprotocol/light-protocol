@@ -41,7 +41,7 @@ export async function getParsedEvents(
         defaultStaticAccountsStruct();
 
     const signatures = (
-        await rpc.getConfirmedSignaturesForAddress2(
+        await rpc.getSignaturesForAddress(
             accountCompressionProgram,
             undefined,
             'confirmed',

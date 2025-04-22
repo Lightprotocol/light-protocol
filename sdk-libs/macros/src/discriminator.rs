@@ -15,6 +15,7 @@ pub(crate) fn discriminator(input: ItemStruct) -> Result<TokenStream> {
     Ok(quote! {
         impl #impl_gen Discriminator for #account_name #type_gen #where_clause {
             const DISCRIMINATOR: [u8; 8] = #discriminator;
+            const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
 
             fn discriminator() -> [u8; 8] {
                 Self::DISCRIMINATOR

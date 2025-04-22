@@ -5,7 +5,7 @@ use pinocchio::{
 };
 
 use crate::{
-    accounts::check_accounts::AcpAccount, constants::CPI_AUTHORITY_PDA_SEED,
+    accounts::remaining_account_checks::AcpAccount, constants::CPI_AUTHORITY_PDA_SEED,
     errors::SystemProgramError, processor::sol_compression::SOL_POOL_PDA_SEED,
 };
 pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {

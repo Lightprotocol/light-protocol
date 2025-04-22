@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
 use light_compressed_account::instruction_data::traits::InstructionData;
-#[cfg(feature = "bench-sbf")]
-use light_heap::{bench_sbf_end, bench_sbf_start};
 use pinocchio::{
     msg,
     program_error::ProgramError,
@@ -23,21 +21,11 @@ pub fn cpi_signer_checks<'a, T: InstructionData<'a>>(
     authority: &Pubkey,
     inputs: &WrappedInstructionData<'a, T>,
 ) -> Result<()> {
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_check(invoking_program_id, authority, inputs.bump())?;
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpda_cpi_signer_checks");
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpd_input_checks");
+
     input_compressed_accounts_signer_check(inputs, invoking_program_id)?;
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpd_input_checks");
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_start!("cpda_cpi_write_checks");
+
     output_compressed_accounts_write_access_check(inputs, invoking_program_id)?;
-    #[cfg(feature = "bench-sbf")]
-    bench_sbf_end!("cpda_cpi_write_checks");
     Ok(())
 }
 
@@ -50,53 +38,24 @@ pub fn cpi_signer_check(
     bump: Option<u8>,
 ) -> Result<()> {
     let derived_signer = if let Some(bump) = bump {
-        #[allow(unused)]
         let seeds = [CPI_AUTHORITY_PDA_SEED, &[bump][..]];
-        #[cfg(target_os = "solana")]
-        {
-            checked_create_program_address(&seeds, invoking_program)?
-        }
-        #[cfg(all(test, not(target_os = "solana")))]
-        {
-            solana_pubkey::Pubkey::create_program_address(
-                &seeds,
-                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
-            )
-            .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
-            .to_bytes()
-        }
-        #[cfg(all(not(target_os = "solana"), not(test)))]
-        {
-            unimplemented!("cpi signer check is only implemented for target os solana and test");
-            #[allow(unused)]
-            crate::ID
-        }
+        solana_pubkey::Pubkey::create_program_address(
+            &seeds,
+            &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+        )
+        .map_err(|_| ProgramError::from(SystemProgramError::CpiSignerCheckFailed))?
+        .to_bytes()
     } else {
+        // Kept for backwards compatibility with instructions, invoke, and invoke cpi.
         let seeds = [CPI_AUTHORITY_PDA_SEED];
-        #[cfg(target_os = "solana")]
-        {
-            try_find_program_address(&seeds, invoking_program)
-                .ok_or(ProgramError::InvalidSeeds)?
-                .0
-        }
-        #[cfg(all(test, not(target_os = "solana")))]
-        {
-            solana_pubkey::Pubkey::try_find_program_address(
-                &seeds,
-                &solana_pubkey::Pubkey::new_from_array(*invoking_program),
-            )
-            .ok_or(ProgramError::InvalidSeeds)?
-            .0
-            .to_bytes()
-        }
-        #[cfg(all(not(target_os = "solana"), not(test)))]
-        {
-            unimplemented!("cpi signer check is only implemented for target os solana and test");
-            #[allow(unused)]
-            crate::ID
-        }
+        solana_pubkey::Pubkey::try_find_program_address(
+            &seeds,
+            &solana_pubkey::Pubkey::new_from_array(*invoking_program),
+        )
+        .ok_or(ProgramError::InvalidSeeds)?
+        .0
+        .to_bytes()
     };
-    #[allow(unreachable_code)]
     if derived_signer != *authority {
         msg!(format!(
             "Cpi signer check failed. Derived cpi signer {:?} !=  authority {:?}",
@@ -145,7 +104,7 @@ pub fn output_compressed_accounts_write_access_check<'a, 'info, T: InstructionDa
             && *invoking_program_id != compressed_account.owner().to_bytes()
         {
             msg!(
-                 format!(   "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {:?} !=  invoking_program_id {:?}",
+                 format!("Signer/Program cannot write into an account it doesn't own. Write access check failed, compressed account owner {:?} !=  invoking_program_id {:?}.",
                     compressed_account.owner().to_bytes(),
                     invoking_program_id
                 ).as_str());

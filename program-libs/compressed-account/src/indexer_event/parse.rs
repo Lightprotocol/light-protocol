@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use light_zero_copy::borsh::Deserialize;
 
 use super::{
@@ -8,7 +9,9 @@ use super::{
     },
 };
 use crate::{
-    compressed_account::PackedCompressedAccountWithMerkleContext,
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    },
     constants::{
         ACCOUNT_COMPRESSION_PROGRAM_ID, CREATE_CPI_CONTEXT_ACCOUNT, REGISTERED_PROGRAM_PDA,
         SYSTEM_PROGRAM_ID,
@@ -17,10 +20,11 @@ use crate::{
     instruction_data::{
         data::{InstructionDataInvoke, OutputCompressedAccountWithPackedContext},
         insert_into_queues::InsertIntoQueuesInstructionData,
+        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     nullifier::create_nullifier,
-    AnchorDeserialize, Pubkey,
+    Pubkey,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,12 +35,6 @@ struct ExecutingSystemInstruction<'a> {
     relay_fee: Option<u64>,
     compress_or_decompress_lamports: Option<u64>,
     execute_cpi_context: bool,
-    accounts: &'a [Pubkey],
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct CpiSystemInstruction<'a> {
-    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     accounts: &'a [Pubkey],
 }
 
@@ -60,7 +58,7 @@ pub(crate) enum ProgramId {
 #[derive(Debug, Clone, PartialEq)]
 struct AssociatedInstructions<'a> {
     pub executing_system_instruction: ExecutingSystemInstruction<'a>,
-    pub cpi_system_instructions: Vec<CpiSystemInstruction<'a>>,
+    pub cpi_context_outputs: Vec<OutputCompressedAccountWithPackedContext>,
     pub insert_into_queues_instruction: InsertIntoQueuesInstructionData<'a>,
     pub accounts: &'a [Pubkey],
 }
@@ -107,6 +105,31 @@ pub fn event_from_light_transaction(
         .iter()
         .map(|associated_instruction| create_batched_transaction_event(associated_instruction))
         .collect::<Result<Vec<_>, _>>()?;
+
+    // // Sanity checks:
+    // // - this must not throw in production because indexing just works if all instructions are in the same transaction.
+    // // - It's ok if someone misues the cpi context account but transaction data will not be available in photon.
+    // // - if we would throw an error it would brick photon because we would not be able to index a transaction that changed queue state.
+    // // - I could add extra data to the account compression cpi to make this impossible. -> this makes sense it is more robust.
+    // // TODO: make debug
+    // batched_transaction_events.iter().for_each(|event| {
+    //     println!("event: {:?}", event);
+    //     assert_eq!(
+    //         event.event.input_compressed_account_hashes.len(),
+    //         event.batch_input_accounts.len(),
+    //         "Input hashes and input accounts length mismatch "
+    //     );
+    //     assert_eq!(
+    //         event.event.output_compressed_account_hashes.len(),
+    //         event.event.output_leaf_indices.len(),
+    //         "Output hashes and output leaf indices length mismatch "
+    //     );
+    //     assert_eq!(
+    //         event.event.output_compressed_account_hashes.len(),
+    //         event.event.output_compressed_accounts.len(),
+    //         "Output hashes and output compressed accounts length mismatch "
+    //     );
+    // });
     Ok(Some(batched_transaction_events))
 }
 
@@ -115,7 +138,7 @@ fn deserialize_associated_instructions<'a>(
     instructions: &'a [Vec<u8>],
     accounts: &'a [Vec<Pubkey>],
 ) -> Result<AssociatedInstructions<'a>, ParseIndexerEventError> {
-    let insert_queues_instruction = {
+    let (insert_queues_instruction, cpi_context_outputs) = {
         let ix = &instructions[indices.insert_into_queues];
         if ix.len() < 12 {
             return Err(ParseIndexerEventError::InstructionDataTooSmall(
@@ -125,23 +148,19 @@ fn deserialize_associated_instructions<'a>(
         }
         let discriminator: [u8; 8] = ix[0..8].try_into().unwrap();
         if discriminator == DISCRIMINATOR_INSERT_INTO_QUEUES {
-            let (data, _) = InsertIntoQueuesInstructionData::zero_copy_at(&ix[12..])?;
-            Ok(data)
+            let (data, bytes) = InsertIntoQueuesInstructionData::zero_copy_at(&ix[12..])?;
+            let cpi_context_outputs =
+                Vec::<OutputCompressedAccountWithPackedContext>::deserialize(&mut &bytes[..])?;
+            Ok((data, cpi_context_outputs))
         } else {
             Err(ParseIndexerEventError::DeserializeAccountCompressionInstructionError)
         }
     }?;
     let exec_instruction =
         deserialize_instruction(&instructions[indices.system], &accounts[indices.system])?;
-    let mut cpi_instructions = Vec::new();
-    for cpi_index in indices.cpi.iter() {
-        let cpi_instruction =
-            deserialize_cpi_instruction(&instructions[*cpi_index], &accounts[*cpi_index])?;
-        cpi_instructions.push(cpi_instruction);
-    }
     Ok(AssociatedInstructions {
         executing_system_instruction: exec_instruction,
-        cpi_system_instructions: cpi_instructions,
+        cpi_context_outputs,
         insert_into_queues_instruction: insert_queues_instruction,
         // Remove signer and register program accounts.
         accounts: &accounts[indices.insert_into_queues][2..],
@@ -268,7 +287,6 @@ fn deserialize_instruction<'a>(
     }
     let instruction_discriminator = instruction[0..8].try_into().unwrap();
     let instruction = instruction.split_at(12).1;
-
     match instruction_discriminator {
         // Cannot be exucted with cpi context -> executing tx
         DISCRIMINATOR_INVOKE => {
@@ -306,12 +324,30 @@ fn deserialize_instruction<'a>(
             })
         }
         DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY => {
-            if accounts.len() < 11 {
+            // Min len for a small instruction 3 accounts + 1 tree or queue
+            // Fee payer + authority + registered program + account compression authority
+            if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
-            let accounts = accounts.split_at(11).1;
             let data: InstructionDataInvokeCpiWithReadOnly =
                 InstructionDataInvokeCpiWithReadOnly::deserialize(&mut &instruction[..])?;
+            let system_accounts_len = if data.mode == 0 {
+                11
+            } else {
+                let mut len = 4;
+                if data.compress_or_decompress_lamports > 0 {
+                    len += 1;
+                }
+                if data.is_decompress {
+                    len += 1;
+                }
+                if data.with_cpi_context {
+                    len += 1;
+                }
+                len
+            };
+
+            let accounts = accounts.split_at(system_accounts_len).1;
             Ok(ExecutingSystemInstruction {
                 output_compressed_accounts: data.output_compressed_accounts,
                 input_compressed_accounts: data
@@ -334,31 +370,88 @@ fn deserialize_instruction<'a>(
                 accounts,
             })
         }
-        _ => Err(ParseIndexerEventError::DeserializeSystemInstructionError),
-    }
-}
-
-fn deserialize_cpi_instruction<'a>(
-    instruction: &'a [u8],
-    accounts: &'a [Pubkey],
-) -> Result<CpiSystemInstruction<'a>, ParseIndexerEventError> {
-    if instruction.len() < 12 {
-        return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
-    }
-    let discriminator = instruction[0..8].try_into().unwrap();
-    match discriminator {
-        DISCRIMINATOR_INVOKE_CPI => {
-            if accounts.len() < 11 {
+        INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION => {
+            // Min len for a small instruction 4 accounts + 1 tree or queue
+            // Fee payer + authority + registered program + account compression authority
+            if accounts.len() < 5 {
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
-            let accounts = accounts.split_at(11).1;
-            let data = crate::instruction_data::invoke_cpi::InstructionDataInvokeCpi::deserialize(
-                &mut &instruction[12..],
-            )?;
-            Ok(CpiSystemInstruction {
-                output_compressed_accounts: data.output_compressed_accounts,
+            let data: InstructionDataInvokeCpiWithAccountInfo =
+                InstructionDataInvokeCpiWithAccountInfo::deserialize(&mut &instruction[..])?;
+            let system_accounts_len = if data.mode == 0 {
+                11
+            } else {
+                let mut len = 4;
+                if data.compress_or_decompress_lamports > 0 {
+                    len += 1;
+                }
+                if data.is_decompress {
+                    len += 1;
+                }
+                if data.with_cpi_context {
+                    len += 1;
+                }
+                len
+            };
+            let accounts = accounts.split_at(system_accounts_len).1;
+
+            let instruction = ExecutingSystemInstruction {
+                output_compressed_accounts: data
+                    .account_infos
+                    .iter()
+                    .filter(|x| x.output.is_some())
+                    .map(|x| {
+                        let account = x.output.as_ref().unwrap();
+                        OutputCompressedAccountWithPackedContext {
+                            compressed_account: CompressedAccount {
+                                address: x.address,
+                                owner: data.invoking_program_id.into(),
+                                lamports: account.lamports,
+                                data: Some(CompressedAccountData {
+                                    discriminator: account.discriminator,
+                                    data: account.data.clone(),
+                                    data_hash: account.data_hash,
+                                }),
+                            },
+                            merkle_tree_index: account.output_merkle_tree_index,
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+                input_compressed_accounts: data
+                    .account_infos
+                    .iter()
+                    .filter(|x| x.input.is_some())
+                    .map(|x| {
+                        let account = x.input.as_ref().unwrap();
+                        PackedCompressedAccountWithMerkleContext {
+                            compressed_account: CompressedAccount {
+                                address: x.address,
+                                owner: data.invoking_program_id.into(),
+                                lamports: account.lamports,
+                                data: Some(CompressedAccountData {
+                                    discriminator: account.discriminator,
+                                    data: vec![],
+                                    data_hash: account.data_hash,
+                                }),
+                            },
+                            read_only: false,
+                            root_index: account.root_index,
+                            merkle_context: account.merkle_context,
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+                is_compress: !data.is_decompress && data.compress_or_decompress_lamports > 0,
+                relay_fee: None,
+                compress_or_decompress_lamports: if data.compress_or_decompress_lamports == 0 {
+                    None
+                } else {
+                    Some(data.compress_or_decompress_lamports)
+                },
+                execute_cpi_context: data.with_cpi_context,
                 accounts,
-            })
+            };
+
+            Ok(instruction)
         }
         _ => Err(ParseIndexerEventError::DeserializeSystemInstructionError),
     }
@@ -500,11 +593,11 @@ fn create_batched_transaction_event(
             context.queue_index = *index;
         });
 
-    for cpi_instruction in associated_instructions.cpi_system_instructions.iter() {
+    for output_compressed_account in associated_instructions.cpi_context_outputs.iter() {
         batched_transaction_event
             .event
             .output_compressed_accounts
-            .extend_from_slice(cpi_instruction.output_compressed_accounts.as_slice());
+            .push(output_compressed_account.clone());
     }
 
     Ok(batched_transaction_event)

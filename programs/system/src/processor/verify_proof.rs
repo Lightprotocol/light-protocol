@@ -15,7 +15,7 @@ use light_verifier::{
 };
 use pinocchio::{msg, program_error::ProgramError};
 
-use crate::{accounts::check_accounts::AcpAccount, errors::SystemProgramError};
+use crate::{accounts::remaining_account_checks::AcpAccount, errors::SystemProgramError};
 
 const IS_READ_ONLY: bool = true;
 const IS_NOT_READ_ONLY: bool = false;
@@ -30,13 +30,9 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
     input_roots: &mut Vec<[u8; 32]>,
 ) -> Result<u8, SystemProgramError> {
     let mut state_tree_height = 0;
-    for input_compressed_account_with_context in input_compressed_accounts_with_merkle_context {
-        if input_compressed_account_with_context
-            .merkle_context()
-            .prove_by_index()
-        {
-            continue;
-        }
+    for input_compressed_account_with_context in input_compressed_accounts_with_merkle_context
+        .filter(|account| !account.merkle_context().prove_by_index())
+    {
         let internal_height = read_root::<IS_NOT_READ_ONLY, IS_STATE>(
             &remaining_accounts[input_compressed_account_with_context
                 .merkle_context()
@@ -44,21 +40,12 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
             input_compressed_account_with_context.root_index(),
             input_roots,
         )?;
-        if state_tree_height == 0 {
-            state_tree_height = internal_height;
-        } else if state_tree_height != internal_height {
-            msg!(format!(
-                "tree height {} != internal height {}",
-                state_tree_height, internal_height
-            )
-            .as_str());
-            return Err(SystemProgramError::InvalidStateTreeHeight);
-        }
+        check_tree_height::<true>(&mut state_tree_height, internal_height)?;
     }
-    for readonly_input_account in read_only_accounts.iter() {
-        if readonly_input_account.merkle_context.prove_by_index() {
-            continue;
-        }
+    for readonly_input_account in read_only_accounts
+        .iter()
+        .filter(|account| !account.merkle_context.prove_by_index())
+    {
         let internal_height = read_root::<IS_READ_ONLY, IS_STATE>(
             &remaining_accounts[readonly_input_account
                 .merkle_context
@@ -66,18 +53,31 @@ pub fn read_input_state_roots<'a: 'b, 'b>(
             readonly_input_account.root_index.into(),
             input_roots,
         )?;
-        if state_tree_height == 0 {
-            state_tree_height = internal_height;
-        } else if state_tree_height != internal_height {
-            msg!(format!(
-                "tree height {} != internal height {}",
-                state_tree_height, internal_height
-            )
-            .as_str());
-            return Err(SystemProgramError::InvalidStateTreeHeight);
-        }
+        check_tree_height::<true>(&mut state_tree_height, internal_height)?;
     }
     Ok(state_tree_height)
+}
+
+/// Check that internal height matches tree height.
+fn check_tree_height<const IS_STATE_TREE: bool>(
+    tree_height: &mut u8,
+    internal_height: u8,
+) -> Result<(), SystemProgramError> {
+    if *tree_height == 0 {
+        *tree_height = internal_height;
+    } else if *tree_height != internal_height {
+        msg!(format!(
+            "tree height {} != internal height {}",
+            tree_height, internal_height
+        )
+        .as_str());
+        if IS_STATE_TREE {
+            return Err(SystemProgramError::InvalidStateTreeHeight);
+        } else {
+            return Err(SystemProgramError::InvalidAddressTreeHeight);
+        }
+    }
+    Ok(())
 }
 
 #[inline(always)]
@@ -94,16 +94,7 @@ pub fn read_address_roots<'a, 'b: 'a>(
             new_address_param.address_merkle_tree_root_index(),
             address_roots,
         )?;
-        if address_tree_height == 0 {
-            address_tree_height = internal_height;
-        } else if address_tree_height != internal_height {
-            msg!(format!(
-                "tree height {} != internal height {}",
-                address_tree_height, internal_height
-            )
-            .as_str());
-            return Err(SystemProgramError::InvalidAddressTreeHeight);
-        }
+        check_tree_height::<false>(&mut address_tree_height, internal_height)?;
     }
     for read_only_address in read_only_addresses.iter() {
         let internal_height = read_root::<IS_READ_ONLY, IS_NOT_STATE>(
@@ -111,16 +102,7 @@ pub fn read_address_roots<'a, 'b: 'a>(
             read_only_address.address_merkle_tree_root_index.into(),
             address_roots,
         )?;
-        if address_tree_height == 0 {
-            address_tree_height = internal_height;
-        } else if address_tree_height != internal_height {
-            msg!(format!(
-                "tree height {} != internal height {}",
-                address_tree_height, internal_height
-            )
-            .as_str());
-            return Err(SystemProgramError::InvalidAddressTreeHeight);
-        }
+        check_tree_height::<false>(&mut address_tree_height, internal_height)?;
     }
 
     Ok(address_tree_height)
@@ -225,7 +207,7 @@ pub fn verify_proof(
     } else {
         msg!(format!("state tree height: {}", state_tree_height).as_str());
         msg!(format!("address tree height: {}", address_tree_height).as_str());
-        return Err(SystemProgramError::InvalidAddressTreeHeight.into());
+        return Err(SystemProgramError::InvalidTreeHeight.into());
     }
 
     Ok(())

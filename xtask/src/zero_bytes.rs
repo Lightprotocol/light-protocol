@@ -2,11 +2,10 @@ use std::{fs::File, io::prelude::*, path::PathBuf};
 
 use clap::Parser;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
-use light_utils::rustfmt;
 use quote::quote;
 const MAX_HEIGHT: usize = 40;
 
-use crate::Hash;
+use crate::{utils::rustfmt, Hash};
 
 #[derive(Debug, Parser)]
 pub struct Options {

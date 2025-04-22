@@ -1,6 +1,7 @@
 use crate::{
-    error::Result, find_cpi_signer_macro, AccountInfo, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
-    PROGRAM_ID_ACCOUNT_COMPRESSION, PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
+    error::Result, find_cpi_signer_macro, AccountInfo, AccountMeta, AnchorDeserialize,
+    AnchorSerialize, Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_ACCOUNT_COMPRESSION,
+    PROGRAM_ID_LIGHT_SYSTEM, PROGRAM_ID_NOOP,
 };
 
 #[repr(usize)]
@@ -89,6 +90,10 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             .unwrap()
     }
 
+    pub fn self_program_id(&self) -> &Pubkey {
+        &self.config.self_program
+    }
+
     pub fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         let mut account_infos = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
         account_infos.push(self.fee_payer.clone());
@@ -111,47 +116,86 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             is_writable: false,
         });
 
-        self.accounts[2..].iter().enumerate().for_each(|(i, acc)| {
-            if i < self.system_accounts_len() - 2 {
-                account_metas.push(AccountMeta {
-                    pubkey: *acc.key,
-                    is_signer: false,
-                    is_writable: false,
-                });
-            }
+        account_metas.push(AccountMeta {
+            pubkey: *self.accounts[CompressionCpiAccountIndex::RegisteredProgramPda as usize].key,
+            is_signer: false,
+            is_writable: false,
         });
-
+        account_metas.push(AccountMeta {
+            pubkey: *self.accounts[CompressionCpiAccountIndex::NoopProgram as usize].key,
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: *self.accounts
+                [CompressionCpiAccountIndex::AccountCompressionAuthority as usize]
+                .key,
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: *self.accounts[CompressionCpiAccountIndex::AccountCompressionProgram as usize]
+                .key,
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: *self.accounts[CompressionCpiAccountIndex::InvokingProgram as usize].key,
+            is_signer: false,
+            is_writable: false,
+        });
+        let mut current_index = 7;
         if !self.config.sol_pool_pda {
-            account_metas.insert(
-                CompressionCpiAccountIndex::SolPoolPda as usize,
-                AccountMeta {
-                    pubkey: *self.light_system_program().key,
-                    is_signer: false,
-                    is_writable: false,
-                },
-            );
+            account_metas.push(AccountMeta {
+                pubkey: *self.light_system_program().key,
+                is_signer: false,
+                is_writable: false,
+            });
+        } else {
+            account_metas.push(AccountMeta {
+                pubkey: *self.accounts[current_index].key,
+                is_signer: false,
+                is_writable: true,
+            });
+            current_index += 1;
         }
 
         if !self.config.sol_compression_recipient {
-            account_metas.insert(
-                CompressionCpiAccountIndex::DecompressionRecipent as usize,
-                AccountMeta {
-                    pubkey: *self.light_system_program().key,
-                    is_signer: false,
-                    is_writable: false,
-                },
-            );
+            account_metas.push(AccountMeta {
+                pubkey: *self.light_system_program().key,
+                is_signer: false,
+                is_writable: false,
+            });
+        } else {
+            account_metas.push(AccountMeta {
+                pubkey: *self.accounts[current_index].key,
+                is_signer: false,
+                is_writable: true,
+            });
+            current_index += 1;
         }
+        // System program
+        account_metas.push(AccountMeta {
+            pubkey: Pubkey::default(),
+            is_signer: false,
+            is_writable: false,
+        });
+        current_index += 1;
+
         if !self.config.cpi_context {
-            account_metas.insert(
-                CompressionCpiAccountIndex::CpiContext as usize,
-                AccountMeta {
-                    pubkey: *self.light_system_program().key,
-                    is_signer: false,
-                    is_writable: false,
-                },
-            );
+            account_metas.push(AccountMeta {
+                pubkey: *self.light_system_program().key,
+                is_signer: false,
+                is_writable: false,
+            });
+        } else {
+            account_metas.push(AccountMeta {
+                pubkey: *self.accounts[current_index].key,
+                is_signer: false,
+                is_writable: true,
+            });
         }
+
         self.accounts[self.system_accounts_len()..]
             .iter()
             .for_each(|acc| {
@@ -220,7 +264,7 @@ impl SystemAccountMetaConfig {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressionCpiAccountsConfig {
     pub self_program: Pubkey,
     // TODO: move to instructiond data
@@ -286,6 +330,7 @@ impl Default for SystemAccountPubkeys {
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
+
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
         AccountMeta::new_readonly(cpi_signer, false),
@@ -294,11 +339,8 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
         AccountMeta::new_readonly(config.self_program, false),
-        // sol_pool_pda,
-        // decompression_recipient,
-        // AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        // cpi_context,
     ];
+
     if let Some(pubkey) = config.sol_pool_pda {
         vec.push(AccountMeta {
             pubkey,

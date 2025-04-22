@@ -21,10 +21,10 @@ pub struct RolloverStateMerkleTreeAndQueue<'info> {
     pub registered_program_pda: AccountInfo<'info>,
     pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: (account compression program).
-    #[account(zero)]
+    #[account(mut)]
     pub new_merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program).
-    #[account(zero)]
+    #[account(mut)]
     pub new_queue: AccountInfo<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
@@ -52,10 +52,10 @@ pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     pub registered_program_pda: AccountInfo<'info>,
     pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: (account compression program).
-    #[account(zero)]
+    #[account(mut)]
     pub new_merkle_tree: AccountInfo<'info>,
     /// CHECK: (account compression program).
-    #[account(zero)]
+    #[account(mut)]
     pub new_queue: AccountInfo<'info>,
     /// CHECK: (account compression program).
     #[account(mut)]
