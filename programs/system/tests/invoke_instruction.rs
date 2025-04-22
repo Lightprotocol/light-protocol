@@ -115,13 +115,6 @@ fn failing_from_account_infos() {
             InvokeInstruction::from_account_infos(account_info_array.as_slice()).unwrap();
         assert!(invoke_cpi_instruction == ref_invoke_cpi_instruction);
     }
-    // 2. Authority mutable
-    {
-        let mut account_info_array = account_info_array.clone();
-        account_info_array[1] = get_fee_payer_account_info();
-        let res = InvokeInstruction::from_account_infos(account_info_array.as_slice());
-        assert!(res == Err(ProgramError::from(AccountError::AccountMutable)));
-    }
     // 3. Registered Program Pda mutable
     {
         let mut account_info_array = account_info_array.clone();

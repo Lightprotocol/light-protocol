@@ -31,68 +31,68 @@ pub fn input_compressed_accounts_signer_check(
         )
 }
 
-// #[cfg(test)]
-// mod test {
-//     use anchor_lang::prelude::borsh::BorshSerialize;
-//     use light_compressed_account::compressed_account::{
-//         CompressedAccount, PackedCompressedAccountWithMerkleContext,
-//     };
-//     use light_zero_copy::borsh::Deserialize;
+#[cfg(test)]
+mod test {
+    use borsh::BorshSerialize;
+    use light_compressed_account::compressed_account::{
+        CompressedAccount, PackedCompressedAccountWithMerkleContext,
+    };
+    use light_zero_copy::borsh::Deserialize;
 
-//     use super::*;
+    use super::*;
 
-//     #[test]
-//     fn test_input_compressed_accounts_signer_check() {
-//         let authority = Pubkey::new_unique();
+    #[test]
+    fn test_input_compressed_accounts_signer_check() {
+        let authority = solana_pubkey::Pubkey::new_unique().to_bytes();
 
-//         let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
-//             compressed_account: CompressedAccount {
-//                 owner: authority,
-//                 ..CompressedAccount::default()
-//             },
-//             ..PackedCompressedAccountWithMerkleContext::default()
-//         };
-//         let bytes = compressed_account_with_context.try_to_vec().unwrap();
-//         let compressed_account_with_context =
-//             ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
-//                 .unwrap()
-//                 .0;
+        let compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
+            compressed_account: CompressedAccount {
+                owner: authority,
+                ..CompressedAccount::default()
+            },
+            ..PackedCompressedAccountWithMerkleContext::default()
+        };
+        let bytes = compressed_account_with_context.try_to_vec().unwrap();
+        let compressed_account_with_context =
+            ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
+                .unwrap()
+                .0;
 
-//         assert_eq!(
-//             input_compressed_accounts_signer_check(
-//                 &[compressed_account_with_context.clone()],
-//                 &authority
-//             ),
-//             Ok(())
-//         );
+        assert_eq!(
+            input_compressed_accounts_signer_check(
+                &[compressed_account_with_context.clone()],
+                &authority
+            ),
+            Ok(())
+        );
 
-//         {
-//             let invalid_compressed_account_with_context =
-//                 PackedCompressedAccountWithMerkleContext {
-//                     compressed_account: CompressedAccount {
-//                         owner: Pubkey::new_unique(),
-//                         ..CompressedAccount::default()
-//                     },
-//                     ..PackedCompressedAccountWithMerkleContext::default()
-//                 };
+        {
+            let invalid_compressed_account_with_context =
+                PackedCompressedAccountWithMerkleContext {
+                    compressed_account: CompressedAccount {
+                        owner: solana_pubkey::Pubkey::new_unique().to_bytes(),
+                        ..CompressedAccount::default()
+                    },
+                    ..PackedCompressedAccountWithMerkleContext::default()
+                };
 
-//             let bytes = invalid_compressed_account_with_context
-//                 .try_to_vec()
-//                 .unwrap();
-//             let invalid_compressed_account_with_context =
-//                 ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
-//                     .unwrap()
-//                     .0;
-//             assert_eq!(
-//                 input_compressed_accounts_signer_check(
-//                     &[
-//                         compressed_account_with_context,
-//                         invalid_compressed_account_with_context
-//                     ],
-//                     &authority
-//                 ),
-//                 Err(SystemProgramError::SignerCheckFailed.into())
-//             );
-//         }
-//     }
-// }
+            let bytes = invalid_compressed_account_with_context
+                .try_to_vec()
+                .unwrap();
+            let invalid_compressed_account_with_context =
+                ZPackedCompressedAccountWithMerkleContext::zero_copy_at(&bytes)
+                    .unwrap()
+                    .0;
+            assert_eq!(
+                input_compressed_accounts_signer_check(
+                    &[
+                        compressed_account_with_context,
+                        invalid_compressed_account_with_context
+                    ],
+                    &authority
+                ),
+                Err(SystemProgramError::SignerCheckFailed.into())
+            );
+        }
+    }
+}
