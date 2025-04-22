@@ -13,6 +13,9 @@ use light_compressed_account::instruction_data::{
 use light_zero_copy::{borsh::Deserialize, errors::ZeroCopyError, slice::ZeroCopySliceBorsh};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use zerocopy::{little_endian::U32, Ref};
+
+use crate::CPI_CONTEXT_ACCOUNT_DISCRIMINATOR;
+
 /// Collects instruction data without executing a compressed transaction.
 /// Signer checks are performed on instruction data.
 /// Collected instruction data is combined with the instruction data of the executing cpi,
@@ -30,7 +33,7 @@ pub struct CpiContextAccount {
 }
 
 impl Discriminator for CpiContextAccount {
-    const DISCRIMINATOR: [u8; 8] = [22, 20, 149, 218, 74, 204, 128, 166];
+    const DISCRIMINATOR: [u8; 8] = CPI_CONTEXT_ACCOUNT_DISCRIMINATOR;
     const DISCRIMINATOR_SLICE: &'static [u8] = &Self::DISCRIMINATOR;
 }
 
