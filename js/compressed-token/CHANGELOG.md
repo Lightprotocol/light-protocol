@@ -10,6 +10,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 
     -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
     -   `decompress` now requires array of one or more TokenPoolInfos.
+    -   `decompress`, `transfer` now do not allow state tree overrides.
 
 -   Action Changes:
     -   Removed optional tokenProgramId: PublicKey
