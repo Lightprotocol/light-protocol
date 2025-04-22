@@ -28,8 +28,8 @@ pub use rollover_address_merkle_tree_and_queue::*;
 pub mod deregister_program;
 pub use deregister_program::*;
 
-pub mod intialize_batched_state_merkle_tree;
-pub use intialize_batched_state_merkle_tree::*;
+pub mod initialize_batched_state_merkle_tree;
+pub use initialize_batched_state_merkle_tree::*;
 
 pub mod batch_nullify;
 pub use batch_nullify::*;
@@ -40,8 +40,8 @@ pub use batch_append::*;
 pub mod rollover_batched_state_merkle_tree;
 pub use rollover_batched_state_merkle_tree::*;
 
-pub mod intialize_batched_address_merkle_tree;
-pub use intialize_batched_address_merkle_tree::*;
+pub mod initialize_batched_address_merkle_tree;
+pub use initialize_batched_address_merkle_tree::*;
 
 pub mod batch_update_address_tree;
 pub use batch_update_address_tree::*;
