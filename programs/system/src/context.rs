@@ -136,6 +136,7 @@ impl<'info> SystemContext<'info> {
     }
 }
 
+#[derive(Debug)]
 pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
     instruction_data: T,
     cpi_context: Option<ZCpiContextAccount<'a>>,
