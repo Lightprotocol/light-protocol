@@ -233,9 +233,8 @@ mod tests {
     use light_zero_copy::borsh::Deserialize;
     use pinocchio::pubkey::Pubkey;
 
-    use crate::invoke_cpi::processor::clear_cpi_context_account;
-
     use super::*;
+    use crate::invoke_cpi::processor::clear_cpi_context_account;
 
     fn clean_input_data(instruction_data: &mut InstructionDataInvokeCpi) {
         instruction_data.cpi_context = None;
