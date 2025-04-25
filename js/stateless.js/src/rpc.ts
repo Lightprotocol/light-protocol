@@ -636,14 +636,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the latest state tree addresses from the cluster.
-     */
-    async getActiveStateTreeInfos(): Promise<StateTreeInfo[]> {
-        this.allStateTreeInfos = null;
-        return await this.getCachedStateTreeInfos();
-    }
-
-    /**
      * Fetch the compressed account for the specified account address or hash
      */
     async getCompressedAccount(

@@ -8,7 +8,6 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,
-    getActiveStateTreeInfos,
     selectStateTreeInfo,
     StateTreeInfo,
 } from '@lightprotocol/stateless.js';

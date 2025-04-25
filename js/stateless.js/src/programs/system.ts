@@ -190,11 +190,10 @@ export class LightSystemProgram {
      */
     static deriveCompressedSolPda(): PublicKey {
         const seeds = [SOL_POOL_PDA_SEED];
-        const [address, bump] = PublicKey.findProgramAddressSync(
+        const [address, _] = PublicKey.findProgramAddressSync(
             seeds,
             this.programId,
         );
-        console.log('bump', bump.toString());
         return address;
     }
 
