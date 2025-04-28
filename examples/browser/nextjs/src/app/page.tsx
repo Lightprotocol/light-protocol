@@ -38,7 +38,7 @@ const SendButton: FC = () => {
     const onClick = useCallback(async () => {
         const connection = createRpc();
         const stateTreeInfo = selectStateTreeInfo(
-            await connection.getCachedStateTreeInfos(),
+            await connection.getStateTreeInfos(),
         );
 
         if (!publicKey) throw new WalletNotConnectedError();
