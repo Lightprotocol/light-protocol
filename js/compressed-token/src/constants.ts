@@ -17,3 +17,10 @@ export const TRANSFER_DISCRIMINATOR = Buffer.from([
 export const COMPRESS_SPL_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([
     112, 230, 105, 101, 145, 202, 157, 97,
 ]);
+
+export const APPROVE_DISCRIMINATOR = Buffer.from([
+    69, 74, 217, 36, 115, 117, 97, 76,
+]);
+export const REVOKE_DISCRIMINATOR = Buffer.from([
+    170, 23, 31, 34, 133, 173, 93, 242,
+]);

@@ -48,19 +48,23 @@ pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
+    msg!("process_approve start");
     let inputs: CompressedTokenInstructionDataApprove =
         CompressedTokenInstructionDataApprove::deserialize(&mut inputs.as_slice())?;
+    msg!("process_approve deserialize done");
     let (compressed_input_accounts, output_compressed_accounts) =
         create_input_and_output_accounts_approve(
             &inputs,
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
         )?;
+    msg!("process_approve create_input_and_output_accounts_approve done");
     let proof = if inputs.proof == CompressedProof::default() {
         None
     } else {
         Some(inputs.proof)
     };
+    msg!("cpi_execute_compressed_transaction_transfer start");
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,

@@ -1,3 +1,4 @@
+export * from './approve';
 export * from './approve-and-mint-to';
 export * from './compress';
 export * from './compress-spl-token-account';
@@ -7,4 +8,5 @@ export * from './create-token-program-lookup-table';
 export * from './decompress';
 export * from './merge-token-accounts';
 export * from './mint-to';
+export * from './revoke';
 export * from './transfer';

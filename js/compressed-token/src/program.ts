@@ -41,8 +41,16 @@ import {
     createTokenPoolAccountsLayout,
     mintToAccountsLayout,
     transferAccountsLayout,
+    approveAccountsLayout,
+    revokeAccountsLayout,
+    CompressedTokenInstructionDataApproveLayout,
+    CompressedTokenInstructionDataRevokeLayout,
+    encodeApproveInstructionData,
+    encodeRevokeInstructionData,
 } from './layout';
 import {
+    CompressedTokenInstructionDataApprove,
+    CompressedTokenInstructionDataRevoke,
     CompressedTokenInstructionDataTransfer,
     TokenTransferOutputData,
 } from './types';
@@ -169,6 +177,29 @@ export type TransferParams = {
      * Amount of tokens to transfer
      */
     amount: BN | number;
+    /**
+     * The recent state root indices of the input state. The expiry is tied to
+     * the proof.
+     */
+    recentInputStateRootIndices: number[];
+    /**
+     * The recent validity proof for state inclusion of the input state. It
+     * expires after n slots.
+     */
+    recentValidityProof: ValidityProof;
+};
+
+export type ApproveParams = TransferParams;
+
+export type RevokeParams = {
+    /**
+     * The payer of the transaction
+     */
+    payer: PublicKey;
+    /**
+     * The input state to be consumed
+     */
+    inputCompressedTokenAccounts: ParsedTokenAccount[];
     /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
@@ -1153,5 +1184,129 @@ export class CompressedTokenProgram {
         connection: Connection,
     ): Promise<PublicKey | undefined> {
         return (await connection.getAccountInfo(mint))?.owner;
+    }
+
+    static async approve(
+        params: TransferParams,
+    ): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentInputStateRootIndices,
+            recentValidityProof,
+            amount,
+            toAddress,
+        } = params;
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                rootIndices: recentInputStateRootIndices,
+                tokenTransferOutputs: [],
+            });
+
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const rawData: CompressedTokenInstructionDataApprove = {
+            proof: recentValidityProof,
+            mint,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            delegate: toAddress,
+            delegatedAmount: bn(amount),
+            delegateMerkleTreeIndex: 0, // TODO: support rollover edgecase
+            changeAccountMerkleTreeIndex: 0, // TODO: support rollover edgecase
+            delegateLamports: null, // TODO: add support
+        };
+
+        const data = encodeApproveInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+
+        const keys = approveAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
+    }
+
+    static async revoke(params: RevokeParams): Promise<TransactionInstruction> {
+        const {
+            payer,
+            inputCompressedTokenAccounts,
+            recentInputStateRootIndices,
+            recentValidityProof,
+        } = params;
+
+        validateSameTokenOwner(inputCompressedTokenAccounts);
+
+        const { inputTokenDataWithContext, remainingAccountMetas } =
+            packCompressedTokenAccounts({
+                inputCompressedTokenAccounts,
+                rootIndices: recentInputStateRootIndices,
+                tokenTransferOutputs: [],
+            });
+
+        const { mint, currentOwner } = parseTokenData(
+            inputCompressedTokenAccounts,
+        );
+
+        const rawData: CompressedTokenInstructionDataRevoke = {
+            proof: recentValidityProof,
+            mint,
+            inputTokenDataWithContext,
+            cpiContext: null,
+            outputAccountMerkleTreeIndex: 1, // TODO: support rollover edgecase
+        };
+        const data = encodeRevokeInstructionData(rawData);
+
+        const {
+            accountCompressionAuthority,
+            noopProgram,
+            registeredProgramPda,
+            accountCompressionProgram,
+        } = defaultStaticAccountsStruct();
+        const keys = revokeAccountsLayout({
+            feePayer: payer,
+            authority: currentOwner,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            lightSystemProgram: LightSystemProgram.programId,
+            registeredProgramPda: registeredProgramPda,
+            noopProgram: noopProgram,
+            accountCompressionAuthority: accountCompressionAuthority,
+            accountCompressionProgram: accountCompressionProgram,
+            selfProgram: this.programId,
+            systemProgram: SystemProgram.programId,
+        });
+
+        keys.push(...remainingAccountMetas);
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data,
+        });
     }
 }

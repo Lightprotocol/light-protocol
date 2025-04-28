@@ -6,6 +6,54 @@ export const ERROR_NO_ACCOUNTS_FOUND =
     'Could not find accounts to select for transfer.';
 
 /**
+ * Selects token accounts for approval, first trying to find an exact match, then falling back to minimum selection.
+ *
+ * @param {ParsedTokenAccount[]} accounts - Token accounts to choose from.
+ * @param {BN} approveAmount - Amount to approve.
+ * @param {number} [maxInputs=4] - Max accounts to select when falling back to minimum selection.
+ * @returns {[
+ *   selectedAccounts: ParsedTokenAccount[],
+ *   total: BN,
+ *   totalLamports: BN | null,
+ *   maxPossibleAmount: BN
+ * ]} - Returns:
+ *   - selectedAccounts: Accounts chosen for approval.
+ *   - total: Total amount from selected accounts.
+ *   - totalLamports: Total lamports from selected accounts.
+ *   - maxPossibleAmount: Max approvable amount given maxInputs.
+ */
+export function selectTokenAccountsForApprove(
+    accounts: ParsedTokenAccount[],
+    approveAmount: BN,
+    maxInputs: number = 4,
+): [
+    selectedAccounts: ParsedTokenAccount[],
+    total: BN,
+    totalLamports: BN | null,
+    maxPossibleAmount: BN,
+] {
+    // First try to find an exact match
+    const exactMatch = accounts.find(account =>
+        account.parsed.amount.eq(approveAmount),
+    );
+    if (exactMatch) {
+        return [
+            [exactMatch],
+            exactMatch.parsed.amount,
+            exactMatch.compressedAccount.lamports,
+            exactMatch.parsed.amount,
+        ];
+    }
+
+    // If no exact match, fall back to minimum selection
+    return selectMinCompressedTokenAccountsForTransfer(
+        accounts,
+        approveAmount,
+        maxInputs,
+    );
+}
+
+/**
  * Selects the minimum number of compressed token accounts required for a transfer, up to a specified maximum.
  *
  * @param {ParsedTokenAccount[]} accounts - Token accounts to choose from.

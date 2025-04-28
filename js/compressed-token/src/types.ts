@@ -154,3 +154,23 @@ export type TokenData = {
      */
     tlv: Buffer | null;
 };
+
+export type CompressedTokenInstructionDataApprove = {
+    proof: ValidityProof;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    delegate: PublicKey;
+    delegatedAmount: BN;
+    delegateMerkleTreeIndex: number;
+    changeAccountMerkleTreeIndex: number;
+    delegateLamports: BN | null;
+};
+
+export type CompressedTokenInstructionDataRevoke = {
+    proof: ValidityProof;
+    mint: PublicKey;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
+    cpiContext: CompressedCpiContext | null;
+    outputAccountMerkleTreeIndex: number;
+};
