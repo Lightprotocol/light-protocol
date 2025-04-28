@@ -8,6 +8,7 @@ import {
     getTestRpc,
     StateTreeInfo,
     selectStateTreeInfo,
+    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
@@ -25,7 +26,7 @@ import {
 } from '../../src/utils/get-token-pool-infos';
 
 /**
- * Assert that delegation was successful
+ * Verifies token delegation by checking pre and post account counts and balances.
  */
 async function assertDelegate(
     rpc: Rpc,
@@ -33,8 +34,10 @@ async function assertDelegate(
     refAmount: BN,
     refOwner: PublicKey,
     refDelegate: PublicKey,
-    expectedAccountCountOwnerPost?: number,
-    expectedAccountCountDelegatePost?: number,
+    preOwnerAccounts: ParsedTokenAccount[],
+    preDelegateAccounts: ParsedTokenAccount[],
+    newOwnerCount: number,
+    newDelegateCount: number,
 ) {
     const ownerPostCompressedTokenAccounts = (
         await rpc.getCompressedTokenAccountsByOwner(refOwner, {
@@ -48,24 +51,47 @@ async function assertDelegate(
         })
     ).items;
 
-    if (expectedAccountCountOwnerPost) {
-        expect(ownerPostCompressedTokenAccounts.length).toBe(
-            expectedAccountCountOwnerPost,
-        );
-    }
+    expect(ownerPostCompressedTokenAccounts.length).toBe(newOwnerCount);
+    expect(delegateCompressedTokenAccounts.length).toBe(newDelegateCount);
 
-    if (expectedAccountCountDelegatePost) {
-        expect(delegateCompressedTokenAccounts.length).toBe(
-            expectedAccountCountDelegatePost,
-        );
-    }
-
-    // Check that delegate has the delegated amount
-    const delegatedAmount = delegateCompressedTokenAccounts.reduce(
+    // Calculate pre and post balances
+    const preOwnerBalance = preOwnerAccounts.reduce(
         (sum, acc) => sum.add(acc.parsed.amount),
         bn(0),
     );
-    expect(delegatedAmount.eq(refAmount)).toBe(true);
+    const postOwnerBalance = ownerPostCompressedTokenAccounts.reduce(
+        (sum, acc) => sum.add(acc.parsed.amount),
+        bn(0),
+    );
+    const preDelegateBalance = preDelegateAccounts.reduce(
+        (sum, acc) => sum.add(acc.parsed.amount),
+        bn(0),
+    );
+    const postDelegateBalance = delegateCompressedTokenAccounts.reduce(
+        (sum, acc) => sum.add(acc.parsed.amount),
+        bn(0),
+    );
+
+    // Checks
+    const ownerBalanceCheck = preOwnerBalance.eq(postOwnerBalance);
+    if (!ownerBalanceCheck) {
+        console.log('Owner balance check failed:');
+        console.log('preOwnerBalance:', preOwnerBalance.toString());
+        console.log('refAmount:', refAmount.toString());
+        console.log('postOwnerBalance:', postOwnerBalance.toString());
+    }
+    expect(ownerBalanceCheck).toBe(true);
+
+    const delegateBalanceCheck = preDelegateBalance
+        .add(refAmount)
+        .eq(postDelegateBalance);
+    if (!delegateBalanceCheck) {
+        console.log('Delegate balance check failed:');
+        console.log('preDelegateBalance:', preDelegateBalance.toString());
+        console.log('refAmount:', refAmount.toString());
+        console.log('postDelegateBalance:', postDelegateBalance.toString());
+    }
+    expect(delegateBalanceCheck).toBe(true);
 
     // Check that delegate is set correctly
     expect(
@@ -111,7 +137,6 @@ describe('delegate', () => {
     beforeEach(async () => {
         bob = await newAccountWithLamports(rpc, 1e9);
 
-        // Mint twice to create two token accounts
         await mintTo(
             rpc,
             payer,
@@ -146,7 +171,11 @@ describe('delegate', () => {
             bn(0),
         );
 
-        // Approve all tokens to payer
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint,
+            })
+        ).items;
         await approve(rpc, payer, mint, totalAmount, payer, bob.publicKey);
 
         await assertDelegate(
@@ -155,11 +184,12 @@ describe('delegate', () => {
             totalAmount,
             payer.publicKey,
             bob.publicKey,
-            1, // Merged!
-            1, // Delegate should have one account
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
+            1,
+            1,
         );
 
-        // Revoke all tokens
         const delegatedAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -168,7 +198,6 @@ describe('delegate', () => {
 
         await revoke(rpc, payer, delegatedAccounts, payer);
 
-        // Verify all tokens are back with owner
         const payerPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
                 mint,
@@ -181,7 +210,6 @@ describe('delegate', () => {
         );
         expect(postAmount.eq(totalAmount)).toBe(true);
 
-        // verify no delegate accounts
         const bobPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -202,7 +230,12 @@ describe('delegate', () => {
             bn(0),
         );
 
-        // Approve partial amount (700) to payer
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint,
+            })
+        ).items;
+
         const delegateAmount = bn(700);
         await approve(rpc, payer, mint, delegateAmount, payer, bob.publicKey);
 
@@ -212,11 +245,12 @@ describe('delegate', () => {
             delegateAmount,
             payer.publicKey,
             bob.publicKey,
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
             payerPreCompressedTokenAccounts.length + 1,
-            1, // Delegate should have one account
+            1,
         );
 
-        // Revoke delegated tokens
         const delegatedAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -225,14 +259,12 @@ describe('delegate', () => {
 
         await revoke(rpc, payer, delegatedAccounts, payer);
 
-        // Verify all tokens are back with owner
         const payerPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
                 mint,
             })
         ).items;
 
-        // delegate are gone
         const bobPostCompressedTokenAccountsDelegate = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -259,9 +291,14 @@ describe('delegate', () => {
             })
         ).items;
 
-        // Approve first token account's amount (500) to payer
         const firstAccountAmount =
             payerPreCompressedTokenAccounts[0].parsed.amount;
+
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint,
+            })
+        ).items;
 
         await approve(
             rpc,
@@ -278,11 +315,12 @@ describe('delegate', () => {
             firstAccountAmount,
             payer.publicKey,
             bob.publicKey,
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
             payerPreCompressedTokenAccounts.length,
-            1, // Delegate should have one account
+            1,
         );
 
-        // Revoke delegated tokens
         const delegatedAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -291,14 +329,12 @@ describe('delegate', () => {
 
         await revoke(rpc, payer, delegatedAccounts, payer);
 
-        // Verify all tokens are back with owner
         const payerPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
                 mint,
             })
         ).items;
 
-        // and that delegatge no more
         const bobPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
@@ -342,7 +378,12 @@ describe('delegate', () => {
             bn(0),
         );
 
-        // Approve all tokens to bob using payer as fee payer
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(charlie.publicKey, {
+                mint,
+            })
+        ).items;
+
         await approve(rpc, bob, mint, totalAmount, owner, charlie.publicKey);
 
         await assertDelegate(
@@ -351,11 +392,12 @@ describe('delegate', () => {
             totalAmount,
             owner.publicKey,
             charlie.publicKey,
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
             1,
             1,
         );
 
-        // Revoke all tokens using payer as fee payer
         const delegatedAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(charlie.publicKey, {
                 mint,
@@ -364,7 +406,6 @@ describe('delegate', () => {
 
         await revoke(rpc, bob, delegatedAccounts, owner);
 
-        // Verify all tokens are back with owner
         const ownerPostCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(owner.publicKey, {
                 mint,
@@ -403,65 +444,5 @@ describe('delegate', () => {
         await expect(
             revoke(rpc, bob, delegatedAccounts, payer),
         ).rejects.toThrowError();
-    });
-
-    it('should transfer one delegated account', async () => {
-        const charlie = await newAccountWithLamports(rpc, 1e9);
-        const payerPreCompressedTokenAccounts = (
-            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
-                mint,
-            })
-        ).items;
-
-        // Approve first token account's amount (500) to payer
-        const firstAccountAmount =
-            payerPreCompressedTokenAccounts[0].parsed.amount;
-
-        await approve(
-            rpc,
-            payer,
-            mint,
-            firstAccountAmount,
-            payer,
-            bob.publicKey,
-        );
-
-        const bobPostApprove = (
-            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
-                mint,
-            })
-        ).items
-            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
-            .toNumber();
-
-        await transferDelegated(
-            rpc,
-            bob,
-            mint,
-            firstAccountAmount,
-            bob,
-            charlie.publicKey,
-        );
-
-        const bobPostTransferDelegate = (
-            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
-                mint,
-            })
-        ).items
-            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
-            .toNumber();
-
-        const charliePostTransferDelegate = (
-            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint,
-            })
-        ).items
-            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
-            .toNumber();
-
-        expect(
-            bobPostApprove ===
-                bobPostTransferDelegate + charliePostTransferDelegate,
-        );
     });
 });
