@@ -51,7 +51,7 @@ export async function approveAndMintTo(
 ): Promise<TransactionSignature> {
     outputStateTreeInfo =
         outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
+        selectStateTreeInfo(await rpc.getStateTreeInfos());
     tokenPoolInfo =
         tokenPoolInfo ??
         selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));

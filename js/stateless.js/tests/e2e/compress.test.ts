@@ -72,9 +72,7 @@ describe('compress', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
 
     it('should create account with address', async () => {

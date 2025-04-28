@@ -120,9 +120,7 @@ describe('compress', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         bob = await newAccountWithLamports(rpc, 1e9);

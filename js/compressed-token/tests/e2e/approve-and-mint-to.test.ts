@@ -89,9 +89,7 @@ describe('approveAndMintTo', () => {
         /// Register mint
         await createTokenPool(rpc, payer, mint);
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
 
     it('should mintTo compressed account with external spl mint', async () => {

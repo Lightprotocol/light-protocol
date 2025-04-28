@@ -45,7 +45,7 @@ export type ActiveTreeBundle = {
  *
  * Example:
  * ```typescript
- * const infos = await rpc.getCachedStateTreeInfos();
+ * const infos = await rpc.getStateTreeInfos();
  * const info = selectStateTreeInfo(infos);
  * const ix = await CompressedTokenProgram.compress({
  *     // ...

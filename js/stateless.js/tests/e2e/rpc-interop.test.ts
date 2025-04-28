@@ -58,10 +58,11 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        const stateTreeInfos = await rpc.getCachedStateTreeInfos();
+        const stateTreeInfos = await rpc.getStateTreeInfos();
         stateTreeInfo = selectStateTreeInfo(stateTreeInfos);
 
         await compress(rpc, payer, 1e9, payer.publicKey, stateTreeInfo);
+
         executedTxs++;
     });
 

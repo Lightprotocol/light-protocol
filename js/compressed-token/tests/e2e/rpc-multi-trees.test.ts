@@ -46,8 +46,8 @@ describe('rpc-multi-trees', () => {
             )
         ).mint;
 
-        stateTreeInfo = (await rpc.getCachedStateTreeInfos())[0];
-        stateTreeInfo2 = (await rpc.getCachedStateTreeInfos())[1];
+        stateTreeInfo = (await rpc.getStateTreeInfos())[0];
+        stateTreeInfo2 = (await rpc.getStateTreeInfos())[1];
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         bob = await newAccountWithLamports(rpc, 1e9, 256);

@@ -83,7 +83,7 @@ async function parseEventWithTokenTlvData(
     rpc: Rpc,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-    const infos = await rpc.getCachedStateTreeInfos();
+    const infos = await rpc.getStateTreeInfos();
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {

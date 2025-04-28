@@ -77,7 +77,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];
-    const infos = await rpc.getCachedStateTreeInfos();
+    const infos = await rpc.getStateTreeInfos();
 
     for (const event of events) {
         for (

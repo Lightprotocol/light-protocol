@@ -88,9 +88,7 @@ describe('mintTo', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         /// Setup LUT.

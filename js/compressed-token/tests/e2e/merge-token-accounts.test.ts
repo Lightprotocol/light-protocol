@@ -28,9 +28,7 @@ describe('mergeTokenAccounts', () => {
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
             await createMint(

@@ -128,7 +128,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     }
     const accounts: ParsedTokenAccount[] = [];
 
-    const activeStateTreeInfos = await rpc.getCachedStateTreeInfos();
+    const activeStateTreeInfos = await rpc.getStateTreeInfos();
 
     res.result.value.items.map(item => {
         const _account = item.account;
@@ -580,6 +580,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
     allStateTreeInfos: StateTreeInfo[] | null = null;
+    lastStateTreeFetchTime: number | null = null;
+    CACHE_TTL = 1000 * 60 * 60; // 1 hour
+    fetchPromise: Promise<StateTreeInfo[]> | null = null;
 
     constructor(
         endpoint: string,
@@ -592,37 +595,65 @@ export class Rpc extends Connection implements CompressionApiInterface {
         this.proverEndpoint = proverEndpoint;
     }
 
-    async getAllCachedStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getAllStateTreeInfos(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
 
-        let info: StateTreeInfo[] | null = null;
-        if (!this.allStateTreeInfos) {
-            const { mainnet, devnet } = defaultStateTreeLookupTables();
+        // return cached
+        if (this.allStateTreeInfos && this.lastStateTreeFetchTime) {
+            const now = Date.now();
+            if (now - this.lastStateTreeFetchTime <= this.CACHE_TTL) {
+                return this.allStateTreeInfos;
+            }
+        }
+
+        if (this.fetchPromise) {
+            return this.fetchPromise;
+        }
+
+        try {
+            this.fetchPromise = this.doFetch();
+            console.log('fetchPromise', this.fetchPromise);
+            const info = await this.fetchPromise;
+            console.log('info', info);
+            this.allStateTreeInfos = info;
+            this.lastStateTreeFetchTime = Date.now();
+            return info;
+        } finally {
+            this.fetchPromise = null;
+            if (!this.allStateTreeInfos) {
+                throw new Error(
+                    'allStateTreeInfos should not be null. Please send an email to team@lightprotocol.com.',
+                );
+            }
+        }
+    }
+
+    /**
+     * @internal
+     */
+    async doFetch(): Promise<StateTreeInfo[]> {
+        const { mainnet, devnet } = defaultStateTreeLookupTables();
+
+        try {
+            return await getActiveStateTreeInfos({
+                connection: this,
+                stateTreeLUTPairs: [mainnet[0]],
+            });
+        } catch (mainnetError) {
             try {
-                info = await getActiveStateTreeInfos({
-                    connection: this,
-                    stateTreeLUTPairs: [mainnet[0]],
-                });
-                this.allStateTreeInfos = info;
-            } catch {
-                info = await getActiveStateTreeInfos({
+                return await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLUTPairs: [devnet[0]],
                 });
-                this.allStateTreeInfos = info;
+            } catch (devnetError) {
+                throw new Error(
+                    `Failed to fetch state tree infos from both mainnet and devnet. ` +
+                        `Mainnet error: ${mainnetError}. Devnet error: ${devnetError}`,
+                );
             }
         }
-        if (!this.allStateTreeInfos) {
-            throw new Error(
-                `allStateTreeInfos should not be null ${JSON.stringify(
-                    this.allStateTreeInfos,
-                )}`,
-            );
-        }
-
-        return this.allStateTreeInfos!;
     }
 
     /**
@@ -630,8 +661,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getCachedStateTreeInfos(): Promise<StateTreeInfo[]> {
-        const allCachedStateTreeInfos = await this.getAllCachedStateTreeInfos();
+    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
+        const allCachedStateTreeInfos = await this.getAllStateTreeInfos();
         return allCachedStateTreeInfos.filter(info => !info.nextTreeInfo);
     }
 
@@ -670,7 +701,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return null;
         }
 
-        const activeStateTreeInfo = await this.getCachedStateTreeInfos();
+        const activeStateTreeInfo = await this.getStateTreeInfos();
         const stateTreeInfo = getStateTreeInfoByPubkey(
             activeStateTreeInfo,
             res.result.value.tree!,
@@ -774,7 +805,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get proof for compressed account ${hash.toString()}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedStateTreeInfos();
+        const activeStateTreeInfo = await this.getStateTreeInfos();
         const treeInfo = getStateTreeInfoByPubkey(
             activeStateTreeInfo,
             res.result.value.merkleTree!,
@@ -819,7 +850,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get info for compressed accounts ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
             );
         }
-        const activeStateTreeInfo = await this.getCachedStateTreeInfos();
+        const activeStateTreeInfo = await this.getStateTreeInfos();
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map(item => {
             const stateTreeInfo = getStateTreeInfoByPubkey(
@@ -874,7 +905,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        const treeInfos = await this.getCachedStateTreeInfos();
+        const treeInfos = await this.getStateTreeInfos();
         for (const proof of res.result.value) {
             const treeInfo = getStateTreeInfoByPubkey(
                 treeInfos,
@@ -932,7 +963,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             };
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        const activeStateTreeInfo = await this.getCachedStateTreeInfos();
+        const activeStateTreeInfo = await this.getStateTreeInfos();
 
         res.result.value.items.map(item => {
             const stateTreeInfo = getStateTreeInfoByPubkey(
@@ -1190,7 +1221,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             maybeTokenData: TokenData | null;
         }[] = [];
 
-        const activeStateTreeInfo = await this.getCachedStateTreeInfos();
+        const activeStateTreeInfo = await this.getStateTreeInfos();
 
         res.result.compressionInfo.closedAccounts.map(item => {
             closedAccounts.push(

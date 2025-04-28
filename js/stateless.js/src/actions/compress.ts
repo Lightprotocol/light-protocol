@@ -42,7 +42,7 @@ export async function compress(
     const { blockhash } = await rpc.getLatestBlockhash();
 
     if (!outputStateTreeInfo) {
-        const stateTreeInfo = await rpc.getCachedStateTreeInfos();
+        const stateTreeInfo = await rpc.getStateTreeInfos();
         outputStateTreeInfo = selectStateTreeInfo(stateTreeInfo);
     }
 

@@ -107,9 +107,7 @@ describe('transfer', () => {
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
             await createMint(
@@ -292,9 +290,7 @@ describe('e2e transfer with multiple accounts', () => {
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         mint = (
             await createMint(
                 rpc,

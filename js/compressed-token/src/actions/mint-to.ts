@@ -54,7 +54,7 @@ export async function mintTo(
 ): Promise<TransactionSignature> {
     outputStateTreeInfo =
         outputStateTreeInfo ??
-        selectStateTreeInfo(await rpc.getCachedStateTreeInfos());
+        selectStateTreeInfo(await rpc.getStateTreeInfos());
     tokenPoolInfo =
         tokenPoolInfo ??
         selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));

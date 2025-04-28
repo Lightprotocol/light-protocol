@@ -57,9 +57,7 @@ describe('compressSplTokenAccount', () => {
             )
         ).mint;
 
-        stateTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
-        );
+        stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         alice = await newAccountWithLamports(rpc, 1e9);
@@ -293,7 +291,7 @@ describe('compressSplTokenAccount', () => {
 
     it('should fail with invalid state tree', async () => {
         const invalidTreeInfo = selectStateTreeInfo(
-            await rpc.getCachedStateTreeInfos(),
+            await rpc.getStateTreeInfos(),
         );
         invalidTreeInfo.tree = Keypair.generate().publicKey;
 

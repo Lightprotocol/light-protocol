@@ -143,6 +143,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     depth: number;
     log = false;
     allStateTreeInfos: StateTreeInfo[] | null = null;
+    lastStateTreeFetchTime: number | null = null;
+    fetchPromise: Promise<StateTreeInfo[]> | null = null;
+    CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
@@ -182,13 +185,16 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Get the active state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
-    async getAllCachedStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getAllStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
+    }
+    async doFetch(): Promise<StateTreeInfo[]> {
+        throw new Error('doFetch not supported in test-rpc');
     }
     /**
      * Returns local test state trees.
      */
-    async getCachedStateTreeInfos(): Promise<StateTreeInfo[]> {
+    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
     }
 
@@ -287,7 +293,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
         > = new Map();
 
-        const cachedStateTreeInfos = await this.getCachedStateTreeInfos();
+        const cachedStateTreeInfos = await this.getStateTreeInfos();
 
         /// Assign leaves to their respective trees
         for (const event of events) {
