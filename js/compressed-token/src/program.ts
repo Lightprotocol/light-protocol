@@ -52,6 +52,7 @@ import {
     CompressedTokenInstructionDataApprove,
     CompressedTokenInstructionDataRevoke,
     CompressedTokenInstructionDataTransfer,
+    DelegatedTransfer,
     TokenTransferOutputData,
 } from './types';
 import {
@@ -430,6 +431,33 @@ export const parseTokenData = (
     return { mint, currentOwner, delegate };
 };
 
+export const parseMaybeDelegatedTransfer = (
+    inputs: ParsedTokenAccount[],
+    outputs: TokenTransferOutputData[],
+): { delegatedTransfer: DelegatedTransfer | null; authority: PublicKey } => {
+    if (inputs.length < 1)
+        throw new Error('Must supply at least one input token account.');
+
+    const owner = inputs[0].parsed.owner;
+
+    const delegatedAccountsIndex = inputs.findIndex(a => a.parsed.delegate);
+
+    /// Fast path: no delegated account used
+    if (delegatedAccountsIndex === -1)
+        return { delegatedTransfer: null, authority: owner };
+
+    const delegate = inputs[delegatedAccountsIndex].parsed.delegate;
+    const delegateChangeAccountIndex = outputs.length <= 1 ? null : 0;
+
+    return {
+        delegatedTransfer: {
+            owner,
+            delegateChangeAccountIndex,
+        },
+        authority: delegate!,
+    };
+};
+
 /**
  * Create the output state for a transfer transaction.
  * @param inputCompressedTokenAccounts  Input state
@@ -797,14 +825,17 @@ export class CompressedTokenProgram {
             tokenTransferOutputs,
         });
 
-        const { mint, currentOwner } = parseTokenData(
+        const { mint } = parseTokenData(inputCompressedTokenAccounts);
+
+        const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
             inputCompressedTokenAccounts,
+            tokenTransferOutputs,
         );
 
         const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            delegatedTransfer: null, // TODO: implement
+            delegatedTransfer,
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: null,
@@ -822,7 +853,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
         const keys = transferAccountsLayout({
             feePayer: payer,
-            authority: currentOwner,
+            authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: registeredProgramPda,
@@ -1037,11 +1068,15 @@ export class CompressedTokenProgram {
         const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );
+        // const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
+        //     inputCompressedTokenAccounts,
+        //     tokenTransferOutputs,
+        // );
 
         const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            delegatedTransfer: null, // TODO: implement
+            delegatedTransfer: null,
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: amount,

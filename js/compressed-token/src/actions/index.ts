@@ -10,3 +10,4 @@ export * from './merge-token-accounts';
 export * from './mint-to';
 export * from './revoke';
 export * from './transfer';
+export * from './transfer-delegated';

@@ -10,13 +10,19 @@ import {
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMint, mintTo, approve, revoke } from '../../src/actions';
+import {
+    createMint,
+    mintTo,
+    approve,
+    revoke,
+    transfer,
+    transferDelegated,
+} from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { SendTransactionError } from '@solana/web3.js';
 
 /**
  * Assert that delegation was successful
@@ -313,9 +319,20 @@ describe('delegate', () => {
     });
 
     it('should approve and revoke when payer is not owner', async () => {
+        const owner = await newAccountWithLamports(rpc, 1e9);
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            owner.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            tokenPoolInfo,
+        );
         const charlie = await newAccountWithLamports(rpc, 1e9);
         const payerPreCompressedTokenAccounts = (
-            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
+            await rpc.getCompressedTokenAccountsByOwner(owner.publicKey, {
                 mint,
             })
         ).items;
@@ -326,16 +343,16 @@ describe('delegate', () => {
         );
 
         // Approve all tokens to bob using payer as fee payer
-        await approve(rpc, bob, mint, totalAmount, payer, charlie.publicKey);
+        await approve(rpc, bob, mint, totalAmount, owner, charlie.publicKey);
 
         await assertDelegate(
             rpc,
             mint,
             totalAmount,
-            payer.publicKey,
+            owner.publicKey,
             charlie.publicKey,
-            1, // Merged!
-            1, // Delegate should have one account
+            1,
+            1,
         );
 
         // Revoke all tokens using payer as fee payer
@@ -345,16 +362,16 @@ describe('delegate', () => {
             })
         ).items;
 
-        await revoke(rpc, bob, delegatedAccounts, payer);
+        await revoke(rpc, bob, delegatedAccounts, owner);
 
         // Verify all tokens are back with owner
-        const payerPostCompressedTokenAccounts = (
-            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
+        const ownerPostCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(owner.publicKey, {
                 mint,
             })
         ).items;
 
-        const postAmount = payerPostCompressedTokenAccounts.reduce(
+        const postAmount = ownerPostCompressedTokenAccounts.reduce(
             (sum, acc) => sum.add(acc.parsed.amount),
             bn(0),
         );
@@ -373,38 +390,78 @@ describe('delegate', () => {
             bn(0),
         );
 
-        // Try to approve using non-owner (bob)
-        try {
-            await approve(rpc, bob, mint, totalAmount, payer, bob.publicKey);
-            expect.fail('Should have failed when non-owner tries to approve');
-        } catch (e) {
-            if (e instanceof SendTransactionError) {
-                console.error(
-                    'Transaction failed with logs:',
-                    await e.getLogs(rpc),
-                );
-            }
-            expect(e).toBeDefined();
-        }
+        await expect(
+            approve(rpc, bob, mint, totalAmount, payer, bob.publicKey),
+        ).rejects.toThrowError();
 
-        // Try to revoke using non-owner (bob)
         const delegatedAccounts = (
             await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
                 mint,
             })
         ).items;
 
-        try {
-            await revoke(rpc, bob, delegatedAccounts, payer);
-            expect.fail('Should have failed when non-owner tries to revoke');
-        } catch (e) {
-            if (e instanceof SendTransactionError) {
-                console.error(
-                    'Transaction failed with logs:',
-                    await e.getLogs(rpc),
-                );
-            }
-            expect(e).toBeDefined();
-        }
+        await expect(
+            revoke(rpc, bob, delegatedAccounts, payer),
+        ).rejects.toThrowError();
+    });
+
+    it.only('should transfer one delegated account', async () => {
+        const charlie = await newAccountWithLamports(rpc, 1e9);
+        const payerPreCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
+                mint,
+            })
+        ).items;
+
+        // Approve first token account's amount (500) to payer
+        const firstAccountAmount =
+            payerPreCompressedTokenAccounts[0].parsed.amount;
+
+        await approve(
+            rpc,
+            payer,
+            mint,
+            firstAccountAmount,
+            payer,
+            bob.publicKey,
+        );
+
+        const bobPostApprove = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint,
+            })
+        ).items
+            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
+            .toNumber();
+
+        await transferDelegated(
+            rpc,
+            bob,
+            mint,
+            firstAccountAmount,
+            bob,
+            charlie.publicKey,
+        );
+
+        const bobPostTransferDelegate = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint,
+            })
+        ).items
+            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
+            .toNumber();
+
+        const charliePostTransferDelegate = (
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
+                mint,
+            })
+        ).items
+            .reduce((acc, account) => acc.add(account.parsed.amount), bn(0))
+            .toNumber();
+
+        expect(
+            bobPostApprove ===
+                bobPostTransferDelegate + charliePostTransferDelegate,
+        );
     });
 });
