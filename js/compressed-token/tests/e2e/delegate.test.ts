@@ -405,7 +405,7 @@ describe('delegate', () => {
         ).rejects.toThrowError();
     });
 
-    it.only('should transfer one delegated account', async () => {
+    it('should transfer one delegated account', async () => {
         const charlie = await newAccountWithLamports(rpc, 1e9);
         const payerPreCompressedTokenAccounts = (
             await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
