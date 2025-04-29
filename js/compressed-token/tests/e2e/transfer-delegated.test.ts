@@ -26,7 +26,8 @@ import {
 const assertPostTransfer = async (
     rpc: Rpc,
     refMint: PublicKey,
-    refAmount: BN,
+    refAmountDelegated: BN,
+    refAmountTransferred: BN,
     refOwner: PublicKey,
     refDelegate: PublicKey,
     refRecipient: PublicKey,
@@ -66,35 +67,41 @@ const assertPostTransfer = async (
         console.error(`  Actual:   ${actual.toString()}`);
     };
 
-    const totalAmount = postTransferDelegateAmount
-        .add(postTransferOwnerAmount)
-        .add(postTransferRecipientAmount);
-    if (!totalAmount.eq(refAmount)) {
-        logError('Total amount', refAmount, totalAmount);
+    const totalAmount = postTransferDelegateAmount.add(
+        postTransferRecipientAmount,
+    );
+    if (!totalAmount.eq(refAmountDelegated)) {
+        logError('Total amount', refAmountDelegated, totalAmount);
     }
-    expect(totalAmount.eq(refAmount)).toBe(true);
+    expect(totalAmount.eq(refAmountDelegated)).toBe(true);
 
     const preDelegateTotal = preDelegateAccounts.reduce(
         (acc, account) => acc.add(account.parsed.amount),
         bn(0),
     );
-    if (!preDelegateTotal.eq(postTransferDelegateAmount)) {
+    if (
+        !preDelegateTotal.eq(
+            postTransferDelegateAmount.add(refAmountTransferred),
+        )
+    ) {
         logError(
             'Delegate amount',
             preDelegateTotal,
-            postTransferDelegateAmount,
+            postTransferDelegateAmount.add(refAmountTransferred),
         );
     }
-    expect(preDelegateTotal.eq(postTransferDelegateAmount.add(refAmount))).toBe(
-        true,
-    );
+    expect(
+        preDelegateTotal.eq(
+            postTransferDelegateAmount.add(refAmountTransferred),
+        ),
+    ).toBe(true);
 
     // pre owner amount - ref amount = post owner amount
     const preOwnerTotal = preOwnerAccounts.reduce(
         (acc, account) => acc.add(account.parsed.amount),
         bn(0),
     );
-    const expectedOwnerAmount = preOwnerTotal.sub(refAmount);
+    const expectedOwnerAmount = preOwnerTotal.sub(refAmountTransferred);
     if (!expectedOwnerAmount.eq(postTransferOwnerAmount)) {
         logError('Owner amount', expectedOwnerAmount, postTransferOwnerAmount);
     }
@@ -104,7 +111,7 @@ const assertPostTransfer = async (
         (acc, account) => acc.add(account.parsed.amount),
         bn(0),
     );
-    const expectedRecipientAmount = preRecipientTotal.add(refAmount);
+    const expectedRecipientAmount = preRecipientTotal.add(refAmountTransferred);
     if (!expectedRecipientAmount.eq(postTransferRecipientAmount)) {
         logError(
             'Recipient amount',
@@ -224,6 +231,7 @@ describe('transferDelegated', () => {
             rpc,
             mint,
             bn(1000),
+            bn(1000),
             payer.publicKey,
             bob.publicKey,
             charlie.publicKey,
@@ -233,6 +241,171 @@ describe('transferDelegated', () => {
             0,
             0,
             1,
+        );
+    });
+
+    it('should transfer using two delegated accounts', async () => {
+        const newMintKeypair = Keypair.generate();
+        const newMint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                newMintKeypair,
+            )
+        ).mint;
+
+        const newTokenPoolInfo = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, newMint),
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            newMint,
+            payer.publicKey,
+            mintAuthority,
+            bn(500),
+            stateTreeInfo,
+            newTokenPoolInfo,
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            newMint,
+            payer.publicKey,
+            mintAuthority,
+            bn(600),
+            stateTreeInfo,
+            newTokenPoolInfo,
+        );
+
+        await approve(rpc, payer, newMint, 1100, payer, bob.publicKey);
+
+        const dave = await newAccountWithLamports(rpc, 1e9);
+        const payerPreCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
+        await transferDelegated(rpc, bob, newMint, 1100, bob, dave.publicKey);
+
+        await assertPostTransfer(
+            rpc,
+            newMint,
+            bn(1100),
+            bn(1100),
+            payer.publicKey,
+            bob.publicKey,
+            dave.publicKey,
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
+            [],
+            0,
+            0,
+            1,
+        );
+    });
+
+    let newMint: PublicKey;
+    let eve: Signer;
+    it('should transfer a partial amount leaving a remainder', async () => {
+        const newMintKeypair = Keypair.generate();
+        newMint = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+                newMintKeypair,
+            )
+        ).mint;
+
+        const newTokenPoolInfo = selectTokenPoolInfo(
+            await getTokenPoolInfos(rpc, newMint),
+        );
+
+        await mintTo(
+            rpc,
+            payer,
+            newMint,
+            payer.publicKey,
+            mintAuthority,
+            bn(1000),
+            stateTreeInfo,
+            newTokenPoolInfo,
+        );
+
+        await approve(rpc, payer, newMint, 1000, payer, bob.publicKey);
+
+        eve = await newAccountWithLamports(rpc, 1e9);
+        const payerPreCompressedTokenAccounts = (
+            await rpc.getCompressedTokenAccountsByOwner(payer.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
+        const preDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
+        const transferAmount = 600;
+        await transferDelegated(
+            rpc,
+            bob,
+            newMint,
+            transferAmount,
+            bob,
+            eve.publicKey,
+        );
+
+        await assertPostTransfer(
+            rpc,
+            newMint,
+            bn(1000),
+            bn(600),
+            payer.publicKey,
+            bob.publicKey,
+            eve.publicKey,
+            payerPreCompressedTokenAccounts,
+            preDelegateAccounts,
+            [],
+            1,
+            1,
+            1,
+        );
+
+        const postDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
+        const remainingDelegatedAmount = postDelegateAccounts.reduce(
+            (acc, account) => acc.add(account.parsed.amount),
+            bn(0),
+        );
+
+        expect(remainingDelegatedAmount.eq(bn(400))).toBe(true);
+    });
+
+    it('should fail to transfer more than the remaining delegated amount', async () => {
+        // Try to transfer more than the remaining delegated amount
+        await expect(
+            transferDelegated(rpc, bob, newMint, 500, bob, eve.publicKey),
+        ).rejects.toThrowError(
+            'Insufficient balance for transfer. Required: 500, available: 400.',
         );
     });
 });
