@@ -656,6 +656,7 @@ pub async fn compressed_transfer_22_test<
         None,
         token_22,
         &[],
+        false,
     )
     .unwrap();
     let sum_input_lamports = input_compressed_accounts
@@ -824,6 +825,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
             .clone()
             .unwrap_or_default()
             .as_slice(),
+        false,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -1069,6 +1071,7 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R> + TestIndexerExtensio
         None,
         is_token_22,
         additional_pool_accounts.unwrap_or_default().as_slice(),
+        false,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];

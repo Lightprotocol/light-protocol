@@ -735,6 +735,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         None,
         false,
         &[],
+        false,
     )
     .unwrap();
     println!(

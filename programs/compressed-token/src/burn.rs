@@ -54,6 +54,7 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts,
         compressed_input_accounts,
         output_compressed_accounts,
+        false,
         proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),

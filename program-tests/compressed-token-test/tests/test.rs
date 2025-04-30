@@ -1197,7 +1197,7 @@ async fn test_mint_to_failing() {
             println!(
                 "result
                 .to_string() {}",
-                result.to_string()
+                result
             );
             assert!(result
                 .to_string()
@@ -4849,6 +4849,7 @@ pub async fn failing_compress_decompress<
         None,
         is_token_22,
         &additional_token_pools.unwrap_or_default(),
+        false,
     )
     .unwrap();
     let instructions = if !is_compress {
@@ -5338,6 +5339,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         None,
         false,
         &[],
+        false,
     )
     .unwrap();
 
@@ -5385,14 +5387,6 @@ async fn mint_with_batched_tree() {
 #[serial]
 #[tokio::test]
 async fn test_transfer_with_batched_tree() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
-    .await;
     let possible_inputs = [1];
     for input_num in possible_inputs {
         for output_num in 1..2 {
@@ -5405,6 +5399,97 @@ async fn test_transfer_with_batched_tree() {
                 input_num, output_num
             );
             perform_transfer_22_test(input_num, output_num, 10_000, false, false, true).await
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_transfer_with_transaction_hash() {
+    for with_transaction_hash in [true, false] {
+        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let payer = rpc.get_payer().insecure_clone();
+        let queue_pubkey = env.batched_output_queue;
+        let mut test_indexer =
+            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let recipient_keypair = Keypair::new();
+        airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
+            .await
+            .unwrap();
+        let mint = create_mint_helper(&mut rpc, &payer).await;
+        let amount = 10000u64;
+        mint_tokens_helper(
+            &mut rpc,
+            &mut test_indexer,
+            &queue_pubkey,
+            &payer,
+            &mint,
+            vec![amount],
+            vec![recipient_keypair.pubkey()],
+        )
+        .await;
+        {
+            let payer = recipient_keypair.insecure_clone();
+            let input_compressed_account_token_data =
+                test_indexer.token_compressed_accounts[0].token_data.clone();
+            let input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0].clone()];
+
+            let change_out_compressed_account_0 = TokenTransferOutputData {
+                amount: input_compressed_account_token_data.amount,
+                owner: recipient_keypair.pubkey(),
+                lamports: None,
+                merkle_tree: queue_pubkey,
+            };
+
+            let instruction = create_transfer_instruction(
+                &payer.pubkey(),
+                &payer.pubkey(),
+                &input_compressed_accounts
+                    .iter()
+                    .map(|x| x.compressed_account.merkle_context)
+                    .collect::<Vec<_>>(),
+                &[change_out_compressed_account_0],
+                &[None],
+                &None,
+                input_compressed_accounts
+                    .iter()
+                    .map(|x| x.token_data.clone())
+                    .map(sdk_to_program_token_data)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+                &input_compressed_accounts
+                    .iter()
+                    .map(|x| &x.compressed_account.compressed_account)
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                mint,
+                None,
+                false,
+                None,
+                None,
+                None,
+                true,
+                None,
+                None,
+                false,
+                &[],
+                with_transaction_hash,
+            )
+            .unwrap();
+            let (result, _, _) = rpc
+                .create_and_send_transaction_with_batched_event(
+                    &[instruction],
+                    &payer.pubkey(),
+                    &[&payer],
+                    None,
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            if with_transaction_hash {
+                assert_ne!(result[0].tx_hash, [0u8; 32]);
+            } else {
+                assert_eq!(result[0].tx_hash, [0u8; 32]);
+            }
         }
     }
 }
@@ -5598,17 +5683,17 @@ async fn batch_compress_with_batched_tree() {
             .unwrap();
         test_indexer.add_compressed_accounts_with_token_data(slot, &event);
 
-        for i in 0..(num_recipients as usize) {
+        for i in 0..num_recipients {
             let recipient_compressed_token_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&recipients[i], None)
+                .get_compressed_token_accounts_by_owner(&recipients[i as usize], None)
                 .await
                 .unwrap();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
             let expected_token_data = light_sdk::token::TokenData {
                 mint,
-                owner: recipients[i],
-                amount: (i + 1) as u64,
+                owner: recipients[i as usize],
+                amount: (i + 1),
                 delegate: None,
                 state: AccountState::Initialized,
                 tlv: None,
@@ -5662,7 +5747,7 @@ async fn batch_compress_with_batched_tree() {
             .unwrap();
         test_indexer.add_compressed_accounts_with_token_data(slot, &event);
 
-        for i in 0..(num_recipients as usize) {
+        for i in 0..num_recipients {
             let recipient_compressed_token_accounts = test_indexer
                 .get_compressed_token_accounts_by_owner(&recipients[i], None)
                 .await
@@ -5672,7 +5757,7 @@ async fn batch_compress_with_batched_tree() {
             let expected_token_data = light_sdk::token::TokenData {
                 mint,
                 owner: recipients[i],
-                amount: amount as u64,
+                amount,
                 delegate: None,
                 state: AccountState::Initialized,
                 tlv: None,

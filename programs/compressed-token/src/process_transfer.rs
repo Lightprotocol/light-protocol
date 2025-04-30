@@ -168,6 +168,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts,
         compressed_input_accounts,
         output_compressed_accounts,
+        inputs.with_transaction_hash,
         inputs.proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -390,6 +391,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
     ctx: &A,
     input_compressed_accounts: Vec<InAccount>,
     output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+    with_transaction_hash: bool,
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
     cpi_authority_pda: AccountInfo<'info>,
@@ -416,7 +418,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
         invoking_program_id: crate::ID.into(),
         with_cpi_context: cpi_context.is_some(),
         cpi_context: cpi_context.unwrap_or_default(),
-        with_transaction_hash: false,
+        with_transaction_hash,
         read_only_accounts: Vec::new(),
         read_only_addresses: Vec::new(),
         input_compressed_accounts,
@@ -611,6 +613,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub lamports_change_account_merkle_tree_index: Option<u8>,
+    pub with_transaction_hash: bool,
 }
 
 pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
@@ -769,6 +772,7 @@ pub mod transfer_sdk {
         lamports_change_account_merkle_tree: Option<Pubkey>,
         is_token_22: bool,
         additional_token_pools: &[Pubkey],
+        with_transaction_hash: bool,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
@@ -784,6 +788,7 @@ pub mod transfer_sdk {
             delegate_change_account_index,
             lamports_change_account_merkle_tree,
             additional_token_pools,
+            with_transaction_hash,
         );
         if sort {
             inputs_struct
@@ -887,6 +892,7 @@ pub mod transfer_sdk {
                 delegate_change_account_index,
                 lamports_change_account_merkle_tree,
                 &[],
+                false,
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
@@ -906,6 +912,7 @@ pub mod transfer_sdk {
         delegate_change_account_index: Option<u8>,
         lamports_change_account_merkle_tree: Option<Pubkey>,
         accounts: &[Pubkey],
+        with_transaction_hash: bool,
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
@@ -959,6 +966,7 @@ pub mod transfer_sdk {
             compress_or_decompress_amount,
             cpi_context: None,
             lamports_change_account_merkle_tree_index,
+            with_transaction_hash,
         };
 
         (remaining_accounts, inputs_struct)

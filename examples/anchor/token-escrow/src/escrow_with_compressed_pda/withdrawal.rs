@@ -206,6 +206,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
         compress_or_decompress_amount: None,
         cpi_context: Some(cpi_context),
         lamports_change_account_merkle_tree_index: None,
+        with_transaction_hash: false,
     };
 
     let mut inputs = Vec::new();
