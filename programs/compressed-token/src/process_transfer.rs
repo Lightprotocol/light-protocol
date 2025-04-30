@@ -3,14 +3,13 @@ use anchor_lang::{
     prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize, Discriminator,
 };
 use light_compressed_account::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
-    },
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
     hash_to_bn254_field_size_be,
     instruction_data::{
-        compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
+        compressed_proof::CompressedProof,
+        cpi_context::CompressedCpiContext,
+        data::OutputCompressedAccountWithPackedContext,
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
     pubkey::PubkeyTrait,
 };
@@ -168,7 +167,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
-        &output_compressed_accounts,
+        output_compressed_accounts,
         inputs.proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -303,7 +302,7 @@ pub fn create_output_compressed_accounts(
 /// 2. hashes token data
 /// 3. actual data is not needed for input compressed accounts
 pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
-    input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
+    input_compressed_accounts_with_merkle_context: &mut [InAccount],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
     remaining_accounts: &[AccountInfo<'_>],
@@ -354,30 +353,22 @@ pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         } else {
             None
         };
-        compressed_account_with_context.compressed_account.data = if !FROZEN_INPUTS {
-            Some(CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data: Vec::new(),
-                data_hash: TokenData::hash_with_hashed_values(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount_bytes,
-                    &hashed_delegate,
-                )
-                .map_err(ProgramError::from)?,
-            })
+        compressed_account_with_context.data_hash = if !FROZEN_INPUTS {
+            TokenData::hash_with_hashed_values(
+                hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate,
+            )
+            .map_err(ProgramError::from)?
         } else {
-            Some(CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data: Vec::new(),
-                data_hash: TokenData::hash_frozen_with_hashed_values(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount_bytes,
-                    &hashed_delegate,
-                )
-                .map_err(ProgramError::from)?,
-            })
+            TokenData::hash_frozen_with_hashed_values(
+                hashed_mint,
+                &hashed_owner,
+                &amount_bytes,
+                &hashed_delegate,
+            )
+            .map_err(ProgramError::from)?
         };
     }
     Ok(())
@@ -397,13 +388,13 @@ pub fn cpi_execute_compressed_transaction_transfer<
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
 >(
     ctx: &A,
-    input_compressed_accounts_with_merkle_context: Vec<PackedCompressedAccountWithMerkleContext>,
-    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    input_compressed_accounts: Vec<InAccount>,
+    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
     cpi_authority_pda: AccountInfo<'info>,
-    system_program_account_info: AccountInfo<'info>,
-    invoking_program_account_info: AccountInfo<'info>,
+    _system_program_account_info: AccountInfo<'info>,
+    _invoking_program_account_info: AccountInfo<'info>,
     remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<()> {
     bench_sbf_start!("t_cpi_prep");
@@ -414,42 +405,131 @@ pub fn cpi_execute_compressed_transaction_transfer<
     let cpi_context_account = cpi_context.map(|cpi_context| {
         remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
-    let inputs_struct = InstructionDataInvokeCpi {
-        relay_fee: None,
-        input_compressed_accounts_with_merkle_context,
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
+
+    #[cfg(not(feature = "cpi-without-program-ids"))]
+    let mode = 0;
+    #[cfg(feature = "cpi-without-program-ids")]
+    let mode = 1;
+    let inputs_struct = InstructionDataInvokeCpiWithReadOnly {
+        mode,
+        bump: BUMP_CPI_AUTHORITY,
+        invoking_program_id: crate::ID.into(),
+        with_cpi_context: cpi_context.is_some(),
+        cpi_context: cpi_context.unwrap_or_default(),
+        with_transaction_hash: false,
+        read_only_accounts: Vec::new(),
+        read_only_addresses: Vec::new(),
+        input_compressed_accounts,
+        output_compressed_accounts,
         proof,
         new_address_params: Vec::new(),
-        compress_or_decompress_lamports: None,
+        compress_or_decompress_lamports: 0,
         is_compress: false,
-        cpi_context,
     };
     let mut inputs = Vec::new();
-    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).map_err(ProgramError::from)?;
+    InstructionDataInvokeCpiWithReadOnly::serialize(&inputs_struct, &mut inputs)
+        .map_err(ProgramError::from)?;
 
-    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
-        fee_payer: ctx.get_fee_payer().to_account_info(),
-        authority: cpi_authority_pda,
-        registered_program_pda: ctx.get_registered_program_pda().to_account_info(),
-        noop_program: ctx.get_noop_program().to_account_info(),
-        account_compression_authority: ctx.get_account_compression_authority().to_account_info(),
-        account_compression_program: ctx.get_account_compression_program().to_account_info(),
-        invoking_program: invoking_program_account_info,
-        system_program: ctx.get_system_program().to_account_info(),
-        sol_pool_pda: None,
-        decompression_recipient: None,
-        cpi_context_account,
-    };
-    let mut cpi_ctx =
-        CpiContext::new_with_signer(system_program_account_info, cpi_accounts, signer_seeds_ref);
+    #[cfg(not(feature = "cpi-without-program-ids"))]
+    {
+        let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+            fee_payer: ctx.get_fee_payer().to_account_info(),
+            authority: cpi_authority_pda,
+            registered_program_pda: ctx.get_registered_program_pda().to_account_info(),
+            noop_program: ctx.get_noop_program().to_account_info(),
+            account_compression_authority: ctx
+                .get_account_compression_authority()
+                .to_account_info(),
+            account_compression_program: ctx.get_account_compression_program().to_account_info(),
+            invoking_program: _invoking_program_account_info,
+            system_program: ctx.get_system_program().to_account_info(),
+            sol_pool_pda: None,
+            decompression_recipient: None,
+            cpi_context_account,
+        };
+        let mut cpi_ctx = CpiContext::new_with_signer(
+            _system_program_account_info,
+            cpi_accounts,
+            signer_seeds_ref,
+        );
 
-    cpi_ctx.remaining_accounts = remaining_accounts.to_vec();
-    bench_sbf_end!("t_cpi_prep");
+        cpi_ctx.remaining_accounts = remaining_accounts.to_vec();
+        bench_sbf_end!("t_cpi_prep");
 
-    bench_sbf_start!("t_invoke_cpi");
-    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
-    bench_sbf_end!("t_invoke_cpi");
+        bench_sbf_start!("t_invoke_cpi");
+        light_system_program::cpi::invoke_cpi_with_read_only(cpi_ctx, inputs)?;
+        bench_sbf_end!("t_invoke_cpi");
+    }
+    #[cfg(feature = "cpi-without-program-ids")]
+    {
+        let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+        data.extend_from_slice(
+            &light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
+        );
+        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+        data.extend(inputs);
 
+        let accounts_len = 4 + remaining_accounts.len() + cpi_context.is_some() as usize;
+        let mut account_infos = Vec::with_capacity(accounts_len);
+        let mut account_metas = Vec::with_capacity(accounts_len);
+        account_infos.push(ctx.get_fee_payer().to_account_info());
+        account_infos.push(cpi_authority_pda);
+        account_infos.push(ctx.get_registered_program_pda().to_account_info());
+        account_infos.push(ctx.get_account_compression_authority().to_account_info());
+
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[0].key(),
+            is_signer: true,
+            is_writable: true,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[1].key(),
+            is_signer: true,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[2].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_metas.push(AccountMeta {
+            pubkey: account_infos[3].key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        let mut index = 4;
+
+        if let Some(account_info) = cpi_context_account {
+            account_infos.push(account_info);
+            account_metas.push(AccountMeta {
+                pubkey: account_infos[index].key(),
+                is_signer: false,
+                is_writable: true,
+            });
+            index += 1;
+        }
+        for account_info in remaining_accounts {
+            account_infos.push(account_info.clone());
+            account_metas.push(AccountMeta {
+                pubkey: account_infos[index].key(),
+                is_signer: false,
+                is_writable: account_infos[index].is_writable,
+            });
+            index += 1;
+        }
+
+        let instruction = anchor_lang::solana_program::instruction::Instruction {
+            program_id: light_system_program::ID,
+            accounts: account_metas,
+            data,
+        };
+
+        anchor_lang::solana_program::program::invoke_signed(
+            &instruction,
+            account_infos.as_slice(),
+            signer_seeds_ref.as_slice(),
+        )?;
+    }
     Ok(())
 }
 
@@ -539,20 +619,13 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     remaining_accounts: &[AccountInfo<'_>],
     input_token_data_with_context: &[InputTokenDataWithContext],
     mint: &Pubkey,
-) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
-    Vec<TokenData>,
-    u64,
-)> {
+) -> Result<(Vec<InAccount>, Vec<TokenData>, u64)> {
     // Collect the total number of lamports to check whether inputs and outputs
     // are unbalanced. If unbalanced create a non token compressed change
     // account owner by the sender.
     let mut sum_lamports = 0;
-    let mut input_compressed_accounts_with_merkle_context: Vec<
-        PackedCompressedAccountWithMerkleContext,
-    > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
-        input_token_data_with_context.len(),
-    );
+    let mut input_compressed_accounts_with_merkle_context: Vec<InAccount> =
+        Vec::<InAccount>::with_capacity(input_token_data_with_context.len());
     let mut input_token_data_vec: Vec<TokenData> =
         Vec::with_capacity(input_token_data_with_context.len());
 
@@ -583,10 +656,12 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             return err!(ErrorCode::DelegateSignerCheckFailed);
         }
 
-        let compressed_account = CompressedAccount {
-            owner: crate::ID,
+        let compressed_account = InAccount {
             lamports: input_token_data.lamports.unwrap_or_default(),
-            data: None,
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            merkle_context: input_token_data.merkle_context,
+            root_index: input_token_data.root_index,
+            data_hash: [0u8; 32],
             address: None,
         };
         sum_lamports += compressed_account.lamports;
@@ -609,14 +684,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
             tlv: None,
         };
         input_token_data_vec.push(token_data);
-        input_compressed_accounts_with_merkle_context.push(
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account,
-                merkle_context: input_token_data.merkle_context,
-                root_index: input_token_data.root_index,
-                read_only: false,
-            },
-        );
+        input_compressed_accounts_with_merkle_context.push(compressed_account);
     }
     Ok((
         input_compressed_accounts_with_merkle_context,

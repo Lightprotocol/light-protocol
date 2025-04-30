@@ -21,6 +21,7 @@ test-sbf = []
 bench-sbf = []
 cpi-context = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+cpi-without-program-ids = []
 
 [dependencies]
 anchor-lang = { workspace = true }

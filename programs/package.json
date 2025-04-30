@@ -4,6 +4,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "build": "cd system/ && cargo build-sbf && cd ..  && cd  account-compression/ && cargo build-sbf && cd .. && cd  registry/ && cargo build-sbf && cd .. && cd compressed-token/ && cargo build-sbf && cd ..",
+    "build-compressed-token-small": "cd compressed-token/ && cargo build-sbf --features cpi-without-program-ids && cd ..",
     "build-system": "anchor build --program-name light_system_program -- --features idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features idl-build custom-heap",
     "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-account-compression &&  pnpm test-compressed-token && pnpm e2e-test && pnpm test-registry && pnpm sdk-test-program && pnpm test-system && pnpm test-system-cpi",

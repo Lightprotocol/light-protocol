@@ -34,7 +34,7 @@ jobs:
         include:
           - program: token-escrow-test
             sub-tests: '[
-              "cargo test-sbf -p token-escrow -- --test-threads=1"
+              "cargo test-sbf -p token-escrow"
             ]'
           - program: counter-test
             sub-tests: '["cargo test-sbf -p counter"]'

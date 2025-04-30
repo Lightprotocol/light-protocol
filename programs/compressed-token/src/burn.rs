@@ -1,11 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 use light_compressed_account::{
-    compressed_account::PackedCompressedAccountWithMerkleContext,
     hash_to_bn254_field_size_be,
     instruction_data::{
         compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-        data::OutputCompressedAccountWithPackedContext,
+        data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
 
@@ -54,7 +53,7 @@ pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
     cpi_execute_compressed_transaction_transfer(
         ctx.accounts,
         compressed_input_accounts,
-        &output_compressed_accounts,
+        output_compressed_accounts,
         proof,
         inputs.cpi_context,
         ctx.accounts.cpi_authority_pda.to_account_info(),
@@ -122,7 +121,7 @@ pub fn create_input_and_output_accounts_burn(
     remaining_accounts: &[AccountInfo<'_>],
     mint: &Pubkey,
 ) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
+    Vec<InAccount>,
     Vec<OutputCompressedAccountWithPackedContext>,
 )> {
     let (mut compressed_input_accounts, input_token_data, sum_lamports) =
