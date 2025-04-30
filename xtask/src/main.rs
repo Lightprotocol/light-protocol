@@ -3,6 +3,7 @@ use clap::{Parser, ValueEnum};
 mod bench;
 mod create_batch_state_tree;
 mod create_state_tree;
+mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
 mod export_photon_test_data;
 mod fee;
@@ -52,6 +53,8 @@ enum Command {
     /// cargo xtask init-new-deployment --keypairs ../light-keypairs --network local --num-foresters 3
     /// Requires program ids to be changed manually in programs.
     InitNewDeployment(new_deployment::Options),
+    /// cargo xtask create-update-protocol-config --slot-length <u64>
+    CreateUpdateProtocolConfigIx(create_update_protocol_config_ix::Options),
 }
 
 #[tokio::main]
@@ -78,5 +81,8 @@ async fn main() -> Result<(), anyhow::Error> {
             create_batch_state_tree::create_batch_state_tree(opts).await
         }
         Command::InitNewDeployment(opts) => new_deployment::init_new_deployment(opts).await,
+        Command::CreateUpdateProtocolConfigIx(opts) => {
+            create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
+        }
     }
 }
