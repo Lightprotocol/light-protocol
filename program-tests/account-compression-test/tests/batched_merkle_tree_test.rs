@@ -4,10 +4,7 @@ use account_compression::{errors::AccountCompressionErrorCode, ID};
 use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
 };
-use anchor_spl::{
-    token::Mint,
-    token_2022::spl_token_2022::extension::default_account_state::instruction::decode_instruction,
-};
+use anchor_spl::token::Mint;
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
