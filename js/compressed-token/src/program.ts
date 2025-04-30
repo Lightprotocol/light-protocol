@@ -1065,18 +1065,16 @@ export class CompressedTokenProgram {
             tokenTransferOutputs: tokenTransferOutputs,
         });
 
-        const { mint, currentOwner } = parseTokenData(
+        const { mint } = parseTokenData(inputCompressedTokenAccounts);
+        const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
             inputCompressedTokenAccounts,
+            tokenTransferOutputs,
         );
-        // const { delegatedTransfer, authority } = parseMaybeDelegatedTransfer(
-        //     inputCompressedTokenAccounts,
-        //     tokenTransferOutputs,
-        // );
 
         const rawData: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            delegatedTransfer: null,
+            delegatedTransfer,
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: amount,
@@ -1096,7 +1094,7 @@ export class CompressedTokenProgram {
 
         const keys = transferAccountsLayout({
             feePayer: payer,
-            authority: currentOwner,
+            authority: authority,
             cpiAuthorityPda: this.deriveCpiAuthorityPda,
             lightSystemProgram: LightSystemProgram.programId,
             registeredProgramPda: registeredProgramPda,

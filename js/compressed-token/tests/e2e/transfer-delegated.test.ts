@@ -370,6 +370,12 @@ describe('transferDelegated', () => {
             eve.publicKey,
         );
 
+        const postDelegateAccounts = (
+            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
+                mint: newMint,
+            })
+        ).items;
+
         await assertPostTransfer(
             rpc,
             newMint,
@@ -385,12 +391,6 @@ describe('transferDelegated', () => {
             1,
             1,
         );
-
-        const postDelegateAccounts = (
-            await rpc.getCompressedTokenAccountsByDelegate(bob.publicKey, {
-                mint: newMint,
-            })
-        ).items;
 
         const remainingDelegatedAmount = postDelegateAccounts.reduce(
             (acc, account) => acc.add(account.parsed.amount),
