@@ -135,7 +135,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     if !compressed_input_accounts.is_empty() {
-        add_token_data_to_input_compressed_accounts::<false>(
+        add_data_hash_to_input_compressed_accounts::<false>(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
             &hashed_mint,
@@ -298,10 +298,11 @@ pub fn create_output_compressed_accounts(
     Ok(sum_lamports)
 }
 
-/// Create output compressed accounts
+/// Create input compressed account data hash
 /// 1. enforces discriminator
 /// 2. hashes token data
-pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
+/// 3. actual data is not needed for input compressed accounts
+pub fn add_data_hash_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
@@ -312,8 +313,6 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         .enumerate()
     {
         let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes());
-        let mut data = Vec::new();
-        input_token_data[i].serialize(&mut data)?;
 
         let mut amount_bytes = [0u8; 32];
         let discriminator_bytes = &remaining_accounts[compressed_account_with_context
@@ -358,7 +357,7 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         compressed_account_with_context.compressed_account.data = if !FROZEN_INPUTS {
             Some(CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data,
+                data: Vec::new(),
                 data_hash: TokenData::hash_with_hashed_values(
                     hashed_mint,
                     &hashed_owner,
@@ -370,7 +369,7 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         } else {
             Some(CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data,
+                data: Vec::new(),
                 data_hash: TokenData::hash_frozen_with_hashed_values(
                     hashed_mint,
                     &hashed_owner,

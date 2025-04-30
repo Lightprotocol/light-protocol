@@ -14,7 +14,7 @@ use light_compressed_account::{
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     process_transfer::{
-        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
         InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
     },
@@ -112,7 +112,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut output_compressed_accounts,
     )?;
 
-    add_token_data_to_input_compressed_accounts::<FROZEN_INPUTS>(
+    add_data_hash_to_input_compressed_accounts::<FROZEN_INPUTS>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,

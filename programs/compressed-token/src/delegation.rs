@@ -11,7 +11,7 @@ use light_compressed_account::{
 use crate::{
     constants::NOT_FROZEN,
     process_transfer::{
-        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         create_output_compressed_accounts,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
         InputTokenDataWithContext,
@@ -159,7 +159,7 @@ pub fn create_input_and_output_accounts_approve(
         &merkle_tree_indices,
         remaining_accounts,
     )?;
-    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
+    add_data_hash_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -249,7 +249,7 @@ pub fn create_input_and_output_accounts_revoke(
         &[inputs.output_account_merkle_tree_index],
         remaining_accounts,
     )?;
-    add_token_data_to_input_compressed_accounts::<NOT_FROZEN>(
+    add_data_hash_to_input_compressed_accounts::<NOT_FROZEN>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
