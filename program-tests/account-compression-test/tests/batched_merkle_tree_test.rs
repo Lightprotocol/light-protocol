@@ -4,7 +4,10 @@ use account_compression::{errors::AccountCompressionErrorCode, ID};
 use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
 };
-use anchor_spl::token::Mint;
+use anchor_spl::{
+    token::Mint,
+    token_2022::spl_token_2022::extension::default_account_state::instruction::decode_instruction,
+};
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::{
     errors::BatchedMerkleTreeError,
@@ -56,6 +59,7 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
+    system_instruction,
 };
 
 pub enum TestMode {
@@ -1234,7 +1238,7 @@ async fn test_rollover_batch_state_merkle_trees() {
     airdrop_lamports(
         &mut context,
         &nullifier_queue_keypair.pubkey(),
-        100_000_000_000,
+        1000_000_000_000,
     )
     .await
     .unwrap();
@@ -1249,7 +1253,7 @@ async fn test_rollover_batch_state_merkle_trees() {
             &new_output_queue_keypair,
             params.additional_bytes,
             params.network_fee,
-            BatchStateMerkleTreeRollOverTestMode::Functional,
+            BatchStateMerkleTreeRollOverTestMode::FunctionalWithAdditionalLamports,
         )
         .await
         .unwrap();
@@ -1274,6 +1278,7 @@ async fn test_rollover_batch_state_merkle_trees() {
 #[derive(Debug, PartialEq)]
 pub enum BatchStateMerkleTreeRollOverTestMode {
     Functional,
+    FunctionalWithAdditionalLamports,
     InvalidProgramOwnerMerkleTree,
     InvalidProgramOwnerQueue,
     InvalidDiscriminatorMerkleTree,
@@ -1375,9 +1380,21 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     };
+    let mut instructions = vec![create_mt_account_ix, create_queue_account_ix, instruction];
 
+    if test_mode == BatchStateMerkleTreeRollOverTestMode::FunctionalWithAdditionalLamports {
+        // Transfer 100 sol to new state merkle tree account to increase its balance.
+        // Assert that rollover fee is still correct.
+        let additional_lamports = 100_000_000_000;
+        let additional_lamports_instruction = system_instruction::transfer(
+            &payer_pubkey,
+            &new_state_merkle_tree_keypair.pubkey(),
+            additional_lamports,
+        );
+        instructions.insert(2, additional_lamports_instruction);
+    }
     rpc.create_and_send_transaction(
-        &[create_mt_account_ix, create_queue_account_ix, instruction],
+        instructions.as_slice(),
         &payer_pubkey,
         &[
             payer,
