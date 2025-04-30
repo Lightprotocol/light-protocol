@@ -5512,7 +5512,7 @@ async fn test_transfer_with_photon_and_batched_tree() {
 }
 
 /// Test cases:
-/// 1. Functional compress 0 to 26 recipients
+/// 1. Functional compress 1 to 26 recipients
 /// 2. Failing unequal recipients amounts len
 /// 3. Failing insufficient balance
 /// 4. Failing sender account and token pool account with different mint
@@ -5561,7 +5561,7 @@ async fn batch_compress_with_batched_tree() {
     )
     .await
     .unwrap();
-    // 1. Functional compress 0 to 26 recipients
+    // 1. Functional compress 1 to 26 recipients
     for num_recipients in 1..=26 {
         let recipients = (0..num_recipients)
             .map(|_| Pubkey::new_unique())

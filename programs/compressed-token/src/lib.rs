@@ -90,7 +90,7 @@ pub mod light_compressed_token {
         )
     }
 
-    /// Batch compress tokens to a list of compressed accounts.
+    /// Batch compress tokens to an of recipients.
     pub fn batch_compress<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         inputs: Vec<u8>,
