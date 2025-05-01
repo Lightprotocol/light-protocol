@@ -26,7 +26,8 @@ import {
 import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
 
 /**
- * Decompress delegated compressed tokens
+ * Decompress delegated compressed tokens. Remaining compressed tokens are
+ * returned to the owner without delegation.
  *
  * @param rpc                   Rpc to use
  * @param payer                 Payer of the transaction fees
