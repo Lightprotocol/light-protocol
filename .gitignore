@@ -84,3 +84,5 @@ output.txt
 .nx/workspace-data
 output1.txt
 .zed
+
+**/.claude/settings.local.json

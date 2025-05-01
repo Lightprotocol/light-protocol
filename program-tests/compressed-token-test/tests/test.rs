@@ -25,6 +25,7 @@ use light_compressed_token::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
         CreateRevokeInstructionInputs,
     },
+    find_token_pool_pda_with_index,
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda, get_token_pool_pda_with_index,
     mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
@@ -6001,12 +6002,12 @@ pub fn create_batch_compress_instruction(
     mode: BatchCompressTestMode,
     invalid_token_pool: Option<Pubkey>,
 ) -> Instruction {
-    let token_pool_pda = if let Some(invalid_token_pool) = invalid_token_pool {
-        invalid_token_pool
+    let (token_pool_pda, bump) = if let Some(invalid_token_pool) = invalid_token_pool {
+        (invalid_token_pool, 255)
     } else if mode == BatchCompressTestMode::InvalidTokenPoolWithIndex1 {
-        get_token_pool_pda_with_index(mint, 1)
+        find_token_pool_pda_with_index(mint, 1)
     } else {
-        get_token_pool_pda_with_index(mint, token_pool_index)
+        find_token_pool_pda_with_index(mint, token_pool_index)
     };
 
     let instruction_input = BatchCompressInstructionDataBorsh {
@@ -6015,6 +6016,7 @@ pub fn create_batch_compress_instruction(
         pubkeys: public_keys,
         lamports,
         index: token_pool_index,
+        bump,
     };
     let mut bytes = Vec::new();
     instruction_input.serialize(&mut bytes).unwrap();

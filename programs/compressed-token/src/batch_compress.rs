@@ -9,6 +9,7 @@ pub struct BatchCompressInstructionDataBorsh {
     pub lamports: Option<u64>,
     pub amount: Option<u64>,
     pub index: u8,
+    pub bump: u8,
 }
 
 pub struct BatchCompressInstructionData<'a> {
@@ -17,6 +18,7 @@ pub struct BatchCompressInstructionData<'a> {
     pub lamports: Option<Ref<&'a [u8], U64>>,
     pub amount: Option<Ref<&'a [u8], U64>>,
     pub index: u8,
+    pub bump: u8,
 }
 
 impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
@@ -28,6 +30,7 @@ impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
         let (lamports, bytes) = Option::<U64>::zero_copy_at(bytes)?;
         let (amount, bytes) = Option::<U64>::zero_copy_at(bytes)?;
         let (index, bytes) = u8::zero_copy_at(bytes)?;
+        let (bump, bytes) = u8::zero_copy_at(bytes)?;
         Ok((
             Self {
                 pubkeys,
@@ -35,6 +38,7 @@ impl<'a> Deserialize<'a> for BatchCompressInstructionData<'a> {
                 lamports,
                 amount,
                 index,
+                bump,
             },
             bytes,
         ))
@@ -52,6 +56,7 @@ mod test {
             lamports: Some(3),
             amount: Some(1),
             index: 1,
+            bump: 2,
         };
         let mut vec = Vec::new();
         data.serialize(&mut vec).unwrap();
@@ -67,6 +72,7 @@ mod test {
         }
         assert_eq!(decoded_data.index, 1);
         assert_eq!(*decoded_data.amount.unwrap(), data.amount.unwrap());
+        assert_eq!(decoded_data.bump, data.bump);
     }
 
     #[test]
@@ -77,6 +83,7 @@ mod test {
             amount: None,
             lamports: None,
             index: 0,
+            bump: 0,
         };
         let mut vec = Vec::new();
         data.serialize(&mut vec).unwrap();
@@ -92,5 +99,6 @@ mod test {
         }
         assert_eq!(decoded_data.index, 0);
         assert_eq!(decoded_data.amount, None);
+        assert_eq!(decoded_data.bump, data.bump);
     }
 }

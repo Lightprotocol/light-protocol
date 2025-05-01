@@ -41,6 +41,7 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
     amounts: &[impl ZeroCopyNumTrait],
     lamports: Option<u64>,
     index: Option<u8>,
+    bump: Option<u8>,
 ) -> Result<()> {
     if recipient_pubkeys.len() != amounts.len() {
         msg!(
@@ -95,6 +96,7 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
                 &ctx.accounts.token_pool_pda.key(),
                 &mint,
                 index,
+                bump,
             )?;
             spl_token_transfer(
                 ctx.remaining_accounts[0].to_account_info(),

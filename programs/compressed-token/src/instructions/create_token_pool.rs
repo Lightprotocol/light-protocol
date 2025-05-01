@@ -42,15 +42,18 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
     get_token_pool_pda_with_index(mint, 0)
 }
 
-pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pubkey {
+pub fn find_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> (Pubkey, u8) {
     let seeds = &[POOL_SEED, mint.as_ref(), &[token_pool_index]];
     let seeds = if token_pool_index == 0 {
         &seeds[..2]
     } else {
         &seeds[..]
     };
-    let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
-    address
+    Pubkey::find_program_address(seeds, &crate::ID)
+}
+
+pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pubkey {
+    find_token_pool_pda_with_index(mint, token_pool_index).0
 }
 
 const ALLOWED_EXTENSION_TYPES: [ExtensionType; 7] = [
@@ -110,7 +113,7 @@ pub struct AddTokenPoolInstruction<'info> {
 pub fn check_spl_token_pool_derivation(token_pool_pda: &Pubkey, mint: &Pubkey) -> Result<()> {
     let mint_bytes = mint.to_bytes();
     let is_valid = (0..NUM_MAX_POOL_ACCOUNTS)
-        .any(|i| is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[i]));
+        .any(|i| is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[i], None));
     if !is_valid {
         err!(crate::ErrorCode::InvalidTokenPoolPda)
     } else {
@@ -123,9 +126,11 @@ pub fn check_spl_token_pool_derivation_with_index(
     token_pool_pda: &Pubkey,
     mint: &Pubkey,
     index: u8,
+    bump: Option<u8>,
 ) -> Result<()> {
+    msg!("bump {:?}", bump);
     let mint_bytes = mint.to_bytes();
-    let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index]);
+    let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index], bump);
     if !is_valid {
         err!(crate::ErrorCode::InvalidTokenPoolPda)
     } else {

@@ -5,12 +5,12 @@ use anchor_spl::{token::TokenAccount, token_interface};
 use crate::{
     check_spl_token_pool_derivation,
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
-    process_transfer::{get_cpi_signer_seeds, CompressedTokenInstructionDataTransfer2},
+    process_transfer::{get_cpi_signer_seeds, CompressedTokenInstructionDataTransfer},
     ErrorCode, TransferInstruction,
 };
 
 pub fn process_compression_or_decompression<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer2,
+    inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     if inputs.is_compress {
@@ -25,7 +25,7 @@ pub fn check_spl_token_pool_derivation_with_index(
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
 ) -> Result<()> {
-    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index) {
+    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index, None) {
         Ok(())
     } else {
         err!(ErrorCode::InvalidTokenPoolPda)
@@ -36,19 +36,21 @@ pub fn is_valid_token_pool_pda(
     mint_bytes: &[u8],
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
+    bump: Option<u8>,
 ) -> bool {
-    let seeds = [POOL_SEED, mint_bytes, pool_index];
-    let seeds = if pool_index[0] == 0 {
-        &seeds[..2]
+    let pool_index = if pool_index[0] == 0 { &[] } else { pool_index };
+    let pda = if let Some(bump) = bump {
+        let seeds = [POOL_SEED, mint_bytes, pool_index, &[bump]];
+        Pubkey::create_program_address(&seeds[..], &crate::ID).expect("Invalid token pool bump.")
     } else {
-        &seeds[..]
+        let seeds = [POOL_SEED, mint_bytes, pool_index];
+        Pubkey::find_program_address(&seeds[..], &crate::ID).0
     };
-    let (pda, _) = Pubkey::find_program_address(seeds, &crate::ID);
     pda == *token_pool_pubkey
 }
 
 pub fn decompress_spl_tokens<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer2,
+    inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.compress_or_decompress_token_account.as_ref() {
@@ -125,7 +127,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
         }
         // 5. Check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_indices.iter().enumerate() {
-            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i]) {
+            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i], None) {
                 // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
                     crate::burn::spl_burn_cpi(
@@ -176,7 +178,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
 }
 
 pub fn compress_spl_tokens<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer2,
+    inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {

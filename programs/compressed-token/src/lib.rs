@@ -18,9 +18,7 @@ pub use burn::*;
 pub mod batch_compress;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 
-use crate::process_transfer::{
-    CompressedTokenInstructionDataTransfer, CompressedTokenInstructionDataTransfer2,
-};
+use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -89,6 +87,7 @@ pub mod light_compressed_token {
             amounts.as_slice(),
             lamports,
             None,
+            None,
         )
     }
 
@@ -116,6 +115,7 @@ pub mod light_compressed_token {
             amounts.as_slice(),
             inputs.lamports.map(|x| (*x).into()),
             Some(inputs.index),
+            Some(inputs.bump),
         )
     }
 
@@ -143,17 +143,11 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        let mut inputs = inputs;
+        // Borsh ignores excess bytes -> push len 0 and bool false for additional fields.
+        inputs.extend_from_slice(&[0u8; 5]);
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
-        process_transfer::process_transfer(ctx, inputs.into())
-    }
-
-    pub fn transfer2<'info>(
-        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
-        inputs: Vec<u8>,
-    ) -> Result<()> {
-        let inputs: CompressedTokenInstructionDataTransfer2 =
-            CompressedTokenInstructionDataTransfer2::deserialize(&mut inputs.as_slice())?;
         process_transfer::process_transfer(ctx, inputs)
     }
 
