@@ -137,6 +137,29 @@ export const InstructionDataInvokeCpiLayout: Layout<InstructionDataInvokeCpi> =
         ),
     ]);
 
+// program-libs/compressed-account/src/instruction_data/with_readonly.rs
+// #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+// pub struct InstructionDataInvokeCpiWithReadOnly {
+//     /// 0 With program ids
+//     /// 1 without program ids
+//     pub mode: u8,
+//     pub bump: u8,
+//     pub invoking_program_id: Pubkey,
+//     /// If compress_or_decompress_lamports > 0 -> expect sol_pool_pda
+//     pub compress_or_decompress_lamports: u64,
+//     /// -> expect account decompression_recipient
+//     pub is_compress: bool,
+//     pub with_cpi_context: bool,
+//     pub with_transaction_hash: bool,
+//     pub cpi_context: CompressedCpiContext,
+//     pub proof: Option<CompressedProof>,
+//     pub new_address_params: Vec<NewAddressParamsAssignedPacked>,
+//     pub input_compressed_accounts: Vec<InAccount>,
+//     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+//     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
+//     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
+// }
+
 export function decodeInstructionDataInvoke(
     buffer: Buffer,
 ): InstructionDataInvoke {
