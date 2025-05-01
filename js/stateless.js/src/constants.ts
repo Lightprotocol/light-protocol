@@ -20,6 +20,14 @@ export const INVOKE_CPI_DISCRIMINATOR = Buffer.from([
     49, 212, 191, 129, 39, 194, 43, 196,
 ]);
 
+export const INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR = Buffer.from([
+    86, 47, 163, 166, 21, 223, 92, 8,
+]);
+
+export const INVOKE_CPI_WITH_ACCOUNT_INFO_DISCRIMINATOR = Buffer.from([
+    228, 34, 128, 84, 47, 139, 86, 240,
+]);
+
 export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
