@@ -9,7 +9,7 @@ scalability. Please reach out to the [team](https://t.me/swen_light) if you need
 -   Instruction Changes:
 
     -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
-    -   `decompress` now requires array of one or more TokenPoolInfos.
+    -   `decompress` now requires an array of one or more TokenPoolInfos.
     -   `decompress`, `transfer` now do not allow state tree overrides.
 
 -   Action Changes:
@@ -61,11 +61,11 @@ const ix = await CompressedTokenProgram.decompress({
 
 ### Why the Changes are helpful
 
-`getStateTreeInfos()` retrieves all active state trees.
+`getStateTreeInfos()` retrieves relevant info about all active state trees.
 
 When building a transaction you can now pick a random treeInfo via `selectStateTreeInfo(infos)`.
 
-This lets you and others execute more transactions within Solana's write lock
+This lets you and other apps execute more transactions within Solana's write lock
 limits.
 
 The same applies to `getTokenPoolInfos`. When you compress or decompress SPL
@@ -92,7 +92,7 @@ accounts.
 ### Added
 
 -   `selectSmartCompressedTokenAccountsForTransfer` and
-    `selectSmartCompressedTokenAccountsForTransferorPartial`
+    `selectSmartCompressedTokenAccountsForTransferOrPartial`
 
 ### Changed
 
