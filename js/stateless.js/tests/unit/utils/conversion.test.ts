@@ -6,6 +6,7 @@ import {
     pushUniqueItems,
     toArray,
     toCamelCase,
+    convertInvokeCpiWithReadOnlyToInvoke,
 } from '../../../src/utils/conversion';
 import { calculateComputeUnitPrice } from '../../../src/utils';
 import { deserializeAppendNullifyCreateAddressInputsIndexer } from '../../../src/programs';
@@ -19,6 +20,8 @@ import {
     u64,
 } from '@coral-xyz/borsh';
 import { decodeInstructionDataInvokeCpiWithReadOnly } from '../../../src/programs/layout';
+import { InstructionDataInvoke } from '../../../src/state/types';
+import BN from 'bn.js';
 
 describe('toArray', () => {
     it('should return same array if array is passed', () => {
@@ -567,5 +570,157 @@ describe('camelcaseKeys', () => {
         };
 
         expect(toCamelCase(originalData)).toEqual(expectedData);
+    });
+});
+
+describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
+    it('should convert InstructionDataInvokeCpiWithReadOnly to InstructionDataInvoke', () => {
+        // Create a sample InstructionDataInvokeCpiWithReadOnly-like object
+        const mockCpiWithReadOnly = {
+            mode: 0,
+            bump: 148,
+            invoking_program_id: { toBuffer: () => Buffer.alloc(32) },
+            compress_or_decompress_lamports: new BN(1000),
+            is_compress: true,
+            with_cpi_context: false,
+            with_transaction_hash: true,
+            compressedCpiContext: {
+                set_context: false,
+                first_set_context: true,
+                cpi_context_account_index: 83,
+            },
+            proof: null,
+            new_address_params: [
+                {
+                    seed: Array(32).fill(1),
+                    address_queue_account_index: 5,
+                    address_merkle_tree_account_index: 6,
+                    address_merkle_tree_root_index: 123,
+                    assigned_to_account: true,
+                    assigned_account_index: 7,
+                },
+            ],
+            input_compressed_accounts: [
+                {
+                    discriminator: Array(8).fill(2),
+                    data_hash: Array(32).fill(3),
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 8,
+                        queue_pubkey_index: 9,
+                        leaf_index: 456,
+                        prove_by_index: false,
+                    },
+                    root_index: 789,
+                    lamports: new BN(2000),
+                    address: null,
+                },
+            ],
+            output_compressed_accounts: [
+                {
+                    compressedAccount: {
+                        owner: { toBuffer: () => Buffer.alloc(32) },
+                        lamports: new BN(3000),
+                        address: null,
+                        data: null,
+                    },
+                    merkleTreeIndex: 10,
+                },
+            ],
+            read_only_addresses: [
+                {
+                    address: Array(32).fill(4),
+                    address_merkle_tree_root_index: 567,
+                    address_merkle_tree_account_index: 11,
+                },
+            ],
+            read_only_accounts: [
+                {
+                    account_hash: Array(32).fill(5),
+                    packedMerkleContext: {
+                        merkle_tree_pubkey_index: 12,
+                        queue_pubkey_index: 13,
+                        leaf_index: 890,
+                        prove_by_index: true,
+                    },
+                    root_index: 321,
+                },
+            ],
+        };
+
+        // Convert to InstructionDataInvoke
+        const result =
+            convertInvokeCpiWithReadOnlyToInvoke(mockCpiWithReadOnly);
+
+        // Verify the result is an InstructionDataInvoke
+        expect(result).toBeDefined();
+        expect(result.proof).toBeNull();
+        expect(result.isCompress).toBe(true);
+        expect(result.compressOrDecompressLamports).toEqual(new BN(1000));
+
+        // Check newAddressParams conversion
+        expect(result.newAddressParams).toHaveLength(1);
+        expect(result.newAddressParams[0].seed).toEqual(Array(32).fill(1));
+        expect(result.newAddressParams[0].addressQueueAccountIndex).toBe(5);
+        expect(result.newAddressParams[0].addressMerkleTreeAccountIndex).toBe(
+            6,
+        );
+        expect(result.newAddressParams[0].addressMerkleTreeRootIndex).toBe(123);
+
+        // Check input accounts conversion
+        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(1); // 1 regular
+
+        // First account (from input_compressed_accounts)
+        const firstAccount = result.inputCompressedAccountsWithMerkleContext[0];
+        expect(firstAccount.rootIndex).toBe(789);
+        expect(firstAccount.readOnly).toBe(false);
+        expect(firstAccount.compressedAccount.lamports).toEqual(new BN(2000));
+        expect(firstAccount.merkleContext.merkleTreePubkeyIndex).toBe(8);
+        expect(firstAccount.merkleContext.nullifierQueuePubkeyIndex).toBe(9);
+        expect(firstAccount.merkleContext.leafIndex).toBe(456);
+        expect(firstAccount.merkleContext.queueIndex).toBeNull();
+        // Check output accounts conversion
+        expect(result.outputCompressedAccounts).toHaveLength(1);
+        expect(result.outputCompressedAccounts[0].merkleTreeIndex).toBe(10);
+        expect(
+            result.outputCompressedAccounts[0].compressedAccount.lamports,
+        ).toEqual(new BN(3000));
+    });
+
+    it('should handle missing read_only_accounts', () => {
+        // Create a minimal InstructionDataInvokeCpiWithReadOnly-like object with no read-only accounts
+        const minimalCpiWithReadOnly = {
+            mode: 0,
+            bump: 1,
+            invoking_program_id: { toBuffer: () => Buffer.alloc(32) },
+            compress_or_decompress_lamports: new BN(100),
+            is_compress: false,
+            with_cpi_context: false,
+            with_transaction_hash: false,
+            compressedCpiContext: {
+                set_context: false,
+                first_set_context: false,
+                cpi_context_account_index: 0,
+            },
+            proof: null,
+            new_address_params: [],
+            input_compressed_accounts: [],
+            output_compressed_accounts: [],
+            read_only_addresses: [],
+            read_only_accounts: [], // Empty read-only accounts
+        };
+
+        // Convert to InstructionDataInvoke
+        const result = convertInvokeCpiWithReadOnlyToInvoke(
+            minimalCpiWithReadOnly,
+        );
+
+        // Verify the result
+        expect(result).toBeDefined();
+        expect(result.proof).toBeNull();
+        expect(result.isCompress).toBe(false);
+        expect(result.compressOrDecompressLamports).toEqual(new BN(100));
+        expect(result.newAddressParams).toHaveLength(0);
+        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(0);
+        expect(result.outputCompressedAccounts).toHaveLength(0);
     });
 });

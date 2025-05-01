@@ -28,6 +28,7 @@ import {
     decodePublicTransactionEvent,
 } from '../../programs/layout';
 import { Buffer } from 'buffer';
+import { convertInvokeCpiWithReadOnlyToInvoke } from '../../utils';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
@@ -239,9 +240,10 @@ export function parseLightTransaction(
             break;
         }
         if (discriminatorStr == invokeCpiWithReadOnlyDiscriminatorStr) {
-            invokeData = decodeInstructionDataInvokeCpiWithReadOnly(
+            const decoded = decodeInstructionDataInvokeCpiWithReadOnly(
                 Buffer.from(data),
             );
+            invokeData = convertInvokeCpiWithReadOnlyToInvoke(decoded);
             foundSystemInstruction = true;
             break;
         }

@@ -2,9 +2,18 @@ import { Buffer } from 'buffer';
 import { bn, createBN254 } from '../state/BN254';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
-import { Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import camelcaseKeys from 'camelcase-keys';
+import {
+    InstructionDataInvoke,
+    PackedCompressedAccountWithMerkleContext,
+    CompressedAccount,
+    OutputCompressedAccountWithPackedContext,
+    PackedMerkleContext,
+    QueueIndex,
+} from '../state/types';
+import { NewAddressParamsPacked } from './address';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
     return Keypair.fromSecretKey(Uint8Array.from(byteArray));
@@ -95,4 +104,87 @@ export function pushUniqueItems<T>(items: T[], map: T[]): void {
             map.push(item);
         }
     });
+}
+
+/**
+ * Converts the output of decodeInstructionDataInvokeCpiWithReadOnly to InstructionDataInvoke format
+ *
+ * @param data The decoded data from decodeInstructionDataInvokeCpiWithReadOnly
+ * @returns Data in InstructionDataInvoke format
+ */
+export function convertInvokeCpiWithReadOnlyToInvoke(
+    data: any,
+): InstructionDataInvoke {
+    // Map the proof structure if it exists
+    const proof = data.proof
+        ? {
+              a: data.proof.a,
+              b: data.proof.b,
+              c: data.proof.c,
+          }
+        : null;
+
+    // Convert new address params to NewAddressParamsPacked format
+    const newAddressParams: NewAddressParamsPacked[] =
+        data.new_address_params.map((params: any) => ({
+            seed: params.seed,
+            addressMerkleTreeRootIndex: params.address_merkle_tree_root_index,
+            addressMerkleTreeAccountIndex:
+                params.address_merkle_tree_account_index,
+            addressQueueAccountIndex: params.address_queue_account_index,
+        }));
+
+    // Convert input_compressed_accounts to PackedCompressedAccountWithMerkleContext format
+    const inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
+        data.input_compressed_accounts.map((account: any) => {
+            // Create a compressedAccount from the input account
+            const compressedAccount: CompressedAccount = {
+                owner: new PublicKey(Buffer.alloc(32)), // Default owner, would be set in the real app
+                lamports: account.lamports,
+                address: account.address,
+                data: null, // Would be set based on real data if needed
+            };
+
+            // Create a merkleContext from the packedMerkleContext
+            const merkleContext: PackedMerkleContext = {
+                merkleTreePubkeyIndex:
+                    account.packedMerkleContext.merkle_tree_pubkey_index,
+                nullifierQueuePubkeyIndex:
+                    account.packedMerkleContext.queue_pubkey_index,
+                leafIndex: account.packedMerkleContext.leaf_index,
+                queueIndex: account.packedMerkleContext.prove_by_index
+                    ? ({ queueId: 0, index: 0 } as QueueIndex)
+                    : null, // Simplified mapping, would be determined by real data
+            };
+
+            return {
+                compressedAccount,
+                merkleContext,
+                rootIndex: account.root_index,
+                readOnly: false, // Default to false, would be set based on source data
+            };
+        });
+
+    // Convert output_compressed_accounts to OutputCompressedAccountWithPackedContext format
+    const outputCompressedAccounts: OutputCompressedAccountWithPackedContext[] =
+        data.output_compressed_accounts.map((account: any) => ({
+            compressedAccount: {
+                owner: account.compressedAccount.owner,
+                lamports: account.compressedAccount.lamports,
+                address: account.compressedAccount.address,
+                data: account.compressedAccount.data,
+            },
+            merkleTreeIndex: account.merkleTreeIndex,
+        }));
+
+    // Construct and return the InstructionDataInvoke object
+    return {
+        proof,
+        inputCompressedAccountsWithMerkleContext,
+        outputCompressedAccounts,
+        relayFee: null, // Not present in the source data
+        newAddressParams,
+        compressOrDecompressLamports: data.compress_or_decompress_lamports,
+        isCompress: data.is_compress,
+    };
 }

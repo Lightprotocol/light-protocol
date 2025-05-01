@@ -224,38 +224,9 @@ export const InstructionDataInvokeCpiWithReadOnlyLayout = struct([
 ]);
 
 export function decodeInstructionDataInvokeCpiWithReadOnly(buffer: Buffer) {
-    // For this version, we'll use a custom decode function that can handle truncated data
-    // by only decoding the header fields. This is mainly for testing purposes.
-    try {
-        return InstructionDataInvokeCpiWithReadOnlyLayout.decode(buffer);
-    } catch (error) {
-        // If we get an error decoding the full structure, we'll try to decode just the header fields
-        // This helps with test cases that may not have the full buffer
-        const headerLayout = struct([
-            u8('mode'),
-            u8('bump'),
-            publicKey('invoking_program_id'),
-            u64('compress_or_decompress_lamports'),
-            bool('is_compress'),
-            bool('with_cpi_context'),
-            bool('with_transaction_hash'),
-            CompressedCpiContextLayout,
-        ]);
-
-        // Try to decode just the header fields
-        const result = headerLayout.decode(buffer);
-
-        // Add empty arrays for the remaining fields to match the expected structure
-        return {
-            ...result,
-            proof: null,
-            new_address_params: [],
-            input_compressed_accounts: [],
-            output_compressed_accounts: [],
-            read_only_addresses: [],
-            read_only_accounts: [],
-        };
-    }
+    return InstructionDataInvokeCpiWithReadOnlyLayout.decode(
+        buffer.slice(INVOKE_DISCRIMINATOR.length + 4),
+    );
 }
 
 export function decodeInstructionDataInvoke(
