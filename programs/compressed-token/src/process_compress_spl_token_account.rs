@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::cpi_context::CompressedCpiContex
 use super::TransferInstruction;
 use crate::{
     process_transfer::{
-        process_transfer, CompressedTokenInstructionDataTransfer, PackedTokenTransferOutputData,
+        process_transfer, CompressedTokenInstructionDataTransfer2, PackedTokenTransferOutputData,
     },
     ErrorCode,
 };
@@ -33,7 +33,7 @@ pub fn process_compress_spl_token_account<'info>(
         merkle_tree_index: 0,
     };
 
-    let inputs = CompressedTokenInstructionDataTransfer {
+    let inputs = CompressedTokenInstructionDataTransfer2 {
         proof: None,
         mint: compression_token_account.mint,
         delegated_transfer: None,

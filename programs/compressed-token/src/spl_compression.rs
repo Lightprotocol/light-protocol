@@ -5,12 +5,12 @@ use anchor_spl::{token::TokenAccount, token_interface};
 use crate::{
     check_spl_token_pool_derivation,
     constants::{NUM_MAX_POOL_ACCOUNTS, POOL_SEED},
-    process_transfer::get_cpi_signer_seeds,
-    CompressedTokenInstructionDataTransfer, ErrorCode, TransferInstruction,
+    process_transfer::{get_cpi_signer_seeds, CompressedTokenInstructionDataTransfer2},
+    ErrorCode, TransferInstruction,
 };
 
 pub fn process_compression_or_decompression<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer,
+    inputs: &CompressedTokenInstructionDataTransfer2,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     if inputs.is_compress {
@@ -48,7 +48,7 @@ pub fn is_valid_token_pool_pda(
 }
 
 pub fn decompress_spl_tokens<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer,
+    inputs: &CompressedTokenInstructionDataTransfer2,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.compress_or_decompress_token_account.as_ref() {
@@ -176,7 +176,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
 }
 
 pub fn compress_spl_tokens<'info>(
-    inputs: &CompressedTokenInstructionDataTransfer,
+    inputs: &CompressedTokenInstructionDataTransfer2,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     let recipient_token_pool = match ctx.accounts.token_pool_pda.as_ref() {

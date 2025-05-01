@@ -38,7 +38,7 @@ use crate::{
 #[inline(always)]
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    inputs: CompressedTokenInstructionDataTransfer,
+    inputs: CompressedTokenInstructionDataTransfer2,
 ) -> Result<()> {
     bench_sbf_start!("t_context_and_check_sig");
     if inputs.input_token_data_with_context.is_empty()
@@ -613,7 +613,41 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub lamports_change_account_merkle_tree_index: Option<u8>,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedTokenInstructionDataTransfer2 {
+    pub proof: Option<CompressedProof>,
+    pub mint: Pubkey,
+    /// Is required if the signer is delegate,
+    /// -> delegate is authority account,
+    /// owner = Some(owner) is the owner of the token account.
+    pub delegated_transfer: Option<DelegatedTransfer>,
+    pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
+    pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
+    pub is_compress: bool,
+    pub compress_or_decompress_amount: Option<u64>,
+    pub cpi_context: Option<CompressedCpiContext>,
+    pub lamports_change_account_merkle_tree_index: Option<u8>,
     pub with_transaction_hash: bool,
+}
+
+impl From<CompressedTokenInstructionDataTransfer> for CompressedTokenInstructionDataTransfer2 {
+    fn from(data: CompressedTokenInstructionDataTransfer) -> Self {
+        CompressedTokenInstructionDataTransfer2 {
+            proof: data.proof,
+            mint: data.mint,
+            delegated_transfer: data.delegated_transfer,
+            input_token_data_with_context: data.input_token_data_with_context,
+            output_compressed_accounts: data.output_compressed_accounts,
+            is_compress: data.is_compress,
+            compress_or_decompress_amount: data.compress_or_decompress_amount,
+            cpi_context: data.cpi_context,
+            lamports_change_account_merkle_tree_index: data
+                .lamports_change_account_merkle_tree_index,
+            with_transaction_hash: false,
+        }
+    }
 }
 
 pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
@@ -737,7 +771,7 @@ pub mod transfer_sdk {
         DelegatedTransfer, InputTokenDataWithContext, PackedTokenTransferOutputData,
         TokenTransferOutputData,
     };
-    use crate::{token_data::TokenData, CompressedTokenInstructionDataTransfer};
+    use crate::{token_data::TokenData, CompressedTokenInstructionDataTransfer2};
 
     #[error_code]
     pub enum TransferSdkError {
@@ -797,11 +831,15 @@ pub mod transfer_sdk {
         }
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut inputs = Vec::new();
-        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs)
+        CompressedTokenInstructionDataTransfer2::serialize(&inputs_struct, &mut inputs)
             .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer { inputs };
+        let instruction_data = if with_transaction_hash {
+            crate::instruction::Transfer2 { inputs }.data()
+        } else {
+            crate::instruction::Transfer { inputs }.data()
+        };
         let authority = if let Some(delegate) = delegate {
             delegate
         } else {
@@ -841,7 +879,7 @@ pub mod transfer_sdk {
             program_id: crate::ID,
             accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
 
-            data: instruction_data.data(),
+            data: instruction_data,
         })
     }
 
@@ -863,7 +901,7 @@ pub mod transfer_sdk {
     ) -> Result<
         (
             HashMap<Pubkey, usize>,
-            CompressedTokenInstructionDataTransfer,
+            CompressedTokenInstructionDataTransfer2,
         ),
         TransferSdkError,
     > {
@@ -915,7 +953,7 @@ pub mod transfer_sdk {
         with_transaction_hash: bool,
     ) -> (
         HashMap<Pubkey, usize>,
-        CompressedTokenInstructionDataTransfer,
+        CompressedTokenInstructionDataTransfer2,
     ) {
         let mut additional_accounts = Vec::new();
         additional_accounts.extend_from_slice(accounts);
@@ -956,7 +994,7 @@ pub mod transfer_sdk {
         } else {
             None
         };
-        let inputs_struct = CompressedTokenInstructionDataTransfer {
+        let inputs_struct = CompressedTokenInstructionDataTransfer2 {
             output_compressed_accounts: _output_compressed_accounts.to_vec(),
             proof: *proof,
             input_token_data_with_context,
