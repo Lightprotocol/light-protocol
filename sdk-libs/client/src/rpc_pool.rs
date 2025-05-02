@@ -118,6 +118,7 @@ impl<R: RpcConnection> SolanaRpcPool<R> {
                 Err(e) if retries < max_retries => {
                     retries += 1;
                     eprintln!("Failed to get connection (attempt {}): {:?}", retries, e);
+                    tokio::task::yield_now().await;
                     sleep(delay).await;
                 }
                 Err(e) => return Err(PoolError::Pool(e.to_string())),

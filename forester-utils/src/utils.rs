@@ -68,6 +68,8 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
             "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
             rpc_slot, indexer_slot
         );
+
+        tokio::task::yield_now().await;
         sleep(std::time::Duration::from_millis(400)).await;
         indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);

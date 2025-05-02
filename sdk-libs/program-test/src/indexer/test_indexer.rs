@@ -319,8 +319,10 @@ where
                 compressed_accounts.unwrap().len()
             )
         }
-        if new_addresses.is_some() && ![1usize, 2usize].contains(&new_addresses.unwrap().len()) {
-            panic!("new_addresses must be of length 1, 2")
+        if new_addresses.is_some()
+            && ![1usize, 2usize, 3usize, 4usize, 8usize].contains(&new_addresses.unwrap().len())
+        {
+            panic!("new_addresses must be of length 1, 2, 3, 4 or 8")
         }
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload) =

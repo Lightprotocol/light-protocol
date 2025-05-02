@@ -1,26 +1,32 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use borsh::BorshSerialize;
+use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{epoch_manager::WorkReport, run_pipeline, ForesterConfig};
-use forester_utils::{forester_epoch::get_epoch_phases, utils::wait_for_indexer};
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
-    indexer::{photon_indexer::PhotonIndexer, AddressWithTree, Indexer},
+    indexer::{photon_indexer::PhotonIndexer, Indexer},
     rpc::{
         merkle_tree::MerkleTreeExt, solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection,
     },
 };
 use light_compressed_account::{
-    address::derive_address,
-    instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
+    address::{derive_address, pack_new_address_params_assigned},
+    compressed_account::{
+        pack_output_compressed_accounts, PackedCompressedAccountWithMerkleContext,
+    },
+    instruction_data::{
+        compressed_proof::CompressedProof,
+        data::{NewAddressParams, NewAddressParamsAssigned, OutputCompressedAccountWithContext},
+        with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
+    },
 };
+use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
 use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
-use light_registry::{
-    protocol_config::state::ProtocolConfig, utils::get_protocol_config_pda_address,
-};
 use light_test_utils::create_address_test_program_sdk::{
     create_pda_instruction, CreateCompressedPdaInstructionInputs,
 };
@@ -74,12 +80,6 @@ async fn test_create_v2_address() {
 
     ensure_sufficient_balance(&mut rpc, &env.forester.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
-    let mut photon_indexer = PhotonIndexer::new(
-        PHOTON_INDEXER_URL.to_string(),
-        None,
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None),
-    );
-
     let (_, _, pre_root) =
         get_initial_merkle_tree_state(&mut rpc, &env.batch_address_merkle_tree).await;
 
@@ -93,20 +93,42 @@ async fn test_create_v2_address() {
     ensure_sufficient_balance(&mut rpc, &batch_payer.pubkey(), LAMPORTS_PER_SOL * 100).await;
 
     let batch_size = get_batch_size(&mut rpc, &env.batch_address_merkle_tree).await;
+    let num_addresses = 2;
 
-    for i in 0..batch_size {
+    let num_batches = batch_size / num_addresses;
+    let remaining_addresses = batch_size % num_addresses;
+
+    println!("num_addresses: {:?}", num_addresses);
+    println!("batch_size: {:?}", batch_size);
+    println!("num_batches: {:?}", num_batches);
+    println!("remaining_addresses: {:?}", remaining_addresses);
+
+    for i in 0..num_batches {
         println!("====== Creating v2 address {} ======", i);
-        let result = create_v2_address(
+        let result = create_v2_addresses(
             &mut rpc,
-            &mut photon_indexer,
             &env.batch_address_merkle_tree,
             &env.registered_program_pda,
             &batch_payer,
             &env,
             &mut rng,
+            num_addresses as usize,
         )
         .await;
-
+        println!("====== result: {:?} ======", result);
+    }
+    for i in 0..remaining_addresses {
+        println!("====== Creating v2 address {} ======", i);
+        let result = create_v2_addresses(
+            &mut rpc,
+            &env.batch_address_merkle_tree,
+            &env.registered_program_pda,
+            &batch_payer,
+            &env,
+            &mut rng,
+            1,
+        )
+        .await;
         println!("====== result: {:?} ======", result);
     }
 
@@ -123,9 +145,6 @@ async fn test_create_v2_address() {
     .unwrap();
 
     println!("Address tree metadata: {:?}", address_tree.get_metadata());
-
-    let protocol_config = get_protocol_config(&mut rpc).await;
-    let _active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
 
     let (service_handle, shutdown_sender, mut work_report_receiver) =
         setup_forester_pipeline(&config).await;
@@ -148,17 +167,6 @@ async fn ensure_sufficient_balance(
     if rpc.get_balance(pubkey).await.unwrap() < target_balance {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
-}
-
-async fn get_protocol_config(rpc: &mut SolanaRpcConnection) -> ProtocolConfig {
-    let protocol_config_pda_address = get_protocol_config_pda_address().0;
-    rpc.get_anchor_account::<light_registry::protocol_config::state::ProtocolConfigPda>(
-        &protocol_config_pda_address,
-    )
-    .await
-    .unwrap()
-    .unwrap()
-    .config
 }
 
 async fn setup_forester_pipeline(
@@ -234,108 +242,183 @@ async fn wait_for_work_report(
     );
 }
 
-async fn get_active_phase_start_slot<R: RpcConnection>(
+async fn create_v2_addresses<R: RpcConnection + MerkleTreeExt>(
     rpc: &mut R,
-    protocol_config: &ProtocolConfig,
-) -> u64 {
-    let current_slot = rpc.get_slot().await.unwrap();
-    let current_epoch = protocol_config.get_current_epoch(current_slot);
-    let phases = get_epoch_phases(protocol_config, current_epoch);
-    phases.active.start
-}
-
-async fn create_v2_address<R: RpcConnection + MerkleTreeExt, I: Indexer<R>>(
-    rpc: &mut R,
-    indexer: &mut I,
     batch_address_merkle_tree: &Pubkey,
     registered_program_pda: &Pubkey,
     payer: &Keypair,
     env: &EnvAccounts,
     rng: &mut StdRng,
+    num_addresses: usize,
 ) -> Result<(), light_client::rpc::RpcError> {
-    let data: [u8; 31] = [1; 31];
+    let mut address_seeds = Vec::with_capacity(num_addresses);
+    let mut addresses = Vec::with_capacity(num_addresses);
 
-    let seed = rng.gen();
-    let address = derive_address(
-        &seed,
-        &batch_address_merkle_tree.to_bytes(),
-        &create_address_test_program::ID.to_bytes(),
-    );
+    for _ in 0..num_addresses {
+        let seed = rng.gen();
+        let address = derive_address(
+            &seed,
+            &batch_address_merkle_tree.to_bytes(),
+            &create_address_test_program::ID.to_bytes(),
+        );
 
-    println!("Creating v2 address with:");
-    println!("- address: {:?}", address);
-    println!(
-        "- address_merkle_tree_pubkey: {:?}",
-        batch_address_merkle_tree
-    );
-    println!("- program_id: {:?}", create_address_test_program::ID);
-    println!("- seed: {:?}", seed);
+        address_seeds.push(seed);
+        addresses.push(address);
+    }
 
-    wait_for_indexer(rpc, indexer).await.unwrap();
-
-    let address_with_tree = AddressWithTree {
-        address,
-        tree: *batch_address_merkle_tree,
-    };
+    for (i, (address, seed)) in addresses.iter().zip(address_seeds.iter()).enumerate() {
+        println!("Creating v2 address #{} with:", i + 1);
+        println!("- address: {:?}", address);
+        println!(
+            "- address_merkle_tree_pubkey: {:?}",
+            batch_address_merkle_tree
+        );
+        println!("- program_id: {:?}", create_address_test_program::ID);
+        println!("- seed: {:?}", seed);
+    }
 
     let mut test_indexer: TestIndexer<R> = TestIndexer::init_from_env(payer, env, None).await;
-    let test_rpc_result = test_indexer
+
+    let proof_result = test_indexer
         .create_proof_for_compressed_accounts(
             None,
             None,
-            Some(&[address]),
-            Some(vec![env.batch_address_merkle_tree]),
+            Some(&addresses),
+            Some(vec![*batch_address_merkle_tree; addresses.len()]),
             rpc,
         )
         .await
         .unwrap();
-    println!("test_indexer result: {:?}", test_rpc_result);
 
-    let photon_rpc_result = indexer
-        .get_validity_proof_v2(vec![], vec![address_with_tree])
-        .await
-        .unwrap();
+    if num_addresses == 1 {
+        let data: [u8; 31] = [1; 31];
+        let new_address_params = NewAddressParams {
+            seed: address_seeds[0],
+            address_merkle_tree_pubkey: *batch_address_merkle_tree,
+            address_queue_pubkey: *batch_address_merkle_tree,
+            address_merkle_tree_root_index: proof_result.address_root_indices[0],
+        };
 
-    println!("photon result: {:?}", photon_rpc_result);
+        let proof = proof_result.proof;
+        let proof = CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        };
 
-    let new_address_params = NewAddressParams {
-        seed,
-        address_merkle_tree_pubkey: *batch_address_merkle_tree,
-        address_queue_pubkey: *batch_address_merkle_tree,
-        address_merkle_tree_root_index: test_rpc_result.address_root_indices[0], // photon_rpc_result.root_indices[0].root_index,
-    };
+        let create_ix_inputs = CreateCompressedPdaInstructionInputs {
+            data,
+            signer: &payer.pubkey(),
+            output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
+            proof: &proof,
+            new_address_params,
+            registered_program_pda,
+        };
 
-    let proof = test_rpc_result.proof; // photon_rpc_result.compressed_proof.unwrap();
-    let proof = CompressedProof {
-        a: proof.a,
-        b: proof.b,
-        c: proof.c,
-    };
+        let instruction = create_pda_instruction(create_ix_inputs);
+        let instructions = vec![
+            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+                COMPUTE_BUDGET_LIMIT,
+            ),
+            instruction,
+        ];
 
-    let create_ix_inputs = CreateCompressedPdaInstructionInputs {
-        data,
-        signer: &payer.pubkey(),
-        output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        proof: &proof,
-        new_address_params,
-        registered_program_pda,
-    };
+        let result = rpc
+            .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+            .await;
 
-    let instruction = create_pda_instruction(create_ix_inputs);
+        println!("Transaction result: {:?}", result);
+        result.map(|_| ())
+    } else {
+        let new_address_params = address_seeds
+            .iter()
+            .enumerate()
+            .map(|(i, seed)| NewAddressParamsAssigned {
+                seed: *seed,
+                address_queue_pubkey: *batch_address_merkle_tree,
+                address_merkle_tree_pubkey: *batch_address_merkle_tree,
+                address_merkle_tree_root_index: proof_result.address_root_indices[i],
+                assigned_account_index: None,
+            })
+            .collect::<Vec<_>>();
 
-    let instructions = vec![
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
-            COMPUTE_BUDGET_LIMIT,
-        ),
-        instruction,
-    ];
+        let output_accounts: Vec<OutputCompressedAccountWithContext> = Vec::new();
+        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+        let packed_new_address_params =
+            pack_new_address_params_assigned(&new_address_params, &mut remaining_accounts);
+        let packed_inputs: Vec<PackedCompressedAccountWithMerkleContext> = Vec::new();
+        let output_compressed_accounts = pack_output_compressed_accounts(
+            output_accounts
+                .iter()
+                .map(|x| x.compressed_account.clone())
+                .collect::<Vec<_>>()
+                .as_slice(),
+            output_accounts
+                .iter()
+                .map(|x| x.merkle_tree)
+                .collect::<Vec<_>>()
+                .as_slice(),
+            &mut remaining_accounts,
+        );
 
-    let result = rpc
-        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await;
+        let ix_data = InstructionDataInvokeCpiWithReadOnly {
+            mode: 0,
+            bump: 255,
+            with_cpi_context: false,
+            invoking_program_id: create_address_test_program::ID.into(),
+            proof: Some(proof_result.proof),
+            new_address_params: packed_new_address_params,
+            is_compress: false,
+            compress_or_decompress_lamports: 0,
+            output_compressed_accounts: output_compressed_accounts.clone(),
+            input_compressed_accounts: packed_inputs
+                .iter()
+                .map(|x| InAccount {
+                    address: x.compressed_account.address,
+                    merkle_context: x.merkle_context,
+                    lamports: x.compressed_account.lamports,
+                    discriminator: x
+                        .compressed_account
+                        .data
+                        .as_ref()
+                        .map_or([0u8; 8], |d| d.discriminator),
+                    data_hash: x
+                        .compressed_account
+                        .data
+                        .as_ref()
+                        .map_or([0u8; 32], |d| d.data_hash),
+                    root_index: x.root_index,
+                })
+                .collect::<Vec<_>>(),
+            with_transaction_hash: true,
+            read_only_accounts: Vec::new(),
+            read_only_addresses: Vec::new(),
+            cpi_context: Default::default(),
+        };
 
-    println!("result: {:?}", result);
-    Ok(())
+        let remaining_accounts = to_account_metas(remaining_accounts);
+
+        let instruction = create_invoke_cpi_instruction(
+            payer.pubkey(),
+            ix_data.try_to_vec()?,
+            remaining_accounts,
+            None,
+        );
+
+        let instructions = vec![
+            solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+                COMPUTE_BUDGET_LIMIT,
+            ),
+            instruction,
+        ];
+
+        let result = rpc
+            .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+            .await;
+
+        println!("Transaction result for multiple addresses: {:?}", result);
+        result.map(|_| ())
+    }
 }
 
 async fn get_batch_size<R: RpcConnection>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {

@@ -484,6 +484,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         e
                     );
                     if attempt < max_retries - 1 {
+                        tokio::task::yield_now().await;
                         sleep(retry_delay).await;
                     } else {
                         if let Err(alert_err) = send_pagerduty_alert(
@@ -1257,6 +1258,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                         retry_count += 1;
                         if retry_count < config.retry_config.max_retries {
                             debug!("Retrying in {:?}", retry_delay);
+                            tokio::task::yield_now().await;
                             sleep(retry_delay).await;
                             retry_delay = std::cmp::min(retry_delay * 2, MAX_RETRY_DELAY);
                         } else {
