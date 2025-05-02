@@ -52,7 +52,7 @@ num-bigint = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true , features =[ "devenv"]}
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }

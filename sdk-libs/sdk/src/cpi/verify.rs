@@ -1,48 +1,99 @@
-use light_compressed_account::instruction_data::{
-    compressed_proof::CompressedProof, cpi_context::CompressedCpiContext,
-    data::NewAddressParamsPacked, invoke_cpi::InstructionDataInvokeCpi,
-    with_account_info::CompressedAccountInfo,
+use light_compressed_account::{
+    compressed_account::ReadOnlyCompressedAccount,
+    instruction_data::{
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsPacked, ReadOnlyAddress},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_account_info::CompressedAccountInfo,
+    },
 };
 
 use crate::{
     account_info::AccountInfoTrait,
     cpi::accounts::CompressionCpiAccounts,
     error::{LightSdkError, Result},
-    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AnchorSerialize, Instruction,
-    Pubkey, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
+    find_cpi_signer_macro, invoke_signed, AccountInfo, AccountMeta, AddressProof, AnchorSerialize,
+    Instruction, Pubkey, ValidityProof, CPI_AUTHORITY_PDA_SEED, PROGRAM_ID_LIGHT_SYSTEM,
 };
 
-pub fn verify_compressed_account_infos(
-    light_cpi_accounts: &CompressionCpiAccounts,
-    proof: Option<CompressedProof>,
-    light_accounts: &[CompressedAccountInfo],
-    new_address_params: Option<Vec<NewAddressParamsPacked>>,
-    compress_or_decompress_lamports: Option<u64>,
-    is_compress: bool,
-    cpi_context: Option<CompressedCpiContext>,
-) -> Result<()> {
-    let mut input_compressed_accounts_with_merkle_context =
-        Vec::with_capacity(light_accounts.len());
-    let mut output_compressed_accounts = Vec::with_capacity(light_accounts.len());
-    let owner = *light_cpi_accounts.invoking_program().key;
-    for light_account in light_accounts.iter() {
-        if let Some(input_account) = light_account.input_compressed_account(owner)? {
-            input_compressed_accounts_with_merkle_context.push(input_account);
-        }
-        if let Some(output_account) = light_account.output_compressed_account(owner)? {
-            output_compressed_accounts.push(output_account);
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct CompressionInstruction {
+    pub proof: ValidityProof,
+    pub account_infos: Option<Vec<CompressedAccountInfo>>,
+    pub read_only_accounts: Option<Vec<ReadOnlyCompressedAccount>>,
+    pub new_addresses: Option<Vec<NewAddressParamsPacked>>,
+    pub read_only_address: Option<Vec<ReadOnlyAddress>>,
+    pub compress_or_decompress_lamports: Option<u64>,
+    pub is_compress: bool,
+    pub cpi_context: Option<CompressedCpiContext>,
+}
+
+impl CompressionInstruction {
+    pub fn new(proof: ValidityProof, account_infos: Vec<CompressedAccountInfo>) -> Self {
+        Self {
+            proof,
+            account_infos: Some(account_infos),
+            ..Default::default()
         }
     }
 
+    pub fn new_with_address(
+        proof: AddressProof,
+        account_infos: Vec<CompressedAccountInfo>,
+        new_addresses: Vec<NewAddressParamsPacked>,
+    ) -> Self {
+        Self {
+            proof: proof.into(),
+            account_infos: Some(account_infos),
+            new_addresses: Some(new_addresses),
+            ..Default::default()
+        }
+    }
+}
+
+pub fn verify_compression_instruction(
+    light_cpi_accounts: &CompressionCpiAccounts,
+    instruction: CompressionInstruction,
+) -> Result<()> {
+    let owner = *light_cpi_accounts.invoking_program().key;
+    let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
+        if let Some(account_infos) = instruction.account_infos.as_ref() {
+            let mut input_compressed_accounts_with_merkle_context =
+                Vec::with_capacity(account_infos.len());
+            let mut output_compressed_accounts = Vec::with_capacity(account_infos.len());
+            for account_info in account_infos.iter() {
+                if let Some(input_account) = account_info.input_compressed_account(owner)? {
+                    input_compressed_accounts_with_merkle_context.push(input_account);
+                }
+                if let Some(output_account) = account_info.output_compressed_account(owner)? {
+                    output_compressed_accounts.push(output_account);
+                }
+            }
+            (
+                input_compressed_accounts_with_merkle_context,
+                output_compressed_accounts,
+            )
+        } else {
+            (vec![], vec![])
+        };
+    #[cfg(not(feature = "v2"))]
+    if instruction.read_only_accounts.is_some() {
+        unimplemented!("read_only_accounts are only supported with v2 soon on Devnet.");
+    }
+    #[cfg(not(feature = "v2"))]
+    if instruction.read_only_address.is_some() {
+        unimplemented!("read_only_addresses are only supported with v2 soon on Devnet.");
+    }
+
     let instruction = InstructionDataInvokeCpi {
-        proof,
-        new_address_params: new_address_params.unwrap_or_default(),
+        proof: instruction.proof.into(),
+        new_address_params: instruction.new_addresses.unwrap_or_default(),
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts,
-        compress_or_decompress_lamports,
-        is_compress,
-        cpi_context,
+        compress_or_decompress_lamports: instruction.compress_or_decompress_lamports,
+        is_compress: instruction.is_compress,
+        cpi_context: instruction.cpi_context,
     };
     verify_borsh(light_cpi_accounts, &instruction)
 }
@@ -67,9 +118,9 @@ pub fn verify_system_info(
     light_system_accounts: &CompressionCpiAccounts,
     data: Vec<u8>,
 ) -> Result<()> {
-    let account_infos = light_system_accounts.to_account_infos();
+    let account_infos: Vec<AccountInfo> = light_system_accounts.to_account_infos();
 
-    let account_metas = light_system_accounts.to_account_metas();
+    let account_metas: Vec<AccountMeta> = light_system_accounts.to_account_metas();
     invoke_light_system_program(
         light_system_accounts.self_program_id(),
         &account_infos,

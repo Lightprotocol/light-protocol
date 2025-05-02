@@ -1,24 +1,15 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use counter::CounterAccount;
-use light_client::{
-    indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts},
-    rpc::merkle_tree::MerkleTreeExt,
-};
+use light_client::indexer::Indexer;
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_program_test::{
-    indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
-    program_test::LightProgramTest,
-};
-use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
+use light_program_test::{program_test::LightProgramTest, AddressWithTree, ProgramTestConfig};
 use light_sdk::{
     address::v1::derive_address,
-    cpi::accounts::SystemAccountMetaConfig,
     instruction::{
         account_meta::CompressedAccountMeta,
-        instruction_data::LightInstructionData,
+        accounts::SystemAccountMetaConfig,
         merkle_context::{pack_address_merkle_context, pack_merkle_context, AddressMerkleContext},
         pack_accounts::PackedAccounts,
     },
@@ -26,37 +17,19 @@ use light_sdk::{
 use light_test_utils::{RpcConnection, RpcError};
 use solana_sdk::{
     instruction::Instruction,
-    signature::{Keypair, Signer},
+    pubkey::Pubkey,
+    signature::{Keypair, Signature, Signer},
 };
 
 #[tokio::test]
 async fn test_counter() {
-    spawn_prover(ProverConfig::default()).await;
-
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![("counter", counter::ID)]))
-            .await;
+    let config = ProgramTestConfig::new(true, Some(vec![("counter", counter::ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer = TestIndexer::new(
-        Vec::from(&[StateMerkleTreeAccounts {
-            merkle_tree: env.v1_state_trees[0].merkle_tree,
-            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
-            cpi_context: env.v1_state_trees[0].cpi_context,
-        }]),
-        Vec::from(&[AddressMerkleTreeAccounts {
-            merkle_tree: env.v1_address_trees[0].merkle_tree,
-            queue: env.v1_address_trees[0].queue,
-        }]),
-        payer.insecure_clone(),
-        env.protocol.group_pda,
-        None,
-    )
-    .await;
-
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: env.v1_address_trees[0].queue,
+        address_merkle_tree_pubkey: rpc.test_accounts.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: rpc.test_accounts.v1_address_trees[0].queue,
     };
 
     let (address, _) = derive_address(
@@ -65,13 +38,20 @@ async fn test_counter() {
         &counter::ID,
     );
 
+    let output_merkle_tree = rpc.test_accounts.v1_state_trees[0].merkle_tree;
     // Create the counter.
-    create_counter(&mut rpc, &mut test_indexer, &env, &payer, &address)
-        .await
-        .unwrap();
+    create_counter(
+        &mut rpc,
+        &payer,
+        &address,
+        address_merkle_context,
+        output_merkle_tree,
+    )
+    .await
+    .unwrap();
 
     // Check that it was created correctly.
-    let compressed_accounts = test_indexer
+    let compressed_accounts = rpc
         .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
@@ -87,12 +67,12 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Increment the counter.
-    increment_counter(&mut rpc, &mut test_indexer, &payer, compressed_account)
+    increment_counter(&mut rpc, &payer, compressed_account)
         .await
         .unwrap();
 
     // Check that it was incremented correctly.
-    let compressed_accounts = test_indexer
+    let compressed_accounts = rpc
         .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
@@ -108,12 +88,12 @@ async fn test_counter() {
     assert_eq!(counter.value, 1);
 
     // Decrement the counter.
-    decrement_counter(&mut rpc, &mut test_indexer, &payer, compressed_account)
+    decrement_counter(&mut rpc, &payer, compressed_account)
         .await
         .unwrap();
 
     // Check that it was decremented correctly.
-    let compressed_accounts = test_indexer
+    let compressed_accounts = rpc
         .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
@@ -129,12 +109,12 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Reset the counter.
-    reset_counter(&mut rpc, &mut test_indexer, &payer, compressed_account)
+    reset_counter(&mut rpc, &payer, compressed_account)
         .await
         .unwrap();
 
     // Check that it was reset correctly.
-    let compressed_accounts = test_indexer
+    let compressed_accounts = rpc
         .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
@@ -150,63 +130,53 @@ async fn test_counter() {
     assert_eq!(counter.value, 0);
 
     // Close the counter.
-    close_counter(&mut rpc, &mut test_indexer, &payer, compressed_account)
+    close_counter(&mut rpc, &payer, compressed_account)
         .await
         .unwrap();
 
     // Check that it was closed correctly (no compressed accounts after closing).
-    let compressed_accounts = test_indexer
+    let compressed_accounts = rpc
         .get_compressed_accounts_by_owner_v2(&counter::ID)
         .await
         .unwrap();
     assert_eq!(compressed_accounts.len(), 0);
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn create_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer,
-    env: &TestAccounts,
     payer: &Keypair,
     address: &[u8; 32],
-) -> Result<(), RpcError>
+    address_merkle_context: AddressMerkleContext,
+    output_merkle_tree: Pubkey,
+) -> Result<Signature, RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + Indexer,
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
     remaining_accounts.add_system_accounts(config);
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&[*address]),
-            Some(vec![env.v1_address_trees[0].merkle_tree]),
-            rpc,
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                tree: address_merkle_context.address_merkle_tree_pubkey,
+                address: *address,
+            }],
         )
         .await
         .unwrap();
 
-    let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: env.v1_address_trees[0].queue,
-    };
-
-    let output_merkle_tree_index = remaining_accounts.insert_or_get(env.v1_state_trees[0].merkle_tree);
+    let output_merkle_tree_index = remaining_accounts.insert_or_get(output_merkle_tree);
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
         rpc_result.address_root_indices[0],
     );
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: Some(vec![packed_address_merkle_context]),
-    };
-
     let instruction_data = counter::instruction::CreateCounter {
-        light_ix_data,
+        proof: rpc_result.proof,
+        address_merkle_context: packed_address_merkle_context,
         output_merkle_tree_index,
     };
 
@@ -226,44 +196,28 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn increment_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer,
+
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<(), RpcError>
+) -> Result<Signature, RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + Indexer,
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
     remaining_accounts.add_system_accounts(config);
 
     let hash = compressed_account.hash().unwrap();
-    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(Vec::from(&[hash])),
-            Some(Vec::from(&[merkle_tree_pubkey])),
-            None,
-            None,
-            rpc,
-        )
+    let rpc_result = rpc
+        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
         .await
         .unwrap();
 
@@ -280,11 +234,6 @@ where
             .as_slice(),
     )
     .unwrap();
-
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
 
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
@@ -294,7 +243,7 @@ where
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -315,44 +264,27 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn decrement_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<(), RpcError>
+) -> Result<Signature, RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + Indexer,
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
     remaining_accounts.add_system_accounts(config);
 
     let hash = compressed_account.hash().unwrap();
-    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(Vec::from(&[hash])),
-            Some(Vec::from(&[merkle_tree_pubkey])),
-            None,
-            None,
-            rpc,
-        )
+    let rpc_result = rpc
+        .get_validity_proof(Vec::from(&[hash]), vec![])
         .await
         .unwrap();
 
@@ -370,20 +302,15 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
-        root_index: Some(rpc_result.root_indices[0].unwrap()),
+        root_index: Some(rpc_result.root_indices[0]),
         output_merkle_tree_index: packed_merkle_context.merkle_tree_pubkey_index,
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -404,43 +331,27 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
 
 async fn reset_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer,
+
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<(), RpcError>
+) -> Result<Signature, RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + Indexer,
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
     remaining_accounts.add_system_accounts(config);
 
     let hash = compressed_account.hash().unwrap();
-    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(Vec::from(&[hash])),
-            Some(Vec::from(&[merkle_tree_pubkey])),
-            None,
-            None,
-            rpc,
-        )
+    let rpc_result = rpc
+        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
         .await
         .unwrap();
 
@@ -457,11 +368,6 @@ where
             .as_slice(),
     )
     .unwrap();
-
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
 
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
@@ -471,7 +377,7 @@ where
     };
 
     let instruction_data = counter::instruction::ResetCounter {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -492,43 +398,26 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
 
 async fn close_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<(), RpcError>
+) -> Result<Signature, RpcError>
 where
-    R: RpcConnection + MerkleTreeExt,
+    R: RpcConnection + Indexer,
 {
     let mut remaining_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig::new(counter::ID);
     remaining_accounts.add_system_accounts(config);
 
     let hash = compressed_account.hash().unwrap();
-    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(Vec::from(&[hash])),
-            Some(Vec::from(&[merkle_tree_pubkey])),
-            None,
-            None,
-            rpc,
-        )
+    let rpc_result = rpc
+        .get_validity_proof_v2(Vec::from(&[hash]), vec![])
         .await
         .unwrap();
 
@@ -546,11 +435,6 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
@@ -559,7 +443,7 @@ where
     };
 
     let instruction_data = counter::instruction::CloseCounter {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -580,15 +464,6 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }

@@ -137,7 +137,7 @@ pub mod v1 {
 
 #[cfg(test)]
 mod test {
-    use light_macros::pubkey;
+    use solana_pubkey::pubkey;
 
     use super::{v1::*, *};
 

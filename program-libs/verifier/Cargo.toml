@@ -1,6 +1,6 @@
 [package]
 name = "light-verifier"
-version = "1.1.0"
+version = "1.2.0"
 description = "ZKP proof verifier used in Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -8,24 +8,29 @@ edition = "2021"
 
 [features]
 default = ["solana"]
-solana = ["solana-program", "light-compressed-account/solana"]
+solana = [
+    "solana-program-error",
+    "light-compressed-account/solana",
+    "solana-msg",
+]
 anchor = ["solana"] # For backward compatibility, alias to solana
 pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 
 [dependencies]
-groth16-solana = { workspace = true, default-features = false }
+groth16-solana = { workspace = true }
 thiserror = { workspace = true }
-light-compressed-account = { workspace = true, default-features = false }
+light-compressed-account = { workspace = true }
 
 # Optional import for ProgramError conversion
-solana-program = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-msg = { workspace = true, optional = true }
 # Optional import for ProgramError conversion
 pinocchio = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 serial_test = { workspace = true }
 
 [lints.rust.unexpected_cfgs]

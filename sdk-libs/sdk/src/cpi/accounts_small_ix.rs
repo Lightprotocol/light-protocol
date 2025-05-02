@@ -1,7 +1,7 @@
+#![cfg(feature = "v2")]
 use crate::{
-    cpi::accounts::{CompressionCpiAccountsConfig, SystemAccountMetaConfig, SystemAccountPubkeys},
-    error::Result,
-    find_cpi_signer_macro, msg, AccountInfo, AccountMeta, Pubkey, CPI_AUTHORITY_PDA_SEED,
+    cpi::accounts::CompressionCpiAccountsConfig, error::Result, msg, AccountInfo, AccountMeta,
+    Pubkey,
 };
 
 #[repr(usize)]
@@ -148,6 +148,7 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
             });
             index += 1;
         }
+        assert_eq!(self.system_accounts_end_offset(), index);
 
         self.accounts[index..].iter().for_each(|acc| {
             account_metas.push(AccountMeta {
@@ -184,51 +185,4 @@ impl<'c, 'info> CompressionCpiAccounts<'c, 'info> {
     pub fn tree_accounts(&self) -> &'c [AccountInfo<'info>] {
         &self.accounts[self.system_accounts_end_offset()..]
     }
-}
-
-/// Can be used in client to add system account metas.
-///
-/// We need the program id account infos in the outer instruction.
-/// Account Metas:
-/// 1. Light System Program
-/// 2. Account Compression Program
-/// 3. System Program
-/// 4. CPI Signer
-/// 5. Registered Program PDA
-/// 6. Account Compression Authority
-pub fn get_light_system_account_metas_small(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
-    let default_pubkeys = SystemAccountPubkeys::default();
-
-    let mut vec = vec![
-        AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        AccountMeta::new_readonly(cpi_signer, false),
-        AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-    ];
-
-    if let Some(pubkey) = config.sol_pool_pda {
-        vec.push(AccountMeta {
-            pubkey,
-            is_signer: false,
-            is_writable: true,
-        });
-    }
-    if let Some(pubkey) = config.sol_compression_recipient {
-        vec.push(AccountMeta {
-            pubkey,
-            is_signer: false,
-            is_writable: true,
-        });
-    }
-    if let Some(pubkey) = config.cpi_context {
-        vec.push(AccountMeta {
-            pubkey,
-            is_signer: false,
-            is_writable: true,
-        });
-    }
-    vec
 }

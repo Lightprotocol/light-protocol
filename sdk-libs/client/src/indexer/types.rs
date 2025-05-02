@@ -113,6 +113,7 @@ pub struct ProofRpcResultV2 {
     pub root_indices: Vec<Option<u16>>,
     pub address_root_indices: Vec<u16>,
 }
+
 #[cfg(feature = "v2")]
 impl ProofRpcResultV2 {
     pub fn from_api_model(

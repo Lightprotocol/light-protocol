@@ -53,7 +53,6 @@ pub enum InstructionDiscriminator {
 }
 #[cfg(not(feature = "no-entrypoint"))]
 use pinocchio::entrypoint;
-
 #[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
 

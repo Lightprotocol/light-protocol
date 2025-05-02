@@ -1,6 +1,7 @@
-#![cfg(all(feature = "test-only", feature = "solana"))]
-use std::{cell::RefCell, rc::Rc};
+#![cfg(feature = "test-only")]
+#![cfg(feature = "solana")]
 
+use light_account_checks::test_account_info::solana_program::TestAccount;
 use light_batched_merkle_tree::{
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40},
     initialize_address_tree::{
@@ -14,40 +15,7 @@ use light_batched_merkle_tree::{
     queue::{test_utils::get_output_queue_account_size_default, BatchedQueueAccount},
 };
 use light_hasher::zero_bytes;
-use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct TestAccount {
-    pub key: Pubkey,
-    pub owner: Pubkey,
-    pub data: Vec<u8>,
-    pub lamports: u64,
-    pub writable: bool,
-}
-impl TestAccount {
-    pub fn new(key: Pubkey, owner: Pubkey, size: usize) -> Self {
-        Self {
-            key,
-            owner,
-            data: vec![0; size],
-            lamports: 0,
-            writable: true,
-        }
-    }
-
-    pub fn get_account_info(&mut self) -> AccountInfo<'_> {
-        AccountInfo {
-            key: &self.key,
-            is_signer: false,
-            is_writable: self.writable,
-            lamports: Rc::new(RefCell::new(&mut self.lamports)),
-            data: Rc::new(RefCell::new(&mut self.data)),
-            owner: &self.owner,
-            executable: false,
-            rent_epoch: 0,
-        }
-    }
-}
+use solana_pubkey::Pubkey;
 
 /// Test:
 /// 1. functional init_batched_address_merkle_tree_from_account_info

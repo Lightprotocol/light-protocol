@@ -59,9 +59,13 @@ solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 [dev-dependencies]
 rand = { workspace = true }
+light-compressed-account = { workspace = true, features = [
+    "pinocchio",
+    "new-unique",
+], default-features = false }
 light-account-checks = { workspace = true, default-features = false, features = [
     "pinocchio",
-    "test_only",
+    "test-only",
 ] }
 
 [lints.rust.unexpected_cfgs]

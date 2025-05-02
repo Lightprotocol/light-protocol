@@ -26,7 +26,7 @@ members = [
     "xtask",
     "examples/anchor/token-escrow",
     # "examples/anchor/name-service-without-macros",
-    # "examples/anchor/counter",
+    "examples/anchor/counter",
     # "examples/anchor/memo",
     "program-tests/account-compression-test",
     "program-tests/compressed-token-test",
@@ -36,7 +36,7 @@ members = [
     "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
     # Issue is that anchor discriminator now returns a slice instead of an array
-    # "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
+    "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "program-tests/sdk-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
@@ -61,6 +61,7 @@ solana-banks-interface = { version = "2.2.1" }
 solana-program = "2.2.1"
 solana-pubkey = "2.2.1"
 solana-sdk = "2.2.1"
+solana-cpi = "2.2.1"
 solana-program-test = { version = "2.2.1" }
 solana-client = "2.2.1"
 solana-cli-output = "2.2.1"
@@ -98,7 +99,7 @@ spl-token = "7.0.0"
 spl-token-2022 = { version = "7", no-default-features = true, features = [
     "no-entrypoint",
 ] }
-pinocchio = { version = "0.8.1" }
+pinocchio = { version = "0.8.4" }
 bs58 = "^0.5.1"
 
 # Anchor
@@ -141,16 +142,16 @@ light-hash-set = { version = "1.2.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "1.1.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "1.1.0", path = "program-libs/concurrent-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.9.1" }
-light-hasher = { path = "program-libs/hasher", version = "1.1.0" }
-light-macros = { path = "program-libs/macros", version = "1.1.0" }
+light-hasher = { path = "program-libs/hasher", version = "2.0.0" }
+light-macros = { path = "program-libs/macros", version = "1.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "1.1.0" }
 light-heap = { path = "program-libs/heap", version = "1.1.0" }
-light-prover-client = { path = "prover/client", version = "1.2.0" }
-light-sdk = { path = "sdk-libs/sdk", version = "0.11.0" }
-light-sdk-macros = { path = "sdk-libs/macros", version = "0.4.0" }
+light-prover-client = { path = "prover/client", version = "1.3.0" }
+light-sdk = { path = "sdk-libs/sdk", version = "0.12.0" }
+light-sdk-macros = { path = "sdk-libs/macros", version = "0.5.1" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.1.0" }
-light-verifier = { path = "program-libs/verifier", version = "1.1.0" }
+light-verifier = { path = "program-libs/verifier", version = "1.2.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.1.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.50.0" }
 forester-utils = { path = "forester-utils", version = "1.2.0" }
@@ -174,7 +175,7 @@ light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.1.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.1.0" }
-light-bounded-vec = { version = "1.1.0", git = "https://github.com/lightprotocol/program-libs", rev = "cf87f3e002d8a7dd40dd19d9387e73398cdcfef8" }
+light-bounded-vec = { version = "1.1.0", git = "https://github.com/lightprotocol/program-libs", rev = "f5aa99e4617672bab00073377a2db92e42610a73" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }

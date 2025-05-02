@@ -49,7 +49,6 @@ pub trait AccountInfoTrait {
 
     fn meta_mut<M: CompressedAccountMetaTrait>(
         &mut self,
-        // Input
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
@@ -103,12 +102,8 @@ impl AccountInfoTrait for CompressedAccountInfo {
         Ok(())
     }
 
-    /// Initializes a compressed account info with address.
-    /// 1. The account is zeroed, data has to be added in a separate step.
-    /// 2. Once data is added the data hash has to be added.
     fn meta_mut<M: CompressedAccountMetaTrait>(
         &mut self,
-        // Input
         input_account_meta: &M,
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
@@ -150,9 +145,6 @@ impl AccountInfoTrait for CompressedAccountInfo {
         Ok(())
     }
 
-    /// Initializes a compressed account info with address.
-    /// 1. The account is zeroed, data has to be added in a separate step.
-    /// 2. Once data is added the data hash has to be added.
     fn meta_close<M: CompressedAccountMetaTrait>(
         &mut self,
         input_account_meta: &M,

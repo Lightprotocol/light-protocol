@@ -1,25 +1,31 @@
-use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
+use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
+    account::LightAccount,
     address::v1::derive_address,
-    cpi::verify::verify_compressed_account_infos,
-    error::LightSdkError,
-    instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
-    LightDiscriminator, LightHasher,
+    cpi::{
+        accounts::CompressionCpiAccounts,
+        verify::{verify_compression_instruction, CompressionInstruction},
+    },
+    instruction::{
+        account_meta::CompressedAccountMeta, merkle_context::PackedAddressMerkleContext,
+    },
+    verifier::CompressedProof,
+    LightDiscriminator, LightHasher, NewAddressParamsPacked, ValidityProof,
 };
+
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 
 #[program]
 pub mod sdk_anchor_test {
-    use light_sdk::{
-        account::LightAccount, cpi::accounts::CompressionCpiAccounts, NewAddressParamsPacked,
-    };
+
+    use light_sdk::AddressProof;
 
     use super::*;
 
     pub fn with_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
-        light_ix_data: LightInstructionData,
+        proof: AddressProof,
+        address_merkle_context: PackedAddressMerkleContext,
         output_merkle_tree_index: u8,
         name: String,
     ) -> Result<()> {
@@ -30,10 +36,6 @@ pub mod sdk_anchor_test {
             crate::ID,
         )
         .map_err(ProgramError::from)?;
-        let address_merkle_context = light_ix_data
-            .new_addresses
-            .ok_or(LightSdkError::ExpectedAddressMerkleContext)
-            .map_err(ProgramError::from)?[0];
 
         let (address, address_seed) = derive_address(
             &[b"compressed", name.as_bytes()],
@@ -59,23 +61,23 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        verify_compressed_account_infos(
-            &light_cpi_accounts,
-            light_ix_data.proof,
-            &[my_compressed_account.to_account_info().unwrap()],
-            Some(vec![new_address_params]),
-            None,
-            false,
-            None,
-        )
-        .map_err(ProgramError::from)?;
+        let instruction = CompressionInstruction::new_with_address(
+            proof,
+            vec![my_compressed_account
+                .to_account_info()
+                .map_err(ProgramError::from)?],
+            vec![new_address_params],
+        );
+
+        verify_compression_instruction(&light_cpi_accounts, instruction)
+            .map_err(ProgramError::from)?;
 
         Ok(())
     }
 
     pub fn update_nested_data<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
-        light_ix_data: LightInstructionData,
+        proof: ValidityProof,
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
         nested_data: NestedData,
@@ -97,16 +99,15 @@ pub mod sdk_anchor_test {
         )
         .map_err(ProgramError::from)?;
 
-        verify_compressed_account_infos(
-            &light_cpi_accounts,
-            light_ix_data.proof,
-            &[my_compressed_account.to_account_info().unwrap()],
-            None,
-            None,
-            false,
-            None,
-        )
-        .map_err(ProgramError::from)?;
+        let instruction = CompressionInstruction::new(
+            proof,
+            vec![my_compressed_account
+                .to_account_info()
+                .map_err(ProgramError::from)?],
+        );
+
+        verify_compression_instruction(&light_cpi_accounts, instruction)
+            .map_err(ProgramError::from)?;
 
         Ok(())
     }

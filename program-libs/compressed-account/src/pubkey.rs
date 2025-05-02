@@ -95,14 +95,14 @@ impl From<&[u8; 32]> for Pubkey {
 }
 
 #[cfg(not(feature = "anchor"))]
-impl From<Pubkey> for solana_program::pubkey::Pubkey {
+impl From<Pubkey> for solana_pubkey::Pubkey {
     fn from(pubkey: Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
 }
 
 #[cfg(not(feature = "anchor"))]
-impl From<&Pubkey> for solana_program::pubkey::Pubkey {
+impl From<&Pubkey> for solana_pubkey::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {
         Self::new_from_array(pubkey.to_bytes())
     }
@@ -139,17 +139,12 @@ impl From<&crate::Pubkey> for Pubkey {
 impl Pubkey {
     #[cfg(not(feature = "pinocchio"))]
     pub fn new_unique() -> Self {
-        Self(solana_program::pubkey::Pubkey::new_unique().to_bytes())
+        Self(solana_pubkey::Pubkey::new_unique().to_bytes())
     }
 
-    #[cfg(feature = "pinocchio")]
+    #[cfg(all(feature = "pinocchio", feature = "new-unique"))]
     pub fn new_unique() -> Self {
-        // Just generate a random pubkey
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let mut bytes = [0u8; 32];
-        rng.fill(&mut bytes);
-        Self(bytes)
+        Self(solana_pubkey::Pubkey::new_unique().to_bytes())
     }
 
     pub fn to_bytes(&self) -> [u8; 32] {
@@ -186,7 +181,7 @@ impl PubkeyTrait for anchor_lang::prelude::Pubkey {
 }
 
 #[cfg(not(feature = "anchor"))]
-impl PubkeyTrait for solana_program::pubkey::Pubkey {
+impl PubkeyTrait for solana_pubkey::Pubkey {
     fn trait_to_bytes(&self) -> [u8; 32] {
         self.to_bytes()
     }

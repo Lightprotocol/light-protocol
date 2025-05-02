@@ -140,7 +140,7 @@ mod tests {
     #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hash_to_bn254_field_size_be() {
-        use solana_program::pubkey::Pubkey;
+        use solana_pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
             let hashed_value = hash_to_bn254_field_size_be(input_bytes.as_slice());
@@ -161,7 +161,7 @@ mod tests {
     #[cfg(not(feature = "pinocchio"))]
     #[test]
     fn test_hashv_to_bn254_field_size_be() {
-        use solana_program::pubkey::Pubkey;
+        use solana_pubkey::Pubkey;
         for _ in 0..10_000 {
             let input_bytes = [Pubkey::new_unique().to_bytes(); 4];
             let input_bytes = input_bytes.iter().map(|x| x.as_slice()).collect::<Vec<_>>();

@@ -3,19 +3,19 @@ use light_sdk::{
     account::LightAccount,
     cpi::{
         accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
-        verify::verify_compressed_account_infos,
+        verify::{verify_compression_instruction, CompressionInstruction},
     },
     error::LightSdkError,
     hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    instruction::instruction_data::LightInstructionData,
-    Discriminator, LightDiscriminator, LightHasher, NewAddressParamsPacked,
+    instruction::merkle_context::PackedAddressMerkleContext,
+    AddressProof, LightDiscriminator, LightHasher, NewAddressParamsPacked,
 };
 use solana_program::{account_info::AccountInfo, program_error::ProgramError};
 
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
 /// - total with V1 tree: 307,784 CU
-/// - total with V2 tree: 181,932 CU
+/// - total with V2 tree: 138,876 CU
 pub fn create_pda<const BATCHED: bool>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -35,11 +35,7 @@ pub fn create_pda<const BATCHED: bool>(
         config,
     )?;
 
-    let address_merkle_tree_context = instruction_data
-        .light_ix_data
-        .new_addresses
-        .as_ref()
-        .unwrap()[0];
+    let address_merkle_context = instruction_data.address_merkle_context;
     let (address, address_seed) = if BATCHED {
         let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
             b"compressed",
@@ -48,8 +44,10 @@ pub fn create_pda<const BATCHED: bool>(
         .map_err(ProgramError::from)?;
         let address = light_compressed_account::address::derive_address(
             &address_seed,
-            &light_cpi_accounts.tree_accounts()
-                [address_merkle_tree_context.address_merkle_tree_pubkey_index as usize]
+            &light_cpi_accounts.tree_accounts()[instruction_data
+                .address_merkle_context
+                .address_merkle_tree_pubkey_index
+                as usize]
                 .key
                 .to_bytes(),
             &crate::ID.to_bytes(),
@@ -59,17 +57,16 @@ pub fn create_pda<const BATCHED: bool>(
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
             light_cpi_accounts.tree_accounts()
-                [address_merkle_tree_context.address_merkle_tree_pubkey_index as usize]
+                [address_merkle_context.address_merkle_tree_pubkey_index as usize]
                 .key,
             &crate::ID,
         )
     };
     let new_address_params = NewAddressParamsPacked {
         seed: address_seed,
-        address_queue_account_index: address_merkle_tree_context.address_queue_pubkey_index,
-        address_merkle_tree_root_index: address_merkle_tree_context.root_index,
-        address_merkle_tree_account_index: address_merkle_tree_context
-            .address_merkle_tree_pubkey_index,
+        address_queue_account_index: address_merkle_context.address_queue_pubkey_index,
+        address_merkle_tree_root_index: address_merkle_context.root_index,
+        address_merkle_tree_account_index: address_merkle_context.address_merkle_tree_pubkey_index,
     };
 
     let program_id = crate::ID.into();
@@ -81,15 +78,13 @@ pub fn create_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.data;
 
-    verify_compressed_account_infos(
-        &light_cpi_accounts,
-        instruction_data.light_ix_data.proof,
-        &[my_compressed_account.to_account_info()?],
-        Some(vec![new_address_params]),
-        None,
-        false,
-        None,
-    )
+    let instruction = CompressionInstruction::new_with_address(
+        instruction_data.proof,
+        vec![my_compressed_account.to_account_info()?],
+        vec![new_address_params],
+    );
+
+    verify_compression_instruction(&light_cpi_accounts, instruction)
 }
 
 #[derive(
@@ -101,7 +96,8 @@ pub struct MyCompressedAccount {
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct CreatePdaInstructionData {
-    pub light_ix_data: LightInstructionData,
+    pub proof: AddressProof,
+    pub address_merkle_context: PackedAddressMerkleContext,
     pub output_merkle_tree_index: u8,
     pub data: [u8; 31],
     pub system_accounts_offset: u8,

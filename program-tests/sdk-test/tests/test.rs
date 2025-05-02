@@ -9,14 +9,12 @@ use light_program_test::{
     program_test::LightProgramTest, AddressWithTree, Indexer, ProgramTestConfig, RpcConnection,
     RpcError,
 };
-use light_sdk::{
-    cpi::accounts::SystemAccountMetaConfig,
-    instruction::{
-        account_meta::CompressedAccountMeta,
-        instruction_data::LightInstructionData,
-        merkle_context::{pack_address_merkle_context, AddressMerkleContext},
-        pack_accounts::PackedAccounts,
-    },
+
+use light_sdk::instruction::{
+    account_meta::CompressedAccountMeta,
+    accounts::SystemAccountMetaConfig,
+    merkle_context::{pack_address_merkle_context, AddressMerkleContext},
+    pack_accounts::PackedAccounts,
 };
 use sdk_test::{
     create_pda::CreatePdaInstructionData,
@@ -111,12 +109,9 @@ pub async fn create_pda(
     );
     let (accounts, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
 
-    let light_ix_data = LightInstructionData {
-        proof: rpc_result.proof,
-        new_addresses: Some(vec![packed_address_merkle_context]),
-    };
     let instruction_data = CreatePdaInstructionData {
-        light_ix_data,
+        proof: rpc_result.proof.unwrap(),
+        address_merkle_context: packed_address_merkle_context,
         data: account_data,
         output_merkle_tree_index,
         system_accounts_offset: system_accounts_offset as u8,
@@ -151,10 +146,6 @@ pub async fn update_pda(
         .get_validity_proof_v2(vec![compressed_account.hash().unwrap()], vec![])
         .await?;
 
-    let light_ix_data = LightInstructionData {
-        proof: rpc_result.proof,
-        new_addresses: None,
-    };
     let meta = CompressedAccountMeta::from_compressed_account(
         &compressed_account,
         &mut accounts,
@@ -174,7 +165,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };

@@ -1,6 +1,6 @@
 [package]
 name = "light-sdk"
-version = "0.11.0"
+version = "0.12.0"
 description = "Rust SDK for ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -11,44 +11,44 @@ crate-type = ["cdylib", "lib"]
 name = "light_sdk"
 
 [features]
-no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-cpi = ["no-entrypoint"]
-mem-profiling = []
+solana = [
+    "solana-cpi",
+    "solana-instruction",
+    "solana-pubkey",
+    "solana-account-info",
+    "solana-msg",
+    "solana-program-error",
+    "borsh",
+    "light-verifier/solana",
+    "light-compressed-account/solana",
+    "light-hasher/solana",
+]
 default = ["solana"]
-test-sbf = []
-bench-sbf = []
 idl-build = ["anchor-lang/idl-build"]
-legacy = ["account-compression", "light-system-program-anchor", "anchor-lang"]
 anchor = [
     "anchor-lang",
     "light-compressed-account/anchor",
     "light-verifier/anchor",
     "light-hasher/solana",
 ]
-solana = [
-    "solana-program",
-    "borsh",
-    "light-verifier/solana",
-    "light-compressed-account/solana",
-    "light-hasher/solana",
-]
+v2 = []
 
 [dependencies]
-solana-program = { workspace = true, optional = true }
+solana-pubkey = { workspace = true, optional = true }
+solana-account-info = { workspace = true, optional = true }
+solana-msg = { workspace = true, optional = true }
+solana-cpi = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-instruction = { workspace = true, optional = true }
+
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
+
 # only needed with solana-program
 borsh = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
-# anchor programs
-account-compression = { workspace = true, optional = true }
-light-system-program-anchor = { workspace = true, optional = true }
-
 light-sdk-macros = { workspace = true }
-
 light-macros = { workspace = true }
 light-compressed-account = { workspace = true }
 light-verifier = { workspace = true }

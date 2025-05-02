@@ -144,13 +144,16 @@ pub async fn spawn_prover(config: ProverConfig) {
             if health_result {
                 info!("Prover started successfully");
             } else {
-                panic!("Prover failed to start");
+                panic!("Failed to determine the project root directory");
             }
-            IS_LOADING.store(false, Ordering::Relaxed);
+        }
+        #[cfg(not(feature = "devenv"))]
+        {
+            "light"
         }
     } else {
-        panic!("Failed to determine the project root directory");
-    }
+        panic!("Failed to find project root.");
+    };
 }
 
 pub fn kill_process(process_name: &str) {

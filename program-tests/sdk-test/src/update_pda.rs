@@ -3,18 +3,19 @@ use light_sdk::{
     account::LightAccount,
     cpi::{
         accounts::{CompressionCpiAccounts, CompressionCpiAccountsConfig},
-        verify::verify_compressed_account_infos,
+        verify::{verify_compression_instruction, CompressionInstruction},
     },
     error::LightSdkError,
-    instruction::{account_meta::CompressedAccountMeta, instruction_data::LightInstructionData},
+    instruction::account_meta::CompressedAccountMeta,
+    ValidityProof,
 };
 use solana_program::account_info::AccountInfo;
 
 use crate::create_pda::MyCompressedAccount;
 
 /// CU usage:
-/// - sdk pre system program  10,902k CU
-/// - total with V2 tree: 78,074 CU (proof by index)
+/// - sdk pre system program  9,183k CU
+/// - total with V2 tree: 50,194 CU (proof by index)
 pub fn update_pda<const BATCHED: bool>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -40,26 +41,22 @@ pub fn update_pda<const BATCHED: bool>(
         sol_pool_pda: false,
         sol_compression_recipient: false,
     };
-    let light_cpi_accounts = CompressionCpiAccounts::new_with_config(
+    let cpi_accounts = CompressionCpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
     )?;
+    let instruction = CompressionInstruction::new(
+        instruction_data.proof,
+        vec![my_compressed_account.to_account_info()?],
+    );
 
-    verify_compressed_account_infos(
-        &light_cpi_accounts,
-        instruction_data.light_ix_data.proof,
-        &[my_compressed_account.to_account_info()?],
-        None,
-        None,
-        false,
-        None,
-    )
+    verify_compression_instruction(&cpi_accounts, instruction)
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]
 pub struct UpdatePdaInstructionData {
-    pub light_ix_data: LightInstructionData,
+    pub proof: ValidityProof,
     pub my_compressed_account: UpdateMyCompressedAccount,
     pub new_data: [u8; 31],
     pub system_accounts_offset: u8,

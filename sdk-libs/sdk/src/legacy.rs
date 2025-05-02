@@ -1,4 +1,3 @@
-#![cfg(feature = "legacy")]
 //! Legacy types re-imported from programs which should be removed as soon as
 //! possible.
 

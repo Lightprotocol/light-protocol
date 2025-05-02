@@ -1,23 +1,18 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
-use light_client::{
-    indexer::{AddressMerkleTreeAccounts, Indexer, StateMerkleTreeAccounts},
-    rpc::merkle_tree::MerkleTreeExt,
-};
+use light_client::rpc::merkle_tree::MerkleTreeExt;
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
     program_test::LightProgramTest,
+    AddressWithTree, Indexer, ProgramTestConfig,
 };
-use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     address::v1::derive_address,
-    cpi::accounts::SystemAccountMetaConfig,
     instruction::{
         account_meta::CompressedAccountMeta,
-        instruction_data::LightInstructionData,
+        accounts::SystemAccountMetaConfig,
         merkle_context::{pack_address_merkle_context, pack_merkle_context, AddressMerkleContext},
         pack_accounts::PackedAccounts,
     },
@@ -26,41 +21,20 @@ use light_test_utils::{RpcConnection, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};
 use solana_sdk::{
     instruction::Instruction,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
 };
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        "sdk_anchor_test",
-        sdk_anchor_test::ID,
-    )]))
-    .await;
+    let config = ProgramTestConfig::new(true, Some(vec![("sdk_anchor_test", sdk_anchor_test::ID)]));
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer = TestIndexer::new(
-        vec![StateMerkleTreeAccounts {
-            merkle_tree: env.v1_state_trees[0].merkle_tree,
-            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
-            cpi_context: env.v1_state_trees[0].cpi_context,
-        }],
-        vec![AddressMerkleTreeAccounts {
-            merkle_tree: env.v1_address_trees[0].merkle_tree,
-            queue: env.v1_address_trees[0].queue,
-        }],
-        payer.insecure_clone(),
-        env.protocol.group_pda,
-        Some(ProverConfig {
-            circuits: vec![ProofType::Inclusion, ProofType::NonInclusion],
-            run_mode: None,
-        }),
-    )
-    .await;
-
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: env.v1_address_trees[0].queue,
+        address_merkle_tree_pubkey: rpc.test_accounts.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: rpc.test_accounts.v1_address_trees[0].queue,
     };
+    rpc.get_state_merkle_tree();
 
     let (address, _) = derive_address(
         &[b"compressed", b"test".as_slice()],
@@ -68,20 +42,13 @@ async fn test_sdk_test() {
         &sdk_anchor_test::ID,
     );
 
-    with_nested_data(
-        "test".to_string(),
-        &mut rpc,
-        &mut test_indexer,
-        &env,
-        &payer,
-        &address,
-    )
-    .await
-    .unwrap();
+    with_nested_data("test".to_string(), &mut rpc, &payer, &address)
+        .await
+        .unwrap();
 
     // Check that it was created correctly.
     let compressed_accounts =
-        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
+        rpc.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = compressed_accounts[0].clone();
     let record = &compressed_account
@@ -95,7 +62,6 @@ async fn test_sdk_test() {
 
     update_nested_data(
         &mut rpc,
-        &mut test_indexer,
         NestedData {
             one: 2,
             two: 3,
@@ -118,7 +84,7 @@ async fn test_sdk_test() {
 
     // Check that it was updated correctly.
     let compressed_accounts =
-        test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
+        rpc.get_compressed_accounts_with_merkle_context_by_owner(&sdk_anchor_test::ID);
     assert_eq!(compressed_accounts.len(), 1);
     let compressed_account = &compressed_accounts[0];
     let record = &compressed_account
@@ -131,52 +97,43 @@ async fn test_sdk_test() {
     assert_eq!(record.nested.one, 2);
 }
 
-async fn with_nested_data<R, I>(
+async fn with_nested_data(
     name: String,
-    rpc: &mut R,
-    test_indexer: &mut I,
-    env: &TestAccounts,
+    rpc: &mut LightProgramTest,
     payer: &Keypair,
     address: &[u8; 32],
-) -> Result<(), RpcError>
-where
-    R: RpcConnection + MerkleTreeExt,
-    I: Indexer + TestIndexerExtensions,
-{
+) -> Result<Signature, RpcError> {
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
     let mut remaining_accounts = PackedAccounts::default();
     remaining_accounts.add_system_accounts(config);
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&[*address]),
-            Some(vec![env.v1_address_trees[0].merkle_tree]),
-            rpc,
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![AddressWithTree {
+                address: *address,
+                tree: rpc.test_accounts.v1_address_trees[0].merkle_tree,
+            }],
         )
-        .await
-        .unwrap();
+        .await?;
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
-        address_queue_pubkey: env.v1_address_trees[0].queue,
+        address_merkle_tree_pubkey: rpc.test_accounts.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: rpc.test_accounts.v1_address_trees[0].queue,
     };
-    let output_merkle_tree_index = remaining_accounts.insert_or_get(env.v1_state_trees[0].merkle_tree);
+    let output_merkle_tree_index =
+        remaining_accounts.insert_or_get(rpc.test_accounts.v1_state_trees[0].merkle_tree);
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
         rpc_result.address_root_indices[0],
     );
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: Some(vec![packed_address_merkle_context]),
-    };
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        light_ix_data,
+        proof: rpc_result.proof,
+        address_merkle_context: packed_address_merkle_context,
         name,
         output_merkle_tree_index,
     };
@@ -191,55 +148,28 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
 
-async fn update_nested_data<R, I>(
-    rpc: &mut R,
-    test_indexer: &mut I,
+async fn update_nested_data(
+    rpc: &mut LightProgramTest,
     nested_data: NestedData,
     payer: &Keypair,
     mut compressed_account: CompressedAccountWithMerkleContext,
-) -> Result<(), RpcError>
-where
-    R: RpcConnection + MerkleTreeExt,
-    I: Indexer + TestIndexerExtensions,
-{
+) -> Result<Signature, RpcError> {
     let mut remaining_accounts = PackedAccounts::default();
 
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
     remaining_accounts.add_system_accounts(config);
     let hash = compressed_account.hash().unwrap();
-    let merkle_tree_pubkey = compressed_account.merkle_context.merkle_tree_pubkey;
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(vec![hash]),
-            Some(vec![merkle_tree_pubkey]),
-            None,
-            None,
-            rpc,
-        )
-        .await
-        .unwrap();
+    let rpc_result = rpc.get_validity_proof_v2(vec![hash], vec![]).await?;
 
     let packed_merkle_context =
         pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
+
     let my_compressed_account = MyCompressedAccount::deserialize(
         &mut compressed_account
             .compressed_account
@@ -251,7 +181,7 @@ where
     )
     .unwrap();
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         my_compressed_account,
         account_meta: CompressedAccountMeta {
             merkle_context: packed_merkle_context,
@@ -272,15 +202,6 @@ where
         data: instruction_data.data(),
     };
 
-    let event = rpc
-        .create_and_send_transaction_with_public_event(
-            &[instruction],
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await?;
-    let slot = rpc.get_slot().await.unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(slot, &event.unwrap().0);
-    Ok(())
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .await
 }
