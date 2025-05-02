@@ -624,7 +624,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             this.fetchPromise = null;
             if (!this.allStateTreeInfos) {
                 throw new Error(
-                    'allStateTreeInfos should not be null. Please send an email to team@lightprotocol.com.',
+                    'allStateTreeInfos should never be null. if you see this message, please send an email to team@lightprotocol.com.',
                 );
             }
         }
