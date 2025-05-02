@@ -23,7 +23,7 @@ use crate::assert_compressed_tx::{
 /// 6. Check compression amount was transferred (outside of this function)
 ///    No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_transfer<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     context: &mut R,
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
@@ -36,7 +36,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
     delegates: Option<Vec<Option<Pubkey>>>,
 ) {
     // CHECK 1
-    assert_compressed_token_accounts(
+    assert_compressed_token_accounts::<R, I>(
         test_indexer,
         out_compressed_accounts,
         lamports,
@@ -80,10 +80,7 @@ pub async fn assert_transfer<R: RpcConnection, I: Indexer<R> + TestIndexerExtens
     );
 }
 
-pub fn assert_compressed_token_accounts<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub fn assert_compressed_token_accounts<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     out_compressed_accounts: &[TokenTransferOutputData],
     lamports: Option<Vec<Option<u64>>>,
@@ -193,7 +190,7 @@ pub fn assert_compressed_token_accounts<
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_mint_to<'a, R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &'a mut I,
     recipients: &[Pubkey],

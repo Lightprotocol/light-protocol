@@ -7,9 +7,9 @@ use std::{
 };
 
 use account_compression::utils::constants::{ADDRESS_QUEUE_VALUES, STATE_NULLIFIER_QUEUE_VALUES};
-use forester_utils::forester_epoch::TreeAccounts;
+use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
 use futures::StreamExt;
-use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use light_client::rpc::RpcConnection;
 use light_compressed_account::TreeType;
 use light_registry::utils::get_forester_epoch_pda_from_authority;
 use reqwest::Url;
@@ -301,14 +301,14 @@ async fn execute_transaction_chunk_sending<R: RpcConnection>(
             let tx_signature_str = tx_signature.to_string();
 
             match pool_clone.get_connection().await {
-                Ok(mut rpc) => {
+                Ok(rpc) => {
                     if Instant::now() >= timeout_deadline {
                         warn!(tx.signature = %tx_signature_str, "Timeout after getting RPC, before sending tx");
                         return TransactionSendResult::Timeout;
                     }
 
                     let send_time = Instant::now();
-                    match rpc.process_transaction_with_config(tx, rpc_send_config).await {
+                    match rpc.send_transaction_with_config(&tx, rpc_send_config).await {
                         Ok(signature) => {
                             if !cancel_signal_clone.load(Ordering::SeqCst) { // Re-check before incrementing
                                 num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);

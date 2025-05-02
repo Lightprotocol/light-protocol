@@ -7,8 +7,8 @@ use account_compression::{
         STATE_MERKLE_TREE_CHANGELOG,
     },
 };
-use forester_utils::utils::wait_for_indexer;
-use light_client::{indexer::Indexer, rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use forester_utils::{rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use light_client::{indexer::Indexer, rpc::RpcConnection};
 use light_compressed_account::TreeType;
 use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
@@ -30,7 +30,7 @@ use crate::{
 };
 
 /// Work items should be of only one type and tree
-pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R>>(
+pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer>(
     authority: Pubkey,
     derivation: Pubkey,
     pool: Arc<SolanaRpcPool<R>>,

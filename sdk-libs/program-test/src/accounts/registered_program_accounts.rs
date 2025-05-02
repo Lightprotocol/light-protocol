@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use solana_sdk::{account::Account, pubkey::Pubkey};
-pub fn get_registered_program_pda() -> Account {
+pub fn registered_program_test_account_system_program() -> Account {
     Account {
         lamports: 1614720u64,
         data: vec![
@@ -21,7 +21,7 @@ pub fn get_registered_program_pda() -> Account {
         rent_epoch: 18446744073709551615u64,
     }
 }
-pub fn get_registered_registry_program_pda() -> Account {
+pub fn registered_program_test_account_registry_program() -> Account {
     Account {
         lamports: 1614720u64,
         data: vec![

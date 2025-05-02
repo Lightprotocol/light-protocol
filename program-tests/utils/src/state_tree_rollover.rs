@@ -17,6 +17,7 @@ use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
 };
 use light_hasher::Poseidon;
+use light_program_test::{program_test::test_rpc::TestRpc, Indexer};
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,
@@ -118,7 +119,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc.process_transaction_with_context(transaction).await
 }
 
-pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
+pub async fn set_state_merkle_tree_next_index<R: RpcConnection + TestRpc + Indexer>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,

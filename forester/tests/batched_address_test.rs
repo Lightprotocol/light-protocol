@@ -1,17 +1,22 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester_utils::{
+    registry::{register_test_forester, update_test_forester},
+    rpc_pool::SolanaRpcPool,
+};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
-    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc::{
+        rpc_connection::RpcConnectionConfig, solana_rpc::SolanaRpcUrl, RpcConnection,
+        SolanaRpcConnection,
+    },
 };
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
@@ -34,10 +39,11 @@ mod test_utils;
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        wait_time: 60,
+        wait_time: 90,
         prover_config: Some(ProverConfig {
             run_mode: Some(ProverMode::ForesterTest),
             circuits: vec![],
+            restart: true,
         }),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
@@ -46,12 +52,11 @@ async fn test_address_batched() {
         limit_ledger_size: None,
     }))
     .await;
-
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();
 
     let forester_keypair = Keypair::new();
-    let mut env_accounts = EnvAccounts::get_local_test_validator_accounts();
-    env_accounts.forester = forester_keypair.insecure_clone();
+    let mut test_accounts = TestAccounts::get_local_test_validator_accounts();
+    test_accounts.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
     config.transaction_config.batch_ixs_per_tx = 1;
@@ -68,7 +73,11 @@ async fn test_address_batched() {
     .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: SolanaRpcUrl::Localnet.to_string(),
+        commitment_config: Some(commitment_config),
+        with_indexer: false,
+    });
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -76,7 +85,7 @@ async fn test_address_batched() {
         .unwrap();
 
     rpc.airdrop_lamports(
-        &env_accounts.governance_authority.pubkey(),
+        &test_accounts.protocol.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100_000,
     )
     .await
@@ -84,7 +93,7 @@ async fn test_address_batched() {
 
     register_test_forester(
         &mut rpc,
-        &env_accounts.governance_authority,
+        &test_accounts.protocol.governance_authority,
         &forester_keypair.pubkey(),
         light_registry::ForesterConfig::default(),
     )
@@ -111,21 +120,14 @@ async fn test_address_batched() {
 
     let config = Arc::new(config);
 
-    let indexer: TestIndexer<SolanaRpcConnection> =
-        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
+    let indexer = TestIndexer::init_from_acounts(&config.payer_keypair, &test_accounts, 0).await;
 
-    let mut photon_rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
-    photon_rpc.payer = forester_keypair.insecure_clone();
-    let mut photon_indexer = PhotonIndexer::new(
-        PhotonIndexer::<SolanaRpcConnection>::default_path(),
-        None,
-        photon_rpc,
-    );
+    let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path(), None);
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer>::new(
         rpc,
         indexer,
-        &env_accounts,
+        &test_accounts,
         keypair_action_config(),
         general_action_config(),
         0,
@@ -155,8 +157,8 @@ async fn test_address_batched() {
         println!("Tree {:?} is_v2: {}", tree, is_v2);
     }
     println!(
-        "env.batch_address_merkle_tree , {}",
-        env_accounts.batch_address_merkle_tree
+        "test_accounts.v2_address_trees[0] , {}",
+        test_accounts.v2_address_trees[0]
     );
     let mut merkle_tree_account = env
         .rpc
@@ -202,7 +204,7 @@ async fn test_address_batched() {
         perform_create_pda_with_event_rnd(
             &mut env.indexer,
             &mut env.rpc,
-            &env_accounts,
+            &test_accounts,
             &env.payer,
         )
         .await
@@ -240,7 +242,7 @@ async fn test_address_batched() {
     println!("zkp_batches: {}", zkp_batches);
 
     let (initial_next_index, initial_sequence_number, pre_root) = {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
         let mut merkle_tree_account = rpc
             .get_account(address_merkle_tree_pubkey)
             .await
@@ -266,7 +268,7 @@ async fn test_address_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
         config.clone(),
         None,
         None,
@@ -285,7 +287,7 @@ async fn test_address_batched() {
         Err(_) => panic!("Test timed out after {:?}", timeout_duration),
     }
 
-    let mut rpc = pool.get_connection().await.unwrap();
+    let rpc = pool.get_connection().await.unwrap();
     let mut merkle_tree_account = rpc
         .get_account(address_merkle_tree_pubkey)
         .await
@@ -304,7 +306,7 @@ async fn test_address_batched() {
     );
 
     {
-        let mut rpc = pool.get_connection().await.unwrap();
+        let rpc = pool.get_connection().await.unwrap();
 
         let mut merkle_tree_account = rpc
             .get_account(address_merkle_tree_pubkey)

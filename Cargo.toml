@@ -33,6 +33,7 @@ members = [
     "program-tests/e2e-test",
     "program-tests/registry-test",
     "program-tests/system-cpi-test",
+    "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
     # Issue is that anchor discriminator now returns a slice instead of an array
     # "program-tests/sdk-anchor-test/programs/sdk-anchor-test",
@@ -78,12 +79,27 @@ solana-bn254 = "2.2.1"
 solana-sysvar = { version = "2.1.1" }
 solana-program-error = { version = "2.1.1" }
 solana-account-info = { version = "2.1.1" }
+solana-transaction = { version = "2.2.1" }
+solana-transaction-error = { version = "2.2.1" }
+solana-hash = { version = "2.2.1" }
+solana-clock = { version = "2.2.1" }
+solana-signature = { version = "2.2.1" }
+solana-commitment-config = { version = "2.2.1" }
+solana-account = { version = "2.2.1" }
+solana-epoch-info = { version = "2.2.1" }
+solana-keypair = { version = "2.2.1" }
+solana-compute-budget-interface = { version = "2.2.1" }
+solana-signer = { version = "2.2.1" }
+solana-instruction = "2.2.1"
+solana-rpc-client = "2.2.1"
+solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7", no-default-features = true, features = [
     "no-entrypoint",
 ] }
 pinocchio = { version = "0.8.1" }
+bs58 = "^0.5.1"
 
 # Anchor
 anchor-lang = { version = "=0.31.1", features = ["idl-build"] }

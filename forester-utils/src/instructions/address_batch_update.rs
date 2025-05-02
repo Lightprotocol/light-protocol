@@ -35,7 +35,7 @@ pub async fn create_batch_update_address_tree_instruction_data<R, I>(
 ) -> Result<(Vec<InstructionDataBatchNullifyInputs>, u16), ForesterUtilsError>
 where
     R: RpcConnection,
-    I: Indexer<R>,
+    I: Indexer,
 {
     info!("Creating batch update address tree instruction data");
 
@@ -95,7 +95,7 @@ where
             error!("Failed to get batch address update info: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get batch address update info".into())
         })?;
-
+    debug!("indexer_update_info {:?}", indexer_update_info);
     let indexer_root = indexer_update_info
         .non_inclusion_proofs
         .first()

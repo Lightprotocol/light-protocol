@@ -71,6 +71,53 @@ pub struct GeneralConfig {
     pub slot_update_interval_seconds: u64,
     pub tree_discovery_interval_seconds: u64,
     pub enable_metrics: bool,
+    pub skip_v1_state_trees: bool,
+    pub skip_v1_address_trees: bool,
+    pub skip_v2_state_trees: bool,
+    pub skip_v2_address_trees: bool,
+}
+
+impl Default for GeneralConfig {
+    fn default() -> Self {
+        GeneralConfig {
+            rpc_pool_size: 20,
+            slot_update_interval_seconds: 10,
+            tree_discovery_interval_seconds: 1,
+            enable_metrics: true,
+            skip_v1_state_trees: false,
+            skip_v1_address_trees: false,
+            skip_v2_state_trees: false,
+            skip_v2_address_trees: false,
+        }
+    }
+}
+
+impl GeneralConfig {
+    pub fn test_address_v2() -> Self {
+        GeneralConfig {
+            rpc_pool_size: 10,
+            slot_update_interval_seconds: 10,
+            tree_discovery_interval_seconds: 1,
+            enable_metrics: true,
+            skip_v1_state_trees: true,
+            skip_v1_address_trees: true,
+            skip_v2_state_trees: true,
+            skip_v2_address_trees: false,
+        }
+    }
+
+    pub fn test_state_v2() -> Self {
+        GeneralConfig {
+            rpc_pool_size: 10,
+            slot_update_interval_seconds: 10,
+            tree_discovery_interval_seconds: 1,
+            enable_metrics: true,
+            skip_v1_state_trees: true,
+            skip_v1_address_trees: true,
+            skip_v2_state_trees: false,
+            skip_v2_address_trees: true,
+        }
+    }
 }
 
 impl Default for QueueConfig {
@@ -186,6 +233,10 @@ impl ForesterConfig {
                 slot_update_interval_seconds: args.slot_update_interval_seconds,
                 tree_discovery_interval_seconds: args.tree_discovery_interval_seconds,
                 enable_metrics: args.enable_metrics(),
+                skip_v1_state_trees: false,
+                skip_v2_state_trees: false,
+                skip_v1_address_trees: false,
+                skip_v2_address_trees: false,
             },
             registry_pubkey: Pubkey::from_str(&registry_pubkey).map_err(|e| {
                 ConfigError::InvalidPubkey {
@@ -225,6 +276,10 @@ impl ForesterConfig {
                 slot_update_interval_seconds: 10,
                 tree_discovery_interval_seconds: 60,
                 enable_metrics: args.enable_metrics(),
+                skip_v1_state_trees: false,
+                skip_v2_state_trees: false,
+                skip_v1_address_trees: false,
+                skip_v2_address_trees: false,
             },
             registry_pubkey: Pubkey::default(),
             payer_keypair: Keypair::new(),

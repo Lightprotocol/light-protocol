@@ -62,7 +62,7 @@ impl SlotTracker {
         estimated_slot
     }
 
-    pub async fn run<R: RpcConnection + Send + 'static>(self: Arc<Self>, rpc: &mut R) {
+    pub async fn run<R: RpcConnection + Send>(self: Arc<Self>, rpc: &mut R) {
         loop {
             match rpc.get_slot().await {
                 Ok(slot) => {

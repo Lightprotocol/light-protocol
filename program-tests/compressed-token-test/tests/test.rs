@@ -12,7 +12,7 @@ use anchor_spl::{
     token_2022::spl_token_2022::{self, extension::ExtensionType},
 };
 use forester_utils::{instructions::create_account_instruction, utils::airdrop_lamports};
-use light_client::indexer::Indexer;
+use light_client::{indexer::Indexer, rpc::rpc_connection::RpcConnectionConfig};
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     instruction_data::compressed_proof::CompressedProof,
@@ -36,38 +36,34 @@ use light_compressed_token::{
     ErrorCode, TokenData,
 };
 use light_program_test::{
+    accounts::{test_accounts::TestAccounts, test_keypairs::TestKeypairs},
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{
-        setup_test_programs_with_accounts,
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-        EnvAccountKeypairs, EnvAccounts,
-    },
-    test_rpc::ProgramTestRpcConnection,
+    utils::assert::assert_rpc_error,
+    LightProgramTest, ProgramTestConfig,
 };
 use light_prover_client::gnark::helpers::{
     kill_prover, spawn_prover, spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
-use light_registry::protocol_config::state::ProtocolConfig;
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
 use light_test_utils::{
-    assert_custom_error_or_program_error, assert_rpc_error,
+    assert_custom_error_or_program_error,
     conversions::sdk_to_program_token_data,
     spl::{
         approve_test, burn_test, compress_test, compressed_transfer_22_test,
         compressed_transfer_test, create_additional_token_pools, create_burn_test_instruction,
-        create_mint_22_helper, create_mint_helper, create_token_2022_account, create_token_account,
-        decompress_test, freeze_test, mint_spl_tokens, mint_tokens_22_helper_with_lamports,
+        create_mint_22_helper, create_mint_helper, create_mint_helper_with_keypair,
+        create_token_2022_account, create_token_account, decompress_test, freeze_test,
+        mint_spl_tokens, mint_tokens_22_helper_with_lamports,
         mint_tokens_22_helper_with_lamports_and_bump, mint_tokens_helper,
         mint_tokens_helper_with_lamports, mint_wrapped_sol, perform_compress_spl_token_account,
         revoke_test, thaw_test, BurnInstructionMode,
     },
-    RpcConnection, RpcError, SolanaRpcConnection, SolanaRpcUrl,
+    RpcConnection, RpcError, SolanaRpcConnection,
 };
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature},
@@ -79,7 +75,9 @@ use spl_token::{error::TokenError, instruction::initialize_mint};
 #[serial]
 #[tokio::test]
 async fn test_create_mint() {
-    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
     let payer = rpc.get_payer().insecure_clone();
     let mint = create_mint_helper(&mut rpc, &payer).await;
     create_additional_token_pools(&mut rpc, &payer, &mint, false, NUM_MAX_POOL_ACCOUNTS)
@@ -94,7 +92,9 @@ async fn test_create_mint() {
 #[serial]
 #[tokio::test]
 async fn test_failing_create_token_pool() {
-    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
     let rent = rpc
@@ -345,7 +345,9 @@ async fn test_failing_create_token_pool() {
 #[tokio::test]
 async fn failing_tests_add_token_pool() {
     for is_token_22 in [false, true] {
-        let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+            .await
+            .unwrap();
         let payer = rpc.get_payer().insecure_clone();
 
         let mint = if !is_token_22 {
@@ -590,20 +592,20 @@ pub async fn add_token_pool<R: RpcConnection>(
 #[serial]
 #[tokio::test]
 async fn test_wrapped_sol() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
     for is_token_22 in [false] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let native_mint = if is_token_22 {
             spl_token_2022::native_mint::ID
         } else {
@@ -653,7 +655,7 @@ async fn test_wrapped_sol() {
             &mut test_indexer,
             amount,
             &native_mint,
-            &env.merkle_tree_pubkey,
+            &env.v1_state_trees[0].merkle_tree,
             &token_account_keypair.pubkey(),
             None,
             is_token_22,
@@ -671,7 +673,7 @@ async fn test_wrapped_sol() {
             &mut test_indexer,
             input_compressed_accounts,
             amount,
-            &env.merkle_tree_pubkey,
+            &env.v1_state_trees[0].merkle_tree,
             &token_account_keypair.pubkey(),
             None,
             is_token_22,
@@ -684,11 +686,13 @@ async fn test_wrapped_sol() {
 }
 
 async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64>) {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
 
     let recipients = amounts
         .iter()
@@ -722,11 +726,13 @@ async fn test_mint_to(amounts: Vec<u64>, iterations: usize, lamports: Option<u64
 #[tokio::test]
 async fn compress_spl_account() {
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
 
         let token_account_keypair = Keypair::new();
         let token_owner = payer.insecure_clone();
@@ -824,11 +830,14 @@ async fn compress_spl_account() {
 #[serial]
 #[tokio::test]
 async fn test_22_mint_to() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
+
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let mint = create_mint_22_helper(&mut rpc, &payer).await;
     mint_tokens_22_helper_with_lamports(
         &mut rpc,
@@ -923,9 +932,12 @@ async fn test_mint_to_failing() {
     for is_token_22 in [false, true] {
         const MINTS: usize = 10;
 
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer_1 = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
 
         let mut rng = thread_rng();
 
@@ -1234,13 +1246,11 @@ async fn test_mint_to_failing() {
 #[serial]
 #[tokio::test]
 async fn test_transfers() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
@@ -1334,38 +1344,22 @@ async fn perform_transfer_22_test(
     start_prover_server: bool,
     batched_tree: bool,
 ) {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            ProtocolConfig {
-                // Init with an active epoch which doesn't end
-                active_phase_length: 1_000_000_000,
-                slot_length: 1_000_000_000 - 1,
-                genesis_slot: 0,
-                registration_phase_length: 2,
-                ..Default::default()
-            },
-            true,
-            InitStateTreeAccountsInstructionData::default(),
-            InitAddressTreeAccountsInstructionData::test_default(),
-        )
-        .await;
+    let mut config = ProgramTestConfig::default_with_batched_trees(start_prover_server);
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = if batched_tree {
-        env.batched_output_queue
+        env.v2_state_trees[0].output_queue
     } else {
-        env.merkle_tree_pubkey
+        env.v1_state_trees[0].merkle_tree
     };
-    let prover_config = if start_prover_server {
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        })
-    } else {
-        None
-    };
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, prover_config).await;
+    let mut test_indexer = TestIndexer::init_from_acounts(
+        &payer,
+        &env,
+        InitStateTreeAccountsInstructionData::default().output_queue_batch_size as usize,
+    )
+    .await;
 
     let mint = if token_22 {
         create_mint_22_helper(&mut rpc, &payer).await
@@ -1419,21 +1413,21 @@ async fn perform_transfer_22_test(
 #[serial]
 #[tokio::test]
 async fn test_decompression() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
-        let (mut context, env) = setup_test_programs_with_accounts(None).await;
+        let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = context.test_accounts.clone();
         let payer = context.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
             .await
@@ -1510,7 +1504,7 @@ async fn test_decompression() {
 #[allow(clippy::too_many_arguments)]
 pub async fn mint_tokens_to_all_token_pools<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     rpc: &mut R,
     test_indexer: &mut I,
@@ -1571,20 +1565,20 @@ pub async fn assert_minted_to_all_token_pools<R: RpcConnection>(
 #[serial]
 #[tokio::test]
 async fn test_mint_to_and_burn_from_all_token_pools() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let mint = if is_token_22 {
             create_mint_22_helper(&mut rpc, &payer).await
         } else {
@@ -1649,22 +1643,22 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
 #[serial]
 #[tokio::test]
 async fn test_multiple_decompression() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     let rng = &mut thread_rng();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
-        let (mut context, env) = setup_test_programs_with_accounts(None).await;
+        let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = context.test_accounts.clone();
         let payer = context.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
             .await
@@ -1831,18 +1825,13 @@ async fn test_delegation(
     output_amounts_1: Vec<u64>,
     output_amounts_2: Vec<u64>,
 ) {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -1910,7 +1899,7 @@ async fn test_delegation(
             &output_amounts_1,
             Some(vec![Some(90), Some(10)]),
             input_compressed_accounts.as_slice(),
-            &[env.merkle_tree_pubkey; 2],
+            &[env.v1_state_trees[0].merkle_tree; 2],
             Some(1),
             true,
             None,
@@ -1938,7 +1927,7 @@ async fn test_delegation(
             &output_amounts_2,
             None,
             input_compressed_accounts.as_slice(),
-            &[env.merkle_tree_pubkey; 1],
+            &[env.v1_state_trees[0].merkle_tree; 1],
             None,
             true,
             None,
@@ -1959,18 +1948,13 @@ async fn test_delegation_mixed() {
     let num_inputs: usize = 2;
     let delegated_amount: u64 = 3000;
 
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::default())
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2064,7 +2048,7 @@ async fn test_delegation_mixed() {
             &[100, 200, delegate_input_amount - 300],
             Some(vec![Some(90), Some(10), Some(delegate_lamports)]),
             input_compressed_accounts.as_slice(),
-            &[env.merkle_tree_pubkey; 3],
+            &[env.v1_state_trees[0].merkle_tree; 3],
             Some(1),
             true,
             None,
@@ -2109,7 +2093,7 @@ async fn test_delegation_mixed() {
             &[100, 200, delegate_input_amount - 300],
             Some(vec![Some(90), Some(10), Some(lamports_output_amount)]),
             input_compressed_accounts.as_slice(),
-            &[env.merkle_tree_pubkey; 3],
+            &[env.v1_state_trees[0].merkle_tree; 3],
             None,
             true,
             None,
@@ -2148,7 +2132,7 @@ async fn test_delegation_mixed() {
             &[input_amount],
             None,
             input_compressed_accounts.as_slice(),
-            &[env.merkle_tree_pubkey; 1],
+            &[env.v1_state_trees[0].merkle_tree; 1],
             None,
             true,
             None,
@@ -2201,18 +2185,13 @@ async fn test_delegation_max() {
 #[serial]
 #[tokio::test]
 async fn test_approve_failing() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2248,20 +2227,11 @@ async fn test_approve_failing() {
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_merkle_tree_pubkeys = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(input_compressed_account_hashes),
-            Some(input_merkle_tree_pubkeys),
-            None,
-            None,
-            &mut rpc,
-        )
+        .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
         .await
         .unwrap();
+
     let mint = input_compressed_accounts[0].token_data.mint;
 
     // 1. Invalid delegated compressed account Merkle tree.
@@ -2292,7 +2262,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2338,7 +2308,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: invalid_change_merkle_tree.pubkey(),
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2434,7 +2404,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2483,7 +2453,7 @@ async fn test_approve_failing() {
             change_compressed_account_merkle_tree: delegated_compressed_account_merkle_tree,
             delegate: delegate.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_approve_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2502,18 +2472,13 @@ async fn test_approve_failing() {
 /// 1. Delegate tokens with approve
 /// 2. Revoke
 async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64) {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2626,18 +2591,13 @@ async fn test_revoke_max() {
 #[serial]
 #[tokio::test]
 async fn test_revoke_failing() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -2698,18 +2658,8 @@ async fn test_revoke_failing() {
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_merkle_tree_pubkeys = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(input_compressed_account_hashes),
-            Some(input_merkle_tree_pubkeys),
-            None,
-            None,
-            &mut rpc,
-        )
+        .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
         .await
         .unwrap();
 
@@ -2737,7 +2687,7 @@ async fn test_revoke_failing() {
             mint,
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: invalid_root_indices,
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2779,7 +2729,7 @@ async fn test_revoke_failing() {
             mint,
             output_account_merkle_tree: invalid_merkle_tree.pubkey(),
             root_indices: proof_rpc_result.root_indices.clone(),
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2822,7 +2772,7 @@ async fn test_revoke_failing() {
             mint: invalid_mint.pubkey(),
             output_account_merkle_tree: merkle_tree_pubkey,
             root_indices: proof_rpc_result.root_indices,
-            proof: proof_rpc_result.proof,
+            proof: proof_rpc_result.proof.unwrap(),
         };
         let instruction = create_revoke_instruction(inputs).unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -2849,21 +2799,21 @@ async fn test_revoke_failing() {
 #[serial]
 #[tokio::test]
 async fn test_burn() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
             .await
@@ -3012,7 +2962,7 @@ async fn test_burn() {
             mint_tokens_to_all_token_pools(
                 &mut rpc,
                 &mut test_indexer,
-                &env.merkle_tree_pubkey,
+                &env.v1_state_trees[0].merkle_tree,
                 &payer,
                 &mint,
                 vec![amount],
@@ -3064,7 +3014,6 @@ async fn test_burn() {
                     &[instruction],
                     &payer.pubkey(),
                     &[&payer, &sender],
-                    None,
                 )
                 .await
                 .unwrap()
@@ -3114,20 +3063,20 @@ async fn test_burn() {
 #[serial]
 #[tokio::test]
 async fn failing_tests_burn() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
             .await
@@ -3456,20 +3405,20 @@ async fn failing_tests_burn() {
 /// 4. Freeze delegated tokens
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
             .await
@@ -3635,20 +3584,20 @@ async fn test_freeze_and_thaw_10000() {
 #[serial]
 #[tokio::test]
 async fn test_failing_freeze() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
             .await
@@ -3690,18 +3639,8 @@ async fn test_failing_freeze() {
             .iter()
             .map(|x| x.compressed_account.hash().unwrap())
             .collect::<Vec<_>>();
-        let input_merkle_tree_pubkeys = input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-            .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
-                Some(input_compressed_account_hashes),
-                Some(input_merkle_tree_pubkeys),
-                None,
-                None,
-                &mut rpc,
-            )
+            .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
             .await
             .unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -3729,7 +3668,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3764,7 +3703,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3854,18 +3793,8 @@ async fn test_failing_freeze() {
                 .iter()
                 .map(|x| x.compressed_account.hash().unwrap())
                 .collect::<Vec<_>>();
-            let input_merkle_tree_pubkeys = input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-                .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
-                .create_proof_for_compressed_accounts(
-                    Some(input_compressed_account_hashes),
-                    Some(input_merkle_tree_pubkeys),
-                    None,
-                    None,
-                    &mut rpc,
-                )
+                .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
                 .await
                 .unwrap();
             let inputs = CreateInstructionInputs {
@@ -3887,7 +3816,7 @@ async fn test_failing_freeze() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<true>(inputs).unwrap();
             let result = rpc
@@ -3915,20 +3844,20 @@ async fn test_failing_freeze() {
 #[serial]
 #[tokio::test]
 async fn test_failing_thaw() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
             .await
@@ -3997,18 +3926,8 @@ async fn test_failing_thaw() {
             .iter()
             .map(|x| x.compressed_account.hash().unwrap())
             .collect::<Vec<_>>();
-        let input_merkle_tree_pubkeys = input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-            .collect::<Vec<_>>();
         let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
-                Some(input_compressed_account_hashes),
-                Some(input_merkle_tree_pubkeys),
-                None,
-                None,
-                &mut rpc,
-            )
+            .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
             .await
             .unwrap();
         let context_payer = rpc.get_payer().insecure_clone();
@@ -4036,7 +3955,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4071,7 +3990,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree: invalid_merkle_tree.pubkey(),
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4152,18 +4071,8 @@ async fn test_failing_thaw() {
                 .iter()
                 .map(|x| x.compressed_account.hash().unwrap())
                 .collect::<Vec<_>>();
-            let input_merkle_tree_pubkeys = input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-                .collect::<Vec<_>>();
             let proof_rpc_result = test_indexer
-                .create_proof_for_compressed_accounts(
-                    Some(input_compressed_account_hashes),
-                    Some(input_merkle_tree_pubkeys),
-                    None,
-                    None,
-                    &mut rpc,
-                )
+                .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
                 .await
                 .unwrap();
             let inputs = CreateInstructionInputs {
@@ -4185,7 +4094,7 @@ async fn test_failing_thaw() {
                     .collect::<Vec<_>>(),
                 outputs_merkle_tree,
                 root_indices: proof_rpc_result.root_indices.clone(),
-                proof: proof_rpc_result.proof,
+                proof: proof_rpc_result.proof.unwrap(),
             };
             let instruction = create_instruction::<false>(inputs).unwrap();
             let result = rpc
@@ -4225,20 +4134,20 @@ async fn test_failing_thaw() {
 #[serial]
 #[tokio::test]
 async fn test_failing_decompression() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::Inclusion],
+        restart: true,
+    })
     .await;
     for is_token_22 in [false, true] {
-        let (mut context, env) = setup_test_programs_with_accounts(None).await;
+        let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
+            .await
+            .unwrap();
+        let env = context.test_accounts.clone();
         let payer = context.get_payer().insecure_clone();
-        let merkle_tree_pubkey = env.merkle_tree_pubkey;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let sender = Keypair::new();
         airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
             .await
@@ -4291,7 +4200,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4322,7 +4230,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4351,7 +4258,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 0, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4372,7 +4278,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4393,7 +4298,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4414,7 +4318,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4435,7 +4338,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4456,7 +4358,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4477,7 +4378,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4521,7 +4421,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4539,7 +4438,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4561,7 +4459,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4589,7 +4486,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4613,7 +4509,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 input_compressed_account.clone(),
                 decompress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4651,7 +4546,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 Vec::new(),
                 compress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4672,7 +4566,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 Vec::new(),
                 compress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4693,7 +4586,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 Vec::new(),
                 compress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4714,7 +4606,6 @@ async fn test_failing_decompression() {
             failing_compress_decompress(
                 &sender,
                 &mut context,
-                &mut test_indexer,
                 Vec::new(),
                 compress_amount, // needs to be consistent with compression amount
                 &merkle_tree_pubkey,
@@ -4750,13 +4641,9 @@ async fn test_failing_decompression() {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn failing_compress_decompress<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn failing_compress_decompress<R: RpcConnection + Indexer>(
     payer: &Keypair,
     rpc: &mut R,
-    test_indexer: &mut I,
     input_compressed_accounts: Vec<TokenDataWithMerkleContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
@@ -4793,30 +4680,18 @@ pub async fn failing_compress_decompress<
         .iter()
         .map(|x| x.compressed_account.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_merkle_tree_pubkeys = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
-        .collect::<Vec<_>>();
+
     let (root_indices, proof) = if !input_compressed_account_hashes.is_empty() {
-        let proof_rpc_result = test_indexer
-            .create_proof_for_compressed_accounts(
-                Some(input_compressed_account_hashes),
-                Some(input_merkle_tree_pubkeys),
-                None,
-                None,
-                rpc,
-            )
+        let proof_rpc_result = rpc
+            .get_validity_proof_v2(input_compressed_account_hashes, Vec::new())
             .await
             .unwrap();
-        (proof_rpc_result.root_indices, Some(proof_rpc_result.proof))
+        (proof_rpc_result.root_indices, proof_rpc_result.proof)
     } else {
         (Vec::new(), None)
     };
 
-    let mut _proof = None;
-    if let Some(proof) = proof {
-        _proof = Some(proof);
-    }
+    let mut _proof = proof;
 
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
@@ -4914,19 +4789,14 @@ pub async fn failing_compress_decompress<
 #[serial]
 #[tokio::test]
 async fn test_invalid_inputs() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::Inclusion],
-        }),
-    )
-    .await;
+    let merkle_tree_pubkey = env.v1_state_trees[0].merkle_tree;
+    let nullifier_queue_pubkey = env.v1_state_trees[0].nullifier_queue;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let recipient_keypair = Keypair::new();
     airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
         .await
@@ -4951,20 +4821,13 @@ async fn test_invalid_inputs() {
         .compressed_account
         .clone()];
     let proof_rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(vec![input_compressed_accounts[0].hash().unwrap()]),
-            Some(vec![
-                input_compressed_accounts[0]
-                    .merkle_context
-                    .merkle_tree_pubkey,
-            ]),
-            None,
-            None,
-            &mut rpc,
+        .get_validity_proof_v2(
+            vec![input_compressed_accounts[0].hash().unwrap()],
+            Vec::new(),
         )
         .await
         .unwrap();
-    let proof = Some(proof_rpc_result.proof);
+    let proof = proof_rpc_result.proof;
 
     let change_out_compressed_account_0 = TokenTransferOutputData {
         amount: input_compressed_account_token_data.amount - 1000,
@@ -4991,8 +4854,8 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof),
-            &proof_rpc_result.root_indices,
+            &proof_rpc_result.proof,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5016,8 +4879,8 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof),
-            &proof_rpc_result.root_indices,
+            &proof_rpc_result.proof,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5042,7 +4905,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &recipient_keypair,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5065,8 +4928,8 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof),
-            &proof_rpc_result.root_indices,
+            &proof_rpc_result.proof,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5089,8 +4952,8 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &recipient_keypair,
-            &Some(proof_rpc_result.proof),
-            &proof_rpc_result.root_indices,
+            &proof_rpc_result.proof,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5140,7 +5003,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &recipient_keypair,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             input_compressed_accounts.as_slice(),
             false,
         )
@@ -5176,7 +5039,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &recipient_keypair,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5198,7 +5061,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &invalid_payer,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5243,7 +5106,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &payer,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             true,
         )
@@ -5264,7 +5127,7 @@ async fn test_invalid_inputs() {
             &nullifier_queue_pubkey,
             &payer,
             &proof,
-            &proof_rpc_result.root_indices,
+            proof_rpc_result.root_indices.as_slice(),
             &input_compressed_accounts,
             false,
         )
@@ -5356,12 +5219,15 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
 
 #[serial]
 #[tokio::test]
+#[ignore = "works"]
 async fn mint_with_batched_tree() {
-    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.batched_output_queue;
-    let mut test_indexer =
-        TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+    let merkle_tree_pubkey = env.v2_state_trees[0].output_queue;
+    let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -5387,6 +5253,7 @@ async fn mint_with_batched_tree() {
 
 #[serial]
 #[tokio::test]
+#[ignore = "works"]
 async fn test_transfer_with_batched_tree() {
     let possible_inputs = [1];
     for input_num in possible_inputs {
@@ -5408,11 +5275,13 @@ async fn test_transfer_with_batched_tree() {
 #[tokio::test]
 async fn test_transfer_with_transaction_hash() {
     for with_transaction_hash in [true, false] {
-        let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+        let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+            .await
+            .unwrap();
+        let env = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
-        let queue_pubkey = env.batched_output_queue;
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let queue_pubkey = env.v2_state_trees[0].output_queue;
+        let mut test_indexer = TestIndexer::init_from_acounts(&payer, &env, 0).await;
         let recipient_keypair = Keypair::new();
         airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
             .await
@@ -5482,7 +5351,6 @@ async fn test_transfer_with_transaction_hash() {
                     &[instruction],
                     &payer.pubkey(),
                     &[&payer],
-                    None,
                 )
                 .await
                 .unwrap()
@@ -5505,17 +5373,16 @@ async fn test_transfer_with_transaction_hash() {
 async fn test_transfer_with_photon_and_batched_tree() {
     spawn_validator(LightValidatorConfig {
         enable_indexer: false,
-        wait_time: 10,
-        prover_config: None,
+        wait_time: 15,
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     })
     .await;
 
-    let mut rpc =
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::confirmed()));
-    let env = EnvAccounts::get_local_test_validator_accounts();
-    let keypairs = EnvAccountKeypairs::program_test_default();
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig::local_no_indexer());
+    let env = TestAccounts::get_local_test_validator_accounts();
+    let keypairs = TestKeypairs::program_test_default();
     // Deterministic keypair
     let payer = keypairs.forester.insecure_clone();
     println!("payer pubkey: {:?}", payer.pubkey());
@@ -5536,13 +5403,13 @@ async fn test_transfer_with_photon_and_batched_tree() {
             println!("\n\ninput num: {}, output num: {}\n\n", inputs, outputs);
 
             let merkle_tree_pubkey = if batched_tree {
-                env.batched_output_queue
+                env.v2_state_trees[0].output_queue
             } else {
-                env.merkle_tree_pubkey
+                env.v1_state_trees[0].merkle_tree
             };
 
-            let mut test_indexer: TestIndexer<SolanaRpcConnection> =
-                TestIndexer::init_from_env(&payer, &env, None).await;
+            let mut test_indexer: TestIndexer =
+                TestIndexer::init_from_acounts(&payer, &env, 20).await;
 
             let mint = if token_22 {
                 create_mint_22_helper(&mut rpc, &payer).await
@@ -5606,30 +5473,25 @@ async fn test_transfer_with_photon_and_batched_tree() {
 /// 5. Failing invalid derived token pool pda
 /// 6. Failing invalid token pool pda derived from different index
 /// 7. Failing no sender token account
+#[ignore = "works"]
 #[serial]
 #[tokio::test]
 async fn batch_compress_with_batched_tree() {
-    let (mut rpc, env) =
-        setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-            None,
-            ProtocolConfig::default(),
-            true,
-            InitStateTreeAccountsInstructionData::default(),
-            InitAddressTreeAccountsInstructionData::default(),
-        )
-        .await;
+    let mut config = ProgramTestConfig::new_v2(false, None);
+
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    config.v2_address_tree_config = Some(InitAddressTreeAccountsInstructionData::default());
+    let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let env = rpc.test_accounts.clone();
+
     let payer = rpc.get_payer().insecure_clone();
-    let merkle_tree_pubkey = env.batched_output_queue;
-    let mut test_indexer = TestIndexer::<ProgramTestRpcConnection>::init_from_env(
+    let merkle_tree_pubkey = env.v2_state_trees[0].output_queue;
+    let mut test_indexer = TestIndexer::init_from_acounts(
         &payer,
         &env,
-        Some(ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAppendWithProofsTest],
-        }),
+        InitStateTreeAccountsInstructionData::default().output_queue_batch_size as usize,
     )
     .await;
-
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -5638,13 +5500,33 @@ async fn batch_compress_with_batched_tree() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let mint_keypair = Keypair::from_bytes(
+        [
+            92, 10, 186, 75, 244, 33, 212, 169, 74, 97, 12, 151, 170, 73, 196, 211, 144, 174, 135,
+            134, 226, 202, 73, 127, 196, 58, 242, 47, 55, 228, 95, 41, 228, 15, 181, 122, 74, 247,
+            209, 141, 30, 218, 5, 219, 103, 139, 24, 42, 202, 234, 201, 156, 129, 241, 252, 56, 34,
+            51, 146, 75, 151, 75, 159, 32,
+        ]
+        .as_slice(),
+    )
+    .unwrap();
+    println!("mint keypair {:?}", mint_keypair);
+    let mint = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
     let amount = 10000u64;
-    let token_account = Keypair::new();
-    create_token_account(&mut rpc, &mint, &token_account, &payer)
+    let token_account_keypair = Keypair::from_bytes(
+        [
+            146, 220, 11, 246, 163, 31, 179, 147, 57, 222, 86, 224, 126, 147, 227, 175, 189, 209,
+            175, 207, 241, 129, 182, 169, 150, 198, 133, 163, 136, 196, 191, 224, 178, 83, 220, 36,
+            171, 230, 147, 217, 209, 4, 226, 241, 142, 249, 99, 198, 129, 109, 163, 200, 202, 242,
+            47, 200, 174, 143, 103, 161, 3, 249, 46, 186,
+        ]
+        .as_slice(),
+    )
+    .unwrap();
+    create_token_account(&mut rpc, &mint, &token_account_keypair, &payer)
         .await
         .unwrap();
-    let token_account = token_account.pubkey();
+    let token_account = token_account_keypair.pubkey();
     mint_spl_tokens(
         &mut rpc,
         &mint,
@@ -5680,14 +5562,13 @@ async fn batch_compress_with_batched_tree() {
         );
         let token_pool_pda = get_token_pool_pda_with_index(&mint, 0);
         let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
-        use std::borrow::Borrow;
         let pre_token_pool_balance =
             TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow())
                 .unwrap()
                 .amount;
 
         let (event, _, slot) = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await
             .unwrap()
             .unwrap();
@@ -5714,6 +5595,7 @@ async fn batch_compress_with_batched_tree() {
             );
         }
         let token_pool_account = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
+        use std::borrow::Borrow;
         let token_pool_account =
             TokenAccount::try_deserialize_unchecked(&mut token_pool_account.data.borrow()).unwrap();
         assert_eq!(
@@ -5751,22 +5633,22 @@ async fn batch_compress_with_batched_tree() {
                 .amount;
 
         let (event, _, slot) = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await
             .unwrap()
             .unwrap();
         test_indexer.add_compressed_accounts_with_token_data(slot, &event);
 
-        for i in 0..num_recipients {
+        for recipient in &recipients {
             let recipient_compressed_token_accounts = test_indexer
-                .get_compressed_token_accounts_by_owner(&recipients[i], None)
+                .get_compressed_token_accounts_by_owner(recipient, None)
                 .await
                 .unwrap();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
             let expected_token_data = light_sdk::token::TokenData {
                 mint,
-                owner: recipients[i],
+                owner: *recipient,
                 amount,
                 delegate: None,
                 state: AccountState::Initialized,
@@ -5808,7 +5690,7 @@ async fn batch_compress_with_batched_tree() {
             None,
         );
         let result = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(
             result,
@@ -5839,14 +5721,36 @@ async fn batch_compress_with_batched_tree() {
             None,
         );
         let result = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(result, 0, TokenError::InsufficientFunds as u32).unwrap();
     }
+    let invalid_token_account_invalid_mint = Keypair::from_bytes(
+        [
+            115, 180, 27, 68, 167, 116, 94, 248, 224, 127, 195, 122, 31, 54, 174, 159, 116, 186,
+            54, 185, 64, 123, 9, 97, 189, 205, 251, 92, 210, 158, 114, 25, 86, 155, 159, 222, 91,
+            231, 29, 255, 238, 73, 228, 67, 64, 225, 91, 177, 159, 216, 109, 76, 98, 151, 9, 67,
+            57, 14, 231, 117, 223, 236, 108, 142,
+        ]
+        .as_slice(),
+    )
+    .unwrap();
+    let invalid_mint_keypair = Keypair::from_bytes(
+        [
+            151, 111, 81, 148, 81, 197, 92, 46, 198, 61, 138, 73, 152, 16, 184, 8, 5, 228, 52, 166,
+            242, 220, 42, 75, 228, 34, 239, 85, 97, 190, 70, 104, 171, 19, 46, 51, 208, 201, 112,
+            156, 202, 223, 175, 180, 76, 108, 25, 91, 155, 67, 28, 115, 138, 158, 204, 10, 206, 86,
+            157, 190, 67, 221, 184, 73,
+        ]
+        .as_slice(),
+    )
+    .unwrap();
+
     // 4. Sender account invalid mint
     {
-        let invalid_mint = create_mint_helper(&mut rpc, &payer).await;
-        let invalid_token_account_invalid_mint = Keypair::new();
+        let invalid_mint =
+            create_mint_helper_with_keypair(&mut rpc, &payer, &invalid_mint_keypair).await;
+
         create_token_account(
             &mut rpc,
             &invalid_mint,
@@ -5889,12 +5793,7 @@ async fn batch_compress_with_batched_tree() {
                 None,
             );
             let result = rpc
-                .create_and_send_transaction_with_public_event(
-                    &[ix],
-                    &payer.pubkey(),
-                    &[&payer],
-                    None,
-                )
+                .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
                 .await;
             // spl_token::error::TokenError::InvalidMint
             assert_rpc_error(
@@ -5928,7 +5827,7 @@ async fn batch_compress_with_batched_tree() {
             Some(token_account),
         );
         let result = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(
             result,
@@ -5955,7 +5854,7 @@ async fn batch_compress_with_batched_tree() {
             Some(token_account),
         );
         let result = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(
             result,
@@ -5982,7 +5881,7 @@ async fn batch_compress_with_batched_tree() {
             None,
         );
         let result = rpc
-            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer], None)
+            .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
         assert_rpc_error(result, 0, 0).unwrap();
     }

@@ -9,8 +9,8 @@ use light_client::{
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
-    test_rpc::ProgramTestRpcConnection,
+    test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
+    program_test::LightProgramTest,
 };
 use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
 use light_sdk::{
@@ -31,39 +31,32 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_counter() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        },
-    )
-    .await;
+    spawn_prover(ProverConfig::default()).await;
 
     let (mut rpc, env) =
         setup_test_programs_with_accounts_v2(Some(vec![("counter", counter::ID)]))
             .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         Vec::from(&[StateMerkleTreeAccounts {
-            merkle_tree: env.merkle_tree_pubkey,
-            nullifier_queue: env.nullifier_queue_pubkey,
-            cpi_context: env.cpi_context_account_pubkey,
+            merkle_tree: env.v1_state_trees[0].merkle_tree,
+            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
+            cpi_context: env.v1_state_trees[0].cpi_context,
         }]),
         Vec::from(&[AddressMerkleTreeAccounts {
-            merkle_tree: env.address_merkle_tree_pubkey,
-            queue: env.address_merkle_tree_queue_pubkey,
+            merkle_tree: env.v1_address_trees[0].merkle_tree,
+            queue: env.v1_address_trees[0].queue,
         }]),
         payer.insecure_clone(),
-        env.group_pda,
+        env.protocol.group_pda,
         None,
     )
     .await;
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: env.v1_address_trees[0].queue,
     };
 
     let (address, _) = derive_address(
@@ -172,8 +165,8 @@ async fn test_counter() {
 #[allow(clippy::too_many_arguments)]
 async fn create_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
-    env: &EnvAccounts,
+    test_indexer: &mut TestIndexer,
+    env: &TestAccounts,
     payer: &Keypair,
     address: &[u8; 32],
 ) -> Result<(), RpcError>
@@ -189,18 +182,18 @@ where
             None,
             None,
             Some(&[*address]),
-            Some(vec![env.address_merkle_tree_pubkey]),
+            Some(vec![env.v1_address_trees[0].merkle_tree]),
             rpc,
         )
         .await
         .unwrap();
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: env.v1_address_trees[0].queue,
     };
 
-    let output_merkle_tree_index = remaining_accounts.insert_or_get(env.merkle_tree_pubkey);
+    let output_merkle_tree_index = remaining_accounts.insert_or_get(env.v1_state_trees[0].merkle_tree);
     let packed_address_merkle_context = pack_address_merkle_context(
         &address_merkle_context,
         &mut remaining_accounts,
@@ -249,7 +242,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn increment_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -338,7 +331,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn decrement_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -426,7 +419,7 @@ where
 
 async fn reset_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>
@@ -514,7 +507,7 @@ where
 
 async fn close_counter<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError>

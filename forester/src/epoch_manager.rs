@@ -9,14 +9,17 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use dashmap::DashMap;
-use forester_utils::forester_epoch::{
-    get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule,
+use forester_utils::{
+    forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
+    rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
 use light_client::{
     indexer::{Indexer, MerkleProof, NewAddressProofWithContext},
-    rpc::{RetryConfig, RpcConnection, RpcError, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
+    rpc::{
+        rpc_connection::RpcConnectionConfig, RetryConfig, RpcConnection, RpcError,
+        SolanaRpcConnection,
+    },
 };
 use light_compressed_account::TreeType;
 use light_registry::{
@@ -89,7 +92,7 @@ pub enum MerkleProofType {
 }
 
 #[derive(Debug)]
-pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
+pub struct EpochManager<R: RpcConnection, I: Indexer> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -103,7 +106,7 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
-impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer> Clone for EpochManager<R, I> {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
@@ -121,7 +124,7 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
     }
 }
 
-impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
+impl<R: RpcConnection, I: Indexer + IndexerType<R> + 'static> EpochManager<R, I> {
     #[allow(clippy::too_many_arguments)]
     pub async fn new(
         config: Arc<ForesterConfig>,
@@ -205,7 +208,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         loop {
             interval.tick().await;
             match self.rpc_pool.get_connection().await {
-                Ok(mut rpc) => match rpc.get_balance(&self.config.payer_keypair.pubkey()).await {
+                Ok(rpc) => match rpc.get_balance(&self.config.payer_keypair.pubkey()).await {
                     Ok(balance) => {
                         let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
                         update_forester_sol_balance(
@@ -362,7 +365,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
 
         let forester_epoch_pda_pubkey =
             get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let rpc = self.rpc_pool.get_connection().await?;
         let existing_pda = rpc
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?;
@@ -473,8 +476,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         max_retries: u32,
         retry_delay: Duration,
     ) -> Result<ForesterEpochInfo> {
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
+        let rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -536,8 +542,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     ))]
     async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
+        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
         let slot = rpc.get_slot().await?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
@@ -642,7 +651,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         forester_epoch_pda_address: Pubkey,
         forester_epoch_pda: ForesterEpochPda,
     ) -> Result<ForesterEpochInfo> {
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let rpc = self.rpc_pool.get_connection().await?;
 
         let phases = get_epoch_phases(&self.protocol_config, epoch);
         let slot = rpc.get_slot().await?;
@@ -764,7 +773,30 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
         for tree in epoch_info.trees.iter() {
-            trace!(
+            if self.config.general_config.skip_v1_address_trees
+                && tree.tree_accounts.tree_type == TreeType::AddressV1
+            {
+                info!("skipping address v1");
+                continue;
+            } else if self.config.general_config.skip_v2_address_trees
+                && tree.tree_accounts.tree_type == TreeType::AddressV2
+            {
+                info!("skipping address v2");
+
+                continue;
+            } else if self.config.general_config.skip_v1_state_trees
+                && tree.tree_accounts.tree_type == TreeType::StateV1
+            {
+                info!("skipping state v1");
+                continue;
+            } else if self.config.general_config.skip_v2_state_trees
+                && tree.tree_accounts.tree_type == TreeType::StateV2
+            {
+                info!("skipping state v2");
+                continue;
+            }
+
+            info!(
                 "Creating thread for tree {}",
                 tree.tree_accounts.merkle_tree
             );
@@ -804,7 +836,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     }
 
     async fn sync_slot(&self) -> Result<u64> {
-        let mut rpc = self.rpc_pool.get_connection().await?;
+        let rpc = self.rpc_pool.get_connection().await?;
         let current_slot = rpc.get_slot().await?;
         self.slot_tracker.update(current_slot);
         Ok(current_slot)
@@ -1159,8 +1191,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     ))]
     async fn report_work(&self, epoch_info: &ForesterEpochInfo) -> Result<()> {
         info!("Reporting work");
-        let mut rpc =
-            SolanaRpcConnection::new(self.config.external_services.rpc_url.as_str(), None);
+        let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+            url: self.config.external_services.rpc_url.to_string(),
+            commitment_config: None,
+            with_indexer: false,
+        });
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
             &self.config.derivation_pubkey,
@@ -1301,7 +1336,7 @@ fn calculate_remaining_time_or_default(
     fields(forester = %config.payer_keypair.pubkey())
 )]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub async fn run_service<R: RpcConnection, I: Indexer + IndexerType<R> + 'static>(
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -1357,7 +1392,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                 .await
                 {
                     Ok(epoch_manager) => {
-                        let epoch_manager: Arc<EpochManager<R, I>> = Arc::new(epoch_manager);
+                        let epoch_manager = Arc::new(epoch_manager);
                         debug!(
                             "Successfully created EpochManager after {} attempts",
                             retry_count + 1

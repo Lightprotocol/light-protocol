@@ -8,9 +8,9 @@ use light_client::{
     rpc::merkle_tree::MerkleTreeExt,
 };
 use light_program_test::{
-    test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
+    test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
     test_indexer::TestIndexer,
-    test_rpc::ProgramTestRpcConnection,
+    program_test::LightProgramTest,
 };
 use light_sdk::{
     address::{derive_address, derive_address_seed},
@@ -43,15 +43,15 @@ async fn test_name_service() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         &[StateMerkleTreeAccounts {
-            merkle_tree: env.merkle_tree_pubkey,
-            nullifier_queue: env.nullifier_queue_pubkey,
-            cpi_context: env.cpi_context_account_pubkey,
+            merkle_tree: env.v1_state_trees[0].merkle_tree,
+            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
+            cpi_context: env.v1_state_trees[0].cpi_context,
         }],
         &[AddressMerkleTreeAccounts {
-            merkle_tree: env.address_merkle_tree_pubkey,
-            queue: env.address_merkle_tree_queue_pubkey,
+            merkle_tree: env.v1_address_trees[0].merkle_tree,
+            queue: env.v1_address_trees[0].queue,
         }],
         true,
         true,
@@ -63,8 +63,8 @@ async fn test_name_service() {
     let mut remaining_accounts = PackedAccounts::default();
 
     let merkle_context = MerkleContext {
-        merkle_tree_pubkey: env.merkle_tree_pubkey,
-        nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        merkle_tree_pubkey: env.v1_state_trees[0].merkle_tree,
+        nullifier_queue_pubkey: env.v1_state_trees[0].nullifier_queue,
         leaf_index: 0,
         prove_by_index: false,
         tree_type: TreeType::StateV1
@@ -72,8 +72,8 @@ async fn test_name_service() {
     let merkle_context = pack_merkle_context(&merkle_context, &mut remaining_accounts);
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: env.v1_address_trees[0].queue,
     };
 
     let address_seed =
@@ -297,8 +297,8 @@ async fn create_record<R>(
     name: &str,
     rdata: &RData,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
-    env: &EnvAccounts,
+    test_indexer: &mut TestIndexer,
+    env: &TestAccounts,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     address: &[u8; 32],
@@ -316,7 +316,7 @@ where
             None,
             None,
             Some(&[*address]),
-            Some(vec![env.address_merkle_tree_pubkey]),
+            Some(vec![env.v1_address_trees[0].merkle_tree]),
             rpc,
         )
         .await;
@@ -364,7 +364,7 @@ where
 
 async fn update_record<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     new_rdata: &RData,
     payer: &Keypair,
@@ -444,7 +444,7 @@ where
 
 async fn delete_record<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,

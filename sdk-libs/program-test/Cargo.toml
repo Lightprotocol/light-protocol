@@ -5,10 +5,11 @@ edition = "2021"
 
 [features]
 default = []
-devenv = []
+devenv = ["v2", "light-client/devenv", "forester-utils/devenv"]
+v2 = ["light-client/v2", "forester-utils/v2"]
 
 [dependencies]
-light-client = { workspace = true }
+light-client = { workspace = true, features = ["program-test", "devenv"] }
 light-prover-client = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
@@ -24,9 +25,7 @@ light-compressed-account = { workspace = true, features = ["anchor"] }
 photon-api = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
 forester-utils = { workspace = true }
-solana-sdk = { workspace = true }
-solana-banks-client = { workspace = true }
-solana-program-test = { workspace = true }
+
 log = { workspace = true }
 borsh = { workspace = true }
 tokio = { workspace = true }
@@ -36,5 +35,11 @@ num-traits = { workspace = true }
 reqwest = { workspace = true }
 anchor-lang = { workspace = true }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+
 solana-transaction-status = { workspace = true }
 solana-rpc-client-api = { workspace = true }
+solana-sdk = { workspace = true }
+solana-banks-client = { workspace = true }
+solana-program-test = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-instruction = { workspace = true }

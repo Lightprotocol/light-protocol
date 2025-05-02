@@ -418,7 +418,6 @@ impl Epoch {
         trees: &[TreeAccounts],
         current_solana_slot: u64,
     ) -> Result<(), ForesterUtilsError> {
-        // let state = self.phases.get_current_epoch_state(current_solana_slot);
         // TODO: add epoch state to sync schedule
         for tree in trees {
             let tree_schedule = TreeForesterSchedule::new_with_schedule(

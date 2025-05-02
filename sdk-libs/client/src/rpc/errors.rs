@@ -1,15 +1,16 @@
 use std::io;
 
-use solana_banks_client::BanksClientError;
-use solana_client::client_error::ClientError;
-use solana_program::instruction::InstructionError;
-use solana_sdk::transaction::TransactionError;
+use solana_rpc_client_api::client_error::Error as ClientError;
+use solana_transaction_error::TransactionError;
 use thiserror::Error;
+
+use crate::indexer::IndexerError;
 
 #[derive(Error, Debug)]
 pub enum RpcError {
+    #[cfg(feature = "program-test")]
     #[error("BanksError: {0}")]
-    BanksError(#[from] BanksClientError),
+    BanksError(#[from] solana_banks_client::BanksClientError),
 
     #[error("TransactionError: {0}")]
     TransactionError(#[from] TransactionError),
@@ -29,42 +30,41 @@ pub enum RpcError {
     /// The chosen warp slot is not in the future, so warp is not performed
     #[error("Warp slot not in the future")]
     InvalidWarpSlot,
+
+    #[error("Account {0} does not exist")]
+    AccountDoesNotExist(String),
+
+    #[error("Invalid response data.")]
+    InvalidResponseData,
+
+    #[error("Indexer not initialized.")]
+    IndexerNotInitialized,
+
+    #[error("Indexer error: {0}")]
+    IndexerError(#[from] IndexerError),
 }
 
-#[allow(clippy::result_large_err)]
-pub fn assert_rpc_error<T>(
-    result: Result<T, RpcError>,
-    i: u8,
-    expected_error_code: u32,
-) -> Result<(), RpcError> {
-    match result {
-        Err(RpcError::TransactionError(TransactionError::InstructionError(
-            index,
-            InstructionError::Custom(error_code),
-        ))) if index != i => Err(RpcError::AssertRpcError(
-            format!(
-                "Expected error code: {}, got: {} error: {}",
-                expected_error_code,
-                error_code,
-                unsafe { result.unwrap_err_unchecked() }
-            )
-            .to_string(),
-        )),
-        Err(RpcError::TransactionError(TransactionError::InstructionError(
-            index,
-            InstructionError::Custom(error_code),
-        ))) if index == i && error_code == expected_error_code => Ok(()),
+// Convert light_compressed_account errors
+impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError> for RpcError {
+    fn from(e: light_compressed_account::indexer_event::error::ParseIndexerEventError) -> Self {
+        RpcError::CustomError(format!("ParseIndexerEventError: {}", e))
+    }
+}
 
-        Err(RpcError::TransactionError(TransactionError::InstructionError(
-            0,
-            InstructionError::ProgramFailedToComplete,
-        ))) => Ok(()),
-        Err(e) => Err(RpcError::AssertRpcError(format!(
-            "Unexpected error type: {:?}",
-            e
-        ))),
-        _ => Err(RpcError::AssertRpcError(String::from(
-            "Unexpected error type",
-        ))),
+impl Clone for RpcError {
+    fn clone(&self) -> Self {
+        match self {
+            RpcError::BanksError(_) => RpcError::CustomError("BanksError".to_string()),
+            RpcError::TransactionError(e) => RpcError::TransactionError(e.clone()),
+            RpcError::ClientError(_) => RpcError::CustomError("ClientError".to_string()),
+            RpcError::IoError(e) => RpcError::IoError(e.kind().into()),
+            RpcError::CustomError(e) => RpcError::CustomError(e.clone()),
+            RpcError::AssertRpcError(e) => RpcError::AssertRpcError(e.clone()),
+            RpcError::InvalidWarpSlot => RpcError::InvalidWarpSlot,
+            RpcError::AccountDoesNotExist(e) => RpcError::AccountDoesNotExist(e.clone()),
+            RpcError::InvalidResponseData => RpcError::InvalidResponseData,
+            RpcError::IndexerNotInitialized => RpcError::IndexerNotInitialized,
+            RpcError::IndexerError(e) => RpcError::IndexerError(e.clone()),
+        }
     }
 }

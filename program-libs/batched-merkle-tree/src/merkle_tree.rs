@@ -1209,7 +1209,6 @@ mod test {
                 insert_rnd_addresses(&mut account_data, 1, rng, current_slot, &pubkey).unwrap();
             }
             let mut account_data = account_data.clone();
-            // let account_data_ref = account_data.clone();
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey).unwrap();
             println!(

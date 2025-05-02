@@ -8,8 +8,8 @@ use light_client::{
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_program_test::{
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts_v2, EnvAccounts},
-    test_rpc::ProgramTestRpcConnection,
+    test_env::{setup_test_programs_with_accounts_v2, TestAccounts},
+    program_test::LightProgramTest,
 };
 use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
 use light_sdk::{
@@ -31,31 +31,24 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_memo_program() {
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: Some(ProverMode::Rpc),
-            circuits: vec![],
-        },
-    )
-    .await;
+     spawn_prover(ProverConfig::default()).await;
 
     let (mut rpc, env) =
         setup_test_programs_with_accounts_v2(Some(vec![("memo", memo::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         Vec::from(&[StateMerkleTreeAccounts {
-            merkle_tree: env.merkle_tree_pubkey,
-            nullifier_queue: env.nullifier_queue_pubkey,
-            cpi_context: env.cpi_context_account_pubkey,
+            merkle_tree: env.v1_state_trees[0].merkle_tree,
+            nullifier_queue: env.v1_state_trees[0].nullifier_queue,
+            cpi_context: env.v1_state_trees[0].cpi_context,
         }]),
         Vec::from(&[AddressMerkleTreeAccounts {
-            merkle_tree: env.address_merkle_tree_pubkey,
-            queue: env.address_merkle_tree_queue_pubkey,
+            merkle_tree: env.v1_address_trees[0].merkle_tree,
+            queue: env.v1_address_trees[0].queue,
         }]),
         payer.insecure_clone(),
-        env.group_pda.clone(),
+        env.protocol.group_pda.clone(),
         None,
     )
     .await;
@@ -63,8 +56,8 @@ async fn test_memo_program() {
     let mut remaining_accounts = PackedAccounts::default();
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: env.v1_address_trees[0].queue,
     };
 
     let (address, _) = derive_address(
@@ -167,8 +160,8 @@ async fn test_memo_program() {
 async fn create_memo<R>(
     message: &str,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
-    env: &EnvAccounts,
+    test_indexer: &mut TestIndexer,
+    env: &TestAccounts,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     address: &[u8; 32],
@@ -184,18 +177,18 @@ where
             None,
             None,
             Some(&[*address]),
-            Some(vec![env.address_merkle_tree_pubkey]),
+            Some(vec![env.v1_address_trees[0].merkle_tree]),
             rpc,
         )
         .await
         .unwrap();
 
     let address_merkle_context = AddressMerkleContext {
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.v1_address_trees[0].merkle_tree,
+        address_queue_pubkey: env.v1_address_trees[0].queue,
     };
     let account = LightAccountMeta::new_init(
-        &env.merkle_tree_pubkey,
+        &env.v1_state_trees[0].merkle_tree,
         Some(&address_merkle_context),
         Some(rpc_result.address_root_indices[0]),
         remaining_accounts,
@@ -251,7 +244,7 @@ where
 async fn update_memo<R>(
     new_message: &str,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
@@ -331,7 +324,7 @@ where
 #[allow(clippy::too_many_arguments)]
 async fn delete_memo<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,

@@ -35,17 +35,22 @@ use light_compressed_account::{
 use light_hasher::bigint::bigint_to_be_bytes_array;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    test_batch_forester::{assert_perform_state_mt_roll_over, create_batched_state_merkle_tree},
-    test_env::NOOP_PROGRAM_ID,
-    test_rpc::ProgramTestRpcConnection,
+    accounts::{
+        state_tree_v2::create_batched_state_merkle_tree,
+        test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
+    },
+    program_test::LightProgramTest,
+    utils::assert::assert_rpc_error,
 };
 use light_prover_client::{
     gnark::helpers::{spawn_prover, ProofType, ProverConfig},
     mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester, MockTxEvent},
 };
 use light_test_utils::{
-    address::insert_addresses, airdrop_lamports, assert_rpc_error, create_account_instruction,
-    spl::create_initialize_mint_instructions, AccountZeroCopy, RpcConnection, RpcError,
+    address::insert_addresses, airdrop_lamports, create_account_instruction,
+    spl::create_initialize_mint_instructions,
+    test_batch_forester::assert_perform_state_mt_roll_over, AccountZeroCopy, RpcConnection,
+    RpcError,
 };
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
@@ -97,7 +102,11 @@ async fn test_batch_state_merkle_tree() {
     let output_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer_pubkey = context.get_payer().pubkey();
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
@@ -237,16 +246,14 @@ async fn test_batch_state_merkle_tree() {
         .await
         .unwrap();
     }
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![
-                ProofType::BatchAppendWithProofsTest,
-                ProofType::BatchUpdateTest,
-            ],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![
+            ProofType::BatchAppendWithProofsTest,
+            ProofType::BatchUpdateTest,
+        ],
+        restart: true,
+    })
     .await;
 
     // 4. Failing Invalid Signer (batch append)
@@ -540,7 +547,7 @@ async fn test_batch_state_merkle_tree() {
 }
 
 pub async fn perform_insert_into_output_queue(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     mock_indexer: &mut MockBatchedForester<32>,
     output_queue_pubkey: Pubkey,
     payer: &Keypair,
@@ -599,7 +606,7 @@ pub async fn perform_insert_into_output_queue(
         .await
 }
 pub async fn perform_batch_append(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     mock_indexer: &mut MockBatchedForester<32>,
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
@@ -659,7 +666,7 @@ pub async fn perform_batch_append(
         .await
 }
 pub async fn perform_batch_nullify(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     mock_indexer: &mut MockBatchedForester<32>,
     merkle_tree_pubkey: Pubkey,
     output_queue_pubkey: Pubkey,
@@ -701,7 +708,7 @@ pub async fn perform_batch_nullify(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_insert_into_input_queue(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     mock_indexer: &mut MockBatchedForester<32>,
     counter: &mut u32,
     num_of_leaves: u32,
@@ -906,7 +913,11 @@ async fn test_init_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
     let params = InitStateTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitStateTreeAccountsInstructionData::e2e_test_default();
@@ -963,7 +974,7 @@ async fn test_init_batch_state_merkle_trees() {
 }
 
 pub async fn perform_init_batch_state_merkle_tree(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     payer: &Keypair,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
@@ -1059,7 +1070,11 @@ async fn test_rollover_batch_state_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let payer = context.get_payer().insecure_clone();
     let mut params = InitStateTreeAccountsInstructionData::test_default();
     params.rollover_threshold = Some(0);
@@ -1403,7 +1418,7 @@ pub async fn perform_rollover_batch_state_merkle_tree<R: RpcConnection>(
 }
 
 pub async fn perform_init_batch_state_merkle_tree_and_queue(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     params: &InitStateTreeAccountsInstructionData,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
@@ -1488,7 +1503,11 @@ async fn test_init_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
 
     let params = InitAddressTreeAccountsInstructionData::test_default();
     let e2e_test_params = InitAddressTreeAccountsInstructionData::e2e_test_default();
@@ -1525,7 +1544,7 @@ async fn test_init_batch_address_merkle_trees() {
     }
 }
 pub async fn perform_init_batch_address_merkle_tree(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     params: &InitAddressTreeAccountsInstructionData,
     merkle_tree_keypair: &Keypair,
 ) -> Result<(u64, Signature), RpcError> {
@@ -1588,7 +1607,11 @@ async fn test_batch_address_merkle_trees() {
     );
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
-    let mut context = ProgramTestRpcConnection::new(context);
+    let mut context = LightProgramTest {
+        context,
+        test_accounts: TestAccounts::get_local_test_validator_accounts(),
+        indexer: None,
+    };
     let mut mock_indexer = MockBatchedAddressForester::<40>::default();
     let payer = context.get_payer().insecure_clone();
     let mut params = InitAddressTreeAccountsInstructionData::test_default();
@@ -1696,13 +1719,11 @@ async fn test_batch_address_merkle_trees() {
             .unwrap();
         }
     }
-    spawn_prover(
-        true,
-        ProverConfig {
-            run_mode: None,
-            circuits: vec![ProofType::BatchAddressAppendTest],
-        },
-    )
+    spawn_prover(ProverConfig {
+        run_mode: None,
+        circuits: vec![ProofType::BatchAddressAppendTest],
+        restart: true,
+    })
     .await;
     // 4. Functional: update batch address tree
     {
@@ -1938,7 +1959,7 @@ pub enum RolloverBatchAddressTreeTestMode {
 }
 
 pub async fn rollover_batched_address_merkle_tree(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     address_merkle_tree_pubkey: Pubkey,
     payer: &Keypair,
     mode: RolloverBatchAddressTreeTestMode,
@@ -2013,7 +2034,7 @@ pub enum UpdateBatchAddressTreeTestMode {
 /// 5. update twice with the same instruction (proof and public inputs)
 /// 6. invalid tree account
 pub async fn update_batch_address_tree(
-    context: &mut ProgramTestRpcConnection,
+    context: &mut LightProgramTest,
     mock_indexer: &mut MockBatchedAddressForester<40>,
     address_merkle_tree_pubkey: Pubkey,
     payer: &Keypair,

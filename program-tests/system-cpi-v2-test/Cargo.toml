@@ -1,0 +1,49 @@
+[package]
+name = "system-cpi-v2-test"
+version = "0.1.0"
+description = "Test program using generalized account compression"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "system_cpi_v2_test"
+
+[features]
+test-sbf = []
+
+
+[dev-dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+light-compressed-token = { workspace = true, features = ["cpi"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+light-registry = { workspace = true, features = ["cpi"] }
+account-compression = { workspace = true, features = ["cpi"] }
+light-hasher = { workspace = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+light-batched-merkle-tree = { workspace = true }
+light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
+light-account-checks = { workspace = true }
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = { workspace = true }
+light-client = { workspace = true, features = ["devenv"] }
+light-sdk = { workspace = true, features = ["anchor"] }
+light-program-test = { workspace = true, features = ["devenv"] }
+light-test-utils = { workspace = true, features = ["devenv"] }
+tokio = { workspace = true }
+light-prover-client = { workspace = true }
+light-verifier = { workspace = true }
+serial_test = { workspace = true }
+create-address-test-program = { workspace = true, features = ["cpi"] }
+rand = { workspace = true }
+
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]

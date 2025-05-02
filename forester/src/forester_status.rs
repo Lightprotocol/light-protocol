@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anchor_lang::{AccountDeserialize, Discriminator};
 use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts};
 use itertools::Itertools;
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_client::rpc::{rpc_connection::RpcConnectionConfig, RpcConnection, SolanaRpcConnection};
 use light_compressed_account::TreeType;
 use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
 use solana_program::{clock::Slot, pubkey::Pubkey};
@@ -173,7 +173,11 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
 
     debug!("Fetching trees...");
     debug!("RPC URL: {}", config.external_services.rpc_url);
-    let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), None);
+    let mut rpc = SolanaRpcConnection::new(RpcConnectionConfig {
+        url: config.external_services.rpc_url.to_string(),
+        commitment_config: None,
+        with_indexer: false,
+    });
     let trees = fetch_trees(&rpc).await.unwrap();
     if trees.is_empty() {
         warn!("No trees found. Exiting.");
