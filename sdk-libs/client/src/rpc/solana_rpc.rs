@@ -191,6 +191,7 @@ impl SolanaRpcConnection {
                         "Transaction operation failed, retrying in {:?} (attempt {}/{}): {:?}",
                         self.retry_config.retry_delay, attempts, self.retry_config.max_retries, e
                     );
+                    tokio::task::yield_now().await;
                     sleep(self.retry_config.retry_delay).await;
                 }
             }

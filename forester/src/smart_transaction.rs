@@ -71,6 +71,7 @@ pub async fn poll_transaction_confirmation<'a, R: RpcConnection>(
                 }
             }
             None => {
+                tokio::task::yield_now().await;
                 sleep(interval).await;
             }
         }
