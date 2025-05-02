@@ -354,7 +354,6 @@ where
                     } else {
                         payload_legacy.unwrap().to_string()
                     };
-                    // println!("Payload string: {}", payload_string);
                     (Vec::<u16>::new(), indices, payload_string)
                 }
                 (Some(accounts), Some(addresses)) => {
@@ -427,8 +426,6 @@ where
 
         let mut retries = 1000;
         while retries > 0 {
-            // println!("Retries: {}", retries);
-            // println!("JSON Payload: {}", json_payload);
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -436,7 +433,6 @@ where
                 .send()
                 .await;
             if let Ok(response_result) = response_result {
-                // println!("Response: {:#?}", response_result);
                 if response_result.status().is_success() {
                     let body = response_result.text().await.unwrap();
                     let proof_json = deserialize_gnark_proof_json(&body).unwrap();
