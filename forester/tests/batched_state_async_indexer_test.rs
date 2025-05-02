@@ -18,7 +18,7 @@ use light_compressed_account::{
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
-use light_program_test::test_env::EnvAccounts;
+use light_program_test::accounts::env_accounts::EnvAccounts;
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
@@ -87,10 +87,7 @@ async fn test_state_indexer_async_batched() {
     )
     .await;
 
-    let mut photon_indexer = {
-        let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-        create_photon_indexer(rpc)
-    };
+    let mut photon_indexer = create_photon_indexer();
     let protocol_config = get_protocol_config(&mut rpc).await;
 
     let (service_handle, shutdown_sender, mut work_report_receiver) =
@@ -164,7 +161,8 @@ async fn test_state_indexer_async_batched() {
     wait_for_indexer(&mut rpc, &photon_indexer).await.unwrap();
 
     let input_compressed_accounts =
-        get_token_accounts(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey).await;
+        get_token_accounts::<PhotonIndexer>(&photon_indexer, &batch_payer.pubkey(), &mint_pubkey)
+            .await;
     validate_compressed_accounts_proof(&photon_indexer, &input_compressed_accounts).await;
 
     let rng_seed = rand::thread_rng().gen::<u64>();
@@ -202,8 +200,11 @@ async fn test_state_indexer_async_batched() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn setup_rpc_connection(forester: &Keypair) -> SolanaRpcConnection {
-    let mut rpc =
-        SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(CommitmentConfig::confirmed()));
+    let mut rpc = SolanaRpcConnection::new(
+        SolanaRpcUrl::Localnet,
+        Some(CommitmentConfig::confirmed()),
+        true,
+    );
     rpc.payer = forester.insecure_clone();
     rpc
 }
@@ -218,8 +219,8 @@ async fn ensure_sufficient_balance(
     }
 }
 
-fn create_photon_indexer<R: RpcConnection>(rpc: R) -> PhotonIndexer<R> {
-    PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None, rpc)
+fn create_photon_indexer() -> PhotonIndexer {
+    PhotonIndexer::new(PHOTON_INDEXER_URL.to_string(), None)
 }
 
 async fn get_protocol_config(rpc: &mut SolanaRpcConnection) -> ProtocolConfig {
@@ -272,9 +273,8 @@ async fn setup_forester_pipeline(
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
-    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    let forester_photon_indexer = create_photon_indexer(rpc);
-    let service_handle = tokio::spawn(run_pipeline(
+    let forester_photon_indexer = create_photon_indexer();
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,
@@ -320,7 +320,7 @@ async fn print_queue_states(
     println!("queue metadata: {:?}", output_queue.get_metadata());
 }
 
-async fn get_token_accounts<R: RpcConnection, I: Indexer<R>>(
+async fn get_token_accounts<I: Indexer>(
     indexer: &I,
     owner: &Pubkey,
     mint: &Pubkey,
@@ -333,7 +333,7 @@ async fn get_token_accounts<R: RpcConnection, I: Indexer<R>>(
     accounts
 }
 
-async fn validate_compressed_accounts_proof<R: RpcConnection, I: Indexer<R>>(
+async fn validate_compressed_accounts_proof<I: Indexer>(
     indexer: &I,
     input_compressed_accounts: &[TokenDataWithMerkleContext],
 ) {
@@ -356,7 +356,7 @@ async fn validate_compressed_accounts_proof<R: RpcConnection, I: Indexer<R>>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn execute_test_transactions<R: RpcConnection, I: Indexer<R>>(
+async fn execute_test_transactions<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     rng: &mut StdRng,
@@ -625,7 +625,7 @@ async fn mint_to<R: RpcConnection>(
         .unwrap()
 }
 
-async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
+async fn compressed_token_transfer<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
@@ -663,18 +663,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
         .unwrap();
-    let root_indices = proof_for_compressed_accounts
-        .root_indices
-        .iter()
-        .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, _)| {
-            if root_index.prove_by_index {
-                None
-            } else {
-                Some(root_index.root_index)
-            }
-        })
-        .collect::<Vec<Option<u16>>>();
+    let root_indices = proof_for_compressed_accounts.root_indices;
     let merkle_contexts = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.merkle_context)
@@ -700,7 +689,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
         None
     } else {
         proof_for_compressed_accounts
-            .compressed_proof
+            .proof
             .map(|proof| CompressedProof {
                 a: proof.a.try_into().unwrap(),
                 b: proof.b.try_into().unwrap(),
@@ -758,7 +747,7 @@ async fn compressed_token_transfer<R: RpcConnection, I: Indexer<R>>(
     sig
 }
 
-async fn transfer<R: RpcConnection, I: Indexer<R>>(
+async fn transfer<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
     merkle_tree_pubkey: &Pubkey,
@@ -791,20 +780,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         .get_validity_proof_v2(compressed_account_hashes, vec![])
         .await
         .unwrap();
-    let root_indices = proof_for_compressed_accounts
-        .root_indices
-        .iter()
-        .zip(input_compressed_accounts.iter_mut())
-        .map(|(root_index, acc)| {
-            if root_index.prove_by_index {
-                acc.merkle_context.prove_by_index = true;
-                None
-            } else {
-                acc.merkle_context.prove_by_index = false;
-                Some(root_index.root_index)
-            }
-        })
-        .collect::<Vec<Option<u16>>>();
+    let root_indices = proof_for_compressed_accounts.root_indices;
     let merkle_contexts = input_compressed_accounts
         .iter()
         .map(|x| x.merkle_context)
@@ -830,7 +806,7 @@ async fn transfer<R: RpcConnection, I: Indexer<R>>(
         None
     } else {
         proof_for_compressed_accounts
-            .compressed_proof
+            .proof
             .map(|proof| CompressedProof {
                 a: proof.a.try_into().unwrap(),
                 b: proof.b.try_into().unwrap(),
@@ -925,7 +901,7 @@ async fn compress<R: RpcConnection>(
     }
 }
 
-async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(
+async fn create_v1_address<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &mut I,
     rng: &mut StdRng,
@@ -953,24 +929,19 @@ async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(
         .unwrap();
     let mut new_address_params = Vec::new();
     for (seed, root_index) in seeds.iter().zip(proof_for_addresses.root_indices.iter()) {
-        assert!(
-            !root_index.prove_by_index,
-            "Addresses have no proof by index."
-        );
+        assert!(!root_index.is_some(), "Addresses have no proof by index.");
         new_address_params.push(NewAddressParams {
             seed: *seed,
             address_queue_pubkey: *queue,
             address_merkle_tree_pubkey: *merkle_tree_pubkey,
-            address_merkle_tree_root_index: root_index.root_index,
+            address_merkle_tree_root_index: root_index.unwrap(),
         });
     }
-    let proof = proof_for_addresses
-        .compressed_proof
-        .map(|proof| CompressedProof {
-            a: proof.a.try_into().unwrap(),
-            b: proof.b.try_into().unwrap(),
-            c: proof.c.try_into().unwrap(),
-        });
+    let proof = proof_for_addresses.proof.map(|proof| CompressedProof {
+        a: proof.a.try_into().unwrap(),
+        b: proof.b.try_into().unwrap(),
+        c: proof.c.try_into().unwrap(),
+    });
     let instruction = create_invoke_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
@@ -978,11 +949,7 @@ async fn create_v1_address<R: RpcConnection, I: Indexer<R>>(
         &[],
         &[],
         &[],
-        &proof_for_addresses
-            .root_indices
-            .iter()
-            .map(|x| Some(x.root_index))
-            .collect::<Vec<_>>(),
+        &proof_for_addresses.root_indices,
         &new_address_params,
         proof,
         None,

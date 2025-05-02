@@ -1,4 +1,3 @@
-use light_merkle_tree_reference::indexed::IndexedReferenceMerkleTreeError as IndexedReferenceMerkleTreeErrorV2;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -10,7 +9,7 @@ pub enum IndexerError {
     RpcError(String),
 
     #[error("Failed to deserialize account data: {0}")]
-    DeserializeError(#[from] solana_sdk::program_error::ProgramError),
+    DeserializeError(#[from] solana_program_error::ProgramError),
 
     #[error("API error: {0}")]
     ApiError(String),
@@ -42,12 +41,11 @@ pub enum IndexerError {
     ),
     #[error("Indexed Merkle tree v1 error: {0}")]
     IndexedMerkleTreeError(#[from] light_indexed_merkle_tree::errors::IndexedMerkleTreeError),
-    #[error("Reference Merkle tree error: {0}")]
-    ReferenceMerkleTreeError(#[from] light_merkle_tree_reference::ReferenceMerkleTreeError),
-    #[error("Indexed Merkle tree v2 error: {0}")]
-    IndexedMerkleTreeV2Error(#[from] IndexedReferenceMerkleTreeErrorV2),
-    #[error("Light indexed array error: {0}")]
-    LightIndexedArrayError(#[from] light_indexed_array::errors::IndexedArrayError),
+    #[error("Invalid response data")]
+    InvalidResponseData,
+
+    #[error("Error: `{0}`")]
+    CustomError(String),
 }
 
 impl IndexerError {

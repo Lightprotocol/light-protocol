@@ -12,7 +12,9 @@ use light_client::{
     rpc::RpcConnection,
 };
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-use light_program_test::{indexer::TestIndexerExtensions, test_env::get_test_env_accounts};
+use light_program_test::{
+    accounts::initialize::get_test_env_accounts, indexer::TestIndexerExtensions,
+};
 use light_prover_client::gnark::helpers::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{GeneralActionConfig, KeypairActionConfig, User};
 use solana_sdk::{
@@ -117,12 +119,12 @@ pub fn generate_pubkey_254() -> Pubkey {
 #[allow(dead_code)]
 pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     indexer: &mut I,
     trees: &[Pubkey],
     addresses: &[Pubkey],
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
         let address_proof_test_indexer = indexer
@@ -186,13 +188,10 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer<
 }
 
 #[allow(dead_code)]
-pub async fn assert_accounts_by_owner<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn assert_accounts_by_owner<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     indexer: &mut I,
     user: &User,
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     let mut photon_accs = photon_indexer
         .get_compressed_accounts_by_owner_v2(&user.keypair.pubkey())
@@ -225,11 +224,11 @@ pub async fn assert_accounts_by_owner<
 #[allow(dead_code)]
 pub async fn assert_account_proofs_for_photon_and_test_indexer<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     indexer: &mut I,
     user_pubkey: &Pubkey,
-    photon_indexer: &PhotonIndexer<R>,
+    photon_indexer: &PhotonIndexer,
 ) {
     let accs: Result<Vec<CompressedAccountWithMerkleContext>, IndexerError> = indexer
         .get_compressed_accounts_by_owner_v2(user_pubkey)

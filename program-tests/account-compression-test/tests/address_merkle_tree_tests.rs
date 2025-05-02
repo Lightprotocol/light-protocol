@@ -13,20 +13,28 @@ use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_account_checks::error::AccountError;
 use light_bounded_vec::BoundedVecError;
-use light_client::indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle};
+use light_client::indexer::AddressMerkleTreeAccounts;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
-use light_program_test::{test_env::NOOP_PROGRAM_ID, test_rpc::ProgramTestRpcConnection};
+use light_program_test::{
+    accounts::{
+        address_merkle_tree::create_initialize_address_merkle_tree_and_queue_instruction,
+        env_accounts::NOOP_PROGRAM_ID,
+    },
+    assert::assert_rpc_error,
+    indexer::address_tree::AddressMerkleTreeBundle,
+    test_rpc::ProgramTestRpcConnection,
+};
 use light_test_utils::{
     address::insert_addresses,
     address_tree_rollover::{
         assert_rolled_over_address_merkle_tree_and_queue, perform_address_merkle_tree_roll_over,
         set_address_merkle_tree_next_index,
     },
-    airdrop_lamports, assert_rpc_error, create_account_instruction,
+    airdrop_lamports, create_account_instruction,
     create_address_merkle_tree_and_queue_account_with_assert, get_hash_set,
     get_indexed_merkle_tree,
     test_forester::{empty_address_queue_test, update_merkle_tree},
@@ -197,18 +205,17 @@ async fn initialize_address_merkle_tree_and_queue<R: RpcConnection>(
         Some(merkle_tree_keypair),
     );
 
-    let instruction =
-        light_program_test::acp_sdk::create_initialize_address_merkle_tree_and_queue_instruction(
-            0,
-            payer.pubkey(),
-            None,
-            None,
-            Some(Pubkey::new_unique()),
-            merkle_tree_keypair.pubkey(),
-            queue_keypair.pubkey(),
-            merkle_tree_config.clone(),
-            queue_config.clone(),
-        );
+    let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
+        0,
+        payer.pubkey(),
+        None,
+        None,
+        Some(Pubkey::new_unique()),
+        merkle_tree_keypair.pubkey(),
+        queue_keypair.pubkey(),
+        merkle_tree_config.clone(),
+        queue_config.clone(),
+    );
     let transaction = Transaction::new_signed_with_payer(
         &[queue_account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),

@@ -1,7 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester_utils::{
+    registry::{register_test_forester, update_test_forester},
+    rpc_pool::SolanaRpcPool,
+};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
@@ -9,9 +12,8 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
 };
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::{LightValidatorConfig, ProverConfig, ProverMode};
 use light_test_utils::{
     create_address_test_program_sdk::perform_create_pda_with_event_rnd, e2e_test_env::E2ETestEnv,
@@ -68,7 +70,7 @@ async fn test_address_batched() {
     .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config), true);
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -111,18 +113,11 @@ async fn test_address_batched() {
 
     let config = Arc::new(config);
 
-    let indexer: TestIndexer<SolanaRpcConnection> =
-        TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None).await;
+    let indexer = TestIndexer::init_from_env(&config.payer_keypair, &env_accounts, None, 0).await;
 
-    let mut photon_rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
-    photon_rpc.payer = forester_keypair.insecure_clone();
-    let mut photon_indexer = PhotonIndexer::new(
-        PhotonIndexer::<SolanaRpcConnection>::default_path(),
-        None,
-        photon_rpc,
-    );
+    let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path(), None);
 
-    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>::new(
+    let mut env = E2ETestEnv::<SolanaRpcConnection, TestIndexer>::new(
         rpc,
         indexer,
         &env_accounts,
@@ -266,7 +261,7 @@ async fn test_address_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, TestIndexer>(
         config.clone(),
         None,
         None,

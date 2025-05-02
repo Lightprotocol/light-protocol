@@ -8,15 +8,18 @@ use light_compressed_account::{
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
-use light_program_test::test_env::EnvAccounts;
+use light_program_test::accounts::env_accounts::EnvAccounts;
 use light_prover_client::gnark::helpers::{
     spawn_validator, LightValidatorConfig, ProofType, ProverConfig,
 };
 use light_test_utils::{system_program::create_invoke_instruction, RpcConnection};
-use solana_sdk::{
-    native_token::LAMPORTS_PER_SOL, signature::Keypair, signer::Signer, system_instruction,
-    transaction::Transaction,
-};
+use solana_keypair::Keypair;
+use solana_signer::Signer;
+use solana_system_interface::instruction::create_account;
+use solana_transaction::Transaction;
+
+// Constants
+const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_all_endpoints() {
@@ -55,7 +58,7 @@ async fn test_all_endpoints() {
         SolanaRpcConnection::new("http://127.0.0.1:8899".to_string(), None);
     let mut indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc);
 
-    let payer_pubkey = indexer.get_rpc().get_payer().pubkey();
+    let payer_pubkey = rpc.get_payer().pubkey();
     indexer
         .get_rpc_mut()
         .airdrop_lamports(&payer_pubkey, LAMPORTS_PER_SOL)
@@ -66,14 +69,14 @@ async fn test_all_endpoints() {
     let lamports = LAMPORTS_PER_SOL / 2;
     let output_account = CompressedAccount {
         lamports,
-        owner: indexer.get_rpc().get_payer().pubkey(),
+        owner: rpc.get_payer().pubkey(),
         data: None,
         address: None,
     };
 
     let ix = create_invoke_instruction(
-        &indexer.get_rpc().get_payer().pubkey(),
-        &indexer.get_rpc().get_payer().pubkey(),
+        &rpc.get_payer().pubkey(),
+        &rpc.get_payer().pubkey(),
         &[],
         &[output_account],
         &[],
@@ -90,8 +93,8 @@ async fn test_all_endpoints() {
     let tx_create_compressed_account = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer_pubkey),
-        &[&indexer.get_rpc().get_payer()],
-        indexer.get_rpc().client.get_latest_blockhash().unwrap(),
+        &[&rpc.get_payer()],
+        rpc.client.get_latest_blockhash().unwrap(),
     );
     indexer
         .get_rpc()
@@ -109,7 +112,7 @@ async fn test_all_endpoints() {
         .client
         .get_minimum_balance_for_rent_exemption(82)
         .unwrap();
-    let create_mint_ix = system_instruction::create_account(
+    let create_mint_ix = create_account(
         &payer_pubkey,
         &mint.pubkey(),
         mint_rent,
@@ -132,8 +135,8 @@ async fn test_all_endpoints() {
     let tx = Transaction::new_signed_with_payer(
         &[create_mint_ix, init_mint_ix, create_pool_ix],
         Some(&payer_pubkey),
-        &[indexer.get_rpc().get_payer(), &mint],
-        indexer.get_rpc().client.get_latest_blockhash().unwrap(),
+        &[rpc.get_payer(), &mint],
+        rpc.client.get_latest_blockhash().unwrap(),
     );
     indexer
         .get_rpc()
@@ -158,14 +161,10 @@ async fn test_all_endpoints() {
     let tx = Transaction::new_signed_with_payer(
         &[mint_ix],
         Some(&payer_pubkey),
-        &[&indexer.get_rpc().get_payer()],
-        indexer.get_rpc().client.get_latest_blockhash().unwrap(),
+        &[&rpc.get_payer()],
+        rpc.client.get_latest_blockhash().unwrap(),
     );
-    indexer
-        .get_rpc()
-        .client
-        .send_and_confirm_transaction(&tx)
-        .unwrap();
+    rpc.client.send_and_confirm_transaction(&tx).unwrap();
 
     let pubkey = payer_pubkey;
     let accounts = indexer
@@ -196,20 +195,15 @@ async fn test_all_endpoints() {
         .get_validity_proof(account_hashes.clone(), new_addresses)
         .await
         .unwrap();
-    assert_eq!(
-        Hash::from_base58(result.leaves[0].as_ref()).unwrap(),
-        account_hashes[0]
-    );
+    assert_eq!(result.root_indices.len(), account_hashes.len());
+    assert_eq!(result.address_root_indices, new_addresses.len());
 
     let account = indexer
         .get_compressed_account(None, Some(first_account.hash().unwrap()))
         .await
         .unwrap();
     assert_eq!(account.lamports, lamports);
-    assert_eq!(
-        account.owner,
-        indexer.get_rpc().get_payer().pubkey().to_string()
-    );
+    assert_eq!(account.owner, rpc.get_payer().pubkey().to_string());
 
     let balance = indexer
         .get_compressed_account_balance(None, Some(first_account.hash().unwrap()))

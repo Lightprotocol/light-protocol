@@ -8,7 +8,10 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_client::rpc::types::BatchedTreeProofRpcResult;
+use light_client::{
+    indexer::{AddressWithTree, ProofRpcResultV2},
+    rpc::RpcConnection,
+};
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
     compressed_account::{MerkleContext, PackedMerkleContext, ReadOnlyCompressedAccount},
@@ -20,15 +23,13 @@ use light_compressed_account::{
     TreeType,
 };
 use light_program_test::{
+    assert::assert_rpc_error,
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params,
-    test_rpc::ProgramTestRpcConnection,
+    test_env::{setup_test_programs_with_accounts, ProgramTestConfig},
 };
 use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
-use light_registry::protocol_config::state::ProtocolConfig;
 use light_sdk::{NewAddressParamsAssigned, ReadOnlyAddress};
 use light_system_program::errors::SystemProgramError;
-use light_test_utils::{assert_rpc_error, RpcConnection};
 use rand::{thread_rng, Rng};
 use serial_test::serial;
 use solana_sdk::pubkey::Pubkey;
@@ -53,25 +54,29 @@ async fn functional_read_only() {
     )
     .await;
     for (batched, is_small_ix) in [(true, false), (true, true), (false, false), (false, true)] {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config.batched_address_tree_init_params =
+                Some(InitAddressTreeAccountsInstructionData::test_default());
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config)
+            .await
+            .expect("Failed to setup test programs with accounts");
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -89,8 +94,7 @@ async fn functional_read_only() {
         };
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
         // Create a bunch of outputs that we can use as inputs.
         for _ in 0..5 {
             let output_accounts = vec![
@@ -214,14 +218,14 @@ async fn functional_read_only() {
                             })
                             .collect::<Vec<_>>();
                         let proof_res = if read_only_addresses.is_empty() && num_inputs == 0 {
-                            BatchedTreeProofRpcResult {
+                            ProofRpcResultV2 {
                                 proof: None,
                                 address_root_indices: vec![],
                                 root_indices: vec![],
                             }
                         } else {
-                            let (input_hashes, state_merkle_trees) = if num_inputs == 0 {
-                                (None, None)
+                            let input_hashes = if num_inputs == 0 {
+                                None
                             } else {
                                 let hashes: Vec<[u8; 32]> = if batched {
                                     input_accounts
@@ -254,7 +258,7 @@ async fn functional_read_only() {
                                         })
                                         .collect::<Vec<_>>()
                                 };
-                                (Some(hashes), Some(vec![tree; num_inputs as usize]))
+                                Some(hashes)
                             };
                             let (new_addresses, address_tree_pubkey) =
                                 if read_only_addresses.is_empty() {
@@ -265,15 +269,24 @@ async fn functional_read_only() {
                                         Some(vec![address_tree; read_only_addresses.len()]),
                                     )
                                 };
-                            test_indexer
-                                .create_proof_for_compressed_accounts2(
-                                    input_hashes,
-                                    state_merkle_trees,
-                                    new_addresses,
-                                    address_tree_pubkey,
-                                    &mut rpc,
-                                )
-                                .await
+                            let addresses_with_tree = match (new_addresses, address_tree_pubkey) {
+                                (Some(addresses), Some(trees)) => addresses
+                                    .iter()
+                                    .zip(trees.iter())
+                                    .map(|(address, tree)| AddressWithTree {
+                                        address: *address,
+                                        tree: *tree,
+                                    })
+                                    .collect::<Vec<_>>(),
+                                _ => vec![],
+                            };
+
+                            rpc.get_validity_proof_v2(
+                                input_hashes.unwrap_or_default(),
+                                addresses_with_tree,
+                            )
+                            .await
+                            .unwrap()
                         };
                         let readonly_addresses = proof_res
                             .address_root_indices
@@ -346,25 +359,25 @@ async fn functional_account_infos() {
     for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -382,8 +395,7 @@ async fn functional_account_infos() {
         };
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
         // Create a bunch of outputs that we can use as inputs.
         for _ in 0..5 {
             let output_accounts = vec![
@@ -506,15 +518,17 @@ async fn functional_account_infos() {
                                 address
                             })
                             .collect::<Vec<_>>();
-                        let proof_res = if read_only_addresses.is_empty() && num_inputs == 0 {
-                            BatchedTreeProofRpcResult {
+                        let proof_res: ProofRpcResultV2 = if read_only_addresses.is_empty()
+                            && num_inputs == 0
+                        {
+                            ProofRpcResultV2 {
                                 proof: None,
                                 address_root_indices: vec![],
                                 root_indices: vec![],
                             }
                         } else {
-                            let (input_hashes, state_merkle_trees) = if num_inputs == 0 {
-                                (None, None)
+                            let input_hashes = if num_inputs == 0 {
+                                None
                             } else {
                                 let hashes: Vec<[u8; 32]> = if batched {
                                     input_accounts
@@ -547,7 +561,7 @@ async fn functional_account_infos() {
                                         })
                                         .collect::<Vec<_>>()
                                 };
-                                (Some(hashes), Some(vec![tree; num_inputs as usize]))
+                                Some(hashes)
                             };
                             let (new_addresses, address_tree_pubkey) =
                                 if read_only_addresses.is_empty() {
@@ -558,15 +572,24 @@ async fn functional_account_infos() {
                                         Some(vec![address_tree; read_only_addresses.len()]),
                                     )
                                 };
-                            test_indexer
-                                .create_proof_for_compressed_accounts2(
-                                    input_hashes,
-                                    state_merkle_trees,
-                                    new_addresses,
-                                    address_tree_pubkey,
-                                    &mut rpc,
-                                )
-                                .await
+                            let addresses_with_tree = match (new_addresses, address_tree_pubkey) {
+                                (Some(addresses), Some(trees)) => addresses
+                                    .iter()
+                                    .zip(trees.iter())
+                                    .map(|(address, tree)| AddressWithTree {
+                                        address: *address,
+                                        tree: *tree,
+                                    })
+                                    .collect::<Vec<_>>(),
+                                _ => vec![],
+                            };
+
+                            rpc.get_validity_proof_v2(
+                                input_hashes.unwrap_or_default(),
+                                addresses_with_tree,
+                            )
+                            .await
+                            .unwrap()
                         };
                         let readonly_addresses = proof_res
                             .address_root_indices
@@ -649,25 +672,26 @@ async fn create_addresses_with_account_info() {
     for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
+
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -689,8 +713,7 @@ async fn create_addresses_with_account_info() {
             env.address_merkle_tree_queue_pubkey
         };
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
 
         let output_accounts = (0..2)
             .map(|_| get_output_account_info(if batched { 0 } else { 1 }))
@@ -728,15 +751,21 @@ async fn create_addresses_with_account_info() {
             output: Some(output_accounts[1].clone()),
         };
 
-        let rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(vec![address, address1].as_slice()),
-                Some(vec![address_tree; 2]),
-                &mut rpc,
-            )
-            .await;
+        let addresses_with_tree = vec![
+            AddressWithTree {
+                address,
+                tree: address_tree,
+            },
+            AddressWithTree {
+                address: address1,
+                tree: address_tree,
+            },
+        ];
+
+        let rpc_result = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .await
+            .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
@@ -948,15 +977,22 @@ async fn create_addresses_with_account_info() {
             } else {
                 derive_address_legacy(&address_tree, &seed1).unwrap()
             };
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address, address1].as_slice()),
-                    Some(vec![address_tree; 2]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![
+                        AddressWithTree {
+                            address,
+                            tree: address_tree,
+                        },
+                        AddressWithTree {
+                            address: address1,
+                            tree: address_tree,
+                        },
+                    ],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1009,15 +1045,16 @@ async fn create_addresses_with_account_info() {
                 derive_address_legacy(&address_tree, &seed).unwrap()
             };
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address].as_slice()),
-                    Some(vec![address_tree; 1]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![AddressWithTree {
+                        address,
+                        tree: address_tree,
+                    }],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1082,15 +1119,22 @@ async fn create_addresses_with_account_info() {
                 output: Some(output_accounts[0].clone()),
             };
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address, address1].as_slice()),
-                    Some(vec![address_tree; 2]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![
+                        AddressWithTree {
+                            address,
+                            tree: address_tree,
+                        },
+                        AddressWithTree {
+                            address: address1,
+                            tree: address_tree,
+                        },
+                    ],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1152,15 +1196,16 @@ async fn create_addresses_with_account_info() {
                 output: Some(output_accounts[0].clone()),
             };
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address].as_slice()),
-                    Some(vec![address_tree; 1]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![AddressWithTree {
+                        address,
+                        tree: address_tree,
+                    }],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1230,25 +1275,25 @@ async fn create_addresses_with_read_only() {
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
         println!("batched {}, small ix {}", batched, is_small_ix);
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -1270,8 +1315,7 @@ async fn create_addresses_with_read_only() {
             env.address_merkle_tree_queue_pubkey
         };
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
 
         let seed = [1u8; 32];
         let address = if batched {
@@ -1300,15 +1344,21 @@ async fn create_addresses_with_read_only() {
         let mut output_2 = get_compressed_output_account(true, if batched { queue } else { tree });
         output_2.compressed_account.address = Some(address1);
 
-        let rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(vec![address, address1].as_slice()),
-                Some(vec![address_tree; 2]),
-                &mut rpc,
-            )
-            .await;
+        let addresses_with_tree = vec![
+            AddressWithTree {
+                address,
+                tree: address_tree,
+            },
+            AddressWithTree {
+                address: address1,
+                tree: address_tree,
+            },
+        ];
+
+        let rpc_result = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .await
+            .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
@@ -1527,15 +1577,22 @@ async fn create_addresses_with_read_only() {
             } else {
                 derive_address_legacy(&address_tree, &seed1).unwrap()
             };
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address, address1].as_slice()),
-                    Some(vec![address_tree; 2]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![
+                        AddressWithTree {
+                            address,
+                            tree: address_tree,
+                        },
+                        AddressWithTree {
+                            address: address1,
+                            tree: address_tree,
+                        },
+                    ],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1589,15 +1646,16 @@ async fn create_addresses_with_read_only() {
                 derive_address_legacy(&address_tree, &seed).unwrap()
             };
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address].as_slice()),
-                    Some(vec![address_tree; 1]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![AddressWithTree {
+                        address,
+                        tree: address_tree,
+                    }],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1612,7 +1670,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 vec![],
                 vec![new_address_params.clone()],
-                rpc_result.proof,
+                rpc_result.proof.clone(),
                 None,
                 None,
                 is_small_ix,
@@ -1659,15 +1717,22 @@ async fn create_addresses_with_read_only() {
             };
             output_accounts[0].compressed_account.address = Some(address1);
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address, address1].as_slice()),
-                    Some(vec![address_tree; 2]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![
+                        AddressWithTree {
+                            address,
+                            tree: address_tree,
+                        },
+                        AddressWithTree {
+                            address: address1,
+                            tree: address_tree,
+                        },
+                    ],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1689,7 +1754,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 output_accounts,
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.proof.clone(),
                 None,
                 None,
                 is_small_ix,
@@ -1726,15 +1791,16 @@ async fn create_addresses_with_read_only() {
 
             output_accounts[0].compressed_account.address = Some(address);
 
-            let rpc_result = test_indexer
-                .create_proof_for_compressed_accounts2(
-                    None,
-                    None,
-                    Some(vec![address].as_slice()),
-                    Some(vec![address_tree; 1]),
-                    &mut rpc,
+            let rpc_result = rpc
+                .get_validity_proof_v2(
+                    Vec::new(),
+                    vec![AddressWithTree {
+                        address,
+                        tree: address_tree,
+                    }],
                 )
-                .await;
+                .await
+                .unwrap();
             let new_address_params = NewAddressParamsAssigned {
                 seed,
                 address_queue_pubkey: address_queue,
@@ -1750,7 +1816,7 @@ async fn create_addresses_with_read_only() {
                 vec![],
                 output_accounts,
                 vec![new_address_params],
-                rpc_result.proof,
+                rpc_result.proof.clone(),
                 None,
                 None,
                 is_small_ix,
@@ -1776,25 +1842,22 @@ async fn compress_sol_with_account_info() {
     let with_transaction_hash = false;
     let batched = true;
     for is_small_ix in [true, false].into_iter() {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-                Some(vec![(
-                    "create_address_test_program",
-                    create_address_test_program::ID,
-                )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
-            )
-            .await;
+        let config = {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config.batched_address_tree_init_params =
+                Some(InitAddressTreeAccountsInstructionData::test_default());
+            config
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config)
+            .await
+            .expect("Failed to setup test programs with accounts");
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -1807,8 +1870,7 @@ async fn compress_sol_with_account_info() {
         };
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
 
         // 1.Compress sol
         {
@@ -1972,25 +2034,21 @@ async fn cpi_context_with_read_only() {
     let with_transaction_hash = false;
     let batched = true;
     for is_small_ix in [true, false].into_iter() {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
-                Some(vec![(
-                    "create_address_test_program",
-                    create_address_test_program::ID,
-                )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
-            )
-            .await;
+        let config = {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config.batched_address_tree_init_params =
+                Some(InitAddressTreeAccountsInstructionData::test_default());
+            config
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config)
+            .await
+            .expect("Failed to setup test programs with accounts");
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -2018,8 +2076,7 @@ async fn cpi_context_with_read_only() {
         };
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
         // Create 3 input accounts.
         {
             let output_accounts = vec![
@@ -2081,15 +2138,21 @@ async fn cpi_context_with_read_only() {
         } else {
             derive_address_legacy(&address_tree, &seed1).unwrap()
         };
-        let rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(vec![address, address1].as_slice()),
-                Some(vec![address_tree; 2]),
-                &mut rpc,
-            )
-            .await;
+        let addresses_with_tree = vec![
+            AddressWithTree {
+                address,
+                tree: address_tree,
+            },
+            AddressWithTree {
+                address: address1,
+                tree: address_tree,
+            },
+        ];
+
+        let rpc_result = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .await
+            .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
@@ -2210,7 +2273,7 @@ async fn cpi_context_with_read_only() {
                 input_accounts,
                 vec![output_account],
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.proof.clone(),
                 None,
                 None,
                 is_small_ix,
@@ -2267,25 +2330,25 @@ async fn cpi_context_with_account_info() {
     let with_transaction_hash = false;
     let batched = true;
     for is_small_ix in [true, false].into_iter() {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -2315,8 +2378,7 @@ async fn cpi_context_with_account_info() {
         println!("cpi context account {:?}", cpi_context_account.to_bytes());
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
         // Create 3 input accounts.
         {
             let output_accounts = vec![
@@ -2378,15 +2440,21 @@ async fn cpi_context_with_account_info() {
         } else {
             derive_address_legacy(&address_tree, &seed1).unwrap()
         };
-        let rpc_result = test_indexer
-            .create_proof_for_compressed_accounts2(
-                None,
-                None,
-                Some(vec![address, address1].as_slice()),
-                Some(vec![address_tree; 2]),
-                &mut rpc,
-            )
-            .await;
+        let addresses_with_tree = vec![
+            AddressWithTree {
+                address,
+                tree: address_tree,
+            },
+            AddressWithTree {
+                address: address1,
+                tree: address_tree,
+            },
+        ];
+
+        let rpc_result = rpc
+            .get_validity_proof_v2(Vec::new(), addresses_with_tree)
+            .await
+            .unwrap();
         let new_address_params = NewAddressParamsAssigned {
             seed,
             address_queue_pubkey: address_queue,
@@ -2529,7 +2597,7 @@ async fn cpi_context_with_account_info() {
                 vec![],
                 vec![],
                 vec![new_address_params, new_address_params1],
-                rpc_result.proof,
+                rpc_result.proof.clone(),
                 None,
                 Some(vec![account_info1, account_info2]),
                 is_small_ix,
@@ -2579,25 +2647,25 @@ async fn compress_sol_with_read_only() {
     let with_transaction_hash = false;
     let batched = true;
     for is_small_ix in [true, false].into_iter() {
-        let (mut rpc, env) =
-            setup_test_programs_with_accounts_with_protocol_config_and_batched_tree_params(
+        let config = if batched {
+            let mut config = ProgramTestConfig::default_with_batched_trees();
+            config.with_prover = false;
+            config.additional_programs = Some(vec![(
+                "create_address_test_program",
+                create_address_test_program::ID,
+            )]);
+            config.batched_tree_init_params = Some(InitStateTreeAccountsInstructionData::default());
+            config
+        } else {
+            ProgramTestConfig::new(
+                false,
                 Some(vec![(
                     "create_address_test_program",
                     create_address_test_program::ID,
                 )]),
-                ProtocolConfig {
-                    // Init with an active epoch which doesn't end
-                    active_phase_length: 1_000_000_000,
-                    slot_length: 1_000_000_000 - 1,
-                    genesis_slot: 0,
-                    registration_phase_length: 2,
-                    ..Default::default()
-                },
-                true,
-                InitStateTreeAccountsInstructionData::default(),
-                InitAddressTreeAccountsInstructionData::test_default(),
             )
-            .await;
+        };
+        let (mut rpc, env) = setup_test_programs_with_accounts(config).await.unwrap();
         let queue = if batched {
             env.batched_output_queue
         } else {
@@ -2610,8 +2678,7 @@ async fn compress_sol_with_read_only() {
         };
 
         let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer =
-            TestIndexer::<ProgramTestRpcConnection>::init_from_env(&payer, &env, None).await;
+        let mut test_indexer = TestIndexer::init_from_env(&payer, &env, None).await;
 
         // 1.Compress sol
         {
@@ -2825,10 +2892,7 @@ pub mod local_sdk {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn perform_test_transaction<
-        R: RpcConnection,
-        I: Indexer<R> + TestIndexerExtensions<R>,
-    >(
+    pub async fn perform_test_transaction<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
         rpc: &mut R,
         test_indexer: &mut I,
         payer: &Keypair,

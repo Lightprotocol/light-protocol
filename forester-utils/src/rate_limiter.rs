@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, sync::Arc, time::Duration};
+use std::{fmt::Debug, num::NonZeroU32, sync::Arc, time::Duration};
 
 use governor::{
     clock::DefaultClock,

@@ -88,6 +88,7 @@ where
     usize: From<I>,
 {
     let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+    println!("account size: {}", account.data.len());
 
     IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
 }

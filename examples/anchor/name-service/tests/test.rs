@@ -43,7 +43,7 @@ async fn test_name_service() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
+    let mut test_indexer: TestIndexer = TestIndexer::new(
         &[StateMerkleTreeAccounts {
             merkle_tree: env.merkle_tree_pubkey,
             nullifier_queue: env.nullifier_queue_pubkey,
@@ -297,7 +297,7 @@ async fn create_record<R>(
     name: &str,
     rdata: &RData,
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     env: &EnvAccounts,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
@@ -364,7 +364,7 @@ where
 
 async fn update_record<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     new_rdata: &RData,
     payer: &Keypair,
@@ -444,7 +444,7 @@ where
 
 async fn delete_record<R>(
     rpc: &mut R,
-    test_indexer: &mut TestIndexer<R>,
+    test_indexer: &mut TestIndexer,
     remaining_accounts: &mut PackedAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,

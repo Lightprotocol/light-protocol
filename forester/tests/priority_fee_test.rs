@@ -73,6 +73,7 @@ async fn test_priority_fee_request() {
     let mut rpc = SolanaRpcConnection::new(
         config.external_services.rpc_url,
         Some(CommitmentConfig::confirmed()),
+        true,
     );
     rpc.payer = config.payer_keypair.insecure_clone();
 

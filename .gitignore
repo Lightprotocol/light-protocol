@@ -85,4 +85,4 @@ output.txt
 output1.txt
 .zed
 
-**/.claude/settings.local.json
+**/.claude/**/*

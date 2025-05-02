@@ -1,7 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::registry::{register_test_forester, update_test_forester};
+use forester_utils::{
+    registry::{register_test_forester, update_test_forester},
+    rpc_pool::SolanaRpcPool,
+};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
@@ -9,9 +12,8 @@ use light_batched_merkle_tree::{
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer},
     rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, SolanaRpcConnection},
-    rpc_pool::SolanaRpcPool,
 };
-use light_program_test::{indexer::TestIndexer, test_env::EnvAccounts};
+use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexer};
 use light_prover_client::gnark::helpers::LightValidatorConfig;
 use light_test_utils::e2e_test_env::{init_program_test_env, E2ETestEnv};
 use serial_test::serial;
@@ -62,7 +64,7 @@ async fn test_state_indexer_batched() {
     .unwrap();
 
     let commitment_config = CommitmentConfig::confirmed();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config));
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, Some(commitment_config), true);
     rpc.payer = forester_keypair.insecure_clone();
 
     rpc.airdrop_lamports(&forester_keypair.pubkey(), LAMPORTS_PER_SOL * 100_000)
@@ -103,13 +105,16 @@ async fn test_state_indexer_batched() {
     config.derivation_pubkey = forester_keypair.pubkey();
     config.payer_keypair = new_forester_keypair.insecure_clone();
 
-    let photon_indexer = {
-        let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-        PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None, rpc)
-    };
+    let photon_indexer = PhotonIndexer::new("http://127.0.0.1:8784".to_string(), None);
 
-    let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer<SolanaRpcConnection>>;
-    e2e_env = init_program_test_env(rpc, &env, false).await;
+    let mut e2e_env: E2ETestEnv<SolanaRpcConnection, TestIndexer>;
+    e2e_env = init_program_test_env(
+        rpc,
+        &env,
+        false,
+        tree_params.output_queue_batch_size as usize,
+    )
+    .await;
 
     for tree in e2e_env.indexer.state_merkle_trees.iter() {
         println!("====================");
@@ -281,7 +286,7 @@ async fn test_state_indexer_batched() {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-    let service_handle = tokio::spawn(run_pipeline(
+    let service_handle = tokio::spawn(run_pipeline::<SolanaRpcConnection, PhotonIndexer>(
         Arc::from(config.clone()),
         None,
         None,

@@ -43,15 +43,13 @@ pub use forester_utils::{
     },
 };
 pub use light_client::{
-    rpc::{
-        assert_rpc_error, solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection,
-    },
-    transaction_params::{FeeConfig, TransactionParams},
+    fee::{FeeConfig, TransactionParams},
+    rpc::{solana_rpc::SolanaRpcUrl, RpcConnection, RpcError, SolanaRpcConnection},
 };
 use light_hasher::Poseidon;
 use light_program_test::{
+    accounts::address_merkle_tree::create_address_merkle_tree_and_queue_account,
     indexer::utils::assert_address_merkle_tree_initialized,
-    test_env::create_address_merkle_tree_and_queue_account,
 };
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 

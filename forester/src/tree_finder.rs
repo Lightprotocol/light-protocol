@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use forester_utils::forester_epoch::TreeAccounts;
-use light_client::{rpc::RpcConnection, rpc_pool::SolanaRpcPool};
+use forester_utils::{forester_epoch::TreeAccounts, rpc_pool::SolanaRpcPool};
+use light_client::rpc::RpcConnection;
 use tokio::{
     sync::broadcast,
     time::{interval, Duration},

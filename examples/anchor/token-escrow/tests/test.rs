@@ -13,13 +13,16 @@
 use light_client::indexer::Indexer;
 use light_compressed_account::{compressed_account::MerkleContext, TreeType};
 use light_program_test::{
+    accounts::env_accounts::EnvAccounts,
+    assert::assert_rpc_error,
     indexer::{TestIndexer, TestIndexerExtensions},
-    test_env::{setup_test_programs_with_accounts, EnvAccounts},
+    test_env::setup_test_programs_with_accounts,
+    test_rpc::TestRpcConnection,
 };
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
-    airdrop_lamports, assert_rpc_error,
+    airdrop_lamports,
     conversions::sdk_to_program_token_data,
     spl::{create_mint_helper, mint_tokens_helper},
     FeeConfig, RpcConnection, RpcError, TransactionParams,
@@ -210,7 +213,7 @@ async fn test_escrow_pda() {
     );
 }
 
-pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_escrow<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -278,10 +281,7 @@ pub async fn perform_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensi
     create_escrow_instruction(create_ix_inputs, *escrow_amount)
 }
 
-pub async fn perform_escrow_with_event<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_escrow_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -315,7 +315,7 @@ pub async fn perform_escrow_with_event<
     Ok(())
 }
 
-pub async fn perform_escrow_failing<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_escrow_failing<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -334,7 +334,7 @@ pub async fn perform_escrow_failing<R: RpcConnection, I: Indexer<R> + TestIndexe
     rpc.process_transaction(transaction).await
 }
 
-pub async fn assert_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn assert_escrow<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &I,
     payer_pubkey: &Pubkey,
@@ -375,7 +375,7 @@ pub async fn assert_escrow<R: RpcConnection, I: Indexer<R> + TestIndexerExtensio
     assert_eq!(timelock_account.slot, *lock_up_time + current_slot);
 }
 
-pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub async fn perform_withdrawal<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     context: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -441,10 +441,7 @@ pub async fn perform_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExt
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)
 }
 
-pub async fn perform_withdrawal_with_event<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_withdrawal_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -475,10 +472,7 @@ pub async fn perform_withdrawal_with_event<
     Ok(())
 }
 
-pub async fn perform_withdrawal_failing<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_withdrawal_failing<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     rpc: &mut R,
     test_indexer: &mut I,
     env: &EnvAccounts,
@@ -503,7 +497,7 @@ pub async fn perform_withdrawal_failing<
     );
     rpc.process_transaction(transaction).await
 }
-pub fn assert_withdrawal<R: RpcConnection, I: Indexer<R> + TestIndexerExtensions<R>>(
+pub fn assert_withdrawal<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &I,
     payer_pubkey: &Pubkey,
     withdrawal_amount: u64,

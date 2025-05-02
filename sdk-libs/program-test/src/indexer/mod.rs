@@ -1,4 +1,6 @@
+pub mod address_tree;
 mod extensions;
+pub mod state_tree;
 mod test_indexer;
 pub mod utils;
 

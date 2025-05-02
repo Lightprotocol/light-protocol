@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[instrument(level = "debug", skip(context), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
+pub(crate) async fn process_batch<R: RpcConnection, I: Indexer + IndexerType<R>>(
     context: &BatchContext<R, I>,
 ) -> Result<usize> {
     info!("Processing address batch operation");

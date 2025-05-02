@@ -7,6 +7,7 @@ use light_client::{
 use light_compressed_account::address::derive_address;
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
+use log::info;
 use num_bigint::BigUint;
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use solana_sdk::{signature::Signer, transaction::Transaction};
@@ -29,11 +30,11 @@ pub async fn airdrop_lamports<R: RpcConnection>(
         &vec![&rpc.get_payer()],
         latest_blockhash,
     );
-    rpc.process_transaction(transaction).await?;
+    rpc.process_transaction_with_context(transaction).await?;
     Ok(())
 }
 
-pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
+pub async fn wait_for_indexer<R: RpcConnection, I: Indexer>(
     rpc: &mut R,
     indexer: &I,
 ) -> Result<(), ForesterUtilsError> {
@@ -42,7 +43,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
         .await
         .map_err(|_| ForesterUtilsError::Rpc("Failed to get rpc slot".into()))?;
 
-    let indexer_slot = indexer.get_indexer_slot(rpc).await;
+    let indexer_slot = indexer.get_indexer_slot().await;
 
     let mut indexer_slot = match indexer_slot {
         Ok(slot) => slot,
@@ -58,6 +59,9 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
     let mut attempts = 0;
 
     while rpc_slot > indexer_slot {
+        info!("indexer slot {}", indexer_slot);
+        info!("rpc_slot slot {}", rpc_slot);
+
         if attempts >= max_attempts {
             return Err(ForesterUtilsError::Indexer(
                 "Maximum attempts reached waiting for indexer to catch up".into(),
@@ -71,7 +75,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
 
         tokio::task::yield_now().await;
         sleep(std::time::Duration::from_millis(400)).await;
-        indexer_slot = indexer.get_indexer_slot(rpc).await.map_err(|e| {
+        indexer_slot = indexer.get_indexer_slot().await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())
         })?;

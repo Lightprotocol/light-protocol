@@ -55,7 +55,6 @@ use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
     signature::{Keypair, Signature, Signer},
-    transaction::Transaction,
 };
 
 pub async fn perform_batch_append<Rpc: RpcConnection>(
@@ -370,8 +369,10 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::{
     account_zero_copy::AccountZeroCopy, instructions::create_account::create_account_instruction,
 };
-use light_client::indexer::{Indexer, StateMerkleTreeBundle};
+use light_client::indexer::Indexer;
 use light_merkle_tree_reference::sparse_merkle_tree::SparseMerkleTree;
+
+use crate::indexer::state_tree::StateMerkleTreeBundle;
 
 pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
     payer: &Keypair,
@@ -452,23 +453,22 @@ pub async fn create_batched_state_merkle_tree<R: RpcConnection>(
         }
     };
 
-    let transaction = Transaction::new_signed_with_payer(
+    rpc.create_and_send_transaction(
         &[
             create_mt_account_ix,
             create_queue_account_ix,
             create_cpi_context_instruction,
             instruction,
         ],
-        Some(&payer.pubkey()),
-        &vec![
+        &payer.pubkey(),
+        &[
             payer,
             merkle_tree_keypair,
             queue_keypair,
             cpi_context_keypair,
         ],
-        rpc.get_latest_blockhash().await.unwrap(),
-    );
-    rpc.process_transaction(transaction).await
+    )
+    .await
 }
 
 pub async fn assert_registry_created_batched_state_merkle_tree<R: RpcConnection>(
@@ -818,7 +818,7 @@ pub async fn assert_registry_created_batched_address_merkle_tree<R: RpcConnectio
 
 pub async fn create_batch_update_address_tree_instruction_data_with_proof<
     R: RpcConnection,
-    I: Indexer<R>,
+    I: Indexer,
 >(
     rpc: &mut R,
     indexer: &mut I,

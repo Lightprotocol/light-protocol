@@ -26,16 +26,18 @@ use light_hasher::{
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, QueueType};
 use light_merkle_tree_reference::MerkleTree;
 use light_program_test::{
-    acp_sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
-    test_rpc::ProgramTestRpcConnection,
+    accounts::state_merkle_tree::{
+        create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
+    },
+    assert::assert_rpc_error,
+    test_rpc::{ProgramTestRpcConnection, TestRpcConnection},
 };
 use light_test_utils::{
     airdrop_lamports,
     assert_merkle_tree::assert_merkle_tree_initialized,
     assert_queue::assert_nullifier_queue_initialized,
-    assert_rpc_error, create_account_instruction,
-    create_address_merkle_tree_and_queue_account_with_assert, get_concurrent_merkle_tree,
-    get_hash_set,
+    create_account_instruction, create_address_merkle_tree_and_queue_account_with_assert,
+    get_concurrent_merkle_tree, get_hash_set,
     state_tree_rollover::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index, StateMerkleTreeRolloverMode,
@@ -2056,7 +2058,7 @@ pub async fn nullify<R: RpcConnection>(
     Ok(())
 }
 
-pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
+pub async fn set_nullifier_queue_to_full<R: RpcConnection + TestRpcConnection>(
     rpc: &mut R,
     nullifier_queue_pubkey: &Pubkey,
     left_over_indices: usize,
@@ -2141,7 +2143,7 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
     assert_rpc_error(result, 0, HashSetError::Full.into()).unwrap();
 }
 
-pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
+pub async fn set_state_merkle_tree_sequence<R: RpcConnection + TestRpcConnection>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     sequence_number: u64,

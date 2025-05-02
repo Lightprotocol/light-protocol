@@ -288,6 +288,7 @@ impl Default for LightValidatorConfig {
     }
 }
 
+// TODO: move to light-client
 pub async fn spawn_validator(config: LightValidatorConfig) {
     if let Some(project_root) = get_project_root() {
         let path = "cli/test_bin/run test-validator";

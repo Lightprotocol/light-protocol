@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::{
-    indexer::Indexer,
+    indexer::{AddressWithTree, Indexer},
     rpc::{RpcConnection, RpcError},
 };
 use light_compressed_account::{
@@ -11,7 +11,7 @@ use light_compressed_account::{
     instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
-use light_program_test::{indexer::TestIndexerExtensions, test_env::EnvAccounts};
+use light_program_test::{accounts::env_accounts::EnvAccounts, indexer::TestIndexerExtensions};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[derive(Debug, Clone)]
@@ -70,7 +70,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 
 pub async fn perform_create_pda_with_event_rnd<
     R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
+    I: Indexer + TestIndexerExtensions,
 >(
     test_indexer: &mut I,
     rpc: &mut R,
@@ -82,10 +82,7 @@ pub async fn perform_create_pda_with_event_rnd<
     perform_create_pda_with_event(test_indexer, rpc, env, payer, seed, &data).await
 }
 
-pub async fn perform_create_pda_with_event<
-    R: RpcConnection,
-    I: Indexer<R> + TestIndexerExtensions<R>,
->(
+pub async fn perform_create_pda_with_event<R: RpcConnection, I: Indexer + TestIndexerExtensions>(
     test_indexer: &mut I,
     rpc: &mut R,
     env: &EnvAccounts,
@@ -93,7 +90,7 @@ pub async fn perform_create_pda_with_event<
     seed: [u8; 32],
     data: &[u8; 31],
 ) -> Result<(), RpcError> {
-    let (address, address_merkle_tree_pubkey, address_queue_pubkey) = {
+    let address_with_tree = {
         let address = derive_address(
             &seed,
             &env.batch_address_merkle_tree.to_bytes(),
@@ -106,28 +103,21 @@ pub async fn perform_create_pda_with_event<
         );
         println!("program_id: {:?}", create_address_test_program::ID);
         println!("seed: {:?}", seed);
-        (
+        AddressWithTree {
             address,
-            env.batch_address_merkle_tree,
-            env.batch_address_merkle_tree,
-        )
+            tree: env.address_merkle_tree_pubkey,
+        }
     };
 
-    let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(&[address]),
-            Some(vec![address_merkle_tree_pubkey]),
-            rpc,
-        )
+    let rpc_result = rpc
+        .get_validity_proof(Vec::new(), vec![address_with_tree])
         .await
         .unwrap();
 
     let new_address_params = NewAddressParams {
         seed,
-        address_merkle_tree_pubkey,
-        address_queue_pubkey,
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
