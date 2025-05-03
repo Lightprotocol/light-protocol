@@ -172,7 +172,8 @@ export function packCompressedAccounts(
         );
     }
 
-    // Use next tree if available, otherwise fall back to current tree
+    // Use next tree if available, otherwise fall back to current tree.
+    // `nextTreeInfo` always takes precedence.
     const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
     const activeTreeOrQueue = activeTreeInfo.tree;
     // V2 trees are not yet supported
