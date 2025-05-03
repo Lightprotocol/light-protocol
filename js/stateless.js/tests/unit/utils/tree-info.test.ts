@@ -105,6 +105,7 @@ describe('selectStateTreeInfo', () => {
             const expectedRange = [info1, info2, info3, info4, info5, info6];
 
             expect(expectedRange.includes(result)).toBe(true);
+            expect(result !== infoInactive).toBe(true);
         }
     });
 

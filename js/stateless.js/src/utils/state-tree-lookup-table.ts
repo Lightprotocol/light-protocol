@@ -205,7 +205,12 @@ export async function nullifyLookupTable({
 
     const blockhash = await connection.getLatestBlockhash();
 
-    const tx = buildAndSignTx([instructions], payer, blockhash.blockhash);
+    const tx = buildAndSignTx(
+        [instructions],
+        payer,
+        blockhash.blockhash,
+        dedupeSigner(payer as Signer, [authority]),
+    );
 
     const txId = await sendAndConfirmTx(connection as Rpc, tx);
 

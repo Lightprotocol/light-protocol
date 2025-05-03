@@ -34,10 +34,10 @@ const MAX_HOTSPOTS = 5;
  *
  * Using this mitigates write lock contention on state trees.
  *
- * @param infos             Set of state tree infos
- * @param treeType          The type of tree. Defaults to TreeType.StateV1
- * @param useMaxConcurrency    Whether to select from all returned infos or
- *                          {@link MAX_HOTSPOTS}. Defaults to `false`.
+ * @param infos                 Set of state tree infos
+ * @param treeType              The type of tree. Defaults to `TreeType.StateV1`
+ * @param useMaxConcurrency     If true, return all infos. If false, return at
+ *                              most {@link MAX_HOTSPOTS}. Defaults to `false`.
  *
  * @returns A pseudo-randomly selected tree info
  */
