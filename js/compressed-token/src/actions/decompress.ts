@@ -11,12 +11,8 @@ import {
     buildAndSignTx,
     Rpc,
     dedupeSigner,
-    selectStateTreeInfo,
-    StateTreeInfo,
 } from '@lightprotocol/stateless.js';
-
 import BN from 'bn.js';
-
 import { CompressedTokenProgram } from '../program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../utils';
 import {
@@ -37,7 +33,6 @@ import { getTokenPoolInfos } from '../utils/get-token-pool-infos';
  *                              account address.
  * @param tokenPoolInfos        Token pool infos
  * @param confirmOptions        Options for confirming the transaction
-
  *
  * @return Signature of the confirmed transaction
  */
