@@ -33,11 +33,8 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
 
     fn should_retry(&self, error: &RpcError) -> bool {
         match error {
-            RpcError::TransactionError(TransactionError::InstructionError(
-                _,
-                InstructionError::Custom(6004),
-            )) => {
-                // Don't retry ForesterNotEligible error
+            RpcError::TransactionError(TransactionError::InstructionError(_, _)) => {
+                // Don't retry failing transactions.
                 false
             }
             _ => true,
