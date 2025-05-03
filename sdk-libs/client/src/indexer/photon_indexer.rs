@@ -1,5 +1,5 @@
-use std::{fmt::Debug, str::FromStr};
-use std::time::Duration;
+use std::{fmt::Debug, str::FromStr, time::Duration};
+
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -17,7 +17,7 @@ use photon_api::{
 };
 use solana_program::pubkey::Pubkey;
 use solana_sdk::bs58;
-use log::{debug, error, warn};
+use tracing::{debug, error, warn};
 
 use super::{AddressQueueIndex, BatchAddressUpdateIndexerResponse, MerkleProofWithContext};
 use crate::{
@@ -78,7 +78,10 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         &mut self.rpc
     }
 
-    async fn rate_limited_request_with_retry<F, Fut, T>(&self, mut operation: F) -> Result<T, IndexerError>
+    async fn rate_limited_request_with_retry<F, Fut, T>(
+        &self,
+        mut operation: F,
+    ) -> Result<T, IndexerError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T, IndexerError>>,
@@ -91,11 +94,20 @@ impl<R: RpcConnection> PhotonIndexer<R> {
             attempts += 1;
 
             if let Some(limiter) = &self.rate_limiter {
-                debug!("Attempt {}/{}: Acquiring rate limiter", attempts, max_retries);
+                debug!(
+                    "Attempt {}/{}: Acquiring rate limiter",
+                    attempts, max_retries
+                );
                 limiter.acquire_with_wait().await;
-                debug!("Attempt {}/{}: Rate limiter acquired", attempts, max_retries);
+                debug!(
+                    "Attempt {}/{}: Rate limiter acquired",
+                    attempts, max_retries
+                );
             } else {
-                debug!("Attempt {}/{}: No rate limiter configured", attempts, max_retries);
+                debug!(
+                    "Attempt {}/{}: No rate limiter configured",
+                    attempts, max_retries
+                );
             }
 
             debug!("Attempt {}/{}: Executing operation", attempts, max_retries);
@@ -112,7 +124,10 @@ impl<R: RpcConnection> PhotonIndexer<R> {
                             warn!("API Error: {}", e);
                             true
                         }
-                        IndexerError::PhotonError { context: _, message: _ } => {
+                        IndexerError::PhotonError {
+                            context: _,
+                            message: _,
+                        } => {
                             warn!("Operation failed, checking if retryable...");
                             true
                         }
@@ -124,7 +139,10 @@ impl<R: RpcConnection> PhotonIndexer<R> {
                     };
 
                     if is_retryable && attempts < max_retries {
-                        warn!("Attempt {}/{}: Operation failed. Retrying", attempts, max_retries);
+                        warn!(
+                            "Attempt {}/{}: Operation failed. Retrying",
+                            attempts, max_retries
+                        );
                         tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                         delay_ms *= 2;
                     } else {
@@ -277,7 +295,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
-
             let hashes_for_async = hashes.clone();
 
             let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
@@ -529,14 +546,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
-                params: Box::new(
-                    GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
-                    },
-                ),
+                params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
+                    owner: owner.to_string(),
+                    mint: mint.map(|x| x.to_string()),
+                    cursor: None,
+                    limit: None,
+                }),
                 ..Default::default()
             };
 
@@ -611,14 +626,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Option<Vec<Hash>>,
     ) -> Result<Vec<Account>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
-
             let addresses_for_async = addresses.clone();
             let hashes_for_async = hashes.clone();
 
             let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
                 params: Box::new(
                     photon_api::models::GetMultipleCompressedAccountsPostRequestParams {
-                        addresses: addresses_for_async.map(|x| x.iter().map(|x| x.to_base58()).collect()),
+                        addresses: addresses_for_async
+                            .map(|x| x.iter().map(|x| x.to_base58()).collect()),
                         hashes: hashes_for_async.map(|x| x.iter().map(|x| x.to_base58()).collect()),
                     },
                 ),
@@ -644,14 +659,12 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<TokenBalanceList, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
-                params: Box::new(
-                    GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
-                    },
-                ),
+                params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
+                    owner: owner.to_string(),
+                    mint: mint.map(|x| x.to_string()),
+                    cursor: None,
+                    limit: None,
+                }),
                 ..Default::default()
             };
 
