@@ -88,7 +88,8 @@ impl<R: RpcConnection> PhotonIndexer<R> {
     {
         let max_retries = 10;
         let mut attempts = 0;
-        let mut delay_ms = 200;
+        let mut delay_ms = 100;
+        let max_delay_ms = 4000;
 
         loop {
             attempts += 1;
@@ -143,8 +144,9 @@ impl<R: RpcConnection> PhotonIndexer<R> {
                             "Attempt {}/{}: Operation failed. Retrying",
                             attempts, max_retries
                         );
+
                         tokio::time::sleep(Duration::from_millis(delay_ms)).await;
-                        delay_ms *= 2;
+                        delay_ms = std::cmp::min(delay_ms * 2, max_delay_ms);
                     } else {
                         if is_retryable {
                             error!("Operation failed after max retries.");
@@ -862,9 +864,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<Hash>,
         new_addresses_with_trees: Vec<AddressWithTree>,
     ) -> Result<CompressedProofWithContextV2, IndexerError> {
-        let max_retries = 4;
+        let max_retries = 10;
         let mut retries = 0;
-        let mut delay = 1000;
+        let mut delay_ms = 100; // Start with 100ms delay
+        let max_delay_ms = 4000; // Maximum delay of 4 seconds
 
         loop {
             match self
@@ -898,13 +901,24 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
             {
                 Ok(result) => return Ok(result),
                 Err(e) => {
+                    retries += 1;
                     if retries >= max_retries {
+                        warn!(
+                            "Max retries ({}) reached for get_validity_proof_v2",
+                            max_retries
+                        );
                         return Err(e);
                     }
-                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
-                    retries += 1;
-                    delay *= 2;
-                    continue;
+
+                    // Calculate next delay with exponential backoff (capped at max_delay_ms)
+                    delay_ms = std::cmp::min(delay_ms * 2, max_delay_ms);
+
+                    warn!(
+                        "Attempt {}/{}: get_validity_proof_v2 failed. Retrying in {}ms",
+                        retries, max_retries, delay_ms
+                    );
+
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                 }
             }
         }
