@@ -84,11 +84,19 @@ pub fn get_schedule_for_queue(
     protocol_config: &ProtocolConfig,
     total_epoch_weight: u64,
     epoch: u64,
+    current_phase_start_slot: u64,
 ) -> Vec<Option<ForesterSlot>> {
     let mut vec = Vec::new();
-    let start_slot = 0;
-    // TODO: enforce that active_phase_length is a multiple of slot_length
-    let end_slot = start_slot + (protocol_config.active_phase_length / protocol_config.slot_length);
+
+    let current_light_slot = if start_solana_slot > current_phase_start_slot {
+        (start_solana_slot - current_phase_start_slot) / protocol_config.slot_length
+    } else {
+        0
+    };
+
+    let start_slot = current_light_slot;
+    start_solana_slot = current_phase_start_slot + (current_light_slot * protocol_config.slot_length);
+    let end_slot = (protocol_config.active_phase_length / protocol_config.slot_length);
 
     for light_slot in start_slot..end_slot {
         let forester_index = ForesterEpochPda::get_eligible_forester_index(
@@ -121,6 +129,7 @@ pub fn get_schedule_for_forester_in_queue(
         &forester_epoch_pda.protocol_config,
         total_epoch_weight,
         forester_epoch_pda.epoch,
+        forester_epoch_pda.epoch_active_phase_start_slot,
     );
     slots.iter_mut().for_each(|slot_option| {
         if let Some(slot) = slot_option {
@@ -503,6 +512,7 @@ mod test {
             &protocol_config,
             total_epoch_weight,
             epoch,
+            0
         );
 
         assert_eq!(

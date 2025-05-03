@@ -9,7 +9,7 @@ use crate::{
     ForesterConfig,
 };
 use anchor_lang::{AccountDeserialize, Discriminator};
-use forester_utils::forester_epoch::get_epoch_phases;
+use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts};
 use itertools::Itertools;
 use light_client::rpc::{RpcConnection, SolanaRpcConnection};
 use light_compressed_account::TreeType;
@@ -222,9 +222,152 @@ pub async fn fetch_forester_status(args: &StatusArgs) {
         }
     }
 
+    println!("\n=== CURRENT ACTIVE FORESTER ASSIGNMENTS ===");
+    let active_epoch_foresters: Vec<ForesterEpochPda> = forester_epoch_pdas
+        .iter()
+        .filter(|item| item.epoch == current_active_epoch)
+        .cloned()
+        .collect();
+
+    let current_epoch_pda_entry = epoch_pdas
+        .iter()
+        .find(|pda| pda.epoch == current_active_epoch);
+
+    let protocol_config = protocol_config_pdas[0].clone();
+
+    if !active_epoch_foresters.is_empty() && current_epoch_pda_entry.is_some() {
+        print_current_forester_assignments(
+            slot,
+            current_active_epoch,
+            active_epoch_foresters,
+            &trees,
+            current_epoch_pda_entry,
+            &protocol_config,
+        );
+    } else {
+        println!("No active foresters found for the current epoch.");
+    }
+
     push_metrics(&config.external_services.pushgateway_url)
         .await
         .unwrap();
+}
+
+fn print_current_forester_assignments(
+    slot: Slot,
+    current_active_epoch: u64,
+    active_epoch_foresters: Vec<ForesterEpochPda>,
+    trees: &Vec<TreeAccounts>,
+    current_epoch_pda_entry: Option<&EpochPda>,
+    protocol_config: &ProtocolConfigPda,
+) {
+    if let Some(_current_epoch_pda) = current_epoch_pda_entry {
+        if active_epoch_foresters.is_empty() {
+            println!(
+                "ERROR: No foresters registered for active epoch {}",
+                current_active_epoch
+            );
+            return;
+        }
+
+        let total_epoch_weight = match active_epoch_foresters[0].total_epoch_weight {
+            Some(w) if w > 0 => w,
+            _ => {
+                println!(
+                    "ERROR: Registration not finalized (total_epoch_weight is None or 0) for epoch {}.",
+                    current_active_epoch
+                );
+                return;
+            }
+        };
+
+        let epoch_phases = get_epoch_phases(&protocol_config.config, current_active_epoch);
+
+        if slot < epoch_phases.active.start || slot >= epoch_phases.active.end {
+            println!(
+                "Info: Not currently within the active phase of epoch {}.",
+                current_active_epoch
+            );
+            return;
+        }
+
+        if protocol_config.config.slot_length == 0 {
+            println!(
+                "ERROR: ProtocolConfig slot_length is zero. Cannot calculate light slots."
+            );
+            return;
+        }
+
+        let current_light_slot_index =
+            (slot - epoch_phases.active.start) / protocol_config.config.slot_length;
+        let start_solana_slot_of_current_light_slot = epoch_phases.active.start
+            + current_light_slot_index * protocol_config.config.slot_length;
+        let end_solana_slot_of_current_light_slot =
+            start_solana_slot_of_current_light_slot + protocol_config.config.slot_length;
+
+        let slots_remaining_in_light_slot =
+            end_solana_slot_of_current_light_slot.saturating_sub(slot);
+        let time_remaining_secs = slots_remaining_in_light_slot as f64 * 0.460;
+
+        println!(
+            "Current Light Slot Index: {} (Solana slots {}-{}, Approx. {:.2}s remaining)",
+            current_light_slot_index,
+            start_solana_slot_of_current_light_slot,
+            end_solana_slot_of_current_light_slot - 1,
+            time_remaining_secs
+        );
+
+        println!("Queue processors for the current light slot:");
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!("│ Tree Type │ Tree Address                               │ Forester                                  │");
+        println!("┼───────────┼──────────────────────────────────────────┼──────────────────────────────────────────┤");
+
+        for tree in trees {
+            let eligible_forester_slot_index = match ForesterEpochPda::get_eligible_forester_index(
+                current_light_slot_index,
+                &tree.queue,
+                total_epoch_weight,
+                current_active_epoch,
+            ) {
+                Ok(idx) => idx,
+                Err(e) => {
+                    println!(
+                        "│ {} │ {} │ ERROR: {:?} │",
+                        format!("{:9}", tree.tree_type),
+                        tree.merkle_tree,
+                        e
+                    );
+                    continue;
+                }
+            };
+
+            let assigned_forester = active_epoch_foresters
+                .iter()
+                .find(|pda| pda.is_eligible(eligible_forester_slot_index));
+
+            if let Some(forester_pda) = assigned_forester {
+                println!(
+                    "│ {} │ {} │ {} │",
+                    format!("{:9}", tree.tree_type),
+                    tree.merkle_tree,
+                    forester_pda.authority
+                );
+            } else {
+                println!(
+                    "│ {} │ {} │ UNASSIGNED (Eligible Index: {}) │",
+                    format!("{:9}", tree.tree_type),
+                    tree.merkle_tree,
+                    eligible_forester_slot_index
+                );
+            }
+        }
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    } else {
+        println!(
+            "ERROR: Could not find EpochPda for active epoch {}. Cannot determine forester assignments.",
+            current_active_epoch
+        );
+    }
 }
 
 fn print_tree_schedule_by_forester(
@@ -397,12 +540,21 @@ fn print_tree_schedule_by_forester(
                                 .find(|pda| pda.is_eligible(eligible_forester_slot_index));
 
                             if let Some(forester_pda) = assigned_forester {
-                                println!(
-                                    "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
-                                    light_slot_to_check,
-                                    forester_pda.authority,
-                                    eligible_forester_slot_index
-                                );
+                                if light_slot_to_check == current_light_slot_index {
+                                    println!(
+                                        "  Light Slot Index {} (CURRENT): Authority: {} (Eligible Index: {})",
+                                        light_slot_to_check,
+                                        forester_pda.authority,
+                                        eligible_forester_slot_index
+                                    );
+                                } else {
+                                    println!(
+                                        "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
+                                        light_slot_to_check,
+                                        forester_pda.authority,
+                                        eligible_forester_slot_index
+                                    );
+                                }
                             } else {
                                 println!(
                                     "  Light Slot Index {}: UNASSIGNED (Eligible Index: {}) - Error in logic?",
