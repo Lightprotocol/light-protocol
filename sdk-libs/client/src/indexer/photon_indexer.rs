@@ -1,5 +1,5 @@
 use std::{fmt::Debug, str::FromStr};
-
+use std::time::Duration;
 use async_trait::async_trait;
 use light_compressed_account::compressed_account::{
     CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext, MerkleContext,
@@ -94,12 +94,12 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         loop {
             attempts += 1;
 
-        if let Some(limiter) = &self.rate_limiter {
+            if let Some(limiter) = &self.rate_limiter {
                 debug!(
                     "Attempt {}/{}: Acquiring rate limiter",
                     attempts, max_retries
                 );
-            limiter.acquire_with_wait().await;
+                limiter.acquire_with_wait().await;
                 debug!(
                     "Attempt {}/{}: Rate limiter acquired",
                     attempts, max_retries
