@@ -206,15 +206,15 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             interval.tick().await;
             match self.rpc_pool.get_connection().await {
                 Ok(mut rpc) => match rpc.get_balance(&self.config.payer_keypair.pubkey()).await {
-                        Ok(balance) => {
-                            let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
-                            update_forester_sol_balance(
-                                &self.config.payer_keypair.pubkey().to_string(),
-                                balance_in_sol,
-                            );
-                            debug!("Current SOL balance: {} SOL", balance_in_sol);
+                    Ok(balance) => {
+                        let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
+                        update_forester_sol_balance(
+                            &self.config.payer_keypair.pubkey().to_string(),
+                            balance_in_sol,
+                        );
+                        debug!("Current SOL balance: {} SOL", balance_in_sol);
                     }
-                        Err(e) => error!("Failed to get balance: {:?}", e),
+                    Err(e) => error!("Failed to get balance: {:?}", e),
                 },
                 Err(e) => error!("Failed to get RPC connection for balance check: {:?}", e),
             }
@@ -892,7 +892,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
             forester_slot_details.end_solana_slot
-        );
+                );
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(
             &mut *rpc,
@@ -917,7 +917,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             if current_light_slot != forester_slot_details.slot {
                 warn!("Light slot mismatch. Exiting processing for this slot.");
                 break 'inner_processing_loop;
-            }
+                    }
 
             if !self
                 .check_forester_eligibility(
@@ -929,7 +929,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .await?
             {
                 break 'inner_processing_loop;
-                }
+                    }
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
@@ -941,13 +941,13 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     estimated_slot,
                 )
                 .await
-            {
+                {
                 Ok(count) => count,
                 Err(e) => {
                     error!(
                         "Failed processing in slot {:?}: {:?}",
                         forester_slot_details.slot, e
-                 );
+                    );
                     break 'inner_processing_loop;
                 }
             };
@@ -960,7 +960,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             .await;
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
-            estimated_slot = self.slot_tracker.estimated_current_slot();
+                    estimated_slot = self.slot_tracker.estimated_current_slot();
                 }
         Ok(())
                     }
@@ -980,27 +980,27 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         })?;
 
         let eligible_forester_slot_index = ForesterEpochPda::get_eligible_forester_index(
-            current_light_slot,
+                            current_light_slot,
             queue_pubkey,
             total_epoch_weight,
             current_epoch_num,
         )
         .map_err(|e| {
-            error!("Failed to calculate eligible forester index: {:?}", e);
+                                error!("Failed to calculate eligible forester index: {:?}", e);
             anyhow::anyhow!("Eligibility calculation failed: {}", e)
         })?;
 
-        if !epoch_pda.is_eligible(eligible_forester_slot_index) {
-            warn!(
+                    if !epoch_pda.is_eligible(eligible_forester_slot_index) {
+                        warn!(
                 "Forester {} is no longer eligible to process tree {} in light slot {}.",
-                self.config.payer_keypair.pubkey(),
+                            self.config.payer_keypair.pubkey(),
                 queue_pubkey,
-                current_light_slot
-                     );
+                            current_light_slot
+                        );
             return Ok(false);
         }
         Ok(true)
-    }
+                    }
 
     async fn dispatch_tree_processing(
         &self,
@@ -1081,9 +1081,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                             Err(e) => {
                 error!("Failed to rollover tree: {:?}", e);
                 Err(e)
+                                    }
+                                }
                             }
-                        }
-                    }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
                         let batch_context = BatchContext {
@@ -1098,7 +1098,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
-            .await
+                        .await
             .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
                     }
 
@@ -1113,11 +1113,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 "{} items processed in this iteration, duration: {:?}",
                 items_processed,
                 duration
-                  );
+                        );
             queue_metric_update(epoch_num, items_processed, duration).await;
             self.increment_processed_items_count(epoch_num, items_processed)
                 .await;
-            }
+                    }
     }
 
     async fn rollover_if_needed(&self, tree_account: &TreeAccounts) -> Result<()> {

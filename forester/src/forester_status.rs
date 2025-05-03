@@ -540,12 +540,12 @@ fn print_tree_schedule_by_forester(
                                         eligible_forester_slot_index
                                     );
                                 } else {
-                                println!(
-                                    "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
-                                    light_slot_to_check,
-                                    forester_pda.authority,
-                                    eligible_forester_slot_index
-                                );
+                                    println!(
+                                        "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
+                                        light_slot_to_check,
+                                        forester_pda.authority,
+                                        eligible_forester_slot_index
+                                    );
                                 }
                             } else {
                                 println!(
