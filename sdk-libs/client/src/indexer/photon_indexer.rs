@@ -549,10 +549,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
                 params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
+                    owner: owner.to_string(),
+                    mint: mint.map(|x| x.to_string()),
+                    cursor: None,
+                    limit: None,
                 }),
                 ..Default::default()
             };
@@ -662,10 +662,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
                 params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
-                        owner: owner.to_string(),
-                        mint: mint.map(|x| x.to_string()),
-                        cursor: None,
-                        limit: None,
+                    owner: owner.to_string(),
+                    mint: mint.map(|x| x.to_string()),
+                    cursor: None,
+                    limit: None,
                 }),
                 ..Default::default()
             };
