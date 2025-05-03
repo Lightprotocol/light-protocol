@@ -579,7 +579,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     proverEndpoint: string;
     allStateTreeInfos: StateTreeInfo[] | null = null;
     lastStateTreeFetchTime: number | null = null;
-    CACHE_TTL = 1000 * 60 * 60; // 1 hour
+    CACHE_TTL = 1000 * 60 * 60; // 1 hour in ms
     fetchPromise: Promise<StateTreeInfo[]> | null = null;
 
     constructor(
@@ -633,7 +633,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const { mainnet, devnet } = defaultStateTreeLookupTables();
 
         /// Mainnet keys are not available on devnet and vice versa. Chaining
-        /// the requests let's us get the state tree infos from the correct
+        /// the requests lets us get the state tree infos from the correct
         /// network.
         try {
             const res = await getAllStateTreeInfos({
@@ -743,7 +743,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return bn(res.result.value);
     }
 
-    /// TODO: validate that this is just for sol accounts
     /**
      * Fetch the total compressed balance for the specified owner public key
      */
@@ -1758,7 +1757,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const trees = accs.map(acc => acc.treeInfo.tree);
         const queues = accs.map(acc => acc.treeInfo.queue);
 
-        // TODO: add dynamic address tree support here
+        // TODO: add dynamic address tree support
         const defaultAddressTreePublicKey =
             defaultTestStateTreeAccounts().addressTree;
         const defaultAddressQueuePublicKey =
