@@ -6,10 +6,7 @@ use light_compressed_account::indexer_event::event::{
     BatchPublicTransactionEvent, PublicTransactionEvent,
 };
 use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_program::{
-    clock::Slot,
-    instruction::{Instruction, InstructionError},
-};
+use solana_program::{clock::Slot, instruction::Instruction};
 use solana_sdk::{
     account::{Account, AccountSharedData},
     commitment_config::CommitmentConfig,
@@ -33,11 +30,8 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
 
     fn should_retry(&self, error: &RpcError) -> bool {
         match error {
-            RpcError::TransactionError(TransactionError::InstructionError(
-                _,
-                InstructionError::Custom(6004),
-            )) => {
-                // Don't retry ForesterNotEligible error
+            RpcError::TransactionError(TransactionError::InstructionError(_, _)) => {
+                // Don't retry failing transactions.
                 false
             }
             _ => true,
