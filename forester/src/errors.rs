@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use light_client::{rpc::errors::RpcError, rpc_pool::PoolError};
+use light_compressed_account::TreeType;
 use light_registry::errors::RegistryError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use solana_program::{program_error::ProgramError, pubkey::Pubkey};
@@ -55,6 +56,9 @@ pub enum ForesterError {
 
     #[error("Account deserialization error: {0}")]
     AccountDeserialization(#[from] AccountDeserializationError),
+
+    #[error("Invalid tree type: {0}")]
+    InvalidTreeType(TreeType),
 
     #[error("Forester error: {error}")]
     General { error: String },

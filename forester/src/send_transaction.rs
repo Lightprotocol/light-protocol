@@ -11,9 +11,8 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use futures::stream::iter;
-use futures::StreamExt;
 use forester_utils::forester_epoch::TreeAccounts;
+use futures::{stream::iter, StreamExt};
 use light_client::{
     indexer::Indexer,
     rpc::{RetryConfig, RpcConnection},
@@ -38,7 +37,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::{join, sync::Mutex, time::Instant};
-use tracing::{info, warn, debug, error};
+use tracing::{debug, error, info, warn};
 use url::Url;
 
 use crate::{
@@ -279,7 +278,8 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                 work_chunk,
                 config.build_transaction_batch_config,
             )
-            .await {
+            .await
+        {
             Ok(res) => res,
             Err(e) => {
                 error!(tree = %tree_id_str, "Failed to build transaction batch: {:?}", e);
@@ -367,8 +367,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
                         }
                     }
                     Err(ref e) => {
-                        error!(context = %context_str, "Failed to get RPC connection: {:?}", e);
-                        return;
+                        error!(context = %context_str, "Failed to get RPC connection: {:?}", e)
                     }
                 }
             }
@@ -376,7 +375,9 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
         info!(tree = %tree_id_str, "Executing batch of {} sends with concurrency limit {}", work_chunk.len(), MAX_CONCURRENT_SENDS);
         let exec_start = Instant::now();
-        send_futures_stream.for_each_concurrent(MAX_CONCURRENT_SENDS, |f| f).await;
+        send_futures_stream
+            .for_each_concurrent(MAX_CONCURRENT_SENDS, |f| f)
+            .await;
         info!(tree = %tree_id_str, "Finished executing batch in {:?}", exec_start.elapsed());
     }
 

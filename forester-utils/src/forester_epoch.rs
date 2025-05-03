@@ -95,8 +95,9 @@ pub fn get_schedule_for_queue(
     };
 
     let start_slot = current_light_slot;
-    start_solana_slot = current_phase_start_slot + (current_light_slot * protocol_config.slot_length);
-    let end_slot = (protocol_config.active_phase_length / protocol_config.slot_length);
+    start_solana_slot =
+        current_phase_start_slot + (current_light_slot * protocol_config.slot_length);
+    let end_slot = protocol_config.active_phase_length / protocol_config.slot_length;
 
     for light_slot in start_slot..end_slot {
         let forester_index = ForesterEpochPda::get_eligible_forester_index(
@@ -512,7 +513,7 @@ mod test {
             &protocol_config,
             total_epoch_weight,
             epoch,
-            0
+            0,
         );
 
         assert_eq!(

@@ -1,5 +1,15 @@
 use std::sync::Arc;
 
+use anchor_lang::{AccountDeserialize, Discriminator};
+use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts};
+use itertools::Itertools;
+use light_client::rpc::{RpcConnection, SolanaRpcConnection};
+use light_compressed_account::TreeType;
+use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
+use solana_program::{clock::Slot, pubkey::Pubkey};
+use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
+use tracing::{debug, warn};
+
 use crate::{
     cli::StatusArgs,
     metrics::{push_metrics, register_metrics, update_registered_foresters},
@@ -8,16 +18,6 @@ use crate::{
     tree_data_sync::fetch_trees,
     ForesterConfig,
 };
-use anchor_lang::{AccountDeserialize, Discriminator};
-use forester_utils::forester_epoch::{get_epoch_phases, TreeAccounts};
-use itertools::Itertools;
-use light_client::rpc::{RpcConnection, SolanaRpcConnection};
-use light_compressed_account::TreeType;
-use light_registry::{protocol_config::state::ProtocolConfigPda, EpochPda, ForesterEpochPda};
-use solana_program::clock::Slot;
-use solana_program::pubkey::Pubkey;
-use solana_sdk::{account::ReadableAccount, commitment_config::CommitmentConfig};
-use tracing::{debug, warn};
 
 pub async fn fetch_forester_status(args: &StatusArgs) {
     let commitment_config = CommitmentConfig::confirmed();
@@ -292,9 +292,7 @@ fn print_current_forester_assignments(
         }
 
         if protocol_config.config.slot_length == 0 {
-            println!(
-                "ERROR: ProtocolConfig slot_length is zero. Cannot calculate light slots."
-            );
+            println!("ERROR: ProtocolConfig slot_length is zero. Cannot calculate light slots.");
             return;
         }
 
@@ -332,10 +330,8 @@ fn print_current_forester_assignments(
                 Ok(idx) => idx,
                 Err(e) => {
                     println!(
-                        "│ {} │ {} │ ERROR: {:?} │",
-                        format!("{:9}", tree.tree_type),
-                        tree.merkle_tree,
-                        e
+                        "│ {:9} │ {} │ ERROR: {:?} │",
+                        tree.tree_type, tree.merkle_tree, e
                     );
                     continue;
                 }
@@ -347,17 +343,13 @@ fn print_current_forester_assignments(
 
             if let Some(forester_pda) = assigned_forester {
                 println!(
-                    "│ {} │ {} │ {} │",
-                    format!("{:9}", tree.tree_type),
-                    tree.merkle_tree,
-                    forester_pda.authority
+                    "│ {:9} │ {} │ {} │",
+                    tree.tree_type, tree.merkle_tree, forester_pda.authority
                 );
             } else {
                 println!(
-                    "│ {} │ {} │ UNASSIGNED (Eligible Index: {}) │",
-                    format!("{:9}", tree.tree_type),
-                    tree.merkle_tree,
-                    eligible_forester_slot_index
+                    "│ {:9} │ {} │ UNASSIGNED (Eligible Index: {}) │",
+                    tree.tree_type, tree.merkle_tree, eligible_forester_slot_index
                 );
             }
         }
@@ -577,12 +569,10 @@ fn print_tree_schedule_by_forester(
                 }
             }
         }
-    } else {
-        if current_epoch_pda_entry.is_none() {
-            println!(
-                "ERROR: Could not find EpochPda for active epoch {}. Cannot check forester assignments.",
-                current_active_epoch
-            );
-        }
+    } else if current_epoch_pda_entry.is_none() {
+        println!(
+            "ERROR: Could not find EpochPda for active epoch {}. Cannot check forester assignments.",
+            current_active_epoch
+        );
     }
 }

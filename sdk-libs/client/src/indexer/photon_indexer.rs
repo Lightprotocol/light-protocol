@@ -78,10 +78,7 @@ impl<R: RpcConnection> PhotonIndexer<R> {
         &mut self.rpc
     }
 
-    async fn rate_limited_request_with_retry<F, Fut, T>(
-        &self,
-        mut operation: F,
-    ) -> Result<T, IndexerError>
+    async fn rate_limited_request_with_retry<F, Fut, T>(&self, mut operation: F) -> Result<T, IndexerError>
     where
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = Result<T, IndexerError>>,
@@ -297,6 +294,7 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
+
             let hashes_for_async = hashes.clone();
 
             let request: photon_api::models::GetMultipleCompressedAccountProofsPostRequest =
@@ -548,12 +546,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<Vec<TokenDataWithMerkleContext>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenAccountsByOwnerPostRequest {
-                params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
-                    owner: owner.to_string(),
-                    mint: mint.map(|x| x.to_string()),
-                    cursor: None,
-                    limit: None,
-                }),
+                params: Box::new(
+                    GetCompressedTokenAccountsByOwnerPostRequestParams {
+                        owner: owner.to_string(),
+                        mint: mint.map(|x| x.to_string()),
+                        cursor: None,
+                        limit: None,
+                    },
+                ),
                 ..Default::default()
             };
 
@@ -628,14 +628,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         hashes: Option<Vec<Hash>>,
     ) -> Result<Vec<Account>, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
+
             let addresses_for_async = addresses.clone();
             let hashes_for_async = hashes.clone();
 
             let request = photon_api::models::GetMultipleCompressedAccountsPostRequest {
                 params: Box::new(
                     photon_api::models::GetMultipleCompressedAccountsPostRequestParams {
-                        addresses: addresses_for_async
-                            .map(|x| x.iter().map(|x| x.to_base58()).collect()),
+                        addresses: addresses_for_async.map(|x| x.iter().map(|x| x.to_base58()).collect()),
                         hashes: hashes_for_async.map(|x| x.iter().map(|x| x.to_base58()).collect()),
                     },
                 ),
@@ -661,12 +661,14 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
     ) -> Result<TokenBalanceList, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
             let request = photon_api::models::GetCompressedTokenBalancesByOwnerPostRequest {
-                params: Box::new(GetCompressedTokenAccountsByOwnerPostRequestParams {
-                    owner: owner.to_string(),
-                    mint: mint.map(|x| x.to_string()),
-                    cursor: None,
-                    limit: None,
-                }),
+                params: Box::new(
+                    GetCompressedTokenAccountsByOwnerPostRequestParams {
+                        owner: owner.to_string(),
+                        mint: mint.map(|x| x.to_string()),
+                        cursor: None,
+                        limit: None,
+                    },
+                ),
                 ..Default::default()
             };
 

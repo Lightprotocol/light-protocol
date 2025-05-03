@@ -23,8 +23,9 @@ use light_registry::{
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
 };
-use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_program::{instruction::InstructionError, pubkey::Pubkey};
+use solana_program::{
+    instruction::InstructionError, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
+};
 use solana_sdk::{signature::Signer, transaction::TransactionError};
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
@@ -36,8 +37,7 @@ use tracing::{debug, error, info, info_span, instrument, trace, warn};
 use crate::{
     batch_processor::{process_batched_operations, BatchContext},
     errors::{
-        ChannelError, ForesterError, InitializationError, RegistrationError,
-        WorkReportError,
+        ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
     indexer_type::{rollover_address_merkle_tree, rollover_state_merkle_tree, IndexerType},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
@@ -1325,7 +1325,7 @@ fn calculate_remaining_time_or_default(
         .unwrap_or_default();
     base_remaining_duration
         .checked_sub(buffer_duration)
-        .unwrap_or_else(|| Duration::ZERO)
+        .unwrap_or(Duration::ZERO)
 }
 
 #[instrument(
