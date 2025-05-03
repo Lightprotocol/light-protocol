@@ -24,6 +24,7 @@ use light_registry::{
     EpochPda, ForesterEpochPda,
 };
 use solana_program::{instruction::InstructionError, pubkey::Pubkey};
+use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::{signature::Signer, transaction::TransactionError};
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
@@ -188,20 +189,27 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     }
 
     async fn check_sol_balance_periodically(self: Arc<Self>) -> Result<()> {
-        let interval = Duration::from_secs(60);
-        let mut interval_timer = tokio::time::interval(interval);
+        let interval_duration = Duration::from_secs(300);
+        let mut interval = tokio::time::interval(interval_duration);
 
         loop {
-            interval_timer.tick().await;
-            let mut rpc = self.rpc_pool.get_connection().await?;
-            let balance = rpc.get_balance(&self.config.payer_keypair.pubkey()).await?;
-            let balance_in_sol = balance as f64 / 1e9;
-            update_forester_sol_balance(
-                &self.config.payer_keypair.pubkey().to_string(),
-                balance_in_sol,
-            );
-            info!("Current SOL balance: {} SOL", balance_in_sol);
-            tokio::task::yield_now().await;
+            interval.tick().await;
+            match self.rpc_pool.get_connection().await {
+                Ok(mut rpc) => {
+                    match rpc.get_balance(&self.config.payer_keypair.pubkey()).await {
+                        Ok(balance) => {
+                            let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
+                            update_forester_sol_balance(
+                                &self.config.payer_keypair.pubkey().to_string(),
+                                balance_in_sol,
+                            );
+                            debug!("Current SOL balance: {} SOL", balance_in_sol);
+                        },
+                        Err(e) => error!("Failed to get balance: {:?}", e),
+                    }
+                },
+                Err(e) => error!("Failed to get RPC connection for balance check: {:?}", e),
+            }
         }
     }
 
@@ -670,8 +678,8 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         epoch_info: &ForesterEpochInfo,
     ) -> Result<ForesterEpochInfo> {
         info!("Waiting for active phase");
-        let mut rpc = self.rpc_pool.get_connection().await?;
 
+        let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
@@ -791,8 +799,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         Ok(())
     }
 
-    // Sync estimated slot before creating threads.
-    // Threads rely on the estimated slot.
     async fn sync_slot(&self) -> Result<u64> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let current_slot = rpc.get_slot().await?;
@@ -821,196 +827,226 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             estimated_slot,
             epoch_info.phases.active.end
         );
-        while estimated_slot < epoch_info.phases.active.end {
-            // search for next eligible slot
+        'outer: while estimated_slot < epoch_info.phases.active.end {
+
             let index_and_forester_slot = tree
                 .slots
                 .iter()
                 .enumerate()
                 .find(|(_, slot)| slot.is_some());
 
-            if let Some((index, forester_slot)) = index_and_forester_slot {
+            if let Some((slot_index, forester_slot)) = index_and_forester_slot {
                 let forester_slot = forester_slot.as_ref().unwrap().clone();
-                tree.slots.remove(index);
-
-                info!("Found eligible slot: {:?}", forester_slot);
-
-                let mut rpc = self.rpc_pool.get_connection().await?;
-
                 info!(
-                    "Current solana slot: {}, waiting for slot {}",
-                    estimated_slot, forester_slot.start_solana_slot
+                    "Found eligible slot: {:?}. Target start: {}, Target end: {}",
+                    forester_slot.slot, forester_slot.start_solana_slot, forester_slot.end_solana_slot
                 );
 
-                wait_until_slot_reached(
+                let context_str = format!("process_queue (wait_until_slot_reached), tree: {}", tree.tree_accounts.merkle_tree);
+                debug!(context = %context_str, "Attempting to get RPC connection for wait...");
+
+                let rpc_result = self.rpc_pool.get_connection().await;
+                match rpc_result {
+                    Ok(_) => { debug!(context = %context_str, "Successfully got RPC connection for wait."); }
+                    Err(ref e) => { error!(context = %context_str, "Failed to get RPC connection for wait: {:?}", e); }
+                }
+                let mut rpc = rpc_result?;
+                info!(
+                  "Current estimated solana slot: {}, waiting for slot {} to begin",
+                    self.slot_tracker.estimated_current_slot(),
+                    forester_slot.start_solana_slot
+                 );
+
+                if let Err(e) = wait_until_slot_reached(
                     &mut *rpc,
                     &self.slot_tracker,
                     forester_slot.start_solana_slot,
                 )
-                .await?;
-
-                // light slot length in s
-                let light_slot_timeout = {
-                    let slot_length_u32 = u32::try_from(epoch_pda.protocol_config.slot_length)
-                        .map_err(|_| ConfigurationError::SlotLengthOverflow {
-                            value: epoch_pda.protocol_config.slot_length,
-                        })?;
-
-                    let duration = slot_duration();
-                    duration.checked_mul(slot_length_u32).ok_or(
-                        ConfigurationError::TimeoutCalculationOverflow {
-                            slot_duration: duration,
-                            slot_length: slot_length_u32,
-                        },
-                    )?
-                };
-
-                if tree.tree_accounts.tree_type == TreeType::StateV2
-                    || tree.tree_accounts.tree_type == TreeType::AddressV2
-                {
-                    let batch_context = BatchContext {
-                        rpc_pool: self.rpc_pool.clone(),
-                        indexer: self.indexer.clone(),
-                        authority: self.config.payer_keypair.insecure_clone(),
-                        derivation: self.config.derivation_pubkey,
-                        epoch: epoch_info.epoch,
-                        merkle_tree: tree.tree_accounts.merkle_tree,
-                        output_queue: tree.tree_accounts.queue,
-                        ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
-                    };
-
-                    let start_time = Instant::now();
-
-                    match process_batched_operations(batch_context, tree.tree_accounts.tree_type)
-                        .await
-                    {
-                        Ok(processed_count) => {
-                            info!(
-                                "Processed {} operations for tree type {:?}",
-                                processed_count, tree.tree_accounts.tree_type
-                            );
-                            queue_metric_update(
-                                epoch_info.epoch,
-                                processed_count,
-                                start_time.elapsed(),
-                            )
-                            .await;
-                            self.increment_processed_items_count(epoch_info.epoch, processed_count)
-                                .await;
-                        }
-                        Err(e) => {
-                            error!(
-                                "Failed to process batched operations for tree {:?}: {:?}",
-                                tree.tree_accounts.merkle_tree, e
-                            );
-                            return Err(e.into());
-                        }
-                    }
-                } else {
-                    let batched_tx_config = SendBatchedTransactionsConfig {
-                        num_batches: 2,
-                        build_transaction_batch_config: BuildTransactionBatchConfig {
-                            batch_size: 50,
-                            compute_unit_price: Some(10_000), // Is dynamic. Sets max.
-                            compute_unit_limit: Some(180_000),
-                            enable_priority_fees: self
-                                .config
-                                .transaction_config
-                                .enable_priority_fees,
-                        },
-                        queue_config: self.config.queue_config,
-                        retry_config: RetryConfig {
-                            timeout: light_slot_timeout,
-                            ..self.config.retry_config
-                        },
-
-                        light_slot_length: epoch_pda.protocol_config.slot_length,
-                    };
-
-                    let transaction_builder = EpochManagerTransactions {
-                        indexer: self.indexer.clone(), // TODO: remove clone
-                        epoch: epoch_info.epoch,
-                        phantom: std::marker::PhantomData::<R>,
-                    };
-
-                    info!("Sending transactions...");
-                    let start_time = Instant::now();
-                    let batch_tx_future = send_batched_transactions(
-                        &self.config.payer_keypair,
-                        &self.config.derivation_pubkey,
-                        self.rpc_pool.clone(),
-                        &batched_tx_config, // TODO: define config in epoch manager
-                        tree.tree_accounts,
-                        &transaction_builder,
+                    .await {
+                    error!("Error waiting for slot {} to start: {:?}. Skipping slot.", forester_slot.start_solana_slot, e);
+                    tree.slots[slot_index] = None;
+                    continue 'outer;
+                }
+                info!("Reached start slot {}. Beginning processing window until slot {}.", forester_slot.start_solana_slot, forester_slot.end_solana_slot);
+                'inner: loop {
+                    estimated_slot = self.slot_tracker.estimated_current_slot();
+                    if estimated_slot >= forester_slot.end_solana_slot {
+                        info!(
+                        "Ending processing for slot {:?} ({}) due to reaching/exceeding end slot {}",
+                        forester_slot.slot, forester_slot.start_solana_slot, forester_slot.end_solana_slot
                     );
-
-                    // Check whether the tree is ready for rollover once per slot.
-                    let future = self.rollover_if_needed(&tree.tree_accounts);
-
-                    // Wait for both operations to complete
-                    let (num_tx_sent, rollover_result) = tokio::join!(batch_tx_future, future);
-                    if let Err(e) = rollover_result {
-                        error!("Error during rollover check: {:?}", e);
+                        break 'inner;
                     }
 
-                    match num_tx_sent {
-                        Ok(num_tx_sent) => {
-                            trace!("{} transactions sent", num_tx_sent);
-                            let chunk_duration = start_time.elapsed();
-                            queue_metric_update(epoch_info.epoch, num_tx_sent, chunk_duration)
-                                .await;
-                            self.increment_processed_items_count(epoch_info.epoch, num_tx_sent)
-                                .await;
-                        }
-                        Err(e) => {
-                            error!("Failed to send transactions: {:?}", e);
-                            if let Some(client_error) =
-                                e.downcast_ref::<RpcError>().and_then(|rpc_err| {
-                                    if let RpcError::ClientError(client_err) = rpc_err {
-                                        Some(client_err)
+                    debug!(
+                        "Inner loop iteration for slot {:?}. Current estimated: {}, End: {}",
+                        forester_slot.slot, estimated_slot, forester_slot.end_solana_slot
+                     );
+
+                    let mut items_processed_this_iteration = 0;
+                    let mut iteration_failed = false;
+                    let processing_start_time = Instant::now();
+
+                    if tree.tree_accounts.tree_type == TreeType::StateV1
+                        || tree.tree_accounts.tree_type == TreeType::AddressV1
+                    {
+                        let transaction_timeout_buffer = Duration::from_secs(60);
+
+                        let remaining_time_timeout = calculate_remaining_time_or_default(
+                            estimated_slot,
+                            forester_slot.end_solana_slot,
+                            transaction_timeout_buffer,
+                        );
+
+                        trace!("Calculated remaining time timeout for send_batched_transactions: {:?}", remaining_time_timeout);
+
+                        let batched_tx_config = SendBatchedTransactionsConfig {
+                            num_batches: 1,
+                            build_transaction_batch_config: BuildTransactionBatchConfig {
+                                batch_size: 1,
+                                compute_unit_price: Some(10_000),
+                                compute_unit_limit: Some(300_000),
+                                enable_priority_fees: self
+                                    .config
+                                    .transaction_config
+                                    .enable_priority_fees,
+                            },
+                            queue_config: self.config.queue_config,
+                            retry_config: RetryConfig {
+                                timeout: remaining_time_timeout,
+                                ..self.config.retry_config
+                            },
+                            light_slot_length: epoch_pda.protocol_config.slot_length,
+                        };
+
+                        let transaction_builder = EpochManagerTransactions {
+                            indexer: self.indexer.clone(),
+                            epoch: epoch_info.epoch,
+                            phantom: std::marker::PhantomData::<R>,
+                        };
+
+                        info!("Attempting to send transactions within slot {:?}", forester_slot.slot);
+                        match send_batched_transactions(
+                            &self.config.payer_keypair,
+                            &self.config.derivation_pubkey,
+                            self.rpc_pool.clone(),
+                            &batched_tx_config,
+                            tree.tree_accounts,
+                            &transaction_builder,
+                        )
+                            .await
+                        {
+                            Ok(num_sent) => {
+                                if num_sent > 0 {
+                                    trace!("{} transactions sent in this iteration", num_sent);
+                                    let iteration_duration = processing_start_time.elapsed();
+                                    queue_metric_update(epoch_info.epoch, num_sent, iteration_duration).await;
+                                    self.increment_processed_items_count(epoch_info.epoch, num_sent).await;
+                                    items_processed_this_iteration = num_sent;
+
+                                    trace!("Checking for rollover readiness after processing batch...");
+                                    if let Err(e) = self.rollover_if_needed(&tree.tree_accounts).await {
+                                        error!("Rollover check failed during slot processing: {:?}", e);
                                     } else {
-                                        None
+                                        trace!("Rollover check completed.");
                                     }
-                                })
-                            {
-                                if let Some(tx_error) = client_error.get_transaction_error() {
-                                    error!("Transaction error details: {:?}", tx_error);
-                                    if let TransactionError::InstructionError(
-                                        idx,
-                                        instruction_error,
-                                    ) = tx_error
-                                    {
-                                        error!(
-                                            "Failed at instruction {}: {:?}",
-                                            idx, instruction_error
-                                        );
-                                        if let InstructionError::Custom(code) = instruction_error {
-                                            error!("Custom error code: 0x{:x} ({})", code, code);
-                                        }
-                                    }
+
+                                } else {
+                                    info!("send_batched_transactions processed 0 items. Queue likely empty for this attempt.");
                                 }
                             }
-                            warn!("Continuing despite transaction send failure");
+                            Err(e) => {
+                                error!("Failed to send transactions within slot {:?}: {:?}", forester_slot.slot, e);
+                                iteration_failed = true;
+                            }
                         }
                     }
+                    else if tree.tree_accounts.tree_type == TreeType::StateV2
+                        || tree.tree_accounts.tree_type == TreeType::AddressV2
+                    {
+                        let batch_context = BatchContext {
+                            rpc_pool: self.rpc_pool.clone(),
+                            indexer: self.indexer.clone(),
+                            authority: self.config.payer_keypair.insecure_clone(),
+                            derivation: self.config.derivation_pubkey,
+                            epoch: epoch_info.epoch,
+                            merkle_tree: tree.tree_accounts.merkle_tree,
+                            output_queue: tree.tree_accounts.queue,
+                            ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
+                        };
+                        match process_batched_operations(batch_context, tree.tree_accounts.tree_type).await {
+                            Ok(processed_count) => {
+                                if processed_count > 0 {
+                                    info!(
+                                    "Processed {} V2 operations for tree type {:?}",
+                                    processed_count, tree.tree_accounts.tree_type
+                                );
+                                    let iteration_duration = processing_start_time.elapsed();
+                                    queue_metric_update(epoch_info.epoch, processed_count, iteration_duration).await;
+                                    self.increment_processed_items_count(epoch_info.epoch, processed_count).await;
+                                    items_processed_this_iteration = processed_count;
+
+                                    trace!("Checking for V2 rollover readiness after processing batch...");
+                                    if let Err(e) = self.rollover_if_needed(&tree.tree_accounts).await {
+                                        error!("V2 Rollover check failed during slot processing: {:?}", e);
+                                    } else {
+                                        trace!("V2 Rollover check completed.");
+                                    }
+                                } else {
+                                    info!("process_batched_operations processed 0 items. Queue likely empty for this attempt.");
+                                }
+                            }
+                            Err(e) => {
+                                error!(
+                                 "Failed to process V2 batched operations for tree {:?} within slot {:?}: {:?}",
+                                 tree.tree_accounts.merkle_tree, forester_slot.slot, e
+                             );
+                                iteration_failed = true;
+                            }
+                        }
+                    } else {
+                        warn!("Unsupported tree type encountered in process_queue: {:?}", tree.tree_accounts.tree_type);
+                        iteration_failed = true;
+                    }
+
+                    if iteration_failed {
+                        error!("Exiting inner loop for slot {:?} due to processing error.", forester_slot.slot);
+                        break 'inner;
+                    }
+
+                    push_metrics(&self.config.external_services.pushgateway_url).await?;
+
+                    if items_processed_this_iteration == 0 {
+                        let queue_check_interval = Duration::from_secs(2);
+                        debug!("No items processed, sleeping for {:?} before re-checking queue/time within slot.", queue_check_interval);
+                        sleep(queue_check_interval).await;
+                    } else {
+                        trace!("Yielding after processing items within slot.");
+                        tokio::task::yield_now().await;
+                    }
+
+                    if self.slot_tracker.estimated_current_slot() >= forester_slot.end_solana_slot {
+                        info!("Exiting inner loop for slot {:?} after sleep/yield time check.", forester_slot.slot);
+                        break 'inner;
+                    }
                 }
+
+                info!(
+                    "Finished processing window for slot {:?} (Started: {}, Ended: {}). Marking as processed.",
+                    forester_slot.slot, forester_slot.start_solana_slot, forester_slot.end_solana_slot
+                  );
+                tree.slots[slot_index] = None;
             } else {
-                info!("No eligible slot found");
-                break;
+                info!("No further eligible slots found in schedule for this epoch and tree.");
+                break 'outer;
             }
-
-            push_metrics(&self.config.external_services.pushgateway_url).await?;
-
-            // Yield to allow other tasks to run
             tokio::task::yield_now().await;
-
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
-            info!(
-                "Estimated slot: {}, epoch end: {}",
-                estimated_slot, epoch_info.phases.active.end
-            );
         }
+
+        info!("Exiting process_queue for epoch {}, tree {}", epoch_info.epoch, tree.tree_accounts.merkle_tree);
+
         Ok(())
     }
 
@@ -1174,6 +1210,15 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
     async fn claim(&self, _forester_epoch_info: ForesterEpochInfo) {
         todo!()
     }
+}
+
+fn calculate_remaining_time_or_default(current_slot: u64, end_slot: u64, buffer_duration: Duration) -> Duration {
+    if current_slot >= end_slot {
+        return Duration::ZERO;
+    }
+    let slots_remaining = end_slot - current_slot;
+    let base_remaining_duration = slot_duration().checked_mul(slots_remaining as u32).unwrap_or_default();
+    base_remaining_duration.checked_sub(buffer_duration).unwrap_or_else(|| Duration::ZERO)
 }
 
 #[instrument(

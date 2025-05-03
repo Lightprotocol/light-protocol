@@ -211,6 +211,12 @@ pub struct Phase {
     pub end: u64,
 }
 
+impl Phase {
+    pub fn length(&self) -> u64 {
+        self.end - self.start
+    }
+}
+
 pub fn get_epoch_phases(protocol_config: &ProtocolConfig, epoch: u64) -> EpochPhases {
     let epoch_start_slot = protocol_config
         .genesis_slot
