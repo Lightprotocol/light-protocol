@@ -88,6 +88,7 @@
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
         "test-all": "vitest run",
         "test:unit:all": "vitest run tests/unit --reporter=verbose",
+        "test:unit:tree-info": "vitest run tests/unit/utils/tree-info.test.ts --reporter=verbose",
         "test:conversions": "vitest run tests/unit/utils/conversion.test.ts --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator --prover-run-mode rpc",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",

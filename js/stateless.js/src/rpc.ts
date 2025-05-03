@@ -370,19 +370,17 @@ export const proverRequest = async (
             circuitType: 'inclusion',
             stateTreeHeight: 26,
             inputCompressedAccounts: params,
-            // publicInputHash: publicInputHash.toString('hex'),
         });
     } else if (method === 'new-address') {
         body = JSON.stringify({
             circuitType: 'non-inclusion',
             addressTreeHeight: 26,
-            // publicInputHash: publicInputHash.toString('hex'),
             newAddresses: params,
         });
     } else if (method === 'combined') {
         body = JSON.stringify({
             circuitType: 'combined',
-            // publicInputHash: publicInputHash.toString('hex'),
+
             stateTreeHeight: 26,
             addressTreeHeight: 26,
             inputCompressedAccounts: params[0],
@@ -614,9 +612,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         try {
             this.fetchPromise = this.doFetch();
-            console.log('fetchPromise', this.fetchPromise);
             const info = await this.fetchPromise;
-            console.log('info', info);
+
             this.allStateTreeInfos = info;
             this.lastStateTreeFetchTime = Date.now();
             return info;
@@ -637,16 +634,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const { mainnet, devnet } = defaultStateTreeLookupTables();
 
         try {
-            return await getActiveStateTreeInfos({
+            const res = await getActiveStateTreeInfos({
                 connection: this,
                 stateTreeLUTPairs: [mainnet[0]],
             });
+            return res;
         } catch (mainnetError) {
             try {
-                return await getActiveStateTreeInfos({
+                const res = await getActiveStateTreeInfos({
                     connection: this,
                     stateTreeLUTPairs: [devnet[0]],
                 });
+                return res;
             } catch (devnetError) {
                 throw new Error(
                     `Failed to fetch state tree infos from both mainnet and devnet. ` +
@@ -658,12 +657,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      *
-     * Get the active state tree addresses from the cluster.
+     * Get the state tree addresses from the cluster.
      * If not already cached, fetches from the cluster.
      */
     async getStateTreeInfos(): Promise<StateTreeInfo[]> {
-        const allCachedStateTreeInfos = await this.getAllStateTreeInfos();
-        return allCachedStateTreeInfos.filter(info => !info.nextTreeInfo);
+        return await this.getAllStateTreeInfos();
     }
 
     /**

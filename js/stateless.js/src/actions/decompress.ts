@@ -8,13 +8,8 @@ import {
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
-import { selectStateTreeInfo } from '../utils/get-state-tree-infos';
 import BN from 'bn.js';
-import {
-    CompressedAccountWithMerkleContext,
-    StateTreeInfo,
-    bn,
-} from '../state';
+import { CompressedAccountWithMerkleContext, bn } from '../state';
 
 /**
  * Decompress lamports into a solana account

@@ -26,29 +26,45 @@ export function pickRandomTreeAndQueue(infos: StateTreeInfo[]): {
     };
 }
 
+const MAX_HOTSPOTS = 5;
+
 /**
- * Get a pseudo-random State tree info from the set of provided state tree
- * infos.
+ * Get a pseudo-random active state tree info from the set of provided state
+ * tree infos.
  *
  * Using this mitigates write lock contention on state trees.
  *
- * @param info      Set of state tree infos
- * @param treeType  The type of tree. Defaults to TreeType.StateV1
- * @returns A pseudo-random tree info
+ * @param infos             Set of state tree infos
+ * @param treeType          The type of tree. Defaults to TreeType.StateV1
+ * @param useMaxConcurrency    Whether to select from all returned infos or
+ *                          {@link MAX_HOTSPOTS}. Defaults to `false`.
+ *
+ * @returns A pseudo-randomly selected tree info
  */
 export function selectStateTreeInfo(
-    info: StateTreeInfo[],
+    infos: StateTreeInfo[],
     treeType: TreeType = TreeType.StateV1,
+    useMaxConcurrency: boolean = false,
 ): StateTreeInfo {
-    const filteredInfo = info.filter(t => t.treeType === treeType);
-    const length = filteredInfo.length;
+    const activeInfos = infos.filter(t => !t.nextTreeInfo);
+    const filteredInfos = activeInfos.filter(t => t.treeType === treeType);
+
+    if (filteredInfos.length === 0) {
+        throw new Error(
+            'No active state tree infos found for the specified tree type',
+        );
+    }
+
+    const length = useMaxConcurrency
+        ? filteredInfos.length
+        : Math.min(MAX_HOTSPOTS, filteredInfos.length);
     const index = Math.floor(Math.random() * length);
 
-    if (!filteredInfo[index].queue) {
+    if (!filteredInfos[index].queue) {
         throw new Error('Queue must not be null for state tree');
     }
 
-    return filteredInfo[index];
+    return filteredInfos[index];
 }
 
 /**
@@ -108,18 +124,45 @@ export async function getActiveStateTreeInfos({
             const queue = stateTreePubkeys[i + 1];
             const cpiContext = stateTreePubkeys[i + 2];
 
+            let nextTreeInfo: StateTreeInfo | undefined;
             if (!tree || !queue || !cpiContext) {
                 throw new Error('Invalid state tree pubkeys structure');
             }
-
-            // Skip rolledover (full or almost full) Merkle trees
-            if (!nullifyLookupTablePubkeys.includes(tree)) {
-                contexts.push({
-                    tree,
-                    queue,
-                    cpiContext,
+            if (
+                nullifyLookupTablePubkeys
+                    .map(addr => addr.toBase58())
+                    .includes(tree.toBase58())
+            ) {
+                // we assign a valid tree later
+                nextTreeInfo = {
+                    tree: PublicKey.default,
+                    queue: PublicKey.default,
+                    cpiContext: PublicKey.default,
                     treeType: TreeType.StateV1,
-                });
+                    nextTreeInfo: undefined,
+                };
+            }
+            contexts.push({
+                tree,
+                queue,
+                cpiContext,
+                treeType: TreeType.StateV1,
+                nextTreeInfo,
+            });
+        }
+
+        /// for each context, check if the tree is in the nullifyLookupTable
+        for (const context of contexts) {
+            if (context.nextTreeInfo?.tree.equals(PublicKey.default)) {
+                const nextAvailableTreeInfo = contexts.find(
+                    ctx => !ctx.nextTreeInfo,
+                );
+                if (!nextAvailableTreeInfo) {
+                    throw new Error(
+                        'No available tree info found to assign as next tree',
+                    );
+                }
+                context.nextTreeInfo = nextAvailableTreeInfo;
             }
         }
     }
