@@ -255,7 +255,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     current_slot,
                     &epoch_info.forester_epoch_pda,
                     &epoch_info.epoch_pda,
-                );
+                )?;
                 epoch_info.trees.push(tree_schedule.clone());
 
                 let self_clone = Arc::new(self.clone());
@@ -725,7 +725,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         let slot = rpc.get_slot().await?;
         let trees = self.trees.lock().await;
         info!("Adding schedule for trees: {:?}", *trees);
-        epoch_info.add_trees_with_schedule(&trees, slot);
+        epoch_info.add_trees_with_schedule(&trees, slot)?;
         info!("Finished waiting for active phase");
         Ok(epoch_info)
     }

@@ -11,6 +11,8 @@ use light_registry::{
 };
 use solana_sdk::signature::{Keypair, Signature, Signer};
 
+use crate::error::ForesterUtilsError;
+
 // What does the forester need to know?
 // What are my public keys (current epoch account, last epoch account, known Merkle trees)
 // 1. The current epoch
@@ -85,13 +87,13 @@ pub fn get_schedule_for_queue(
     total_epoch_weight: u64,
     epoch: u64,
     current_phase_start_slot: u64,
-) -> Vec<Option<ForesterSlot>> {
+) -> Result<Vec<Option<ForesterSlot>>, ForesterUtilsError> {
     let mut vec = Vec::new();
 
     let current_light_slot = if start_solana_slot > current_phase_start_slot {
         (start_solana_slot - current_phase_start_slot) / protocol_config.slot_length
     } else {
-        0
+        return Err(ForesterUtilsError::InvalidSlotNumber);
     };
 
     let start_slot = current_light_slot;
@@ -115,7 +117,7 @@ pub fn get_schedule_for_queue(
         }));
         start_solana_slot += protocol_config.slot_length;
     }
-    vec
+    Ok(vec)
 }
 
 pub fn get_schedule_for_forester_in_queue(
@@ -123,7 +125,7 @@ pub fn get_schedule_for_forester_in_queue(
     queue_pubkey: &Pubkey,
     total_epoch_weight: u64,
     forester_epoch_pda: &ForesterEpochPda,
-) -> Vec<Option<ForesterSlot>> {
+) -> Result<Vec<Option<ForesterSlot>>, ForesterUtilsError> {
     let mut slots = get_schedule_for_queue(
         start_solana_slot,
         queue_pubkey,
@@ -131,7 +133,7 @@ pub fn get_schedule_for_forester_in_queue(
         total_epoch_weight,
         forester_epoch_pda.epoch,
         forester_epoch_pda.epoch_active_phase_start_slot,
-    );
+    )?;
     slots.iter_mut().for_each(|slot_option| {
         if let Some(slot) = slot_option {
             if !forester_epoch_pda.is_eligible(slot.forester_index) {
@@ -139,7 +141,7 @@ pub fn get_schedule_for_forester_in_queue(
             }
         }
     });
-    slots
+    Ok(slots)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,7 +165,7 @@ impl TreeForesterSchedule {
         solana_slot: u64,
         forester_epoch_pda: &ForesterEpochPda,
         epoch_pda: &EpochPda,
-    ) -> Self {
+    ) -> Result<Self, ForesterUtilsError> {
         let mut _self = Self {
             tree_accounts: *tree_accounts,
             slots: Vec::new(),
@@ -173,8 +175,8 @@ impl TreeForesterSchedule {
             &_self.tree_accounts.queue,
             epoch_pda.registered_weight,
             forester_epoch_pda,
-        );
-        _self
+        )?;
+        Ok(_self)
     }
 
     pub fn is_eligible(&self, forester_slot: u64) -> bool {
@@ -398,7 +400,11 @@ impl Epoch {
         if forester_epoch_pda.total_epoch_weight.is_none() {
             forester_epoch_pda.total_epoch_weight = Some(epoch_pda.registered_weight);
         }
-        self.add_trees_with_schedule(&forester_epoch_pda, &epoch_pda, trees, current_solana_slot);
+        self.add_trees_with_schedule(&forester_epoch_pda, &epoch_pda, trees, current_solana_slot)
+            .map_err(|e| {
+                println!("Error adding trees with schedule: {:?}", e);
+                RpcError::AssertRpcError("Error adding trees with schedule".to_string())
+            })?;
         Ok(())
     }
     /// Internal function to init Epoch struct with registered account
@@ -411,7 +417,7 @@ impl Epoch {
         epoch_pda: &EpochPda,
         trees: &[TreeAccounts],
         current_solana_slot: u64,
-    ) {
+    ) -> Result<(), ForesterUtilsError> {
         // let state = self.phases.get_current_epoch_state(current_solana_slot);
         // TODO: add epoch state to sync schedule
         for tree in trees {
@@ -420,9 +426,10 @@ impl Epoch {
                 current_solana_slot,
                 forester_epoch_pda,
                 epoch_pda,
-            );
+            )?;
             self.merkle_trees.push(tree_schedule);
         }
+        Ok(())
     }
 
     pub fn update_state(&mut self, current_solana_slot: u64) -> EpochState {
@@ -514,7 +521,8 @@ mod test {
             total_epoch_weight,
             epoch,
             0,
-        );
+        )
+        .unwrap();
 
         assert_eq!(
             schedule.len(),
