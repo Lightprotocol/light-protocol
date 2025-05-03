@@ -206,15 +206,15 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             interval.tick().await;
             match self.rpc_pool.get_connection().await {
                 Ok(mut rpc) => match rpc.get_balance(&self.config.payer_keypair.pubkey()).await {
-                    Ok(balance) => {
-                        let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
-                        update_forester_sol_balance(
-                            &self.config.payer_keypair.pubkey().to_string(),
-                            balance_in_sol,
-                        );
-                        debug!("Current SOL balance: {} SOL", balance_in_sol);
+                        Ok(balance) => {
+                            let balance_in_sol = balance as f64 / (LAMPORTS_PER_SOL as f64);
+                            update_forester_sol_balance(
+                                &self.config.payer_keypair.pubkey().to_string(),
+                                balance_in_sol,
+                            );
+                            debug!("Current SOL balance: {} SOL", balance_in_sol);
                     }
-                    Err(e) => error!("Failed to get balance: {:?}", e),
+                        Err(e) => error!("Failed to get balance: {:?}", e),
                 },
                 Err(e) => error!("Failed to get RPC connection for balance check: {:?}", e),
             }
@@ -842,7 +842,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     .await
                 {
                     Ok(_) => {
-                        trace!(
+        trace!(
                             "Successfully processed light slot {:?}",
                             light_slot_details.slot
                         );
@@ -859,7 +859,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 info!(
                     "No further eligible slots in schedule for tree {}",
                     tree_schedule.tree_accounts.merkle_tree
-                );
+        );
                 break 'outer_slot_loop;
             }
 
@@ -867,7 +867,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             current_slot = self.slot_tracker.estimated_current_slot();
         }
 
-        info!(
+                info!(
             "Exiting process_queue for tree {}",
             tree_schedule.tree_accounts.merkle_tree
         );
@@ -888,7 +888,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         forester_slot_details: &ForesterSlot,
     ) -> Result<()> {
         trace!(
-            "Found eligible slot: {:?}. Target start: {}, Target end: {}",
+                    "Found eligible slot: {:?}. Target start: {}, Target end: {}",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
             forester_slot_details.end_solana_slot
@@ -929,7 +929,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .await?
             {
                 break 'inner_processing_loop;
-            }
+                }
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
@@ -947,7 +947,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                     error!(
                         "Failed processing in slot {:?}: {:?}",
                         forester_slot_details.slot, e
-                    );
+                 );
                     break 'inner_processing_loop;
                 }
             };
@@ -956,14 +956,14 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 epoch_info.epoch,
                 items_processed_this_iteration,
                 processing_start_time.elapsed(),
-            )
+                )
             .await;
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
             estimated_slot = self.slot_tracker.estimated_current_slot();
-        }
+                }
         Ok(())
-    }
+                    }
 
     async fn check_forester_eligibility(
         &self,
@@ -996,7 +996,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 self.config.payer_keypair.pubkey(),
                 queue_pubkey,
                 current_light_slot
-            );
+                     );
             return Ok(false);
         }
         Ok(true)
@@ -1036,28 +1036,28 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         current_solana_slot: u64,
     ) -> Result<usize> {
         let transaction_timeout_buffer = Duration::from_secs(2);
-        let remaining_time_timeout = calculate_remaining_time_or_default(
+                        let remaining_time_timeout = calculate_remaining_time_or_default(
             current_solana_slot,
             forester_slot_details.end_solana_slot,
-            transaction_timeout_buffer,
-        );
+                            transaction_timeout_buffer,
+                        );
 
-        let batched_tx_config = SendBatchedTransactionsConfig {
-            num_batches: 1,
-            build_transaction_batch_config: BuildTransactionBatchConfig {
+                        let batched_tx_config = SendBatchedTransactionsConfig {
+                            num_batches: 1,
+                            build_transaction_batch_config: BuildTransactionBatchConfig {
                 batch_size: self.config.transaction_config.legacy_ixs_per_tx as u64,
                 compute_unit_price: Some(10_000), // is dynamic, sets max
                 compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 enable_priority_fees: self.config.transaction_config.enable_priority_fees,
                 max_concurrent_sends: Some(50),
-            },
-            queue_config: self.config.queue_config,
-            retry_config: RetryConfig {
-                timeout: remaining_time_timeout,
-                ..self.config.retry_config
-            },
-            light_slot_length: epoch_pda.protocol_config.slot_length,
-        };
+                            },
+                            queue_config: self.config.queue_config,
+                            retry_config: RetryConfig {
+                                timeout: remaining_time_timeout,
+                                ..self.config.retry_config
+                            },
+                            light_slot_length: epoch_pda.protocol_config.slot_length,
+                        };
 
         let transaction_builder = EpochManagerTransactions::new(
             self.indexer.clone(),
@@ -1067,40 +1067,40 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         );
 
         let num_sent = send_batched_transactions(
-            &self.config.payer_keypair,
-            &self.config.derivation_pubkey,
-            self.rpc_pool.clone(),
-            &batched_tx_config,
+                            &self.config.payer_keypair,
+                            &self.config.derivation_pubkey,
+                            self.rpc_pool.clone(),
+                            &batched_tx_config,
             *tree_accounts,
-            &transaction_builder,
-        )
+                            &transaction_builder,
+                        )
         .await?;
 
         match self.rollover_if_needed(tree_accounts).await {
             Ok(_) => Ok(num_sent),
-            Err(e) => {
+                            Err(e) => {
                 error!("Failed to rollover tree: {:?}", e);
                 Err(e)
-            }
-        }
-    }
+                            }
+                        }
+                    }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
-        let batch_context = BatchContext {
-            rpc_pool: self.rpc_pool.clone(),
-            indexer: self.indexer.clone(),
-            authority: self.config.payer_keypair.insecure_clone(),
-            derivation: self.config.derivation_pubkey,
-            epoch: epoch_info.epoch,
+                        let batch_context = BatchContext {
+                            rpc_pool: self.rpc_pool.clone(),
+                            indexer: self.indexer.clone(),
+                            authority: self.config.payer_keypair.insecure_clone(),
+                            derivation: self.config.derivation_pubkey,
+                            epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
-            ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
-        };
+                            ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
+                        };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
             .await
             .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
-    }
+                    }
 
     async fn update_metrics_and_counts(
         &self,
@@ -1113,11 +1113,11 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 "{} items processed in this iteration, duration: {:?}",
                 items_processed,
                 duration
-            );
+                  );
             queue_metric_update(epoch_num, items_processed, duration).await;
             self.increment_processed_items_count(epoch_num, items_processed)
                 .await;
-        }
+            }
     }
 
     async fn rollover_if_needed(&self, tree_account: &TreeAccounts) -> Result<()> {
@@ -1287,12 +1287,8 @@ fn calculate_remaining_time_or_default(
         return Duration::ZERO;
     }
     let slots_remaining = end_slot - current_slot;
-    let base_remaining_duration = slot_duration()
-        .checked_mul(slots_remaining as u32)
-        .unwrap_or_default();
-    base_remaining_duration
-        .checked_sub(buffer_duration)
-        .unwrap_or(Duration::ZERO)
+    let base_remaining_duration = slot_duration().checked_mul(slots_remaining as u32).unwrap_or_default();
+    base_remaining_duration.checked_sub(buffer_duration).unwrap_or_else(|| Duration::ZERO)
 }
 
 #[instrument(

@@ -540,12 +540,12 @@ fn print_tree_schedule_by_forester(
                                         eligible_forester_slot_index
                                     );
                                 } else {
-                                    println!(
-                                        "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
-                                        light_slot_to_check,
-                                        forester_pda.authority,
-                                        eligible_forester_slot_index
-                                    );
+                                println!(
+                                    "  Light Slot Index {}: Authority: {} (Eligible Index: {})",
+                                    light_slot_to_check,
+                                    forester_pda.authority,
+                                    eligible_forester_slot_index
+                                );
                                 }
                             } else {
                                 println!(
@@ -570,9 +570,9 @@ fn print_tree_schedule_by_forester(
             }
         }
     } else if current_epoch_pda_entry.is_none() {
-        println!(
-            "ERROR: Could not find EpochPda for active epoch {}. Cannot check forester assignments.",
-            current_active_epoch
-        );
-    }
+            println!(
+                "ERROR: Could not find EpochPda for active epoch {}. Cannot check forester assignments.",
+                current_active_epoch
+            );
+        }
 }
