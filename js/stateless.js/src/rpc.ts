@@ -73,7 +73,7 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 import { LightWasm } from './test-helpers';
-import { getActiveStateTreeInfos } from './utils/get-state-tree-infos';
+import { getAllStateTreeInfos } from './utils/get-state-tree-infos';
 import { StateTreeInfo } from './state/types';
 import { validateNumbersForProof } from './utils';
 import { getStateTreeInfoByPubkey } from './test-helpers/test-rpc/get-compressed-accounts';
@@ -593,7 +593,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
         this.proverEndpoint = proverEndpoint;
     }
 
-    async getAllStateTreeInfos(): Promise<StateTreeInfo[]> {
+    /**
+     * Get a list of all state tree infos. If not already cached, fetches from
+     * the cluster.
+     */
+    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
         if (isLocalTest(this.rpcEndpoint)) {
             return localTestActiveStateTreeInfo();
         }
@@ -610,20 +614,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return this.fetchPromise;
         }
 
+        let info: StateTreeInfo[] | undefined;
         try {
             this.fetchPromise = this.doFetch();
-            const info = await this.fetchPromise;
-
+            info = await this.fetchPromise;
             this.allStateTreeInfos = info;
             this.lastStateTreeFetchTime = Date.now();
             return info;
         } finally {
             this.fetchPromise = null;
-            if (!this.allStateTreeInfos) {
-                throw new Error(
-                    'allStateTreeInfos should never be null. if you see this message, please send an email to team@lightprotocol.com.',
-                );
-            }
         }
     }
 
@@ -633,15 +632,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async doFetch(): Promise<StateTreeInfo[]> {
         const { mainnet, devnet } = defaultStateTreeLookupTables();
 
+        /// Mainnet keys are not available on devnet and vice versa. Chaining
+        /// the requests let's us get the state tree infos from the correct
+        /// network.
         try {
-            const res = await getActiveStateTreeInfos({
+            const res = await getAllStateTreeInfos({
                 connection: this,
                 stateTreeLUTPairs: [mainnet[0]],
             });
             return res;
         } catch (mainnetError) {
             try {
-                const res = await getActiveStateTreeInfos({
+                const res = await getAllStateTreeInfos({
                     connection: this,
                     stateTreeLUTPairs: [devnet[0]],
                 });
@@ -653,15 +655,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 );
             }
         }
-    }
-
-    /**
-     *
-     * Get the state tree addresses from the cluster.
-     * If not already cached, fetches from the cluster.
-     */
-    async getStateTreeInfos(): Promise<StateTreeInfo[]> {
-        return await this.getAllStateTreeInfos();
     }
 
     /**

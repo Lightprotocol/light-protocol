@@ -181,21 +181,13 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     *
-     * Get the active state tree addresses from the cluster.
-     * If not already cached, fetches from the cluster.
-     */
-    async getAllStateTreeInfos(): Promise<StateTreeInfo[]> {
-        return localTestActiveStateTreeInfo();
-    }
-    async doFetch(): Promise<StateTreeInfo[]> {
-        throw new Error('doFetch not supported in test-rpc');
-    }
-    /**
      * Returns local test state trees.
      */
     async getStateTreeInfos(): Promise<StateTreeInfo[]> {
         return localTestActiveStateTreeInfo();
+    }
+    async doFetch(): Promise<StateTreeInfo[]> {
+        throw new Error('doFetch not supported in test-rpc');
     }
 
     /**

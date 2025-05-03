@@ -75,7 +75,7 @@ export function selectStateTreeInfo(
  *
  * @returns The active state tree infos
  */
-export async function getActiveStateTreeInfos({
+export async function getAllStateTreeInfos({
     connection,
     stateTreeLUTPairs,
 }: {

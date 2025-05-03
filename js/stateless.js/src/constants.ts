@@ -133,7 +133,7 @@ export const getDefaultAddressTreeInfo = () => {
  * @deprecated use {@link rpc.getStateTreeInfos} and {@link selectStateTreeInfo} instead.
  * for address trees, use {@link getDefaultAddressTreeInfo} instead.
  * Use only with Localnet testing.
- * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getActiveStateTreeInfos}.
+ * For public networks, fetch via {@link defaultStateTreeLookupTables} and {@link getAllStateTreeInfos}.
  */
 export const defaultTestStateTreeAccounts = () => {
     return {
