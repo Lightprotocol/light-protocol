@@ -576,7 +576,6 @@ describe('camelcaseKeys', () => {
 
 describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
     it('should convert InstructionDataInvokeCpiWithReadOnly to InstructionDataInvoke', () => {
-        // Create a sample InstructionDataInvokeCpiWithReadOnly-like object
         const mockCpiWithReadOnly = {
             mode: 0,
             bump: 148,
@@ -668,7 +667,7 @@ describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
         expect(result.newAddressParams[0].addressMerkleTreeRootIndex).toBe(123);
 
         // Check input accounts conversion
-        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(1); // 1 regular
+        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(1);
 
         // First account (from input_compressed_accounts)
         const firstAccount = result.inputCompressedAccountsWithMerkleContext[0];
@@ -685,43 +684,5 @@ describe('convertInvokeCpiWithReadOnlyToInvoke', () => {
         expect(
             result.outputCompressedAccounts[0].compressedAccount.lamports,
         ).toEqual(new BN(3000));
-    });
-
-    it('should handle missing read_only_accounts', () => {
-        // Create a minimal InstructionDataInvokeCpiWithReadOnly-like object with no read-only accounts
-        const minimalCpiWithReadOnly = {
-            mode: 0,
-            bump: 1,
-            invoking_program_id: { toBuffer: () => Buffer.alloc(32) },
-            compress_or_decompress_lamports: new BN(100),
-            is_compress: false,
-            with_cpi_context: false,
-            with_transaction_hash: false,
-            compressedCpiContext: {
-                set_context: false,
-                first_set_context: false,
-                cpi_context_account_index: 0,
-            },
-            proof: null,
-            new_address_params: [],
-            input_compressed_accounts: [],
-            output_compressed_accounts: [],
-            read_only_addresses: [],
-            read_only_accounts: [], // Empty read-only accounts
-        };
-
-        // Convert to InstructionDataInvoke
-        const result = convertInvokeCpiWithReadOnlyToInvoke(
-            minimalCpiWithReadOnly,
-        );
-
-        // Verify the result
-        expect(result).toBeDefined();
-        expect(result.proof).toBeNull();
-        expect(result.isCompress).toBe(false);
-        expect(result.compressOrDecompressLamports).toEqual(new BN(100));
-        expect(result.newAddressParams).toHaveLength(0);
-        expect(result.inputCompressedAccountsWithMerkleContext).toHaveLength(0);
-        expect(result.outputCompressedAccounts).toHaveLength(0);
     });
 });

@@ -106,16 +106,9 @@ export function pushUniqueItems<T>(items: T[], map: T[]): void {
     });
 }
 
-/**
- * Converts the output of decodeInstructionDataInvokeCpiWithReadOnly to InstructionDataInvoke format
- *
- * @param data The decoded data from decodeInstructionDataInvokeCpiWithReadOnly
- * @returns Data in InstructionDataInvoke format
- */
 export function convertInvokeCpiWithReadOnlyToInvoke(
     data: any,
 ): InstructionDataInvoke {
-    // Map the proof structure if it exists
     const proof = data.proof
         ? {
               a: data.proof.a,
@@ -137,15 +130,13 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
     // Convert input_compressed_accounts to PackedCompressedAccountWithMerkleContext format
     const inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
         data.input_compressed_accounts.map((account: any) => {
-            // Create a compressedAccount from the input account
             const compressedAccount: CompressedAccount = {
-                owner: new PublicKey(Buffer.alloc(32)), // Default owner, would be set in the real app
+                owner: new PublicKey(Buffer.alloc(32)),
                 lamports: account.lamports,
                 address: account.address,
-                data: null, // Would be set based on real data if needed
+                data: null,
             };
 
-            // Create a merkleContext from the packedMerkleContext
             const merkleContext: PackedMerkleContext = {
                 merkleTreePubkeyIndex:
                     account.packedMerkleContext.merkle_tree_pubkey_index,
@@ -154,14 +145,14 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
                 leafIndex: account.packedMerkleContext.leaf_index,
                 queueIndex: account.packedMerkleContext.prove_by_index
                     ? ({ queueId: 0, index: 0 } as QueueIndex)
-                    : null, // Simplified mapping, would be determined by real data
+                    : null,
             };
 
             return {
                 compressedAccount,
                 merkleContext,
                 rootIndex: account.root_index,
-                readOnly: false, // Default to false, would be set based on source data
+                readOnly: false,
             };
         });
 
@@ -177,12 +168,11 @@ export function convertInvokeCpiWithReadOnlyToInvoke(
             merkleTreeIndex: account.merkleTreeIndex,
         }));
 
-    // Construct and return the InstructionDataInvoke object
     return {
         proof,
         inputCompressedAccountsWithMerkleContext,
         outputCompressedAccounts,
-        relayFee: null, // Not present in the source data
+        relayFee: null,
         newAddressParams,
         compressOrDecompressLamports: data.compress_or_decompress_lamports,
         isCompress: data.is_compress,
