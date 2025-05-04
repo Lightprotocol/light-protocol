@@ -17,49 +17,49 @@ describe('selectStateTreeInfo', () => {
         queue: new PublicKey(nullifierQueuePubkey),
         cpiContext: new PublicKey(cpiContextPubkey),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const info2: StateTreeInfo = {
         tree: new PublicKey(merkleTree2Pubkey),
         queue: new PublicKey(nullifierQueue2Pubkey),
         cpiContext: new PublicKey(cpiContext2Pubkey),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const infoV2: StateTreeInfo = {
         tree: new PublicKey(merkleTree2Pubkey),
         queue: new PublicKey(nullifierQueue2Pubkey),
         cpiContext: new PublicKey(cpiContext2Pubkey),
         treeType: TreeType.StateV2,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const info3: StateTreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const info4: StateTreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const info5: StateTreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const info6: StateTreeInfo = {
         tree: PublicKey.unique(),
         queue: PublicKey.unique(),
         cpiContext: PublicKey.unique(),
         treeType: TreeType.StateV1,
-        nextTreeInfo: undefined,
+        nextTreeInfo: null,
     };
     const infoInactive: StateTreeInfo = {
         tree: PublicKey.unique(),

@@ -808,18 +808,12 @@ export class CompressedTokenProgram {
             toAddress,
         } = params;
 
-        console.log('amount', amount.toString());
         const tokenTransferOutputs: TokenTransferOutputData[] =
             createTransferOutputState(
                 inputCompressedTokenAccounts,
                 toAddress,
                 amount,
             );
-
-        console.log(
-            'tokenTransferOutputs',
-            tokenTransferOutputs.map(t => t),
-        );
 
         const {
             inputTokenDataWithContext,
@@ -830,7 +824,6 @@ export class CompressedTokenProgram {
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs,
         });
-        console.log('remainingAccountMetas', remainingAccountMetas);
 
         const { mint } = parseTokenData(inputCompressedTokenAccounts);
 
