@@ -84,7 +84,8 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
             for a in amounts {
                 amount += (*a).into();
             }
-            let index = index.ok_or_else(|| panic!("No index provided for batch compress."))?;
+            // # SAFETY: The index is always provided by batch compress.
+            let index = index.unwrap();
             let from_account_info = &ctx.remaining_accounts[0];
             let mint =
                 Pubkey::new_from_array(from_account_info.data.borrow()[4..36].try_into().unwrap());
