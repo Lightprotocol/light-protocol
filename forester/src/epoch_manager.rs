@@ -950,9 +950,9 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         );
 
                         let batched_tx_config = SendBatchedTransactionsConfig {
-                            num_batches: 1,
+                            num_batches: 2,
                             build_transaction_batch_config: BuildTransactionBatchConfig {
-                                batch_size: 1,
+                                batch_size: 50,
                                 compute_unit_price: Some(10_000),
                                 compute_unit_limit: Some(300_000),
                                 enable_priority_fees: self
