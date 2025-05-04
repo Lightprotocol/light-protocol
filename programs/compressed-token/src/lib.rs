@@ -143,7 +143,7 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let mut inputs: Vec<u8> = inputs;
+        let mut inputs = inputs;
         // Borsh ignores excess bytes -> push bool false for with_transaction_hash field.
         inputs.extend_from_slice(&[0u8; 1]);
         let inputs: CompressedTokenInstructionDataTransfer =
