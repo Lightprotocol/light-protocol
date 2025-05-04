@@ -929,7 +929,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                 .await?
             {
                 break 'inner_processing_loop;
-                    }
+                }
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
