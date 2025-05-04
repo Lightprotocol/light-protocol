@@ -103,4 +103,80 @@ mod test {
         assert_eq!(decoded_data.amount, None);
         assert_eq!(decoded_data.bump, data.bump);
     }
+
+    #[test]
+    fn test_batch_compress_instruction_data_randomized() {
+        use rand::Rng;
+
+        for _ in 0..100000 {
+            let mut rng = rand::thread_rng();
+
+            let pubkeys_count = rng.gen_range(1..10);
+            let pubkeys: Vec<Pubkey> = (0..pubkeys_count).map(|_| Pubkey::new_unique()).collect();
+
+            let amounts = if rng.gen_bool(0.5) {
+                Some((0..pubkeys_count).map(|_| rng.gen_range(1..1000)).collect())
+            } else {
+                None
+            };
+
+            let lamports = if rng.gen_bool(0.5) {
+                Some(rng.gen_range(1..1000))
+            } else {
+                None
+            };
+
+            let amount = if rng.gen_bool(0.5) {
+                Some(rng.gen_range(1..1000))
+            } else {
+                None
+            };
+
+            let index = rng.gen_range(0..=u8::MAX);
+            let bump = rng.gen_range(0..=u8::MAX);
+
+            let data = super::BatchCompressInstructionDataBorsh {
+                pubkeys,
+                amounts,
+                lamports,
+                amount,
+                index,
+                bump,
+            };
+
+            let mut vec = Vec::new();
+            data.serialize(&mut vec).unwrap();
+            let (decoded_data, _) =
+                super::BatchCompressInstructionData::zero_copy_at(&vec).unwrap();
+
+            assert_eq!(decoded_data.pubkeys.len(), data.pubkeys.len());
+            if let Some(amounts) = &data.amounts {
+                assert_eq!(decoded_data.amounts.as_ref().unwrap().len(), amounts.len());
+                for (i, amount) in decoded_data.amounts.as_ref().unwrap().iter().enumerate() {
+                    assert_eq!(amount.get(), amounts[i]);
+                }
+            } else {
+                assert!(decoded_data.amounts.is_none());
+            }
+
+            if let Some(lamports) = data.lamports {
+                assert_eq!(*decoded_data.lamports.unwrap(), U64::from(lamports));
+            } else {
+                assert!(decoded_data.lamports.is_none());
+            }
+
+            if let Some(amount) = data.amount {
+                assert_eq!(*decoded_data.amount.unwrap(), U64::from(amount));
+            } else {
+                assert!(decoded_data.amount.is_none());
+            }
+
+            for (i, pubkey) in decoded_data.pubkeys.iter().enumerate() {
+                assert_eq!(data.pubkeys[i], (*pubkey).into());
+            }
+
+            assert_eq!(decoded_data.index, data.index);
+            assert_eq!(decoded_data.bump, data.bump);
+        }
+    }
 }
