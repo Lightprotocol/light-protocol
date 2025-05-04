@@ -52,6 +52,10 @@ export async function transfer(
         compressedTokenAccounts.items,
         amount,
     );
+    console.log(
+        'inputAccounts',
+        inputAccounts.map(account => account.compressedAccount),
+    );
 
     const proof = await rpc.getValidityProofV0(
         inputAccounts.map(account => ({

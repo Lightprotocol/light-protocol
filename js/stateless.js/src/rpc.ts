@@ -44,6 +44,8 @@ import {
     TokenBalance,
     TokenBalanceListResultV2,
     PaginatedOptions,
+    HashWithTreeInfo,
+    AddressWithTreeInfo,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -1580,6 +1582,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     tree: proof.merkleTree,
                     queue: defaultTestStateTreeAccounts().addressQueue,
                     treeType: TreeType.AddressV1,
+                    nextTreeInfo: null,
                 },
             };
             newAddressProofs.push(_proof);
@@ -1829,6 +1832,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<WithContext<ValidityProofWithContext>> {
         validateNumbersForProof(hashes.length, newAddresses.length);
 
+        /// Temporary fix.
+        const cachedStateTreeInfos = await this.getStateTreeInfos();
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
@@ -1863,11 +1869,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const treeInfos = [
-            ...hashes.map(({ tree, queue }) => {
+            ...hashes.map(({ tree }) => {
+                const stateTreeInfo = getStateTreeInfoByPubkey(
+                    cachedStateTreeInfos,
+                    tree,
+                );
                 return {
                     tree,
-                    queue,
-                    treeType: TreeType.StateV1,
+                    queue: stateTreeInfo.queue,
+                    treeType: stateTreeInfo.treeType,
+                    nextTreeInfo: stateTreeInfo.nextTreeInfo,
                 };
             }),
             ...newAddresses.map(({ tree, queue }) => {
@@ -1875,6 +1886,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     tree,
                     queue,
                     treeType: TreeType.AddressV1,
+                    nextTreeInfo: null,
                 };
             }),
         ];

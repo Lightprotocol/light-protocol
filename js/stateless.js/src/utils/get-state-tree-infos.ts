@@ -123,8 +123,8 @@ export async function getAllStateTreeInfos({
             const tree = stateTreePubkeys[i];
             const queue = stateTreePubkeys[i + 1];
             const cpiContext = stateTreePubkeys[i + 2];
+            let nextTreeInfo: StateTreeInfo | null = null;
 
-            let nextTreeInfo: StateTreeInfo | undefined;
             if (!tree || !queue || !cpiContext) {
                 throw new Error('Invalid state tree pubkeys structure');
             }
@@ -139,7 +139,7 @@ export async function getAllStateTreeInfos({
                     queue: PublicKey.default,
                     cpiContext: PublicKey.default,
                     treeType: TreeType.StateV1,
-                    nextTreeInfo: undefined,
+                    nextTreeInfo: null,
                 };
             }
             contexts.push({

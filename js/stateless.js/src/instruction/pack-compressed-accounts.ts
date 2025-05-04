@@ -31,52 +31,29 @@ export function getIndexOrAdd(
  * @internal
  * Pads output state trees with the 0th state tree of the input state.
  *
- * @param outputStateMerkleTrees            Optional output state trees to be
- *                                          inserted into the output state.
- *                                          Defaults to the 0th state tree of
- *                                          the input state. Gets padded to the
- *                                          length of outputCompressedAccounts.
- * @param numberOfOutputCompressedAccounts  The number of output compressed
- *                                          accounts.
- * @param inputCompressedAccountsWithMerkleContext The input compressed accounts
- *                                          with merkle context.
+ * @param outputStateMerkleTrees                    Optional output state trees
+ *                                                  to be inserted into the
+ *                                                  output state. Defaults to
+ *                                                  the 0th state tree of the
+ *                                                  input state. Gets padded to
+ *                                                  the length of
+ *                                                  outputCompressedAccounts.
+ * @param numberOfOutputCompressedAccounts          The number of output
+ *                                                  compressed accounts.
  *
  * @returns Padded output state trees.
  */
 export function padOutputStateMerkleTrees(
-    outputStateMerkleTrees: PublicKey[] | PublicKey | undefined,
+    outputStateMerkleTrees: PublicKey,
     numberOfOutputCompressedAccounts: number,
-    inputCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[],
 ): PublicKey[] {
     if (numberOfOutputCompressedAccounts <= 0) {
         return [];
     }
 
-    /// Default: use the 0th state tree of input state for all output accounts
-    if (outputStateMerkleTrees === undefined) {
-        if (inputCompressedAccountsWithMerkleContext.length === 0) {
-            throw new Error(
-                'No input compressed accounts nor output state trees provided. Please pass in at least one of the following: outputStateMerkleTree or inputCompressedAccount',
-            );
-        }
-        return new Array(numberOfOutputCompressedAccounts).fill(
-            inputCompressedAccountsWithMerkleContext[0].treeInfo.tree,
-        );
-        /// Align the number of output state trees with the number of output
-        /// accounts, and fill up with 0th output state tree
-    } else {
-        /// Into array
-        const treesArray = toArray(outputStateMerkleTrees);
-        if (treesArray.length >= numberOfOutputCompressedAccounts) {
-            return treesArray.slice(0, numberOfOutputCompressedAccounts);
-        } else {
-            return treesArray.concat(
-                new Array(
-                    numberOfOutputCompressedAccounts - treesArray.length,
-                ).fill(treesArray[0]),
-            );
-        }
-    }
+    return new Array(numberOfOutputCompressedAccounts).fill(
+        outputStateMerkleTrees,
+    );
 }
 
 export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
@@ -184,7 +161,6 @@ export function packCompressedAccounts(
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         activeTreeOrQueue,
         outputCompressedAccounts.length,
-        inputCompressedAccounts,
     );
 
     outputCompressedAccounts.forEach((account, index) => {

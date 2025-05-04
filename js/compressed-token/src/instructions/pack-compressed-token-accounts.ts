@@ -112,9 +112,11 @@ export function packCompressedTokenAccounts(
         );
     }
 
+    console.log('treeInfo SET', treeInfo);
     // Use next tree if available, otherwise fall back to current tree.
     // `nextTreeInfo` always takes precedence.
     const activeTreeInfo = treeInfo.nextTreeInfo || treeInfo;
+    console.log('activeTreeInfo', activeTreeInfo);
     const activeTreeOrQueue = activeTreeInfo.tree;
     // V2 trees are not yet supported
     if (activeTreeInfo.treeType === TreeType.StateV2) {
@@ -125,7 +127,6 @@ export function packCompressedTokenAccounts(
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         activeTreeOrQueue,
         tokenTransferOutputs.length,
-        inputCompressedTokenAccounts.map(acc => acc.compressedAccount),
     );
     const packedOutputTokenData: PackedTokenTransferOutputData[] = [];
     paddedOutputStateMerkleTrees.forEach((account, index) => {

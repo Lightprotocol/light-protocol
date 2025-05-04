@@ -111,12 +111,14 @@ export const localTestActiveStateTreeInfo = (): StateTreeInfo[] => {
             queue: new PublicKey(nullifierQueuePubkey),
             cpiContext: new PublicKey(cpiContextPubkey),
             treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
         {
             tree: new PublicKey(merkleTree2Pubkey),
             queue: new PublicKey(nullifierQueue2Pubkey),
             cpiContext: new PublicKey(cpiContext2Pubkey),
             treeType: TreeType.StateV1,
+            nextTreeInfo: null,
         },
     ];
 };

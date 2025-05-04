@@ -73,7 +73,7 @@ export type StateTreeInfo = {
     /**
      * Optional next tree info if the tree is full.
      */
-    nextTreeInfo?: StateTreeInfo;
+    nextTreeInfo: StateTreeInfo | null;
 };
 
 /**
@@ -84,7 +84,7 @@ export type AddressTreeInfo = Omit<
     StateTreeInfo,
     'cpiContext' | 'nextTreeInfo'
 > & {
-    nextTreeInfo?: AddressTreeInfo;
+    nextTreeInfo: AddressTreeInfo | null;
 };
 
 export interface PackedCompressedAccountWithMerkleContext {

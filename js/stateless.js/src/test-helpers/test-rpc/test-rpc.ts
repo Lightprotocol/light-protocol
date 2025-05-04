@@ -671,6 +671,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     tree: defaultTestStateTreeAccounts().addressTree,
                     queue: defaultTestStateTreeAccounts().addressQueue,
                     treeType: TreeType.AddressV1,
+                    nextTreeInfo: null,
                 },
             };
             newAddressProofs.push(proof);

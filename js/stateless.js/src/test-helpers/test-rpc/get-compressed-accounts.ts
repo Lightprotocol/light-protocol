@@ -37,6 +37,7 @@ export function getStateTreeInfoByPubkey(
             treeType,
             tree: treeInfos[index].tree,
             cpiContext: treeInfos[index].cpiContext,
+            nextTreeInfo: treeInfos[index].nextTreeInfo,
         };
     }
 
