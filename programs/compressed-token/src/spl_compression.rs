@@ -25,7 +25,7 @@ pub fn check_spl_token_pool_derivation_with_index(
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
 ) -> Result<()> {
-    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index, None) {
+    if is_valid_token_pool_pda(mint_bytes, token_pool_pubkey, pool_index, None)? {
         Ok(())
     } else {
         err!(ErrorCode::InvalidTokenPoolPda)
@@ -37,16 +37,17 @@ pub fn is_valid_token_pool_pda(
     token_pool_pubkey: &Pubkey,
     pool_index: &[u8],
     bump: Option<u8>,
-) -> bool {
+) -> Result<bool> {
     let pool_index = if pool_index[0] == 0 { &[] } else { pool_index };
     let pda = if let Some(bump) = bump {
         let seeds = [POOL_SEED, mint_bytes, pool_index, &[bump]];
-        Pubkey::create_program_address(&seeds[..], &crate::ID).expect("Invalid token pool bump.")
+        Pubkey::create_program_address(&seeds[..], &crate::ID)
+            .map_err(|_| crate::ErrorCode::NoMatchingBumpFound)?
     } else {
         let seeds = [POOL_SEED, mint_bytes, pool_index];
         Pubkey::find_program_address(&seeds[..], &crate::ID).0
     };
-    pda == *token_pool_pubkey
+    Ok(pda == *token_pool_pubkey)
 }
 
 pub fn decompress_spl_tokens<'info>(
@@ -127,7 +128,7 @@ pub fn invoke_token_program_with_multiple_token_pool_accounts<'info, const IS_BU
         }
         // 5. Check if the token pool account is derived from the mint for any bump.
         for (index, i) in token_pool_indices.iter().enumerate() {
-            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i], None) {
+            if is_valid_token_pool_pda(mint_bytes.as_slice(), &token_pool_pda.key(), &[*i], None)? {
                 // 7. Burn or transfer the amount from the token pool account.
                 if IS_BURN {
                     crate::burn::spl_burn_cpi(

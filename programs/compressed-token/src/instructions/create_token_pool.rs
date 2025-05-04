@@ -112,8 +112,9 @@ pub struct AddTokenPoolInstruction<'info> {
 #[inline(always)]
 pub fn check_spl_token_pool_derivation(token_pool_pda: &Pubkey, mint: &Pubkey) -> Result<()> {
     let mint_bytes = mint.to_bytes();
-    let is_valid = (0..NUM_MAX_POOL_ACCOUNTS)
-        .any(|i| is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[i], None));
+    let is_valid = (0..NUM_MAX_POOL_ACCOUNTS).any(|i| {
+        is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[i], None).unwrap_or(false)
+    });
     if !is_valid {
         err!(crate::ErrorCode::InvalidTokenPoolPda)
     } else {
@@ -129,7 +130,7 @@ pub fn check_spl_token_pool_derivation_with_index(
     bump: Option<u8>,
 ) -> Result<()> {
     let mint_bytes = mint.to_bytes();
-    let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index], bump);
+    let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index], bump)?;
     if !is_valid {
         err!(crate::ErrorCode::InvalidTokenPoolPda)
     } else {
