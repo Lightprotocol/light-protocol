@@ -409,15 +409,27 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         config: BuildTransactionBatchConfig,
     ) -> Result<(Vec<Transaction>, u64)> {
         let mut transactions = vec![];
-        let (_, all_instructions) = fetch_proofs_and_create_instructions(
+        let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
             *derivation,
             self.pool.clone(),
             self.indexer.clone(),
             self.epoch,
             work_items,
-        )
-        .await?;
+        ).await {
+            Ok((_, instructions)) => instructions,
+            Err(e) => {
+                // Check if it's a "Record Not Found" error
+                if e.to_string().contains("Record Not Found") {
+                    warn!("Record not found in indexer, skipping batch: {}", e);
+                    // Return empty transactions but don't propagate the error
+                    return Ok((vec![], last_valid_block_height));
+                } else {
+                    // For any other error, propagate it
+                    return Err(e);
+                }
+            }
+        };
 
         for instruction in all_instructions {
             let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
@@ -447,28 +459,20 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
     let mut proofs = Vec::new();
     let mut instructions = vec![];
 
-    {
-        let context_str = "fetch_proofs_and_create_instructions";
-        let rpc_result = pool.get_connection().await;
-        match rpc_result {
-            Ok(_) => {
-                debug!("{} Successfully got RPC connection.", context_str);
-            }
-            Err(ref e) => {
-                error!("{} Failed to get RPC connection: {:?}", context_str, e);
-            }
-        }
-        let mut rpc = rpc_result?;
-        if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer.lock().await).await {
-            warn!("Error waiting for indexer: {:?}", e);
-        }
-    }
-
     let (address_items, state_items): (Vec<_>, Vec<_>) = work_items
         .iter()
         .partition(|item| matches!(item.tree_account.tree_type, TreeType::AddressV1));
 
-    // Prepare data for batch fetching
+    for item in state_items.iter() {
+        if item.tree_account.tree_type != TreeType::StateV1 {
+            warn!("State item has unexpected tree type: {:?}", item.tree_account.tree_type);
+        }
+    }
+    let state_items = state_items
+        .into_iter()
+        .filter(|item| item.tree_account.tree_type == TreeType::StateV1)
+        .collect::<Vec<_>>();
+
     let address_data = if !address_items.is_empty() {
         let merkle_tree = address_items
             .first()
@@ -497,16 +501,37 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
         None
     };
 
-    // Fetch all proofs in parallel
-    let (address_proofs, state_proofs) = {
-        info!("Attempting to acquire indexer lock...");
-        let indexer = indexer.lock().await;
-        info!("Acquired indexer lock.");
+    if let Some((merkle_tree, addresses)) = &address_data {
+        info!("Address merkle tree: {}", bs58::encode(merkle_tree).into_string());
+        info!("Looking up {} addresses:", addresses.len());
+        for (idx, hash) in addresses.iter().enumerate() {
+            info!("  Address {}: {}", idx, bs58::encode(hash).into_string());
+        }
+    }
+
+    if let Some(states) = &state_data {
+        info!("Looking up {} state hashes:", states.len());
+        for (idx, hash) in states.iter().enumerate() {
+            info!("  Hash {}: {}", idx, hash);
+        }
+    }
+
+    info!("Attempting to acquire indexer lock...");
+    let indexer_guard = indexer.lock().await;
+    info!("Acquired indexer lock.");
+
+    let mut rpc = pool.get_connection().await
+        .map_err(|e| anyhow::anyhow!("Failed to get RPC connection: {}", e))?;
+    
+    if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer_guard).await {
+        warn!("Indexer not fully caught up, but proceeding anyway: {}", e);
+    }
+
+    let (address_proofs_result, state_proofs_result) = {
         let address_future = async {
             if let Some((merkle_tree, addresses)) = address_data {
-                indexer
-                    .get_multiple_new_address_proofs(merkle_tree, addresses)
-                    .await
+                debug!("Fetching proofs for {} addresses", addresses.len());
+                indexer_guard.get_multiple_new_address_proofs(merkle_tree, addresses).await
             } else {
                 Ok(vec![])
             }
@@ -514,7 +539,7 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
         let state_future = async {
             if let Some(states) = state_data {
-                indexer.get_multiple_compressed_account_proofs(states).await
+                indexer_guard.get_multiple_compressed_account_proofs(states).await
             } else {
                 Ok(vec![])
             }
@@ -522,12 +547,21 @@ pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R
 
         join!(address_future, state_future)
     };
-    info!("Released indexer lock.");
 
-    let address_proofs = address_proofs?;
-    let state_proofs = state_proofs?;
+    let address_proofs = match address_proofs_result {
+        Ok(proofs) => proofs,
+        Err(e) => {
+            return Err(anyhow::anyhow!("Failed to get address proofs: {}", e));
+        }
+    };
+    
+    let state_proofs = match state_proofs_result {
+        Ok(proofs) => proofs,
+        Err(e) => {
+            return Err(anyhow::anyhow!("Failed to get state proofs: {}", e));
+        }
+    };
 
-    // Process address proofs and create instructions
     for (item, proof) in address_items.iter().zip(address_proofs.into_iter()) {
         proofs.push(MerkleProofType::AddressProof(proof.clone()));
         let instruction = create_update_address_merkle_tree_instruction(

@@ -57,7 +57,7 @@ pub async fn wait_for_indexer<R: RpcConnection, I: Indexer<R>>(
     let max_attempts = 20;
     let mut attempts = 0;
 
-    while rpc_slot > indexer_slot {
+    while rpc_slot > indexer_slot + 20 {
         if attempts >= max_attempts {
             return Err(ForesterUtilsError::Indexer(
                 "Maximum attempts reached waiting for indexer to catch up".into(),
