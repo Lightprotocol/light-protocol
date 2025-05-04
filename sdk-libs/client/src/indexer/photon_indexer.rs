@@ -895,16 +895,16 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
     async fn get_indexer_slot(&self, _r: &mut R) -> Result<u64, IndexerError> {
         self.rate_limited_request_with_retry(|| async {
-            let request = photon_api::models::GetIndexerSlotPostRequest {
-                ..Default::default()
-            };
+        let request = photon_api::models::GetIndexerSlotPostRequest {
+            ..Default::default()
+        };
 
-            let result =
-                photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
-                    .await?;
+        let result =
+            photon_api::apis::default_api::get_indexer_slot_post(&self.configuration, request)
+                .await?;
 
-            let result = Self::extract_result("get_indexer_slot", result.result)?;
-            Ok(result)
+        let result = Self::extract_result("get_indexer_slot", result.result)?;
+        Ok(result)
         })
         .await
     }
