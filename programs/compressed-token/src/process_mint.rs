@@ -87,8 +87,9 @@ pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
             // # SAFETY: The index is always provided by batch compress.
             let index = index.unwrap();
             let from_account_info = &ctx.remaining_accounts[0];
+
             let mint =
-                Pubkey::new_from_array(from_account_info.data.borrow()[4..36].try_into().unwrap());
+                Pubkey::new_from_array(from_account_info.data.borrow()[..32].try_into().unwrap());
             check_spl_token_pool_derivation_with_index(
                 &ctx.accounts.token_pool_pda.key(),
                 &mint,
