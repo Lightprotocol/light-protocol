@@ -11,7 +11,7 @@ use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CHANGELOG, STATE_NULLIFIER_QUEUE_VALUES,
 };
 use async_trait::async_trait;
-use forester_utils::forester_epoch::TreeAccounts;
+use forester_utils::{forester_epoch::TreeAccounts, utils::wait_for_indexer};
 use futures::{stream::iter, StreamExt};
 use light_client::{
     indexer::Indexer,
@@ -387,6 +387,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: RpcConnection>(
 
 pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
     pub indexer: Arc<Mutex<I>>,
+    pub pool: Arc<SolanaRpcPool<R>>,
     pub epoch: u64,
     pub phantom: std::marker::PhantomData<R>,
 }
@@ -411,6 +412,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         let (_, all_instructions) = fetch_proofs_and_create_instructions(
             payer.pubkey(),
             *derivation,
+            self.pool.clone(),
             self.indexer.clone(),
             self.epoch,
             work_items,
@@ -437,12 +439,30 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
 pub async fn fetch_proofs_and_create_instructions<R: RpcConnection, I: Indexer<R>>(
     authority: Pubkey,
     derivation: Pubkey,
+    pool: Arc<SolanaRpcPool<R>>,
     indexer: Arc<Mutex<I>>,
     epoch: u64,
     work_items: &[WorkItem],
 ) -> Result<(Vec<MerkleProofType>, Vec<Instruction>)> {
     let mut proofs = Vec::new();
     let mut instructions = vec![];
+
+    {
+        let context_str = "fetch_proofs_and_create_instructions";
+        let rpc_result = pool.get_connection().await;
+        match rpc_result {
+            Ok(_) => {
+                debug!("{} Successfully got RPC connection.", context_str);
+            }
+            Err(ref e) => {
+                error!("{} Failed to get RPC connection: {:?}", context_str, e);
+            }
+        }
+        let mut rpc = rpc_result?;
+        if let Err(e) = wait_for_indexer(&mut *rpc, &*indexer.lock().await).await {
+            warn!("Error waiting for indexer: {:?}", e);
+        }
+    }
 
     let (address_items, state_items): (Vec<_>, Vec<_>) = work_items
         .iter()

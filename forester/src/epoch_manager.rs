@@ -969,6 +969,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         };
 
                         let transaction_builder = EpochManagerTransactions {
+                            pool: self.rpc_pool.clone(),
                             indexer: self.indexer.clone(),
                             epoch: epoch_info.epoch,
                             phantom: std::marker::PhantomData::<R>,
