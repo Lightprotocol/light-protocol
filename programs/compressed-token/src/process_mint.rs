@@ -35,7 +35,7 @@ pub const MINT_TO: bool = true;
 ///    pre_compressed_acounts_pos.
 /// 5. Invoke system program to execute the compressed transaction.
 #[allow(unused_variables)]
-pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
+pub fn process_mint_to_or_compress<'info, const IS_MINT_TO: bool>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     recipient_pubkeys: &[impl PubkeyTrait],
     amounts: &[impl ZeroCopyNumTrait],
@@ -84,14 +84,10 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
             for a in amounts {
                 amount += (*a).into();
             }
-            let index = if let Some(index) = index {
-                index
-            } else {
-                panic!("No index provided for batch compress.");
-            };
+            let index = index.ok_or_else(|| panic!("No index provided for batch compress."))?;
+            let from_account_info = &ctx.remaining_accounts[0];
             let mint =
-                TokenAccount::try_deserialize(&mut &ctx.remaining_accounts[0].data.borrow()[..])?
-                    .mint;
+                Pubkey::new_from_array(from_account_info.data.borrow()[4..36].try_into().unwrap());
             check_spl_token_pool_derivation_with_index(
                 &ctx.accounts.token_pool_pda.key(),
                 &mint,
@@ -99,7 +95,7 @@ pub fn process_mint_to<'info, const IS_MINT_TO: bool>(
                 bump,
             )?;
             spl_token_transfer(
-                ctx.remaining_accounts[0].to_account_info(),
+                from_account_info.to_account_info(),
                 ctx.accounts.token_pool_pda.to_account_info(),
                 ctx.accounts.authority.to_account_info(),
                 ctx.accounts.token_program.to_account_info(),
@@ -379,7 +375,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK: (different program) checked in system and account compression
     /// programs
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK:
+    /// CHECK: checked implicitly by signing the cpi in system program
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program
     pub account_compression_program: Program<'info, AccountCompression>,

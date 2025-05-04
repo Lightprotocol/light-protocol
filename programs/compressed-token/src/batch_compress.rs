@@ -5,8 +5,10 @@ use zerocopy::{little_endian::U64, Ref};
 #[derive(Debug, Default, Clone, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct BatchCompressInstructionDataBorsh {
     pub pubkeys: Vec<Pubkey>,
+    // Some if one amount per pubkey.
     pub amounts: Option<Vec<u64>>,
     pub lamports: Option<u64>,
+    // Some if one amount across all pubkeys.
     pub amount: Option<u64>,
     pub index: u8,
     pub bump: u8,

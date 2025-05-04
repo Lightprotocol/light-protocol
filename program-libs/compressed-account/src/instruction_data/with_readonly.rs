@@ -41,6 +41,7 @@ pub struct InAccount {
     pub root_index: u16,
     /// Lamports.
     pub lamports: u64,
+    /// Optional address.
     pub address: Option<[u8; 32]>,
 }
 

@@ -471,6 +471,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
         data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
         data.extend(inputs);
 
+        // 4 static accounts
         let accounts_len = 4 + remaining_accounts.len() + cpi_context.is_some() as usize;
         let mut account_infos = Vec::with_capacity(accounts_len);
         let mut account_metas = Vec::with_capacity(accounts_len);
@@ -499,25 +500,25 @@ pub fn cpi_execute_compressed_transaction_transfer<
             is_signer: false,
             is_writable: false,
         });
-        let mut index = 4;
+        let mut remaining_accounts_index = 4;
 
         if let Some(account_info) = cpi_context_account {
             account_infos.push(account_info);
             account_metas.push(AccountMeta {
-                pubkey: account_infos[index].key(),
+                pubkey: account_infos[remaining_accounts_index].key(),
                 is_signer: false,
                 is_writable: true,
             });
-            index += 1;
+            remaining_accounts_index += 1;
         }
         for account_info in remaining_accounts {
             account_infos.push(account_info.clone());
             account_metas.push(AccountMeta {
-                pubkey: account_infos[index].key(),
+                pubkey: account_infos[remaining_accounts_index].key(),
                 is_signer: false,
-                is_writable: account_infos[index].is_writable,
+                is_writable: account_infos[remaining_accounts_index].is_writable,
             });
-            index += 1;
+            remaining_accounts_index += 1;
         }
 
         let instruction = anchor_lang::solana_program::instruction::Instruction {
