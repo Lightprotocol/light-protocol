@@ -680,11 +680,30 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
         .unwrap()
         .data;
     let new_queue_account = rpc.get_account(new_queue_pubkey).await.unwrap().unwrap();
-
+    let old_queue_rent_exempt = rpc
+        .get_minimum_balance_for_rent_exemption(old_queue_account_data.len())
+        .await
+        .unwrap();
+    let old_tree_rent_exempt = rpc
+        .get_minimum_balance_for_rent_exemption(old_state_merkle_tree.data.len())
+        .await
+        .unwrap();
+    let queue_rent_exempt = rpc
+        .get_minimum_balance_for_rent_exemption(new_queue_account.data.len())
+        .await
+        .unwrap();
+    let tree_rent_exempt = rpc
+        .get_minimum_balance_for_rent_exemption(new_state_merkle_tree.data.len())
+        .await
+        .unwrap();
+    println!("queue rent exempt : {}", queue_rent_exempt);
+    println!("tree rent exempt : {}", tree_rent_exempt);
+    println!("old queue rent exempt : {}", old_queue_rent_exempt);
+    println!("old tree rent exempt : {}", old_tree_rent_exempt);
     let queue_params = CreateOutputQueueParams::from(
         params,
         owner.into(),
-        new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent,
+        old_tree_rent_exempt + old_queue_rent_exempt + additional_bytes_rent,
         old_state_merkle_tree_pubkey.into(),
         old_queue_pubkey.into(),
     );
@@ -692,7 +711,7 @@ pub async fn assert_perform_state_mt_roll_over<R: RpcConnection>(
     let queue_params = CreateOutputQueueParams::from(
         params,
         owner.into(),
-        new_queue_account.lamports + new_state_merkle_tree.lamports + additional_bytes_rent,
+        tree_rent_exempt + queue_rent_exempt + additional_bytes_rent,
         old_state_merkle_tree_pubkey.into(),
         new_queue_pubkey.into(),
     );

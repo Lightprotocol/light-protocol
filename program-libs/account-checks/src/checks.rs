@@ -116,10 +116,13 @@ pub fn check_account_balance_is_rent_exempt(
         if lamports < rent_exemption {
             return Err(AccountError::InvalidAccountBalance);
         }
+        Ok(rent_exemption)
     }
     #[cfg(not(target_os = "solana"))]
-    println!("Rent exemption check skipped since not target_os solana.");
-    Ok(lamports)
+    {
+        println!("Rent exemption check skipped since not target_os solana.");
+        Ok(lamports)
+    }
 }
 
 #[cfg(not(feature = "pinocchio"))]
