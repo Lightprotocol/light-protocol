@@ -128,7 +128,6 @@ pub fn check_spl_token_pool_derivation_with_index(
     index: u8,
     bump: Option<u8>,
 ) -> Result<()> {
-    msg!("bump {:?}", bump);
     let mint_bytes = mint.to_bytes();
     let is_valid = is_valid_token_pool_pda(mint_bytes.as_slice(), token_pool_pda, &[index], bump);
     if !is_valid {

@@ -81,7 +81,7 @@ pub mod light_compressed_token {
         amounts: Vec<u64>,
         lamports: Option<u64>,
     ) -> Result<()> {
-        process_mint_to::<MINT_TO>(
+        process_mint_to_or_compress::<MINT_TO>(
             ctx,
             public_keys.as_slice(),
             amounts.as_slice(),
@@ -109,7 +109,7 @@ pub mod light_compressed_token {
             return Err(crate::ErrorCode::NoAmount.into());
         };
 
-        process_mint_to::<COMPRESS>(
+        process_mint_to_or_compress::<COMPRESS>(
             ctx,
             inputs.pubkeys.as_slice(),
             amounts.as_slice(),
@@ -143,9 +143,9 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        let mut inputs = inputs;
-        // Borsh ignores excess bytes -> push len 0 and bool false for additional fields.
-        inputs.extend_from_slice(&[0u8; 5]);
+        let mut inputs: Vec<u8> = inputs;
+        // Borsh ignores excess bytes -> push bool false for with_transaction_hash field.
+        inputs.extend_from_slice(&[0u8; 1]);
         let inputs: CompressedTokenInstructionDataTransfer =
             CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         process_transfer::process_transfer(ctx, inputs)
