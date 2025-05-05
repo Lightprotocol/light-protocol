@@ -151,7 +151,10 @@ const shuffleArray = <T>(array: T[]): T[] => {
 };
 
 /**
+ * For `compress` and `mintTo` instructions only.
  * Select a random token pool info from the token pool infos.
+ *
+ * For `decompress`, use {@link selectTokenPoolInfosForDecompression} instead.
  *
  * @param infos The token pool infos
  *
