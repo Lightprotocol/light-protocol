@@ -31,6 +31,8 @@ import {
     CompressedTokenProgram,
     CompressedTokenInstructionDataTransfer,
     PackedTokenTransferOutputData,
+    selectTokenPoolInfo,
+    selectTokenPoolInfosForDecompression,
 } from '../../src/';
 import { Keypair } from '@solana/web3.js';
 import { Connection } from '@solana/web3.js';
@@ -753,5 +755,118 @@ describe('layout', () => {
             const result = transferAccountsLayout(accounts);
             expect(result).toEqual(expected);
         });
+    });
+});
+
+describe('selectTokenPoolInfo', () => {
+    const infos = [
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                '5d77eGcKa1CDRJrHeohyT1igCCPX9SYWqBd6NZqsWMyt',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(1e9),
+            isInitialized: true,
+            poolIndex: 0,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'CqZ5Wv44cEn2R88hrftMdWowiyPhAuLLRzj1BXyq2Kz7',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(1.5e9),
+            isInitialized: true,
+            poolIndex: 1,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                '4ne3Bk9g8gKMWjTbDNc8Sigmec2FJWUjWAraMjJcQDTS',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(10),
+            isInitialized: true,
+            poolIndex: 2,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'Evr8a5qf2JSAf9DHF5L8qvmrdxtKWZJY9c61VkvfpTZA',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(10),
+            isInitialized: true,
+            poolIndex: 3,
+        },
+        {
+            mint: new PublicKey('GyFUUg2iDsGZpaxceUNQAdXfFXzraekDzbBjhS7bkTA6'),
+            tokenPoolPda: new PublicKey(
+                'B6XrUD6K5VQZaG7m7fVwaf7JWbJXad8PTQdzzGcHdf7E',
+            ),
+            tokenProgram: new PublicKey(
+                'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+            ),
+            activity: undefined,
+            balance: new BN(0),
+            isInitialized: false,
+            poolIndex: 4,
+        },
+    ];
+
+    it('should return the correct token pool info', () => {
+        for (let i = 0; i < 10000; i++) {
+            const tokenPoolInfo = selectTokenPoolInfo(infos);
+            expect(tokenPoolInfo.poolIndex).not.toBe(4);
+            expect(tokenPoolInfo.isInitialized).toBe(true);
+        }
+
+        const decompressedInfos = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1e9),
+        );
+        expect(decompressedInfos.length).toBe(4);
+        expect(decompressedInfos[0].poolIndex).toBe(0);
+        expect(decompressedInfos[1].poolIndex).toBe(1);
+        expect(decompressedInfos[2].poolIndex).toBe(2);
+        expect(decompressedInfos[3].poolIndex).toBe(3);
+        const decompressedInfos2 = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1.51e8),
+        );
+        expect(decompressedInfos2.length).toBe(4);
+        expect(decompressedInfos2[0].poolIndex).toBe(0);
+        expect(decompressedInfos2[1].poolIndex).toBe(1);
+        expect(decompressedInfos2[2].poolIndex).toBe(2);
+        expect(decompressedInfos2[3].poolIndex).toBe(3);
+
+        const decompressedInfos3 = selectTokenPoolInfosForDecompression(
+            infos,
+            new BN(1.5e8),
+        );
+        expect(decompressedInfos3.length).toBe(1);
+        expect(decompressedInfos3[0].poolIndex).toBe(1);
+
+        for (let i = 0; i < 1000; i++) {
+            const decompressedInfos4 = selectTokenPoolInfosForDecompression(
+                infos,
+                new BN(1),
+            );
+            expect(decompressedInfos4.length).toBe(1);
+            expect(decompressedInfos4[0].poolIndex).not.toBe(4);
+        }
     });
 });

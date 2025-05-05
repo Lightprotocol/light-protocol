@@ -17,6 +17,7 @@ import { createAssociatedTokenAccount } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
+    selectTokenPoolInfosForDecompression,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
 
@@ -128,6 +129,8 @@ describe('decompress', () => {
                     mint,
                 });
 
+            tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
+
             await decompress(
                 rpc,
                 payer,
@@ -135,7 +138,7 @@ describe('decompress', () => {
                 bn(5),
                 bob,
                 charlieAta,
-                tokenPoolInfos,
+                selectTokenPoolInfosForDecompression(tokenPoolInfos, bn(5)),
             );
 
             await assertDecompress(

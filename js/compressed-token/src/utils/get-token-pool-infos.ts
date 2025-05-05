@@ -3,7 +3,6 @@ import { unpackAccount } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../program';
 import { bn, Rpc } from '@lightprotocol/stateless.js';
 import BN from 'bn.js';
-import { Buffer } from 'buffer';
 
 /**
  * Check if the token pool info is initialized and has a balance.
@@ -41,7 +40,7 @@ export async function getTokenPoolInfos(
     commitment?: Commitment,
 ): Promise<TokenPoolInfo[]> {
     const addresses = Array.from({ length: 5 }, (_, i) =>
-        deriveTokenPoolPdaWithBump(mint, i),
+        CompressedTokenProgram.deriveTokenPoolPdaWithBump(mint, i),
     );
 
     const accountInfos = await rpc.getMultipleAccountsInfo(
@@ -71,6 +70,7 @@ export async function getTokenPoolInfos(
                 activity: undefined,
                 balance: bn(0),
                 isInitialized: false,
+                poolIndex: i,
             };
         }
 
@@ -81,6 +81,7 @@ export async function getTokenPoolInfos(
             activity: undefined,
             balance: bn(parsedInfo.amount.toString()),
             isInitialized: true,
+            poolIndex: i,
         };
     });
 }
@@ -90,32 +91,6 @@ export type TokenPoolActivity = {
     amount: BN;
     action: Action;
 };
-
-/**
- * Derive the token pool pda with bump.
- *
- * @param mint The mint of the token pool
- * @param bump Bump. starts at 0. The Protocol supports 4 bumps aka token pools
- * per mint.
- *
- * @returns The token pool pda
- */
-export function deriveTokenPoolPdaWithBump(
-    mint: PublicKey,
-    bump: number,
-): PublicKey {
-    let seeds: Buffer[] = [];
-    if (bump === 0) {
-        seeds = [Buffer.from('pool'), mint.toBuffer()]; // legacy, 1st
-    } else {
-        seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
-    }
-    const [address, _] = PublicKey.findProgramAddressSync(
-        seeds,
-        CompressedTokenProgram.programId,
-    );
-    return address;
-}
 
 /**
  * Token pool pda info.
@@ -149,6 +124,10 @@ export type TokenPoolInfo = {
      * The balance of the token pool
      */
     balance: BN;
+    /**
+     * The index of the token pool
+     */
+    poolIndex: number;
 };
 
 /**
@@ -213,13 +192,25 @@ export function selectTokenPoolInfosForDecompression(
     if (infos.length === 0) {
         throw new Error('Please pass at least one token pool info.');
     }
+
     infos = shuffleArray(infos);
     // Find the first info where balance is 10x the requested amount
     const sufficientBalanceInfo = infos.find(info =>
         info.balance.gte(bn(decompressAmount).mul(bn(10))),
     );
+
     // filter only infos that are initialized
-    infos = infos.filter(info => info.isInitialized);
+    infos = infos
+        .filter(info => info.isInitialized)
+        .sort((a, b) => a.poolIndex - b.poolIndex);
+
+    const allBalancesZero = infos.every(info => info.balance.isZero());
+    if (allBalancesZero) {
+        throw new Error(
+            'All provided token pool balances are zero. Please pass recent token pool infos.',
+        );
+    }
+
     // If none found, return all infos
     return sufficientBalanceInfo ? [sufficientBalanceInfo] : infos;
 }

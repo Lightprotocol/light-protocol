@@ -165,6 +165,7 @@ describe('decompressDelegated', () => {
             charlieAta,
             mint,
         );
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 
         await decompressDelegated(
             rpc,
@@ -185,6 +186,7 @@ describe('decompressDelegated', () => {
             bob.publicKey,
             payer.publicKey,
         );
+        tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 
         await expect(
             decompressDelegated(

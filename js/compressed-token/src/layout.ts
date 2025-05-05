@@ -205,6 +205,12 @@ export type createTokenPoolAccountsLayoutParams = {
     tokenProgram: PublicKey;
     cpiAuthorityPda: PublicKey;
 };
+
+export type addTokenPoolAccountsLayoutParams =
+    createTokenPoolAccountsLayoutParams & {
+        existingTokenPoolPda: PublicKey;
+    };
+
 export type mintToAccountsLayoutParams = BaseAccountsLayoutParams & {
     mint: PublicKey;
     tokenPoolPda: PublicKey;
@@ -238,6 +244,29 @@ export const createTokenPoolAccountsLayout = (
     return [
         { pubkey: feePayer, isSigner: true, isWritable: true },
         { pubkey: tokenPoolPda, isSigner: false, isWritable: true },
+        { pubkey: systemProgram, isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: true },
+        { pubkey: tokenProgram, isSigner: false, isWritable: false },
+        { pubkey: cpiAuthorityPda, isSigner: false, isWritable: false },
+    ];
+};
+
+export const addTokenPoolAccountsLayout = (
+    accounts: addTokenPoolAccountsLayoutParams,
+): AccountMeta[] => {
+    const {
+        feePayer,
+        tokenPoolPda,
+        systemProgram,
+        mint,
+        tokenProgram,
+        cpiAuthorityPda,
+        existingTokenPoolPda,
+    } = accounts;
+    return [
+        { pubkey: feePayer, isSigner: true, isWritable: true },
+        { pubkey: tokenPoolPda, isSigner: false, isWritable: true },
+        { pubkey: existingTokenPoolPda, isSigner: false, isWritable: false },
         { pubkey: systemProgram, isSigner: false, isWritable: false },
         { pubkey: mint, isSigner: false, isWritable: true },
         { pubkey: tokenProgram, isSigner: false, isWritable: false },

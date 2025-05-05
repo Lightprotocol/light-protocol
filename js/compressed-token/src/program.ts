@@ -33,6 +33,7 @@ import {
     CPI_AUTHORITY_SEED,
     POOL_SEED,
     CREATE_TOKEN_POOL_DISCRIMINATOR,
+    ADD_TOKEN_POOL_DISCRIMINATOR,
 } from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
 import {
@@ -48,6 +49,7 @@ import {
     CompressedTokenInstructionDataRevokeLayout,
     encodeApproveInstructionData,
     encodeRevokeInstructionData,
+    addTokenPoolAccountsLayout,
 } from './layout';
 import {
     CompressedTokenInstructionDataApprove,
@@ -335,6 +337,25 @@ export type RegisterMintParams = {
     tokenProgramId?: PublicKey;
 };
 
+export type AddTokenPoolParams = {
+    /**
+     * Tx feepayer
+     */
+    feePayer: PublicKey;
+    /**
+     * Mint public key
+     */
+    mint: PublicKey;
+    /**
+     * Optional: The token program ID. Default: SPL Token Program ID
+     */
+    tokenProgramId?: PublicKey;
+    /**
+     * Optional: index for the token pool. Default: 0
+     */
+    poolIndex: number;
+};
+
 /**
  * Mint from existing SPL mint to compressed token accounts
  */
@@ -583,7 +604,14 @@ export class CompressedTokenProgram {
                 : programId;
     }
 
-    /** @internal */
+    /**
+     * Derive the token pool pda.
+     * To derive the token pool pda with bump, use {@link deriveTokenPoolPdaWithBump}.
+     *
+     * @param mint The mint of the token pool
+     *
+     * @returns The token pool pda
+     */
     static deriveTokenPoolPda(mint: PublicKey): PublicKey {
         const seeds = [POOL_SEED, mint.toBuffer()];
         const [address, _] = PublicKey.findProgramAddressSync(
@@ -592,12 +620,26 @@ export class CompressedTokenProgram {
         );
         return address;
     }
-    /** @internal */
+
+    /**
+     * Derive the token pool pda with bump.
+     *
+     * @param mint The mint of the token pool
+     * @param bump Bump. starts at 0. The Protocol supports 4 bumps aka token pools
+     * per mint.
+     *
+     * @returns The token pool pda
+     */
     static deriveTokenPoolPdaWithBump(
         mint: PublicKey,
         bump: number,
     ): PublicKey {
-        const seeds = [POOL_SEED, mint.toBuffer(), Buffer.from([bump])];
+        let seeds: Buffer[] = [];
+        if (bump === 0) {
+            seeds = [Buffer.from('pool'), mint.toBuffer()]; // legacy, 1st
+        } else {
+            seeds = [Buffer.from('pool'), mint.toBuffer(), Buffer.from([bump])];
+        }
         const [address, _] = PublicKey.findProgramAddressSync(
             seeds,
             this.programId,
@@ -675,7 +717,7 @@ export class CompressedTokenProgram {
 
         const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
 
-        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        const tokenPoolPda = this.deriveTokenPoolPdaWithBump(mint, 0);
 
         const keys = createTokenPoolAccountsLayout({
             mint,
@@ -690,6 +732,53 @@ export class CompressedTokenProgram {
             programId: this.programId,
             keys,
             data: CREATE_TOKEN_POOL_DISCRIMINATOR,
+        });
+    }
+    /**
+     * Enable compression for an existing SPL mint, creating an omnibus account.
+     * For new mints, use `CompressedTokenProgram.createMint`.
+     */
+    static async addTokenPool(
+        params: AddTokenPoolParams,
+    ): Promise<TransactionInstruction> {
+        const { mint, feePayer, tokenProgramId, poolIndex } = params;
+        // We encourage at most 4 pools per mint.
+        if (poolIndex <= 0) {
+            throw new Error(
+                'Pool index must be greater than 0. For 0, use CreateTokenPool instead.',
+            );
+        }
+        if (poolIndex > 3) {
+            throw new Error(
+                `Invalid poolIndex ${poolIndex}. Max 4 pools per mint.`,
+            );
+        }
+
+        const tokenProgram = tokenProgramId ?? TOKEN_PROGRAM_ID;
+
+        const existingTokenPoolPda = this.deriveTokenPoolPdaWithBump(
+            mint,
+            poolIndex - 1,
+        );
+        const tokenPoolPda = this.deriveTokenPoolPdaWithBump(mint, poolIndex);
+
+        const keys = addTokenPoolAccountsLayout({
+            mint,
+            feePayer,
+            tokenPoolPda,
+            existingTokenPoolPda,
+            tokenProgram,
+            cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            systemProgram: SystemProgram.programId,
+        });
+
+        return new TransactionInstruction({
+            programId: this.programId,
+            keys,
+            data: Buffer.concat([
+                new Uint8Array(ADD_TOKEN_POOL_DISCRIMINATOR),
+                new Uint8Array(Buffer.from([poolIndex])),
+            ]),
         });
     }
 
@@ -1064,6 +1153,9 @@ export class CompressedTokenProgram {
             inputCompressedTokenAccounts,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
+            remainingAccounts: tokenPoolInfos
+                .slice(1)
+                .map(info => info.tokenPoolPda),
         });
 
         const { mint } = parseTokenData(inputCompressedTokenAccounts);
@@ -1103,20 +1195,12 @@ export class CompressedTokenProgram {
             accountCompressionAuthority: accountCompressionAuthority,
             accountCompressionProgram: accountCompressionProgram,
             selfProgram: this.programId,
-            tokenPoolPda: tokenPoolInfos.splice(0, 1)[0].tokenPoolPda,
+            tokenPoolPda: tokenPoolInfos[0].tokenPoolPda,
             compressOrDecompressTokenAccount: toAddress,
             tokenProgram,
             systemProgram: SystemProgram.programId,
         });
-
         keys.push(...remainingAccountMetas);
-        keys.push(
-            ...tokenPoolInfos.map(info => ({
-                pubkey: info.tokenPoolPda,
-                isSigner: false,
-                isWritable: true,
-            })),
-        );
 
         return new TransactionInstruction({
             programId: this.programId,

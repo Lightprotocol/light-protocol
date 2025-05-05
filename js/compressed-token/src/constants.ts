@@ -24,3 +24,6 @@ export const APPROVE_DISCRIMINATOR = Buffer.from([
 export const REVOKE_DISCRIMINATOR = Buffer.from([
     170, 23, 31, 34, 133, 173, 93, 242,
 ]);
+export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
+    114, 143, 210, 73, 96, 115, 1, 228,
+]);
