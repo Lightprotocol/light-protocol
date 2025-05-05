@@ -45,8 +45,7 @@ use crate::{
     queue_helpers::QueueItemData,
     rollover::is_tree_ready_for_rollover,
     send_transaction::{
-        send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions,
-        SendBatchedTransactionsConfig,
+        send_batched_transactions, BuildTransactionBatchConfig, EpochManagerTransactions, ProcessedHashCache, SendBatchedTransactionsConfig
     },
     slot_tracker::{slot_duration, wait_until_slot_reached, SlotTracker},
     tree_data_sync::fetch_trees,
@@ -94,6 +93,7 @@ pub struct EpochManager<R: RpcConnection, I: Indexer<R>> {
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
     new_tree_sender: broadcast::Sender<TreeAccounts>,
+    tx_cache: Arc<Mutex<ProcessedHashCache>>,
 }
 
 impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
@@ -109,6 +109,7 @@ impl<R: RpcConnection, I: Indexer<R>> Clone for EpochManager<R, I> {
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
             new_tree_sender: self.new_tree_sender.clone(),
+            tx_cache: self.tx_cache.clone(),
         }
     }
 }
@@ -124,6 +125,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
         trees: Vec<TreeAccounts>,
         slot_tracker: Arc<SlotTracker>,
         new_tree_sender: broadcast::Sender<TreeAccounts>,
+        tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ) -> Result<Self> {
         Ok(Self {
             config,
@@ -136,6 +138,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
+            tx_cache
         })
     }
 
@@ -950,7 +953,7 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                         );
 
                         let batched_tx_config = SendBatchedTransactionsConfig {
-                            num_batches: 2,
+                            num_batches: 1,
                             build_transaction_batch_config: BuildTransactionBatchConfig {
                                 batch_size: 50,
                                 compute_unit_price: Some(10_000),
@@ -968,12 +971,12 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                             light_slot_length: epoch_pda.protocol_config.slot_length,
                         };
 
-                        let transaction_builder = EpochManagerTransactions {
-                            pool: self.rpc_pool.clone(),
-                            indexer: self.indexer.clone(),
-                            epoch: epoch_info.epoch,
-                            phantom: std::marker::PhantomData::<R>,
-                        };
+                        let transaction_builder = EpochManagerTransactions::new(
+                            self.indexer.clone(),
+                            self.rpc_pool.clone(),
+                            epoch_info.epoch,
+                            self.tx_cache.clone(),
+                        );
 
                         info!(
                             "Attempting to send transactions within slot {:?}",
@@ -1342,6 +1345,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
     shutdown: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
     slot_tracker: Arc<SlotTracker>,
+    tx_cache: Arc<Mutex<ProcessedHashCache>>,
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
@@ -1384,6 +1388,7 @@ pub async fn run_service<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
                     trees.clone(),
                     slot_tracker.clone(),
                     new_tree_sender.clone(),
+                    tx_cache.clone(),
                 )
                 .await
                 {

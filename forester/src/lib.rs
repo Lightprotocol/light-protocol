@@ -33,6 +33,7 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_compressed_account::TreeType;
+use send_transaction::ProcessedHashCache;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
@@ -127,6 +128,8 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         SlotTracker::run(arc_slot_tracker_clone, &mut *rpc).await;
     });
 
+    let tx_cache = Arc::new(Mutex::new(ProcessedHashCache::new(15)));
+
     debug!("Starting Forester pipeline");
     run_service(
         config,
@@ -136,6 +139,7 @@ pub async fn run_pipeline<R: RpcConnection, I: Indexer<R> + IndexerType<R>>(
         shutdown,
         work_report_sender,
         arc_slot_tracker,
+        tx_cache,
     )
     .await?;
     Ok(())

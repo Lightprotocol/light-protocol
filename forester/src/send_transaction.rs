@@ -1,9 +1,8 @@
 use std::{
-    sync::{
+    collections::HashMap, sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc,
-    },
-    vec,
+    }, time::Duration, vec
 };
 
 use account_compression::utils::constants::{
@@ -91,6 +90,37 @@ pub struct BuildTransactionBatchConfig {
     pub compute_unit_price: Option<u64>,
     pub compute_unit_limit: Option<u32>,
     pub enable_priority_fees: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProcessedHashCache {
+    entries: HashMap<String, Instant>,
+    ttl: Duration,
+}
+
+impl ProcessedHashCache {
+    pub fn new(ttl_seconds: u64) -> Self {
+        Self {
+            entries: HashMap::new(),
+            ttl: Duration::from_secs(ttl_seconds),
+        }
+    }
+
+    fn add(&mut self, hash: &str) {
+        self.entries.insert(hash.to_string(), Instant::now());
+    }
+
+    fn contains(&mut self, hash: &str) -> bool {
+        self.cleanup();
+        self.entries.contains_key(hash)
+    }
+
+    fn cleanup(&mut self) {
+        let now = Instant::now();
+        self.entries.retain(|_, timestamp| {
+            now.duration_since(*timestamp) < self.ttl
+        });
+    }
 }
 
 /// Calculate the compute unit price in microLamports based on the target lamports and compute units
@@ -390,6 +420,19 @@ pub struct EpochManagerTransactions<R: RpcConnection, I: Indexer<R>> {
     pub pool: Arc<SolanaRpcPool<R>>,
     pub epoch: u64,
     pub phantom: std::marker::PhantomData<R>,
+    pub processed_hash_cache: Arc<Mutex<ProcessedHashCache>>,
+}
+
+impl<R: RpcConnection, I: Indexer<R>> EpochManagerTransactions<R, I> {
+    pub fn new(indexer: Arc<Mutex<I>>, pool: Arc<SolanaRpcPool<R>>, epoch: u64, cache: Arc<Mutex<ProcessedHashCache>>) -> Self {
+        Self {
+            indexer,
+            pool,
+            epoch,
+            phantom: std::marker::PhantomData,
+            processed_hash_cache: cache, //Arc::new(Mutex::new(ProcessedHashCache::new(15))),
+        }
+    }
 }
 
 #[async_trait]
@@ -408,6 +451,34 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
         work_items: &[WorkItem],
         config: BuildTransactionBatchConfig,
     ) -> Result<(Vec<Transaction>, u64)> {
+        let mut cache = self.processed_hash_cache.lock().await;
+
+        let work_items: Vec<&WorkItem> = work_items
+            .iter()
+            .filter(|item| {
+                let hash_str = bs58::encode(&item.queue_item_data.hash).into_string();
+                if cache.contains(&hash_str) {
+                    debug!("Skipping already processed hash: {}", hash_str);
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+        
+        for item in &work_items {
+            let hash_str = bs58::encode(&item.queue_item_data.hash).into_string();
+            cache.add(&hash_str);
+        }
+        drop(cache);
+
+        if work_items.is_empty() {
+            debug!("All items in this batch were recently processed, skipping batch");
+            return Ok((vec![], last_valid_block_height));
+        }
+
+        let work_items = work_items.iter().map(|&item| item.clone()).collect::<Vec<_>>();
+      
         let mut transactions = vec![];
         let all_instructions = match fetch_proofs_and_create_instructions(
             payer.pubkey(),
@@ -415,7 +486,7 @@ impl<R: RpcConnection, I: Indexer<R>> TransactionBuilder for EpochManagerTransac
             self.pool.clone(),
             self.indexer.clone(),
             self.epoch,
-            work_items,
+            work_items.as_slice(),
         ).await {
             Ok((_, instructions)) => instructions,
             Err(e) => {
