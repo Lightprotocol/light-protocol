@@ -70,8 +70,10 @@ const ix = await CompressedTokenProgram.decompress({
     -   added optional stateTreeInfo: StateTreeInfo
     -   added optional tokenPoolInfo: TokenPoolInfo
 
--   new instruction:
-    -   addTokenPools: you can now register additional token pool pdas. Use this if you plan a high-scale airdrop with high concurrency.
+-   new instructions:
+    -   `approve`, `revoke`: delegated transfer support.
+    -   `addTokenPools`: you can now register additional token pool pdas. Use
+        this if you need very high concurrency.
 
 ### Why the Changes are helpful
 
