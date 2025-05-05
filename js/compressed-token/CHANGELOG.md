@@ -5,26 +5,20 @@
 This release has several breaking changes which improve protocol
 scalability. Please reach out to the [team](https://t.me/swen_light) if you need help migrating.
 
--   new type: TokenPoolInfo
--   Instruction Changes:
-
-    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
-    -   `decompress` now requires an array of one or more TokenPoolInfos.
-    -   `decompress`, `transfer` now do not allow state tree overrides.
-
--   Action Changes:
-    -   Removed optional tokenProgramId: PublicKey
-    -   removed optional merkleTree: PublicKey
-    -   removed optional outputStateTree: PublicKey
-    -   added optional stateTreeInfo: StateTreeInfo
-    -   added optional tokenPoolInfo: TokenPoolInfo
-
 ### Migration guide: Compress
+
+**Old Code** (remove this)
+
+```typescript
+const activeStateTrees = await connection.getCachedActiveStateTreeInfo();
+const { tree } = pickRandomTreeAndQueue(activeStateTrees);
+// ...
+```
+
+**New Code**
 
 ```typescript
 // ...
-
-// new code
 const treeInfos = await rpc.getStateTreeInfos();
 const treeInfo = selectStateTreeInfo(treeInfos);
 
@@ -58,6 +52,26 @@ const ix = await CompressedTokenProgram.decompress({
     tokenPoolInfos: selectedTokenPoolInfos,
 });
 ```
+
+### Overview
+
+-   new type: TokenPoolInfo
+-   Instruction Changes:
+
+    -   `compress`, `mintTo`, `approveAndMintTo`, `compressSplTokenAccount` now require valid TokenPoolInfo
+    -   `decompress` now requires an array of one or more TokenPoolInfos.
+    -   `decompress`, `transfer` now do not allow state tree overrides.
+
+-   Action Changes:
+
+    -   Removed optional tokenProgramId: PublicKey
+    -   removed optional merkleTree: PublicKey
+    -   removed optional outputStateTree: PublicKey
+    -   added optional stateTreeInfo: StateTreeInfo
+    -   added optional tokenPoolInfo: TokenPoolInfo
+
+-   new instruction:
+    -   addTokenPools: you can now register additional token pool pdas. Use this if you plan a high-scale airdrop with high concurrency.
 
 ### Why the Changes are helpful
 
