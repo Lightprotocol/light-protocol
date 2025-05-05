@@ -14,10 +14,9 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{ProofType, ProverConfig};
 use light_sdk::{
     address::v1::derive_address,
-    cpi::accounts::SystemAccountMetaConfig,
     instruction::{
         account_meta::CompressedAccountMeta,
-        instruction_data::LightInstructionData,
+        accounts::SystemAccountMetaConfig,
         merkle_context::{pack_address_merkle_context, pack_merkle_context, AddressMerkleContext},
         pack_accounts::PackedAccounts,
     },
@@ -31,11 +30,9 @@ use solana_sdk::{
 
 #[tokio::test]
 async fn test_sdk_test() {
-    let (mut rpc, env) = setup_test_programs_with_accounts_v2(Some(vec![(
-        "sdk_anchor_test",
-        sdk_anchor_test::ID,
-    )]))
-    .await;
+    let (mut rpc, env) =
+        setup_test_programs_with_accounts_v2(Some(vec![("sdk_anchor_test", sdk_anchor_test::ID)]))
+            .await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
@@ -169,14 +166,11 @@ where
         rpc_result.address_root_indices[0],
     );
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: Some(vec![packed_address_merkle_context]),
-    };
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
     let instruction_data = sdk_anchor_test::instruction::WithNestedData {
-        light_ix_data,
+        proof: rpc_result.proof,
+        address_merkle_context: packed_address_merkle_context,
         name,
         output_merkle_tree_index,
     };
@@ -236,10 +230,7 @@ where
     let packed_merkle_context =
         pack_merkle_context(&compressed_account.merkle_context, &mut remaining_accounts);
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
+
     let my_compressed_account = MyCompressedAccount::deserialize(
         &mut compressed_account
             .compressed_account
@@ -251,7 +242,7 @@ where
     )
     .unwrap();
     let instruction_data = sdk_anchor_test::instruction::UpdateNestedData {
-        light_ix_data,
+        proof: rpc_result.proof.into(),
         my_compressed_account,
         account_meta: CompressedAccountMeta {
             merkle_context: packed_merkle_context,

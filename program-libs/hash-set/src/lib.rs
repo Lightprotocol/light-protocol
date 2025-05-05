@@ -48,9 +48,9 @@ impl From<HashSetError> for u32 {
 }
 
 #[cfg(feature = "solana")]
-impl From<HashSetError> for solana_program::program_error::ProgramError {
+impl From<HashSetError> for solana_program_error::ProgramError {
     fn from(e: HashSetError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
     }
 }
 

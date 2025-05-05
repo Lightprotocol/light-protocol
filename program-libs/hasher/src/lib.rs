@@ -32,4 +32,4 @@ pub trait Hasher {
 #[cfg(feature = "pinocchio")]
 use pinocchio::program_error::ProgramError;
 #[cfg(not(feature = "pinocchio"))]
-use solana_program::program_error::ProgramError;
+use solana_program_error::ProgramError;

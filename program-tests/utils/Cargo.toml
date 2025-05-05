@@ -23,7 +23,7 @@ light-compressed-token = { workspace = true, features = ["cpi"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"]  }
 light-hasher = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }

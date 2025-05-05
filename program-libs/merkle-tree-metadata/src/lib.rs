@@ -25,4 +25,8 @@ pub(crate) use pinocchio::{
 // Solana imports (default)
 #[allow(unused_imports)]
 #[cfg(not(feature = "pinocchio"))]
-pub(crate) use solana_program::{clock::Clock, msg, program_error::ProgramError, sysvar::Sysvar};
+pub(crate) use {
+    solana_msg::msg,
+    solana_program_error::ProgramError,
+    solana_sysvar::{clock::Clock, Sysvar},
+};

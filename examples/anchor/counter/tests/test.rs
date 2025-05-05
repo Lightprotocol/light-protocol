@@ -15,10 +15,9 @@ use light_program_test::{
 use light_prover_client::gnark::helpers::{spawn_prover, ProverConfig, ProverMode};
 use light_sdk::{
     address::v1::derive_address,
-    cpi::accounts::SystemAccountMetaConfig,
     instruction::{
         account_meta::CompressedAccountMeta,
-        instruction_data::LightInstructionData,
+        accounts::SystemAccountMetaConfig,
         merkle_context::{pack_address_merkle_context, pack_merkle_context, AddressMerkleContext},
         pack_accounts::PackedAccounts,
     },
@@ -41,8 +40,7 @@ async fn test_counter() {
     .await;
 
     let (mut rpc, env) =
-        setup_test_programs_with_accounts_v2(Some(vec![("counter", counter::ID)]))
-            .await;
+        setup_test_programs_with_accounts_v2(Some(vec![("counter", counter::ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
 
     let mut test_indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::new(
@@ -207,13 +205,9 @@ where
         rpc_result.address_root_indices[0],
     );
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: Some(vec![packed_address_merkle_context]),
-    };
-
     let instruction_data = counter::instruction::CreateCounter {
-        light_ix_data,
+        proof: rpc_result.proof,
+        address_merkle_context: packed_address_merkle_context,
         output_merkle_tree_index,
     };
 
@@ -288,11 +282,6 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
@@ -301,7 +290,7 @@ where
     };
 
     let instruction_data = counter::instruction::IncrementCounter {
-        light_ix_data,
+        proof: Some(rpc_result.proof),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -377,11 +366,6 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
@@ -390,7 +374,7 @@ where
     };
 
     let instruction_data = counter::instruction::DecrementCounter {
-        light_ix_data,
+        proof: Some(rpc_result.proof),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -465,11 +449,6 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
@@ -478,7 +457,7 @@ where
     };
 
     let instruction_data = counter::instruction::ResetCounter {
-        light_ix_data,
+        proof: Some(rpc_result.proof),
         counter_value: counter_account.value,
         account_meta,
     };
@@ -553,11 +532,6 @@ where
     )
     .unwrap();
 
-    let light_ix_data = LightInstructionData {
-        proof: Some(rpc_result.proof),
-        new_addresses: None,
-    };
-
     let account_meta = CompressedAccountMeta {
         merkle_context: packed_merkle_context,
         address: compressed_account.compressed_account.address.unwrap(),
@@ -566,7 +540,7 @@ where
     };
 
     let instruction_data = counter::instruction::CloseCounter {
-        light_ix_data,
+        proof: Some(rpc_result.proof),
         counter_value: counter_account.value,
         account_meta,
     };

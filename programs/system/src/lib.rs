@@ -51,11 +51,13 @@ pub enum InstructionDiscriminator {
     InvokeCpiWithReadOnly,
     InvokeCpiWithAccountInfo,
 }
-#[cfg(not(feature = "no-entrypoint"))]
-use pinocchio::entrypoint;
+#[cfg(feature = "bpf-entrypoint")]
+pub mod entrypoint {
 
-#[cfg(not(feature = "no-entrypoint"))]
-entrypoint!(process_instruction);
+    use pinocchio::entrypoint;
+
+    entrypoint!(process_instruction);
+}
 
 pub fn process_instruction(
     program_id: &Pubkey,

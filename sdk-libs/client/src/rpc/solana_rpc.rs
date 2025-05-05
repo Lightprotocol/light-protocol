@@ -306,16 +306,6 @@ impl RpcConnection for SolanaRpcConnection {
             .await
     }
 
-    async fn get_block_time(&self, slot: u64) -> Result<UnixTimestamp, RpcError> {
-        self.retry(|| async { self.client.get_block_time(slot).map_err(RpcError::from) })
-            .await
-    }
-
-    async fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
-        self.retry(|| async { self.client.get_epoch_info().map_err(RpcError::from) })
-            .await
-    }
-
     async fn get_program_accounts(
         &self,
         program_id: &Pubkey,

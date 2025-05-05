@@ -1,6 +1,9 @@
 // This file stores constants which do not have to be configured.
 
+#[cfg(feature = "pinocchio")]
 use light_macros::pubkey;
+#[cfg(not(feature = "pinocchio"))]
+use solana_pubkey::pubkey;
 
 use crate::Pubkey;
 

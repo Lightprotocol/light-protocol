@@ -40,9 +40,9 @@ impl From<VerifierError> for u32 {
 }
 
 #[cfg(not(feature = "pinocchio"))]
-impl From<VerifierError> for solana_program::program_error::ProgramError {
+impl From<VerifierError> for solana_program_error::ProgramError {
     fn from(e: VerifierError) -> Self {
-        solana_program::program_error::ProgramError::Custom(e.into())
+        solana_program_error::ProgramError::Custom(e.into())
     }
 }
 
@@ -53,7 +53,7 @@ impl From<VerifierError> for pinocchio::program_error::ProgramError {
     }
 }
 
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+pub use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use VerifierError::*;
 
 pub fn verify_create_addresses_proof(
@@ -219,7 +219,7 @@ pub fn select_verifying_key<'a>(
     num_addresses: usize,
 ) -> Result<&'a Groth16Verifyingkey<'static>, VerifierError> {
     #[cfg(all(not(feature = "pinocchio"), target_os = "solana"))]
-    solana_program::msg!(
+    solana_msg::msg!(
         "select_verifying_key num_leaves: {}, num_addresses: {}",
         num_leaves,
         num_addresses
@@ -275,7 +275,7 @@ pub fn verify<const N: usize>(
         .map_err(|_| {
             #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
             {
-                use solana_program::msg;
+                use solana_msg::msg;
                 msg!("Proof verification failed");
                 msg!("Public inputs: {:?}", public_inputs);
                 msg!("Proof A: {:?}", proof_a);
@@ -287,7 +287,7 @@ pub fn verify<const N: usize>(
     verifier.verify().map_err(|_| {
         #[cfg(all(target_os = "solana", not(feature = "pinocchio")))]
         {
-            use solana_program::msg;
+            use solana_msg::msg;
             msg!("Proof verification failed");
             msg!("Public inputs: {:?}", public_inputs);
             msg!("Proof A: {:?}", proof_a);

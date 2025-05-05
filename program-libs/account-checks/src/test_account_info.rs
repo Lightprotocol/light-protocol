@@ -1,4 +1,4 @@
-#![cfg(feature = "test_only")]
+#![cfg(feature = "test-only")]
 
 #[cfg(feature = "pinocchio")]
 pub mod pinocchio {
@@ -97,6 +97,47 @@ pub mod pinocchio {
                 for (i, val) in data.iter().enumerate() {
                     assert_eq!(account_data[i], *val);
                 }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "solana")]
+pub mod solana_program {
+    use std::{cell::RefCell, rc::Rc};
+
+    use solana_account_info::AccountInfo;
+    use solana_pubkey::Pubkey;
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct TestAccount {
+        pub key: Pubkey,
+        pub owner: Pubkey,
+        pub data: Vec<u8>,
+        pub lamports: u64,
+        pub writable: bool,
+    }
+    impl TestAccount {
+        pub fn new(key: Pubkey, owner: Pubkey, size: usize) -> Self {
+            Self {
+                key,
+                owner,
+                data: vec![0; size],
+                lamports: 0,
+                writable: true,
+            }
+        }
+
+        pub fn get_account_info(&mut self) -> AccountInfo<'_> {
+            AccountInfo {
+                key: &self.key,
+                is_signer: false,
+                is_writable: self.writable,
+                lamports: Rc::new(RefCell::new(&mut self.lamports)),
+                data: Rc::new(RefCell::new(&mut self.data)),
+                owner: &self.owner,
+                executable: false,
+                rent_epoch: 0,
             }
         }
     }

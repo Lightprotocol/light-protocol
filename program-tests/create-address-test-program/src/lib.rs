@@ -53,7 +53,7 @@ pub mod system_cpi_test {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
         let (account_infos, account_metas) = if small_ix {
-            use light_sdk::cpi::account_small_ix::CompressionCpiAccounts;
+            use light_sdk::cpi::accounts_small_ix::CompressionCpiAccounts;
             let cpi_accounts =
                 CompressionCpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config)
                     .map_err(ProgramError::from)?;

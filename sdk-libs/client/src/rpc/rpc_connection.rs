@@ -60,8 +60,6 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     fn get_url(&self) -> String;
 
     async fn health(&self) -> Result<(), RpcError>;
-    async fn get_block_time(&self, slot: u64) -> Result<i64, RpcError>;
-    async fn get_epoch_info(&self) -> Result<EpochInfo, RpcError>;
 
     async fn get_program_accounts(
         &self,

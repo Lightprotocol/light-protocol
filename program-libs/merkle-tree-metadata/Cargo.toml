@@ -9,7 +9,10 @@ edition = "2021"
 [features]
 default = ["solana"]
 solana = [
-    "dep:solana-program",
+    "dep:solana-program-error",
+    "dep:solana-msg",
+    "dep:solana-sysvar",
+    "solana-sysvar/bincode",
     "light-compressed-account/solana",
     "light-compressed-account/bytemuck-des",
 ]
@@ -25,7 +28,9 @@ thiserror = { workspace = true }
 bytemuck = { workspace = true, features = ["derive"] }
 zerocopy = { workspace = true, features = ["derive"] }
 light-compressed-account = { workspace = true, features = ["bytemuck-des"] }
-solana-program = { workspace = true, optional = true }
+solana-program-error = { workspace = true, optional = true }
+solana-msg = { workspace = true, optional = true }
+solana-sysvar = { workspace = true, optional = true }
 anchor-lang = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 borsh = { workspace = true }

@@ -15,7 +15,7 @@ light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
-light-prover-client = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-registry = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-compressed-account = { workspace = true }

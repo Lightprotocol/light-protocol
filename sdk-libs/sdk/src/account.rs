@@ -8,20 +8,20 @@ use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     error::LightSdkError, instruction::account_meta::CompressedAccountMetaTrait, AnchorDeserialize,
-    AnchorSerialize, Discriminator,
+    AnchorSerialize, LightDiscriminator,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct LightAccount<
     'a,
-    A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default,
+    A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
 > {
     owner: &'a Pubkey,
     pub account: A,
     account_info: CompressedAccountInfo,
 }
 
-impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default>
+impl<'a, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default>
     LightAccount<'a, A>
 {
     pub fn new_init(
@@ -163,7 +163,7 @@ impl<'a, A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + D
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> Deref
+impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> Deref
     for LightAccount<'_, A>
 {
     type Target = A;
@@ -173,7 +173,7 @@ impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Defau
     }
 }
 
-impl<A: AnchorSerialize + AnchorDeserialize + Discriminator + DataHasher + Default> DerefMut
+impl<A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default> DerefMut
     for LightAccount<'_, A>
 {
     fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {

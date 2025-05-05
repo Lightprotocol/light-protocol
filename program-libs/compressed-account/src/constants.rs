@@ -1,4 +1,7 @@
+#[cfg(feature = "pinocchio")]
 use light_macros::pubkey;
+#[cfg(not(feature = "pinocchio"))]
+use solana_pubkey::pubkey;
 
 pub const ACCOUNT_COMPRESSION_PROGRAM_ID: crate::Pubkey =
     pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
