@@ -1,6 +1,5 @@
 use ark_relations::r1cs::SynthesisError;
 use ark_serialize::SerializationError;
-use color_eyre::Report;
 use groth16_solana::errors::Groth16Error;
 use thiserror::Error;
 
@@ -37,12 +36,6 @@ impl From<SerializationError> for CircuitsError {
 impl From<SynthesisError> for CircuitsError {
     fn from(error: SynthesisError) -> Self {
         CircuitsError::ArkworksProverError(error.to_string())
-    }
-}
-
-impl From<Report> for CircuitsError {
-    fn from(error: Report) -> Self {
-        CircuitsError::GenericError(error.to_string())
     }
 }
 
