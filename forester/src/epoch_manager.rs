@@ -145,7 +145,6 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
             new_tree_sender,
-            tx_cache,
         })
     }
 
@@ -1059,12 +1058,12 @@ impl<R: RpcConnection, I: Indexer<R> + IndexerType<R>> EpochManager<R, I> {
                             light_slot_length: epoch_pda.protocol_config.slot_length,
                         };
 
-        let transaction_builder = EpochManagerTransactions::new(
-            self.indexer.clone(),
-            self.rpc_pool.clone(),
-            epoch_info.epoch,
-            self.tx_cache.clone(),
-        );
+                        let transaction_builder = EpochManagerTransactions {
+                            pool: self.rpc_pool.clone(),
+                            indexer: self.indexer.clone(),
+                            epoch: epoch_info.epoch,
+                            phantom: std::marker::PhantomData::<R>,
+                        };
 
         let num_sent = send_batched_transactions(
                             &self.config.payer_keypair,

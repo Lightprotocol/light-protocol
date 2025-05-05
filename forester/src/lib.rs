@@ -32,6 +32,7 @@ use light_client::{
     rpc_pool::SolanaRpcPool,
 };
 use light_compressed_account::TreeType;
+use send_transaction::ProcessedHashCache;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::debug;
