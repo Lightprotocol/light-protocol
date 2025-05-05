@@ -31,13 +31,16 @@ use crate::{create_change_output_compressed_token_account, program::TokenEscrow,
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
+    /// CHECK:
     #[account(mut)]
     #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
+    /// CHECK:
     pub compressed_token_program: Program<'info, LightCompressedToken>,
+    /// CHECK:
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
     #[self_program]
     pub self_program: Program<'info, TokenEscrow>,
@@ -45,6 +48,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[cpi_context]
     #[account(mut)]
     pub cpi_context_account: AccountInfo<'info>,
+    /// CHECK:
     #[authority]
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
