@@ -14,6 +14,7 @@ use crate::create_change_output_compressed_token_account;
 #[light_system_accounts]
 #[derive(Accounts, LightTraits)]
 pub struct EscrowCompressedTokensWithPda<'info> {
+    /// CHECK:
     #[account(mut)]
     #[fee_payer]
     pub signer: Signer<'info>,
@@ -21,10 +22,12 @@ pub struct EscrowCompressedTokensWithPda<'info> {
     #[authority]
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
+    /// CHECK:
     #[self_program]
     pub compressed_token_program: Program<'info, LightCompressedToken>,
     /// CHECK:
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
+    /// CHECK:
     #[account(init_if_needed, seeds = [b"timelock".as_slice(), signer.key.to_bytes().as_slice()],bump, payer = signer, space = 8 + 8)]
     pub timelock_pda: Account<'info, EscrowTimeLock>,
 }
